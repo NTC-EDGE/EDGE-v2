@@ -38,3 +38,6 @@ export * from './hooks/useServiceForm';
 export * from './hooks/useFormSubmissionMutation';
 export * from './hooks/useUsers';
 export * from './hooks/useTenantMembers';
+export * from './hooks/useTenantClients';
+export * from './hooks/useTenantTransactions';
+export * from './hooks/useTenantClientDetails';

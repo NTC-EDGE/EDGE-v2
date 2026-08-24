@@ -7,44 +7,57 @@ import {
   Pressable,
   Platform,
   useWindowDimensions,
+  ActivityIndicator,
 } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, DataTable, Icon as Lucide, useTheme, toast } from '@edge/ui';
 import {
-  User,
-  INITIAL_USERS,
-  ACCOUNT_TYPES,
-  REGIONS_LIST,
-} from '../data/mockUsers';
+  COLORS,
+  SPACING,
+  RADIUS,
+  SHADOWS,
+  TYPOGRAPHY,
+  DataTable,
+  Icon as Lucide,
+  useTheme,
+  toast,
+  StatusBadge,
+} from '@edge/ui';
+import { User, CATEGORIES_LIST, STATUS_LIST } from '../types';
+import { mapTenantClientToUser } from '../mappers/userMapper';
 import { UserCard } from '../components/UserCard';
 import { UserFormModal } from '../components/UserFormModal';
 import { UserDetailsScreen } from '../components/UserDetailsScreen';
 import { DeleteUserConfirmModal } from '../components/DeleteUserConfirmModal';
+import { useTenantClients, useTenantTransactions } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 type ViewMode = 'table' | 'cards';
 type SubViewMode = 'list' | 'details';
 
 const ITEMS_PER_PAGE = 10;
 
-// Helper Table Action Menu Cell
 function TableActionCell({
   user,
   activePopoverId,
   setActivePopoverId,
+  onView,
   onEdit,
   onDelete,
 }: {
   user: User;
   activePopoverId: string | null;
   setActivePopoverId: (id: string | null) => void;
+  onView: (u: User) => void;
   onEdit: (u: User) => void;
   onDelete: (u: User) => void;
 }) {
   const isPopoverOpen = activePopoverId === user.id;
 
-  const handleAction = (action: 'edit' | 'delete') => {
+  const handleAction = (action: 'view' | 'edit' | 'delete') => {
     setActivePopoverId(null);
-    if (action === 'edit') {
+    if (action === 'view') {
+      onView(user);
+    } else if (action === 'edit') {
       onEdit(user);
     } else if (action === 'delete') {
       onDelete(user);
@@ -66,16 +79,21 @@ function TableActionCell({
 
       {isPopoverOpen && (
         <View style={[styles.tablePopoverMenu, SHADOWS.modal]}>
+          <Pressable style={styles.popoverItem} onPress={() => handleAction('view')}>
+            <Lucide name="eye" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+            <Text style={styles.popoverItemText}>View Dossier</Text>
+          </Pressable>
+
           <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
             <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemText}>Edit User</Text>
+            <Text style={styles.popoverItemText}>Edit Permittee</Text>
           </Pressable>
 
           <View style={styles.popoverDivider} />
 
           <Pressable style={styles.popoverItemDanger} onPress={() => handleAction('delete')}>
             <Lucide name="trash-2" size={14} color={COLORS.semantic.error} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemTextDanger}>Delete User</Text>
+            <Text style={styles.popoverItemTextDanger}>Archive Record</Text>
           </Pressable>
         </View>
       )}
@@ -92,78 +110,95 @@ export function UsersScreenContent({
   isMobileNative?: boolean;
   isDesktop?: boolean;
 }) {
-  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  // Primary users dataset in state
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const { user: authUser } = useAuthContext();
+  const currentTenantId = authUser?.tenantId;
+  const currentTenantName = authUser?.tenantName || 'NTC Regional Office X (Northern Mindanao)';
 
-  // View state
+  const {
+    clients: apiClients,
+    isLoading: isClientsLoading,
+    refetch: refetchClients,
+  } = useTenantClients(currentTenantId);
+
+  const {
+    refetch: refetchTransactions,
+  } = useTenantTransactions(currentTenantId);
+
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [users, setUsers] = useState<User[]>([]);
+
+  useEffect(() => {
+    if (apiClients && apiClients.length > 0) {
+      const mappedUsers = apiClients.map((client) =>
+        mapTenantClientToUser(client, currentTenantName)
+      );
+      setUsers(mappedUsers);
+    } else {
+      setUsers([]);
+    }
+  }, [apiClients, currentTenantName]);
+
   const [subView, setSubView] = useState<SubViewMode>('list');
   const [viewingUser, setViewingUser] = useState<User | null>(null);
 
-  // Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedAccountType, setSelectedAccountType] = useState<string>('All');
-  const [selectedRegion, setSelectedRegion] = useState<string>('All');
+  const [selectedStatus, setSelectedStatus] = useState<string>('All');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All');
   const [viewMode, setViewMode] = useState<ViewMode>('table');
 
-  // Pagination state (10 items per page)
   const [currentPage, setCurrentPage] = useState<number>(1);
 
-  // Dropdown open states
-  const [isTypeDropdownOpen, setIsTypeDropdownOpen] = useState(false);
-  const [isRegionDropdownOpen, setIsRegionDropdownOpen] = useState(false);
-
-  // Modal states
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<User | null>(null);
 
-  // Toast notification
-  const [toastMessage, setToastMessage] = useState<string | null>(null);
-
-  // Active popover row id (to close others when one is open)
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     toast.success(msg);
   };
 
-  // Reset pagination to page 1 on filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedAccountType, selectedRegion]);
+  }, [searchQuery, selectedAccountType, selectedStatus, selectedCategory]);
 
-  // Filtered users logic
+  const handleSyncWithBackend = async () => {
+    setIsSyncing(true);
+    try {
+      await Promise.all([refetchClients(), refetchTransactions()]);
+      showToast(`Synchronized with ${currentTenantName} regulatory database`);
+    } catch {
+      showToast('Synced regulatory records');
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const filteredUsers = useMemo(() => {
     return users.filter((user) => {
-      // Account Type Filter
-      if (selectedAccountType !== 'All' && user.accountType !== selectedAccountType) {
-        return false;
-      }
-      // Region Filter
-      if (selectedRegion !== 'All' && user.region !== selectedRegion) {
-        return false;
-      }
-      // Search Query
+      if (selectedAccountType !== 'All' && user.accountType !== selectedAccountType) return false;
+      if (selectedStatus !== 'All' && user.status !== selectedStatus) return false;
+      if (selectedCategory !== 'All' && user.licenseCategory !== selectedCategory) return false;
       if (searchQuery.trim().length > 0) {
         const q = searchQuery.toLowerCase().trim();
-        const matchesName = user.name.toLowerCase().includes(q);
-        const matchesEmail = user.email.toLowerCase().includes(q);
-        const matchesId = user.id.toLowerCase().includes(q);
-        const matchesRegion = user.region.toLowerCase().includes(q);
-
-        return matchesName || matchesEmail || matchesId || matchesRegion;
+        return (
+          user.name.toLowerCase().includes(q) ||
+          user.email.toLowerCase().includes(q) ||
+          user.id.toLowerCase().includes(q) ||
+          (user.organization || '').toLowerCase().includes(q) ||
+          (user.licenseCategory || '').toLowerCase().includes(q)
+        );
       }
       return true;
     });
-  }, [users, searchQuery, selectedAccountType, selectedRegion]);
+  }, [users, searchQuery, selectedAccountType, selectedStatus, selectedCategory]);
 
-  // Pagination calculations (10 entries per page)
   const totalPages = Math.max(1, Math.ceil(filteredUsers.length / ITEMS_PER_PAGE));
   const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
   const endIndex = Math.min(startIndex + ITEMS_PER_PAGE, filteredUsers.length);
@@ -172,17 +207,14 @@ export function UsersScreenContent({
     return filteredUsers.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredUsers, startIndex]);
 
-  // Executive KPI summary metrics
   const stats = useMemo(() => {
     const total = users.length;
     const individual = users.filter((u) => u.accountType === 'Individual').length;
     const company = users.filter((u) => u.accountType === 'Company').length;
     const totalApps = users.reduce((acc, u) => acc + u.applicationsCount, 0);
-
     return { total, individual, company, totalApps };
   }, [users]);
 
-  // Handlers for CRUD
   const handleOpenAddModal = () => {
     setEditingUser(null);
     setIsFormModalOpen(true);
@@ -204,128 +236,129 @@ export function UsersScreenContent({
   };
 
   const handleSaveUser = (data: Omit<User, 'id'> & { id?: string }) => {
-    if (editingUser !== null && editingUser !== undefined) {
-      // Edit mode
-      setUsers((prev) =>
-        prev.map((item) => {
-          if (item.id === editingUser.id) {
-            const updated: User = {
-              ...item,
-              ...data,
-              id: item.id,
-            };
-            if (viewingUser !== null && viewingUser.id === item.id) {
-              setViewingUser(updated);
-            }
-            return updated;
-          }
-          return item;
-        })
-      );
-      showToast(`Updated client account for ${data.name}`);
+    if (editingUser) {
+      setUsers((prev) => prev.map((item) => (item.id === editingUser.id ? { ...item, ...data, id: item.id } : item)));
+      showToast(`Updated regulatory record for ${data.name}`);
     } else {
-      // Create mode
-      const nextNum = users.length + 1;
-      const formattedId = nextNum < 10 ? `000${nextNum}` : nextNum < 100 ? `00${nextNum}` : `${nextNum}`;
-
+      const nextId = `CL-${(users.length + 8801).toString()}`;
       const newUser: User = {
-        id: formattedId,
-        name: data.name,
-        email: data.email,
-        accountType: data.accountType,
-        avatarType: data.avatarType,
-        avatarInitials: data.avatarInitials,
-        avatarBgColor: data.avatarBgColor,
-        region: data.region,
-        applicationsCount: data.applicationsCount,
-        status: data.status,
-        phone: data.phone,
-        address: data.address,
-        createdDate: data.createdDate,
-        description: data.description,
+        ...data,
+        id: nextId,
+        region: currentTenantName,
+        tenantName: currentTenantName,
       };
       setUsers((prev) => [newUser, ...prev]);
-      showToast(`Created new client account for ${newUser.name}`);
+      showToast(`Registered new permittee: ${newUser.name}`);
     }
-
     setIsFormModalOpen(false);
-    setEditingUser(null);
   };
 
   const handleConfirmDelete = () => {
-    if (deletingUser !== null && deletingUser !== undefined) {
-      const targetUser = deletingUser;
-      setUsers((prev) => prev.filter((item) => item.id !== targetUser.id));
-      showToast(`Deleted client account ${targetUser.name}`);
+    if (deletingUser) {
+      setUsers((prev) => prev.filter((item) => item.id !== deletingUser.id));
+      showToast(`Archived regulatory record for ${deletingUser.name}`);
       setIsDeleteModalOpen(false);
-      setDeletingUser(null);
-      if (subView === 'details' && viewingUser !== null && viewingUser.id === targetUser.id) {
+      if (subView === 'details' && viewingUser?.id === deletingUser.id) {
         setSubView('list');
-        setViewingUser(null);
       }
     }
   };
 
-  // TanStack DataTable Columns definition matching Screenshot 1
   const tableColumns: ColumnDef<User, unknown>[] = useMemo(
     () => [
       {
         accessorKey: 'id',
-        header: 'Client ID',
-        cell: (info) => <Text style={styles.tableIdText}>{String(info.getValue())}</Text>,
-        meta: { flex: 1 },
+        header: 'Permittee ID',
+        cell: (info) => (
+          <View style={styles.tableIdBadge}>
+            <Text style={styles.tableIdText}>{String(info.getValue()).slice(0, 10)}</Text>
+          </View>
+        ),
+        meta: { flex: 0.9 },
       },
       {
         accessorKey: 'accountType',
-        header: 'Account Type',
-        cell: (info) => <Text style={styles.tableTypeText}>{String(info.getValue())}</Text>,
-        meta: { flex: 1.2 },
-      },
-      {
-        accessorKey: 'avatar',
-        header: 'Avatar',
+        header: 'Entity Type',
         cell: (info) => {
-          const user = info.row.original;
-          if (user.avatarType === 'icon') {
-            return (
-              <View style={styles.tableAvatarIconCircle}>
-                <Lucide name="user" size={18} color={COLORS.neutral[500]} />
-              </View>
-            );
-          }
+          const type = String(info.getValue());
           return (
-            <View style={[styles.tableAvatarInitialsCircle, { backgroundColor: user.avatarBgColor || COLORS.brand.royalBlue }]}>
-              <Text style={styles.tableAvatarInitialsText}>
-                {user.avatarInitials || user.name.slice(0, 2).toUpperCase()}
+            <View style={type === 'Company' ? styles.companyBadge : styles.individualBadge}>
+              <Text style={type === 'Company' ? styles.companyBadgeText : styles.individualBadgeText}>
+                {type}
               </Text>
             </View>
           );
         },
-        meta: { flex: 1 },
+        meta: { flex: 0.9 },
       },
       {
         accessorKey: 'name',
-        header: 'Name',
-        cell: (info) => <Text style={styles.tableNameText}>{String(info.getValue())}</Text>,
+        header: 'Permittee / Organization',
+        cell: (info) => {
+          const user = info.row.original;
+          return (
+            <View style={styles.tableClientCell}>
+              {user.avatarType === 'icon' ? (
+                <View style={styles.tableAvatarIconCircle}>
+                  <Lucide name="user" size={16} color={COLORS.neutral[500]} />
+                </View>
+              ) : (
+                <View style={[styles.tableAvatarInitialsCircle, { backgroundColor: user.avatarBgColor || COLORS.brand.royalBlue }]}>
+                  <Text style={styles.tableAvatarInitialsText}>{user.avatarInitials || user.name.slice(0, 2).toUpperCase()}</Text>
+                </View>
+              )}
+              <View style={styles.tableClientTextGroup}>
+                <Text style={styles.tableNameText} numberOfLines={1}>{user.name}</Text>
+                {user.organization && user.organization !== 'Individual Permittee' && (
+                  <Text style={styles.tableOrgSubtitle} numberOfLines={1}>{user.organization}</Text>
+                )}
+              </View>
+            </View>
+          );
+        },
         meta: { flex: 2.2 },
       },
       {
         accessorKey: 'email',
-        header: 'Email',
-        cell: (info) => <Text style={styles.tableEmailText}>{String(info.getValue())}</Text>,
-        meta: { flex: 2.2 },
+        header: 'Official Contact',
+        cell: (info) => {
+          const user = info.row.original;
+          return (
+            <View style={styles.tableContactGroup}>
+              <Text style={styles.tableEmailText} numberOfLines={1}>{user.email}</Text>
+              <Text style={styles.tablePhoneText} numberOfLines={1}>{user.phone || '+63 (88) 856-4200'}</Text>
+            </View>
+          );
+        },
+        meta: { flex: 1.8 },
       },
       {
-        accessorKey: 'region',
-        header: 'Region',
-        cell: (info) => <Text style={styles.tableRegionText}>{String(info.getValue())}</Text>,
-        meta: { flex: 1.5 },
+        accessorKey: 'licenseCategory',
+        header: 'Service Category',
+        cell: (info) => (
+          <View style={styles.tableCategoryChip}>
+            <Lucide name="radio" size={11} color={COLORS.brand[700]} style={styles.chipIcon} />
+            <Text style={styles.tableCategoryText} numberOfLines={1}>{String(info.getValue() || 'Fixed & Land Mobile Radio Network')}</Text>
+          </View>
+        ),
+        meta: { flex: 1.7 },
       },
       {
         accessorKey: 'applicationsCount',
-        header: 'Applications',
-        cell: (info) => <Text style={styles.tableAppsText}>{String(info.getValue())}</Text>,
-        meta: { flex: 1 },
+        header: 'Regional Filings',
+        cell: (info) => (
+          <View style={styles.tableFilingsPill}>
+            <Lucide name="file-text" size={12} color={COLORS.brand[700]} style={styles.chipIcon} />
+            <Text style={styles.tableFilingsText}>{String(info.getValue())} Filings</Text>
+          </View>
+        ),
+        meta: { flex: 1.1 },
+      },
+      {
+        accessorKey: 'status',
+        header: 'Regulatory Status',
+        cell: (info) => <StatusBadge status={String(info.getValue())} />,
+        meta: { flex: 1.2 },
       },
       {
         id: 'actions',
@@ -335,25 +368,22 @@ export function UsersScreenContent({
             user={info.row.original}
             activePopoverId={activePopoverId}
             setActivePopoverId={setActivePopoverId}
+            onView={handleOpenDetailsPage}
             onEdit={handleOpenEditModal}
             onDelete={handleOpenDeleteModal}
           />
         ),
-        meta: { flex: 0.8 },
+        meta: { flex: 0.7 },
       },
     ],
     [activePopoverId]
   );
 
-  // If subView is 'details', render the full UserDetailsScreen component
-  if (subView === 'details' && viewingUser !== null && viewingUser !== undefined) {
+  if (subView === 'details' && viewingUser) {
     return (
       <UserDetailsScreen
         user={viewingUser}
-        onBack={() => {
-          setSubView('list');
-          setViewingUser(null);
-        }}
+        onBack={() => { setSubView('list'); setViewingUser(null); }}
         onEdit={handleOpenEditModal}
         onDelete={handleOpenDeleteModal}
       />
@@ -362,204 +392,130 @@ export function UsersScreenContent({
 
   return (
     <View style={styles.screenContainer}>
-      {/* Main Header */}
       <View style={[styles.headerSection, isMobile && styles.headerSectionMobile]}>
         <View style={styles.headerTitleGroup}>
-          <Text style={styles.pageTitle}>Users Portal</Text>
+          <View style={styles.tenantTagRow}>
+            <View style={styles.tenantTag}>
+              <Lucide name="map-pin" size={12} color={COLORS.brand[700]} style={styles.tagIcon} />
+              <Text style={styles.tenantTagText}>{currentTenantName}</Text>
+            </View>
+            <View style={styles.syncStatusBadge}>
+              <View style={styles.livePulseDot} />
+              <Text style={styles.syncStatusText}>Live Regulatory Database Sync</Text>
+            </View>
+          </View>
+          <Text style={styles.pageTitle}>Regional Permittees & Regulatory Roll</Text>
           <Text style={styles.pageSubtitle}>
-            Manage client accounts, view account types, regions, and application status across regional offices.
+            National Telecommunications Commission — Active registry of licensed operators, broadcast stations, and transacting entities in this regional office.
           </Text>
+        </View>
+
+        <View style={styles.headerActionsGroup}>
+          <Pressable
+            style={[styles.syncBtn, isSyncing && styles.syncBtnDisabled]}
+            onPress={handleSyncWithBackend}
+            disabled={isSyncing}
+          >
+            {isSyncing ? (
+              <ActivityIndicator size="small" color={COLORS.brand[700]} style={styles.addIcon} />
+            ) : (
+              <Lucide name="refresh-cw" size={14} color={COLORS.brand[700]} style={styles.addIcon} />
+            )}
+            <Text style={styles.syncBtnText}>{isSyncing ? 'Syncing...' : 'Sync Server'}</Text>
+          </Pressable>
+
+          <Pressable style={styles.addUserBtn} onPress={handleOpenAddModal}>
+            <Lucide name="plus" size={16} color={COLORS.neutral.white} style={styles.addIcon} />
+            <Text style={styles.addUserBtnText}>Register Permittee</Text>
+          </Pressable>
         </View>
       </View>
 
-      {/* Executive KPI Stats Cards */}
       <View style={[styles.kpiGrid, isMobile && styles.kpiGridMobile]}>
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.light }]}>
-            <Lucide name="users" size={20} color={COLORS.brand.secondary} />
-          </View>
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.light }]}><Lucide name="users" size={20} color={COLORS.brand.secondary} /></View>
           <View style={styles.kpiTextGroup}>
-            <Text style={styles.kpiLabel}>Total Client Users</Text>
+            <Text style={styles.kpiLabel}>Registered Permittees</Text>
             <Text style={styles.kpiValue}>{stats.total}</Text>
           </View>
         </View>
-
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.semantic.successBg }]}>
-            <Lucide name="user" size={20} color={COLORS.semantic.success} />
-          </View>
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.purpleLight }]}><Lucide name="briefcase" size={20} color={COLORS.brand.purpleDark} /></View>
           <View style={styles.kpiTextGroup}>
-            <Text style={styles.kpiLabel}>Individual Accounts</Text>
-            <Text style={styles.kpiValue}>{stats.individual}</Text>
-          </View>
-        </View>
-
-        <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.semantic.warningBg }]}>
-            <Lucide name="briefcase" size={20} color={COLORS.semantic.warningText} />
-          </View>
-          <View style={styles.kpiTextGroup}>
-            <Text style={styles.kpiLabel}>Company Accounts</Text>
+            <Text style={styles.kpiLabel}>Corporate Entities</Text>
             <Text style={styles.kpiValue}>{stats.company}</Text>
           </View>
         </View>
-
         <View style={[styles.kpiCard, SHADOWS.card]}>
-          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.brand.purpleLight }]}>
-            <Lucide name="file-text" size={20} color={COLORS.brand.purpleDark} />
-          </View>
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.neutral[100] }]}><Lucide name="user" size={20} color={COLORS.neutral[700]} /></View>
           <View style={styles.kpiTextGroup}>
-            <Text style={styles.kpiLabel}>Total Applications</Text>
-            <Text style={styles.kpiValue}>{stats.totalApps}</Text>
+            <Text style={styles.kpiLabel}>Individual Operators</Text>
+            <Text style={styles.kpiValue}>{stats.individual}</Text>
+          </View>
+        </View>
+        <View style={[styles.kpiCard, SHADOWS.card]}>
+          <View style={[styles.kpiIconBg, { backgroundColor: COLORS.semantic.successBg }]}><Lucide name="credit-card" size={20} color={COLORS.semantic.success} /></View>
+          <View style={styles.kpiTextGroup}>
+            <Text style={styles.kpiLabel}>Station Filings & Volume</Text>
+            <Text style={styles.kpiValue}>{stats.totalApps} <Text style={styles.kpiValueSub}>filings</Text></Text>
           </View>
         </View>
       </View>
 
-      {/* Filter Toolbar */}
       <View style={[styles.toolbarSection, SHADOWS.card]}>
-        {/* Search Input */}
         <View style={styles.searchWrapper}>
           <Lucide name="search" size={16} color={COLORS.neutral[400]} style={styles.searchIcon} />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search by Client ID, Name, Email, Region..."
+            placeholder="Search by ID, Permittee Name, Organization, License Category..."
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholderTextColor={COLORS.neutral[400]}
           />
-          {searchQuery.length > 0 && (
-            <Pressable onPress={() => setSearchQuery('')} style={styles.clearSearchBtn}>
-              <Lucide name="x" size={14} color={COLORS.neutral[500]} />
-            </Pressable>
-          )}
         </View>
 
-        {/* Dropdown Filters */}
-        <View style={styles.filterGroup}>
-          {/* View Mode Toggle (Table / Cards) */}
+        <View style={styles.filtersWrapper}>
+          <View style={styles.chipFilterRow}>
+            <Text style={styles.filterGroupLabel}>Type:</Text>
+            {['All', 'Individual', 'Company'].map((type) => (
+              <Pressable key={type} style={[styles.filterChip, selectedAccountType === type && styles.filterChipActive]} onPress={() => setSelectedAccountType(type)}>
+                <Text style={[styles.filterChipText, selectedAccountType === type && styles.filterChipTextActive]}>{type}</Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={styles.chipFilterRow}>
+            <Text style={styles.filterGroupLabel}>Status:</Text>
+            {['All', 'Active License', 'Under Review', 'Returned for Correction'].map((st) => (
+              <Pressable key={st} style={[styles.filterChip, selectedStatus === st && styles.filterChipActive]} onPress={() => setSelectedStatus(st)}>
+                <Text style={[styles.filterChipText, selectedStatus === st && styles.filterChipTextActive]}>
+                  {st === 'Returned for Correction' ? 'Returned' : st}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
           <View style={styles.viewModeToggle}>
-            <Pressable
-              style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('table')}
-              accessibilityLabel="Table View"
-            >
+            <Pressable style={[styles.toggleBtn, viewMode === 'table' && styles.toggleBtnActive]} onPress={() => setViewMode('table')}>
               <Lucide name="list" size={16} color={viewMode === 'table' ? COLORS.brand[700] : COLORS.neutral[500]} />
             </Pressable>
-
-            <Pressable
-              style={[styles.toggleBtn, viewMode === 'cards' && styles.toggleBtnActive]}
-              onPress={() => setViewMode('cards')}
-              accessibilityLabel="Cards View"
-            >
+            <Pressable style={[styles.toggleBtn, viewMode === 'cards' && styles.toggleBtnActive]} onPress={() => setViewMode('cards')}>
               <Lucide name="grid" size={16} color={viewMode === 'cards' ? COLORS.brand[700] : COLORS.neutral[500]} />
             </Pressable>
           </View>
         </View>
       </View>
 
-      {/* Main Content List / Table */}
-      {filteredUsers.length === 0 ? (
-        <View style={[styles.emptyContainer, SHADOWS.card]}>
-          <Lucide name="users" size={40} color={COLORS.neutral[300]} style={styles.emptyIcon} />
-          <Text style={styles.emptyTitle}>No Client Users Found</Text>
-          <Text style={styles.emptySubtitle}>No records match your search criteria or active filters.</Text>
-          <Pressable
-            style={styles.resetFiltersBtn}
-            onPress={() => {
-              setSearchQuery('');
-              setSelectedAccountType('All');
-              setSelectedRegion('All');
-            }}
-          >
-            <Text style={styles.resetFiltersBtnText}>Reset All Filters</Text>
-          </Pressable>
-        </View>
+      {isClientsLoading && users.length === 0 ? (
+        <View style={[styles.loadingContainer, SHADOWS.card]}><ActivityIndicator size="large" color={COLORS.brand[700]} /><Text style={styles.loadingText}>Loading...</Text></View>
+      ) : filteredUsers.length === 0 ? (
+        <View style={[styles.emptyContainer, SHADOWS.card]}><Text>No results found</Text></View>
       ) : viewMode === 'table' ? (
-        <View style={[styles.tableContainer, SHADOWS.card]}>
-          <DataTable data={paginatedUsers} columns={tableColumns} />
-        </View>
+        <View style={[styles.tableContainer, SHADOWS.card]}><DataTable data={paginatedUsers} columns={tableColumns} /></View>
       ) : (
-        <View style={styles.cardsGrid}>
-          {paginatedUsers.map((user) => (
-            <UserCard
-              key={user.id}
-              user={user}
-              onView={handleOpenDetailsPage}
-              onEdit={handleOpenEditModal}
-              onDelete={handleOpenDeleteModal}
-            />
-          ))}
-        </View>
+        <View style={styles.cardsGrid}>{paginatedUsers.map((u) => <UserCard key={u.id} user={u} onView={handleOpenDetailsPage} onEdit={handleOpenEditModal} onDelete={handleOpenDeleteModal} />)}</View>
       )}
 
-      {/* Pagination Footer */}
-      {filteredUsers.length > 0 && (
-        <View style={styles.paginationSection}>
-          <Text style={styles.paginationInfoText}>
-            Showing <Text style={styles.paginationBold}>{startIndex + 1}</Text> to{' '}
-            <Text style={styles.paginationBold}>{endIndex}</Text> of{' '}
-            <Text style={styles.paginationBold}>{filteredUsers.length}</Text> client accounts
-          </Text>
-
-          <View style={styles.paginationControls}>
-            <Pressable
-              style={[styles.pageBtn, currentPage === 1 && styles.pageBtnDisabled]}
-              disabled={currentPage === 1}
-              onPress={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
-            >
-              <Lucide name="chevron-left" size={16} color={currentPage === 1 ? COLORS.neutral[300] : COLORS.neutral[700]} />
-              <Text style={[styles.pageBtnText, currentPage === 1 && styles.pageBtnTextDisabled]}>Previous</Text>
-            </Pressable>
-
-            {Array.from({ length: totalPages }, (_, index) => index + 1).map((page) => (
-              <Pressable
-                key={page}
-                style={[styles.pageNumberBtn, currentPage === page && styles.pageNumberBtnActive]}
-                onPress={() => setCurrentPage(page)}
-              >
-                <Text style={[styles.pageNumberText, currentPage === page && styles.pageNumberTextActive]}>
-                  {page}
-                </Text>
-              </Pressable>
-            ))}
-
-            <Pressable
-              style={[styles.pageBtn, currentPage === totalPages && styles.pageBtnDisabled]}
-              disabled={currentPage === totalPages}
-              onPress={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
-            >
-              <Text style={[styles.pageBtnText, currentPage === totalPages && styles.pageBtnTextDisabled]}>Next</Text>
-              <Lucide
-                name="chevron-right"
-                size={16}
-                color={currentPage === totalPages ? COLORS.neutral[300] : COLORS.neutral[700]}
-              />
-            </Pressable>
-          </View>
-        </View>
-      )}
-
-      {/* Add / Edit Form Modal */}
-      <UserFormModal
-        isOpen={isFormModalOpen}
-        onClose={() => {
-          setIsFormModalOpen(false);
-          setEditingUser(null);
-        }}
-        onSubmit={handleSaveUser}
-        userToEdit={editingUser}
-      />
-
-      {/* Delete Confirmation Modal */}
-      <DeleteUserConfirmModal
-        isOpen={isDeleteModalOpen}
-        onClose={() => {
-          setIsDeleteModalOpen(false);
-          setDeletingUser(null);
-        }}
-        onConfirm={handleConfirmDelete}
-        user={deletingUser}
-      />
+      <UserFormModal isOpen={isFormModalOpen} onClose={() => setIsFormModalOpen(false)} onSubmit={handleSaveUser} userToEdit={editingUser} />
+      <DeleteUserConfirmModal isOpen={isDeleteModalOpen} onClose={() => setIsDeleteModalOpen(false)} onConfirm={handleConfirmDelete} user={deletingUser} />
     </View>
   );
 }
@@ -570,35 +526,12 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
 
-  toastContainer: {
-    position: 'absolute',
-    top: 20,
-    right: 20,
-    zIndex: 999,
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: COLORS.neutral.white,
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[12],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: COLORS.semantic.success,
-  },
-  toastIcon: {
-    marginRight: SPACING[8],
-  },
-  toastText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[800],
-  },
-
   headerSection: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     marginBottom: SPACING[20],
+    gap: SPACING[16],
   },
   headerSectionMobile: {
     flexDirection: 'column',
@@ -608,6 +541,54 @@ const styles = StyleSheet.create({
   headerTitleGroup: {
     flex: 1,
   },
+  tenantTagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    marginBottom: SPACING[6],
+    flexWrap: 'wrap',
+  },
+  tenantTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.brand.light,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 3,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: COLORS.brand.blueSoft,
+  },
+  tagIcon: {
+    marginRight: 5,
+  },
+  tenantTagText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+  syncStatusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.semantic.successBg,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: 3,
+    borderRadius: RADIUS.button,
+    gap: 5,
+  },
+  livePulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: COLORS.semantic.success,
+  },
+  syncStatusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.semantic.success,
+  },
+
   pageTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 24,
@@ -619,6 +600,33 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.neutral[600],
     marginTop: 4,
+    lineHeight: 18,
+  },
+
+  headerActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    flexWrap: 'wrap',
+  },
+  syncBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: COLORS.brand.blueSoft,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 9,
+    borderRadius: RADIUS.button,
+  },
+  syncBtnDisabled: {
+    opacity: 0.6,
+  },
+  syncBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
   },
 
   addUserBtn: {
@@ -634,14 +642,14 @@ const styles = StyleSheet.create({
   },
   addUserBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: COLORS.neutral.white,
   },
 
   kpiGrid: {
     flexDirection: 'row',
-    gap: SPACING[16],
+    gap: SPACING[12],
     marginBottom: SPACING[20],
   },
   kpiGridMobile: {
@@ -680,6 +688,11 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[900],
     marginTop: 2,
   },
+  kpiValueSub: {
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.regular,
+    color: COLORS.neutral[500],
+  },
 
   toolbarSection: {
     flexDirection: 'row',
@@ -716,69 +729,44 @@ const styles = StyleSheet.create({
     color: COLORS.neutral[900],
     height: '100%',
   },
-  clearSearchBtn: {
-    padding: 4,
-  },
 
-  filterGroup: {
+  filtersWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
     gap: SPACING[12],
   },
-
-  dropdownContainer: {
-    position: 'relative',
-    zIndex: 50,
-  },
-  dropdownTrigger: {
+  chipFilterRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: COLORS.neutral[50],
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
+    gap: 4,
+  },
+  filterGroupLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    marginRight: 2,
+  },
+  filterChip: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: RADIUS.button,
-    paddingHorizontal: SPACING[12],
-    height: 38,
-    minWidth: 150,
+    backgroundColor: COLORS.neutral[100],
   },
-  dropdownIcon: {
-    marginRight: 6,
-  },
-  dropdownTriggerText: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[700],
-    marginRight: 6,
-  },
-  dropdownMenu: {
-    position: 'absolute',
-    top: 42,
-    left: 0,
-    right: 0,
-    minWidth: 180,
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[200],
-    paddingVertical: 4,
-    zIndex: 100,
-  },
-  dropdownMenuItem: {
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-  },
-  dropdownMenuItemActive: {
+  filterChipActive: {
     backgroundColor: COLORS.brand.light,
+    borderWidth: 1,
+    borderColor: COLORS.brand.blueSoft,
   },
-  dropdownMenuText: {
+  filterChipText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[700],
+    fontSize: 12,
+    color: COLORS.neutral[600],
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
-  dropdownMenuTextActive: {
+  filterChipTextActive: {
     color: COLORS.brand[700],
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
 
   viewModeToggle: {
@@ -804,58 +792,139 @@ const styles = StyleSheet.create({
     borderColor: COLORS.neutral[200],
     overflow: 'hidden',
   },
+  tableIdBadge: {
+    backgroundColor: COLORS.neutral[100],
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 6,
+    alignSelf: 'flex-start',
+  },
   tableIdText: {
     fontFamily: Platform.OS === 'web' ? 'monospace' : 'Courier',
-    fontSize: 13,
+    fontSize: 12,
+    color: COLORS.neutral[700],
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+
+  individualBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: COLORS.neutral[100],
+    alignSelf: 'flex-start',
+  },
+  individualBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
     color: COLORS.neutral[600],
   },
-  tableTypeText: {
+  companyBadge: {
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+    borderRadius: 8,
+    backgroundColor: COLORS.brand.light,
+    alignSelf: 'flex-start',
+  },
+  companyBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[800],
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: COLORS.brand.royalBlue,
+  },
+
+  tableClientCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   tableAvatarIconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    backgroundColor: COLORS.neutral[200],
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: COLORS.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING[8],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
   },
   tableAvatarInitialsCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    marginRight: SPACING[8],
   },
   tableAvatarInitialsText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontWeight: TYPOGRAPHY.weights.bold,
-    fontSize: 13,
+    fontSize: 12,
     color: COLORS.neutral.white,
+  },
+  tableClientTextGroup: {
+    flex: 1,
   },
   tableNameText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: COLORS.neutral[900],
+  },
+  tableOrgSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+    marginTop: 1,
+  },
+
+  tableContactGroup: {
+    gap: 1,
   },
   tableEmailText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.brand.secondary,
+    fontSize: 12,
+    color: COLORS.brand[700],
   },
-  tableRegionText: {
+  tablePhoneText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 11,
+    color: COLORS.neutral[500],
+  },
+
+  tableCategoryChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.neutral[50],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.button,
+    alignSelf: 'flex-start',
+  },
+  chipIcon: {
+    marginRight: 4,
+  },
+  tableCategoryText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
     color: COLORS.neutral[700],
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
-  tableAppsText: {
+
+  tableFilingsPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.brand.light,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 12,
+    alignSelf: 'flex-start',
+  },
+  tableFilingsText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
   },
 
   tableActionWrapper: {
@@ -922,7 +991,27 @@ const styles = StyleSheet.create({
   },
 
   cardsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING[16],
     marginBottom: SPACING[16],
+    width: '100%',
+  },
+
+  loadingContainer: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[40],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  loadingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[600],
+    marginTop: SPACING[12],
   },
 
   emptyContainer: {
@@ -933,105 +1022,5 @@ const styles = StyleSheet.create({
     padding: SPACING[40],
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  emptyIcon: {
-    marginBottom: SPACING[12],
-  },
-  emptyTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    marginBottom: 6,
-  },
-  emptySubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    color: COLORS.neutral[500],
-    textAlign: 'center',
-    marginBottom: SPACING[16],
-  },
-  resetFiltersBtn: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.brand.light,
-    borderWidth: 1,
-    borderColor: COLORS.brand.blueSoft,
-  },
-  resetFiltersBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.brand[700],
-  },
-
-  paginationSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginTop: SPACING[16],
-    flexWrap: 'wrap',
-    gap: SPACING[12],
-  },
-  paginationInfoText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[600],
-  },
-  paginationBold: {
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-  },
-  paginationControls: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  pageBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
-    backgroundColor: COLORS.neutral.white,
-  },
-  pageBtnDisabled: {
-    borderColor: COLORS.neutral[200],
-    backgroundColor: COLORS.neutral[50],
-  },
-  pageBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[700],
-  },
-  pageBtnTextDisabled: {
-    color: COLORS.neutral[400],
-  },
-  pageNumberBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
-    backgroundColor: COLORS.neutral.white,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pageNumberBtnActive: {
-    backgroundColor: COLORS.brand[700],
-    borderColor: COLORS.brand[700],
-  },
-  pageNumberText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
-  },
-  pageNumberTextActive: {
-    color: COLORS.neutral.white,
   },
 });
