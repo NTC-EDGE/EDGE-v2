@@ -48,7 +48,12 @@ public class AdminCreateUserCommandHandlerTests
     {
         // Arrange
         var tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var tenant = new Tenant { Id = tenantId, Name = "Central Office", IsActive = true };
         var role = new Role { Id = Guid.NewGuid(), Key = "evaluator", Name = "Evaluator" };
+
+        _tenantRepositoryMock
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tenant);
 
         _userAuthorizationServiceMock
             .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))

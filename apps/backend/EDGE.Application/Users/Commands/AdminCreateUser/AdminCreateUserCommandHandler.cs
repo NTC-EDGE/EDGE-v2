@@ -71,34 +71,28 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         }
 
         // 2. Resolve Target Tenant
-        Guid targetTenantId;
+        Tenant? targetTenant = null;
         if (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
         {
-            targetTenantId = request.TenantId.Value;
+            targetTenant = await _tenantRepository.GetByIdAsync(request.TenantId.Value, cancellationToken);
         }
         else if (_tenantContextService.TenantId.HasValue && _tenantContextService.TenantId.Value != Guid.Empty)
         {
-            targetTenantId = _tenantContextService.TenantId.Value;
-        }
-        else
-        {
-            // Default Central Office Tenant
-            targetTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            targetTenant = await _tenantRepository.GetByIdAsync(_tenantContextService.TenantId.Value, cancellationToken);
         }
 
-        var targetTenant = await _tenantRepository.GetByIdAsync(targetTenantId, cancellationToken);
         if (targetTenant == null)
         {
             var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-            if (allTenants != null && allTenants.Count > 0)
-            {
-                targetTenant = allTenants.FirstOrDefault(t => t.IsActive) ?? allTenants.FirstOrDefault();
-                if (targetTenant != null)
-                {
-                    targetTenantId = targetTenant.Id;
-                }
-            }
+            targetTenant = allTenants.FirstOrDefault(t => t.IsActive) ?? allTenants.FirstOrDefault();
         }
+
+        if (targetTenant == null)
+        {
+            throw new InvalidOperationException("No valid or active tenant found in the system. Please specify a valid TenantId.");
+        }
+
+        var targetTenantId = targetTenant.Id;
 
         // 3. Resolve Role
         var role = await _roleRepository.GetByKeyAsync(normalizedRoleKey, cancellationToken);
@@ -146,9 +140,14 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
                 invitationSent = true;
                 _logger.LogInformation("Clerk invitation sent successfully to: {Email} with RedirectUrl: {RedirectUrl}", normalizedEmail, redirectUrl);
             }
+            catch (InvalidOperationException ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
+                                                       ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Clerk invitation skipped: User {Email} is already registered.", normalizedEmail);
+            }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Failed to dispatch Clerk invitation email to: {Email}.", normalizedEmail);
+                _logger.LogWarning(ex, "Failed to dispatch Clerk invitation email to: {Email}. Proceeding with user provisioning.", normalizedEmail);
             }
         }
 
@@ -182,11 +181,12 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
                 clerkUser = await _clerkUserService.CreateUserAsync(clerkPayload);
                 _logger.LogInformation("Successfully created Clerk user with Id: {ClerkId} for email: {Email}", clerkUser.Id, normalizedEmail);
             }
-            catch (Exception ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
-                                      ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase) ||
-                                      ex.Message.Contains("already taken", StringComparison.OrdinalIgnoreCase))
+            catch (InvalidOperationException ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
+                                                       ex.Message.Contains("form_identifier_not_unique", StringComparison.OrdinalIgnoreCase) ||
+                                                       ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase) ||
+                                                       ex.Message.Contains("already taken", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogWarning("User already exists in Clerk, attempting retrieval for email: {Email}", normalizedEmail);
+                _logger.LogWarning("User already exists in Clerk, retrieving user record for email: {Email}", normalizedEmail);
                 existingClerkUsers = await _clerkUserService.GetUsersByEmailAsync(normalizedEmail);
                 clerkUser = existingClerkUsers.FirstOrDefault();
                 if (clerkUser == null)
