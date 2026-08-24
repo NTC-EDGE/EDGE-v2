@@ -12,6 +12,8 @@ public class DbUpdateExceptionStrategy : IExceptionStrategy
 
     public (HttpStatusCode StatusCode, string Message, Dictionary<string, string[]>? Errors) Handle(Exception exception)
     {
-        return (HttpStatusCode.BadRequest, "Database operation failed. A duplicate record may exist or a referenced record was not found.", null);
+        var dbEx = (DbUpdateException)exception;
+        var detail = dbEx.InnerException?.Message ?? dbEx.Message;
+        return (HttpStatusCode.BadRequest, $"Database operation failed: {detail}", null);
     }
 }
