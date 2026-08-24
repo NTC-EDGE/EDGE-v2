@@ -36,6 +36,7 @@ import {
 import { isAllowedRequirementFileType } from "../../../../../utils/fileValidation";
 import { SectionHeader } from "../common/SectionHeader";
 import { InfoRow } from "../common/InfoRow";
+import { RequirementDocumentPreviewModal } from "../../modals/RequirementDocumentPreviewModal";
 
 export interface ApplicantRecordTabProps {
   app: ApplicationData;
@@ -458,15 +459,35 @@ export function ApplicantRecordTab({
     }
   };
 
-  const handleViewRequirement = (label: string, fileUrl?: string) => {
-    if (fileUrl !== undefined && fileUrl !== null && Platform.OS === "web") {
-      window.open(fileUrl, "_blank");
-    } else {
-      Alert.alert(
-        "View Requirement Document",
-        `Viewing submitted document: ${label}`
-      );
+  const [previewDoc, setPreviewDoc] = useState<{
+    visible: boolean;
+    title: string;
+    fileName?: string;
+    fileUrl?: string;
+    contentType?: string;
+  }>({
+    visible: false,
+    title: "",
+  });
+
+  const handleViewRequirement = (
+    label: string,
+    fileUrl?: string,
+    fileName?: string,
+    contentType?: string
+  ) => {
+    if (fileUrl === undefined || fileUrl === null || fileUrl.trim() === "") {
+      notifyError("Preview Unavailable", "No file URL found for this requirement.");
+      return;
     }
+
+    setPreviewDoc({
+      visible: true,
+      title: label,
+      fileName,
+      fileUrl,
+      contentType,
+    });
   };
 
   const notifyError = (title: string, msg: string) => {
@@ -1903,7 +1924,9 @@ export function ApplicantRecordTab({
                           onPress={() =>
                             handleViewRequirement(
                               reqItem.requirementName,
-                              reqItem.url ?? undefined
+                              reqItem.url ?? undefined,
+                              reqItem.fileName ?? undefined,
+                              reqItem.contentType ?? undefined
                             )
                           }
                         >
@@ -2584,6 +2607,17 @@ export function ApplicantRecordTab({
           </View>
         </View>
       )}
+
+      <RequirementDocumentPreviewModal
+        visible={previewDoc.visible}
+        title={previewDoc.title}
+        fileName={previewDoc.fileName}
+        fileUrl={previewDoc.fileUrl}
+        contentType={previewDoc.contentType}
+        onClose={() =>
+          setPreviewDoc((prev) => ({ ...prev, visible: false }))
+        }
+      />
     </View>
   );
 }
