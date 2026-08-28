@@ -38,6 +38,11 @@ import {
   FIELD_ID_VAS_REG_NO,
   FIELD_ID_SVC_CLASSIFICATION,
   FIELD_ID_COR_VAS_EXPIRY,
+  FIELD_ID_DEVICES,
+  FIELD_ID_EQUIPMENT,
+  FIELD_ID_ANTENNA,
+  FIELD_ID_RADIO_OFFICERS,
+  FIELD_ID_TVRO,
 } from "../constants/fieldIds";
 
 export interface FieldDto {
@@ -720,6 +725,11 @@ export function DynamicFormRenderer({
                 fType === "repeater" ||
                 fType === "table" ||
                 fType === "repeater_table" ||
+                fId === FIELD_ID_DEVICES.toLowerCase() ||
+                fId === FIELD_ID_EQUIPMENT.toLowerCase() ||
+                fId === FIELD_ID_ANTENNA.toLowerCase() ||
+                fId === FIELD_ID_RADIO_OFFICERS.toLowerCase() ||
+                fId === FIELD_ID_TVRO.toLowerCase() ||
                 fId.includes("equipmentdetails") ||
                 fId.includes("antennadetails") ||
                 fId.includes("devicesdetails") ||
@@ -741,6 +751,11 @@ export function DynamicFormRenderer({
                   // Skip redundant single fields if full repeater already encompasses them in this section
                   if (
                     hasRepeater &&
+                    fIdLower !== FIELD_ID_DEVICES.toLowerCase() &&
+                    fIdLower !== FIELD_ID_EQUIPMENT.toLowerCase() &&
+                    fIdLower !== FIELD_ID_ANTENNA.toLowerCase() &&
+                    fIdLower !== FIELD_ID_RADIO_OFFICERS.toLowerCase() &&
+                    fIdLower !== FIELD_ID_TVRO.toLowerCase() &&
                     !fIdLower.includes("equipmentdetails") &&
                     !fIdLower.includes("antennadetails") &&
                     !fIdLower.includes("devicesdetails") &&
@@ -1206,6 +1221,11 @@ export function DynamicFormRenderer({
                   rawType === "table" ||
                   rawType === "repeater_table" ||
                   rawType === "array" ||
+                  fieldIdLower === FIELD_ID_DEVICES.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_EQUIPMENT.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_ANTENNA.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_RADIO_OFFICERS.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_TVRO.toLowerCase() ||
                   fieldIdLower.includes("equipmentdetails") ||
                   fieldIdLower.includes("antennadetails") ||
                   fieldIdLower.includes("radioofficers") ||

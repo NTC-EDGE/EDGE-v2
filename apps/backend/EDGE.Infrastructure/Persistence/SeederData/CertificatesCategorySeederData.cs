@@ -331,9 +331,9 @@ public static class CertificatesCategorySeederData
         ["EMPLOYMENT_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000015"), "Certificate of Employment", "Certificate of Employment from the employer stating position and radio duties."),
         ["AMATEUR_ACTIVITIES_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000016"), "Proof of Amateur Activities", "Proof of amateur radio activities (Logbook, QSL cards, contest participation, club endorsement)."),
         ["LIFETIME_SUPP_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000017"), "Supplementary Certificate", "Original Supplementary Certificate or Lifetime Certificate."),
-        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer or Manufacturer Permit", "Valid Radio Dealer or Manufacturer Permit issued by NTC."),
-        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "Permit to Import & Commercial Invoice", "Valid Permit to Import, Commercial Invoice, and BOC Import Entry Declaration."),
-        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "Sales and Stocks Report", "Quarterly Sales and Stocks Report submitted to NTC for locally manufactured devices."),
+        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer Permit OR Manufacturer Permit", "Valid Radio Dealer Permit OR Manufacturer Permit issued by NTC."),
+        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "For imported equipment: (a) Permit to Import (b) Invoice (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration", "For imported equipment, submit: (a) Permit to Import, (b) Commercial Invoice, and (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration."),
+        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "For locally-manufactured equipment: Sales and Stocks Report", "For locally-manufactured equipment, submit the Quarterly Sales and Stocks Report filed with the Commission."),
         ["COMMERCIAL_INVOICE_NONDEALER"] = new(Guid.Parse("70000000-0000-0000-0000-000000000030"), "Commercial Invoice / Sales Invoice", "Official Commercial Invoice or Sales Invoice bearing the purchase details and equipment serial numbers for Non-Dealer registration."),
         ["PROVISIONAL_AUTHORITY_PA"] = new(Guid.Parse("70000000-0000-0000-0000-000000000021"), "Provisional Authority (PA) or Motion for Renewal", "Valid Provisional Authority (PA), Certificate of Authority (CA), or verified motion for renewal with NTC docket stamp."),
         ["HEAD_END_EQUIPMENT_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000022"), "List of Head-End Equipment", "Comprehensive list of head-end equipment with technical specifications, certified and signed by a licensed PECE/ECE."),
@@ -450,9 +450,8 @@ public static class CertificatesCategorySeederData
         new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
 
         // 23. Certificate of Registration for RFID, SRD, WDN - For Non-Dealers
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000030"), true),  // Commercial Invoice / Sales Invoice (with Invoice Number)*
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: Permit to Import, Invoice, BOC clearance
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: (a) Permit to Import (b) Invoice (c) BOC Release Clearance and Import Entry Declaration
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured equipment: Sales and Stocks Report
 
         // 24. TVRO Registration Certificate (Commercial)
         new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000021"), true),    // Provisional Authority (PA) OR motion for renewal*

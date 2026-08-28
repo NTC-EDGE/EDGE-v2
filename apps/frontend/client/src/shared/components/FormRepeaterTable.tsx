@@ -5,14 +5,20 @@ import { ValidatedInput } from "./ValidatedInput";
 import { Select } from "./Select";
 import { DatePickerInput } from "./DatePickerInput";
 import { FormGrid, FormCol } from "./FormGrid";
+import { FIELD_ID_DEVICES } from "../constants/fieldIds";
 
 export interface FormRepeaterColumn {
   key: string;
   label: string;
-  type?: "text" | "number" | "select" | "date";
+  type?: "text" | "number" | "select" | "date" | "serials";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
+}
+
+export interface DeviceSerialEntry {
+  id: string;
+  serialNumber: string;
 }
 
 export interface FormRepeaterTableProps {
@@ -50,14 +56,22 @@ export const DEFAULT_DEVICE_REPEATER_COLUMNS: FormRepeaterColumn[] = [
     type: "select",
     required: true,
     options: [
-      { label: "Wireless Data Network (WDN) - Indoor", value: "Wireless Data Network (WDN) - Indoor" },
+      { label: "Wireless Data Network (WDN) Devices - Indoor", value: "Wireless Data Network (WDN) Devices - Indoor" },
+      { label: "Wireless Data Network (WDN) Devices - Outdoor", value: "Wireless Data Network (WDN) Devices - Outdoor" },
       { label: "Short Range Devices (SRD)", value: "Short Range Devices (SRD)" },
       { label: "Radio Frequency Identification (RFID) Devices", value: "Radio Frequency Identification (RFID) Devices" },
+      { label: "Bluetooth / Wi-Fi Access Points", value: "Bluetooth / Wi-Fi Access Points" },
       { label: "Short Range Radio Services", value: "Short Range Radio Services" },
     ],
   },
-  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. Cisco AP-515 / Zebra FX9600", required: true },
-  { key: "serialNumber", label: "Serial No.", placeholder: "e.g. SN-001, SN-002 (multiple allowed)", required: true },
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. Cisco Catalyst 9120AX / Zebra FX9600", required: true },
+  {
+    key: "equipmentSerials",
+    label: "Equipment Serial Numbers",
+    type: "serials",
+    placeholder: "e.g. SN-00123",
+    required: true,
+  },
 ];
 
 export const DEFAULT_OFFICER_REPEATER_COLUMNS: FormRepeaterColumn[] = [
@@ -98,6 +112,46 @@ export const DEFAULT_TVRO_SIGNAL_COLUMNS: FormRepeaterColumn[] = [
   { key: "polarization", label: "Polarization", placeholder: "e.g. Vertical / Horizontal", required: false },
   { key: "nameOfPrograms", label: "Name of Programs", placeholder: "e.g. News, Educational Feeds", required: false },
 ];
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export function parseSerialEntries(val: unknown): DeviceSerialEntry[] {
+  if (Array.isArray(val)) {
+    const entries: DeviceSerialEntry[] = [];
+    val.forEach((item, idx) => {
+      if (typeof item === "string" && item.trim() !== "") {
+        entries.push({ id: `serial-${idx}-${Date.now()}`, serialNumber: item.trim() });
+      } else if (isRecord(item)) {
+        const idVal = typeof item.id === "string" && item.id.length > 0 ? item.id : `serial-${idx}-${Date.now()}`;
+        const serialVal = typeof item.serialNumber === "string" ? item.serialNumber : typeof item.serial === "string" ? item.serial : "";
+        entries.push({ id: idVal, serialNumber: serialVal });
+      }
+    });
+    if (entries.length > 0) return entries;
+  }
+
+  if (typeof val === "string" && val.trim() !== "") {
+    const trimmed = val.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parseSerialEntries(parsed);
+        }
+      } catch {
+        // Fallback to delimiter split
+      }
+    }
+    const parts = trimmed.split(/[;,\n]/).map((p) => p.trim()).filter((p) => p.length > 0);
+    if (parts.length > 0) {
+      return parts.map((p, idx) => ({ id: `serial-${idx}`, serialNumber: p }));
+    }
+  }
+
+  return [{ id: `serial-1`, serialNumber: "" }];
+}
 
 export function resolveRepeaterColumns(
   fieldKey?: string,
@@ -147,7 +201,17 @@ export function resolveRepeaterColumns(
   if (keyLower.includes("antenna") || labelLower.includes("antenna")) {
     return DEFAULT_ANTENNA_REPEATER_COLUMNS;
   }
-  if (keyLower.includes("device") || labelLower.includes("device")) {
+  if (
+    keyLower.includes("device") ||
+    keyLower.includes("devicesdetails") ||
+    keyLower === FIELD_ID_DEVICES.toLowerCase() ||
+    keyLower === "fd000000-0000-0000-0000-000000000035" ||
+    labelLower.includes("device") ||
+    labelLower.includes("registered devices") ||
+    labelLower.includes("wdn") ||
+    labelLower.includes("srd") ||
+    labelLower.includes("rfid")
+  ) {
     return DEFAULT_DEVICE_REPEATER_COLUMNS;
   }
   if (keyLower.includes("officer") || keyLower.includes("personnel") || labelLower.includes("officer")) {
@@ -158,38 +222,77 @@ export function resolveRepeaterColumns(
 }
 
 function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Record<string, string>> {
+  const activeCols = cols || DEFAULT_EQUIPMENT_REPEATER_COLUMNS;
   if (!value || value.trim() === "") {
-    return [createEmptyRow(cols || DEFAULT_EQUIPMENT_REPEATER_COLUMNS)];
+    return [createEmptyRow(activeCols)];
   }
 
   try {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed) && parsed.length > 0) {
       return parsed.map((item) => {
-        if (typeof item === "object" && item !== null) {
+        if (isRecord(item)) {
           const rowRecord: Record<string, string> = {};
           Object.keys(item).forEach((k) => {
             const val = item[k];
-            rowRecord[k] = val !== null && val !== undefined ? String(val) : "";
+            if (val !== null && val !== undefined) {
+              rowRecord[k] = typeof val === "object" ? JSON.stringify(val) : String(val);
+            } else {
+              rowRecord[k] = "";
+            }
           });
+
+          // Harmonize field keys between standards
+          if (!rowRecord.deviceType && rowRecord.typeOfEquipmentDevice) {
+            rowRecord.deviceType = rowRecord.typeOfEquipmentDevice;
+          }
+          if (!rowRecord.typeOfEquipmentDevice && rowRecord.deviceType) {
+            rowRecord.typeOfEquipmentDevice = rowRecord.deviceType;
+          }
+          if (!rowRecord.makeTypeModel && rowRecord.nameTypeModel) {
+            rowRecord.makeTypeModel = rowRecord.nameTypeModel;
+          }
+          if (!rowRecord.nameTypeModel && rowRecord.makeTypeModel) {
+            rowRecord.nameTypeModel = rowRecord.makeTypeModel;
+          }
+
+          // Ensure equipmentSerials is populated if serial numbers exist
+          if (!rowRecord.equipmentSerials) {
+            const fallbackSerials = rowRecord.serialNumbers || rowRecord.serialNumber || rowRecord.serials;
+            if (fallbackSerials) {
+              const entries = parseSerialEntries(fallbackSerials);
+              rowRecord.equipmentSerials = JSON.stringify(entries);
+            }
+          }
+
+          if (!rowRecord._id) {
+            rowRecord._id = String(Date.now() + Math.random());
+          }
           return rowRecord;
         }
-        return { value: String(item) };
+        return { value: String(item), _id: String(Date.now() + Math.random()) };
       });
     }
   } catch {
     // If string is comma separated or simple text, map to first column
-    const defaultColKey = (cols && cols[0]?.key) || "make";
-    return [{ [defaultColKey]: value }];
+    const defaultColKey = (activeCols && activeCols[0]?.key) || "make";
+    return [{ [defaultColKey]: value, _id: String(Date.now() + Math.random()) }];
   }
 
-  return [createEmptyRow(cols || DEFAULT_EQUIPMENT_REPEATER_COLUMNS)];
+  return [createEmptyRow(activeCols)];
 }
 
 function createEmptyRow(cols: FormRepeaterColumn[]): Record<string, string> {
   const row: Record<string, string> = { _id: String(Date.now() + Math.random()) };
   cols.forEach((col) => {
-    row[col.key] = "";
+    if (col.type === "serials" || col.key === "equipmentSerials") {
+      row[col.key] = JSON.stringify([{ id: `serial-${Date.now()}`, serialNumber: "" }]);
+      row["typeOfEquipmentDevice"] = "Wireless Data Network (WDN) Devices - Indoor";
+      row["nameTypeModel"] = "";
+      row["serialNumber"] = "";
+    } else {
+      row[col.key] = "";
+    }
   });
   return row;
 }
@@ -223,8 +326,20 @@ export function FormRepeaterTable({
   }, [value, resolvedColumns]);
 
   const emitChange = (updatedRows: Array<Record<string, string>>) => {
-    setRows(updatedRows);
-    const serialized = JSON.stringify(updatedRows);
+    // Format rows with both standardized and helper keys
+    const enrichedRows = updatedRows.map((r) => {
+      const copy = { ...r };
+      if (copy.deviceType && !copy.typeOfEquipmentDevice) {
+        copy.typeOfEquipmentDevice = copy.deviceType;
+      }
+      if (copy.makeTypeModel && !copy.nameTypeModel) {
+        copy.nameTypeModel = copy.makeTypeModel;
+      }
+      return copy;
+    });
+
+    setRows(enrichedRows);
+    const serialized = JSON.stringify(enrichedRows);
     lastEmittedRef.current = serialized;
     onChange(serialized);
   };
@@ -232,7 +347,100 @@ export function FormRepeaterTable({
   const handleCellChange = (rowIndex: number, columnKey: string, cellValue: string) => {
     const updated = rows.map((r, idx) => {
       if (idx === rowIndex) {
-        return { ...r, [columnKey]: cellValue };
+        const updatedRow = { ...r, [columnKey]: cellValue };
+        if (columnKey === "deviceType") {
+          updatedRow.typeOfEquipmentDevice = cellValue;
+        } else if (columnKey === "makeTypeModel") {
+          updatedRow.nameTypeModel = cellValue;
+        }
+        return updatedRow;
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
+  const handleSerialEntryChange = (rowIndex: number, colKey: string, serialIndex: number, text: string) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawSerialsVal = currentRow[colKey] || currentRow.equipmentSerials || currentRow.serialNumbers || currentRow.serialNumber;
+    const currentSerials = parseSerialEntries(rawSerialsVal);
+    const updatedSerials = currentSerials.map((s, idx) => {
+      if (idx === serialIndex) {
+        return { ...s, serialNumber: text };
+      }
+      return s;
+    });
+
+    const serialStrings = updatedSerials.map((s) => s.serialNumber).filter((s) => s.trim().length > 0);
+    const commaJoined = serialStrings.join(", ");
+    const jsonSerialized = JSON.stringify(updatedSerials);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipmentSerials: jsonSerialized,
+          serialNumbers: jsonSerialized,
+          serialNumber: commaJoined || (updatedSerials[0]?.serialNumber ?? ""),
+        };
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
+  const handleAddSerialEntry = (rowIndex: number, colKey: string) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawSerialsVal = currentRow[colKey] || currentRow.equipmentSerials || currentRow.serialNumbers || currentRow.serialNumber;
+    const currentSerials = parseSerialEntries(rawSerialsVal);
+    const newSerial: DeviceSerialEntry = {
+      id: `serial-${Date.now()}-${currentSerials.length}`,
+      serialNumber: "",
+    };
+    const updatedSerials = [...currentSerials, newSerial];
+    const jsonSerialized = JSON.stringify(updatedSerials);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipmentSerials: jsonSerialized,
+          serialNumbers: jsonSerialized,
+        };
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
+  const handleRemoveSerialEntry = (rowIndex: number, colKey: string, serialIndex: number) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawSerialsVal = currentRow[colKey] || currentRow.equipmentSerials || currentRow.serialNumbers || currentRow.serialNumber;
+    const currentSerials = parseSerialEntries(rawSerialsVal);
+    if (currentSerials.length <= 1) return;
+
+    const updatedSerials = currentSerials.filter((_, idx) => idx !== serialIndex);
+    const serialStrings = updatedSerials.map((s) => s.serialNumber).filter((s) => s.trim().length > 0);
+    const commaJoined = serialStrings.join(", ");
+    const jsonSerialized = JSON.stringify(updatedSerials);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipmentSerials: jsonSerialized,
+          serialNumbers: jsonSerialized,
+          serialNumber: commaJoined || (updatedSerials[0]?.serialNumber ?? ""),
+        };
       }
       return r;
     });
@@ -252,8 +460,9 @@ export function FormRepeaterTable({
     emitChange(updated);
   };
 
+  const isDeviceTable = resolvedColumns.some((c) => c.type === "serials" || c.key === "deviceType");
   const cleanLabel = label.replace(/Details|Particulars|Information|Technical/gi, "").trim() || "Item";
-  const btnLabel = addButtonLabel || `Add ${cleanLabel}`;
+  const btnLabel = addButtonLabel || (isDeviceTable ? "Add Another Equipment Device Group" : `Add ${cleanLabel}`);
 
   return (
     <View style={styles.container}>
@@ -266,7 +475,9 @@ export function FormRepeaterTable({
           <Text style={styles.mainLabel}>{label}</Text>
           {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
         </View>
-        <Text style={styles.rowCountBadge}>{rows.length} {rows.length === 1 ? "entry" : "entries"}</Text>
+        <Text style={styles.rowCountBadge}>
+          {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : "entry") : (isDeviceTable ? "device groups" : "entries")}
+        </Text>
       </View>
 
       {instruction && instruction.length > 0 && (
@@ -282,7 +493,9 @@ export function FormRepeaterTable({
             <View key={rowId} style={styles.rowCard}>
               <View style={styles.rowCardHeader}>
                 <View style={styles.rowNumberPill}>
-                  <Text style={styles.rowNumberText}>#{rowIndex + 1}</Text>
+                  <Text style={styles.rowNumberText}>
+                    {isDeviceTable ? `Device Group #${rowIndex + 1}` : `#${rowIndex + 1}`}
+                  </Text>
                 </View>
                 {rows.length > minRows && (
                   <TouchableOpacity
@@ -291,7 +504,9 @@ export function FormRepeaterTable({
                     activeOpacity={0.7}
                   >
                     <Icon name="trash-2" size={13} color="#DC2626" />
-                    <Text style={styles.deleteButtonText}>Remove</Text>
+                    <Text style={styles.deleteButtonText}>
+                      {isDeviceTable ? "Remove Group" : "Remove"}
+                    </Text>
                   </TouchableOpacity>
                 )}
               </View>
@@ -299,9 +514,69 @@ export function FormRepeaterTable({
               <FormGrid>
                 {resolvedColumns.map((col) => {
                   const cellVal = rowItem[col.key] ?? "";
+                  const isSerials = col.type === "serials";
                   const isSelect = col.type === "select";
                   const isDate = col.type === "date";
                   const isNumber = col.type === "number";
+
+                  if (isSerials) {
+                    const serialsList = parseSerialEntries(
+                      rowItem[col.key] || rowItem.equipmentSerials || rowItem.serialNumbers || rowItem.serialNumber
+                    );
+
+                    return (
+                      <FormCol key={`${rowId}-${col.key}`} span={12}>
+                        <View style={styles.serialsWrapper}>
+                          <View style={styles.serialsHeader}>
+                            <Text style={styles.serialsLabel}>
+                              {col.label}
+                              {col.required && <Text style={styles.requiredAsterisk}>*</Text>}
+                            </Text>
+                            <Text style={styles.serialsBadge}>
+                              {serialsList.length} {serialsList.length === 1 ? "serial" : "serials"}
+                            </Text>
+                          </View>
+                          <Text style={styles.serialsInstruction}>
+                            Specify each unit serial number registered under this equipment device group.
+                          </Text>
+
+                          <View style={styles.serialsList}>
+                            {serialsList.map((serialItem, sIdx) => (
+                              <View key={serialItem.id || `s-${sIdx}`} style={styles.serialRow}>
+                                <View style={styles.serialInputWrapper}>
+                                  <ValidatedInput
+                                    placeholder={`Serial No. ${sIdx + 1} (e.g. SN-00${sIdx + 1})`}
+                                    value={serialItem.serialNumber}
+                                    onChangeText={(text) => handleSerialEntryChange(rowIndex, col.key, sIdx, text)}
+                                    style={{ marginBottom: 0 }}
+                                  />
+                                </View>
+                                {serialsList.length > 1 && (
+                                  <TouchableOpacity
+                                    onPress={() => handleRemoveSerialEntry(rowIndex, col.key, sIdx)}
+                                    style={styles.serialDeleteBtn}
+                                    activeOpacity={0.7}
+                                    accessibilityLabel={`Remove serial ${sIdx + 1}`}
+                                  >
+                                    <Icon name="trash-2" size={14} color="#DC2626" />
+                                  </TouchableOpacity>
+                                )}
+                              </View>
+                            ))}
+                          </View>
+
+                          <TouchableOpacity
+                            onPress={() => handleAddSerialEntry(rowIndex, col.key)}
+                            style={styles.addSerialBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Icon name="plus" size={13} color="#1D4ED8" />
+                            <Text style={styles.addSerialBtnText}>Add Serial Number</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </FormCol>
+                    );
+                  }
 
                   return (
                     <FormCol key={`${rowId}-${col.key}`} span={6}>
@@ -488,5 +763,81 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#DC2626",
     marginTop: 6,
+  },
+  serialsWrapper: {
+    marginTop: 8,
+    padding: 12,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  serialsHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 2,
+  },
+  serialsLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: "700",
+    color: "#334155",
+  },
+  serialsBadge: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+    fontWeight: "600",
+    color: "#1E40AF",
+    backgroundColor: "#DBEAFE",
+    paddingVertical: 1,
+    paddingHorizontal: 6,
+    borderRadius: 8,
+  },
+  serialsInstruction: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: "#64748B",
+    marginBottom: 8,
+  },
+  serialsList: {
+    gap: 6,
+  },
+  serialRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  serialInputWrapper: {
+    flex: 1,
+  },
+  serialDeleteBtn: {
+    width: 32,
+    height: 38,
+    borderRadius: 6,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  addSerialBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    alignSelf: "flex-start",
+    marginTop: 8,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+  },
+  addSerialBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#1D4ED8",
   },
 });
