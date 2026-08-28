@@ -782,7 +782,7 @@ const styles = StyleSheet.create({
   },
   toggleBtnActive: {
     backgroundColor: COLORS.neutral.white,
-    boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+    ...SHADOWS.card,
   },
 
   tableContainer: {

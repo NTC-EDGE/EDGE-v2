@@ -217,7 +217,7 @@ const styles = StyleSheet.create({
   },
   cardHovered: {
     borderColor: COLORS.brand.blueSoft,
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.06)',
+    ...SHADOWS.panel,
   },
   cardActivePopover: {
     zIndex: 99,
