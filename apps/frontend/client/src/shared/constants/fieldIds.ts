@@ -143,8 +143,9 @@ export const FIELD_ID_VAS_REG_NO         = "fd000000-0000-0000-0000-000000000236
 export const FIELD_ID_SVC_CLASSIFICATION = "fd000000-0000-0000-0000-000000000237"; // Service
 export const FIELD_ID_COR_VAS_EXPIRY     = "fd000000-0000-0000-0000-000000000238"; // COR / VAS No. Expiry Date
 
-// --- Copy of Certificate Fields (NTC 1-21) ------------------------------------
-export const FIELD_ID_TARGET_SERVICE        = "fd000000-0000-0000-0000-000000000240"; // Service (dropdown)
-export const FIELD_ID_TARGET_CERT_TYPE      = "fd000000-0000-0000-0000-000000000241"; // Type (based from selected service)
-export const FIELD_ID_TARGET_CERT_NUMBER    = "fd000000-0000-0000-0000-000000000242"; // Certificate Number
-export const FIELD_ID_NO_OF_COPIES          = "fd000000-0000-0000-0000-000000000243"; // No. of Copies
+// --- Copy of Certificate Fields (NTC 1-21) -----------------------------------
+export const FIELD_ID_TARGET_SERVICE     = "fd000000-0000-0000-0000-000000000240"; // Service
+export const FIELD_ID_TARGET_CERT_TYPE   = "fd000000-0000-0000-0000-000000000241"; // Type
+export const FIELD_ID_TARGET_CERT_NUMBER = "fd000000-0000-0000-0000-000000000242"; // Certificate Number
+export const FIELD_ID_NO_OF_COPIES       = "fd000000-0000-0000-0000-000000000243"; // No. of Copies
+

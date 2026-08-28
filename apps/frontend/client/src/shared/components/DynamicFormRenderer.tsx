@@ -51,7 +51,9 @@ import {
 import {
   CERTIFICATE_SERVICES_OPTIONS,
   CERTIFICATE_TYPES_BY_SERVICE,
+  resolveCertificateTypes,
 } from "../../auth/Services/certificates/forms/CopyOfCertificateForm";
+import { useCertificateServicesQuery } from "../../auth/Services/certificates/hooks/useCertificateServicesQuery";
 
 export interface FieldDto {
   id?: string;
@@ -418,6 +420,9 @@ export function DynamicFormRenderer({
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
   const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
 
+  // Dynamic Certificate Services & Types Query
+  const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
+
   // Check the applicant classification selected in Step 2:
   // If applicantType is explicitly 'individual', handle applicant details as individual person.
   // If applicantType is explicitly 'company', handle applicant details as company/corporate entity.
@@ -774,7 +779,7 @@ export function DynamicFormRenderer({
               fieldType: "dropdown",
               isRequired: true,
               placeholder: "Select Certificate Service...",
-              options: CERTIFICATE_SERVICES_OPTIONS.map((o) => o.value),
+              options: dynamicCertServiceOptions,
             },
             {
               id: FIELD_ID_TARGET_CERT_TYPE,
@@ -1283,7 +1288,7 @@ export function DynamicFormRenderer({
                   ];
                   placeholder = "Select duration...";
                 } else if (isTargetServiceField) {
-                  dropdownOptions = CERTIFICATE_SERVICES_OPTIONS;
+                  dropdownOptions = dynamicCertServiceOptions;
                   placeholder = "Select Certificate Service...";
                 } else if (isTargetCertTypeField) {
                   const currentServiceVal =
@@ -1291,9 +1296,9 @@ export function DynamicFormRenderer({
                     values?.["targetService"] ||
                     values?.["service"] ||
                     values?.["Service"] ||
-                    CERTIFICATE_SERVICES_OPTIONS[0]?.value ||
+                    dynamicCertServiceOptions[0]?.value ||
                     "";
-                  dropdownOptions = CERTIFICATE_TYPES_BY_SERVICE[currentServiceVal] || [];
+                  dropdownOptions = getTypesForService(currentServiceVal);
                   placeholder = !currentServiceVal ? "Select Service first..." : "Select Certificate Type...";
                 } else if (isNoOfCopiesField) {
                   dropdownOptions = [
@@ -1355,6 +1360,12 @@ export function DynamicFormRenderer({
 
                 const handleDropdownChange = (v: string) => {
                   onChange(targetId, field.label, v);
+                  if (isTargetServiceField) {
+                    const newTypes = getTypesForService(v);
+                    const defaultType = newTypes[0]?.value || "";
+                    onChange(FIELD_ID_TARGET_CERT_TYPE, "Type", defaultType);
+                    onChange("targetCertificateType", "Type", defaultType);
+                  }
                   if (isRegionField) {
                     const matched = regions.find((r) => r.name.toLowerCase() === v.toLowerCase());
                     setSelectedRegionId(matched?.id);

@@ -4,6 +4,7 @@ import { Select } from "../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
 import { CopyOfCertificateData } from "../types/certificateTypes";
 import { certStyles } from "./CertificateFormStyles";
+import { useCertificateServicesQuery } from "../hooks/useCertificateServicesQuery";
 
 export const CERTIFICATE_SERVICES_OPTIONS = [
   { label: "Radio Operator Certificates (ROC) excluding Amateur ROC", value: "Radio Operator Certificates (ROC) excluding Amateur ROC" },
@@ -59,6 +60,27 @@ export const CERTIFICATE_TYPES_BY_SERVICE: Record<string, Array<{ label: string;
   ],
 };
 
+export function resolveCertificateTypes(serviceName?: string): Array<{ label: string; value: string }> {
+  if (!serviceName) return CERTIFICATE_TYPES_BY_SERVICE["Radio Operator Certificates (ROC) excluding Amateur ROC"] || [];
+  const sLower = serviceName.toLowerCase();
+  if (sLower.includes("radio operator") || sLower.includes("roc")) {
+    return CERTIFICATE_TYPES_BY_SERVICE["Radio Operator Certificates (ROC) excluding Amateur ROC"] || [];
+  }
+  if (sLower.includes("amateur")) {
+    return CERTIFICATE_TYPES_BY_SERVICE["Certificates in the Amateur Service"] || [];
+  }
+  if (sLower.includes("rfid") || sLower.includes("srd") || sLower.includes("wdn")) {
+    return CERTIFICATE_TYPES_BY_SERVICE["Certificate of Registration for RFID, SRD, WDN, Devices- Indoor"] || [];
+  }
+  if (sLower.includes("vas") || sLower.includes("value-added") || sLower.includes("value added")) {
+    return CERTIFICATE_TYPES_BY_SERVICE["Certificate of Registration as a Value-Added Service (VAS) Provider"] || [];
+  }
+  if (sLower.includes("tvro") || sLower.includes("catv")) {
+    return CERTIFICATE_TYPES_BY_SERVICE["TVRO Registration Certificate"] || [];
+  }
+  return CERTIFICATE_TYPES_BY_SERVICE[serviceName] || Object.values(CERTIFICATE_TYPES_BY_SERVICE)[0] || [];
+}
+
 interface CopyOfCertificateFormProps {
   data: CopyOfCertificateData;
   onChange: (fields: Partial<CopyOfCertificateData>) => void;
@@ -72,9 +94,10 @@ export function CopyOfCertificateForm({
   errors = {},
   touched = {},
 }: CopyOfCertificateFormProps) {
+  const { serviceOptions, getTypesForService } = useCertificateServicesQuery();
   const isDuplicate = data.copyType === "DUPLICATE";
-  const currentService = data.targetService || CERTIFICATE_SERVICES_OPTIONS[0]?.value || "";
-  const typeOptions = CERTIFICATE_TYPES_BY_SERVICE[currentService] || [];
+  const currentService = data.targetService || serviceOptions[0]?.value || "";
+  const typeOptions = getTypesForService(currentService);
 
   return (
     <View style={certStyles.container}>
@@ -108,15 +131,15 @@ export function CopyOfCertificateForm({
           <View style={certStyles.formCol6}>
             <Text style={certStyles.selectLabel}>Service*</Text>
             <Select
-              value={data.targetService}
+              value={data.targetService || (serviceOptions[0]?.value ?? "")}
               onValueChange={(val) => {
-                const availableTypes = CERTIFICATE_TYPES_BY_SERVICE[val] || [];
+                const availableTypes = getTypesForService(val);
                 onChange({
                   targetService: val,
                   targetCertificateType: availableTypes[0]?.value || "",
                 });
               }}
-              options={CERTIFICATE_SERVICES_OPTIONS}
+              options={serviceOptions}
               placeholder="Select Certificate Service..."
             />
           </View>
@@ -124,7 +147,7 @@ export function CopyOfCertificateForm({
           <View style={certStyles.formCol6}>
             <Text style={certStyles.selectLabel}>Type*</Text>
             <Select
-              value={data.targetCertificateType || ""}
+              value={data.targetCertificateType || (typeOptions[0]?.value ?? "")}
               onValueChange={(val) => onChange({ targetCertificateType: val })}
               options={typeOptions}
               placeholder={typeOptions.length === 0 ? "Select Service first..." : "Select Certificate Type..."}
