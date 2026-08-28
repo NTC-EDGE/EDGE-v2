@@ -365,6 +365,16 @@ export interface TenantClientTransactionDto {
   date: string;
 }
 
+export interface TenantTransactionDto {
+  id: string;
+  refNo: string;
+  applicantName: string;
+  serviceType: string;
+  amount: number;
+  paymentStatus: string;
+  date: string;
+}
+
 export interface TenantClientDetailsDto {
   id: string;
   userId?: string | null;
