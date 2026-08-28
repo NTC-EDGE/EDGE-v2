@@ -79,6 +79,14 @@ public class DatabaseInitializerHostedService : IHostedService
                             FOREIGN KEY ("ServiceId") REFERENCES "Services" ("Id");
                         END IF;
                     END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'ServiceVariants'
+                    ) THEN
+                        ALTER TABLE "ServiceVariants"
+                            ADD COLUMN IF NOT EXISTS "IsIndividual" boolean NOT NULL DEFAULT true;
+                    END IF;
                 END $$;
                 """, cancellationToken);
 

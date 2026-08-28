@@ -175,18 +175,20 @@ export function ApplicantNameField({
     }
   };
 
+  const isClubLabel = label.toLowerCase().includes("club");
+
   return (
     <View style={styles.container}>
       {/* Field Label with Red Asterisk */}
       <View style={styles.labelRow}>
         <Text style={styles.mainLabel}>
-          {isCompanyMode ? "Company / Corporation Details" : label}
+          {isCompanyMode ? "Applicant Details" : label}
         </Text>
         {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
       </View>
       <Text style={styles.subLabel}>
         {isCompanyMode
-          ? "Enter the registered corporate / company name and authorized representative."
+          ? "Enter the registered applicant name and authorized representative."
           : "Enter the full legal name of the applicant/licensee as it will appear on the certificate or license."}
       </Text>
 
@@ -235,7 +237,7 @@ export function ApplicantNameField({
                 activeType === "company" && styles.typeTabTextActive,
               ]}
             >
-              Company / Corporation
+              Organization / Entity
             </Text>
           </TouchableOpacity>
         </View>
@@ -247,11 +249,11 @@ export function ApplicantNameField({
           <FormGrid>
             <FormCol span={6}>
               <ValidatedInput
-                label="Company / Corporation Name"
+                label="Applicant Name"
                 required={isRequired}
-                placeholder="e.g. Apex Telecom Philippines, Inc."
+                placeholder="e.g. Apex Telecom Philippines, Inc. / Philippine Amateur Radio League"
                 value={companyName}
-                error={error && !companyName.trim() ? "Company Name is required." : undefined}
+                error={error && !companyName.trim() ? "Applicant Name is required." : undefined}
                 onChangeText={(val) => {
                   handleCompanyChange(val, representativeName);
                 }}
@@ -261,6 +263,7 @@ export function ApplicantNameField({
             <FormCol span={6}>
               <ValidatedInput
                 label="Authorized Representative Name"
+                required={false}
                 placeholder="e.g. Engr. Juan Dela Cruz"
                 value={representativeName}
                 onChangeText={(val) => {

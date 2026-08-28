@@ -120,33 +120,38 @@ export function handleWizardNext({
   }
   if (step === 2) {
     const serviceTitle = (service.title || "").toLowerCase();
-    const serviceCat = (service.category || "").toLowerCase();
     const isCompanyCertService =
-      serviceCat.includes("certificate") &&
-      (serviceTitle.includes("tvro") ||
-       serviceTitle.includes("value-added") ||
-       serviceTitle.includes("vas") ||
-       serviceTitle.includes("rfid") ||
-       serviceTitle.includes("srd") ||
-       serviceTitle.includes("wdn") ||
-       (service.id !== undefined && (
-         service.id.toLowerCase().includes("119") ||
-         service.id.toLowerCase().includes("120") ||
-         service.id.toLowerCase().includes("122") ||
-         service.id.toLowerCase().includes("ntc_1_19") ||
-         service.id.toLowerCase().includes("ntc_1_20") ||
-         service.id.toLowerCase().includes("ntc_1_22")
-       )));
+      serviceTitle.includes("tvro") ||
+      serviceTitle.includes("catv") ||
+      serviceTitle.includes("value-added") ||
+      serviceTitle.includes("vas") ||
+      serviceTitle.includes("rfid") ||
+      serviceTitle.includes("srd") ||
+      serviceTitle.includes("wdn") ||
+      serviceTitle.includes("cpe") ||
+      serviceTitle.includes("accreditation") ||
+      serviceTitle.includes("commercial") ||
+      serviceTitle.includes("club") ||
+      (service.id !== undefined && (
+        service.id.toLowerCase().includes("119") ||
+        service.id.toLowerCase().includes("120") ||
+        service.id.toLowerCase().includes("122") ||
+        service.id.toLowerCase().includes("ntc_1_19") ||
+        service.id.toLowerCase().includes("ntc_1_20") ||
+        service.id.toLowerCase().includes("ntc_1_22")
+      ));
+
+    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const isIndividualVar = matchedVariant?.isIndividual !== undefined ? matchedVariant.isIndividual : !isCompanyCertService;
 
     if (activeApplicant.applicantType === "company") {
-      if (isCompanyCertService) {
-        if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
-          Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
-          return;
-        }
-      } else {
+      if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
+        Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
+        return;
+      }
+      if (isIndividualVar) {
         if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
-          Alert.alert("Required Field", "Please enter the Company / Corporation Name before proceeding.");
+          Alert.alert("Required Field", "Please enter the Applicant / Organization Name before proceeding.");
           return;
         }
       }
@@ -156,8 +161,6 @@ export function handleWizardNext({
       Alert.alert("Required Selection", "Please select an Application Variant / Service Type before proceeding.");
       return;
     }
-
-    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
     const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
     const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
 

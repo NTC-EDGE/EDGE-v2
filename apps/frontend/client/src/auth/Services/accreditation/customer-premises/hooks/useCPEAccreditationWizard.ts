@@ -343,6 +343,9 @@ export function useCPEAccreditationWizard({
             }
 
             return {
+              applicantType: "company",
+              companyName: app.businessName || undefined,
+              representativeName: app.engineerName || undefined,
               firstName: app.businessName || app.engineerName || "Applicant",
               lastName: app.entityType || "N/A",
               email: app.email || "applicant@example.com",

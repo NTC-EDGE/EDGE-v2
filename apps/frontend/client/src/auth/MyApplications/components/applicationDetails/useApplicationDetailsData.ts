@@ -59,8 +59,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
       birthDate: resolveBirthDate(details, rawFormFields),
       civilStatus: resolveCivilStatus(details, rawFormFields),
-      companyName: details?.companyName || app.companyName || null,
-      representativeName: details?.representativeName || rawFormFields.find((fv) => (fv.fieldLabel || '').toLowerCase().includes('representative'))?.value || null,
+      companyName: details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null,
+      representativeName: details?.representativeName || (app.representativeName as string) || rawFormFields.find((fv) => (fv.fieldLabel || '').toLowerCase().includes('representative'))?.value || null,
       notes: details?.notes || app.remarks || null,
     };
   }, [app]);

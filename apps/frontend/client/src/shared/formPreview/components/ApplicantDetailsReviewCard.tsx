@@ -84,30 +84,34 @@ export function ApplicantDetailsReviewCard({
       {resolvedAddress !== null && (
         <SummaryRow label="Complete Residential / Office Address" value={resolvedAddress} />
       )}
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {resolvedBirthDate !== null ? (
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Date of Birth" value={resolvedBirthDate} />
+      {applicantType !== 'company' && (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {resolvedBirthDate !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Date of Birth" value={resolvedBirthDate} />
+              </View>
+            ) : null}
+            {resolvedSex !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Sex / Gender" value={resolvedSex} />
+              </View>
+            ) : null}
           </View>
-        ) : null}
-        {resolvedSex !== null ? (
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Sex / Gender" value={resolvedSex} />
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {resolvedCivilStatus !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Civil Status" value={resolvedCivilStatus} />
+              </View>
+            ) : null}
+            {resolvedNationality !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
+              </View>
+            ) : null}
           </View>
-        ) : null}
-      </View>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {resolvedCivilStatus !== null ? (
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Civil Status" value={resolvedCivilStatus} />
-          </View>
-        ) : null}
-        {resolvedNationality !== null ? (
-          <View style={{ flex: 1 }}>
-            <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
-          </View>
-        ) : null}
-      </View>
+        </>
+      )}
       {notes ? <SummaryRow label="Special Notes / Remarks" value={notes} /> : null}
     </SectionCard>
   );

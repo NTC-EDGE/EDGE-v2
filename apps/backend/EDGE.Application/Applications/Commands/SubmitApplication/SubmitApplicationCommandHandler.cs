@@ -363,6 +363,29 @@ public class SubmitApplicationCommandHandler
                 };
                 await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
 
+                // Resolve ApplicantType (prefer explicit DTO value, fallback to isBulk ? Company : Individual)
+                ApplicantType resolvedApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual;
+                if (!string.IsNullOrWhiteSpace(dto.ApplicantType) &&
+                    Enum.TryParse<ApplicantType>(dto.ApplicantType, true, out var parsedType))
+                {
+                    resolvedApplicantType = parsedType;
+                }
+
+                Guid? companyDetailId = null;
+                if (resolvedApplicantType == ApplicantType.Company && !string.IsNullOrWhiteSpace(dto.CompanyName))
+                {
+                    var companyDetail = new CompanyDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = dto.CompanyName,
+                        Address = dto.Address ?? "",
+                        ContactNumber = dto.ContactNumber ?? "",
+                        Email = dto.Email
+                    };
+                    await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
+                    companyDetailId = companyDetail.Id;
+                }
+
                 // Create Applicant
                 var applicant = new Applicant
                 {
@@ -370,8 +393,9 @@ public class SubmitApplicationCommandHandler
                     TenantId = request.TenantId,
                     UserId = submitterUserId,
                     IsGuest = isGuest,
-                    ApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual,
+                    ApplicantType = resolvedApplicantType,
                     ApplicantDetailId = detail.Id,
+                    CompanyDetailId = companyDetailId,
                     Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete
                 };
                 await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);

@@ -129,11 +129,16 @@ export function GeneralFilingModeStep({
 
   const isCompanyCertService =
     serviceTitle.includes("TVRO") ||
+    serviceTitle.includes("CATV") ||
     serviceTitle.includes("VALUE-ADDED") ||
     serviceTitle.includes("VAS") ||
     serviceTitle.includes("RFID") ||
     serviceTitle.includes("SRD") ||
     serviceTitle.includes("WDN") ||
+    serviceTitle.includes("CPE") ||
+    serviceTitle.includes("ACCREDITATION") ||
+    serviceTitle.includes("COMMERCIAL") ||
+    serviceTitle.includes("CLUB") ||
     (service?.id !== undefined && (
       service.id.toLowerCase().includes("119") ||
       service.id.toLowerCase().includes("120") ||
@@ -143,17 +148,28 @@ export function GeneralFilingModeStep({
       service.id.toLowerCase().includes("ntc_1_22")
     ));
 
+  const currentVariant = variants.find(
+    (v) => String(v.id) === String(selectedVariantId || activeApplicant?.selectedVariantId)
+  );
+  const isIndividualVariant = currentVariant?.isIndividual !== undefined ? currentVariant.isIndividual : !isCompanyCertService;
+  const isMandatoryCompanyService = !isIndividualVariant;
+
   React.useEffect(() => {
-    if (!appMode || (applicantType === "individual" && appMode !== "SINGLE")) {
+    if (isMandatoryCompanyService && applicantType !== "company") {
+      onApplicantTypeChange?.("company");
+    }
+  }, [isMandatoryCompanyService, applicantType, onApplicantTypeChange]);
+
+  React.useEffect(() => {
+    if (!appMode) {
       onAppModeChange("SINGLE");
     }
-  }, [appMode, applicantType, onAppModeChange]);
+  }, [appMode, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
   const templateConfig = getSpreadsheetTemplateForService(service);
 
-  // Generate fallback variants if backend endpoint returns empty array
   const displayVariants: ServiceVariantItem[] =
     variants.length > 0
       ? variants
@@ -164,18 +180,21 @@ export function GeneralFilingModeStep({
             name: `${service?.title || "Admission Slip for Radio Operator Examination"} (NEW)`,
             type: "New",
             description: "First-time examination filing for Radio Operator License / Admission Slip.",
+            isIndividual: true,
           },
           {
             id: "v-exam-retake",
             name: `${service?.title || "Admission Slip for Radio Operator Examination"} (RETAKE)`,
             type: "Retake",
             description: "Re-examination / retake filing for previously unpassed radio elements.",
+            isIndividual: true,
           },
           {
             id: "v-exam-special",
             name: `${service?.title || "Admission Slip for Radio Operator Examination"} (SPECIAL EXAM)`,
             type: "Special Exam",
             description: "Special radio operator examination schedule request.",
+            isIndividual: true,
           },
         ]
       : serviceTitle.includes("AMATEUR") || serviceTitle.includes("LICENSE")
@@ -185,24 +204,49 @@ export function GeneralFilingModeStep({
             name: "Amateur Radio Station License (NEW)",
             type: "New",
             description: "For first-time applicants of Class A, B, C, or D Amateur Radio Station Licenses.",
+            isIndividual: true,
           },
           {
             id: "v-ren-2",
             name: "Amateur Radio Station License (RENEWAL)",
             type: "Renewal",
             description: "For renewing an active or expiring Amateur Radio Station License.",
+            isIndividual: true,
           },
           {
             id: "v-mod-3",
             name: "Amateur Radio Station License (MODIFICATION)",
             type: "Modification",
             description: "For amending station details, equipment changes, location moves, or class upgrades.",
+            isIndividual: true,
           },
           {
             id: "v-life-4",
             name: "Lifetime Amateur Radio Station License for Class A",
             type: "Lifetime",
             description: "For Class A Radio Amateurs at least 60 years old with 15+ consecutive years of service.",
+            isIndividual: true,
+          },
+          {
+            id: "v-club-new",
+            name: "Amateur Club Radio Station License (NEW)",
+            type: "New",
+            description: "For registered amateur radio clubs or associations applying for a club radio station license.",
+            isIndividual: false,
+          },
+          {
+            id: "v-club-ren",
+            name: "Amateur Club Radio Station License (RENEWAL)",
+            type: "Renewal",
+            description: "For renewing an active amateur radio club radio station license.",
+            isIndividual: false,
+          },
+          {
+            id: "v-club-mod",
+            name: "Amateur Club Radio Station License (MODIFICATION)",
+            type: "Modification",
+            description: "For modifying an existing amateur radio club station license.",
+            isIndividual: false,
           },
         ]
       : serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS") || serviceTitle.includes("NTC 1-20") || serviceTitle.includes("NTC_1_20")
@@ -289,6 +333,32 @@ export function GeneralFilingModeStep({
     const matched = displayVariants.find((v) => v.id === val);
     if (matched && onSelectVariant) {
       onSelectVariant(matched.id, formatVariantLabel(matched));
+      const selName = safeUpper(matched.name || matched.description || matched.type || "");
+      const isClub = selName.includes("CLUB");
+      const isMandatory =
+        isClub ||
+        isCompanyCertService ||
+        serviceTitle.includes("CUSTOMER PREMISES") ||
+        serviceTitle.includes("CPE") ||
+        serviceTitle.includes("AERONAUTICAL") ||
+        serviceTitle.includes("MARITIME") ||
+        serviceTitle.includes("FIXED AND LAND MOBILE") ||
+        serviceTitle.includes("PUBLIC TELECOMMUNICATIONS") ||
+        serviceTitle.includes("PTE") ||
+        serviceTitle.includes("RADIO COMMUNICATIONS EQUIPMENT") ||
+        serviceTitle.includes("MOBILE PHONE") ||
+        serviceTitle.includes("CATV") ||
+        serviceTitle.includes("TAPE PRESERVATION") ||
+        selName.includes("AERO") ||
+        selName.includes("MARITIME") ||
+        selName.includes("CATV") ||
+        selName.includes("SPAM") ||
+        selName.includes("PROVIDER") ||
+        selName.includes("TAPE");
+
+      if (isMandatory) {
+        onApplicantTypeChange?.("company");
+      }
     }
   };
 
@@ -640,10 +710,13 @@ export function GeneralFilingModeStep({
         <View style={{ gap: 10 }}>
           {/* Option A: Individual Applicant */}
           <TouchableOpacity
-            activeOpacity={0.8}
+            activeOpacity={isMandatoryCompanyService ? 1 : 0.8}
+            disabled={isMandatoryCompanyService}
             onPress={() => {
-              onApplicantTypeChange?.("individual");
-              onAppModeChange("SINGLE");
+              if (!isMandatoryCompanyService) {
+                onApplicantTypeChange?.("individual");
+                onAppModeChange("SINGLE");
+              }
             }}
             style={{
               flexDirection: "row",
@@ -652,7 +725,8 @@ export function GeneralFilingModeStep({
               borderRadius: 10,
               borderWidth: applicantType === "individual" ? 2 : 1,
               borderColor: applicantType === "individual" ? "#0F2C59" : "#CBD5E1",
-              backgroundColor: applicantType === "individual" ? "#F0F9FF" : "#FFFFFF",
+              backgroundColor: isMandatoryCompanyService ? "#F1F5F9" : applicantType === "individual" ? "#F0F9FF" : "#FFFFFF",
+              opacity: isMandatoryCompanyService ? 0.6 : 1,
             }}
           >
             <View
@@ -676,11 +750,13 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="user" size={14} color={applicantType === "individual" ? "#0F2C59" : "#64748B"} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "individual" ? "#0F2C59" : "#1E293B" }}>
-                  Individual Applicant
+                  Individual Applicant {isMandatoryCompanyService ? "(Corporate Filing Only)" : ""}
                 </Text>
               </View>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
-                Personal filing for yourself. Individual applications are processed as single transactions.
+                {isMandatoryCompanyService
+                  ? "This service is categorized by NTC for registered companies, corporations, and licensed entities only."
+                  : "Personal filing for yourself. Individual applications are processed as single transactions."}
               </Text>
             </View>
           </TouchableOpacity>
@@ -722,20 +798,20 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="briefcase" size={14} color={applicantType === "company" ? "#0F2C59" : "#64748B"} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "company" ? "#0F2C59" : "#1E293B" }}>
-                  Company / Corporation / Organization
+                  Applicant (Organization / Company / Entity)
                 </Text>
               </View>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
-                Corporate filing on behalf of an enterprise, entity, or multiple employees (eligible for Bulk submission).
+                Filing on behalf of an enterprise, company, club, association, program, or group entity.
               </Text>
             </View>
           </TouchableOpacity>
         </View>
 
-        {/* Three Common Sections for Company Application: Representative, Company Details, Address */}
+        {/* Common Sections for Organization / Corporate Filing: Representative, Applicant Details, Address */}
         {applicantType === "company" && (
           <View style={{ marginTop: 16, gap: 14 }}>
-            {/* Section 1: Representative */}
+            {/* Section 1: Authorized Representative */}
             <View
               style={{
                 padding: 16,
@@ -749,7 +825,7 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="user-check" size={15} color="#0F2C59" />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
-                  Representative
+                  Authorized Representative Details
                 </Text>
               </View>
 
@@ -757,6 +833,7 @@ export function GeneralFilingModeStep({
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
                     label="Authorized Representative Name"
+                    required={true}
                     placeholder="e.g., Engr. Juan Dela Cruz"
                     value={activeApplicant?.representativeName ?? representativeName}
                     onChangeText={(text) => {
@@ -768,7 +845,7 @@ export function GeneralFilingModeStep({
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
                     label="Designation / Position"
-                    placeholder="e.g., Regulatory Affairs Manager"
+                    placeholder="e.g., Authorized Representative / Manager / Trustee"
                     value={activeApplicant?.representativePosition ?? representativePosition}
                     onChangeText={(text) => {
                       onRepresentativePositionChange?.(text);
@@ -793,7 +870,7 @@ export function GeneralFilingModeStep({
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
                     label="Email Address"
-                    placeholder="e.g., representative@company.com"
+                    placeholder="e.g., representative@domain.com"
                     value={activeApplicant?.email ?? ""}
                     onChangeText={(text) => {
                       updateActiveApplicant?.({ email: text });
@@ -803,10 +880,10 @@ export function GeneralFilingModeStep({
               </View>
             </View>
 
-            {/* Sections 2 & 3: Company Details & Address (For other general services) */}
-            {!isCompanyCertService && (
+            {/* Sections 2 & 3: Sponsoring Company / Applicant Details & Address (Rendered in Step 2 for Individual Services when Organization/Company is selected) */}
+            {isIndividualVariant && (
               <>
-                {/* Section 2: Company Details */}
+                {/* Section 2: Sponsoring Company Details */}
                 <View
                   style={{
                     padding: 16,
@@ -820,14 +897,14 @@ export function GeneralFilingModeStep({
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                     <Icon name="briefcase" size={15} color="#0F2C59" />
                     <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
-                      Company Details
+                      {appMode === "BULK" ? "Sponsoring Company / Organization Details" : "Applicant / Organization Details"}
                     </Text>
                   </View>
 
                   <ValidatedInput
-                    label="Company / Corporation Name"
+                    label="Applicant / Organization Name"
                     required={true}
-                    placeholder="e.g., Globe Telecom Inc., Converge ICT Solutions"
+                    placeholder="e.g., Globe Telecom Inc., Smart Communications, Inc."
                     value={activeApplicant?.companyName ?? companyName}
                     onChangeText={(text) => {
                       onCompanyNameChange?.(text);
@@ -836,8 +913,8 @@ export function GeneralFilingModeStep({
                   />
 
                   <ValidatedInput
-                    label="SEC / DTI Registration Number"
-                    placeholder="e.g., CS201912345 / 05943210"
+                    label="Registration / Identification Number"
+                    placeholder="e.g., SEC CS201912345 / DTI 05943210"
                     value={activeApplicant?.dtiSecRegistration ?? dtiSecRegistration}
                     onChangeText={(text) => {
                       onDtiSecRegistrationChange?.(text);
@@ -860,7 +937,7 @@ export function GeneralFilingModeStep({
                   <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                     <Icon name="map-pin" size={15} color="#0F2C59" />
                     <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#0F2C59" }}>
-                      Address
+                      Applicant Address
                     </Text>
                   </View>
 

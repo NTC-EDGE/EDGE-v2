@@ -98,6 +98,8 @@ export function AmateurRadioStationLicenseForm({
     }
   };
 
+  const isClub = (data.classOfStation || "").toLowerCase().includes("club");
+
   return (
     <View style={licenseStyles.container}>
       {/* Section 1: Application Transaction & License Options (Read-only Step 3 Selections) */}
@@ -204,81 +206,126 @@ export function AmateurRadioStationLicenseForm({
         </View>
       </View>
 
-      {/* Section 2: Basic Information */}
+      {/* Section 2: Basic Information / Club Particulars */}
       <View style={licenseStyles.formSection}>
-        <Text style={licenseStyles.formSectionHeading}>2. Basic Applicant Information</Text>
+        <Text style={licenseStyles.formSectionHeading}>
+          {isClub ? "2. Amateur Club Details & Station Trustee" : "2. Basic Applicant Information"}
+        </Text>
         <View style={licenseStyles.formGrid}>
-          <View style={licenseStyles.formCol6}>
-            <ValidatedInput
-              label="First Name"
-              placeholder="e.g. Juan"
-              value={data.firstName}
-              onChangeText={(val) => onChange({ firstName: val })}
-              error={errors.firstName}
-              touched={touched.firstName}
-              required
-            />
-          </View>
-          <View style={licenseStyles.formCol6}>
-            <ValidatedInput
-              label="Last Name"
-              placeholder="e.g. Dela Cruz"
-              value={data.lastName}
-              onChangeText={(val) => onChange({ lastName: val })}
-              error={errors.lastName}
-              touched={touched.lastName}
-              required
-            />
-          </View>
-          <View style={licenseStyles.formCol6}>
-            <ValidatedInput
-              label="Middle Name"
-              placeholder="e.g. Santos"
-              value={data.middleName}
-              onChangeText={(val) => onChange({ middleName: val })}
-            />
-          </View>
-          <View style={licenseStyles.formCol6}>
-            <ValidatedInput
-              label="Suffix"
-              placeholder="e.g. Jr., III (Optional)"
-              value={data.suffix}
-              onChangeText={(val) => onChange({ suffix: val })}
-            />
-          </View>
+          {isClub ? (
+            <>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Amateur Club / Organization Name*"
+                  placeholder="e.g. Philippine Amateur Radio League, Inc."
+                  value={data.clubName || `${data.firstName} ${data.lastName}`.trim()}
+                  onChangeText={(val) => onChange({ clubName: val, firstName: val, lastName: "" })}
+                  required
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="NTC Club Recognition / SEC Reg No.*"
+                  placeholder="e.g. NTC-CR-2021-0042"
+                  value={data.clubRecognitionNo || ""}
+                  onChangeText={(val) => onChange({ clubRecognitionNo: val })}
+                  required
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Club Trustee / President Name*"
+                  placeholder="e.g. Engr. Juan Dela Cruz"
+                  value={data.trusteeName || ""}
+                  onChangeText={(val) => onChange({ trusteeName: val })}
+                  required
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Trustee Call Sign / License No.*"
+                  placeholder="e.g. DU1XX / ARSL-2020-0012"
+                  value={data.trusteeCallSign || ""}
+                  onChangeText={(val) => onChange({ trusteeCallSign: val })}
+                  required
+                />
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="First Name"
+                  placeholder="e.g. Juan"
+                  value={data.firstName}
+                  onChangeText={(val) => onChange({ firstName: val })}
+                  error={errors.firstName}
+                  touched={touched.firstName}
+                  required
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Last Name"
+                  placeholder="e.g. Dela Cruz"
+                  value={data.lastName}
+                  onChangeText={(val) => onChange({ lastName: val })}
+                  error={errors.lastName}
+                  touched={touched.lastName}
+                  required
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Middle Name"
+                  placeholder="e.g. Santos"
+                  value={data.middleName}
+                  onChangeText={(val) => onChange({ middleName: val })}
+                />
+              </View>
+              <View style={licenseStyles.formCol6}>
+                <ValidatedInput
+                  label="Suffix"
+                  placeholder="e.g. Jr., III (Optional)"
+                  value={data.suffix}
+                  onChangeText={(val) => onChange({ suffix: val })}
+                />
+              </View>
 
-          <View style={licenseStyles.formCol12}>
-            <Text style={licenseStyles.selectLabel}>Date of Birth*</Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <View style={{ flex: 2 }}>
-                <Select
-                  placeholder="Month"
-                  value={data.birthMonth}
-                  onValueChange={(val) => onChange({ birthMonth: val })}
-                  options={[
-                    "January", "February", "March", "April", "May", "June",
-                    "July", "August", "September", "October", "November", "December"
-                  ].map((m) => ({ label: m, value: m }))}
-                />
+              <View style={licenseStyles.formCol12}>
+                <Text style={licenseStyles.selectLabel}>Date of Birth*</Text>
+                <View style={{ flexDirection: "row", gap: 8 }}>
+                  <View style={{ flex: 2 }}>
+                    <Select
+                      placeholder="Month"
+                      value={data.birthMonth}
+                      onValueChange={(val) => onChange({ birthMonth: val })}
+                      options={[
+                        "January", "February", "March", "April", "May", "June",
+                        "July", "August", "September", "October", "November", "December"
+                      ].map((m) => ({ label: m, value: m }))}
+                    />
+                  </View>
+                  <View style={{ flex: 1.2 }}>
+                    <Select
+                      placeholder="Day"
+                      value={data.birthDay}
+                      onValueChange={(val) => onChange({ birthDay: val })}
+                      options={Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => ({ label: d, value: d }))}
+                    />
+                  </View>
+                  <View style={{ flex: 1.5 }}>
+                    <Select
+                      placeholder="Year"
+                      value={data.birthYear}
+                      onValueChange={(val) => onChange({ birthYear: val })}
+                      options={Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => ({ label: y, value: y }))}
+                    />
+                  </View>
+                </View>
               </View>
-              <View style={{ flex: 1.2 }}>
-                <Select
-                  placeholder="Day"
-                  value={data.birthDay}
-                  onValueChange={(val) => onChange({ birthDay: val })}
-                  options={Array.from({ length: 31 }, (_, i) => String(i + 1)).map((d) => ({ label: d, value: d }))}
-                />
-              </View>
-              <View style={{ flex: 1.5 }}>
-                <Select
-                  placeholder="Year"
-                  value={data.birthYear}
-                  onValueChange={(val) => onChange({ birthYear: val })}
-                  options={Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i)).map((y) => ({ label: y, value: y }))}
-                />
-              </View>
-            </View>
-          </View>
+            </>
+          )}
 
           <View style={licenseStyles.formCol6}>
             <ValidatedInput
