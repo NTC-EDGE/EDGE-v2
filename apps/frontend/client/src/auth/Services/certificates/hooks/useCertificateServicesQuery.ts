@@ -2,7 +2,6 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useApi } from "../../../../shared/hooks/useApi";
 import {
   CERTIFICATE_SERVICES_OPTIONS as FALLBACK_SERVICES,
-  CERTIFICATE_TYPES_BY_SERVICE as FALLBACK_TYPES_BY_SERVICE,
   resolveCertificateTypes as fallbackResolveTypes,
 } from "../forms/CopyOfCertificateForm";
 
@@ -30,11 +29,16 @@ export interface DynamicElementItem {
   description?: string;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
 export function useCertificateServicesQuery() {
   const api = useApi();
   const [services, setServices] = useState<DynamicCertificateServiceItem[]>([]);
   const [variantsByServiceId, setVariantsByServiceId] = useState<Record<string, Array<{ label: string; value: string }>>>({});
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<Error | null>(null);
 
   // 1. Fetch all services under Certificates category
   useEffect(() => {
@@ -43,26 +47,31 @@ export function useCertificateServicesQuery() {
     async function fetchServices() {
       try {
         setLoading(true);
-        const res = await api.get<unknown>("/api/v2/services?pageSize=9999").catch(() => null);
-        if (!active || typeof res !== "object" || res === null) return;
+        setError(null);
+        const res = await api.get<unknown>("/api/v2/services?pageSize=9999").catch((fetchErr: unknown) => {
+          const err = fetchErr instanceof Error ? fetchErr : new Error(String(fetchErr));
+          console.warn("[useCertificateServicesQuery] Failed to fetch /api/v2/services:", err);
+          if (active) setError(err);
+          return null;
+        });
 
-        const resObj = res as Record<string, unknown>;
-        const rawList = Array.isArray(resObj.data)
-          ? (resObj.data as unknown[])
+        if (!active || !isRecord(res)) return;
+
+        const rawList = Array.isArray(res.data)
+          ? res.data
           : Array.isArray(res)
-          ? (res as unknown[])
+          ? res
           : [];
 
         const certServices: DynamicCertificateServiceItem[] = [];
 
         for (const item of rawList) {
-          if (typeof item !== "object" || item === null) continue;
-          const sObj = item as Record<string, unknown>;
-          const title = typeof sObj.title === "string" ? sObj.title : typeof sObj.name === "string" ? sObj.name : "";
-          const id = typeof sObj.id === "string" ? sObj.id : "";
-          const code = typeof sObj.code === "string" ? sObj.code : "";
-          const catCode = typeof sObj.categoryCode === "string" ? sObj.categoryCode : typeof sObj.serviceCategoryCode === "string" ? sObj.serviceCategoryCode : "";
-          const catObj = typeof sObj.serviceCategory === "object" && sObj.serviceCategory !== null ? (sObj.serviceCategory as Record<string, unknown>) : null;
+          if (!isRecord(item)) continue;
+          const title = typeof item.title === "string" ? item.title : typeof item.name === "string" ? item.name : "";
+          const id = typeof item.id === "string" ? item.id : "";
+          const code = typeof item.code === "string" ? item.code : "";
+          const catCode = typeof item.categoryCode === "string" ? item.categoryCode : typeof item.serviceCategoryCode === "string" ? item.serviceCategoryCode : "";
+          const catObj = isRecord(item.serviceCategory) ? item.serviceCategory : null;
           const catName = typeof catObj?.name === "string" ? catObj.name : "";
 
           // Filter services under "Certificates" category (excluding Copy of Certificates itself)
@@ -96,24 +105,26 @@ export function useCertificateServicesQuery() {
           // 2. Pre-fetch variants for each discovered certificate service
           for (const s of certServices) {
             try {
-              const varRes = await api.get<unknown>(`/api/v2/services/${s.id}/variants`).catch(() => null);
-              if (!active || typeof varRes !== "object" || varRes === null) continue;
+              const varRes = await api.get<unknown>(`/api/v2/services/${s.id}/variants`).catch((varErr: unknown) => {
+                console.warn(`[useCertificateServicesQuery] Failed to fetch variants for "${s.title}" (${s.id}):`, varErr);
+                return null;
+              });
 
-              const vObj = varRes as Record<string, unknown>;
-              const rawVars = Array.isArray(vObj.data)
-                ? (vObj.data as unknown[])
+              if (!active || !isRecord(varRes)) continue;
+
+              const rawVars = Array.isArray(varRes.data)
+                ? varRes.data
                 : Array.isArray(varRes)
-                ? (varRes as unknown[])
+                ? varRes
                 : [];
 
               const mappedOptions: Array<{ label: string; value: string }> = [];
 
               for (const vItem of rawVars) {
-                if (typeof vItem !== "object" || vItem === null) continue;
-                const v = vItem as Record<string, unknown>;
-                const vDesc = typeof v.description === "string" ? v.description : typeof v.name === "string" ? v.name : "";
-                const vCode = typeof v.code === "string" ? v.code : "";
-                const vType = typeof v.type === "string" ? v.type : "";
+                if (!isRecord(vItem)) continue;
+                const vDesc = typeof vItem.description === "string" ? vItem.description : typeof vItem.name === "string" ? vItem.name : "";
+                const vCode = typeof vItem.code === "string" ? vItem.code : "";
+                const vType = typeof vItem.type === "string" ? vItem.type : "";
 
                 const displayLabel = vDesc || vCode || vType || "Variant";
                 const displayVal = vCode || vDesc || vType || "Variant";
@@ -130,13 +141,15 @@ export function useCertificateServicesQuery() {
                   [s.title]: mappedOptions,
                 }));
               }
-            } catch {
-              // Gracefully continue to next service if variant fetch fails
+            } catch (vErr) {
+              console.warn(`[useCertificateServicesQuery] Exception while processing variants for "${s.title}" (${s.id}):`, vErr);
             }
           }
         }
       } catch (err) {
-        console.warn("Dynamic certificate services query failed, falling back to static schema:", err);
+        const errorObj = err instanceof Error ? err : new Error(String(err));
+        console.warn("[useCertificateServicesQuery] Dynamic certificate services query failed, falling back to static schema:", errorObj);
+        if (active) setError(errorObj);
       } finally {
         if (active) setLoading(false);
       }
@@ -196,6 +209,7 @@ export function useCertificateServicesQuery() {
 
   return {
     loading,
+    error,
     serviceOptions,
     services,
     getTypesForService,
