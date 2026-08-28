@@ -122,7 +122,7 @@ public class DatabaseInitializerHostedService : IHostedService
         try
         {
             _logger.LogInformation("Seeding Fast-Track catalog data...");
-            await FastTrackSeeder.SeedAsync(context);
+            await FastTrackSeeder.SeedAsync(context, _logger);
             _logger.LogInformation("Fast-Track catalog data seeded successfully.");
         }
         catch (Exception ex)

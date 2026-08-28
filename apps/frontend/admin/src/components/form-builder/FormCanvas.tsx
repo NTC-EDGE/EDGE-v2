@@ -9,6 +9,13 @@ import {
   Layers,
   Pencil,
   Info,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+  FolderKanban,
+  Copy,
+  Trash2,
+  Plus,
 } from "lucide-react";
 import { FormField, FormSchema, FieldType } from "./types";
 import { CanvasField } from "./CanvasField";
@@ -22,6 +29,14 @@ interface FormCanvasProps {
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onDuplicateField: (id: string) => void;
   onDeleteField: (id: string) => void;
+}
+
+interface SectionGroup {
+  id: string;
+  headerField: FormField | null;
+  headerIndex: number;
+  title: string;
+  childFields: Array<{ field: FormField; originalIndex: number }>;
 }
 
 export function FormCanvas({
@@ -38,6 +53,33 @@ export function FormCanvas({
   const [editingDescription, setEditingDescription] = useState(false);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
+  const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
+
+  const toggleSectionCollapse = useCallback((sectionId: string) => {
+    setCollapsedSectionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(sectionId)) {
+        next.delete(sectionId);
+      } else {
+        next.add(sectionId);
+      }
+      return next;
+    });
+  }, []);
+
+  const collapseAllSections = useCallback(() => {
+    const allSectionIds = form.fields
+      .filter((f) => f.type === "section-header")
+      .map((f) => f.id);
+    if (allSectionIds.length === 0) {
+      allSectionIds.push("default-section");
+    }
+    setCollapsedSectionIds(new Set(allSectionIds));
+  }, [form.fields]);
+
+  const expandAllSections = useCallback(() => {
+    setCollapsedSectionIds(new Set());
+  }, []);
 
   const handleCanvasDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -94,7 +136,37 @@ export function FormCanvas({
     setDragOverIndex(null);
   };
 
-  // Count section headers
+  // Group fields into section containers
+  const sectionGroups: SectionGroup[] = [];
+  let currentGroup: SectionGroup = {
+    id: "default-section",
+    headerField: null,
+    headerIndex: -1,
+    title: "General Information",
+    childFields: [],
+  };
+
+  form.fields.forEach((field, index) => {
+    if (field.type === "section-header") {
+      if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
+        sectionGroups.push(currentGroup);
+      }
+      currentGroup = {
+        id: field.id,
+        headerField: field,
+        headerIndex: index,
+        title: field.sectionTitle || field.label || "Untitled Section",
+        childFields: [],
+      };
+    } else {
+      currentGroup.childFields.push({ field, originalIndex: index });
+    }
+  });
+
+  if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
+    sectionGroups.push(currentGroup);
+  }
+
   const sectionCount = form.fields.filter((f) => f.type === "section-header").length;
 
   return (
@@ -147,6 +219,28 @@ export function FormCanvas({
                 {form.fields.length} {form.fields.length === 1 ? "field" : "fields"}
                 {sectionCount > 0 && ` · ${sectionCount} ${sectionCount === 1 ? "section" : "sections"}`}
               </span>
+
+              {/* Quick Section Collapse Controls */}
+              {sectionGroups.length > 0 && (
+                <div className="flex items-center gap-1.5 ml-auto">
+                  <button
+                    type="button"
+                    onClick={collapseAllSections}
+                    className="text-[10px] px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer"
+                    title="Minimize all sections for quick whole-section reordering"
+                  >
+                    Minimize All Sections
+                  </button>
+                  <button
+                    type="button"
+                    onClick={expandAllSections}
+                    className="text-[10px] px-2.5 py-1 rounded-lg font-medium text-slate-600 dark:text-slate-300 hover:text-indigo-600 dark:hover:text-indigo-400 bg-slate-100 dark:bg-slate-800 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors cursor-pointer"
+                    title="Expand all sections"
+                  >
+                    Expand All
+                  </button>
+                </div>
+              )}
             </div>
 
             {/* Editable Form Title */}
@@ -205,11 +299,21 @@ export function FormCanvas({
             )}
 
             {/* Hint Banner */}
-            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center gap-1.5 text-[11px] text-slate-400 dark:text-slate-500">
-              <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
-              <span>
-                Tip: Click any field on the canvas to configure properties in the right panel. Drag handles to reorder.
-              </span>
+            <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400 dark:text-slate-500">
+              <div className="flex items-center gap-1.5">
+                <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
+                <span>
+                  Tip: Drag section headers to reorder whole sections. Click any field to edit properties.
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => onAddField("section-header")}
+                className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Add New Section
+              </button>
             </div>
           </div>
 
@@ -233,7 +337,7 @@ export function FormCanvas({
                 )}
               </div>
               <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                {isDragOverCanvas ? "Drop here to add field" : "Start building your form"}
+                {isDragOverCanvas ? "Drop here to add component" : "Start building your form"}
               </p>
               <p className="text-xs text-slate-400 dark:text-slate-500 mt-1 max-w-sm text-center">
                 Click or drag component types from the left palette onto this canvas to add input fields, sections, and attachments.
@@ -244,29 +348,220 @@ export function FormCanvas({
               onDragOver={handleCanvasDragOver}
               onDragLeave={handleCanvasDragLeave}
               onDrop={handleCanvasDrop}
-              className="space-y-3"
+              className="space-y-6"
             >
-              {form.fields.map((field: FormField, index: number) => (
-                <CanvasField
-                  key={`${field.id}-${index}`}
-                  field={field}
-                  isSelected={selectedFieldId === field.id}
-                  isDragOver={dragOverIndex === index}
-                  onSelect={() => {
-                    onSelectField(field.id);
-                  }}
-                  onEdit={() => {
-                    onSelectField(field.id);
-                  }}
-                  onDuplicate={() => onDuplicateField(field.id)}
-                  onDelete={() => onDeleteField(field.id)}
-                  onDragStart={(e) => handleFieldDragStart(e, field.id)}
-                  onDragOver={(e) => handleFieldDragOver(e, index)}
-                  onDrop={(e) => handleFieldDrop(e, index)}
-                />
-              ))}
+              {sectionGroups.map((group, groupIdx) => {
+                const isCollapsed = collapsedSectionIds.has(group.id);
+                const isSectionSelected = group.headerField ? selectedFieldId === group.headerField.id : false;
+                const isHeaderDragOver = group.headerIndex >= 0 && dragOverIndex === group.headerIndex;
 
-              {/* Bottom drop zone */}
+                return (
+                  <div
+                    key={group.id}
+                    onDragOver={(e) => {
+                      if (group.headerIndex >= 0) {
+                        handleFieldDragOver(e, group.headerIndex);
+                      }
+                    }}
+                    onDrop={(e) => {
+                      if (group.headerIndex >= 0) {
+                        handleFieldDrop(e, group.headerIndex);
+                      }
+                    }}
+                    className="relative"
+                  >
+                    {isHeaderDragOver && (
+                      <div className="h-1 bg-indigo-500 rounded-full mb-3 mx-2 shadow-md shadow-indigo-500/30 transition-all" />
+                    )}
+
+                    {/* Section Card Container */}
+                    <div
+                      className={`rounded-2xl border transition-all overflow-hidden bg-white dark:bg-slate-900 shadow-sm ${
+                        isSectionSelected
+                          ? "border-indigo-500 ring-2 ring-indigo-500/20 shadow-md"
+                          : "border-slate-200 dark:border-slate-800 hover:border-indigo-300 dark:hover:border-indigo-700/60"
+                      }`}
+                    >
+                      {/* Section Card Header */}
+                      <div
+                        draggable={group.headerField !== null}
+                        onDragStart={(e) => {
+                          if (group.headerField) {
+                            handleFieldDragStart(e, group.headerField.id);
+                          }
+                        }}
+                        onClick={() => {
+                          if (group.headerField) {
+                            onSelectField(group.headerField.id);
+                          }
+                        }}
+                        className={`px-5 py-4 flex items-center justify-between border-b transition-colors cursor-pointer select-none ${
+                          isSectionSelected
+                            ? "bg-indigo-50/90 dark:bg-indigo-950/50 border-indigo-200 dark:border-indigo-800"
+                            : "bg-slate-50/90 dark:bg-slate-800/60 border-slate-200/80 dark:border-slate-700/60 hover:bg-indigo-50/40 dark:hover:bg-slate-800/90"
+                        }`}
+                      >
+                        {/* Left Side: Drag handle, chevron, title, badge */}
+                        <div className="flex items-center gap-3 min-w-0">
+                          {group.headerField && (
+                            <div
+                              className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-grab active:cursor-grabbing p-0.5"
+                              title="Drag to move entire section card and all its fields"
+                            >
+                              <GripVertical className="w-4 h-4" />
+                            </div>
+                          )}
+
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleSectionCollapse(group.id);
+                            }}
+                            className="p-1 rounded-md text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 hover:bg-indigo-100/70 dark:hover:bg-indigo-900/50 transition-colors cursor-pointer"
+                            title={isCollapsed ? "Expand section fields" : "Minimize section"}
+                          >
+                            {isCollapsed ? (
+                              <ChevronRight className="w-4 h-4" />
+                            ) : (
+                              <ChevronDown className="w-4 h-4" />
+                            )}
+                          </button>
+
+                          <div className="flex items-center gap-2 truncate">
+                            <FolderKanban className="w-4 h-4 text-indigo-500 shrink-0" />
+                            <h3 className="text-sm font-bold text-slate-900 dark:text-white truncate">
+                              {group.title}
+                            </h3>
+                          </div>
+
+                          <span className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-slate-200/70 dark:bg-slate-700/60 text-slate-600 dark:text-slate-300 font-mono shrink-0">
+                            {group.childFields.length} {group.childFields.length === 1 ? "field" : "fields"}
+                          </span>
+
+                          {isCollapsed && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950/70 text-amber-800 dark:text-amber-300 font-medium border border-amber-300 dark:border-amber-700 shrink-0">
+                              Minimized
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Right Side: Section Actions */}
+                        <div className="flex items-center gap-1">
+                          {group.headerField && (
+                            <>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onSelectField(group.headerField!.id);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                                title="Configure section properties"
+                              >
+                                <Pencil className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDuplicateField(group.headerField!.id);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
+                                title="Duplicate section and all fields"
+                              >
+                                <Copy className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteField(group.headerField!.id);
+                                }}
+                                className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                                title="Delete section header"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Section Card Body (Collapsible) */}
+                      {!isCollapsed && (
+                        <div className="p-5 space-y-3 bg-slate-50/40 dark:bg-slate-900/40">
+                          {group.childFields.length === 0 ? (
+                            <div
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                setDragOverIndex(group.headerIndex >= 0 ? group.headerIndex + 1 : form.fields.length);
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleFieldDrop(e, group.headerIndex >= 0 ? group.headerIndex + 1 : form.fields.length);
+                              }}
+                              className="py-8 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-center p-4 bg-white dark:bg-slate-900"
+                            >
+                              <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                                No fields inside this section yet
+                              </p>
+                              <p className="text-[11px] text-slate-400 mt-0.5">
+                                Drag components from the left palette to add fields to {group.title}.
+                              </p>
+                            </div>
+                          ) : (
+                            <>
+                              {group.childFields.map(({ field, originalIndex }) => (
+                                <CanvasField
+                                  key={`${field.id}-${originalIndex}`}
+                                  field={field}
+                                  isSelected={selectedFieldId === field.id}
+                                  isDragOver={dragOverIndex === originalIndex}
+                                  onSelect={() => onSelectField(field.id)}
+                                  onEdit={() => onSelectField(field.id)}
+                                  onDuplicate={() => onDuplicateField(field.id)}
+                                  onDelete={() => onDeleteField(field.id)}
+                                  onDragStart={(e) => handleFieldDragStart(e, field.id)}
+                                  onDragOver={(e) => handleFieldDragOver(e, originalIndex)}
+                                  onDrop={(e) => handleFieldDrop(e, originalIndex)}
+                                />
+                              ))}
+
+                              {/* Drop zone inside the section */}
+                              <div
+                                onDragOver={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
+                                  setDragOverIndex(lastChildIndex + 1);
+                                }}
+                                onDrop={(e) => {
+                                  e.preventDefault();
+                                  e.stopPropagation();
+                                  const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
+                                  handleFieldDrop(e, lastChildIndex + 1);
+                                }}
+                                className={`h-8 rounded-xl border border-dashed transition-all flex items-center justify-center text-[10px] ${
+                                  dragOverIndex === (group.childFields[group.childFields.length - 1].originalIndex + 1)
+                                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 font-semibold"
+                                    : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
+                                }`}
+                              >
+                                + Drop component into {group.title}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+
+              {/* Bottom drop zone for adding new section or field */}
               <div
                 onDragOver={(e) => {
                   e.preventDefault();
@@ -274,13 +569,13 @@ export function FormCanvas({
                 }}
                 onDrop={(e) => handleFieldDrop(e, form.fields.length)}
                 onDragEnd={handleFieldDragEnd}
-                className={`h-10 rounded-xl border-2 border-dashed transition-all flex items-center justify-center text-[11px] ${
+                className={`h-12 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center text-xs font-semibold ${
                   dragOverIndex === form.fields.length
-                    ? "border-indigo-500 bg-indigo-50/50 dark:bg-indigo-950/20 text-indigo-600 font-semibold"
-                    : "border-transparent text-transparent hover:border-slate-300 dark:hover:border-slate-700 hover:text-slate-400"
+                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
+                    : "border-slate-300 dark:border-slate-700 text-slate-400 hover:border-indigo-400 hover:text-indigo-600"
                 }`}
               >
-                + Drop new field at the end
+                + Drop new field or section at the end
               </div>
             </div>
           )}
