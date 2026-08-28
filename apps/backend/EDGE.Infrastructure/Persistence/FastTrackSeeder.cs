@@ -17,7 +17,7 @@ public static class FastTrackSeeder
         // However, always run the contract-update pass below so that changes to
         // requirementDiscriminatorFields / requirementContextGroups in the contract
         // JSON strings are applied to existing rows without needing a full re-seed.
-        bool skipInitialSeed = await context.Services.CountAsync() >= 12;
+        bool skipInitialSeed = await context.Services.IgnoreQueryFilters().CountAsync() >= 12;
         if (skipInitialSeed)
         {
             await UpdateContractsAsync(context);
@@ -29,18 +29,25 @@ public static class FastTrackSeeder
             return;
         }
 
-        var tenant = await context.Tenants.FirstOrDefaultAsync()
+        var tenant = await context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync()
             ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
 
         // 1. Seed Service Categories (matching spec)
         var categories = new Dictionary<string, ServiceCategory>();
-        var existingCategories = await context.ServiceCategories.ToListAsync();
+        var existingCategories = await context.ServiceCategories.IgnoreQueryFilters().ToListAsync();
 
         ServiceCategory GetOrAddCategory(string key, string name, string code, ServiceCategoryType type, Guid defaultId)
         {
             var existing = existingCategories.FirstOrDefault(c => c.Code == code || c.Type == type);
             if (existing != null)
+            {
+                if (existing.IsDeleted)
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                }
                 return existing;
+            }
 
             var cat = new ServiceCategory { Id = defaultId, Name = name, Code = code, Type = type };
             context.ServiceCategories.Add(cat);
@@ -57,7 +64,7 @@ public static class FastTrackSeeder
         await context.SaveChangesAsync();
 
         // Seed Master Fee Entities
-        if (!await context.Fees.AnyAsync())
+        if (!await context.Fees.IgnoreQueryFilters().AnyAsync())
         {
             context.Fees.AddRange(new[]
             {
@@ -76,7 +83,7 @@ public static class FastTrackSeeder
         var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
 
         var services = new Dictionary<string, Service>();
-        var existingServices = await context.Services.ToListAsync();
+        var existingServices = await context.Services.IgnoreQueryFilters().ToListAsync();
 
         foreach (var def in serviceDefs)
         {
@@ -109,6 +116,8 @@ public static class FastTrackSeeder
             }
             else
             {
+                s.IsDeleted = false;
+                s.IsDeletedBy = string.Empty;
                 s.Code = def.Code;
                 s.Name = def.Name;
                 s.Group = def.Group;
@@ -140,7 +149,7 @@ public static class FastTrackSeeder
         // 7. Seed Central Reusable Fields Pool (Deterministic GUIDs)
         var fieldsPool = FastTrackSeederData.GetFieldsPool();
 
-        var existingFields = await context.Fields.ToListAsync();
+        var existingFields = await context.Fields.IgnoreQueryFilters().ToListAsync();
         foreach (var f in fieldsPool.Values)
         {
             var existing = existingFields.FirstOrDefault(x => x.Id == f.Id);
@@ -148,8 +157,10 @@ public static class FastTrackSeeder
             {
                 context.Fields.Add(f);
             }
-            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.SyncBackOnSubmit != f.SyncBackOnSubmit)
+            else if (existing.Label != f.Label || existing.FieldType != f.FieldType || existing.SyncBackOnSubmit != f.SyncBackOnSubmit || existing.IsDeleted)
             {
+                existing.IsDeleted = false;
+                existing.IsDeletedBy = string.Empty;
                 existing.Label = f.Label;
                 existing.FieldType = f.FieldType;
                 existing.SyncBackOnSubmit = f.SyncBackOnSubmit;
@@ -157,21 +168,44 @@ public static class FastTrackSeeder
         }
         await context.SaveChangesAsync();
 
+        // 7b. Self-heal any existing duplicate FormSections (FormId + Key) globally before seeding
+        var allDbSections = await context.FormSections.IgnoreQueryFilters().ToListAsync();
+        var globalDuplicates = allDbSections
+            .GroupBy(s => new { s.FormId, Key = (s.Key ?? string.Empty).Trim().ToLowerInvariant() })
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        if (globalDuplicates.Count > 0)
+        {
+            foreach (var group in globalDuplicates)
+            {
+                var keep = group.FirstOrDefault(s => !s.IsDeleted) ?? group.First();
+                var toRemove = group.Where(s => s.Id != keep.Id).ToList();
+                var toRemoveIds = toRemove.Select(s => s.Id).ToList();
+                var toRemoveFields = await context.SectionFields
+                    .Where(sf => toRemoveIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
+                context.FormSections.RemoveRange(toRemove);
+            }
+            await context.SaveChangesAsync();
+        }
+
         // 8. Seed Form Builders & Sections per Service
-        var existingForms = await context.Forms.AsNoTracking().Select(f => f.ServiceId).ToListAsync();
         var services = new Dictionary<string, Service>();
 
         async Task SeedFormForService(string serviceKey, Guid formId, Guid sectionGuidPrefix, List<(string Key, string Title, List<string> FieldKeys)> sectionDefs)
         {
             if (!services.TryGetValue(serviceKey, out var service))
             {
-                service = await context.Services.FirstOrDefaultAsync(s => s.Code == serviceKey);
+                service = await context.Services.IgnoreQueryFilters().FirstOrDefaultAsync(s => s.Code == serviceKey);
                 if (service == null) return;
                 services[serviceKey] = service;
             }
 
             // 1. Ensure exactly one Form exists for this service / formId
             var existingForms = await context.Forms
+                .IgnoreQueryFilters()
                 .Where(f => f.ServiceId == service.Id || f.Id == formId)
                 .ToListAsync();
 
@@ -192,12 +226,16 @@ public static class FastTrackSeeder
             }
             else
             {
+                targetForm.IsDeleted = false;
+                targetForm.IsDeletedBy = string.Empty;
                 targetForm.ServiceId = service.Id;
+
                 var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
                 if (redundantForms.Count > 0)
                 {
                     var redundantFormIds = redundantForms.Select(f => f.Id).ToList();
                     var redundantSections = await context.FormSections
+                        .IgnoreQueryFilters()
                         .Where(s => redundantFormIds.Contains(s.FormId))
                         .ToListAsync();
                     if (redundantSections.Count > 0)
@@ -216,18 +254,39 @@ public static class FastTrackSeeder
 
             // 2. Fetch all existing FormSections for targetForm
             var existingSections = await context.FormSections
+                .IgnoreQueryFilters()
                 .Where(s => s.FormId == targetForm.Id)
                 .ToListAsync();
 
+            // Self-heal: Deduplicate any existing duplicate sections by Key (case-insensitive)
+            var duplicateSecGroups = existingSections
+                .GroupBy(s => (s.Key ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
+                .Where(g => g.Count() > 1)
+                .ToList();
+
+            foreach (var group in duplicateSecGroups)
+            {
+                var keep = group.FirstOrDefault(s => !s.IsDeleted) ?? group.First();
+                var toRemove = group.Where(s => s.Id != keep.Id).ToList();
+                var toRemoveIds = toRemove.Select(s => s.Id).ToList();
+                var toRemoveFields = await context.SectionFields
+                    .Where(sf => toRemoveIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
+                context.FormSections.RemoveRange(toRemove);
+                await context.SaveChangesAsync();
+                foreach (var rem in toRemove) existingSections.Remove(rem);
+            }
+
             var deduplicatedSections = sectionDefs
-                .GroupBy(s => s.Key)
+                .GroupBy(s => (s.Key ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
                 .Select(g => g.First())
                 .ToList();
 
-            var desiredKeys = deduplicatedSections.Select(s => s.Key).ToHashSet();
+            var desiredKeys = deduplicatedSections.Select(s => s.Key.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-            // Remove sections no longer in definition
-            var obsoleteSections = existingSections.Where(s => !desiredKeys.Contains(s.Key)).ToList();
+            // Remove sections no longer in definition (both active and soft-deleted to avoid key conflict)
+            var obsoleteSections = existingSections.Where(s => !desiredKeys.Contains((s.Key ?? string.Empty).Trim())).ToList();
             if (obsoleteSections.Count > 0)
             {
                 var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
@@ -237,13 +296,15 @@ public static class FastTrackSeeder
                 if (obsoleteFields.Count > 0) context.SectionFields.RemoveRange(obsoleteFields);
                 context.FormSections.RemoveRange(obsoleteSections);
                 await context.SaveChangesAsync();
+                foreach (var obs in obsoleteSections) existingSections.Remove(obs);
             }
 
             // 3. Upsert sections and fields
             int sectionOrder = 1;
-            foreach (var (key, title, fieldKeys) in deduplicatedSections)
+            foreach (var (rawKey, title, fieldKeys) in deduplicatedSections)
             {
-                var sec = existingSections.FirstOrDefault(s => s.Key == key);
+                var key = rawKey.Trim();
+                var sec = existingSections.FirstOrDefault(s => string.Equals((s.Key ?? string.Empty).Trim(), key, StringComparison.OrdinalIgnoreCase));
                 if (sec == null)
                 {
                     sec = new FormSection
@@ -256,9 +317,13 @@ public static class FastTrackSeeder
                     };
                     context.FormSections.Add(sec);
                     await context.SaveChangesAsync();
+                    existingSections.Add(sec);
                 }
                 else
                 {
+                    sec.IsDeleted = false;
+                    sec.IsDeletedBy = string.Empty;
+                    sec.Key = key;
                     sec.Title = title;
                     sec.OrderIndex = sectionOrder++;
                     await context.SaveChangesAsync();
@@ -315,6 +380,7 @@ public static class FastTrackSeeder
     private static async Task UpdateContractsAsync(ApplicationDbContext context)
     {
         var services = await context.Services
+            .IgnoreQueryFilters()
             .Where(s => s.Code != null)
             .ToListAsync();
 
@@ -349,7 +415,7 @@ public static class FastTrackSeeder
 
     private static async Task UpdateVariantsAsync(ApplicationDbContext context)
     {
-        var existingVariants = await context.ServiceVariants.ToListAsync();
+        var existingVariants = await context.ServiceVariants.IgnoreQueryFilters().ToListAsync();
         var variantDefs = FastTrackSeederData.GetVariantDefs();
         var variantDefIds = variantDefs.Select(d => d.Id).ToHashSet();
         
@@ -357,13 +423,14 @@ public static class FastTrackSeeder
 
         // Clean up and remove variants no longer defined in seeder
         var obsoleteVariantIds = existingVariants
-            .Where(ev => !variantDefIds.Contains(ev.Id))
+            .Where(ev => !variantDefIds.Contains(ev.Id) && !ev.IsDeleted)
             .Select(ev => ev.Id)
             .ToList();
 
         if (obsoleteVariantIds.Count > 0)
         {
             var referencingApplicants = await context.Applicants
+                .IgnoreQueryFilters()
                 .Where(a => a.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(a.ServiceVariantId.Value))
                 .ToListAsync();
             foreach (var app in referencingApplicants)
@@ -372,6 +439,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteSvr = await context.ServiceVariantRequirements
+                .IgnoreQueryFilters()
                 .Where(r => obsoleteVariantIds.Contains(r.ServiceVariantId))
                 .ToListAsync();
             if (obsoleteSvr.Count > 0)
@@ -380,6 +448,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteSve = await context.ServiceVariantElements
+                .IgnoreQueryFilters()
                 .Where(e => obsoleteVariantIds.Contains(e.ServiceVariantId))
                 .ToListAsync();
             if (obsoleteSve.Count > 0)
@@ -388,6 +457,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteSn = await context.ServiceNotes
+                .IgnoreQueryFilters()
                 .Where(n => n.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(n.ServiceVariantId.Value))
                 .ToListAsync();
             if (obsoleteSn.Count > 0)
@@ -396,6 +466,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteFees = await context.ServiceFees
+                .IgnoreQueryFilters()
                 .Where(sf => sf.ServiceVariantId.HasValue && obsoleteVariantIds.Contains(sf.ServiceVariantId.Value))
                 .ToListAsync();
             if (obsoleteFees.Count > 0)
@@ -404,6 +475,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteVf = await context.ServiceVariantFees
+                .IgnoreQueryFilters()
                 .Where(vf => obsoleteVariantIds.Contains(vf.ServiceVariantId))
                 .ToListAsync();
             if (obsoleteVf.Count > 0)
@@ -412,6 +484,7 @@ public static class FastTrackSeeder
             }
 
             var obsoleteVef = await context.ServiceVariantElementFees
+                .IgnoreQueryFilters()
                 .Where(vef => obsoleteVariantIds.Contains(vef.ServiceVariantId))
                 .ToListAsync();
             if (obsoleteVef.Count > 0)
@@ -419,13 +492,13 @@ public static class FastTrackSeeder
                 context.ServiceVariantElementFees.RemoveRange(obsoleteVef);
             }
 
-            var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id)).ToList();
+            var variantsToRemove = existingVariants.Where(ev => obsoleteVariantIds.Contains(ev.Id) && !ev.IsDeleted).ToList();
             context.ServiceVariants.RemoveRange(variantsToRemove);
             await context.SaveChangesAsync();
             anyChange = true;
         }
 
-        var existingServiceIds = (await context.Services.Select(s => s.Id).ToListAsync()).ToHashSet();
+        var existingServiceIds = (await context.Services.IgnoreQueryFilters().Select(s => s.Id).ToListAsync()).ToHashSet();
 
         // Upsert seeder variants
         foreach (var def in variantDefs)
@@ -449,8 +522,10 @@ public static class FastTrackSeeder
             }
             else
             {
-                if (ev.ServiceId != def.ServiceId || ev.Type != def.Type || ev.Description != def.Description)
+                if (ev.IsDeleted || ev.ServiceId != def.ServiceId || ev.Type != def.Type || ev.Description != def.Description)
                 {
+                    ev.IsDeleted = false;
+                    ev.IsDeletedBy = string.Empty;
                     ev.ServiceId = def.ServiceId;
                     ev.Type = def.Type;
                     ev.Description = def.Description;
@@ -467,10 +542,10 @@ public static class FastTrackSeeder
 
     private static async Task BackfillNewServicesAsync(ApplicationDbContext context)
     {
-        var tenant = await context.Tenants.FirstOrDefaultAsync();
+        var tenant = await context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync();
         if (tenant == null) return;
 
-        var existingCategories = await context.ServiceCategories.ToListAsync();
+        var existingCategories = await context.ServiceCategories.IgnoreQueryFilters().ToListAsync();
         var categoryIds = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
 
         void AddCategoryMapping(string key, ServiceCategoryType type)
@@ -507,7 +582,7 @@ public static class FastTrackSeeder
         }
 
         var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
-        var existingServices = await context.Services.ToListAsync();
+        var existingServices = await context.Services.IgnoreQueryFilters().ToListAsync();
         bool anyChange = false;
 
         foreach (var def in serviceDefs)
@@ -543,8 +618,10 @@ public static class FastTrackSeeder
             }
             else
             {
-                if (s.Code != def.Code || s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Description != def.Desc || s.Contract != def.Contract || s.TenantId != null)
+                if (s.IsDeleted || s.Code != def.Code || s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Description != def.Desc || s.Contract != def.Contract || s.TenantId != null)
                 {
+                    s.IsDeleted = false;
+                    s.IsDeletedBy = string.Empty;
                     s.Code = def.Code;
                     s.Name = def.Name;
                     s.Group = def.Group;
@@ -559,7 +636,7 @@ public static class FastTrackSeeder
 
         // Clean up any obsolete services not present in serviceDefs
         var validServiceIds = serviceDefs.Select(d => d.Id).ToHashSet();
-        var obsoleteServices = existingServices.Where(s => !validServiceIds.Contains(s.Id)).ToList();
+        var obsoleteServices = existingServices.Where(s => !validServiceIds.Contains(s.Id) && !s.IsDeleted).ToList();
         if (obsoleteServices.Count > 0)
         {
             var obsoleteServiceIds = obsoleteServices.Select(s => s.Id).ToList();
@@ -567,6 +644,7 @@ public static class FastTrackSeeder
             // 1. Re-assign any applicants pointing to obsolete services
             var fallbackServiceId = serviceDefs[0].Id;
             var referencingApplicants = await context.Applicants
+                .IgnoreQueryFilters()
                 .Where(a => a.ServiceId != null && obsoleteServiceIds.Contains(a.ServiceId.Value))
                 .ToListAsync();
             foreach (var applicant in referencingApplicants)
@@ -577,12 +655,14 @@ public static class FastTrackSeeder
 
             // 2. Cascade delete obsolete forms, form sections, and section fields
             var obsoleteForms = await context.Forms
+                .IgnoreQueryFilters()
                 .Where(f => obsoleteServiceIds.Contains(f.ServiceId))
                 .ToListAsync();
             if (obsoleteForms.Count > 0)
             {
                 var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
                 var obsoleteSections = await context.FormSections
+                    .IgnoreQueryFilters()
                     .Where(s => obsoleteFormIds.Contains(s.FormId))
                     .ToListAsync();
                 if (obsoleteSections.Count > 0)
@@ -599,17 +679,20 @@ public static class FastTrackSeeder
 
             // 3. Cascade delete obsolete variants and children
             var obsoleteVariants = await context.ServiceVariants
+                .IgnoreQueryFilters()
                 .Where(v => obsoleteServiceIds.Contains(v.ServiceId))
                 .ToListAsync();
             if (obsoleteVariants.Count > 0)
             {
                 var obsoleteVariantIds = obsoleteVariants.Select(v => v.Id).ToList();
                 var obsoleteReqs = await context.ServiceVariantRequirements
+                    .IgnoreQueryFilters()
                     .Where(vr => obsoleteVariantIds.Contains(vr.ServiceVariantId))
                     .ToListAsync();
                 if (obsoleteReqs.Count > 0) context.ServiceVariantRequirements.RemoveRange(obsoleteReqs);
 
                 var obsoleteElements = await context.ServiceVariantElements
+                    .IgnoreQueryFilters()
                     .Where(ve => obsoleteVariantIds.Contains(ve.ServiceVariantId))
                     .ToListAsync();
                 if (obsoleteElements.Count > 0) context.ServiceVariantElements.RemoveRange(obsoleteElements);
@@ -619,11 +702,13 @@ public static class FastTrackSeeder
 
             // 4. Delete obsolete service notes and fees
             var obsoleteNotes = await context.ServiceNotes
+                .IgnoreQueryFilters()
                 .Where(sn => obsoleteServiceIds.Contains(sn.ServiceId))
                 .ToListAsync();
             if (obsoleteNotes.Count > 0) context.ServiceNotes.RemoveRange(obsoleteNotes);
 
             var obsoleteFees = await context.ServiceFees
+                .IgnoreQueryFilters()
                 .Where(sf => obsoleteServiceIds.Contains(sf.ServiceId))
                 .ToListAsync();
             if (obsoleteFees.Count > 0) context.ServiceFees.RemoveRange(obsoleteFees);
@@ -643,7 +728,7 @@ public static class FastTrackSeeder
     {
         var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
-        var allVariantsInDb = await context.ServiceVariants.AsNoTracking().ToListAsync();
+        var allVariantsInDb = await context.ServiceVariants.IgnoreQueryFilters().AsNoTracking().ToListAsync();
         var validVariantIds = allVariantsInDb.Select(v => v.Id).ToHashSet();
         var allVariantsByDef = FastTrackSeederData.GetVariantDefs();
 
@@ -668,7 +753,7 @@ public static class FastTrackSeeder
 
         // 2. Seed / Sync ServiceVariantElements
         var elementsToSeed = FastTrackSeederData.GetBackfillElements();
-        var allDbSve = await context.ServiceVariantElements.ToListAsync();
+        var allDbSve = await context.ServiceVariantElements.IgnoreQueryFilters().ToListAsync();
 
         var desiredElements = new List<(Guid VariantId, string Code, string Description)>();
         foreach (var el in elementsToSeed)
@@ -685,21 +770,22 @@ public static class FastTrackSeeder
 
         // Remove obsolete elements belonging to seeded variants that are no longer in definition
         var obsoleteElements = allDbSve
-            .Where(e => seededVariantIds.Contains(e.ServiceVariantId) && !desiredSet.Contains((e.ServiceVariantId, e.Code, e.Description)))
+            .Where(e => seededVariantIds.Contains(e.ServiceVariantId) && !desiredSet.Contains((e.ServiceVariantId, e.Code, e.Description)) && !e.IsDeleted)
             .ToList();
 
         if (obsoleteElements.Count > 0)
         {
             context.ServiceVariantElements.RemoveRange(obsoleteElements);
             await context.SaveChangesAsync();
-            allDbSve = await context.ServiceVariantElements.ToListAsync();
+            allDbSve = await context.ServiceVariantElements.IgnoreQueryFilters().ToListAsync();
         }
 
         var existingDbSet = allDbSve.Select(e => (e.ServiceVariantId, e.Code, e.Description)).ToHashSet();
 
         foreach (var (variantId, code, desc) in desiredElements)
         {
-            if (!existingDbSet.Contains((variantId, code, desc)))
+            var existingEl = allDbSve.FirstOrDefault(e => e.ServiceVariantId == variantId && e.Code == code && e.Description == desc);
+            if (existingEl == null)
             {
                 context.ServiceVariantElements.Add(new ServiceVariantElement
                 {
@@ -708,7 +794,11 @@ public static class FastTrackSeeder
                     Code = code,
                     Description = desc
                 });
-                existingDbSet.Add((variantId, code, desc));
+            }
+            else if (existingEl.IsDeleted)
+            {
+                existingEl.IsDeleted = false;
+                existingEl.IsDeletedBy = string.Empty;
             }
         }
         await context.SaveChangesAsync();
@@ -719,7 +809,7 @@ public static class FastTrackSeeder
             .Select(g => g.First())
             .ToList();
 
-        var existingElements = (await context.Elements.AsNoTracking().Select(e => e.Code.ToLower()).ToListAsync()).ToHashSet();
+        var existingElements = (await context.Elements.IgnoreQueryFilters().AsNoTracking().Select(e => e.Code.ToLower()).ToListAsync()).ToHashSet();
 
         foreach (var el in uniqueElementCodes)
         {
@@ -738,8 +828,7 @@ public static class FastTrackSeeder
 
         // 3. Seed ServiceNotes
         var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
-        var existingNotes = (await context.ServiceNotes.AsNoTracking().Select(n => new { n.ServiceId, n.ServiceVariantId, n.Notes }).ToListAsync())
-            .Select(n => (n.ServiceId, n.ServiceVariantId, n.Notes)).ToHashSet();
+        var existingNotesList = await context.ServiceNotes.IgnoreQueryFilters().ToListAsync();
 
         foreach (var note in notesToSeed)
         {
@@ -749,7 +838,8 @@ public static class FastTrackSeeder
                 actualVariantId = null;
             }
 
-            if (!existingNotes.Contains((note.ServiceId, actualVariantId, note.Content)))
+            var matchingNote = existingNotesList.FirstOrDefault(n => n.ServiceId == note.ServiceId && n.ServiceVariantId == actualVariantId && n.Notes == note.Content);
+            if (matchingNote == null)
             {
                 context.ServiceNotes.Add(new ServiceNote
                 {
@@ -759,12 +849,17 @@ public static class FastTrackSeeder
                     Notes = note.Content
                 });
             }
+            else if (matchingNote.IsDeleted)
+            {
+                matchingNote.IsDeleted = false;
+                matchingNote.IsDeletedBy = string.Empty;
+            }
         }
         await context.SaveChangesAsync();
 
         // 4. Seed Requirements
         var reqs = FastTrackSeederData.GetBackfillRequirements();
-        var existingRequirements = await context.Requirements.ToListAsync();
+        var existingRequirements = await context.Requirements.IgnoreQueryFilters().ToListAsync();
         var existingReqMap = existingRequirements.ToDictionary(r => r.Id);
 
         foreach (var req in reqs.Values)
@@ -782,6 +877,8 @@ public static class FastTrackSeeder
             }
             else
             {
+                existing.IsDeleted = false;
+                existing.IsDeletedBy = string.Empty;
                 existing.Name = req.Name;
                 existing.Description = req.Desc;
             }
@@ -790,10 +887,9 @@ public static class FastTrackSeeder
         var existingReqIds = existingReqMap.Keys.ToHashSet();
 
         // 5. Seed ServiceVariantRequirements
-        var tenantId = await context.Tenants.Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
+        var tenantId = await context.Tenants.IgnoreQueryFilters().Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
-        var existingSvr = (await context.ServiceVariantRequirements.AsNoTracking().Select(r => new { r.ServiceVariantId, r.RequirementId }).ToListAsync())
-            .Select(r => (r.ServiceVariantId, r.RequirementId)).ToHashSet();
+        var allExistingSvr = await context.ServiceVariantRequirements.IgnoreQueryFilters().ToListAsync();
 
         foreach (var vr in variantReqsToSeed)
         {
@@ -803,38 +899,47 @@ public static class FastTrackSeeder
                 continue;
             }
 
-            if (!existingSvr.Contains((actualVariantId, vr.ReqId)))
+            var existingRecord = allExistingSvr.FirstOrDefault(r => r.ServiceVariantId == actualVariantId && r.RequirementId == vr.ReqId);
+            if (existingRecord == null)
             {
-                context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
+                var newSvr = new ServiceVariantRequirement
                 {
                     Id = Guid.NewGuid(),
                     TenantId = tenantId,
                     ServiceVariantId = actualVariantId,
                     RequirementId = vr.ReqId,
                     IsRequired = vr.IsRequired
-                });
-                existingSvr.Add((actualVariantId, vr.ReqId));
+                };
+                context.ServiceVariantRequirements.Add(newSvr);
+                allExistingSvr.Add(newSvr);
+            }
+            else if (existingRecord.IsDeleted || existingRecord.IsRequired != vr.IsRequired)
+            {
+                existingRecord.IsDeleted = false;
+                existingRecord.IsDeletedBy = string.Empty;
+                existingRecord.IsRequired = vr.IsRequired;
             }
         }
         await context.SaveChangesAsync();
 
-         // Deduplicate any existing duplicate database records
-         var allSvr = await context.ServiceVariantRequirements.ToListAsync();
-         var duplicatesToRemove = allSvr
-             .GroupBy(r => new { r.ServiceVariantId, r.RequirementId })
-             .SelectMany(g => g.Skip(1))
-             .ToList();
+        // Deduplicate any existing duplicate database records
+        var allSvr = await context.ServiceVariantRequirements.IgnoreQueryFilters().ToListAsync();
+        var duplicatesToRemove = allSvr
+            .GroupBy(r => new { r.ServiceVariantId, r.RequirementId })
+            .SelectMany(g => g.Skip(1))
+            .ToList();
 
-         if (duplicatesToRemove.Any())
-         {
-             context.ServiceVariantRequirements.RemoveRange(duplicatesToRemove);
-             await context.SaveChangesAsync();
-         }
+        if (duplicatesToRemove.Any())
+        {
+            context.ServiceVariantRequirements.RemoveRange(duplicatesToRemove);
+            await context.SaveChangesAsync();
+        }
 
         // 6. Seed ServiceFees
         var examFeeId = Guid.Parse("f0000000-0000-0000-0000-000000000005"); // Operator Competency Exam Fee
 
-        if (!await context.ServiceFees.AnyAsync(sf => sf.ServiceId == svc101 && sf.FeeId == examFeeId))
+        var existingServiceFee = await context.ServiceFees.IgnoreQueryFilters().FirstOrDefaultAsync(sf => sf.ServiceId == svc101 && sf.FeeId == examFeeId);
+        if (existingServiceFee == null)
         {
             context.ServiceFees.Add(new ServiceFee
             {
@@ -845,15 +950,21 @@ public static class FastTrackSeeder
                 IsActive = true
             });
         }
+        else if (existingServiceFee.IsDeleted)
+        {
+            existingServiceFee.IsDeleted = false;
+            existingServiceFee.IsDeletedBy = string.Empty;
+            existingServiceFee.IsActive = true;
+        }
         await context.SaveChangesAsync();
 
         // 7. Seed Examination Schedules for all Tenants
-        var allTenants = await context.Tenants.ToListAsync();
+        var allTenants = await context.Tenants.IgnoreQueryFilters().ToListAsync();
         var nowUtc = DateTime.UtcNow;
 
         foreach (var tenantItem in allTenants)
         {
-            var hasUpcoming = await context.Schedules.AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id && s.EndDate >= nowUtc && s.IsPublished);
+            var hasUpcoming = await context.Schedules.IgnoreQueryFilters().AnyAsync(s => s.ServiceId == svc101 && s.TenantId == tenantItem.Id && s.EndDate >= nowUtc && s.IsPublished && !s.IsDeleted);
             if (!hasUpcoming)
             {
                 context.Schedules.AddRange(
