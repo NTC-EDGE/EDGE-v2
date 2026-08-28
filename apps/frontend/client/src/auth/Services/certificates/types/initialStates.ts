@@ -151,7 +151,8 @@ export const initialVASProviderData = (id: number): VASProviderData => ({
 export const initialCopyOfCertificateData = (id: number): CopyOfCertificateData => ({
   id,
   copyType: "CERTIFIED_TRUE_COPY",
-  targetService: "Radio Operator Certificate (ROC)",
+  targetService: "Radio Operator Certificates (ROC) excluding Amateur ROC",
+  targetCertificateType: "1RTG",
   certificateNo: "",
   numberOfCopies: "1",
   isBusiness: false,

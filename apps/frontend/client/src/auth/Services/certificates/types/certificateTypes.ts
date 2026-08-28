@@ -192,6 +192,7 @@ export interface CopyOfCertificateData {
   id: number;
   copyType: "CERTIFIED_TRUE_COPY" | "DUPLICATE";
   targetService: string; // e.g. "Radio Operator Certificate", "Amateur License", etc.
+  targetCertificateType?: string; // e.g. "1RTG", "Class A", etc.
   certificateNo: string;
   
   // Certified True Copy Specific

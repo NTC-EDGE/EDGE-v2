@@ -21,6 +21,10 @@ import {
   FIELD_ID_CONTACT_NO,
   FIELD_ID_EMAIL,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_TARGET_SERVICE,
+  FIELD_ID_TARGET_CERT_TYPE,
+  FIELD_ID_TARGET_CERT_NUMBER,
+  FIELD_ID_NO_OF_COPIES,
 } from "../../../../shared/constants/fieldIds";
 
 interface GeneralFilingDetailsStepProps {
@@ -281,6 +285,18 @@ export function GeneralFilingDetailsStep({
   useEffect(() => {
     if (!loading && form && form.sections) {
       const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+      const isCopyOfCertService =
+        (service.category || "").toLowerCase().includes("certificate") &&
+        ((service.title || "").toLowerCase().includes("copy") ||
+         (service.title || "").toLowerCase().includes("ntc 1-21") ||
+         (service.title || "").toLowerCase().includes("ntc_1_21") ||
+         (service.id || "").toLowerCase().includes("121"));
+
+      const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+      const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+      const isDuplicateCopy = isCopyOfCertService && (varDesc.includes("duplicate") || String(activeApplicant.selectedVariantId).endsWith("50"));
+      const isCertifiedTrueCopy = isCopyOfCertService && !isDuplicateCopy;
+
       const isCompanyCertService =
         (service.category || "").toLowerCase().includes("certificate") &&
         ((service.title || "").toLowerCase().includes("tvro") ||
@@ -306,6 +322,40 @@ export function GeneralFilingDetailsStep({
 
         if (isRepresentativeSection) {
           return false;
+        }
+
+        // Exclude removed sections for Copy of Certificates
+        if (isCopyOfCertService) {
+          const isRemovedCopySection =
+            key === "permitlicensecertificateno" ||
+            key === "permit_license_certificate_no" ||
+            key === "circumstances" ||
+            key === "circumstancesofloss" ||
+            key === "circumstances_of_loss" ||
+            title.includes("particulars of permit") ||
+            title.includes("particulars of license") ||
+            title.includes("particulars of certificate") ||
+            title.includes("circumstances");
+
+          if (isRemovedCopySection) {
+            return false;
+          }
+
+          if (isCertifiedTrueCopy) {
+            const isApplicantOrAddressSection =
+              key === "applicant" ||
+              key === "applicantaddress" ||
+              key === "applicant_address" ||
+              key === "address" ||
+              title.includes("applicant's details") ||
+              title.includes("applicant details") ||
+              title.includes("applicant / company") ||
+              title.includes("address");
+
+            if (isApplicantOrAddressSection) {
+              return false;
+            }
+          }
         }
 
         if (!isCompanyCertService) {

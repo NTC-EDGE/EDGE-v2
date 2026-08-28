@@ -196,7 +196,13 @@ public static class CommonSeederData
             ["knownByAnotherName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000234"), FieldType = "dropdown", Label = "Known by other Name", SyncBackOnSubmit = false, ValidationRules = @"[""Yes"",""No""]" },
             ["otherTradeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000235"), FieldType = "text", Label = "Please specify", SyncBackOnSubmit = false },
             ["vasRegistrationNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000236"), FieldType = "text", Label = "VAS Registration No. (Assigned by NTC)", SyncBackOnSubmit = false },
-            ["serviceClassification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000237"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""VALUE-ADDED SERVICE (VAS) PROVIDER"",""PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)"",""RESELLER"",""VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER"",""Others""]" }
+            ["serviceClassification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000237"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""VALUE-ADDED SERVICE (VAS) PROVIDER"",""PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)"",""RESELLER"",""VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER"",""Others""]" },
+
+            // Copy of Certificate (NTC 1-21) specific fields
+            ["targetService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000240"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""Radio Operator Certificates (ROC) excluding Amateur ROC"",""Certificates in the Amateur Service"",""Certificate of Registration for RFID, SRD, WDN, Devices- Indoor"",""Certificate of Registration as a Value-Added Service (VAS) Provider"",""TVRO Registration Certificate""]" },
+            ["targetCertificateType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000241"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false },
+            ["targetCertificateNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000242"), FieldType = "text", Label = "Certificate Number", SyncBackOnSubmit = false },
+            ["noOfCopies"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000243"), FieldType = "dropdown", Label = "No. of Copies", SyncBackOnSubmit = false, ValidationRules = @"[""1"",""2"",""3"",""4"",""5"",""10""]" }
         };
     }
 }

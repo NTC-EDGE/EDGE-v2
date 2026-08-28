@@ -182,8 +182,7 @@ public static class CertificatesCategorySeederData
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""permitLicenseCertificateNo"", ""required"": true },
-            { ""key"": ""circumstances"", ""required"": true },
+            { ""key"": ""copyParticulars"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
@@ -518,8 +517,7 @@ public static class CertificatesCategorySeederData
         new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("permitLicenseCertificateNo", "Particulars of Permit/License/Certificate", new() { "permitRslNo", "stationClass" }),
-            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
+            new("copyParticulars", "Certificate Details", new() { "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
