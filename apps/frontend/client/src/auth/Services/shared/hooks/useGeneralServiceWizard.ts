@@ -424,9 +424,11 @@ export function useGeneralServiceWizard(
     service?.serviceCategoryCode?.toLowerCase()?.includes("exam") ||
     service?.title?.toLowerCase()?.includes("exam") ||
     service?.title?.toLowerCase()?.includes("admission") ||
-    service?.title?.toLowerCase()?.includes("operator") ||
+    service?.title?.toLowerCase()?.includes("operator examination") ||
     service?.serviceCategory?.type === "Exam" ||
-    service?.serviceCategory?.type === 1
+    service?.serviceCategory?.type === 1 ||
+    service?.code === "NTC_1_01" ||
+    service?.id === "50000000-0000-0000-0000-000000000001"
   );
   const [schedules, setSchedules] = useState<ExamScheduleItem[]>([]);
   const [loadingSchedules, setLoadingSchedules] = useState(false);

@@ -37,7 +37,23 @@ import {
   FIELD_ID_OTHER_TRADE_NAME,
   FIELD_ID_VAS_REG_NO,
   FIELD_ID_SVC_CLASSIFICATION,
+  FIELD_ID_COR_VAS_EXPIRY,
+  FIELD_ID_DEVICES,
+  FIELD_ID_EQUIPMENT,
+  FIELD_ID_ANTENNA,
+  FIELD_ID_RADIO_OFFICERS,
+  FIELD_ID_TVRO,
+  FIELD_ID_TARGET_SERVICE,
+  FIELD_ID_TARGET_CERT_TYPE,
+  FIELD_ID_TARGET_CERT_NUMBER,
+  FIELD_ID_NO_OF_COPIES,
 } from "../constants/fieldIds";
+import {
+  CERTIFICATE_SERVICES_OPTIONS,
+  CERTIFICATE_TYPES_BY_SERVICE,
+  resolveCertificateTypes,
+} from "../../auth/Services/certificates/forms/CopyOfCertificateForm";
+import { useCertificateServicesQuery } from "../../auth/Services/certificates/hooks/useCertificateServicesQuery";
 
 export interface FieldDto {
   id?: string;
@@ -74,6 +90,7 @@ interface DynamicFormRendererProps {
   structuredNameData?: Partial<StructuredNameData>;
   applicantName?: string;
   allowCompany?: boolean;
+  applicantType?: "individual" | "company";
   serviceCategory?: string;
   serviceTitle?: string;
   selectedVariantId?: string;
@@ -107,7 +124,7 @@ function getElementFieldLabel(category?: string, title?: string): string {
   if (cat.includes("permit") || tit.includes("permit")) {
     return "Type of Permit";
   }
-  if (cat.includes("exam") || tit.includes("exam") || tit.includes("admission") || tit.includes("operator")) {
+  if (cat.includes("exam") || tit.includes("exam") || tit.includes("admission") || tit.includes("operator examination")) {
     return "Exam Element / Station Class";
   }
   if (cat.includes("accreditation") || tit.includes("accreditation")) {
@@ -203,16 +220,15 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   if (labelLower.includes("email") || idLower === "email" || idLower === FIELD_ID_EMAIL) return 80;
 
   // 4. VAS Specific Fields Order
-  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas") || labelLower.includes("certificate no")) return 85;
-  if (idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("date of expiry")) return 86;
-  if (idLower === "serviceclassification" || idLower === FIELD_ID_SVC_CLASSIFICATION || labelLower === "service") return 87;
-  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 88;
-  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn")) return 89;
-  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date")) return 90;
-  if (idLower === "knownbyanothername" || idLower === FIELD_ID_KNOWN_OTHER_NAME || labelLower.includes("known by other name") || labelLower.includes("known by another name")) return 91;
-  if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 92;
-  if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 93;
-  if (idLower === "vasregistrationno" || idLower === FIELD_ID_VAS_REG_NO || labelLower.includes("vas registration")) return 94;
+  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 84;
+  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 85;
+  if (idLower === "corvasexpirydate" || idLower === "corvasnoexpirydate" || idLower === FIELD_ID_COR_VAS_EXPIRY || idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("cor / vas no. expiry date") || labelLower.includes("cor / vas expiry date") || labelLower.includes("license expiry date") || labelLower.includes("date of expiry")) return 86;
+  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 87;
+  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower === "date of expiry") return 88;
+  if (idLower === "knownbyanothername" || idLower === FIELD_ID_KNOWN_OTHER_NAME || labelLower.includes("known by other name") || labelLower.includes("known by another name")) return 89;
+  if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 90;
+  if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 91;
+  if (idLower === "vasregistrationno" || idLower === FIELD_ID_VAS_REG_NO || labelLower.includes("vas registration")) return 92;
 
   return 100 + defaultIndex;
 }
@@ -225,6 +241,7 @@ export function DynamicFormRenderer({
   structuredNameData,
   applicantName = "",
   allowCompany = false,
+  applicantType,
   serviceCategory,
   serviceTitle,
   selectedVariantId,
@@ -259,8 +276,8 @@ export function DynamicFormRenderer({
     const id = f?.fieldId || f?.id || "";
     return (
       l === "city" ||
-      l.includes("city / municipality") ||
-      l.includes("municipality") ||
+      l === "city / municipality" ||
+      l === "municipality" ||
       id === FIELD_ID_CITY
     );
   });
@@ -270,10 +287,10 @@ export function DynamicFormRenderer({
     return l === "barangay" || id === FIELD_ID_BARANGAY;
   });
 
-  const regionFieldId = regionField?.fieldId || regionField?.id || "";
-  const provinceFieldId = provinceField?.fieldId || provinceField?.id || "";
-  const cityFieldId = cityField?.fieldId || cityField?.id || "";
-  const barangayFieldId = barangayField?.fieldId || barangayField?.id || "";
+  const regionFieldId = regionField?.fieldId || regionField?.id;
+  const provinceFieldId = provinceField?.fieldId || provinceField?.id;
+  const cityFieldId = cityField?.fieldId || cityField?.id;
+  const barangayFieldId = barangayField?.fieldId || barangayField?.id;
 
   const currentRegionVal = (regionFieldId && values?.[regionFieldId]) || values?.["region"] || "";
   const currentProvinceVal = (provinceFieldId && values?.[provinceFieldId]) || values?.["province"] || "";
@@ -284,10 +301,10 @@ export function DynamicFormRenderer({
   const [selectedMunicipalityId, setSelectedMunicipalityId] = React.useState<string | undefined>(undefined);
 
   const {
-    regions = [],
-    provinces = [],
-    municipalities = [],
-    barangays = [],
+    regions,
+    provinces,
+    municipalities,
+    barangays,
     loadingRegions,
     loadingProvinces,
     loadingMunicipalities,
@@ -335,7 +352,7 @@ export function DynamicFormRenderer({
     setSelectedMunicipalityId(matchedMunicipality?.id);
   }, [currentCityVal, municipalities]);
 
-  const hiddenKeys = hideSections.map((s) => s.toLowerCase());
+  const hiddenKeys = hideSections.map((k) => k.toLowerCase());
 
   const isTypeSection = (section: FormSectionDto): boolean => {
     const key = (section.key || section.id || "").toLowerCase();
@@ -346,6 +363,10 @@ export function DynamicFormRenderer({
       key === "apptype" ||
       key === "applicationtype" ||
       key === "typeofapplication" ||
+      key === "applicationspecifications" ||
+      key === "application_specifications" ||
+      title === "application specifications" ||
+      title === "application specification" ||
       title === "type of certificate / application" ||
       title === "type of application & permit category" ||
       title === "type of application & category" ||
@@ -365,14 +386,49 @@ export function DynamicFormRenderer({
   const isRequestOrComplaint = catLower.includes("request") || catLower.includes("complaint") || titLower.includes("complaint") || titLower.includes("request");
   const isAccreditation = catLower.includes("accreditation") || titLower.includes("accreditation");
 
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates
-  const showNumberOfYears = !isExam && !isPermit && !isRequestOrComplaint && !isAccreditation && (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
-
   const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
   const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+
+  const isCopyOfCert =
+    (catLower.includes("certificate") || titLower.includes("certificate") || titLower.includes("copy")) &&
+    (titLower.includes("copy of certificate") ||
+      titLower.includes("copy of certificates") ||
+      titLower.includes("ntc 1-21") ||
+      titLower.includes("ntc_1_21") ||
+      titLower.includes("certified true copy") ||
+      titLower.includes("duplicate copy") ||
+      varDesc.includes("copy") ||
+      varDesc.includes("certified true") ||
+      varDesc.includes("duplicate"));
+
+  const isDuplicateCopy =
+    isCopyOfCert &&
+    (varDesc.includes("duplicate") || String(selectedVariantId).endsWith("50"));
+
+  const isCertifiedTrueCopy = isCopyOfCert && !isDuplicateCopy;
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates (excluding Exams, Permits, Complaints, Accreditations, and Copy of Certificates)
+  const showNumberOfYears =
+    !isCopyOfCert &&
+    !isExam &&
+    !isPermit &&
+    !isRequestOrComplaint &&
+    !isAccreditation &&
+    (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
+
   const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
   const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+
+  // Dynamic Certificate Services & Types Query
+  const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
+
+  // Check the applicant classification selected in Step 2:
+  // If applicantType is explicitly 'individual', handle applicant details as individual person.
+  // If applicantType is explicitly 'company', handle applicant details as company/corporate entity.
+  const isExplicitIndividual = applicantType === "individual" || (values?.["applicantType"] || "").toLowerCase() === "individual";
+  const isExplicitCompany = applicantType === "company" || (values?.["applicantType"] || "").toLowerCase() === "company";
+
   const isCompanyCertService =
     titLower.includes("tvro") ||
     titLower.includes("catv") ||
@@ -392,16 +448,60 @@ export function DynamicFormRenderer({
     varDesc.includes("wdn") ||
     varDesc.includes("cpe") ||
     matchedVariant?.isIndividual === false;
+
+  const isNonIndividualEntity = isExplicitIndividual
+    ? false
+    : isExplicitCompany
+    ? true
+    : isCompanyCertService;
+
+  const isIndividualVar = !isNonIndividualEntity;
   const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
   const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
   const isRenewalOrMod = isRenewal || isModification;
-  const showElements = variantElements.length > 0 && !isLifetimeSupplementary;
+  const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary;
 
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
     if (isTypeSection(section)) return false;
     const key = (section.key || section.id || "").toLowerCase();
     const title = (section.title || "").toLowerCase();
+
+    // For Copy of Certificates (NTC 1-21):
+    // Remove "Particulars of Permit/License/Certificate" and "Circumstances of Loss/Damage"
+    if (isCopyOfCert) {
+      const isRemovedCopySection =
+        key === "permitlicensecertificateno" ||
+        key === "permit_license_certificate_no" ||
+        key === "circumstances" ||
+        key === "circumstancesofloss" ||
+        key === "circumstances_of_loss" ||
+        title.includes("particulars of permit") ||
+        title.includes("particulars of license") ||
+        title.includes("particulars of certificate") ||
+        title.includes("circumstances");
+
+      if (isRemovedCopySection) {
+        return false;
+      }
+
+      // For Certified True Copy: only the 4 CTC fields are requested
+      if (isCertifiedTrueCopy) {
+        const isApplicantOrAddressSection =
+          key === "applicant" ||
+          key === "applicantaddress" ||
+          key === "applicant_address" ||
+          key === "address" ||
+          title.includes("applicant's details") ||
+          title.includes("applicant details") ||
+          title.includes("applicant / company") ||
+          title.includes("address");
+
+        if (isApplicantOrAddressSection) {
+          return false;
+        }
+      }
+    }
 
     // Exclude Corporate Representative and Company Details sections from Step 3 (these are the corporate filing executor details from Step 2).
     // The named individual applicant/licensee details to be named on the certificate/permit MUST remain visible in Step 3.
@@ -667,7 +767,81 @@ export function DynamicFormRenderer({
       )}
 
       {(() => {
-        const renderedSections = visibleSections
+        const copyParticularsSection: FormSectionDto = {
+          id: "copyParticulars",
+          key: "copyParticulars",
+          title: isDuplicateCopy ? "Duplicate Copy Details" : "Certified True Copy Details",
+          fields: [
+            {
+              id: FIELD_ID_TARGET_SERVICE,
+              fieldId: FIELD_ID_TARGET_SERVICE,
+              label: "Service",
+              fieldType: "dropdown",
+              isRequired: true,
+              placeholder: "Select Certificate Service...",
+              options: dynamicCertServiceOptions,
+            },
+            {
+              id: FIELD_ID_TARGET_CERT_TYPE,
+              fieldId: FIELD_ID_TARGET_CERT_TYPE,
+              label: "Type",
+              fieldType: "dropdown",
+              isRequired: true,
+              placeholder: "Select Certificate Type...",
+            },
+            {
+              id: FIELD_ID_TARGET_CERT_NUMBER,
+              fieldId: FIELD_ID_TARGET_CERT_NUMBER,
+              label: "Certificate Number",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. ROC-2023-01928",
+            },
+            ...(isCertifiedTrueCopy
+              ? [
+                  {
+                    id: FIELD_ID_NO_OF_COPIES,
+                    fieldId: FIELD_ID_NO_OF_COPIES,
+                    label: "No. of Copies",
+                    fieldType: "dropdown",
+                    isRequired: true,
+                    placeholder: "Select No. of Copies...",
+                    options: ["1", "2", "3", "4", "5", "10"],
+                  },
+                ]
+              : []),
+          ],
+        };
+
+        const sortedVisibleSections = isVas
+          ? [...visibleSections].sort((a, b) => {
+              const getVasSectionPriority = (sec: FormSectionDto): number => {
+                const k = (sec.key || sec.id || "").toLowerCase();
+                const t = (sec.title || "").toLowerCase();
+                if (k === "applicant" || t.includes("applicant")) return 1;
+                if (k === "vasparticulars" || t.includes("vas registration particulars") || t.includes("particulars")) return 2;
+                if (k === "knownbyanothername" || t.includes("known by")) return 3;
+                if (k === "valueaddedservices" || t.includes("value added")) return 4;
+                if (k === "vasregistration" || t.includes("vas registration")) return 5;
+                return 10;
+              };
+              return getVasSectionPriority(a) - getVasSectionPriority(b);
+            })
+          : isCopyOfCert
+          ? (() => {
+              const hasCopyParticulars = visibleSections.some(
+                (s) =>
+                  (s.key || s.id || "").toLowerCase() === "copyparticulars" ||
+                  (s.title || "").toLowerCase().includes("certificate details")
+              );
+              if (!hasCopyParticulars) {
+                return [copyParticularsSection, ...visibleSections];
+              }
+              return visibleSections;
+            })()
+          : visibleSections;
+
+        const renderedSections = sortedVisibleSections
           .map((section, sIdx) => {
             const rawFields = section.fields || [];
             const sectionFields = [...rawFields].sort((a, b) => {
@@ -683,6 +857,11 @@ export function DynamicFormRenderer({
                 fType === "repeater" ||
                 fType === "table" ||
                 fType === "repeater_table" ||
+                fId === FIELD_ID_DEVICES.toLowerCase() ||
+                fId === FIELD_ID_EQUIPMENT.toLowerCase() ||
+                fId === FIELD_ID_ANTENNA.toLowerCase() ||
+                fId === FIELD_ID_RADIO_OFFICERS.toLowerCase() ||
+                fId === FIELD_ID_TVRO.toLowerCase() ||
                 fId.includes("equipmentdetails") ||
                 fId.includes("antennadetails") ||
                 fId.includes("devicesdetails") ||
@@ -704,6 +883,11 @@ export function DynamicFormRenderer({
                   // Skip redundant single fields if full repeater already encompasses them in this section
                   if (
                     hasRepeater &&
+                    fIdLower !== FIELD_ID_DEVICES.toLowerCase() &&
+                    fIdLower !== FIELD_ID_EQUIPMENT.toLowerCase() &&
+                    fIdLower !== FIELD_ID_ANTENNA.toLowerCase() &&
+                    fIdLower !== FIELD_ID_RADIO_OFFICERS.toLowerCase() &&
+                    fIdLower !== FIELD_ID_TVRO.toLowerCase() &&
                     !fIdLower.includes("equipmentdetails") &&
                     !fIdLower.includes("antennadetails") &&
                     !fIdLower.includes("devicesdetails") &&
@@ -803,7 +987,39 @@ export function DynamicFormRenderer({
                   section.key?.toLowerCase().includes("antenna") ||
                   section.key?.toLowerCase().includes("signal");
 
+                const isTargetServiceField =
+                  targetId === FIELD_ID_TARGET_SERVICE ||
+                  fIdLower === "targetservice" ||
+                  (isCopyOfCert && (labelLower === "service" || labelLower === "target service" || labelLower.includes("service (dropdown)")));
+
+                const isTargetCertTypeField =
+                  targetId === FIELD_ID_TARGET_CERT_TYPE ||
+                  fIdLower === "targetcertificatetype" ||
+                  fIdLower === "targettype" ||
+                  (isCopyOfCert && (labelLower === "type" || labelLower === "certificate type" || labelLower.includes("type: based from")));
+
+                const isTargetCertNumberField =
+                  targetId === FIELD_ID_TARGET_CERT_NUMBER ||
+                  fIdLower === "targetcertificatenumber" ||
+                  fIdLower === "certificatenumber" ||
+                  fIdLower === "certificateno" ||
+                  (isCopyOfCert && (labelLower === "certificate number." || labelLower === "certificate number" || labelLower.includes("certificate no")));
+
+                const isNoOfCopiesField =
+                  targetId === FIELD_ID_NO_OF_COPIES ||
+                  fIdLower === "noofcopies" ||
+                  fIdLower === "numberofcopies" ||
+                  labelLower.includes("no. of copies") ||
+                  labelLower.includes("number of copies") ||
+                  labelLower === "copies";
+
+                if (isDuplicateCopy && isNoOfCopiesField) {
+                  return null;
+                }
+
                 const isApplicationTypeField =
+                  !isTargetCertTypeField &&
+                  !isTargetServiceField &&
                   !isEmploymentStatusField &&
                   !isEmploymentTypeField &&
                   !isEquipmentOrTechnicalSection &&
@@ -814,7 +1030,7 @@ export function DynamicFormRenderer({
                   labelLower.includes("certificate type") ||
                   labelLower.includes("type of certificate") ||
                   labelLower === "application" ||
-                  (labelLower === "type" && !section.title.toLowerCase().includes("employment") && !section.key?.toLowerCase().includes("employment")) ||
+                  (labelLower === "type" && !isCopyOfCert && !section.title.toLowerCase().includes("employment") && !section.key?.toLowerCase().includes("employment")) ||
                   fIdLower === "type_of_application" ||
                   fIdLower === "permittype" ||
                   fIdLower === "applicationtype" ||
@@ -908,6 +1124,11 @@ export function DynamicFormRenderer({
                   fieldIdLower === "service_classification" ||
                   fieldIdLower === FIELD_ID_SVC_CLASSIFICATION.toLowerCase() ||
                   (isVas && (labelLower === "service" || labelLower.includes("service classification")));
+
+                // Service field removed from VAS Registration Particulars
+                if (isServiceClassificationField) {
+                  return null;
+                }
 
                 const isSignature =
                   rawType === "signature" ||
@@ -1014,7 +1235,9 @@ export function DynamicFormRenderer({
                   isEmploymentTypeField ||
                   isEntityTypeField ||
                   isKnownByAnotherNameField ||
-                  isServiceClassificationField ||
+                  isTargetServiceField ||
+                  isTargetCertTypeField ||
+                  isNoOfCopiesField ||
                   (isElementsField && elementOptions.length > 0);
 
                 let val = rawVal;
@@ -1026,6 +1249,12 @@ export function DynamicFormRenderer({
                 }
                 if (isKnownByAnotherNameField && (!val || val === "")) {
                   val = "No";
+                }
+                if (isTargetServiceField && (!val || val === "")) {
+                  val = CERTIFICATE_SERVICES_OPTIONS[0]?.value || "";
+                }
+                if (isNoOfCopiesField && (!val || val === "")) {
+                  val = "1";
                 }
                 if (isVasRegField) {
                   val = "TO BE ASSIGNED BY NTC";
@@ -1048,86 +1277,104 @@ export function DynamicFormRenderer({
                 let dropdownOptions: Array<{ label: string; value: string }> = [];
                 let placeholder = field.placeholder || "Select an option...";
 
-                if (isEmploymentStatusField) {
-                  dropdownOptions = [
-                    { label: "Employed", value: "Employed" },
-                    { label: "Unemployed", value: "Unemployed" },
-                  ];
-                  placeholder = "Select Status...";
-                } else if (isEmploymentTypeField) {
-                  dropdownOptions = [
-                    { label: "Local", value: "Local" },
-                    { label: "Foreign", value: "Foreign" },
-                  ];
-                  placeholder = "Select Type...";
+                if (isApplicationTypeField) {
+                  dropdownOptions = variantOptions;
+                  placeholder = "Select Application Type...";
                 } else if (isNoOfYearsField) {
                   dropdownOptions = [
                     { label: "1 Year", value: "1" },
                     { label: "2 Years", value: "2" },
                     { label: "3 Years", value: "3" },
                   ];
-                  placeholder = "Select Number of Years...";
-                } else if (isApplicationTypeField) {
-                  dropdownOptions = variantOptions;
-                  placeholder = "Select Application Type / Variant...";
-                } else if (isElementsField && elementOptions.length > 0) {
-                  dropdownOptions = elementOptions;
-                  placeholder = "Select Exam Element...";
+                  placeholder = "Select duration...";
+                } else if (isTargetServiceField) {
+                  dropdownOptions = dynamicCertServiceOptions;
+                  placeholder = "Select Certificate Service...";
+                } else if (isTargetCertTypeField) {
+                  const currentServiceVal =
+                    values?.[FIELD_ID_TARGET_SERVICE] ||
+                    values?.["targetService"] ||
+                    values?.["service"] ||
+                    values?.["Service"] ||
+                    dynamicCertServiceOptions[0]?.value ||
+                    "";
+                  dropdownOptions = getTypesForService(currentServiceVal);
+                  placeholder = !currentServiceVal ? "Select Service first..." : "Select Certificate Type...";
+                } else if (isNoOfCopiesField) {
+                  dropdownOptions = [
+                    { label: "1 Copy", value: "1" },
+                    { label: "2 Copies", value: "2" },
+                    { label: "3 Copies", value: "3" },
+                    { label: "4 Copies", value: "4" },
+                    { label: "5 Copies", value: "5" },
+                    { label: "10 Copies", value: "10" },
+                  ];
+                  placeholder = "Select No. of Copies...";
                 } else if (isRegionField) {
-                  dropdownOptions = regions.map((r) => ({
-                    label: r.code ? `${r.name} (${r.code})` : r.name,
-                    value: r.name,
-                  }));
+                  dropdownOptions = regions.map((r) => ({ label: r.name, value: r.name }));
                   placeholder = loadingRegions ? "Loading regions..." : "Select Region...";
                 } else if (isProvinceField) {
-                  dropdownOptions = provinces.map((p) => ({
-                    label: p.name,
-                    value: p.name,
-                  }));
-                  placeholder = loadingProvinces
-                    ? "Loading provinces..."
-                    : !selectedRegionId
-                    ? "Select Region first..."
-                    : "Select Province...";
+                  dropdownOptions = provinces.map((p) => ({ label: p.name, value: p.name }));
+                  placeholder = !selectedRegionId ? "Select Region first..." : loadingProvinces ? "Loading provinces..." : "Select Province...";
                 } else if (isCityField) {
-                  dropdownOptions = municipalities.map((m) => ({
-                    label: m.name,
-                    value: m.name,
-                  }));
-                  placeholder = loadingMunicipalities
-                    ? "Loading cities..."
-                    : !selectedProvinceId
-                    ? "Select Province first..."
-                    : "Select City / Municipality...";
+                  dropdownOptions = municipalities.map((m) => ({ label: m.name, value: m.name }));
+                  placeholder = !selectedProvinceId ? "Select Province first..." : loadingMunicipalities ? "Loading cities/municipalities..." : "Select City / Municipality...";
                 } else if (isBarangayField) {
-                  dropdownOptions = barangays.map((b) => ({
-                    label: b.name,
-                    value: b.name,
-                  }));
-                  placeholder = loadingBarangays
-                    ? "Loading barangays..."
-                    : !selectedMunicipalityId
-                    ? "Select City first..."
-                    : "Select Barangay...";
+                  dropdownOptions = barangays.map((b) => ({ label: b.name, value: b.name }));
+                  placeholder = !selectedMunicipalityId ? "Select City/Municipality first..." : loadingBarangays ? "Loading barangays..." : "Select Barangay...";
+                } else if (isEmploymentStatusField) {
+                  dropdownOptions = [
+                    { label: "Employed", value: "Employed" },
+                    { label: "Self-Employed", value: "Self-Employed" },
+                    { label: "Unemployed", value: "Unemployed" },
+                    { label: "Student", value: "Student" },
+                    { label: "Retired", value: "Retired" },
+                  ];
+                  placeholder = "Select Employment Status...";
+                } else if (isEmploymentTypeField) {
+                  dropdownOptions = [
+                    { label: "Private", value: "Private" },
+                    { label: "Government", value: "Government" },
+                  ];
+                  placeholder = "Select Employment Sector...";
+                } else if (isEntityTypeField) {
+                  dropdownOptions = [
+                    { label: "Corporation", value: "Corporation" },
+                    { label: "Single Proprietorship", value: "Single Proprietorship" },
+                    { label: "Partnership", value: "Partnership" },
+                    { label: "Others", value: "Others" },
+                  ];
+                  placeholder = "Select Type of Entity...";
+                } else if (isKnownByAnotherNameField) {
+                  dropdownOptions = [
+                    { label: "Yes", value: "Yes" },
+                    { label: "No", value: "No" },
+                  ];
+                  placeholder = "Select Yes or No...";
+                } else if (isElementsField && elementOptions.length > 0) {
+                  dropdownOptions = elementOptions;
+                  placeholder = "Select Element / Station Class...";
                 } else {
                   dropdownOptions = parseOptions(field);
                 }
 
-                const handleDropdownChange = (selectedVal: string) => {
-                  onChange(targetId, field.label, selectedVal);
-
-                  // Cascade reset child fields only if value actually changed and was non-empty
-                  if (val && selectedVal !== val) {
-                    if (isRegionField) {
-                      if (provinceFieldId) onChange(provinceFieldId, provinceField?.label || "Province", "");
-                      if (cityFieldId) onChange(cityFieldId, cityField?.label || "City / Municipality", "");
-                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
-                    } else if (isProvinceField) {
-                      if (cityFieldId) onChange(cityFieldId, cityField?.label || "City / Municipality", "");
-                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
-                    } else if (isCityField) {
-                      if (barangayFieldId) onChange(barangayFieldId, barangayField?.label || "Barangay", "");
-                    }
+                const handleDropdownChange = (v: string) => {
+                  onChange(targetId, field.label, v);
+                  if (isTargetServiceField) {
+                    const newTypes = getTypesForService(v);
+                    const defaultType = newTypes[0]?.value || "";
+                    onChange(FIELD_ID_TARGET_CERT_TYPE, "Type", defaultType);
+                    onChange("targetCertificateType", "Type", defaultType);
+                  }
+                  if (isRegionField) {
+                    const matched = regions.find((r) => r.name.toLowerCase() === v.toLowerCase());
+                    setSelectedRegionId(matched?.id);
+                  } else if (isProvinceField) {
+                    const matched = provinces.find((p) => p.name.toLowerCase() === v.toLowerCase());
+                    setSelectedProvinceId(matched?.id);
+                  } else if (isCityField) {
+                    const matched = municipalities.find((m) => m.name.toLowerCase() === v.toLowerCase());
+                    setSelectedMunicipalityId(matched?.id);
                   }
                 };
 
@@ -1158,28 +1405,6 @@ export function DynamicFormRenderer({
                   labelLower === "power";
                 const isFile = rawType === "file";
 
-                if (isEntityTypeField && (!dropdownOptions || dropdownOptions.length === 0)) {
-                  dropdownOptions = [
-                    { label: "Corporation", value: "Corporation" },
-                    { label: "Single Proprietorship", value: "Single Proprietorship" },
-                    { label: "Partnership", value: "Partnership" },
-                    { label: "Others", value: "Others" },
-                  ];
-                } else if (isKnownByAnotherNameField && (!dropdownOptions || dropdownOptions.length === 0)) {
-                  dropdownOptions = [
-                    { label: "Yes", value: "Yes" },
-                    { label: "No", value: "No" },
-                  ];
-                } else if (isServiceClassificationField && (!dropdownOptions || dropdownOptions.length === 0)) {
-                  dropdownOptions = [
-                    { label: "VALUE-ADDED SERVICE (VAS) PROVIDER", value: "VALUE-ADDED SERVICE (VAS) PROVIDER" },
-                    { label: "PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)", value: "PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)" },
-                    { label: "RESELLER", value: "RESELLER" },
-                    { label: "VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER", value: "VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER" },
-                    { label: "Others", value: "Others" },
-                  ];
-                }
-
                 if (isOtherTradeNameField) {
                   const isKnownByOtherNameVal =
                     (values?.["knownByAnotherName"] ||
@@ -1198,6 +1423,11 @@ export function DynamicFormRenderer({
                   rawType === "table" ||
                   rawType === "repeater_table" ||
                   rawType === "array" ||
+                  fieldIdLower === FIELD_ID_DEVICES.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_EQUIPMENT.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_ANTENNA.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_RADIO_OFFICERS.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_TVRO.toLowerCase() ||
                   fieldIdLower.includes("equipmentdetails") ||
                   fieldIdLower.includes("antennadetails") ||
                   fieldIdLower.includes("radioofficers") ||
@@ -1237,32 +1467,96 @@ export function DynamicFormRenderer({
                   labelLower.includes("seminar") ||
                   labelLower.includes("rating");
 
-                const isFieldRequired = isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false);
+                let displayFieldLabel = field.label;
+                if (isTargetServiceField) {
+                  displayFieldLabel = "Service";
+                } else if (isTargetCertTypeField) {
+                  displayFieldLabel = "Type";
+                } else if (isTargetCertNumberField) {
+                  displayFieldLabel = "Certificate Number";
+                } else if (isNoOfCopiesField) {
+                  displayFieldLabel = "No. of Copies";
+                } else if (isVas) {
+                  if (
+                    fieldIdLower === FIELD_ID_COR_VAS_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "corvasexpirydate" ||
+                    fieldIdLower === "corvasnoexpirydate" ||
+                    fieldIdLower === "dateofexpiry" ||
+                    fieldIdLower === FIELD_ID_DATE_OF_EXPIRY.toLowerCase() ||
+                    labelLower === "license expiry date" ||
+                    (labelLower === "date of expiry" && (targetId === "dateOfExpiry" || targetId === FIELD_ID_DATE_OF_EXPIRY))
+                  ) {
+                    displayFieldLabel = "COR / VAS No. Expiry Date";
+                  } else if (
+                    fieldIdLower === FIELD_ID_CPCN_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "cpcndateofexpiry" ||
+                    labelLower.includes("cpcn / pa / ca date") ||
+                    labelLower.includes("cpcn")
+                  ) {
+                    displayFieldLabel = "CPCN / PA / CA No. Date of Expiry";
+                  }
+                }
 
-                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField ? 12 : 6;
+                const isVasRequiredField =
+                  isVas &&
+                  (isEntityTypeField ||
+                   targetId === FIELD_ID_COR_VAS_NO ||
+                   targetId === "corVasNo" ||
+                   labelLower.includes("cor / vas no") ||
+                   targetId === FIELD_ID_COR_VAS_EXPIRY ||
+                   targetId === "corVasExpiryDate" ||
+                   targetId === FIELD_ID_DATE_OF_EXPIRY ||
+                   targetId === "dateOfExpiry" ||
+                   labelLower.includes("cor / vas no. expiry date") ||
+                   targetId === FIELD_ID_CPCN_NO ||
+                   targetId === "cpcnPaCaNo" ||
+                   labelLower.includes("cpcn / pa / ca no") ||
+                   targetId === FIELD_ID_CPCN_EXPIRY ||
+                   targetId === "cpcnDateOfExpiry" ||
+                   labelLower.includes("cpcn / pa / ca date") ||
+                   labelLower.includes("cpcn / pa / ca no. date of expiry"));
+
+                const isCopyRequiredField =
+                  isCopyOfCert &&
+                  (isTargetServiceField ||
+                   isTargetCertTypeField ||
+                   isTargetCertNumberField ||
+                   (isNoOfCopiesField && isCertifiedTrueCopy));
+
+                const isFieldRequired = isVas
+                  ? (isVasRequiredField || (field.isRequired ?? false))
+                  : isCopyOfCert
+                  ? (isCopyRequiredField || (field.isRequired ?? false))
+                  : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
+
+                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField || isEntityTypeField ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
                     {isNameField ? (
                       <ApplicantNameField
                         key={targetId}
-                        label={isNonIndividualEntity ? "Applicant Name" : field.label}
+                        label={isNonIndividualEntity ? "Applicant / Company Name" : displayFieldLabel}
                         isRequired={isFieldRequired}
                         value={val}
-                        structuredValue={isIndividualVar ? (structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined) : structuredNameData}
-                        allowCompany={!isIndividualVar}
-                        unifiedInput={!isIndividualVar || isCompanyCertService}
-                        onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
+                        structuredValue={
+                          isIndividualVar
+                            ? (structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined)
+                            : (structuredNameData ? { ...structuredNameData, applicantType: "company" } : undefined)
+                        }
+                        allowCompany={isNonIndividualEntity}
+                        unifiedInput={isNonIndividualEntity}
+                        onChange={(combinedName) => onChange(targetId, displayFieldLabel, combinedName)}
                         onStructuredChange={onStructuredNameChange}
                         error={err}
                       />
                     ) : isRepeaterField ? (
                       <FormRepeaterTable
-                        label={field.label}
+                        label={displayFieldLabel}
                         isRequired={isFieldRequired}
                         value={val}
                         fieldKey={targetId}
-                        onChange={(repeaterJson) => onChange(targetId, field.label, repeaterJson)}
+                        onChange={(repeaterJson) => onChange(targetId, displayFieldLabel, repeaterJson)}
                         error={err}
                       />
                     ) : isBsdField ? (
@@ -1278,7 +1572,7 @@ export function DynamicFormRenderer({
                       >
                         <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
                           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#334155" }}>
-                            {field.label}
+                            {displayFieldLabel}
                           </Text>
                           <View
                             style={{
@@ -1345,18 +1639,18 @@ export function DynamicFormRenderer({
                       </View>
                     ) : isVasServicesField ? (
                       <VasServicesCheckboxGroup
-                        label={field.label}
+                        label={displayFieldLabel}
                         required={isFieldRequired}
                         value={val}
-                        onChange={(newVal) => onChange(targetId, field.label, newVal)}
+                        onChange={(newVal) => onChange(targetId, displayFieldLabel, newVal)}
                         error={err}
                       />
                     ) : isSignature ? (
                       <FormSignatureInput
-                        label={field.label}
+                        label={displayFieldLabel}
                         isRequired={isFieldRequired}
                         value={val}
-                        onChange={(sigData) => onChange(targetId, field.label, sigData)}
+                        onChange={(sigData) => onChange(targetId, displayFieldLabel, sigData)}
                         applicantName={applicantName || val}
                         isBulk={isBulk}
                         appMode={appMode}
@@ -1364,15 +1658,15 @@ export function DynamicFormRenderer({
                       />
                     ) : isCheckbox ? (
                       <DeclarationCheckbox
-                        label={field.label}
+                        label={displayFieldLabel}
                         isRequired={isFieldRequired}
                         value={val}
-                        onChange={(chkVal) => onChange(targetId, field.label, chkVal)}
+                        onChange={(chkVal) => onChange(targetId, displayFieldLabel, chkVal)}
                         error={err}
                       />
                     ) : isDropdown ? (
                       <Select
-                        label={field.label}
+                        label={displayFieldLabel}
                         required={isFieldRequired}
                         value={val}
                         onValueChange={handleDropdownChange}
@@ -1382,25 +1676,25 @@ export function DynamicFormRenderer({
                       />
                     ) : isDate ? (
                       <DatePickerInput
-                        label={field.label}
+                        label={displayFieldLabel}
                         required={isFieldRequired}
                         value={val}
-                        onChangeText={(v: string) => onChange(targetId, field.label, v)}
+                        onChangeText={(v: string) => onChange(targetId, displayFieldLabel, v)}
                         error={err}
                       />
                     ) : (
                       <ValidatedInput
-                        label={field.label}
+                        label={displayFieldLabel}
                         required={isFieldRequired}
                         value={val}
-                        onChangeText={(v) => onChange(targetId, field.label, v)}
+                        onChangeText={(v) => onChange(targetId, displayFieldLabel, v)}
                         placeholder={
                           field.placeholder ||
                           (isContactField
                             ? "09XXXXXXXXX or +639XXXXXXXXX"
                             : isEmailField
                             ? "user@example.com"
-                            : `Enter ${field.label}...`)
+                            : `Enter ${displayFieldLabel}...`)
                         }
                         keyboardType={
                           isContactField

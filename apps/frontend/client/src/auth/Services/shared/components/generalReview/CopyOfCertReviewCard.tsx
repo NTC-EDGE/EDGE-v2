@@ -18,10 +18,11 @@ export function CopyOfCertReviewCard({
   return (
     <SectionCard icon="copy" title="Copy of Certificate / Lost Details" accentColor="#D97706">
       <View style={{ gap: 4 }}>
-        {copyOfCert.copyType ? <SummaryRow label="Copy Type" value={copyOfCert.copyType} /> : null}
-        {copyOfCert.targetService ? <SummaryRow label="Target Certificate / License" value={copyOfCert.targetService} /> : null}
+        {copyOfCert.copyType ? <SummaryRow label="Copy Type" value={copyOfCert.copyType === "CERTIFIED_TRUE_COPY" ? "Certified True Copy" : "Duplicate Copy"} /> : null}
+        {copyOfCert.targetService ? <SummaryRow label="Service" value={copyOfCert.targetService} /> : null}
+        {copyOfCert.targetCertificateType ? <SummaryRow label="Type" value={copyOfCert.targetCertificateType} /> : null}
         {copyOfCert.certificateNo ? <SummaryRow label="Certificate Number" value={copyOfCert.certificateNo} /> : null}
-        {copyOfCert.numberOfCopies ? <SummaryRow label="Number of Copies" value={copyOfCert.numberOfCopies} /> : null}
+        {copyOfCert.numberOfCopies && copyOfCert.copyType !== "DUPLICATE" ? <SummaryRow label="No. of Copies" value={copyOfCert.numberOfCopies} /> : null}
       </View>
     </SectionCard>
   );

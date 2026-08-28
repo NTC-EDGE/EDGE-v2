@@ -673,30 +673,34 @@ export function serializeCertificateApplicant(
   // 5. Copy of Certificates (NTC 1-21)
   if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES") || serviceTitle.includes("COPY OF LICENSES")) {
     const data = app.copyOfCertData;
-    if (data) {
-      addField("Copy Type", data.copyType);
-      addField("Target Service", data.targetService);
-      addField("Original Certificate No", data.certificateNo);
-      if (data.copyType === "CERTIFIED_TRUE_COPY") {
-        addField("Number of Copies", data.numberOfCopies);
-      } else {
-        addField("Applicant Name", data.applicantName);
-        addField("Circumstances of Loss", data.circumstancesOfLoss);
-      }
+    const isCtc = data?.copyType === "CERTIFIED_TRUE_COPY" || (app.selectedVariantId && !app.selectedVariantId.endsWith("50"));
+    const targetServiceVal = data?.targetService || app.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("service"))?.value || "";
+    const targetTypeVal = data?.targetCertificateType || app.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase() === "type")?.value || "";
+    const certNoVal = data?.certificateNo || app.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("certificate number"))?.value || "";
+    const copiesVal = data?.numberOfCopies || app.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("copies"))?.value || "1";
 
-      return {
-        applicantType: app.applicantType || "individual",
-        companyName: app.companyName || undefined,
-        representativeName: app.representativeName || undefined,
-        firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
-        lastName: data.applicantName ? data.applicantName.split(" ").slice(1).join(" ") || app.lastName : app.lastName,
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
+    addField("Copy Type", isCtc ? "Certified True Copy" : "Duplicate Copy");
+    if (targetServiceVal) addField("Service", targetServiceVal);
+    if (targetTypeVal) addField("Type", targetTypeVal);
+    if (certNoVal) addField("Certificate Number", certNoVal);
+    if (isCtc) {
+      addField("Number of Copies", copiesVal);
+    } else {
+      if (data?.applicantName) addField("Applicant Name", data.applicantName);
     }
+
+    return {
+      applicantType: app.applicantType || "individual",
+      companyName: app.companyName || undefined,
+      representativeName: app.representativeName || undefined,
+      firstName: (data?.applicantName ? data.applicantName.split(" ")[0] : app.firstName) || app.firstName || "Applicant",
+      lastName: (data?.applicantName ? data.applicantName.split(" ").slice(1).join(" ") : app.lastName) || app.lastName || "Applicant",
+      email: data?.email || app.email || "applicant@example.com",
+      contactNumber: data?.contactNo || app.contactNo || "09170000000",
+      address: data?.address || app.address || "Philippines",
+      birthDate: birthDate,
+      formFieldValues,
+    };
   }
 
   // Default Generic Serialization

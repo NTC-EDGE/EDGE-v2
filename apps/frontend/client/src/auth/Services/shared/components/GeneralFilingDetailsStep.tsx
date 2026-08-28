@@ -21,6 +21,10 @@ import {
   FIELD_ID_CONTACT_NO,
   FIELD_ID_EMAIL,
   FIELD_ID_SIGNATURE,
+  FIELD_ID_TARGET_SERVICE,
+  FIELD_ID_TARGET_CERT_TYPE,
+  FIELD_ID_TARGET_CERT_NUMBER,
+  FIELD_ID_NO_OF_COPIES,
 } from "../../../../shared/constants/fieldIds";
 
 interface GeneralFilingDetailsStepProps {
@@ -281,6 +285,18 @@ export function GeneralFilingDetailsStep({
   useEffect(() => {
     if (!loading && form && form.sections) {
       const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+      const isCopyOfCertService =
+        (service.category || "").toLowerCase().includes("certificate") &&
+        ((service.title || "").toLowerCase().includes("copy") ||
+         (service.title || "").toLowerCase().includes("ntc 1-21") ||
+         (service.title || "").toLowerCase().includes("ntc_1_21") ||
+         (service.id || "").toLowerCase().includes("121"));
+
+      const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+      const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+      const isDuplicateCopy = isCopyOfCertService && (varDesc.includes("duplicate") || String(activeApplicant.selectedVariantId).endsWith("50"));
+      const isCertifiedTrueCopy = isCopyOfCertService && !isDuplicateCopy;
+
       const isCompanyCertService =
         (service.category || "").toLowerCase().includes("certificate") &&
         ((service.title || "").toLowerCase().includes("tvro") ||
@@ -306,6 +322,40 @@ export function GeneralFilingDetailsStep({
 
         if (isRepresentativeSection) {
           return false;
+        }
+
+        // Exclude removed sections for Copy of Certificates
+        if (isCopyOfCertService) {
+          const isRemovedCopySection =
+            key === "permitlicensecertificateno" ||
+            key === "permit_license_certificate_no" ||
+            key === "circumstances" ||
+            key === "circumstancesofloss" ||
+            key === "circumstances_of_loss" ||
+            title.includes("particulars of permit") ||
+            title.includes("particulars of license") ||
+            title.includes("particulars of certificate") ||
+            title.includes("circumstances");
+
+          if (isRemovedCopySection) {
+            return false;
+          }
+
+          if (isCertifiedTrueCopy) {
+            const isApplicantOrAddressSection =
+              key === "applicant" ||
+              key === "applicantaddress" ||
+              key === "applicant_address" ||
+              key === "address" ||
+              title.includes("applicant's details") ||
+              title.includes("applicant details") ||
+              title.includes("applicant / company") ||
+              title.includes("address");
+
+            if (isApplicantOrAddressSection) {
+              return false;
+            }
+          }
         }
 
         if (!isCompanyCertService) {
@@ -458,7 +508,11 @@ export function GeneralFilingDetailsStep({
             if (isDtiSecField) return false;
 
             const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-            const isIndividualVar = matchedVar?.isIndividual !== undefined ? matchedVar.isIndividual : !isCompanyCertService;
+            const isIndividualVar = activeApplicant.applicantType === "individual"
+              ? true
+              : activeApplicant.applicantType === "company"
+              ? false
+              : (matchedVar?.isIndividual !== undefined ? matchedVar.isIndividual : !isCompanyCertService);
             const isNonIndividualApplicant = !isIndividualVar;
 
             if (isNonIndividualApplicant) {
@@ -814,7 +868,7 @@ export function GeneralFilingDetailsStep({
       (service.category || "").toLowerCase().includes("exam") ||
       (service.title || "").toLowerCase().includes("exam") ||
       (service.title || "").toLowerCase().includes("admission") ||
-      (service.title || "").toLowerCase().includes("operator");
+      (service.title || "").toLowerCase().includes("operator examination");
 
     const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId)) || variants[0];
     const appTypeLabel = matchedVariant
@@ -879,6 +933,7 @@ export function GeneralFilingDetailsStep({
           onNoOfYearsChange={(y) => handleDynamicFieldChange(FIELD_ID_NO_OF_YEARS, "Number of Years", y)}
           variants={variants}
           variantElements={variantElements}
+          applicantType={activeApplicant.applicantType}
           errors={errors}
           appMode={appMode}
           isBulk={appMode === "BULK"}

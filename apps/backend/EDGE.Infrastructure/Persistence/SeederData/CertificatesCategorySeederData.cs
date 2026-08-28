@@ -154,8 +154,8 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Renewal""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""knownByAnotherName"", ""required"": false },
             { ""key"": ""valueAddedServices"", ""required"": true },
             { ""key"": ""vasRegistration"", ""required"": false },
@@ -182,8 +182,7 @@ public static class CertificatesCategorySeederData
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""permitLicenseCertificateNo"", ""required"": true },
-            { ""key"": ""circumstances"", ""required"": true },
+            { ""key"": ""copyParticulars"", ""required"": true },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
         ],
@@ -204,7 +203,6 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""NEW"", ""RENEWAL"", ""Modification, use Form B"", ""Commercial"", ""Non-Commercial""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicationSpecifications"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""location"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
@@ -332,9 +330,9 @@ public static class CertificatesCategorySeederData
         ["EMPLOYMENT_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000015"), "Certificate of Employment", "Certificate of Employment from the employer stating position and radio duties."),
         ["AMATEUR_ACTIVITIES_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000016"), "Proof of Amateur Activities", "Proof of amateur radio activities (Logbook, QSL cards, contest participation, club endorsement)."),
         ["LIFETIME_SUPP_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000017"), "Supplementary Certificate", "Original Supplementary Certificate or Lifetime Certificate."),
-        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer or Manufacturer Permit", "Valid Radio Dealer or Manufacturer Permit issued by NTC."),
-        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "Permit to Import & Commercial Invoice", "Valid Permit to Import, Commercial Invoice, and BOC Import Entry Declaration."),
-        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "Sales and Stocks Report", "Quarterly Sales and Stocks Report submitted to NTC for locally manufactured devices."),
+        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer Permit OR Manufacturer Permit", "Valid Radio Dealer Permit OR Manufacturer Permit issued by NTC."),
+        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "For imported equipment: (a) Permit to Import (b) Invoice (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration", "For imported equipment, submit: (a) Permit to Import, (b) Commercial Invoice, and (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration."),
+        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "For locally-manufactured equipment: Sales and Stocks Report", "For locally-manufactured equipment, submit the Quarterly Sales and Stocks Report filed with the Commission."),
         ["COMMERCIAL_INVOICE_NONDEALER"] = new(Guid.Parse("70000000-0000-0000-0000-000000000030"), "Commercial Invoice / Sales Invoice", "Official Commercial Invoice or Sales Invoice bearing the purchase details and equipment serial numbers for Non-Dealer registration."),
         ["PROVISIONAL_AUTHORITY_PA"] = new(Guid.Parse("70000000-0000-0000-0000-000000000021"), "Provisional Authority (PA) or Motion for Renewal", "Valid Provisional Authority (PA), Certificate of Authority (CA), or verified motion for renewal with NTC docket stamp."),
         ["HEAD_END_EQUIPMENT_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000022"), "List of Head-End Equipment", "Comprehensive list of head-end equipment with technical specifications, certified and signed by a licensed PECE/ECE."),
@@ -451,9 +449,8 @@ public static class CertificatesCategorySeederData
         new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
 
         // 23. Certificate of Registration for RFID, SRD, WDN - For Non-Dealers
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000030"), true),  // Commercial Invoice / Sales Invoice (with Invoice Number)*
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: Permit to Import, Invoice, BOC clearance
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: (a) Permit to Import (b) Invoice (c) BOC Release Clearance and Import Entry Declaration
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured equipment: Sales and Stocks Report
 
         // 24. TVRO Registration Certificate (Commercial)
         new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000021"), true),    // Provisional Authority (PA) OR motion for renewal*
@@ -509,8 +506,8 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
-            new("vasParticulars", "VAS Registration Particulars", new() { "corVasNo", "dateOfExpiry", "serviceClassification", "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "corVasNo", "corVasExpiryDate", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" }),
@@ -520,14 +517,12 @@ public static class CertificatesCategorySeederData
         new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("permitLicenseCertificateNo", "Particulars of Permit/License/Certificate", new() { "permitRslNo", "stationClass" }),
-            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
+            new("copyParticulars", "Certificate Details", new() { "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicationSpecifications", "Application Specifications", new() { "permitType", "stationClass" }),
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
             new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
