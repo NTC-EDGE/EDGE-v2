@@ -154,8 +154,8 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Renewal""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
+            { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""knownByAnotherName"", ""required"": false },
             { ""key"": ""valueAddedServices"", ""required"": true },
             { ""key"": ""vasRegistration"", ""required"": false },
@@ -204,7 +204,6 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""NEW"", ""RENEWAL"", ""Modification, use Form B"", ""Commercial"", ""Non-Commercial""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicationSpecifications"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""location"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
@@ -509,8 +508,8 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
-            new("vasParticulars", "VAS Registration Particulars", new() { "corVasNo", "dateOfExpiry", "serviceClassification", "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "corVasNo", "corVasExpiryDate", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" }),
@@ -527,7 +526,6 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicationSpecifications", "Application Specifications", new() { "permitType", "stationClass" }),
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
             new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),

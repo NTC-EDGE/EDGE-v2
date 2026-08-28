@@ -145,15 +145,13 @@ export function handleWizardNext({
     const isIndividualVar = matchedVariant?.isIndividual !== undefined ? matchedVariant.isIndividual : !isCompanyCertService;
 
     if (activeApplicant.applicantType === "company") {
+      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+        Alert.alert("Required Field", "Please enter the Company / Organization Name before proceeding.");
+        return;
+      }
       if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
         Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
         return;
-      }
-      if (isIndividualVar) {
-        if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
-          Alert.alert("Required Field", "Please enter the Applicant / Organization Name before proceeding.");
-          return;
-        }
       }
     }
 

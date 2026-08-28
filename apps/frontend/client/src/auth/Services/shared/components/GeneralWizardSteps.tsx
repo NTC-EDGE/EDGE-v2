@@ -156,9 +156,6 @@ export function GeneralWizardSteps({
                 }
               })
             );
-            if (type === "individual" && appMode === "BULK") {
-              setAppMode("SINGLE");
-            }
           }}
           companyName={activeApplicant.companyName || ""}
           onCompanyNameChange={(name: string) => {

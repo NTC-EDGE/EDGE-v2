@@ -458,7 +458,11 @@ export function GeneralFilingDetailsStep({
             if (isDtiSecField) return false;
 
             const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-            const isIndividualVar = matchedVar?.isIndividual !== undefined ? matchedVar.isIndividual : !isCompanyCertService;
+            const isIndividualVar = activeApplicant.applicantType === "individual"
+              ? true
+              : activeApplicant.applicantType === "company"
+              ? false
+              : (matchedVar?.isIndividual !== undefined ? matchedVar.isIndividual : !isCompanyCertService);
             const isNonIndividualApplicant = !isIndividualVar;
 
             if (isNonIndividualApplicant) {
@@ -814,7 +818,7 @@ export function GeneralFilingDetailsStep({
       (service.category || "").toLowerCase().includes("exam") ||
       (service.title || "").toLowerCase().includes("exam") ||
       (service.title || "").toLowerCase().includes("admission") ||
-      (service.title || "").toLowerCase().includes("operator");
+      (service.title || "").toLowerCase().includes("operator examination");
 
     const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId)) || variants[0];
     const appTypeLabel = matchedVariant
@@ -879,6 +883,7 @@ export function GeneralFilingDetailsStep({
           onNoOfYearsChange={(y) => handleDynamicFieldChange(FIELD_ID_NO_OF_YEARS, "Number of Years", y)}
           variants={variants}
           variantElements={variantElements}
+          applicantType={activeApplicant.applicantType}
           errors={errors}
           appMode={appMode}
           isBulk={appMode === "BULK"}

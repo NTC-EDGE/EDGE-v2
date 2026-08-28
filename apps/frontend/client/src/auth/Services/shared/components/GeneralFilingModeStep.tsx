@@ -152,13 +152,7 @@ export function GeneralFilingModeStep({
     (v) => String(v.id) === String(selectedVariantId || activeApplicant?.selectedVariantId)
   );
   const isIndividualVariant = currentVariant?.isIndividual !== undefined ? currentVariant.isIndividual : !isCompanyCertService;
-  const isMandatoryCompanyService = !isIndividualVariant;
-
-  React.useEffect(() => {
-    if (isMandatoryCompanyService && applicantType !== "company") {
-      onApplicantTypeChange?.("company");
-    }
-  }, [isMandatoryCompanyService, applicantType, onApplicantTypeChange]);
+  const isMandatoryCompanyService = false;
 
   React.useEffect(() => {
     if (!appMode) {
@@ -333,32 +327,6 @@ export function GeneralFilingModeStep({
     const matched = displayVariants.find((v) => v.id === val);
     if (matched && onSelectVariant) {
       onSelectVariant(matched.id, formatVariantLabel(matched));
-      const selName = safeUpper(matched.name || matched.description || matched.type || "");
-      const isClub = selName.includes("CLUB");
-      const isMandatory =
-        isClub ||
-        isCompanyCertService ||
-        serviceTitle.includes("CUSTOMER PREMISES") ||
-        serviceTitle.includes("CPE") ||
-        serviceTitle.includes("AERONAUTICAL") ||
-        serviceTitle.includes("MARITIME") ||
-        serviceTitle.includes("FIXED AND LAND MOBILE") ||
-        serviceTitle.includes("PUBLIC TELECOMMUNICATIONS") ||
-        serviceTitle.includes("PTE") ||
-        serviceTitle.includes("RADIO COMMUNICATIONS EQUIPMENT") ||
-        serviceTitle.includes("MOBILE PHONE") ||
-        serviceTitle.includes("CATV") ||
-        serviceTitle.includes("TAPE PRESERVATION") ||
-        selName.includes("AERO") ||
-        selName.includes("MARITIME") ||
-        selName.includes("CATV") ||
-        selName.includes("SPAM") ||
-        selName.includes("PROVIDER") ||
-        selName.includes("TAPE");
-
-      if (isMandatory) {
-        onApplicantTypeChange?.("company");
-      }
     }
   };
 
@@ -710,13 +678,9 @@ export function GeneralFilingModeStep({
         <View style={{ gap: 10 }}>
           {/* Option A: Individual Applicant */}
           <TouchableOpacity
-            activeOpacity={isMandatoryCompanyService ? 1 : 0.8}
-            disabled={isMandatoryCompanyService}
+            activeOpacity={0.8}
             onPress={() => {
-              if (!isMandatoryCompanyService) {
-                onApplicantTypeChange?.("individual");
-                onAppModeChange("SINGLE");
-              }
+              onApplicantTypeChange?.("individual");
             }}
             style={{
               flexDirection: "row",
@@ -725,8 +689,7 @@ export function GeneralFilingModeStep({
               borderRadius: 10,
               borderWidth: applicantType === "individual" ? 2 : 1,
               borderColor: applicantType === "individual" ? "#0F2C59" : "#CBD5E1",
-              backgroundColor: isMandatoryCompanyService ? "#F1F5F9" : applicantType === "individual" ? "#F0F9FF" : "#FFFFFF",
-              opacity: isMandatoryCompanyService ? 0.6 : 1,
+              backgroundColor: applicantType === "individual" ? "#F0F9FF" : "#FFFFFF",
             }}
           >
             <View
@@ -750,13 +713,11 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="user" size={14} color={applicantType === "individual" ? "#0F2C59" : "#64748B"} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "individual" ? "#0F2C59" : "#1E293B" }}>
-                  Individual Applicant {isMandatoryCompanyService ? "(Corporate Filing Only)" : ""}
+                  Individual Applicant
                 </Text>
               </View>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
-                {isMandatoryCompanyService
-                  ? "This service is categorized by NTC for registered companies, corporations, and licensed entities only."
-                  : "Personal filing for yourself. Individual applications are processed as single transactions."}
+                Personal filing for yourself as a private individual / single applicant. Individual applications are processed as single transactions.
               </Text>
             </View>
           </TouchableOpacity>
@@ -1108,49 +1069,28 @@ export function GeneralFilingModeStep({
           </Text>
         </View>
 
-        {applicantType === "individual" ? (
-          <View
-            style={{
-              backgroundColor: "#F8FAFC",
-              borderRadius: 10,
-              padding: 14,
-              borderWidth: 1,
-              borderColor: "#CBD5E1",
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 6 }}>
-              <View style={{ backgroundColor: "#EFF6FF", paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
-                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
-                  SINGLE APPLICATION
-                </Text>
-              </View>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#0F2C59" }}>
-                Individual Filing Mode
-              </Text>
-            </View>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 17 }}>
-              Individual applicants are processed as single applications. If you need to submit batch filings for multiple applicants in bulk, select <Text style={{ fontWeight: "700", color: "#0F2C59" }}>Company / Corporation</Text> above.
-            </Text>
-          </View>
-        ) : (
-          <>
-            <Select
-              label="Filing Mode*"
-              placeholder="Select Filing Mode..."
-              value={appMode}
-              onValueChange={(val) => {
-                if (val === "SINGLE" || val === "BULK") {
-                  onAppModeChange(val);
-                }
-              }}
-              options={[
-                { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
-                { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
-              ]}
-              iconName="users"
-            />
-          </>
-        )}
+        <Select
+          label="Filing Mode*"
+          placeholder="Select Filing Mode..."
+          value={appMode}
+          onValueChange={(val) => {
+            if (val === "SINGLE" || val === "BULK") {
+              onAppModeChange(val);
+            }
+          }}
+          options={
+            applicantType === "individual"
+              ? [
+                  { label: "Single Application (1 Individual Applicant)", value: "SINGLE" },
+                  { label: "Bulk Application (Multiple Individual Applicants / Spreadsheet Import)", value: "BULK" },
+                ]
+              : [
+                  { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
+                  { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
+                ]
+          }
+          iconName="users"
+        />
       </View>
     </View>
   );
