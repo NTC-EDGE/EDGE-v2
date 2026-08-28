@@ -45,6 +45,7 @@ export interface FormField {
   maxFileSizeMb?: number;
   cols?: 1 | 2;
   sectionTitle?: string;
+  sectionKey?: string;
   // Repeatable table / equipment inventory properties
   repeaterColumns?: RepeaterColumn[];
   minRows?: number;
