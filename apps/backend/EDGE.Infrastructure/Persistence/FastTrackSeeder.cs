@@ -5,13 +5,14 @@ using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using static EDGE.Infrastructure.Persistence.ServiceInformationDataSeeder;
 
 namespace EDGE.Infrastructure.Persistence;
 
 public static class FastTrackSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context)
+    public static async Task SeedAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         // Skip the full initial seed if services are already present.
         // However, always run the contract-update pass below so that changes to
@@ -23,9 +24,9 @@ public static class FastTrackSeeder
             await UpdateContractsAsync(context);
             await BackfillNewServicesAsync(context);      // 1. Seed new Services first (so variants FK matches)
             await UpdateVariantsAsync(context);          // 2. Update/upsert all variants
-            await BackfillNewCatalogDetailsAsync(context); // 3. Backfill elements, notes, requirements, and fees
+            await BackfillNewCatalogDetailsAsync(context, logger); // 3. Backfill elements, notes, requirements, and fees
             await ServiceInformationDataSeeder.SeedAsync(context);  // 4. Seed ServiceInformations entity records
-            await SeedFormsInternalAsync(context);       // 5. Seed Form layouts
+            await SeedFormsInternalAsync(context, logger); // 5. Seed Form layouts
             return;
         }
 
@@ -137,14 +138,14 @@ public static class FastTrackSeeder
         await UpdateVariantsAsync(context);
 
         // 5. Backfill elements, notes, requirements, and fees
-        await BackfillNewCatalogDetailsAsync(context);
+        await BackfillNewCatalogDetailsAsync(context, logger);
 
         await context.SaveChangesAsync();
 
-        await SeedFormsInternalAsync(context);
+        await SeedFormsInternalAsync(context, logger);
     }
 
-    private static async Task SeedFormsInternalAsync(ApplicationDbContext context)
+    private static async Task SeedFormsInternalAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         // 7. Seed Central Reusable Fields Pool (Deterministic GUIDs)
         var fieldsPool = FastTrackSeederData.GetFieldsPool();
@@ -177,6 +178,7 @@ public static class FastTrackSeeder
 
         if (globalDuplicates.Count > 0)
         {
+            int totalRemoved = 0;
             foreach (var group in globalDuplicates)
             {
                 var keep = group.FirstOrDefault(s => !s.IsDeleted) ?? group.First();
@@ -187,8 +189,10 @@ public static class FastTrackSeeder
                     .ToListAsync();
                 if (toRemoveFields.Count > 0) context.SectionFields.RemoveRange(toRemoveFields);
                 context.FormSections.RemoveRange(toRemove);
+                totalRemoved += toRemove.Count;
             }
             await context.SaveChangesAsync();
+            logger?.LogInformation("Self-healing: Cleaned up {Count} duplicate FormSection entries across existing forms.", totalRemoved);
         }
 
         // 8. Seed Form Builders & Sections per Service
@@ -249,6 +253,7 @@ public static class FastTrackSeeder
                     }
                     context.Forms.RemoveRange(redundantForms);
                     await context.SaveChangesAsync();
+                    logger?.LogInformation("Self-healing: Removed {Count} redundant form(s) for service {ServiceKey}.", redundantForms.Count, serviceKey);
                 }
             }
 
@@ -277,6 +282,10 @@ public static class FastTrackSeeder
                 await context.SaveChangesAsync();
                 foreach (var rem in toRemove) existingSections.Remove(rem);
             }
+            if (duplicateSecGroups.Count > 0)
+            {
+                logger?.LogInformation("Self-healing: Deduplicated {Count} section key group(s) in form {FormId} for service {ServiceKey}.", duplicateSecGroups.Count, targetForm.Id, serviceKey);
+            }
 
             var deduplicatedSections = sectionDefs
                 .GroupBy(s => (s.Key ?? string.Empty).Trim(), StringComparer.OrdinalIgnoreCase)
@@ -297,6 +306,7 @@ public static class FastTrackSeeder
                 context.FormSections.RemoveRange(obsoleteSections);
                 await context.SaveChangesAsync();
                 foreach (var obs in obsoleteSections) existingSections.Remove(obs);
+                logger?.LogInformation("Self-healing: Removed {Count} obsolete section(s) in form {FormId} for service {ServiceKey}.", obsoleteSections.Count, targetForm.Id, serviceKey);
             }
 
             // 3. Upsert sections and fields
@@ -724,7 +734,7 @@ public static class FastTrackSeeder
         }
     }
 
-    private static async Task BackfillNewCatalogDetailsAsync(ApplicationDbContext context)
+    private static async Task BackfillNewCatalogDetailsAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
 
@@ -933,6 +943,7 @@ public static class FastTrackSeeder
         {
             context.ServiceVariantRequirements.RemoveRange(duplicatesToRemove);
             await context.SaveChangesAsync();
+            logger?.LogInformation("Self-healing: Removed {Count} duplicate ServiceVariantRequirement records.", duplicatesToRemove.Count);
         }
 
         // 6. Seed ServiceFees
