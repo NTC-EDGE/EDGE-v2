@@ -54,6 +54,28 @@ export function GeneralFilingDetailsStep({
 }: GeneralFilingDetailsStepProps) {
   const { form, loading } = useServiceForm(service.id);
 
+  const serviceTitle = (service.title || "").toUpperCase();
+  const isCompanyCertService =
+    serviceTitle.includes("TVRO") ||
+    serviceTitle.includes("CATV") ||
+    serviceTitle.includes("VALUE-ADDED") ||
+    serviceTitle.includes("VAS") ||
+    serviceTitle.includes("RFID") ||
+    serviceTitle.includes("SRD") ||
+    serviceTitle.includes("WDN") ||
+    serviceTitle.includes("CPE") ||
+    serviceTitle.includes("ACCREDITATION") ||
+    serviceTitle.includes("COMMERCIAL") ||
+    serviceTitle.includes("CLUB") ||
+    (service.id !== undefined && (
+      service.id.toLowerCase().includes("119") ||
+      service.id.toLowerCase().includes("120") ||
+      service.id.toLowerCase().includes("122") ||
+      service.id.toLowerCase().includes("ntc_1_19") ||
+      service.id.toLowerCase().includes("ntc_1_20") ||
+      service.id.toLowerCase().includes("ntc_1_22")
+    ));
+
   // Auto-populate variant and element selections established in Step 2 into formFieldValues
   useEffect(() => {
     if (!loading && form && form.sections) {
@@ -435,7 +457,35 @@ export function GeneralFilingDetailsStep({
               labelLower.includes("sec registration");
             if (isDtiSecField) return false;
 
-            if (!isCompanyCertService && activeApplicant.applicantType === "company") {
+            const matchedVar = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+            const isIndividualVar = matchedVar?.isIndividual !== undefined ? matchedVar.isIndividual : !isCompanyCertService;
+            const isNonIndividualApplicant = !isIndividualVar;
+
+            if (isNonIndividualApplicant) {
+              const isPersonalBioField =
+                fIdLower === "fd000000-0000-0000-0000-000000000002" ||
+                fIdLower === "birthdate" ||
+                fIdLower === "dateofbirth" ||
+                labelLower === "date of birth" ||
+                labelLower === "birth date" ||
+                labelLower === "dob" ||
+                labelLower === "sex" ||
+                labelLower === "gender" ||
+                labelLower === "sex / gender" ||
+                labelLower === "civil status" ||
+                labelLower === "marital status" ||
+                labelLower === "nationality" ||
+                labelLower === "citizenship" ||
+                labelLower === "nationality / citizenship" ||
+                labelLower === "height" ||
+                labelLower === "height (cm)" ||
+                labelLower === "weight" ||
+                labelLower === "weight (kg)";
+
+              if (isPersonalBioField) return false;
+            }
+
+            if (isIndividualVar && appMode === "BULK") {
               const isLegacyCompanyField =
                 fIdLower === "fd000000-0000-0000-0000-000000000081" ||
                 fIdLower === "companyname" ||
@@ -784,7 +834,10 @@ export function GeneralFilingDetailsStep({
           onStructuredNameChange={handleStructuredNameChange}
           structuredNameData={structuredNameData}
           applicantName={getApplicantDisplayName(activeApplicant)}
-          allowCompany={false}
+          allowCompany={
+            variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId))?.isIndividual === false ||
+            (!variants.some((v) => String(v.id) === String(activeApplicant.selectedVariantId)) && isCompanyCertService)
+          }
           serviceCategory={service.category}
           serviceTitle={service.title}
           selectedVariantId={activeApplicant.selectedVariantId}

@@ -162,6 +162,9 @@ export interface FormFieldValuePayload {
 }
 
 export interface SerializedApplicantPayload {
+  applicantType?: string;
+  companyName?: string;
+  representativeName?: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -249,6 +252,9 @@ export function serializeCertificateApplicant(
         : app.formFieldValues;
 
     return {
+      applicantType: app.applicantType || "individual",
+      companyName: app.companyName || undefined,
+      representativeName: app.representativeName || undefined,
       firstName: finalFirstName || "Applicant",
       lastName: finalLastName || "Detail",
       email: emailField || app.email || "applicant@example.com",
@@ -435,6 +441,9 @@ export function serializeCertificateApplicant(
       const lastName = nameParts.slice(1).join(" ") || app.lastName;
 
       return {
+        applicantType: app.applicantType || "individual",
+        companyName: app.companyName || undefined,
+        representativeName: app.representativeName || undefined,
         firstName,
         lastName,
         email: data.email || app.email,
@@ -460,6 +469,9 @@ export function serializeCertificateApplicant(
       addField("Station Location", data.location);
 
       return {
+        applicantType: app.applicantType || "individual",
+        companyName: app.companyName || undefined,
+        representativeName: app.representativeName || undefined,
         firstName: data.firstName || app.firstName,
         lastName: data.lastName || app.lastName,
         email: data.email || app.email,
@@ -497,6 +509,9 @@ export function serializeCertificateApplicant(
       addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
 
       return {
+        applicantType: app.applicantType || "individual",
+        companyName: app.companyName || undefined,
+        representativeName: app.representativeName || undefined,
         firstName: data.firstName || app.firstName,
         lastName: data.lastName || app.lastName,
         email: data.email || app.email,
@@ -543,6 +558,9 @@ export function serializeCertificateApplicant(
       if (data.ratings) addField("Ratings", data.ratings);
 
       return {
+        applicantType: app.applicantType || "individual",
+        companyName: app.companyName || undefined,
+        representativeName: app.representativeName || undefined,
         firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
         lastName: data.applicantName ? data.applicantName.split(" ").slice(1).join(" ") || app.lastName : app.lastName,
         email: data.email || app.email,
@@ -572,6 +590,9 @@ export function serializeCertificateApplicant(
       addField("Device Particulars JSON", JSON.stringify(data.particulars));
 
       return {
+        applicantType: "company",
+        companyName: compName || undefined,
+        representativeName: repName || undefined,
         firstName: app.firstName || compName || repName || "Applicant",
         lastName: app.lastName || "",
         email: app.email || data.email,
@@ -586,6 +607,8 @@ export function serializeCertificateApplicant(
   // 3. TVRO Registration Certificate (NTC 1-22)
   if (serviceCode === "NTC_1_22" || serviceCode === "NTC_TVRO_CATV_LICENSES" || serviceTitle.includes("TVRO")) {
     const data = app.tvroRegData;
+    const compName = app.companyName || data?.applicantName || "";
+    const repName = app.representativeName || (app.firstName ? `${app.firstName} ${app.lastName}`.trim() : "");
     if (data) {
       addField("Classification", data.classification);
       addField("Applicant Name", data.applicantName);
@@ -599,6 +622,9 @@ export function serializeCertificateApplicant(
       addField("BSD No.", data.bsdNumber || "TO BE ASSIGNED BY NTC");
 
       return {
+        applicantType: "company",
+        companyName: compName || undefined,
+        representativeName: repName || undefined,
         firstName: data.applicantName || app.firstName,
         lastName: "",
         email: data.email || app.email,
@@ -613,6 +639,8 @@ export function serializeCertificateApplicant(
   // 4. VAS Provider Registration (NTC 1-20)
   if (serviceCode === "NTC_1_20" || serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS")) {
     const data = app.vasData;
+    const compName = app.companyName || data?.businessName || "";
+    const repName = app.representativeName || (app.firstName ? `${app.firstName} ${app.lastName}`.trim() : "");
     if (data) {
       addField("Application Type", data.appType);
       addField("Number of Years", data.years);
@@ -628,6 +656,9 @@ export function serializeCertificateApplicant(
       addField("Value-Added Services Scope", JSON.stringify(data.valueAddedServices));
 
       return {
+        applicantType: "company",
+        companyName: compName || undefined,
+        representativeName: repName || undefined,
         firstName: data.businessName || app.firstName,
         lastName: "",
         email: data.email || app.email,
@@ -654,6 +685,9 @@ export function serializeCertificateApplicant(
       }
 
       return {
+        applicantType: app.applicantType || "individual",
+        companyName: app.companyName || undefined,
+        representativeName: app.representativeName || undefined,
         firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
         lastName: data.applicantName ? data.applicantName.split(" ").slice(1).join(" ") || app.lastName : app.lastName,
         email: data.email || app.email,
@@ -673,6 +707,9 @@ export function serializeCertificateApplicant(
   addField("Filing Notes", app.notes);
 
   return {
+    applicantType: app.applicantType || "individual",
+    companyName: app.companyName || undefined,
+    representativeName: app.representativeName || undefined,
     firstName: app.firstName,
     lastName: app.lastName,
     email: app.email,

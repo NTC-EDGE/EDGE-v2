@@ -200,6 +200,7 @@ export const mapApplicantsPayload = (
     }
 
     return {
+      applicantType: "individual",
       firstName: app.firstName,
       lastName: app.lastName,
       email: app.email,

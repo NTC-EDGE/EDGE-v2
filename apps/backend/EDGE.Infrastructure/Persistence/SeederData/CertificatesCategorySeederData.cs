@@ -276,15 +276,15 @@ public static class CertificatesCategorySeederData
         new(VarAmaLifetimeMod, Svc103Id, ServiceVariantType.Modification, "Lifetime Amateur Radio Station Supplementary Certificate"),
 
         // CERTIFICATE OF REGISTRATION FOR RFID, SRD, WDN, DEVICES- INDOOR (NTC 1-19)
-        new(VarRfidDealers, Svc119Id, ServiceVariantType.NA, "For Dealers"),
-        new(VarRfidNonDealers, Svc119Id, ServiceVariantType.NA, "For Non-Dealers"),
+        new(VarRfidDealers, Svc119Id, ServiceVariantType.NA, "For Dealers", false),
+        new(VarRfidNonDealers, Svc119Id, ServiceVariantType.NA, "For Non-Dealers", false),
 
         // TVRO REGISTRATION CERTIFICATE (NTC 1-22)
-        new(VarTvroComm, Svc122Id, ServiceVariantType.NA, "TVRO Registration Certificate (Commercial)"),
-        new(VarTvroNonComm, Svc122Id, ServiceVariantType.NA, "TVRO Registration Certificate (Non-Commercial)"),
+        new(VarTvroComm, Svc122Id, ServiceVariantType.NA, "TVRO Registration Certificate (Commercial)", false),
+        new(VarTvroNonComm, Svc122Id, ServiceVariantType.NA, "TVRO Registration Certificate (Non-Commercial)", false),
 
         // CERTIFICATE OF REGISTRATION AS A VALUE-ADDED SERVICE (VAS) PROVIDER (NTC 1-20)
-        new(VarVasRenewal, Svc120Id, ServiceVariantType.Renewal, "Certificate of Registration as a Value-Added Service (VAS) Provider (RENEWAL)"),
+        new(VarVasRenewal, Svc120Id, ServiceVariantType.Renewal, "Certificate of Registration as a Value-Added Service (VAS) Provider (RENEWAL)", false),
 
         // COPY OF CERTIFICATES (NTC 1-21)
         new(VarCertTrueCopy, Svc121Id, ServiceVariantType.NA, "Certified True Copy"),

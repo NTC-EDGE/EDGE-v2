@@ -372,20 +372,26 @@ export function DynamicFormRenderer({
   const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
   const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
-  const isVas = catLower.includes("certificate") && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+  const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
   const isCompanyCertService =
-    catLower.includes("certificate") &&
-    (titLower.includes("tvro") ||
-     titLower.includes("value-added") ||
-     titLower.includes("vas") ||
-     titLower.includes("rfid") ||
-     titLower.includes("srd") ||
-     titLower.includes("wdn") ||
-     varDesc.includes("tvro") ||
-     varDesc.includes("vas") ||
-     varDesc.includes("rfid") ||
-     varDesc.includes("srd") ||
-     varDesc.includes("wdn"));
+    titLower.includes("tvro") ||
+    titLower.includes("catv") ||
+    titLower.includes("value-added") ||
+    titLower.includes("vas") ||
+    titLower.includes("rfid") ||
+    titLower.includes("srd") ||
+    titLower.includes("wdn") ||
+    titLower.includes("cpe") ||
+    titLower.includes("accreditation") ||
+    titLower.includes("commercial") ||
+    varDesc.includes("tvro") ||
+    varDesc.includes("catv") ||
+    varDesc.includes("vas") ||
+    varDesc.includes("rfid") ||
+    varDesc.includes("srd") ||
+    varDesc.includes("wdn") ||
+    varDesc.includes("cpe") ||
+    matchedVariant?.isIndividual === false;
   const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
   const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
   const isRenewalOrMod = isRenewal || isModification;
@@ -457,6 +463,17 @@ export function DynamicFormRenderer({
       if (isAmateurRemovedSection) {
         return false;
       }
+    }
+
+    const isClubSection =
+      key === "club" ||
+      key === "clubdetails" ||
+      key === "club_details" ||
+      title.includes("club details") ||
+      title.includes("if club station");
+
+    if (isClubSection) {
+      return false;
     }
 
     return (
@@ -649,49 +666,33 @@ export function DynamicFormRenderer({
         </View>
       )}
 
-      {visibleSections.map((section, idx) => {
-        const sectionKey = section.id || section.key || `section-${idx}`;
-        const sectionDisplayNum = (showApplicationTypeSection ? 1 : 0) + idx + 1;
-        return (
-          <View key={sectionKey} style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleRow}>
-                <View style={styles.iconCircle}>
-                  <Text style={styles.iconCircleText}>{sectionDisplayNum}</Text>
-                </View>
-                <Text style={styles.sectionTitle}>{section.title}</Text>
-              </View>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text>
-              </View>
-            </View>
+      {(() => {
+        const renderedSections = visibleSections
+          .map((section, sIdx) => {
+            const rawFields = section.fields || [];
+            const sectionFields = [...rawFields].sort((a, b) => {
+              const idxA = rawFields.indexOf(a);
+              const idxB = rawFields.indexOf(b);
+              return getFieldSortPriority(a, idxA) - getFieldSortPriority(b, idxB);
+            });
+            const hasRepeater = sectionFields.some((f) => {
+              const fType = (f.fieldType || f.type || "").toLowerCase();
+              const fId = (f.fieldId || f.id || "").toLowerCase();
+              const fLbl = (f.label || "").toLowerCase();
+              return (
+                fType === "repeater" ||
+                fType === "table" ||
+                fType === "repeater_table" ||
+                fId.includes("equipmentdetails") ||
+                fId.includes("antennadetails") ||
+                fId.includes("devicesdetails") ||
+                fId.includes("radioofficers") ||
+                fLbl.includes("particulars of equipment") ||
+                fLbl.includes("registered devices details")
+              );
+            });
 
-            <FormGrid>
-              {(() => {
-                const rawFields = section.fields || [];
-                const sectionFields = [...rawFields].sort((a, b) => {
-                  const idxA = rawFields.indexOf(a);
-                  const idxB = rawFields.indexOf(b);
-                  return getFieldSortPriority(a, idxA) - getFieldSortPriority(b, idxB);
-                });
-                const hasRepeater = sectionFields.some((f) => {
-                  const fType = (f.fieldType || f.type || "").toLowerCase();
-                  const fId = (f.fieldId || f.id || "").toLowerCase();
-                  const fLbl = (f.label || "").toLowerCase();
-                  return (
-                    fType === "repeater" ||
-                    fType === "table" ||
-                    fType === "repeater_table" ||
-                    fId.includes("equipmentdetails") ||
-                    fId.includes("antennadetails") ||
-                    fId.includes("devicesdetails") ||
-                    fId.includes("radioofficers") ||
-                    fLbl.includes("particulars of equipment") ||
-                    fLbl.includes("registered devices details")
-                  );
-                });
-
-                return sectionFields.map((field, fIdx) => {
+            const renderedFields = sectionFields.map((field, fIdx) => {
                   if (!field) return null;
                   const targetId = field.fieldId || field.id || `field-${fIdx}`;
                   const fIdLower = targetId.toLowerCase();
@@ -750,6 +751,10 @@ export function DynamicFormRenderer({
                     return null;
                   }
 
+                  const selectedVarObj = variants?.find((v) => String(v.id) === String(selectedVariantId));
+                  const isIndividualVar = selectedVarObj?.isIndividual !== undefined ? selectedVarObj.isIndividual : !isCompanyCertService;
+                  const isNonIndividualEntity = !isIndividualVar;
+
                   // For company certificate services, only skip representative fields (captured in Step 2), but keep company & branch details
                   const isRepresentativeField =
                     targetId === "fd000000-0000-0000-0000-000000000082" ||
@@ -764,14 +769,12 @@ export function DynamicFormRenderer({
                     return null;
                   }
 
-                  // For other services, skip company details if already captured in Step 2
-                  if (!isCompanyCertService) {
+                  // If individual service is filed in BULK mode (company-sponsored individuals), skip corporate fields on individual forms in Step 3 (already captured in Step 2).
+                  // For non-individual services (isIndividual === false), corporate/entity fields remain on the form so applicant entity particulars can be provided.
+                  if (isIndividualVar && appMode === "BULK") {
                     const isLegacyCompanyField =
                       targetId === "fd000000-0000-0000-0000-000000000081" ||
-                      targetId === "fd000000-0000-0000-0000-000000000082" ||
                       fIdLower === "companyname" ||
-                      fIdLower === "dtisecregistration" ||
-                      fIdLower === "dti_sec_registration" ||
                       labelLower === "company / business name" ||
                       labelLower === "company / corporation name" ||
                       labelLower === "company name" ||
@@ -819,6 +822,30 @@ export function DynamicFormRenderer({
 
                 // Skip repetitive application/permit/certificate type fields in the form body
                 if (isApplicationTypeField) {
+                  return null;
+                }
+
+                const isBioPersonalField =
+                  targetId === FIELD_ID_BIRTH_DATE ||
+                  fIdLower === "birthdate" ||
+                  fIdLower === "dateofbirth" ||
+                  labelLower === "date of birth" ||
+                  labelLower === "birth date" ||
+                  labelLower === "dob" ||
+                  labelLower === "sex" ||
+                  labelLower === "gender" ||
+                  labelLower === "sex / gender" ||
+                  labelLower === "civil status" ||
+                  labelLower === "marital status" ||
+                  labelLower === "nationality" ||
+                  labelLower === "citizenship" ||
+                  labelLower === "nationality / citizenship" ||
+                  labelLower === "height" ||
+                  labelLower === "height (cm)" ||
+                  labelLower === "weight" ||
+                  labelLower === "weight (kg)";
+
+                if (isNonIndividualEntity && isBioPersonalField) {
                   return null;
                 }
 
@@ -1219,12 +1246,12 @@ export function DynamicFormRenderer({
                     {isNameField ? (
                       <ApplicantNameField
                         key={targetId}
-                        label={isCompanyCertService ? "Applicant / Company Name" : field.label}
+                        label={isNonIndividualEntity ? "Applicant Name" : field.label}
                         isRequired={isFieldRequired}
                         value={val}
-                        structuredValue={structuredNameData}
-                        allowCompany={allowCompany}
-                        unifiedInput={isCompanyCertService}
+                        structuredValue={isIndividualVar ? (structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined) : structuredNameData}
+                        allowCompany={!isIndividualVar}
+                        unifiedInput={!isIndividualVar || isCompanyCertService}
                         onChange={(combinedName) => onChange(targetId, field.label, combinedName)}
                         onStructuredChange={onStructuredNameChange}
                         error={err}
@@ -1391,55 +1418,85 @@ export function DynamicFormRenderer({
                     )}
                   </FormCol>
                 );
-              });
-            })()}
-          </FormGrid>
-        </View>
-      );
-      })}
+              }).filter(Boolean);
 
-      {/* ── Guaranteed Signature Section at bottom of every application form ── */}
-      {(() => {
-        const hasSignatureInSections = visibleSections.some((sec) =>
-          (sec.fields || []).some((f) => {
-            const rawType = (f.fieldType || f.type || "").toLowerCase();
-            const labelLower = (f.label || "").toLowerCase();
-            return (
-              rawType === "signature" ||
-              labelLower.includes("signature") ||
-              f.fieldId === FIELD_ID_SIGNATURE
-            );
-          })
-        );
+              return {
+                section,
+                sIdx,
+                renderedFields,
+              };
+            })
+            .filter(({ renderedFields }) => renderedFields.length > 0);
 
-        if (hasSignatureInSections) return null;
-
-        const nextSectionNum = (showApplicationTypeSection ? 1 : 0) + visibleSections.length + 1;
         return (
-          <View style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleRow}>
-                <View style={styles.iconCircle}>
-                  <Text style={styles.iconCircleText}>{nextSectionNum}</Text>
-                </View>
-                <Text style={styles.sectionTitle}>Acknowledgement &amp; Applicant Signature</Text>
-              </View>
-              <View style={styles.sectionBadge}>
-                <Text style={styles.sectionBadgeText}>SECTION {nextSectionNum}</Text>
-              </View>
-            </View>
+          <>
+            {renderedSections.map(({ section, renderedFields, sIdx }, idx) => {
+              const sectionKey = section.id || section.key || `section-${sIdx}`;
+              const sectionDisplayNum = (showApplicationTypeSection ? 1 : 0) + idx + 1;
+              return (
+                <View key={sectionKey} style={styles.sectionCard}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionTitleRow}>
+                      <View style={styles.iconCircle}>
+                        <Text style={styles.iconCircleText}>{sectionDisplayNum}</Text>
+                      </View>
+                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                    </View>
+                    <View style={styles.sectionBadge}>
+                      <Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text>
+                    </View>
+                  </View>
 
-            <FormSignatureInput
-              label="Applicant Signature / Declaration"
-              isRequired={true}
-              value={values[FIELD_ID_SIGNATURE] !== undefined ? values[FIELD_ID_SIGNATURE] : (values["signature"] ?? values["applicantSignature"] ?? "")}
-              onChange={(sigData) => onChange(FIELD_ID_SIGNATURE, "Applicant Signature", sigData)}
-              applicantName={applicantName}
-              isBulk={isBulk}
-              appMode={appMode}
-              error={errors?.[FIELD_ID_SIGNATURE] || errors?.["signature"]}
-            />
-          </View>
+                  <FormGrid>{renderedFields}</FormGrid>
+                </View>
+              );
+            })}
+
+            {/* ── Guaranteed Signature Section at bottom of every application form ── */}
+            {(() => {
+              const hasSignatureInSections = renderedSections.some(({ section }) =>
+                (section.fields || []).some((f) => {
+                  const rawType = (f.fieldType || f.type || "").toLowerCase();
+                  const labelLower = (f.label || "").toLowerCase();
+                  return (
+                    rawType === "signature" ||
+                    labelLower.includes("signature") ||
+                    f.fieldId === FIELD_ID_SIGNATURE
+                  );
+                })
+              );
+
+              if (hasSignatureInSections) return null;
+
+              const nextSectionNum = (showApplicationTypeSection ? 1 : 0) + renderedSections.length + 1;
+              return (
+                <View style={styles.sectionCard}>
+                  <View style={styles.sectionHeaderRow}>
+                    <View style={styles.sectionTitleRow}>
+                      <View style={styles.iconCircle}>
+                        <Text style={styles.iconCircleText}>{nextSectionNum}</Text>
+                      </View>
+                      <Text style={styles.sectionTitle}>Acknowledgement &amp; Applicant Signature</Text>
+                    </View>
+                    <View style={styles.sectionBadge}>
+                      <Text style={styles.sectionBadgeText}>SECTION {nextSectionNum}</Text>
+                    </View>
+                  </View>
+
+                  <FormSignatureInput
+                    label="Applicant Signature / Declaration"
+                    isRequired={true}
+                    value={values[FIELD_ID_SIGNATURE] !== undefined ? values[FIELD_ID_SIGNATURE] : (values["signature"] ?? values["applicantSignature"] ?? "")}
+                    onChange={(sigData) => onChange(FIELD_ID_SIGNATURE, "Applicant Signature", sigData)}
+                    applicantName={applicantName}
+                    isBulk={isBulk}
+                    appMode={appMode}
+                    error={errors?.[FIELD_ID_SIGNATURE] || errors?.["signature"]}
+                  />
+                </View>
+              );
+            })()}
+          </>
         );
       })()}
     </View>

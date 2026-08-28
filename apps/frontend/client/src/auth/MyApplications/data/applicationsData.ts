@@ -84,6 +84,9 @@ export interface SingleApplication {
   applicants?: BulkApplicant[];
   companyName?: string;
   companyDetail?: { name?: string };
+  company?: { name?: string };
+  Company?: { Name?: string };
+  representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
   documents?: RawRequirement[];
@@ -183,6 +186,9 @@ export interface BulkApplication {
   submissionMode?: string;
   Applicants?: BulkApplicant[];
   companyDetail?: { name?: string };
+  company?: { name?: string };
+  Company?: { Name?: string };
+  representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
   documents?: RawRequirement[];

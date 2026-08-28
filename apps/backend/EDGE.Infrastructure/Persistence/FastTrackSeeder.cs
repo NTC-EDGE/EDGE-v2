@@ -14,6 +14,18 @@ public static class FastTrackSeeder
 {
     public static async Task SeedAsync(ApplicationDbContext context, ILogger? logger = null)
     {
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                ALTER TABLE ""ServiceVariants"" 
+                ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
+            ");
+        }
+        catch
+        {
+            // Table may not exist yet in fresh setup
+        }
+
         // Skip the full initial seed if services are already present.
         // However, always run the contract-update pass below so that changes to
         // requirementDiscriminatorFields / requirementContextGroups in the contract
@@ -526,19 +538,21 @@ public static class FastTrackSeeder
                     Id = def.Id,
                     ServiceId = def.ServiceId,
                     Type = def.Type,
-                    Description = def.Description
+                    Description = def.Description,
+                    IsIndividual = def.IsIndividual
                 });
                 anyChange = true;
             }
             else
             {
-                if (ev.IsDeleted || ev.ServiceId != def.ServiceId || ev.Type != def.Type || ev.Description != def.Description)
+                if (ev.IsDeleted || ev.ServiceId != def.ServiceId || ev.Type != def.Type || ev.Description != def.Description || ev.IsIndividual != def.IsIndividual)
                 {
                     ev.IsDeleted = false;
                     ev.IsDeletedBy = string.Empty;
                     ev.ServiceId = def.ServiceId;
                     ev.Type = def.Type;
                     ev.Description = def.Description;
+                    ev.IsIndividual = def.IsIndividual;
                     anyChange = true;
                 }
             }
