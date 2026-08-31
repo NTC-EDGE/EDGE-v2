@@ -444,7 +444,7 @@ export function DynamicFormRenderer({
     varDesc.includes("customer premises") ||
     varDesc.includes("cpe");
 
-  // Multi-year validity selection (1, 2, 3 years or 1, 3 years for Accreditations) is applicable for Licenses, Commercial Radio Operator Certificates, and CPE Supplier Accreditation (excluding Exams, Permits, Complaints, Copy of Certificates, Device Registration, VAS, Amateur Certificates, and ROC Modifications for Pilot/Gov/Land/Special)
+  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, Commercial Radio Operator Certificates, CPE Supplier Accreditation, and Amateur Certificate Modification
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
@@ -452,9 +452,10 @@ export function DynamicFormRenderer({
     !isRequestOrComplaint &&
     !isDeviceRegistration &&
     !isVas &&
-    !isAmateurCert &&
+    (!isAmateurCert || isModification) &&
     !isExcludedFromYears &&
     (isCpeAccreditation ||
+     (isAmateurCert && isModification) ||
      catLower.includes("license") ||
      (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
