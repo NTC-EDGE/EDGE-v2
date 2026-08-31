@@ -736,18 +736,11 @@ export function DynamicFormRenderer({
                   label="Number of Years"
                   required
                   value={noOfYears || "1"}
-                  options={
-                    isCpeAccreditation
-                      ? [
-                          { label: "1 Year", value: "1" },
-                          { label: "3 Years", value: "3" },
-                        ]
-                      : [
-                          { label: "1 Year", value: "1" },
-                          { label: "2 Years", value: "2" },
-                          { label: "3 Years", value: "3" },
-                        ]
-                  }
+                  options={[
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ]}
                   placeholder="Select Duration..."
                   onValueChange={(val: string) => onNoOfYearsChange?.(val)}
                 />
@@ -1376,16 +1369,11 @@ export function DynamicFormRenderer({
                   dropdownOptions = variantOptions;
                   placeholder = "Select Application Type...";
                 } else if (isNoOfYearsField) {
-                  dropdownOptions = isCpeAccreditation
-                    ? [
-                        { label: "1 Year", value: "1" },
-                        { label: "3 Years", value: "3" },
-                      ]
-                    : [
-                        { label: "1 Year", value: "1" },
-                        { label: "2 Years", value: "2" },
-                        { label: "3 Years", value: "3" },
-                      ];
+                  dropdownOptions = [
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ];
                   placeholder = "Select duration...";
                 } else if (isTargetServiceField) {
                   dropdownOptions = dynamicCertServiceOptions;
