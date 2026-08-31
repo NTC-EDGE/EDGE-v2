@@ -192,7 +192,7 @@ public static class CommonSeederData
             ["cpcnPaCaNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000231"), FieldType = "text", Label = "CPCN / PA / CA No.", SyncBackOnSubmit = false },
             ["cpcnDateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000232"), FieldType = "date", Label = "CPCN / PA / CA No. Date of Expiry", SyncBackOnSubmit = false },
             ["corVasNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000233"), FieldType = "text", Label = "COR / VAS No.", SyncBackOnSubmit = false },
-            ["corVasExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000238"), FieldType = "date", Label = "COR / VAS No. Expiry Date", SyncBackOnSubmit = false },
+            ["corVasExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000238"), FieldType = "date", Label = "COR / VAS No. Date of Expiry", SyncBackOnSubmit = false },
             ["knownByAnotherName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000234"), FieldType = "dropdown", Label = "Known by other Name", SyncBackOnSubmit = false, ValidationRules = @"[""Yes"",""No""]" },
             ["otherTradeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000235"), FieldType = "text", Label = "Please specify", SyncBackOnSubmit = false },
             ["vasRegistrationNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000236"), FieldType = "text", Label = "VAS Registration No. (Assigned by NTC)", SyncBackOnSubmit = false },

@@ -155,6 +155,7 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Renewal""],
         ""elements"": [],
         ""requiredSections"": [
+            { ""key"": ""applicationType"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""valueAddedServices"", ""required"": true },
@@ -508,6 +509,7 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
+            new("applicationType", "Application Type", new() { "appType", "corVasNo", "corVasExpiryDate" }),
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),

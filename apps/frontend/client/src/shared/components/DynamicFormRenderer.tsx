@@ -747,32 +747,65 @@ export function DynamicFormRenderer({
               </FormCol>
             )}
 
-            {/* Certificate Number & Date of Expiry (for Renewal & Modification) */}
-            {isAmateurCert && isRenewalOrMod && (
+            {/* Certificate Number & Date of Expiry (for Renewal & Modification & VAS) */}
+            {((isAmateurCert && isRenewalOrMod) || isVas) && (
               <>
                 <FormCol span={6}>
                   <ValidatedInput
-                    label={isRenewal ? "Certificate No." : "Certificate Number"}
+                    label={isVas ? "Certificate no." : (isRenewal ? "Certificate No." : "Certificate Number")}
                     required
-                    placeholder="e.g. ROC-2022-00123"
-                    value={values?.[FIELD_ID_LICENSE_NO] || values?.["licenseNo"] || values?.["certificateNo"] || values?.["certificateNumber"] || values?.["Certificate Number"] || values?.["Certificate No."] || ""}
+                    placeholder={isVas ? "e.g. COR-VAS-2022-0045" : "e.g. ROC-2022-00123"}
+                    value={
+                      (isVas ? values?.[FIELD_ID_COR_VAS_NO] : values?.[FIELD_ID_LICENSE_NO]) ||
+                      values?.["licenseNo"] ||
+                      values?.["certificateNo"] ||
+                      values?.["certificateNumber"] ||
+                      values?.["Certificate no."] ||
+                      values?.["Certificate no"] ||
+                      values?.["Certificate Number"] ||
+                      values?.["Certificate No."] ||
+                      values?.["corVasNo"] ||
+                      ""
+                    }
                     onChangeText={(val) => {
-                      onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
-                      onChange("licenseNo", "Certificate Number", val);
-                      onChange("certificateNumber", "Certificate Number", val);
+                      if (isVas) {
+                        onChange(FIELD_ID_COR_VAS_NO, "Certificate no.", val);
+                        onChange("certificateNumber", "Certificate no.", val);
+                        onChange("certificateNo", "Certificate no.", val);
+                        onChange("corVasNo", "Certificate no.", val);
+                      } else {
+                        onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
+                        onChange("licenseNo", "Certificate Number", val);
+                        onChange("certificateNumber", "Certificate Number", val);
+                      }
                     }}
                   />
                 </FormCol>
 
                 <FormCol span={6}>
                   <DatePickerInput
-                    label="Date of Expiry"
+                    label={isVas ? "Certificate no. Date of Expiry" : "Date of Expiry"}
                     required
                     placeholder="MM/DD/YYYY"
-                    value={values?.[FIELD_ID_DATE_OF_EXPIRY] || values?.["dateOfExpiry"] || values?.["Date of Expiry"] || ""}
+                    value={
+                      (isVas ? values?.[FIELD_ID_COR_VAS_EXPIRY] : values?.[FIELD_ID_DATE_OF_EXPIRY]) ||
+                      values?.["dateOfExpiry"] ||
+                      values?.["expiryDate"] ||
+                      values?.["Certificate no. Date of Expiry"] ||
+                      values?.["corVasExpiryDate"] ||
+                      values?.["Date of Expiry"] ||
+                      ""
+                    }
                     onChangeText={(val) => {
-                      onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
-                      onChange("dateOfExpiry", "Date of Expiry", val);
+                      if (isVas) {
+                        onChange(FIELD_ID_COR_VAS_EXPIRY, "Certificate no. Date of Expiry", val);
+                        onChange("expiryDate", "Certificate no. Date of Expiry", val);
+                        onChange("corVasExpiryDate", "Certificate no. Date of Expiry", val);
+                        onChange("dateOfExpiry", "Certificate no. Date of Expiry", val);
+                      } else {
+                        onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
+                        onChange("dateOfExpiry", "Date of Expiry", val);
+                      }
                     }}
                   />
                 </FormCol>
@@ -1406,10 +1439,14 @@ export function DynamicFormRenderer({
                 const isDate =
                   rawType === "date" ||
                   targetId === FIELD_ID_BIRTH_DATE ||
+                  targetId === FIELD_ID_CPCN_EXPIRY ||
+                  targetId === FIELD_ID_COR_VAS_EXPIRY ||
                   labelLower === "date of birth" ||
                   labelLower === "birth date" ||
+                  labelLower === "date of expiry" ||
+                  labelLower === "expiry date" ||
                   labelLower === "dob" ||
-                  (labelLower.includes("date") && !labelLower.includes("candidate") && !labelLower.includes("update") && !labelLower.includes("data"));
+                  (rawType !== "text" && rawType !== "textarea" && rawType !== "tel" && labelLower.includes("date") && !labelLower.includes("candidate") && !labelLower.includes("update") && !labelLower.includes("data"));
                 const isNumber =
                   rawType === "number" ||
                   rawType === "numeric" ||
@@ -1503,43 +1540,68 @@ export function DynamicFormRenderer({
                   displayFieldLabel = "No. of Copies";
                 } else if (isVas) {
                   if (
-                    fieldIdLower === FIELD_ID_COR_VAS_EXPIRY.toLowerCase() ||
-                    fieldIdLower === "corvasexpirydate" ||
-                    fieldIdLower === "corvasnoexpirydate" ||
-                    fieldIdLower === "dateofexpiry" ||
-                    fieldIdLower === FIELD_ID_DATE_OF_EXPIRY.toLowerCase() ||
-                    labelLower === "license expiry date" ||
-                    (labelLower === "date of expiry" && (targetId === "dateOfExpiry" || targetId === FIELD_ID_DATE_OF_EXPIRY))
+                    fieldIdLower === FIELD_ID_CPCN_NO.toLowerCase() ||
+                    fieldIdLower === "cpcnpacano" ||
+                    (labelLower.includes("cpcn") && !labelLower.includes("date") && !labelLower.includes("expiry"))
                   ) {
-                    displayFieldLabel = "COR / VAS No. Expiry Date";
+                    displayFieldLabel = "CPCN / PA / CA No.";
                   } else if (
                     fieldIdLower === FIELD_ID_CPCN_EXPIRY.toLowerCase() ||
                     fieldIdLower === "cpcndateofexpiry" ||
                     labelLower.includes("cpcn / pa / ca date") ||
-                    labelLower.includes("cpcn")
+                    labelLower.includes("cpcn date of expiry") ||
+                    labelLower.includes("cpcn / pa / ca no. date of expiry")
                   ) {
                     displayFieldLabel = "CPCN / PA / CA No. Date of Expiry";
+                  } else if (
+                    fieldIdLower === FIELD_ID_COR_VAS_NO.toLowerCase() ||
+                    fieldIdLower === "corvasno" ||
+                    (labelLower.includes("cor / vas") && !labelLower.includes("date") && !labelLower.includes("expiry")) ||
+                    (labelLower.includes("cor/vas") && !labelLower.includes("date") && !labelLower.includes("expiry"))
+                  ) {
+                    displayFieldLabel = "COR / VAS No.";
+                  } else if (
+                    fieldIdLower === FIELD_ID_COR_VAS_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "corvasexpirydate" ||
+                    fieldIdLower === "corvasnoexpirydate" ||
+                    fieldIdLower === FIELD_ID_DATE_OF_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "dateofexpiry" ||
+                    labelLower.includes("cor / vas no. expiry date") ||
+                    labelLower.includes("cor / vas no. date of expiry") ||
+                    labelLower.includes("cor / vas date of expiry") ||
+                    labelLower.includes("cor/vas expiry date") ||
+                    labelLower.includes("expiry") ||
+                    labelLower.includes("date of expiry")
+                  ) {
+                    displayFieldLabel = "COR / VAS No. Date of Expiry";
                   }
                 }
 
                 const isVasRequiredField =
                   isVas &&
                   (isEntityTypeField ||
+                   targetId === FIELD_ID_CPCN_NO ||
+                   targetId === "cpcnPaCaNo" ||
+                   labelLower.includes("cpcn / pa / ca no") ||
+                   labelLower.includes("cpcn") ||
+                   targetId === FIELD_ID_CPCN_EXPIRY ||
+                   targetId === "cpcnDateOfExpiry" ||
+                   labelLower.includes("cpcn / pa / ca date") ||
+                   labelLower.includes("cpcn / pa / ca no. date of expiry") ||
+                   labelLower.includes("cpcn date of expiry") ||
                    targetId === FIELD_ID_COR_VAS_NO ||
                    targetId === "corVasNo" ||
                    labelLower.includes("cor / vas no") ||
+                   labelLower.includes("cor/vas no") ||
                    targetId === FIELD_ID_COR_VAS_EXPIRY ||
                    targetId === "corVasExpiryDate" ||
                    targetId === FIELD_ID_DATE_OF_EXPIRY ||
                    targetId === "dateOfExpiry" ||
                    labelLower.includes("cor / vas no. expiry date") ||
-                   targetId === FIELD_ID_CPCN_NO ||
-                   targetId === "cpcnPaCaNo" ||
-                   labelLower.includes("cpcn / pa / ca no") ||
-                   targetId === FIELD_ID_CPCN_EXPIRY ||
-                   targetId === "cpcnDateOfExpiry" ||
-                   labelLower.includes("cpcn / pa / ca date") ||
-                   labelLower.includes("cpcn / pa / ca no. date of expiry"));
+                   labelLower.includes("cor / vas no. date of expiry") ||
+                   labelLower.includes("cor / vas date of expiry") ||
+                   labelLower.includes("cor/vas expiry date") ||
+                   labelLower.includes("expiry"));
 
                 const isCopyRequiredField =
                   isCopyOfCert &&
