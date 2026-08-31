@@ -221,10 +221,10 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
 
   // 4. VAS Specific Fields Order
   if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 84;
-  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 85;
-  if (idLower === "corvasexpirydate" || idLower === "corvasnoexpirydate" || idLower === FIELD_ID_COR_VAS_EXPIRY || idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("cor / vas no. expiry date") || labelLower.includes("cor / vas expiry date") || labelLower.includes("license expiry date") || labelLower.includes("date of expiry")) return 86;
-  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 87;
-  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower === "date of expiry") return 88;
+  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 85;
+  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower.includes("cpcn / pa / ca no. date of expiry")) return 86;
+  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 87;
+  if (idLower === "corvasexpirydate" || idLower === "corvasnoexpirydate" || idLower === FIELD_ID_COR_VAS_EXPIRY || idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("cor / vas no. expiry date") || labelLower.includes("cor / vas expiry date") || labelLower.includes("license expiry date")) return 88;
   if (idLower === "knownbyanothername" || idLower === FIELD_ID_KNOWN_OTHER_NAME || labelLower.includes("known by other name") || labelLower.includes("known by another name")) return 89;
   if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 90;
   if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 91;
@@ -407,18 +407,56 @@ export function DynamicFormRenderer({
 
   const isCertifiedTrueCopy = isCopyOfCert && !isDuplicateCopy;
 
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates (excluding Exams, Permits, Complaints, Accreditations, and Copy of Certificates)
+  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
+  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
+  const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+  const isDeviceRegistration =
+    titLower.includes("rfid") ||
+    titLower.includes("srd") ||
+    titLower.includes("wdn") ||
+    titLower.includes("device") ||
+    titLower.includes("ntc 1-19") ||
+    titLower.includes("ntc_1_19") ||
+    varDesc.includes("rfid") ||
+    varDesc.includes("srd") ||
+    varDesc.includes("wdn") ||
+    varDesc.includes("device");
+
+  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
+  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
+  const isRenewalOrMod = isRenewal || isModification;
+
+  const isExcludedFromYears =
+    isLifetimeSupplementary ||
+    (isModification && (
+      varDesc.includes("foreign pilot") ||
+      varDesc.includes("pilot") ||
+      varDesc.includes("government") ||
+      varDesc.includes("gov") ||
+      varDesc.includes("land mobile") ||
+      varDesc.includes("special")
+    ));
+
+  const isCpeAccreditation =
+    catLower.includes("accreditation") ||
+    titLower.includes("customer premises") ||
+    titLower.includes("cpe") ||
+    varDesc.includes("customer premises") ||
+    varDesc.includes("cpe");
+
+  // Multi-year validity selection (1, 2, 3 years or 1, 3 years for Accreditations) is applicable for Licenses, Commercial Radio Operator Certificates, and CPE Supplier Accreditation (excluding Exams, Permits, Complaints, Copy of Certificates, Device Registration, VAS, Amateur Certificates, and ROC Modifications for Pilot/Gov/Land/Special)
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
     !isPermit &&
     !isRequestOrComplaint &&
-    !isAccreditation &&
-    (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
-
-  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
-  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
-  const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+    !isDeviceRegistration &&
+    !isVas &&
+    !isAmateurCert &&
+    !isExcludedFromYears &&
+    (isCpeAccreditation ||
+     catLower.includes("license") ||
+     (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
   // Dynamic Certificate Services & Types Query
   const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
@@ -456,10 +494,14 @@ export function DynamicFormRenderer({
     : isCompanyCertService;
 
   const isIndividualVar = !isNonIndividualEntity;
-  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
-  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
-  const isRenewalOrMod = isRenewal || isModification;
-  const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary;
+
+  const isExcludedFromElements =
+    isLifetimeSupplementary ||
+    varDesc.includes("special radio operator") ||
+    varDesc.includes("special") ||
+    ((varDesc.includes("land mobile") || varDesc.includes("rroc-land")) && isModification);
+
+  const showElements = !isCopyOfCert && variantElements.length > 0 && !isExcludedFromElements;
 
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
@@ -694,11 +736,18 @@ export function DynamicFormRenderer({
                   label="Number of Years"
                   required
                   value={noOfYears || "1"}
-                  options={[
-                    { label: "1 Year", value: "1" },
-                    { label: "2 Years", value: "2" },
-                    { label: "3 Years", value: "3" },
-                  ]}
+                  options={
+                    isCpeAccreditation
+                      ? [
+                          { label: "1 Year", value: "1" },
+                          { label: "3 Years", value: "3" },
+                        ]
+                      : [
+                          { label: "1 Year", value: "1" },
+                          { label: "2 Years", value: "2" },
+                          { label: "3 Years", value: "3" },
+                        ]
+                  }
                   placeholder="Select Duration..."
                   onValueChange={(val: string) => onNoOfYearsChange?.(val)}
                 />
@@ -731,32 +780,65 @@ export function DynamicFormRenderer({
               </FormCol>
             )}
 
-            {/* Certificate Number & Date of Expiry (for Renewal & Modification) */}
-            {isAmateurCert && isRenewalOrMod && (
+            {/* Certificate Number & Date of Expiry (for Renewal & Modification & VAS) */}
+            {((isAmateurCert && isRenewalOrMod) || isVas) && (
               <>
                 <FormCol span={6}>
                   <ValidatedInput
-                    label={isRenewal ? "Certificate No." : "Certificate Number"}
+                    label={isVas ? "Certificate no." : (isRenewal ? "Certificate No." : "Certificate Number")}
                     required
-                    placeholder="e.g. ROC-2022-00123"
-                    value={values?.[FIELD_ID_LICENSE_NO] || values?.["licenseNo"] || values?.["certificateNo"] || values?.["certificateNumber"] || values?.["Certificate Number"] || values?.["Certificate No."] || ""}
+                    placeholder={isVas ? "e.g. COR-VAS-2022-0045" : "e.g. ROC-2022-00123"}
+                    value={
+                      (isVas ? values?.[FIELD_ID_COR_VAS_NO] : values?.[FIELD_ID_LICENSE_NO]) ||
+                      values?.["licenseNo"] ||
+                      values?.["certificateNo"] ||
+                      values?.["certificateNumber"] ||
+                      values?.["Certificate no."] ||
+                      values?.["Certificate no"] ||
+                      values?.["Certificate Number"] ||
+                      values?.["Certificate No."] ||
+                      values?.["corVasNo"] ||
+                      ""
+                    }
                     onChangeText={(val) => {
-                      onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
-                      onChange("licenseNo", "Certificate Number", val);
-                      onChange("certificateNumber", "Certificate Number", val);
+                      if (isVas) {
+                        onChange(FIELD_ID_COR_VAS_NO, "Certificate no.", val);
+                        onChange("certificateNumber", "Certificate no.", val);
+                        onChange("certificateNo", "Certificate no.", val);
+                        onChange("corVasNo", "Certificate no.", val);
+                      } else {
+                        onChange(FIELD_ID_LICENSE_NO, "Certificate Number", val);
+                        onChange("licenseNo", "Certificate Number", val);
+                        onChange("certificateNumber", "Certificate Number", val);
+                      }
                     }}
                   />
                 </FormCol>
 
                 <FormCol span={6}>
                   <DatePickerInput
-                    label="Date of Expiry"
+                    label={isVas ? "Certificate no. Date of Expiry" : "Date of Expiry"}
                     required
                     placeholder="MM/DD/YYYY"
-                    value={values?.[FIELD_ID_DATE_OF_EXPIRY] || values?.["dateOfExpiry"] || values?.["Date of Expiry"] || ""}
+                    value={
+                      (isVas ? values?.[FIELD_ID_COR_VAS_EXPIRY] : values?.[FIELD_ID_DATE_OF_EXPIRY]) ||
+                      values?.["dateOfExpiry"] ||
+                      values?.["expiryDate"] ||
+                      values?.["Certificate no. Date of Expiry"] ||
+                      values?.["corVasExpiryDate"] ||
+                      values?.["Date of Expiry"] ||
+                      ""
+                    }
                     onChangeText={(val) => {
-                      onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
-                      onChange("dateOfExpiry", "Date of Expiry", val);
+                      if (isVas) {
+                        onChange(FIELD_ID_COR_VAS_EXPIRY, "Certificate no. Date of Expiry", val);
+                        onChange("expiryDate", "Certificate no. Date of Expiry", val);
+                        onChange("corVasExpiryDate", "Certificate no. Date of Expiry", val);
+                        onChange("dateOfExpiry", "Certificate no. Date of Expiry", val);
+                      } else {
+                        onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
+                        onChange("dateOfExpiry", "Date of Expiry", val);
+                      }
                     }}
                   />
                 </FormCol>
@@ -935,6 +1017,21 @@ export function DynamicFormRenderer({
                     return null;
                   }
 
+                  // Skip Number of Years if not applicable for this service or handled by Section 1
+                  const isNoOfYearsField =
+                    targetId === FIELD_ID_NO_OF_YEARS ||
+                    fIdLower === "noofyears" ||
+                    fIdLower === "numberofyears" ||
+                    labelLower === "number of years" ||
+                    labelLower === "no of years" ||
+                    labelLower === "years" ||
+                    labelLower.includes("number of years") ||
+                    labelLower.includes("no of years");
+
+                  if (isNoOfYearsField && (!showNumberOfYears || showApplicationTypeSection)) {
+                    return null;
+                  }
+
                   const selectedVarObj = variants?.find((v) => String(v.id) === String(selectedVariantId));
                   const isIndividualVar = selectedVarObj?.isIndividual !== undefined ? selectedVarObj.isIndividual : !isCompanyCertService;
                   const isNonIndividualEntity = !isIndividualVar;
@@ -970,13 +1067,17 @@ export function DynamicFormRenderer({
                   }
 
                 const isEmploymentStatusField =
-                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  fIdLower === "employmentstatus" ||
+                  fIdLower === "employment_status" ||
                   labelLower === "employment status" ||
+                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment") || section.title.toLowerCase().includes("personal") || section.key?.toLowerCase().includes("personal") || section.title.toLowerCase().includes("applicant") || section.key?.toLowerCase().includes("applicant"))) ||
                   targetId === FIELD_ID_EMPLOYMENT_STATUS;
 
                 const isEmploymentTypeField =
-                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  fIdLower === "employmenttype" ||
+                  fIdLower === "employment_type" ||
                   labelLower === "employment type" ||
+                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment") || section.title.toLowerCase().includes("personal") || section.key?.toLowerCase().includes("personal") || section.title.toLowerCase().includes("applicant") || section.key?.toLowerCase().includes("applicant"))) ||
                   targetId === FIELD_ID_EMPLOYMENT_TYPE;
 
                 const isEquipmentOrTechnicalSection =
@@ -1215,12 +1316,6 @@ export function DynamicFormRenderer({
                         { label: "MODIFICATION — Amendment or change of registered particulars", value: "Modification" },
                       ];
 
-                const isNoOfYearsField =
-                  labelLower.includes("number of years") ||
-                  labelLower.includes("no of years") ||
-                  labelLower === "years" ||
-                  targetId === FIELD_ID_NO_OF_YEARS;
-
                 const isDropdown =
                   rawType === "dropdown" ||
                   rawType === "select" ||
@@ -1281,11 +1376,16 @@ export function DynamicFormRenderer({
                   dropdownOptions = variantOptions;
                   placeholder = "Select Application Type...";
                 } else if (isNoOfYearsField) {
-                  dropdownOptions = [
-                    { label: "1 Year", value: "1" },
-                    { label: "2 Years", value: "2" },
-                    { label: "3 Years", value: "3" },
-                  ];
+                  dropdownOptions = isCpeAccreditation
+                    ? [
+                        { label: "1 Year", value: "1" },
+                        { label: "3 Years", value: "3" },
+                      ]
+                    : [
+                        { label: "1 Year", value: "1" },
+                        { label: "2 Years", value: "2" },
+                        { label: "3 Years", value: "3" },
+                      ];
                   placeholder = "Select duration...";
                 } else if (isTargetServiceField) {
                   dropdownOptions = dynamicCertServiceOptions;
@@ -1325,18 +1425,15 @@ export function DynamicFormRenderer({
                 } else if (isEmploymentStatusField) {
                   dropdownOptions = [
                     { label: "Employed", value: "Employed" },
-                    { label: "Self-Employed", value: "Self-Employed" },
                     { label: "Unemployed", value: "Unemployed" },
-                    { label: "Student", value: "Student" },
-                    { label: "Retired", value: "Retired" },
                   ];
                   placeholder = "Select Employment Status...";
                 } else if (isEmploymentTypeField) {
                   dropdownOptions = [
-                    { label: "Private", value: "Private" },
-                    { label: "Government", value: "Government" },
+                    { label: "Local", value: "Local" },
+                    { label: "Foreign", value: "Foreign" },
                   ];
-                  placeholder = "Select Employment Sector...";
+                  placeholder = "Select Type...";
                 } else if (isEntityTypeField) {
                   dropdownOptions = [
                     { label: "Corporation", value: "Corporation" },
@@ -1381,10 +1478,14 @@ export function DynamicFormRenderer({
                 const isDate =
                   rawType === "date" ||
                   targetId === FIELD_ID_BIRTH_DATE ||
+                  targetId === FIELD_ID_CPCN_EXPIRY ||
+                  targetId === FIELD_ID_COR_VAS_EXPIRY ||
                   labelLower === "date of birth" ||
                   labelLower === "birth date" ||
+                  labelLower === "date of expiry" ||
+                  labelLower === "expiry date" ||
                   labelLower === "dob" ||
-                  (labelLower.includes("date") && !labelLower.includes("candidate") && !labelLower.includes("update") && !labelLower.includes("data"));
+                  (rawType !== "text" && rawType !== "textarea" && rawType !== "tel" && labelLower.includes("date") && !labelLower.includes("candidate") && !labelLower.includes("update") && !labelLower.includes("data"));
                 const isNumber =
                   rawType === "number" ||
                   rawType === "numeric" ||
@@ -1476,45 +1577,74 @@ export function DynamicFormRenderer({
                   displayFieldLabel = "Certificate Number";
                 } else if (isNoOfCopiesField) {
                   displayFieldLabel = "No. of Copies";
+                } else if (isEmploymentStatusField) {
+                  displayFieldLabel = "Employment Status";
+                } else if (isEmploymentTypeField) {
+                  displayFieldLabel = "Type";
                 } else if (isVas) {
                   if (
-                    fieldIdLower === FIELD_ID_COR_VAS_EXPIRY.toLowerCase() ||
-                    fieldIdLower === "corvasexpirydate" ||
-                    fieldIdLower === "corvasnoexpirydate" ||
-                    fieldIdLower === "dateofexpiry" ||
-                    fieldIdLower === FIELD_ID_DATE_OF_EXPIRY.toLowerCase() ||
-                    labelLower === "license expiry date" ||
-                    (labelLower === "date of expiry" && (targetId === "dateOfExpiry" || targetId === FIELD_ID_DATE_OF_EXPIRY))
+                    fieldIdLower === FIELD_ID_CPCN_NO.toLowerCase() ||
+                    fieldIdLower === "cpcnpacano" ||
+                    (labelLower.includes("cpcn") && !labelLower.includes("date") && !labelLower.includes("expiry"))
                   ) {
-                    displayFieldLabel = "COR / VAS No. Expiry Date";
+                    displayFieldLabel = "CPCN / PA / CA No.";
                   } else if (
                     fieldIdLower === FIELD_ID_CPCN_EXPIRY.toLowerCase() ||
                     fieldIdLower === "cpcndateofexpiry" ||
                     labelLower.includes("cpcn / pa / ca date") ||
-                    labelLower.includes("cpcn")
+                    labelLower.includes("cpcn date of expiry") ||
+                    labelLower.includes("cpcn / pa / ca no. date of expiry")
                   ) {
                     displayFieldLabel = "CPCN / PA / CA No. Date of Expiry";
+                  } else if (
+                    fieldIdLower === FIELD_ID_COR_VAS_NO.toLowerCase() ||
+                    fieldIdLower === "corvasno" ||
+                    (labelLower.includes("cor / vas") && !labelLower.includes("date") && !labelLower.includes("expiry")) ||
+                    (labelLower.includes("cor/vas") && !labelLower.includes("date") && !labelLower.includes("expiry"))
+                  ) {
+                    displayFieldLabel = "COR / VAS No.";
+                  } else if (
+                    fieldIdLower === FIELD_ID_COR_VAS_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "corvasexpirydate" ||
+                    fieldIdLower === "corvasnoexpirydate" ||
+                    fieldIdLower === FIELD_ID_DATE_OF_EXPIRY.toLowerCase() ||
+                    fieldIdLower === "dateofexpiry" ||
+                    labelLower.includes("cor / vas no. expiry date") ||
+                    labelLower.includes("cor / vas no. date of expiry") ||
+                    labelLower.includes("cor / vas date of expiry") ||
+                    labelLower.includes("cor/vas expiry date") ||
+                    labelLower.includes("expiry") ||
+                    labelLower.includes("date of expiry")
+                  ) {
+                    displayFieldLabel = "COR / VAS No. Date of Expiry";
                   }
                 }
 
                 const isVasRequiredField =
                   isVas &&
                   (isEntityTypeField ||
+                   targetId === FIELD_ID_CPCN_NO ||
+                   targetId === "cpcnPaCaNo" ||
+                   labelLower.includes("cpcn / pa / ca no") ||
+                   labelLower.includes("cpcn") ||
+                   targetId === FIELD_ID_CPCN_EXPIRY ||
+                   targetId === "cpcnDateOfExpiry" ||
+                   labelLower.includes("cpcn / pa / ca date") ||
+                   labelLower.includes("cpcn / pa / ca no. date of expiry") ||
+                   labelLower.includes("cpcn date of expiry") ||
                    targetId === FIELD_ID_COR_VAS_NO ||
                    targetId === "corVasNo" ||
                    labelLower.includes("cor / vas no") ||
+                   labelLower.includes("cor/vas no") ||
                    targetId === FIELD_ID_COR_VAS_EXPIRY ||
                    targetId === "corVasExpiryDate" ||
                    targetId === FIELD_ID_DATE_OF_EXPIRY ||
                    targetId === "dateOfExpiry" ||
                    labelLower.includes("cor / vas no. expiry date") ||
-                   targetId === FIELD_ID_CPCN_NO ||
-                   targetId === "cpcnPaCaNo" ||
-                   labelLower.includes("cpcn / pa / ca no") ||
-                   targetId === FIELD_ID_CPCN_EXPIRY ||
-                   targetId === "cpcnDateOfExpiry" ||
-                   labelLower.includes("cpcn / pa / ca date") ||
-                   labelLower.includes("cpcn / pa / ca no. date of expiry"));
+                   labelLower.includes("cor / vas no. date of expiry") ||
+                   labelLower.includes("cor / vas date of expiry") ||
+                   labelLower.includes("cor/vas expiry date") ||
+                   labelLower.includes("expiry"));
 
                 const isCopyRequiredField =
                   isCopyOfCert &&
@@ -1527,6 +1657,8 @@ export function DynamicFormRenderer({
                   ? (isVasRequiredField || (field.isRequired ?? false))
                   : isCopyOfCert
                   ? (isCopyRequiredField || (field.isRequired ?? false))
+                  : isEmploymentStatusField || isEntityTypeField
+                  ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
 
                 const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField || isEntityTypeField ? 12 : 6;

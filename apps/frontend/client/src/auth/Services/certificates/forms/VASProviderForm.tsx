@@ -45,11 +45,11 @@ export function VASProviderForm({
 
   return (
     <View style={certStyles.container}>
-      {/* Registration Details */}
+      {/* Application Type Section */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>VAS Registration Particulars</Text>
+        <Text style={certStyles.formSectionHeading}>Application Type</Text>
         <View style={certStyles.formGrid}>
-          <View style={certStyles.formCol6}>
+          <View style={certStyles.formCol12}>
             <Text style={certStyles.selectLabel}>Application Type*</Text>
             <Select
               value="RENEWAL"
@@ -57,6 +57,35 @@ export function VASProviderForm({
               options={[{ label: 'Renewal of Certificate', value: 'RENEWAL' }]}
             />
           </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="Certificate no."
+              placeholder="e.g. COR-VAS-2022-0045"
+              value={data.certificateNumber}
+              onChangeText={(val) => onChange({ certificateNumber: val })}
+              error={errors.certificateNumber}
+              touched={touched.certificateNumber}
+              required
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="Certificate no. Date of Expiry"
+              placeholder="MM/DD/YYYY"
+              value={data.expiryDate}
+              onChangeText={(val) => onChange({ expiryDate: val })}
+              error={errors.expiryDate}
+              touched={touched.expiryDate}
+              required
+            />
+          </View>
+        </View>
+      </View>
+
+      {/* Registration Details */}
+      <View style={certStyles.formSection}>
+        <Text style={certStyles.formSectionHeading}>VAS Registration Particulars</Text>
+        <View style={certStyles.formGrid}>
           <View style={certStyles.formCol6}>
             <Text style={certStyles.selectLabel}>Type of Entity*</Text>
             <Select
@@ -72,7 +101,29 @@ export function VASProviderForm({
           </View>
           <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="Certificate no. / COR / VAS No."
+              label="CPCN / PA / CA No."
+              placeholder="e.g. CPCN No. 2020-0012"
+              value={data.serviceNo}
+              onChangeText={(val) => onChange({ serviceNo: val })}
+              error={errors.serviceNo}
+              touched={touched.serviceNo}
+              required
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="CPCN / PA / CA No. Date of Expiry"
+              placeholder="MM/DD/YYYY"
+              value={data.cpcnPaCaDateOfExpiry}
+              onChangeText={(val) => onChange({ cpcnPaCaDateOfExpiry: val })}
+              error={errors.cpcnPaCaDateOfExpiry}
+              touched={touched.cpcnPaCaDateOfExpiry}
+              required
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="COR / VAS No."
               placeholder="e.g. COR-VAS-2022-0045"
               value={data.certificateNumber}
               onChangeText={(val) => onChange({ certificateNumber: val })}
@@ -83,29 +134,13 @@ export function VASProviderForm({
           </View>
           <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="Date of Expiry"
+              label="COR / VAS No. Date of Expiry"
               placeholder="MM/DD/YYYY"
               value={data.expiryDate}
               onChangeText={(val) => onChange({ expiryDate: val })}
               error={errors.expiryDate}
               touched={touched.expiryDate}
               required
-            />
-          </View>
-          <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="CPCN / PA / CA No. (Optional)"
-              placeholder="e.g. CPCN No. 2020-0012"
-              value={data.serviceNo}
-              onChangeText={(val) => onChange({ serviceNo: val })}
-            />
-          </View>
-          <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="CPCN Date of Expiry (Optional)"
-              placeholder="MM/DD/YYYY"
-              value={data.cpcnPaCaDateOfExpiry}
-              onChangeText={(val) => onChange({ cpcnPaCaDateOfExpiry: val })}
             />
           </View>
           <View style={certStyles.formCol6}>

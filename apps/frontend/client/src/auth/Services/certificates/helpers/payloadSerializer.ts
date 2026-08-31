@@ -122,9 +122,32 @@ const FIELD_GUID_MAP: Record<string, string> = {
   "device type":              "fd000000-0000-0000-0000-000000000085",
   "sec / dti registration number": "fd000000-0000-0000-0000-000000000086",
   "sec/dti no":               "fd000000-0000-0000-0000-000000000086",
-  "serial number(s)":         "fd000000-0000-0000-0000-000000000087",
-  "serial no.":               "fd000000-0000-0000-0000-000000000087",
-  "serial no":                "fd000000-0000-0000-0000-000000000087",
+  // VAS Registration (NTC 1-20) specific fields
+  "type of entity":                         "fd000000-0000-0000-0000-000000000230",
+  "entity type":                             "fd000000-0000-0000-0000-000000000230",
+  "cpcn / pa / ca no.":                      "fd000000-0000-0000-0000-000000000231",
+  "cpcn / pa / ca no":                       "fd000000-0000-0000-0000-000000000231",
+  "cpcn / pa / ca license no":               "fd000000-0000-0000-0000-000000000231",
+  "cpcn/pa/ca license no":                   "fd000000-0000-0000-0000-000000000231",
+  "cpcn / pa / ca no. date of expiry":       "fd000000-0000-0000-0000-000000000232",
+  "cpcn / pa / ca date of expiry":           "fd000000-0000-0000-0000-000000000232",
+  "cpcn date of expiry":                     "fd000000-0000-0000-0000-000000000232",
+  "cpcn/pa/ca expiration date":              "fd000000-0000-0000-0000-000000000232",
+  "cor / vas no.":                           "fd000000-0000-0000-0000-000000000233",
+  "cor / vas no":                            "fd000000-0000-0000-0000-000000000233",
+  "cor/vas certificate no":                  "fd000000-0000-0000-0000-000000000233",
+  "cor / vas no. date of expiry":            "fd000000-0000-0000-0000-000000000238",
+  "cor / vas no. expiry date":               "fd000000-0000-0000-0000-000000000238",
+  "cor / vas date of expiry":                "fd000000-0000-0000-0000-000000000238",
+  "cor/vas expiry date":                     "fd000000-0000-0000-0000-000000000238",
+  "known by other name":                     "fd000000-0000-0000-0000-000000000234",
+  "known by another name":                   "fd000000-0000-0000-0000-000000000234",
+  "please specify":                          "fd000000-0000-0000-0000-000000000235",
+  "other trade name":                        "fd000000-0000-0000-0000-000000000235",
+  "operating trade name":                    "fd000000-0000-0000-0000-000000000235",
+  "vas registration no. (assigned by ntc)":  "fd000000-0000-0000-0000-000000000236",
+  "vas registration no":                     "fd000000-0000-0000-0000-000000000236",
+  "vas registration":                        "fd000000-0000-0000-0000-000000000236",
 };
 
 /**
@@ -549,6 +572,7 @@ export function serializeCertificateApplicant(
       addField("Applicant Name", data.applicantName || `${app.firstName} ${app.lastName}`);
       if (!isAmateurServiceCert) {
         addField("Employment Status", data.employmentStatus);
+        addField("Type", data.employmentType);
         addField("Employment Location", data.employmentLocation);
         addField("Weight (kg)", data.weightKg);
         addField("Height (cm)", data.heightCm);
@@ -646,12 +670,10 @@ export function serializeCertificateApplicant(
       addField("Number of Years", data.years);
       addField("Company Name", data.businessName);
       addField("Business Entity Type", data.serviceType);
-      if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
-        addField("COR/VAS Certificate No", data.certificateNumber);
-        addField("COR/VAS Expiry Date", data.expiryDate);
-      }
-      addField("CPCN/PA/CA License No", data.serviceNo);
-      addField("CPCN/PA/CA Expiration Date", data.cpcnPaCaDateOfExpiry);
+      addField("CPCN / PA / CA No.", data.serviceNo);
+      addField("CPCN / PA / CA No. Date of Expiry", data.cpcnPaCaDateOfExpiry);
+      addField("COR / VAS No.", data.certificateNumber);
+      addField("COR / VAS No. Date of Expiry", data.expiryDate);
       addField("Operating Trade Name", data.isKnownByOtherName ? data.otherTradeName : "N/A");
       addField("Value-Added Services Scope", JSON.stringify(data.valueAddedServices));
 
