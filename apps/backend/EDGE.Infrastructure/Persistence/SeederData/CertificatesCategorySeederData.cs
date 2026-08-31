@@ -442,7 +442,8 @@ public static class CertificatesCategorySeederData
         new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000028"), false),  // For upgrade to higher class, valid Report of Rating
 
         // 21. Lifetime Amateur Radio Station Supplementary Certificate - MODIFICATION
-        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000017"), true), // Supplementary Certificate*
+        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000007"), true), // Amateur Radio Operator Certificate*
+        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // 1x1 ID Picture*
 
         // 22. Certificate of Registration for RFID, SRD, WDN - For Dealers
         new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000018"), true),  // Dealer Permit OR Manufacturer Permit*
