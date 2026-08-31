@@ -53,6 +53,7 @@ export function CPEStep5ApplicationForm({
               onValueChange={(val) => updateActiveApplicant({ years: val })}
               options={[
                 { label: "1 Year", value: "1" },
+                { label: "2 Years", value: "2" },
                 { label: "3 Years", value: "3" },
               ]}
             />

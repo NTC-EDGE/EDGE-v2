@@ -444,7 +444,7 @@ export function DynamicFormRenderer({
     varDesc.includes("customer premises") ||
     varDesc.includes("cpe");
 
-  // Multi-year validity selection (1, 2, 3 years or 1, 3 years for Accreditations) is applicable for Licenses, Commercial Radio Operator Certificates, and CPE Supplier Accreditation (excluding Exams, Permits, Complaints, Copy of Certificates, Device Registration, VAS, Amateur Certificates, and ROC Modifications for Pilot/Gov/Land/Special)
+  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, Commercial Radio Operator Certificates, CPE Supplier Accreditation, and Amateur Certificate Modification
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
@@ -452,9 +452,10 @@ export function DynamicFormRenderer({
     !isRequestOrComplaint &&
     !isDeviceRegistration &&
     !isVas &&
-    !isAmateurCert &&
+    (!isAmateurCert || isModification) &&
     !isExcludedFromYears &&
     (isCpeAccreditation ||
+     (isAmateurCert && isModification) ||
      catLower.includes("license") ||
      (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
@@ -736,18 +737,11 @@ export function DynamicFormRenderer({
                   label="Number of Years"
                   required
                   value={noOfYears || "1"}
-                  options={
-                    isCpeAccreditation
-                      ? [
-                          { label: "1 Year", value: "1" },
-                          { label: "3 Years", value: "3" },
-                        ]
-                      : [
-                          { label: "1 Year", value: "1" },
-                          { label: "2 Years", value: "2" },
-                          { label: "3 Years", value: "3" },
-                        ]
-                  }
+                  options={[
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ]}
                   placeholder="Select Duration..."
                   onValueChange={(val: string) => onNoOfYearsChange?.(val)}
                 />
@@ -1376,16 +1370,11 @@ export function DynamicFormRenderer({
                   dropdownOptions = variantOptions;
                   placeholder = "Select Application Type...";
                 } else if (isNoOfYearsField) {
-                  dropdownOptions = isCpeAccreditation
-                    ? [
-                        { label: "1 Year", value: "1" },
-                        { label: "3 Years", value: "3" },
-                      ]
-                    : [
-                        { label: "1 Year", value: "1" },
-                        { label: "2 Years", value: "2" },
-                        { label: "3 Years", value: "3" },
-                      ];
+                  dropdownOptions = [
+                    { label: "1 Year", value: "1" },
+                    { label: "2 Years", value: "2" },
+                    { label: "3 Years", value: "3" },
+                  ];
                   placeholder = "Select duration...";
                 } else if (isTargetServiceField) {
                   dropdownOptions = dynamicCertServiceOptions;
@@ -1657,6 +1646,8 @@ export function DynamicFormRenderer({
                   ? (isVasRequiredField || (field.isRequired ?? false))
                   : isCopyOfCert
                   ? (isCopyRequiredField || (field.isRequired ?? false))
+                  : isEmploymentTypeField
+                  ? false
                   : isEmploymentStatusField || isEntityTypeField
                   ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));

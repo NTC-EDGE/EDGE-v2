@@ -317,36 +317,37 @@ public static class CertificatesCategorySeederData
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
-        ["ORIGINAL_REPORT_OF_RATING"] = new(Guid.Parse("70000000-0000-0000-0000-000000000010"), "Original valid Report of Rating", "Note 1: Apply for Duplicate Copy if Original is lost/mutilated/destroyed or not available."),
-        ["ID_PICTURE_1X1"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "Please provide a clear 1x1 ID picture taken within the last six (6) months.", "Please provide a clear 1x1 ID picture taken within the last six (6) months."),
-        ["VALID_REPORT_OF_RATING"] = new(Guid.Parse("70000000-0000-0000-0000-000000000004"), "Valid Report of Rating", "Valid Report of Rating issued by NTC Examination System."),
-        ["ROC_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000005"), "Radio Operator Certificate", "Original or authenticated copy of Radio Operator Certificate."),
+        ["ORIGINAL_REPORT_OF_RATING"] = new(Guid.Parse("70000000-0000-0000-0000-000000000010"), "Original valid Report of Rating*\nNote 1: Apply for Duplicate Copy if Original is lost/mutilated/destroyed or not available.", "Original valid Report of Rating*\nNote 1: Apply for Duplicate Copy if Original is lost/mutilated/destroyed or not available."),
+        ["ID_PICTURE_1X1"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "Please provide a clear 1x1 ID picture taken within the last six (6) months.*", "Please provide a clear 1x1 ID picture taken within the last six (6) months.*"),
+        ["VALID_REPORT_OF_RATING"] = new(Guid.Parse("70000000-0000-0000-0000-000000000004"), "Valid Report of Rating*", "Valid Report of Rating*"),
+        ["ROC_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000005"), "Radio Operator Certificate*", "Radio Operator Certificate*"),
         ["UPGRADE_ROC_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000032"), "For upgrade to higher class, Radio Operator Certificate", "For upgrade to higher class, Radio Operator Certificate"),
         ["PROOF_OF_SERVICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000006"), "Proof of Service", "Proof of continuous radio service or employment certification."),
-        ["AMATEUR_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000007"), "Amateur Radio Operator Certificate", "Original or authenticated copy of Amateur Radio Operator Certificate."),
-        ["AMATEUR_STATION_LIC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000008"), "Amateur Radio Station License", "Original or authenticated copy of Amateur Radio Station License."),
+        ["AMATEUR_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000007"), "Amateur Radio Operator Certificate*", "Amateur Radio Operator Certificate*"),
+        ["AMATEUR_STATION_LIC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000008"), "Amateur Radio Station License*", "Amateur Radio Station License*"),
         ["RADIO_LOGBOOK"] = new(Guid.Parse("70000000-0000-0000-0000-000000000009"), "Radio Station Logbook", "Radio Station Logbook certified by club or licensee."),
-        ["FOREIGN_PILOT_LIC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000011"), "Pilot license issued from country of origin", "Note 1: The applicant has to show the original."),
-        ["GOOD_MORAL"] = new(Guid.Parse("70000000-0000-0000-0000-000000000012"), "Certificate of Good Moral Character", "Certificate of Good Moral Character"),
-        ["GOV_SERVICE_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000013"), "Certification that the applicant is in the government service as a radio operator for at least six (6) months and duly certified by the Head of Office", "Certification that the applicant is in the government service as a radio operator for at least six (6) months and duly certified by the Head of Office."),
-        ["SERVICE_RECORD"] = new(Guid.Parse("70000000-0000-0000-0000-000000000031"), "Service Record", "Service Record"),
+        ["FOREIGN_PILOT_LIC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000011"), "Pilot license issued from country of origin*\nNote 1: The applicant has to show the original.", "Pilot license issued from country of origin*\nNote 1: The applicant has to show the original."),
+        ["GOOD_MORAL"] = new(Guid.Parse("70000000-0000-0000-0000-000000000012"), "Certificate of Good Moral Character*", "Certificate of Good Moral Character*"),
+        ["GOV_SERVICE_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000013"), "Certification that the applicant is in the government service as a radio operator for at least six (6) months and duly certified by the Head of Office*", "Certification that the applicant is in the government service as a radio operator for at least six (6) months and duly certified by the Head of Office*"),
+        ["SERVICE_RECORD"] = new(Guid.Parse("70000000-0000-0000-0000-000000000031"), "Service Record*", "Service Record*"),
         ["SEMINAR_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000014"), "Certificate of Completion of Seminar", "Certificate of Completion of Seminar"),
-        ["EMPLOYMENT_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000015"), "Certificate of Employment", "Certificate of Employment from the employer stating position and radio duties."),
-        ["AMATEUR_ACTIVITIES_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000016"), "Proof of Amateur Activities", "Proof of amateur radio activities (Logbook, QSL cards, contest participation, club endorsement)."),
-        ["LIFETIME_SUPP_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000017"), "Supplementary Certificate", "Original Supplementary Certificate or Lifetime Certificate."),
-        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer Permit OR Manufacturer Permit", "Valid Radio Dealer Permit OR Manufacturer Permit issued by NTC."),
-        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "For imported equipment: (a) Permit to Import (b) Invoice (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration", "For imported equipment, submit: (a) Permit to Import, (b) Commercial Invoice, and (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration."),
-        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "For locally-manufactured equipment: Sales and Stocks Report", "For locally-manufactured equipment, submit the Quarterly Sales and Stocks Report filed with the Commission."),
+        ["EMPLOYMENT_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000015"), "Certificate of Employment*", "Certificate of Employment*"),
+        ["AMATEUR_ACTIVITIES_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000016"), "Proof of Amateur Activities*", "Proof of Amateur Activities*"),
+        ["LIFETIME_SUPP_CERT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000017"), "Supplementary Certificate*", "Supplementary Certificate*"),
+        ["DEALER_MANUFACTURER_PERMIT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000018"), "Dealer Permit OR Manufacturer Permit*", "Dealer Permit OR Manufacturer Permit*"),
+        ["IMPORT_PERMIT_INVOICE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000019"), "For imported equipment:\n(a) Permit to Import\n(b) Invoice\n(c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration", "For imported equipment:\n(a) Permit to Import\n(b) Invoice\n(c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration"),
+        ["SALES_STOCKS_REPORT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000020"), "For locally-manufactured equipment:\nSales and Stocks Report", "For locally-manufactured equipment:\nSales and Stocks Report"),
         ["COMMERCIAL_INVOICE_NONDEALER"] = new(Guid.Parse("70000000-0000-0000-0000-000000000030"), "Commercial Invoice / Sales Invoice", "Official Commercial Invoice or Sales Invoice bearing the purchase details and equipment serial numbers for Non-Dealer registration."),
-        ["PROVISIONAL_AUTHORITY_PA"] = new(Guid.Parse("70000000-0000-0000-0000-000000000021"), "Provisional Authority (PA) or Motion for Renewal", "Valid Provisional Authority (PA), Certificate of Authority (CA), or verified motion for renewal with NTC docket stamp."),
-        ["HEAD_END_EQUIPMENT_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000022"), "List of Head-End Equipment", "Comprehensive list of head-end equipment with technical specifications, certified and signed by a licensed PECE/ECE."),
-        ["NETWORK_LEASE_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000023"), "Facilities/Network Lease Agreement", "Valid and effective lease agreement for network facilities with authorized public telecommunications entity."),
-        ["QUARTERLY_REPORT_VAS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000024"), "Quarterly Report(s) of VAS Provider", "Copies of latest quarterly operation and revenue reports filed with the Commission."),
-        ["DOC_AUTHENTICATION_COPY"] = new(Guid.Parse("70000000-0000-0000-0000-000000000025"), "Document for Authentication", "Clear copy of the certificate/permit to be certified as true copy."),
-        ["AFFIDAVIT_LOSS_MUTILATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000026"), "Affidavit of Loss or Mutilated Certificate", "Duly notarized Affidavit of Loss explaining the circumstances of loss, or original mutilated certificate."),
-        ["SUPPORTING_DOCS_MOD"] = new(Guid.Parse("70000000-0000-0000-0000-000000000027"), "For correction of name, ANY of the following:• Valid government ID\n• Birth Certificate\n• Marriage Certificate", "For correction of name, ANY of the following:\n• Valid government ID\n• Birth Certificate\n• Marriage Certificate"),
-        ["REPORT_OF_RATING_UPGRADE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000028"), "Report of Rating for Class Upgrade", "Valid Report of Rating qualifying the applicant for the upgraded amateur class."),
-        ["COR_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000029"), "Certificate of Registration", "Original or clear copy of existing Certificate of Registration.")
+        ["PROVISIONAL_AUTHORITY_PA"] = new(Guid.Parse("70000000-0000-0000-0000-000000000021"), "Provisional Authority (PA) OR duly received Motion for Renewal of PA*", "Provisional Authority (PA) OR duly received Motion for Renewal of PA*"),
+        ["HEAD_END_EQUIPMENT_LIST"] = new(Guid.Parse("70000000-0000-0000-0000-000000000022"), "List of Combiner, Satellite Receivers, Modulators, LNA/LNB and other Head-End Equipment*\nPrepared and signed by a duly licensed Professional Electronics Engineer (PECE) / Electronics Engineer (ECE)", "List of Combiner, Satellite Receivers, Modulators, LNA/LNB and other Head-End Equipment*\nPrepared and signed by a duly licensed Professional Electronics Engineer (PECE) / Electronics Engineer (ECE)"),
+        ["NETWORK_LEASE_AGREEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000023"), "Facilities/network lease agreement with duly authorized facilities/network providers*", "Facilities/network lease agreement with duly authorized facilities/network providers*"),
+        ["QUARTERLY_REPORT_VAS"] = new(Guid.Parse("70000000-0000-0000-0000-000000000024"), "Quarterly Report(s) of VAS Provider*", "Quarterly Report(s) of VAS Provider*"),
+        ["DOC_AUTHENTICATION_COPY"] = new(Guid.Parse("70000000-0000-0000-0000-000000000025"), "Copy of document to be authenticated*", "Copy of document to be authenticated*"),
+        ["AFFIDAVIT_LOSS_MUTILATION"] = new(Guid.Parse("70000000-0000-0000-0000-000000000026"), "Copy of Certificate:\nA scanned or photocopied copy of the original Radio Operator Certificate.", "Copy of Certificate:\nA scanned or photocopied copy of the original Radio Operator Certificate."),
+        ["ID_PICTURE_FOR_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000033"), "For Radio Operator Certificate:\nPlease provide a clear 1x1 ID picture taken within the last six (6) months.", "For Radio Operator Certificate:\nPlease provide a clear 1x1 ID picture taken within the last six (6) months."),
+        ["SUPPORTING_DOCS_MOD"] = new(Guid.Parse("70000000-0000-0000-0000-000000000027"), "For correction of name, ANY of the following:\n• Valid government ID\n• Birth Certificate\n• Marriage Certificate", "For correction of name, ANY of the following:\n• Valid government ID\n• Birth Certificate\n• Marriage Certificate"),
+        ["REPORT_OF_RATING_UPGRADE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000028"), "For Upgrade to higher class, valid Report of Rating", "For Upgrade to higher class, valid Report of Rating"),
+        ["COR_CERTIFICATE"] = new(Guid.Parse("70000000-0000-0000-0000-000000000029"), "Certificate of Registration*", "Certificate of Registration*")
     };
 
     public static List<VariantRequirementDef> GetBackfillVariantRequirements() => new()
@@ -363,7 +364,7 @@ public static class CertificatesCategorySeederData
         // 3. Commercial Radio Operator Certificate - MODIFICATION
         new(VarRocCommMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // Radio Operator Certificate*
         new(VarRocCommMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocCommMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false),// For correction of name
+        new(VarRocCommMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false),// For correction of name, ANY of the following:...
 
         // 4. Restricted Radiotelephone Operator's Certificate - Aircraft - NEW
         new(VarRocAirNew, Guid.Parse("70000000-0000-0000-0000-000000000010"), true),  // Original valid Report of Rating*
@@ -376,7 +377,7 @@ public static class CertificatesCategorySeederData
         // 6. Restricted Radiotelephone Operator's Certificate - Aircraft - MODIFICATION
         new(VarRocAirMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true),  // Radio Operator Certificate*
         new(VarRocAirMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),  // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocAirMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name
+        new(VarRocAirMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name, ANY of the following:...
 
         // 7. Temporary Radio Operator Certificate for Foreign Pilot - NEW
         new(VarRocPilotNew, Guid.Parse("70000000-0000-0000-0000-000000000011"), true), // Pilot license issued from country of origin*
@@ -385,12 +386,11 @@ public static class CertificatesCategorySeederData
         // 8. Temporary Radio Operator Certificate for Foreign Pilot - MODIFICATION
         new(VarRocPilotMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true), // Radio Operator Certificate*
         new(VarRocPilotMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocPilotMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false),// For correction of name
+        new(VarRocPilotMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false),// For correction of name, ANY of the following:...
 
         // 9. Government Radio Operator Certificate - NEW
-        new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000031"), true),  // Service Record*
         new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000012"), true),  // Certificate of Good Moral Character*
-        new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000013"), true),  // Certification of Government Service >= 6 mos*
+        new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000013"), true),  // Certification that the applicant is in the government service as a radio operator for at least six (6) months and duly certified by the Head of Office*
         new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000014"), false), // Certificate of Completion of Seminar
         new(VarRocGovNew, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),  // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
 
@@ -402,7 +402,7 @@ public static class CertificatesCategorySeederData
         // 11. Government Radio Operator Certificate - MODIFICATION
         new(VarRocGovMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true),  // Radio Operator Certificate*
         new(VarRocGovMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),  // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocGovMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name
+        new(VarRocGovMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name, ANY of the following:...
 
         // 12. Restricted Radiotelephone Operator's Certificate for Land Mobile Station - NEW
         new(VarRocLandNew, Guid.Parse("70000000-0000-0000-0000-000000000014"), false),// Certificate of Completion of Seminar
@@ -415,7 +415,7 @@ public static class CertificatesCategorySeederData
         // 14. Restricted Radiotelephone Operator's Certificate for Land Mobile Station - MODIFICATION
         new(VarRocLandMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true),  // Radio Operator Certificate*
         new(VarRocLandMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),  // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocLandMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name
+        new(VarRocLandMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name, ANY of the following:...
 
         // 15. Special Radio Operator Certificate - NEW
         new(VarRocSpecNew, Guid.Parse("70000000-0000-0000-0000-000000000014"), false), // Certificate of Completion of Seminar
@@ -428,52 +428,52 @@ public static class CertificatesCategorySeederData
         // 17. Special Radio Operator Certificate - MODIFICATION
         new(VarRocSpecMod, Guid.Parse("70000000-0000-0000-0000-000000000005"), true),  // Radio Operator Certificate*
         new(VarRocSpecMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),  // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
-        new(VarRocSpecMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name
+        new(VarRocSpecMod, Guid.Parse("70000000-0000-0000-0000-000000000027"), false), // For correction of name, ANY of the following:...
 
         // 18. Amateur Radio Operator Certificate - NEW
         new(VarAmaRocNew, Guid.Parse("70000000-0000-0000-0000-000000000004"), true),   // Valid Report of Rating*
-        new(VarAmaRocNew, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // 1x1 ID Picture*
+        new(VarAmaRocNew, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
 
         // 19. Amateur Radio Operator Certificate - RENEWAL
         new(VarAmaRocRen, Guid.Parse("70000000-0000-0000-0000-000000000007"), true),   // Amateur Radio Operator Certificate*
         new(VarAmaRocRen, Guid.Parse("70000000-0000-0000-0000-000000000016"), true),   // Proof of Amateur Activities*
-        new(VarAmaRocRen, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // 1x1 ID Picture*
+        new(VarAmaRocRen, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
 
         // 20. Amateur Radio Operator Certificate - MODIFICATION
         new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000007"), true),   // Amateur Radio Operator Certificate*
-        new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // 1x1 ID Picture*
-        new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000028"), false),  // For upgrade to higher class, valid Report of Rating
+        new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true),   // Please provide a clear 1x1 ID picture taken within the last six (6) months.*
+        new(VarAmaRocMod, Guid.Parse("70000000-0000-0000-0000-000000000028"), false),  // For Upgrade to higher class, valid Report of Rating
 
         // 21. Lifetime Amateur Radio Station Supplementary Certificate - MODIFICATION
-        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000007"), true), // Amateur Radio Operator Certificate*
-        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000003"), true), // 1x1 ID Picture*
+        new(VarAmaLifetimeMod, Guid.Parse("70000000-0000-0000-0000-000000000017"), true), // Supplementary Certificate*
 
         // 22. Certificate of Registration for RFID, SRD, WDN - For Dealers
         new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000018"), true),  // Dealer Permit OR Manufacturer Permit*
-        new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: Permit to Import, Invoice, BOC clearance
-        new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured: Sales and Stocks Report
+        new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: (a) Permit to Import (b) Invoice (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration
+        new(VarRfidDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured equipment: Sales and Stocks Report
 
         // 23. Certificate of Registration for RFID, SRD, WDN - For Non-Dealers
-        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: (a) Permit to Import (b) Invoice (c) BOC Release Clearance and Import Entry Declaration
+        new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000019"), false), // For imported equipment: (a) Permit to Import (b) Invoice (c) Bureau of Customs (BOC) Release Clearance and Import Entry Declaration
         new(VarRfidNonDealers, Guid.Parse("70000000-0000-0000-0000-000000000020"), false), // For locally-manufactured equipment: Sales and Stocks Report
 
         // 24. TVRO Registration Certificate (Commercial)
-        new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000021"), true),    // Provisional Authority (PA) OR motion for renewal*
-        new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000022"), true),    // List of Head-End Equipment signed by PECE/ECE*
+        new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000021"), true),    // Provisional Authority (PA) OR duly received Motion for Renewal of PA*
+        new(VarTvroComm, Guid.Parse("70000000-0000-0000-0000-000000000022"), true),    // List of Combiner, Satellite Receivers, Modulators, LNA/LNB and other Head-End Equipment*
 
         // 25. TVRO Registration Certificate (Non-Commercial)
-        new(VarTvroNonComm, Guid.Parse("70000000-0000-0000-0000-000000000022"), true), // List of Head-End Equipment signed by PECE/ECE*
+        new(VarTvroNonComm, Guid.Parse("70000000-0000-0000-0000-000000000022"), true), // List of Combiner, Satellite Receivers, Modulators, LNA/LNB and other Head-End Equipment*
 
         // 26. Certificate of Registration as a VAS Provider - RENEWAL
         new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000029"), true),  // Certificate of Registration*
-        new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000023"), true),  // Facilities/network lease agreement*
+        new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000023"), true),  // Facilities/network lease agreement with duly authorized facilities/network providers*
         new(VarVasRenewal, Guid.Parse("70000000-0000-0000-0000-000000000024"), true),  // Quarterly Report(s) of VAS Provider*
 
         // 27. Copy of Certificates - Certified True Copy
         new(VarCertTrueCopy, Guid.Parse("70000000-0000-0000-0000-000000000025"), true),// Copy of document to be authenticated*
 
         // 28. Copy of Certificates - Duplicate Copy
-        new(VarCertDuplicate, Guid.Parse("70000000-0000-0000-0000-000000000026"), true),// Copy of Certificate*
+        new(VarCertDuplicate, Guid.Parse("70000000-0000-0000-0000-000000000026"), true),// Copy of Certificate: A scanned or photocopied copy of the original Radio Operator Certificate.
+        new(VarCertDuplicate, Guid.Parse("70000000-0000-0000-0000-000000000033"), false),// For Radio Operator Certificate: Please provide a clear 1x1 ID picture taken within the last six (6) months.
     };
 
     public static List<ServiceFormDef> GetFormDefs() => new()
@@ -490,7 +490,7 @@ public static class CertificatesCategorySeederData
         }),
         new("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
-            new("permitType", "Type of Application & Permit Category", new() { "permitType" }),
+            new("permitType", "Type of Application & Permit Category", new() { "permitType", "noOfYears" }),
             new("certificateParticulars", "Certificate Particulars", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
             new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
