@@ -422,7 +422,7 @@ export function DynamicFormRenderer({
     varDesc.includes("wdn") ||
     varDesc.includes("device");
 
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Operator Certificates (excluding Exams, Permits, Complaints, Accreditations, Copy of Certificates, Device Registration, and VAS)
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Commercial Radio Operator Certificates (excluding Exams, Permits, Complaints, Accreditations, Copy of Certificates, Device Registration, VAS, and Amateur Certificates)
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
@@ -431,9 +431,10 @@ export function DynamicFormRenderer({
     !isAccreditation &&
     !isDeviceRegistration &&
     !isVas &&
+    !isAmateurCert &&
     !isLifetimeSupplementary &&
     (catLower.includes("license") ||
-     (catLower.includes("certificate") && (isAmateurCert || titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
+     (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
   // Dynamic Certificate Services & Types Query
   const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();

@@ -40,7 +40,7 @@ export function RadioOperatorCertForm({
 
         <View style={certStyles.formGrid}>
           {/* Read-only Application Type Badge */}
-          <View style={certStyles.formCol6}>
+          <View style={!isAmateurService && !isLifetimeSupplementary ? certStyles.formCol6 : certStyles.formCol12}>
             <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
               Application Type
             </Text>
@@ -54,19 +54,21 @@ export function RadioOperatorCertForm({
             </View>
           </View>
 
-          {/* Editable License / Cert Duration */}
-          <View style={certStyles.formCol6}>
-            <Text style={certStyles.selectLabel}>Number of Years*</Text>
-            <Select
-              value={data.years}
-              onValueChange={(val) => onChange({ years: val })}
-              options={[
-                { label: "1 Year", value: "1" },
-                { label: "2 Years", value: "2" },
-                { label: "3 Years", value: "3" },
-              ]}
-            />
-          </View>
+          {/* Editable License / Cert Duration (hidden for Amateur Service & Lifetime Supplementary) */}
+          {!isAmateurService && !isLifetimeSupplementary && (
+            <View style={certStyles.formCol6}>
+              <Text style={certStyles.selectLabel}>Number of Years*</Text>
+              <Select
+                value={data.years}
+                onValueChange={(val) => onChange({ years: val })}
+                options={[
+                  { label: "1 Year", value: "1" },
+                  { label: "2 Years", value: "2" },
+                  { label: "3 Years", value: "3" },
+                ]}
+              />
+            </View>
+          )}
 
           {/* Read-only Class / Element / Certificate Badge (hidden for Lifetime Supplementary) */}
           {!isLifetimeSupplementary && (
