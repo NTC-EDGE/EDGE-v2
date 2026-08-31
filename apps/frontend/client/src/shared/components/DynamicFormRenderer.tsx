@@ -221,10 +221,10 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
 
   // 4. VAS Specific Fields Order
   if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 84;
-  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 85;
-  if (idLower === "corvasexpirydate" || idLower === "corvasnoexpirydate" || idLower === FIELD_ID_COR_VAS_EXPIRY || idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("cor / vas no. expiry date") || labelLower.includes("cor / vas expiry date") || labelLower.includes("license expiry date") || labelLower.includes("date of expiry")) return 86;
-  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 87;
-  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower === "date of expiry") return 88;
+  if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 85;
+  if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower.includes("cpcn / pa / ca no. date of expiry")) return 86;
+  if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 87;
+  if (idLower === "corvasexpirydate" || idLower === "corvasnoexpirydate" || idLower === FIELD_ID_COR_VAS_EXPIRY || idLower === "dateofexpiry" || idLower === FIELD_ID_DATE_OF_EXPIRY || labelLower.includes("cor / vas no. expiry date") || labelLower.includes("cor / vas expiry date") || labelLower.includes("license expiry date")) return 88;
   if (idLower === "knownbyanothername" || idLower === FIELD_ID_KNOWN_OTHER_NAME || labelLower.includes("known by other name") || labelLower.includes("known by another name")) return 89;
   if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 90;
   if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 91;
@@ -1518,7 +1518,7 @@ export function DynamicFormRenderer({
                     labelLower.includes("cpcn / pa / ca date") ||
                     labelLower.includes("cpcn")
                   ) {
-                    displayFieldLabel = "CPCN / PA / CA No.";
+                    displayFieldLabel = "CPCN / PA / CA No. Date of Expiry";
                   }
                 }
 

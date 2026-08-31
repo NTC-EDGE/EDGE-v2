@@ -509,7 +509,7 @@ public static class CertificatesCategorySeederData
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "corVasNo", "corVasExpiryDate", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
+            new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
             new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" }),
