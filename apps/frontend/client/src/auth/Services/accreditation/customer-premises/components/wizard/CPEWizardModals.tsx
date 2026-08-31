@@ -174,9 +174,14 @@ export function CPEWizardModals({
       >
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
           <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 540, borderRadius: 16, overflow: "hidden", padding: 24 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800], marginBottom: 16 }}>
-              Declaration of Intent & Consent
-            </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800] }}>
+                Declaration of Intent & Consent
+              </Text>
+              <TouchableOpacity onPress={() => setIsConfirmModalOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Icon name="x" size={20} color={COLORS.neutral[500]} />
+              </TouchableOpacity>
+            </View>
 
             <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, padding: 16, backgroundColor: COLORS.neutral[50], marginBottom: 20 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], lineHeight: 20, textAlign: "justify" }}>
@@ -199,42 +204,61 @@ export function CPEWizardModals({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={async () => {
-                if (!isAgreedToTerms) {
-                  Alert.alert("Warning", "You must agree to the Terms and Conditions to proceed.");
-                  return;
-                }
-                setIsConfirmModalOpen(false);
-                setIsSubmitting(true);
-                try {
-                  await submitApplicationPayload();
-                  toast.success(
-                    "Application Submitted",
-                    "Your CPE accreditation application has been received and is now under review."
-                  );
-                  setIsFeedbackModalOpen(true);
-                } catch (err: unknown) {
-                  console.error("Failed to submit CPE application:", err);
-                  const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
-                  toast.error("Submission Failed", msg);
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              style={{
-                backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
-                borderRadius: 24,
-                paddingVertical: 12,
-                alignItems: "center",
-                width: "100%",
-              }}
-              disabled={!isAgreedToTerms}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
-                Confirm
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setIsConfirmModalOpen(false)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.neutral[300],
+                  borderRadius: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[700] }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!isAgreedToTerms) {
+                    Alert.alert("Warning", "You must agree to the Terms and Conditions to proceed.");
+                    return;
+                  }
+                  setIsConfirmModalOpen(false);
+                  setIsSubmitting(true);
+                  try {
+                    await submitApplicationPayload();
+                    toast.success(
+                      "Application Submitted",
+                      "Your CPE accreditation application has been received and is now under review."
+                    );
+                    setIsFeedbackModalOpen(true);
+                  } catch (err: unknown) {
+                    console.error("Failed to submit CPE application:", err);
+                    const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
+                    toast.error("Submission Failed", msg);
+                  } finally {
+                    setIsSubmitting(false);
+                  }
+                }}
+                style={{
+                  backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
+                  borderRadius: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                disabled={!isAgreedToTerms}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
+                  Confirm
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
