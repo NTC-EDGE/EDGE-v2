@@ -29,7 +29,7 @@ public static class AccreditationsCategorySeederData
         ""categorySpecific"": {
             ""equipmentCategory"": [""Radio Communications Equipment (RCE)"", ""Radio Transmitter/Transceiver"", ""WDN Indoor/SRD/RFID"", ""Mobile Phone""],
             ""permitCategory"": [""Dealer"", ""Manufacturer"", ""Service Center"", ""Dealer (MPDP)"", ""Retailer/Reseller (MPRR)"", ""Service Center (MPSCP)"", ""Customer Premises Equipment (CPE) Supplier Accreditation""],
-            ""entityType"": [""Single Proprietorship"", ""Corporation"", ""Partnership"", ""Others, specify""]
+            ""entityType"": [""Corporation"", ""Single Proprietorship"", ""Partnership"", ""Others""]
         },
         ""entityType"": ""Application""
     }";
@@ -156,9 +156,9 @@ public static class AccreditationsCategorySeederData
     {
         new("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "employmentType" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Personnel Required", new() { "personnelDetails" }),
+            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "noOfYears", "employmentType" }),
+            new("applicant", "Applicant Details", new() { "companyName", "entityType", "dtiSecRegistration", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("personnel", "Technical Personnel", new() { "personnelName", "certificateEctNo", "certificateEctExpiryDate" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

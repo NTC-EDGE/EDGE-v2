@@ -2,6 +2,7 @@ import React from "react";
 import { View, Text } from "react-native";
 import { Select } from "../../../../../../shared/components/Select";
 import { ValidatedInput } from "../../../../../../shared/components/ValidatedInput";
+import { DatePickerInput } from "../../../../../../shared/components/DatePickerInput";
 import { FormSignatureInput } from "../../../../../../shared/components/FormSignatureInput";
 import { ApplicantData } from "../../types/cpeTypes";
 import { certStyles } from "../../../../certificates/forms/CertificateFormStyles";
@@ -46,13 +47,12 @@ export function CPEStep5ApplicationForm({
             />
           </View>
           <View style={certStyles.formCol6}>
-            <Text style={certStyles.selectLabel}>Validity Period (No. of Years)*</Text>
+            <Text style={certStyles.selectLabel}>Number of Years*</Text>
             <Select
               value={activeApplicant.years || "1"}
               onValueChange={(val) => updateActiveApplicant({ years: val })}
               options={[
                 { label: "1 Year", value: "1" },
-                { label: "2 Years", value: "2" },
                 { label: "3 Years", value: "3" },
               ]}
             />
@@ -85,9 +85,9 @@ export function CPEStep5ApplicationForm({
         </View>
       </View>
 
-      {/* Section 2: Business & Applicant Details */}
+      {/* Section 2: Applicant Details */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>2. Applicant & Entity Information</Text>
+        <Text style={certStyles.formSectionHeading}>2. Applicant Details</Text>
         <View style={certStyles.formGrid}>
           <View style={certStyles.formCol12}>
             <ValidatedInput
@@ -101,21 +101,21 @@ export function CPEStep5ApplicationForm({
             />
           </View>
           <View style={certStyles.formCol6}>
-            <Text style={certStyles.selectLabel}>Business Entity Type*</Text>
+            <Text style={certStyles.selectLabel}>Entity Type*</Text>
             <Select
               value={activeApplicant.entityType || "Corporation"}
               onValueChange={(val) => updateActiveApplicant({ entityType: val })}
               options={[
                 { label: "Corporation", value: "Corporation" },
-                { label: "Partnership", value: "Partnership" },
                 { label: "Single Proprietorship", value: "Single Proprietorship" },
+                { label: "Partnership", value: "Partnership" },
                 { label: "Others", value: "Others" },
               ]}
             />
           </View>
           <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="DTI / SEC Registration No."
+              label="SEC/DTI Registration Number"
               placeholder="Registration Number"
               value={activeApplicant.dtiNo}
               onChangeText={(val) => handleFieldChange("dtiNo", val)}
@@ -149,188 +149,55 @@ export function CPEStep5ApplicationForm({
         </View>
       </View>
 
-      {/* Section 3: Physical Address */}
+      {/* Section 3: Technical Personnel */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>3. Registered Office Physical Address</Text>
+        <Text style={certStyles.formSectionHeading}>3. Technical Personnel</Text>
         <View style={certStyles.formGrid}>
-          <View style={certStyles.formCol6}>
+          <View style={certStyles.formCol12}>
             <ValidatedInput
-              label="Unit / Bldg No."
-              placeholder="Unit / Floor / Building"
-              value={activeApplicant.unitBldgNo}
-              onChangeText={(val) => handleFieldChange("unitBldgNo", val)}
-              error={errors.unitBldgNo}
-              touched={touched.unitBldgNo}
+              label="Name"
+              placeholder="Full Name"
+              value={activeApplicant.technicianName || activeApplicant.engineerName || ""}
+              onChangeText={(val) => {
+                handleFieldChange("technicianName", val);
+                handleFieldChange("engineerName", val);
+              }}
+              error={errors.technicianName}
+              touched={touched.technicianName}
               required
             />
           </View>
           <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="Street / Zone"
-              placeholder="Street / Zone"
-              value={activeApplicant.street}
-              onChangeText={(val) => handleFieldChange("street", val)}
-              error={errors.street}
-              touched={touched.street}
+              label="Certificate/ECT No."
+              placeholder="Certificate / ECT Number"
+              value={activeApplicant.ectNo || activeApplicant.eceNo || ""}
+              onChangeText={(val) => {
+                handleFieldChange("ectNo", val);
+                handleFieldChange("eceNo", val);
+              }}
+              error={errors.ectNo}
+              touched={touched.ectNo}
               required
             />
           </View>
           <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="Barangay"
-              placeholder="Barangay"
-              value={activeApplicant.barangay}
-              onChangeText={(val) => handleFieldChange("barangay", val)}
-              error={errors.barangay}
-              touched={touched.barangay}
-              required
-            />
-          </View>
-          <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="City / Municipality"
-              placeholder="City / Municipality"
-              value={activeApplicant.city}
-              onChangeText={(val) => handleFieldChange("city", val)}
-              error={errors.city}
-              touched={touched.city}
-              required
-            />
-          </View>
-          <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="Province"
-              placeholder="Province"
-              value={activeApplicant.province}
-              onChangeText={(val) => handleFieldChange("province", val)}
-              error={errors.province}
-              touched={touched.province}
-              required
-            />
-          </View>
-          <View style={certStyles.formCol6}>
-            <ValidatedInput
-              label="Zip Code"
-              placeholder="e.g. 1101"
-              value={activeApplicant.zipCode}
-              onChangeText={(val) => handleFieldChange("zipCode", val)}
-              error={errors.zipCode}
-              touched={touched.zipCode}
+            <DatePickerInput
+              label="Certificate/ECT No. Date of Expiry"
+              placeholder="MM/DD/YYYY"
+              value={activeApplicant.expiryDate || ""}
+              onChangeText={(val) => handleFieldChange("expiryDate", val)}
+              error={errors.expiryDate}
+              touched={touched.expiryDate}
               required
             />
           </View>
         </View>
       </View>
 
-      {/* Section 4: Licensed Technical Personnel */}
+      {/* Section 4: Acknowledgement & Applicant Signature */}
       <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>4. Licensed Technical Personnel</Text>
-        
-        {/* Supervising Engineer */}
-        <View style={certStyles.cardRepeater}>
-          <Text style={certStyles.repeaterTitle}>Supervising Engineer</Text>
-          <View style={[certStyles.formGrid, { marginTop: 8 }]}>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Full Name"
-                placeholder="Engr. Full Name"
-                value={activeApplicant.engineerName}
-                onChangeText={(val) => handleFieldChange("engineerName", val)}
-                error={errors.engineerName}
-                touched={touched.engineerName}
-                required
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="ECE / PECE License No."
-                placeholder="e.g. PECE-0012948"
-                value={activeApplicant.eceNo}
-                onChangeText={(val) => handleFieldChange("eceNo", val)}
-                error={errors.eceNo}
-                touched={touched.eceNo}
-                required
-              />
-            </View>
-          </View>
-        </View>
-
-        {/* Radio Technician */}
-        <View style={[certStyles.cardRepeater, { marginTop: 12 }]}>
-          <Text style={certStyles.repeaterTitle}>Radio Technician</Text>
-          <View style={[certStyles.formGrid, { marginTop: 8 }]}>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Full Name"
-                placeholder="Technician Full Name"
-                value={activeApplicant.technicianName}
-                onChangeText={(val) => handleFieldChange("technicianName", val)}
-                error={errors.technicianName}
-                touched={touched.technicianName}
-                required
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="RCT / ECT License No."
-                placeholder="e.g. ECT-009812"
-                value={activeApplicant.ectNo}
-                onChangeText={(val) => handleFieldChange("ectNo", val)}
-                error={errors.ectNo}
-                touched={touched.ectNo}
-                required
-              />
-            </View>
-          </View>
-        </View>
-      </View>
-
-      {/* Section 5: Target Expiration Date */}
-      <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>5. Requested Expiration Date</Text>
-        <View style={certStyles.formGrid}>
-          <View style={certStyles.formCol4}>
-            <Text style={certStyles.selectLabel}>Month</Text>
-            <Select
-              value={activeApplicant.expiryMonth || "January"}
-              onValueChange={(val) => updateActiveApplicant({ expiryMonth: val })}
-              options={[
-                "January", "February", "March", "April", "May", "June",
-                "July", "August", "September", "October", "November", "December"
-              ].map((m) => ({ label: m, value: m }))}
-            />
-          </View>
-          <View style={certStyles.formCol4}>
-            <Text style={certStyles.selectLabel}>Day</Text>
-            <Select
-              value={activeApplicant.expiryDate || "1"}
-              onValueChange={(val) => updateActiveApplicant({ expiryDate: val })}
-              options={Array.from({ length: 31 }, (_, i) => ({
-                label: (i + 1).toString(),
-                value: (i + 1).toString(),
-              }))}
-            />
-          </View>
-          <View style={certStyles.formCol4}>
-            <Text style={certStyles.selectLabel}>Year</Text>
-            <Select
-              value={activeApplicant.expiryYear || "2026"}
-              onValueChange={(val) => updateActiveApplicant({ expiryYear: val })}
-              options={[
-                { label: "2026", value: "2026" },
-                { label: "2027", value: "2027" },
-                { label: "2028", value: "2028" },
-                { label: "2029", value: "2029" },
-                { label: "2030", value: "2030" },
-              ]}
-            />
-          </View>
-        </View>
-      </View>
-
-      {/* Section 6: Acknowledgement & Applicant Signature */}
-      <View style={certStyles.formSection}>
-        <Text style={certStyles.formSectionHeading}>6. Acknowledgement & Applicant Signature</Text>
+        <Text style={certStyles.formSectionHeading}>4. Acknowledgement & Applicant Signature</Text>
         <FormSignatureInput
           label="Applicant / Authorized Representative Signature"
           isRequired={true}
