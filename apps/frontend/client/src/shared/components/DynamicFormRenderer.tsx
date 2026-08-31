@@ -422,7 +422,22 @@ export function DynamicFormRenderer({
     varDesc.includes("wdn") ||
     varDesc.includes("device");
 
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Commercial Radio Operator Certificates (excluding Exams, Permits, Complaints, Accreditations, Copy of Certificates, Device Registration, VAS, and Amateur Certificates)
+  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
+  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
+  const isRenewalOrMod = isRenewal || isModification;
+
+  const isExcludedFromYears =
+    isLifetimeSupplementary ||
+    (isModification && (
+      varDesc.includes("foreign pilot") ||
+      varDesc.includes("pilot") ||
+      varDesc.includes("government") ||
+      varDesc.includes("gov") ||
+      varDesc.includes("land mobile") ||
+      varDesc.includes("special")
+    ));
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Commercial Radio Operator Certificates (excluding Exams, Permits, Complaints, Accreditations, Copy of Certificates, Device Registration, VAS, Amateur Certificates, and ROC Modifications for Pilot/Gov/Land/Special)
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
@@ -432,7 +447,7 @@ export function DynamicFormRenderer({
     !isDeviceRegistration &&
     !isVas &&
     !isAmateurCert &&
-    !isLifetimeSupplementary &&
+    !isExcludedFromYears &&
     (catLower.includes("license") ||
      (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
@@ -472,10 +487,14 @@ export function DynamicFormRenderer({
     : isCompanyCertService;
 
   const isIndividualVar = !isNonIndividualEntity;
-  const isRenewal = (matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal");
-  const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
-  const isRenewalOrMod = isRenewal || isModification;
-  const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary;
+
+  const isExcludedFromElements =
+    isLifetimeSupplementary ||
+    varDesc.includes("special radio operator") ||
+    varDesc.includes("special") ||
+    ((varDesc.includes("land mobile") || varDesc.includes("rroc-land")) && isModification);
+
+  const showElements = !isCopyOfCert && variantElements.length > 0 && !isExcludedFromElements;
 
   const visibleSections = sections.filter((section) => {
     if (!section) return false;
@@ -1034,13 +1053,17 @@ export function DynamicFormRenderer({
                   }
 
                 const isEmploymentStatusField =
-                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  fIdLower === "employmentstatus" ||
+                  fIdLower === "employment_status" ||
                   labelLower === "employment status" ||
+                  (labelLower === "status" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment") || section.title.toLowerCase().includes("personal") || section.key?.toLowerCase().includes("personal") || section.title.toLowerCase().includes("applicant") || section.key?.toLowerCase().includes("applicant"))) ||
                   targetId === FIELD_ID_EMPLOYMENT_STATUS;
 
                 const isEmploymentTypeField =
-                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment"))) ||
+                  fIdLower === "employmenttype" ||
+                  fIdLower === "employment_type" ||
                   labelLower === "employment type" ||
+                  (labelLower === "type" && (section.title.toLowerCase().includes("employment") || section.key?.toLowerCase().includes("employment") || section.title.toLowerCase().includes("personal") || section.key?.toLowerCase().includes("personal") || section.title.toLowerCase().includes("applicant") || section.key?.toLowerCase().includes("applicant"))) ||
                   targetId === FIELD_ID_EMPLOYMENT_TYPE;
 
                 const isEquipmentOrTechnicalSection =
@@ -1383,18 +1406,15 @@ export function DynamicFormRenderer({
                 } else if (isEmploymentStatusField) {
                   dropdownOptions = [
                     { label: "Employed", value: "Employed" },
-                    { label: "Self-Employed", value: "Self-Employed" },
                     { label: "Unemployed", value: "Unemployed" },
-                    { label: "Student", value: "Student" },
-                    { label: "Retired", value: "Retired" },
                   ];
                   placeholder = "Select Employment Status...";
                 } else if (isEmploymentTypeField) {
                   dropdownOptions = [
-                    { label: "Private", value: "Private" },
-                    { label: "Government", value: "Government" },
+                    { label: "Local", value: "Local" },
+                    { label: "Foreign", value: "Foreign" },
                   ];
-                  placeholder = "Select Employment Sector...";
+                  placeholder = "Select Type...";
                 } else if (isEntityTypeField) {
                   dropdownOptions = [
                     { label: "Corporation", value: "Corporation" },
@@ -1538,6 +1558,10 @@ export function DynamicFormRenderer({
                   displayFieldLabel = "Certificate Number";
                 } else if (isNoOfCopiesField) {
                   displayFieldLabel = "No. of Copies";
+                } else if (isEmploymentStatusField) {
+                  displayFieldLabel = "Employment Status";
+                } else if (isEmploymentTypeField) {
+                  displayFieldLabel = "Type";
                 } else if (isVas) {
                   if (
                     fieldIdLower === FIELD_ID_CPCN_NO.toLowerCase() ||
@@ -1614,6 +1638,8 @@ export function DynamicFormRenderer({
                   ? (isVasRequiredField || (field.isRequired ?? false))
                   : isCopyOfCert
                   ? (isCopyRequiredField || (field.isRequired ?? false))
+                  : isEmploymentStatusField
+                  ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
 
                 const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField || isEntityTypeField ? 12 : 6;

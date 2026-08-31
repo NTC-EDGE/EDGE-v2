@@ -572,6 +572,7 @@ export function serializeCertificateApplicant(
       addField("Applicant Name", data.applicantName || `${app.firstName} ${app.lastName}`);
       if (!isAmateurServiceCert) {
         addField("Employment Status", data.employmentStatus);
+        addField("Type", data.employmentType);
         addField("Employment Location", data.employmentLocation);
         addField("Weight (kg)", data.weightKg);
         addField("Height (cm)", data.heightCm);

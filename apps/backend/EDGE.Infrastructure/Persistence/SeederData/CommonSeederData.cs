@@ -95,7 +95,7 @@ public static class CommonSeederData
             ["typeOfCertificate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000014"), FieldType = "dropdown", Label = "Type of Certificate", SyncBackOnSubmit = false, ValidationRules = @"[""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""]" },
             ["weight_kg"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000015"), FieldType = "number", Label = "Weight (kg)", SyncBackOnSubmit = false },
             ["height_cm"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000016"), FieldType = "number", Label = "Height (cm)", SyncBackOnSubmit = false },
-            ["employmentStatus"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000017"), FieldType = "dropdown", Label = "Status", SyncBackOnSubmit = false, ValidationRules = @"[""Employed"",""Unemployed""]" },
+            ["employmentStatus"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000017"), FieldType = "dropdown", Label = "Employment Status", SyncBackOnSubmit = false, ValidationRules = @"[""Employed"",""Unemployed""]" },
             ["employmentType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000018"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false, ValidationRules = @"[""Local"",""Foreign""]" },
             ["employmentLocation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000046"), FieldType = "text", Label = "Employment Location", SyncBackOnSubmit = false },
             ["examSeminarAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000047"), FieldType = "text", Label = "Seminar / Exam Address", SyncBackOnSubmit = false },
