@@ -358,7 +358,7 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
           "BGC, Taguig City",
           "Dealers",
           "",
-          "Wireless Data Network (WDN) Devices - Indoor",
+          "Wireless Data Network (WDN) - Indoor",
           "Ubiquiti UniFi U6-Pro",
           "SN-UBQ-882109; SN-UBQ-882110; SN-UBQ-882111",
         ],

@@ -138,7 +138,8 @@ public static class CertificatesCategorySeederData
                 ""Wireless Data Network (WDN) - Indoor"",
                 ""Short Range Devices (SRD)"",
                 ""Radio Frequency Identification (RFID) Devices"",
-                ""Short Range Radio Services""
+                ""Short Range Radio Services (SRRS) Devices"",
+                ""Public Trunked Radio Equipment (Mobile/Portable)""
             ]
         },
         ""entityType"": ""Application""

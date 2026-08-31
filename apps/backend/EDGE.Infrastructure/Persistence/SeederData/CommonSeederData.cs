@@ -183,7 +183,7 @@ public static class CommonSeederData
             ["representativeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000082"), FieldType = "text", Label = "Authorized Representative Name", SyncBackOnSubmit = false },
             ["representativePosition"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000083"), FieldType = "text", Label = "Designation / Position", SyncBackOnSubmit = false },
             ["makeTypeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000084"), FieldType = "text", Label = "Make / Type / Model", SyncBackOnSubmit = false },
-            ["deviceType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000085"), FieldType = "dropdown", Label = "Device / Equipment Type", SyncBackOnSubmit = false, ValidationRules = @"[""Wireless Data Network (WDN) - Indoor"",""Short Range Devices (SRD)"",""Radio Frequency Identification (RFID) Devices"",""Short Range Radio Services""]" },
+            ["deviceType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000085"), FieldType = "dropdown", Label = "Device / Equipment Type", SyncBackOnSubmit = false, ValidationRules = @"[""Wireless Data Network (WDN) - Indoor"",""Short Range Devices (SRD)"",""Radio Frequency Identification (RFID) Devices"",""Short Range Radio Services (SRRS) Devices"",""Public Trunked Radio Equipment (Mobile/Portable)""]" },
             ["dtiSecRegistration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000086"), FieldType = "text", Label = "SEC / DTI Registration Number", SyncBackOnSubmit = false },
             ["serialNumbers"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000087"), FieldType = "text", Label = "Serial Number(s)", SyncBackOnSubmit = false },
 

@@ -60,7 +60,7 @@ export const initialDeviceRegistrationData = (id: number): DeviceRegistrationDat
   particulars: [
     {
       id: "part-1",
-      typeOfEquipmentDevice: "Wireless Data Network (WDN) Devices - Indoor",
+      typeOfEquipmentDevice: "Wireless Data Network (WDN) - Indoor",
       nameTypeModel: "",
       equipmentSerials: [{ id: "serial-1", serialNumber: "" }],
     },

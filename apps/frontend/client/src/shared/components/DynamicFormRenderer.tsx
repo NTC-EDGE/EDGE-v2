@@ -407,18 +407,33 @@ export function DynamicFormRenderer({
 
   const isCertifiedTrueCopy = isCopyOfCert && !isDuplicateCopy;
 
-  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Certificates (excluding Exams, Permits, Complaints, Accreditations, and Copy of Certificates)
+  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
+  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
+  const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+  const isDeviceRegistration =
+    titLower.includes("rfid") ||
+    titLower.includes("srd") ||
+    titLower.includes("wdn") ||
+    titLower.includes("device") ||
+    titLower.includes("ntc 1-19") ||
+    titLower.includes("ntc_1_19") ||
+    varDesc.includes("rfid") ||
+    varDesc.includes("srd") ||
+    varDesc.includes("wdn") ||
+    varDesc.includes("device");
+
+  // Multi-year validity selection (1, 2, 3 years) is only applicable for Licenses and Operator Certificates (excluding Exams, Permits, Complaints, Accreditations, Copy of Certificates, Device Registration, and VAS)
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
     !isPermit &&
     !isRequestOrComplaint &&
     !isAccreditation &&
-    (catLower.includes("license") || catLower.includes("certificate") || titLower.includes("license") || titLower.includes("certificate"));
-
-  const isLifetimeSupplementary = varDesc.includes("lifetime") || String(selectedVariantId).endsWith("35");
-  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03") || varDesc.includes("amateur"));
-  const isVas = (catLower.includes("certificate") || titLower.includes("vas")) && (titLower.includes("vas") || titLower.includes("value-added") || titLower.includes("ntc 1-20") || titLower.includes("ntc_1_20") || varDesc.includes("vas"));
+    !isDeviceRegistration &&
+    !isVas &&
+    !isLifetimeSupplementary &&
+    (catLower.includes("license") ||
+     (catLower.includes("certificate") && (isAmateurCert || titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
 
   // Dynamic Certificate Services & Types Query
   const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
@@ -935,6 +950,21 @@ export function DynamicFormRenderer({
                     return null;
                   }
 
+                  // Skip Number of Years if not applicable for this service or handled by Section 1
+                  const isNoOfYearsField =
+                    targetId === FIELD_ID_NO_OF_YEARS ||
+                    fIdLower === "noofyears" ||
+                    fIdLower === "numberofyears" ||
+                    labelLower === "number of years" ||
+                    labelLower === "no of years" ||
+                    labelLower === "years" ||
+                    labelLower.includes("number of years") ||
+                    labelLower.includes("no of years");
+
+                  if (isNoOfYearsField && (!showNumberOfYears || showApplicationTypeSection)) {
+                    return null;
+                  }
+
                   const selectedVarObj = variants?.find((v) => String(v.id) === String(selectedVariantId));
                   const isIndividualVar = selectedVarObj?.isIndividual !== undefined ? selectedVarObj.isIndividual : !isCompanyCertService;
                   const isNonIndividualEntity = !isIndividualVar;
@@ -1214,12 +1244,6 @@ export function DynamicFormRenderer({
                         { label: "RENEWAL — Renewal of existing permit, license, or certificate", value: "Renewal" },
                         { label: "MODIFICATION — Amendment or change of registered particulars", value: "Modification" },
                       ];
-
-                const isNoOfYearsField =
-                  labelLower.includes("number of years") ||
-                  labelLower.includes("no of years") ||
-                  labelLower === "years" ||
-                  targetId === FIELD_ID_NO_OF_YEARS;
 
                 const isDropdown =
                   rawType === "dropdown" ||

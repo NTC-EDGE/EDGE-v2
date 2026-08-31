@@ -56,12 +56,11 @@ export const DEFAULT_DEVICE_REPEATER_COLUMNS: FormRepeaterColumn[] = [
     type: "select",
     required: true,
     options: [
-      { label: "Wireless Data Network (WDN) Devices - Indoor", value: "Wireless Data Network (WDN) Devices - Indoor" },
-      { label: "Wireless Data Network (WDN) Devices - Outdoor", value: "Wireless Data Network (WDN) Devices - Outdoor" },
+      { label: "Wireless Data Network (WDN) - Indoor", value: "Wireless Data Network (WDN) - Indoor" },
       { label: "Short Range Devices (SRD)", value: "Short Range Devices (SRD)" },
       { label: "Radio Frequency Identification (RFID) Devices", value: "Radio Frequency Identification (RFID) Devices" },
-      { label: "Bluetooth / Wi-Fi Access Points", value: "Bluetooth / Wi-Fi Access Points" },
-      { label: "Short Range Radio Services", value: "Short Range Radio Services" },
+      { label: "Short Range Radio Services (SRRS) Devices", value: "Short Range Radio Services (SRRS) Devices" },
+      { label: "Public Trunked Radio Equipment (Mobile/Portable)", value: "Public Trunked Radio Equipment (Mobile/Portable)" },
     ],
   },
   { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. Cisco Catalyst 9120AX / Zebra FX9600", required: true },
@@ -287,7 +286,7 @@ function createEmptyRow(cols: FormRepeaterColumn[]): Record<string, string> {
   cols.forEach((col) => {
     if (col.type === "serials" || col.key === "equipmentSerials") {
       row[col.key] = JSON.stringify([{ id: `serial-${Date.now()}`, serialNumber: "" }]);
-      row["typeOfEquipmentDevice"] = "Wireless Data Network (WDN) Devices - Indoor";
+      row["typeOfEquipmentDevice"] = "Wireless Data Network (WDN) - Indoor";
       row["nameTypeModel"] = "";
       row["serialNumber"] = "";
     } else {
