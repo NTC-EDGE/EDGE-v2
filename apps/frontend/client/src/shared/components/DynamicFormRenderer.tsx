@@ -1518,7 +1518,7 @@ export function DynamicFormRenderer({
                     labelLower.includes("cpcn / pa / ca date") ||
                     labelLower.includes("cpcn")
                   ) {
-                    displayFieldLabel = "CPCN / PA / CA No. Date of Expiry";
+                    displayFieldLabel = "CPCN / PA / CA No.";
                   }
                 }
 

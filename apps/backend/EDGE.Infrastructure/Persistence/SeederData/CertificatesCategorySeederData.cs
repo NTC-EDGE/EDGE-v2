@@ -157,8 +157,8 @@ public static class CertificatesCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""vasParticulars"", ""required"": true },
-            { ""key"": ""knownByAnotherName"", ""required"": false },
             { ""key"": ""valueAddedServices"", ""required"": true },
+            { ""key"": ""knownByAnotherName"", ""required"": false },
             { ""key"": ""vasRegistration"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true },
             { ""key"": ""payment"", ""required"": true }
@@ -510,8 +510,8 @@ public static class CertificatesCategorySeederData
         {
             new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "corVasNo", "corVasExpiryDate", "cpcnPaCaNo", "cpcnDateOfExpiry" }),
-            new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
+            new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
             new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })

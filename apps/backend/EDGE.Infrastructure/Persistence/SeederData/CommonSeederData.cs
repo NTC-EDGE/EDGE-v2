@@ -190,7 +190,7 @@ public static class CommonSeederData
             // VAS Registration (NTC 1-20) specific fields
             ["entityType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000230"), FieldType = "dropdown", Label = "Type of Entity", SyncBackOnSubmit = false, ValidationRules = @"[""Corporation"",""Single Proprietorship"",""Partnership"",""Others""]" },
             ["cpcnPaCaNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000231"), FieldType = "text", Label = "CPCN / PA / CA No.", SyncBackOnSubmit = false },
-            ["cpcnDateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000232"), FieldType = "date", Label = "CPCN / PA / CA No. Date of Expiry", SyncBackOnSubmit = false },
+            ["cpcnDateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000232"), FieldType = "date", Label = "CPCN / PA / CA No.", SyncBackOnSubmit = false },
             ["corVasNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000233"), FieldType = "text", Label = "COR / VAS No.", SyncBackOnSubmit = false },
             ["corVasExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000238"), FieldType = "date", Label = "COR / VAS No. Expiry Date", SyncBackOnSubmit = false },
             ["knownByAnotherName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000234"), FieldType = "dropdown", Label = "Known by other Name", SyncBackOnSubmit = false, ValidationRules = @"[""Yes"",""No""]" },
