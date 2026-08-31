@@ -1646,6 +1646,8 @@ export function DynamicFormRenderer({
                   ? (isVasRequiredField || (field.isRequired ?? false))
                   : isCopyOfCert
                   ? (isCopyRequiredField || (field.isRequired ?? false))
+                  : isEmploymentTypeField
+                  ? false
                   : isEmploymentStatusField || isEntityTypeField
                   ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
