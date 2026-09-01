@@ -149,3 +149,11 @@ export const FIELD_ID_TARGET_CERT_TYPE   = "fd000000-0000-0000-0000-000000000241
 export const FIELD_ID_TARGET_CERT_NUMBER = "fd000000-0000-0000-0000-000000000242"; // Certificate Number
 export const FIELD_ID_NO_OF_COPIES       = "fd000000-0000-0000-0000-000000000243"; // No. of Copies
 
+// --- Amateur Permit Fields (NTC 1-09) ----------------------------------------
+export const FIELD_ID_PREFERRED_CALL_SIGN = "fd000000-0000-0000-0000-000000000261"; // Preferred Call Sign/s
+export const FIELD_ID_BANDWIDTH_UNIT     = "fd000000-0000-0000-0000-000000000260"; // Bandwidth Unit
+export const FIELD_ID_NO_OF_UNITS        = "fd000000-0000-0000-0000-000000000262"; // Number of Units
+export const FIELD_ID_AMATEUR_LIC_PERMIT = "fd000000-0000-0000-0000-000000000266"; // Amateur License no./Permit to Possess No.
+export const FIELD_ID_PROPOSED_EQUIPMENT = "fd000000-0000-0000-0000-000000000267"; // Proposed Equipment Details (repeater)
+
+

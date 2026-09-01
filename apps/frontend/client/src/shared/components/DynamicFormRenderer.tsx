@@ -10,6 +10,7 @@ import { FormSignatureInput } from "./FormSignatureInput";
 import { DeclarationCheckbox } from "./DeclarationCheckbox";
 import { FormRepeaterTable } from "./FormRepeaterTable";
 import { VasServicesCheckboxGroup } from "./VasServicesCheckboxGroup";
+import { IntendedUseCheckboxGroup } from "./IntendedUseCheckboxGroup";
 import { useGeographicLocations } from "../hooks/useGeographicLocations";
 import { TYPOGRAPHY, COLORS } from "../theme/tokens";
 import {
@@ -47,6 +48,30 @@ import {
   FIELD_ID_TARGET_CERT_TYPE,
   FIELD_ID_TARGET_CERT_NUMBER,
   FIELD_ID_NO_OF_COPIES,
+  FIELD_ID_CALL_SIGN,
+  FIELD_ID_SERVICE_AREA,
+  FIELD_ID_FREQUENCY,
+  FIELD_ID_BANDWIDTH,
+  FIELD_ID_BANDWIDTH_UNIT,
+  FIELD_ID_EMISSION,
+  FIELD_ID_POWER_OUTPUT,
+  FIELD_ID_HOURS_OP,
+  FIELD_ID_STATION_CLASS,
+  FIELD_ID_CLASS_OF_STATION,
+  FIELD_ID_CONFIGURATION,
+  FIELD_ID_DATA_RATE,
+  FIELD_ID_REMARKS,
+  FIELD_ID_NO_OF_UNITS,
+  FIELD_ID_DEALER_NAME,
+  FIELD_ID_AUTH_SELLER,
+  FIELD_ID_OR_INVOICE,
+  FIELD_ID_AMATEUR_LIC,
+  FIELD_ID_AMATEUR_LIC_PERMIT,
+  FIELD_ID_PERMIT_RSL,
+  FIELD_ID_SELLER_ADDR,
+  FIELD_ID_INTENDED_USE,
+  FIELD_ID_PROPOSED_EQUIPMENT,
+  FIELD_ID_PREFERRED_CALL_SIGN,
 } from "../constants/fieldIds";
 import {
   CERTIFICATE_SERVICES_OPTIONS,
@@ -254,7 +279,35 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   if (idLower === "techniciancertno" || idLower === "fd000000-0000-0000-0000-000000000254" || labelLower === "certificate/number" || (labelLower.includes("certificate/number") && !labelLower.includes("expiry"))) return 140;
   if (idLower === "technicianexpirydate" || idLower === "fd000000-0000-0000-0000-000000000251" || labelLower.includes("certificate/number date of expiry") || labelLower === "date of expiry" || labelLower.includes("date of expiry")) return 150;
 
-  return 100 + defaultIndex;
+  // 6. Station / Equipment section fields order
+  if (idLower === "callsign" || idLower === FIELD_ID_CALL_SIGN || labelLower === "call sign") return 160;
+  if (idLower === "servicearea" || idLower === FIELD_ID_SERVICE_AREA || labelLower.includes("service area") || labelLower.includes("points of comm")) return 165;
+  if (idLower === "frequency" || idLower === FIELD_ID_FREQUENCY || labelLower === "frequency" || labelLower.includes("frequency (ies)")) return 170;
+  if (idLower === "bandwidth" || idLower === FIELD_ID_BANDWIDTH || labelLower === "bandwidth") return 175;
+  if (idLower === "bandwidthunit" || idLower === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") return 176;
+  if (idLower === "emission" || idLower === FIELD_ID_EMISSION || labelLower === "emission") return 180;
+  if (idLower === "poweroutput" || idLower === FIELD_ID_POWER_OUTPUT || labelLower.includes("power output")) return 185;
+  if (idLower === "hoursofoperation" || idLower === FIELD_ID_HOURS_OP || labelLower.includes("hours of operation")) return 190;
+
+  // 7. Particulars section fields order
+  if (idLower === "stationclass" || idLower === "classofstation" || idLower === FIELD_ID_STATION_CLASS || idLower === FIELD_ID_CLASS_OF_STATION || labelLower === "station class" || labelLower === "class of station") return 200;
+  if (idLower === "exactlocation" || labelLower === "exact location") return 205;
+  if (idLower === "longitude" || labelLower.includes("longitude")) return 210;
+  if (idLower === "latitude" || labelLower.includes("latitude")) return 215;
+  if (idLower === "configuration" || idLower === FIELD_ID_CONFIGURATION || labelLower === "configuration") return 220;
+  if (idLower === "datarate" || idLower === FIELD_ID_DATA_RATE || labelLower === "data rate") return 225;
+  if (idLower === "remarks" || idLower === FIELD_ID_REMARKS || labelLower === "remarks") return 230;
+  if (idLower === "noofunits" || idLower === FIELD_ID_NO_OF_UNITS || labelLower.includes("number of units") || labelLower.includes("no. of units")) return 235;
+
+  // 8. Source of Equipment section fields order
+  if (idLower === "dealername" || idLower === FIELD_ID_DEALER_NAME || labelLower.includes("dealer")) return 250;
+  if (idLower === "authorizedsellerbuyer" || idLower === FIELD_ID_AUTH_SELLER || labelLower.includes("authorized seller")) return 255;
+  if (idLower === "orvoiceno" || idLower === "orvoicenum" || idLower === FIELD_ID_OR_INVOICE || labelLower.includes("or / invoice") || labelLower.includes("or/invoice")) return 260;
+  if (idLower === "amateurlicenseno" || idLower === "amateurlicensenopermitno" || idLower === FIELD_ID_AMATEUR_LIC || idLower === FIELD_ID_AMATEUR_LIC_PERMIT || labelLower.includes("amateur license no") || labelLower.includes("permit to possess no")) return 265;
+  if (idLower === "permitrslno" || idLower === FIELD_ID_PERMIT_RSL || labelLower.includes("permit / rsl") || labelLower.includes("permit/rsl")) return 270;
+  if (idLower === "selleraddress" || idLower === FIELD_ID_SELLER_ADDR || labelLower.includes("seller address")) return 275;
+
+  return 300 + defaultIndex;
 }
 
 export function DynamicFormRenderer({
@@ -479,11 +532,50 @@ export function DynamicFormRenderer({
     varDesc.includes("customer premises") ||
     varDesc.includes("cpe");
 
-  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, all Radio Operator Certificates, CPE Supplier Accreditation, and Amateur Certificate Modification
+  const isAmateurPermitService =
+    (titLower.includes("amateur") || varDesc.includes("amateur")) &&
+    (isPermit || titLower.includes("permit") || varDesc.includes("permit") || titLower.includes("ntc 1-09") || titLower.includes("ntc_1_09"));
+
+  const isVanityNew =
+    isAmateurPermitService &&
+    varDesc.includes("vanity") &&
+    !varDesc.includes("renewal") &&
+    ((matchedVariant?.type || "").toUpperCase() === "NEW" || varDesc.includes("new") || String(selectedVariantId) === "60000000-0000-0000-0000-000000000067");
+
+  const isVanityRen =
+    isAmateurPermitService &&
+    varDesc.includes("vanity") &&
+    ((matchedVariant?.type || "").toUpperCase() === "RENEWAL" || varDesc.includes("renewal") || String(selectedVariantId) === "60000000-0000-0000-0000-000000000065");
+
+  const isSpecialEvent =
+    isAmateurPermitService &&
+    (varDesc.includes("special event") || String(selectedVariantId) === "60000000-0000-0000-0000-000000000066");
+
+  const isForeignVisitor =
+    isAmateurPermitService &&
+    (varDesc.includes("foreign") || String(selectedVariantId) === "60000000-0000-0000-0000-000000000064");
+
+  const isPurchaseOrPurchasePossess =
+    isAmateurPermitService &&
+    !isForeignVisitor &&
+    !isVanityNew &&
+    !isVanityRen &&
+    !isSpecialEvent &&
+    !varDesc.includes("storage") &&
+    !varDesc.includes("sell") &&
+    !varDesc.includes("transfer") &&
+    (varDesc.includes("purchase") || varDesc.includes("possess"));
+
+  const isStorageOrSell =
+    isAmateurPermitService &&
+    (varDesc.includes("storage") || varDesc.includes("sell") || varDesc.includes("transfer"));
+
+  const isAmateurPermitWithYears = isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent;
+
+  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, all Radio Operator Certificates, CPE Supplier Accreditation, Amateur Certificate Modification, and specified Amateur Permits (Foreign Visitor, Vanity New/Ren, Special Event)
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
-    !isPermit &&
     !isRequestOrComplaint &&
     !isDeviceRegistration &&
     !isVas &&
@@ -491,8 +583,8 @@ export function DynamicFormRenderer({
     (isCpeAccreditation ||
      isRocService ||
      (isAmateurCert && isModification) ||
-     catLower.includes("license") ||
-     titLower.includes("license"));
+     isAmateurPermitWithYears ||
+     (!isPermit && (catLower.includes("license") || titLower.includes("license"))));
 
   // Dynamic Certificate Services & Types Query
   const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
@@ -652,6 +744,63 @@ export function DynamicFormRenderer({
 
     if (isClubSection) {
       return false;
+    }
+
+    // Remove legacy classification section (Classification)
+    const isClassificationSection =
+      key === "classification" ||
+      title === "classification" ||
+      title.includes("classification");
+
+    if (isClassificationSection) {
+      return false;
+    }
+
+    if (isAmateurPermitService) {
+      if (isPurchaseOrPurchasePossess) {
+        if (
+          key === "proposedstation" ||
+          key === "equipment" ||
+          key === "antennas" ||
+          key === "sourceofequipment" ||
+          title.includes("station") ||
+          title.includes("source") ||
+          title.includes("antenna") ||
+          (title.includes("equipment") && !title.includes("intended"))
+        ) {
+          return false;
+        }
+      } else if (isVanityNew || isVanityRen || isSpecialEvent) {
+        if (
+          key === "proposedstation" ||
+          key === "antennas" ||
+          key === "sourceofequipment" ||
+          key === "intendeduse" ||
+          title.includes("station") ||
+          title.includes("source") ||
+          title.includes("antenna") ||
+          title.includes("intended") ||
+          (key === "particulars" && !title.includes("equipment"))
+        ) {
+          return false;
+        }
+      } else if (isForeignVisitor) {
+        if (
+          key === "particulars" ||
+          key === "antennas" ||
+          title.includes("antenna")
+        ) {
+          return false;
+        }
+      } else if (isStorageOrSell) {
+        if (
+          key === "equipment" ||
+          key === "antennas" ||
+          (title.includes("equipment") && !title.includes("intended") && !title.includes("source") && !title.includes("station") && !title.includes("particulars"))
+        ) {
+          return false;
+        }
+      }
     }
 
     return (
@@ -873,6 +1022,72 @@ export function DynamicFormRenderer({
                 </FormCol>
               </>
             )}
+
+            {/* Preferred Call Sign/s (for Vanity New/Ren and Special Event) */}
+            {(isVanityNew || isVanityRen || isSpecialEvent) && (
+              <FormCol span={isVanityRen ? 4 : 6}>
+                <ValidatedInput
+                  label="Preferred Call Sign/s"
+                  placeholder="e.g. 4F1AAA (Optional)"
+                  value={
+                    values?.[FIELD_ID_PREFERRED_CALL_SIGN] ||
+                    values?.["preferredCallSign"] ||
+                    values?.["preferredCallSigns"] ||
+                    values?.["Preferred Call Sign/s"] ||
+                    values?.["Preferred Call Sign"] ||
+                    ""
+                  }
+                  onChangeText={(val) => {
+                    onChange(FIELD_ID_PREFERRED_CALL_SIGN, "Preferred Call Sign/s", val);
+                    onChange("preferredCallSign", "Preferred Call Sign/s", val);
+                  }}
+                />
+              </FormCol>
+            )}
+
+            {/* Permit Number & Date of Expiry for Vanity Renewal */}
+            {isVanityRen && (
+              <>
+                <FormCol span={4}>
+                  <ValidatedInput
+                    label="Permit Number"
+                    required
+                    placeholder="e.g. SP-VAN-2022-00123"
+                    value={
+                      values?.[FIELD_ID_LICENSE_NO] ||
+                      values?.["permitNo"] ||
+                      values?.["permitNumber"] ||
+                      values?.["licenseNo"] ||
+                      values?.["Permit Number"] ||
+                      ""
+                    }
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_LICENSE_NO, "Permit Number", val);
+                      onChange("permitNo", "Permit Number", val);
+                      onChange("permitNumber", "Permit Number", val);
+                    }}
+                  />
+                </FormCol>
+                <FormCol span={4}>
+                  <DatePickerInput
+                    label="Date of Expiry"
+                    required
+                    placeholder="MM/DD/YYYY"
+                    value={
+                      values?.[FIELD_ID_DATE_OF_EXPIRY] ||
+                      values?.["dateOfExpiry"] ||
+                      values?.["expiryDate"] ||
+                      values?.["Date of Expiry"] ||
+                      ""
+                    }
+                    onChangeText={(val) => {
+                      onChange(FIELD_ID_DATE_OF_EXPIRY, "Date of Expiry", val);
+                      onChange("dateOfExpiry", "Date of Expiry", val);
+                    }}
+                  />
+                </FormCol>
+              </>
+            )}
           </FormGrid>
         </View>
       )}
@@ -937,6 +1152,21 @@ export function DynamicFormRenderer({
                 return 10;
               };
               return getVasSectionPriority(a) - getVasSectionPriority(b);
+            })
+          : isAmateurPermitService
+          ? [...visibleSections].sort((a, b) => {
+              const getAmateurSectionPriority = (sec: FormSectionDto): number => {
+                const k = (sec.key || sec.id || "").toLowerCase();
+                const t = (sec.title || "").toLowerCase();
+                if (k === "applicant" || t.includes("applicant")) return 1;
+                if (k === "proposedstation" || t.includes("station") || t.includes("proposed station")) return 2;
+                if (k === "particulars" || t.includes("particulars")) return 3;
+                if (k === "equipment" || t.includes("equipment")) return 3.5;
+                if (k === "sourceofequipment" || t.includes("source")) return 4;
+                if (k === "intendeduse" || t.includes("intended")) return 5;
+                return 10;
+              };
+              return getAmateurSectionPriority(a) - getAmateurSectionPriority(b);
             })
           : isCopyOfCert
           ? (() => {
@@ -1191,7 +1421,24 @@ export function DynamicFormRenderer({
                   labelLower === "weight" ||
                   labelLower === "weight (kg)";
 
-                if (isNonIndividualEntity && isBioPersonalField) {
+                const isVanityOrSpecialEvent = isVanityNew || isVanityRen || isSpecialEvent;
+                const isVanityBioField =
+                  targetId === FIELD_ID_BIRTH_DATE ||
+                  fIdLower === "birthdate" ||
+                  fIdLower === "dateofbirth" ||
+                  labelLower === "date of birth" ||
+                  labelLower === "birth date" ||
+                  labelLower === "dob" ||
+                  labelLower === "sex" ||
+                  labelLower === "gender" ||
+                  labelLower === "nationality" ||
+                  labelLower === "citizenship";
+
+                if (isNonIndividualEntity && isBioPersonalField && !(isVanityOrSpecialEvent && isVanityBioField)) {
+                  return null;
+                }
+
+                if (isAmateurPermitService && !isVanityOrSpecialEvent && isBioPersonalField) {
                   return null;
                 }
 
@@ -1260,6 +1507,30 @@ export function DynamicFormRenderer({
 
                 const sectionKeyLower = (section.key || section.id || "").toLowerCase();
                 const fieldIdLower = (field.fieldId || field.id || "").toLowerCase();
+
+                const isCallSignField =
+                  targetId === FIELD_ID_CALL_SIGN ||
+                  fIdLower === "callsign" ||
+                  fIdLower === "call_sign" ||
+                  labelLower === "call sign" ||
+                  labelLower.includes("call sign");
+
+                const isApplicantSection =
+                  sectionKeyLower.includes("applicant") ||
+                  section.title.toLowerCase().includes("applicant");
+
+                // Remove Call Sign from Applicant Details in Amateur Permits
+                if (isAmateurPermitService && isApplicantSection && isCallSignField) {
+                  return null;
+                }
+
+                const isIntendedUseField =
+                  fieldIdLower === "intendeduse" ||
+                  fieldIdLower === "intendedusetype" ||
+                  fieldIdLower === "intended_use_type" ||
+                  fieldIdLower === FIELD_ID_INTENDED_USE.toLowerCase() ||
+                  labelLower.includes("intended use of equipment") ||
+                  labelLower.includes("intended use");
 
                 const isVasServicesField =
                   fieldIdLower === "valueaddedservices" ||
@@ -1395,6 +1666,21 @@ export function DynamicFormRenderer({
                         { label: "MODIFICATION — Amendment or change of registered particulars", value: "Modification" },
                       ];
 
+                const isBandwidthUnitField =
+                  fIdLower === "bandwidthunit" ||
+                  fIdLower === "unit" ||
+                  targetId === FIELD_ID_BANDWIDTH_UNIT ||
+                  labelLower === "unit" ||
+                  labelLower === "bandwidth unit";
+
+                const isStationClassField =
+                  fIdLower === "stationclass" ||
+                  fIdLower === "classofstation" ||
+                  targetId === FIELD_ID_STATION_CLASS ||
+                  targetId === FIELD_ID_CLASS_OF_STATION ||
+                  labelLower === "station class" ||
+                  labelLower === "class of station";
+
                 const isDropdown =
                   rawType === "dropdown" ||
                   rawType === "select" ||
@@ -1412,6 +1698,8 @@ export function DynamicFormRenderer({
                   isTargetServiceField ||
                   isTargetCertTypeField ||
                   isNoOfCopiesField ||
+                  isBandwidthUnitField ||
+                  (isStationClassField && isAmateurPermitService) ||
                   (isElementsField && elementOptions.length > 0);
 
                 let val = rawVal;
@@ -1435,6 +1723,9 @@ export function DynamicFormRenderer({
                 }
                 if (isBsdField) {
                   val = "TO BE ASSIGNED BY NTC";
+                }
+                if ((labelLower === "frequency" || targetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && (!val || val === "")) {
+                  val = "Within Authorized Amateur Band";
                 }
                 if (!val && values) {
                   if (isRegionField) {
@@ -1461,6 +1752,24 @@ export function DynamicFormRenderer({
                     { label: "3 Years", value: "3" },
                   ];
                   placeholder = "Select duration...";
+                } else if (isBandwidthUnitField) {
+                  dropdownOptions = [
+                    { label: "KHz", value: "KHz" },
+                    { label: "MHz", value: "MHz" },
+                    { label: "GHz", value: "GHz" },
+                  ];
+                  placeholder = "Select Unit...";
+                } else if (isStationClassField && isAmateurPermitService) {
+                  dropdownOptions = [
+                    { label: "RT", value: "RT" },
+                    { label: "FX", value: "FX" },
+                    { label: "FB", value: "FB" },
+                    { label: "FX/FB", value: "FX/FB" },
+                    { label: "ML", value: "ML" },
+                    { label: "P", value: "P" },
+                    { label: "Others", value: "Others" },
+                  ];
+                  placeholder = "Select Station Class...";
                 } else if (isTargetServiceField) {
                   dropdownOptions = dynamicCertServiceOptions;
                   placeholder = "Select Certificate Service...";
@@ -1598,11 +1907,17 @@ export function DynamicFormRenderer({
                   rawType === "table" ||
                   rawType === "repeater_table" ||
                   rawType === "array" ||
+                  targetId === FIELD_ID_EQUIPMENT ||
+                  targetId === FIELD_ID_ANTENNA ||
+                  targetId === FIELD_ID_DEVICES ||
+                  targetId === FIELD_ID_TVRO ||
+                  targetId === FIELD_ID_PROPOSED_EQUIPMENT ||
                   fieldIdLower === FIELD_ID_DEVICES.toLowerCase() ||
                   fieldIdLower === FIELD_ID_EQUIPMENT.toLowerCase() ||
                   fieldIdLower === FIELD_ID_ANTENNA.toLowerCase() ||
                   fieldIdLower === FIELD_ID_RADIO_OFFICERS.toLowerCase() ||
                   fieldIdLower === FIELD_ID_TVRO.toLowerCase() ||
+                  fieldIdLower === FIELD_ID_PROPOSED_EQUIPMENT.toLowerCase() ||
                   fieldIdLower.includes("equipmentdetails") ||
                   fieldIdLower.includes("antennadetails") ||
                   fieldIdLower.includes("radioofficers") ||
@@ -1610,6 +1925,7 @@ export function DynamicFormRenderer({
                   fieldIdLower.includes("signaldetails") ||
                   fieldIdLower.includes("signalreception") ||
                   fieldIdLower.includes("tvro") ||
+                  fieldIdLower.includes("proposedequipments") ||
                   sectionKeyLower.includes("equipment") ||
                   sectionKeyLower.includes("antenna") ||
                   sectionKeyLower.includes("device") ||
@@ -1737,6 +2053,45 @@ export function DynamicFormRenderer({
                   ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
 
+                const isBandwidthField =
+                  fieldIdLower === "bandwidth" ||
+                  targetId === FIELD_ID_BANDWIDTH ||
+                  labelLower === "bandwidth";
+
+                const isEmissionField =
+                  fieldIdLower === "emission" ||
+                  targetId === FIELD_ID_EMISSION ||
+                  labelLower === "emission";
+
+                const isPowerOutputField =
+                  fieldIdLower === "poweroutput" ||
+                  targetId === FIELD_ID_POWER_OUTPUT ||
+                  labelLower.includes("power output");
+
+                const isHoursOpField =
+                  fieldIdLower === "hoursofoperation" ||
+                  targetId === FIELD_ID_HOURS_OP ||
+                  labelLower.includes("hours of operation");
+
+                const isExactLocationField =
+                  fieldIdLower === "exactlocation" ||
+                  labelLower === "exact location";
+
+                const isConfigurationField =
+                  fieldIdLower === "configuration" ||
+                  targetId === FIELD_ID_CONFIGURATION ||
+                  labelLower === "configuration";
+
+                const isDataRateField =
+                  fieldIdLower === "datarate" ||
+                  targetId === FIELD_ID_DATA_RATE ||
+                  labelLower === "data rate";
+
+                const isRemarksField =
+                  fieldIdLower === "remarks" ||
+                  targetId === FIELD_ID_REMARKS ||
+                  labelLower === "remarks";
+
                 const isFullWidthField =
                   isNameField ||
                   isSignature ||
@@ -1746,18 +2101,28 @@ export function DynamicFormRenderer({
                   isBsdField ||
                   isVasRegField ||
                   isVasServicesField ||
+                  isIntendedUseField ||
                   isSupervisingEngineerField ||
                   isTechnicianNameField ||
                   (isEntityTypeField && !isCpeAccreditation);
 
-                const span = isFullWidthField ? 12 : 6;
+                let span: 12 | 8 | 6 | 4 | 3 = isFullWidthField ? 12 : 6;
+                if (isBandwidthField || isBandwidthUnitField) {
+                  span = 3;
+                } else if (isEmissionField || isPowerOutputField || isHoursOpField || isConfigurationField || isDataRateField || isRemarksField) {
+                  span = 4;
+                } else if (isExactLocationField) {
+                  span = 8;
+                } else if (isStationClassField && isAmateurPermitService && (isStorageOrSell || isForeignVisitor)) {
+                  span = 4;
+                }
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
                     {isNameField ? (
                       <ApplicantNameField
                         key={targetId}
-                        label={isNonIndividualEntity ? "Applicant / Company Name" : displayFieldLabel}
+                        label={isNonIndividualEntity ? "Applicant / Company Name" : isAmateurPermitService ? "Applicant Name" : displayFieldLabel}
                         isRequired={isFieldRequired}
                         value={val}
                         structuredValue={
@@ -1765,8 +2130,8 @@ export function DynamicFormRenderer({
                             ? (structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined)
                             : (structuredNameData ? { ...structuredNameData, applicantType: "company" } : undefined)
                         }
-                        allowCompany={isNonIndividualEntity}
-                        unifiedInput={isNonIndividualEntity}
+                        allowCompany={isNonIndividualEntity || isAmateurPermitService}
+                        unifiedInput={isNonIndividualEntity || isAmateurPermitService}
                         onChange={(combinedName) => onChange(targetId, displayFieldLabel, combinedName)}
                         onStructuredChange={onStructuredNameChange}
                         error={err}
@@ -1858,6 +2223,14 @@ export function DynamicFormRenderer({
                           * Note: VAS Registration Number is designated and assigned exclusively by the National Telecommunications Commission (NTC) upon evaluation and approval.
                         </Text>
                       </View>
+                    ) : isIntendedUseField ? (
+                      <IntendedUseCheckboxGroup
+                        label={displayFieldLabel}
+                        required={isFieldRequired}
+                        value={val}
+                        onChange={(newVal) => onChange(targetId, displayFieldLabel, newVal)}
+                        error={err}
+                      />
                     ) : isVasServicesField ? (
                       <VasServicesCheckboxGroup
                         label={displayFieldLabel}
@@ -1943,6 +2316,33 @@ export function DynamicFormRenderer({
             })
             .filter(({ renderedFields }) => renderedFields.length > 0);
 
+        const getSectionTitle = (sec: FormSectionDto): string => {
+          if (isAmateurPermitService) {
+            const k = (sec.key || sec.id || "").toLowerCase();
+            const t = (sec.title || "").toLowerCase();
+            if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
+            if (k === "proposedstation" || t.includes("station") || t.includes("proposed station")) {
+              return isForeignVisitor ? "Particulars of Equipment" : "Station/Equipment";
+            }
+            if (k === "particulars" || t.includes("particulars")) {
+              return isVanityNew || isVanityRen || isSpecialEvent ? "Particulars of Equipment" : "Particulars";
+            }
+            if (k === "equipment" || t.includes("equipment")) {
+              return isForeignVisitor ? "Particulars of Proposed Equipment" : "Particulars of Equipment";
+            }
+            if (k === "sourceofequipment" || t.includes("source")) {
+              return "Source of Equipment";
+            }
+            if (k === "intendeduse" || t.includes("intended")) {
+              return "Intended Use of Equipment";
+            }
+            if (k === "declaration" || t.includes("declaration") || t.includes("acknowledgement")) {
+              return "Acknowledgement & Applicant Signature";
+            }
+          }
+          return sec.title;
+        };
+
         return (
           <>
             {renderedSections.map(({ section, renderedFields, sIdx }, idx) => {
@@ -1955,7 +2355,7 @@ export function DynamicFormRenderer({
                       <View style={styles.iconCircle}>
                         <Text style={styles.iconCircleText}>{sectionDisplayNum}</Text>
                       </View>
-                      <Text style={styles.sectionTitle}>{section.title}</Text>
+                      <Text style={styles.sectionTitle}>{getSectionTitle(section)}</Text>
                     </View>
                     <View style={styles.sectionBadge}>
                       <Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text>

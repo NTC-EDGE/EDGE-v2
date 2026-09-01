@@ -210,7 +210,14 @@ public static class CommonSeederData
             ["certificateEctExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000255"), FieldType = "date", Label = "Certificate/ECT No. Date of Expiry", SyncBackOnSubmit = false },
             ["technicianName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000253"), FieldType = "text", Label = "Technician Name", SyncBackOnSubmit = false },
             ["technicianCertNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000254"), FieldType = "text", Label = "Certificate/Number", SyncBackOnSubmit = false },
-            ["technicianExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000251"), FieldType = "date", Label = "Certificate/Number Date of Expiry", SyncBackOnSubmit = false }
+            ["technicianExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000251"), FieldType = "date", Label = "Certificate/Number Date of Expiry", SyncBackOnSubmit = false },
+
+            // Amateur Permits (NTC 1-09) specific fields
+            ["preferredCallSign"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000261"), FieldType = "text", Label = "Preferred Call Sign/s", SyncBackOnSubmit = false },
+            ["bandwidthUnit"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000260"), FieldType = "dropdown", Label = "Unit", SyncBackOnSubmit = false, ValidationRules = @"[""KHz"",""MHz"",""GHz""]" },
+            ["noOfUnits"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000262"), FieldType = "number", Label = "Number of Units", SyncBackOnSubmit = false },
+            ["amateurLicenseNoPermitNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000266"), FieldType = "text", Label = "Amateur License no./Permit to Possess No.", SyncBackOnSubmit = false },
+            ["proposedEquipments"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000267"), FieldType = "repeater", Label = "Particulars of Proposed Equipment", SyncBackOnSubmit = false }
         };
     }
 }

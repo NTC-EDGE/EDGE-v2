@@ -42,6 +42,30 @@ export const DEFAULT_EQUIPMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
   { key: "frequencyRange", label: "Frequency Range / Power", placeholder: "e.g. 144-148 MHz / 100W", required: false },
 ];
 
+export const DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300", required: true },
+  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-9821034", required: true },
+  { key: "frequencyRange", label: "Frequency Range", placeholder: "e.g. 144-148 MHz", required: true },
+];
+
+export const DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = [
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300", required: true },
+  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-9821034", required: true },
+  { key: "frequencyRange", label: "Frequency Range", placeholder: "e.g. 144-148 MHz", required: true },
+  { key: "callSign", label: "Call Sign", placeholder: "e.g. DX1ABC", required: true },
+];
+
+export const DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "antennaType", label: "Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: true },
+  { key: "height", label: "Height (cm.)", placeholder: "e.g. 1500 cm", required: false },
+  { key: "gain", label: "Gain (dB)", placeholder: "e.g. 9 dB", required: false },
+  { key: "directivity", label: "Directivity", placeholder: "e.g. Directional", required: false },
+  { key: "diameter", label: "Diameter", placeholder: "e.g. 2.5m", required: false },
+  { key: "polarization", label: "Polarization", placeholder: "e.g. Vertical", required: false },
+  { key: "bandwidth", label: "Bandwidth", placeholder: "e.g. 4 MHz", required: false },
+  { key: "remarks", label: "Remarks", placeholder: "e.g. Base station antenna", required: false },
+];
+
 export const DEFAULT_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
   { key: "antennaType", label: "Antenna Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: true },
   { key: "height", label: "Height (m)", placeholder: "e.g. 15m", required: false },
@@ -197,8 +221,16 @@ export function resolveRepeaterColumns(
     return DEFAULT_TVRO_EQUIPMENT_COLUMNS;
   }
 
+  if (
+    keyLower.includes("proposedequipment") ||
+    keyLower.includes("proposed_equipment") ||
+    labelLower.includes("proposed equipment")
+  ) {
+    return DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS;
+  }
+
   if (keyLower.includes("antenna") || labelLower.includes("antenna")) {
-    return DEFAULT_ANTENNA_REPEATER_COLUMNS;
+    return DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS;
   }
   if (
     keyLower.includes("device") ||
@@ -217,7 +249,7 @@ export function resolveRepeaterColumns(
     return DEFAULT_OFFICER_REPEATER_COLUMNS;
   }
 
-  return DEFAULT_EQUIPMENT_REPEATER_COLUMNS;
+  return DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS;
 }
 
 function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Record<string, string>> {
