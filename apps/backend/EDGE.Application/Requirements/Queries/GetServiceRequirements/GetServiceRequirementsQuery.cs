@@ -52,6 +52,7 @@ public class GetServiceRequirementsQueryHandler : IRequestHandler<GetServiceRequ
         var result = rules
             .GroupBy(svr => svr.RequirementId)
             .Select(g => g.OrderByDescending(x => x.IsRequired).First())
+            .OrderBy(svr => svr.CreatedAt)
             .Select(svr => new ServiceRequirementItemDto
             {
                 RequirementId = svr.RequirementId,

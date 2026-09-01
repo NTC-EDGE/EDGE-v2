@@ -914,9 +914,12 @@ public static class FastTrackSeeder
         var tenantId = await context.Tenants.IgnoreQueryFilters().Select(t => (Guid?)t.Id).FirstOrDefaultAsync();
         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
         var allExistingSvr = await context.ServiceVariantRequirements.IgnoreQueryFilters().ToListAsync();
+        var baseTime = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+        int seedIndex = 0;
 
         foreach (var vr in variantReqsToSeed)
         {
+            seedIndex++;
             Guid actualVariantId = ResolveVariantId(vr.VariantId);
             if (!validVariantIds.Contains(actualVariantId) || !existingReqIds.Contains(vr.ReqId))
             {
@@ -932,16 +935,18 @@ public static class FastTrackSeeder
                     TenantId = tenantId,
                     ServiceVariantId = actualVariantId,
                     RequirementId = vr.ReqId,
-                    IsRequired = vr.IsRequired
+                    IsRequired = vr.IsRequired,
+                    CreatedAt = baseTime.AddSeconds(seedIndex)
                 };
                 context.ServiceVariantRequirements.Add(newSvr);
                 allExistingSvr.Add(newSvr);
             }
-            else if (existingRecord.IsDeleted || existingRecord.IsRequired != vr.IsRequired)
+            else
             {
                 existingRecord.IsDeleted = false;
                 existingRecord.IsDeletedBy = string.Empty;
                 existingRecord.IsRequired = vr.IsRequired;
+                existingRecord.CreatedAt = baseTime.AddSeconds(seedIndex);
             }
         }
         await context.SaveChangesAsync();

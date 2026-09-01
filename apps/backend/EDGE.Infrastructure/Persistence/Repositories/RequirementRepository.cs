@@ -88,6 +88,7 @@ public class RequirementRepository : IRequirementRepository
         var query = _context.ServiceVariantRequirements
             .Include(svr => svr.Requirement)
             .Include(svr => svr.ServiceVariant)
+            .OrderBy(svr => svr.CreatedAt)
             .AsNoTracking();
 
         if (variantId.HasValue && variantId.Value != Guid.Empty)
@@ -99,6 +100,7 @@ public class RequirementRepository : IRequirementRepository
             query = query.Where(svr => svr.ServiceVariant != null && svr.ServiceVariant.ServiceId == serviceId.Value);
         }
 
-        return await query.ToListAsync(cancellationToken);
+        var list = await query.ToListAsync(cancellationToken);
+        return list.OrderBy(svr => svr.CreatedAt).ToList();
     }
 }
