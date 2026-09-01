@@ -31,8 +31,7 @@ public static class PermitsCategorySeederData
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""stationEquipment"", ""required"": true },
             { ""key"": ""sourceOfEquipment"", ""required"": false },
-            { ""key"": ""intendedUse"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true }
+            { ""key"": ""intendedUse"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -518,8 +517,7 @@ public static class PermitsCategorySeederData
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Acknowledgement & Applicant Signature", new() { "signatureField", "declarationCheckbox" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_AERO_PERMITS", Guid.Parse("fa000000-0000-0000-0000-000000000001"), Guid.Parse("fa0a0000-0000-0000-0000-000000000000"), new()
         {

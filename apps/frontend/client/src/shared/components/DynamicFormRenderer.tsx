@@ -123,6 +123,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
           if (isAmateurPermitService && secKeyLower.includes("applicant") && (targetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
           if (isAmateurPermitService && (targetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
+          if (isAmateurPermitService && (rawType === "signature" || rawType === "checkbox" || labelLower.includes("signature") || labelLower.includes("declare") || fIdLower.includes("signature") || fIdLower.includes("declaration"))) return null;
 
           const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || targetId === FIELD_ID_FULL_NAME;
           const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails");
