@@ -93,7 +93,8 @@ jobs:
           CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
-          RESET_DATABASE: ${{ inputs.reset_database == false && 'true' || 'false' }}
+          # RESET_DATABASE: ${{ inputs.reset_database == false && 'true' || 'false' }}
+          RESET_DATABASE: true
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
