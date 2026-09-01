@@ -19,6 +19,9 @@ public static class FastTrackSeeder
             await context.Database.ExecuteSqlRawAsync(@"
                 ALTER TABLE ""ServiceVariants"" 
                 ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
+
+                ALTER TABLE ""Requirements"" 
+                ALTER COLUMN ""Description"" TYPE text;
             ");
         }
         catch

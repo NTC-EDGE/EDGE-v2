@@ -87,6 +87,14 @@ public class DatabaseInitializerHostedService : IHostedService
                         ALTER TABLE "ServiceVariants"
                             ADD COLUMN IF NOT EXISTS "IsIndividual" boolean NOT NULL DEFAULT true;
                     END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'Requirements'
+                    ) THEN
+                        ALTER TABLE "Requirements"
+                            ALTER COLUMN "Description" TYPE text;
+                    END IF;
                 END $$;
                 """, cancellationToken);
 
