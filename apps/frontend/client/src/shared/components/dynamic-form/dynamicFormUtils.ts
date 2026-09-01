@@ -95,7 +95,25 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
   if (idLower === "techniciancertno" || labelLower === "certificate/number" || (labelLower.includes("certificate/number") && !labelLower.includes("expiry"))) return 94;
   if (idLower === "technicianexpirydate" || labelLower.includes("certificate/number date of expiry") || (labelLower.includes("expiry") && defaultIndex > 2)) return 95;
 
-  return 100 + defaultIndex;
+  // Station / Equipment fields
+  if (idLower === "callsign" || labelLower.includes("call sign")) return 201;
+  if (idLower === "servicearea" || labelLower.includes("points of comm") || labelLower.includes("service area")) return 202;
+  if (idLower === "frequency" || labelLower.includes("frequency: within") || labelLower === "frequency") return 203;
+  if (idLower === "bandwidth" || labelLower === "bandwidth") return 204;
+  if (idLower === "bandwidthunit" || labelLower === "unit") return 205;
+  if (idLower === "emission" || labelLower === "emission") return 206;
+  if (idLower === "poweroutput" || labelLower.includes("power output")) return 207;
+  if (idLower === "hoursofoperation" || labelLower.includes("hours of operation")) return 208;
+  if (idLower === "stationclass" || labelLower.includes("station class") || labelLower.includes("class of station")) return 209;
+  if (idLower === "exactlocation" || labelLower.includes("exact location")) return 210;
+  if (idLower === "longitude" || labelLower.includes("longitude")) return 211;
+  if (idLower === "latitude" || labelLower.includes("latitude")) return 212;
+  if (idLower === "configuration" || labelLower.includes("configuration")) return 213;
+  if (idLower === "datarate" || labelLower.includes("data rate")) return 214;
+  if (idLower === "remarks" || labelLower.includes("remarks")) return 215;
+  if (idLower === "equipmentdetails" || labelLower.includes("particulars of equipment")) return 216;
+
+  return 300 + defaultIndex;
 }
 
 export function getSectionTitle(sec: FormSectionDto, isAmateurPermitService: boolean): string {

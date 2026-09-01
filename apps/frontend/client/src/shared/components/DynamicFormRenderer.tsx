@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, StyleSheet } from "react-native";
-import { TYPOGRAPHY } from "@edge/ui";
+import { View, Text } from "react-native";
 import { FormGrid } from "./FormGrid";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormSection1 } from "./dynamic-form/DynamicFormSection1";
@@ -8,6 +7,7 @@ import { DynamicFormRendererProps, FormSectionDto } from "./dynamic-form/dynamic
 import { getFieldSortPriority, getSectionTitle, parseOptions } from "./dynamic-form/dynamicFormUtils";
 import { useCertificateServicesQuery } from "./dynamic-form/useCertificateServicesQuery";
 import { useLocationData } from "./dynamic-form/useLocationData";
+import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import {
   FIELD_ID_FULL_NAME,
   FIELD_ID_BIRTH_DATE,
@@ -47,10 +47,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const [selectedRegionId, setSelectedRegionId] = useState<string | undefined>();
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | undefined>();
   const [, setSelectedMunicipalityId] = useState<string | undefined>();
-
-  const { regions, provinces, municipalities, barangays } =
-    useLocationData(selectedRegionId, selectedProvinceId);
-
+  const { regions, provinces, municipalities, barangays } = useLocationData(selectedRegionId, selectedProvinceId);
   useCertificateServicesQuery();
 
   const catLower = (serviceCategory || "").toLowerCase();
@@ -59,23 +56,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const varDesc = (matchedVariant?.description || matchedVariant?.name || matchedVariant?.type || "").toLowerCase();
 
   const isVas = catLower.includes("certificate") && (titLower.includes("value-added") || titLower.includes("vas") || varDesc.includes("vas") || varDesc.includes("value-added"));
-  const isDuplicateCopy = varDesc.includes("duplicate");
-  const isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
+  const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
   const isCopyOfCert = (catLower.includes("certificate") || catLower.includes("permit")) && (titLower.includes("copy") || titLower.includes("ntc 1-21") || titLower.includes("ntc_1_21") || isDuplicateCopy || isCertifiedTrueCopy);
   const isAmateurPermitService = catLower.includes("permit") && (titLower.includes("amateur") || titLower.includes("ntc 1-09") || titLower.includes("ntc_1_09") || varDesc.includes("amateur"));
-  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
-  const isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
+  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03")), isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
-  const isModification = varDesc.includes("modification");
-  const isRenewal = varDesc.includes("renewal");
-  const isRenewalOrMod = isRenewal || isModification;
-  const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary");
-  const isVanityNew = varDesc.includes("special permit for use of vanity call sign (new)");
-  const isVanityRen = varDesc.includes("special permit for use of vanity call sign (renewal)");
-  const isSpecialEvent = varDesc.includes("special event call sign");
-  const isForeignVisitor = varDesc.includes("foreign visitor");
-  const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false);
-  const isIndividualVar = !isNonIndividualEntity;
+  const isModification = varDesc.includes("modification"), isRenewal = varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
+  const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary"), isVanityNew = varDesc.includes("special permit for use of vanity call sign (new)");
+  const isVanityRen = varDesc.includes("special permit for use of vanity call sign (renewal)"), isSpecialEvent = varDesc.includes("special event call sign"), isForeignVisitor = varDesc.includes("foreign visitor");
+  const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
 
@@ -87,7 +76,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
     if (isAmateurPermitService) {
-      return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || t.includes("station") || k === "particulars" || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
+      return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || t.includes("station") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
     }
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
   });
@@ -99,9 +88,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           const t = (s.title || "").toLowerCase();
           if (k === "applicant" || t.includes("applicant")) return 1;
           if (k === "stationequipment" || k === "proposedstation" || t.includes("station")) return 2;
-          if (k === "particulars" || t.includes("particulars")) return 3;
-          if (k === "sourceofequipment" || t.includes("source")) return 4;
-          if (k === "intendeduse" || t.includes("intended")) return 5;
+          if (k === "sourceofequipment" || t.includes("source")) return 3;
+          if (k === "intendeduse" || t.includes("intended")) return 4;
           return 10;
         };
         return getPri(a) - getPri(b);
@@ -134,7 +122,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           const secKeyLower = (section.key || section.id || "").toLowerCase();
 
           if (isAmateurPermitService && secKeyLower.includes("applicant") && (targetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
-          if (isAmateurPermitService && (secKeyLower.includes("particulars") || section.title.toLowerCase().includes("particulars")) && (targetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower === "frequency" || targetId === FIELD_ID_FREQUENCY || fIdLower === "frequency")) return null;
           if (isAmateurPermitService && (targetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
 
           const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || targetId === FIELD_ID_FULL_NAME;
@@ -153,8 +140,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
           let span: 12 | 8 | 6 | 4 | 3 = (isNameField || isSignature || isCheckbox || isRepeaterField || isBsdField || isVasRegField || isIntendedUseField || isVasServicesField) ? 12 : 6;
           if (fIdLower === "bandwidth" || fIdLower === "bandwidthunit" || targetId === FIELD_ID_BANDWIDTH || targetId === FIELD_ID_BANDWIDTH_UNIT) span = 3;
-          else if (fIdLower === "emission" || fIdLower === "poweroutput" || fIdLower === "hoursofoperation" || fIdLower === "configuration" || fIdLower === "datarate" || fIdLower === "remarks" || (fIdLower === "stationclass" && isAmateurPermitService)) span = 4;
-          else if (fIdLower === "exactlocation" || labelLower === "exact location") span = 8;
+          else if (fIdLower === "emission" || fIdLower === "poweroutput" || fIdLower === "hoursofoperation" || fIdLower === "configuration" || fIdLower === "datarate" || fIdLower === "remarks") span = 4;
+          else if (fIdLower === "stationclass" || fIdLower === "exactlocation" || fIdLower === "longitude" || fIdLower === "latitude" || fIdLower === "callsign" || fIdLower === "servicearea") span = 6;
 
           let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
           if ((labelLower === "frequency" || targetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !val) val = "Within Authorized Amateur Band";
@@ -204,15 +191,3 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: { width: "100%", gap: 4 },
-  sectionCard: { backgroundColor: "#FFFFFF", borderRadius: 12, borderWidth: 1, borderColor: "#E2E8F0", padding: 24, marginBottom: 20, shadowColor: "#0F172A", shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.04, shadowRadius: 8, elevation: 2 },
-  sectionHeaderRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 20, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: "#F1F5F9" },
-  sectionTitleRow: { flexDirection: "row", alignItems: "center", gap: 10, flex: 1 },
-  iconCircle: { width: 28, height: 28, borderRadius: 14, backgroundColor: "#1E3A8A", alignItems: "center", justifyContent: "center" },
-  iconCircleText: { fontFamily: TYPOGRAPHY.fonts.primary, color: "#FFFFFF", fontSize: 13, fontWeight: "700" },
-  sectionTitle: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: "700", color: "#0F172A", letterSpacing: -0.2 },
-  sectionBadge: { backgroundColor: "#F1F5F9", borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4 },
-  sectionBadgeText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10.5, fontWeight: "700", color: "#475569", letterSpacing: 0.5 },
-});

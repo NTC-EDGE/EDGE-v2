@@ -217,7 +217,7 @@ public static class FastTrackFormSeeder
                     {
                         FormSectionId = sec.Id,
                         FieldId = f.Id,
-                        IsRequired = fk != "exactLocation" && fk != "longitude" && fk != "latitude" && fk != "bsdNo" && key != "antennaSystem" && key != "signalReception" && key != "bsd" && key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
+                        IsRequired = fk != "callSign" && fk != "serviceArea" && fk != "exactLocation" && fk != "longitude" && fk != "latitude" && fk != "bsdNo" && key != "antennaSystem" && key != "signalReception" && key != "bsd" && key != "assistanceRequest" && key != "applicantEducation" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers" && key != "payment",
                         OrderIndex = fieldOrder++
                     });
                 }

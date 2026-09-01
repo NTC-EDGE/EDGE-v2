@@ -30,7 +30,6 @@ public static class PermitsCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""stationEquipment"", ""required"": true },
-            { ""key"": ""particulars"", ""required"": false },
             { ""key"": ""sourceOfEquipment"", ""required"": false },
             { ""key"": ""intendedUse"", ""required"": false },
             { ""key"": ""declaration"", ""required"": true }
@@ -180,7 +179,7 @@ public static class PermitsCategorySeederData
     {
         // 1. PERMITS IN THE AMATEUR SERVICE
         new(VarAmPur, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase", false),
-        new(VarAmStorage, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit Permit to Possess for Storage", false),
+        new(VarAmStorage, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Possess for Storage", false),
         new(VarAmPurPoss, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Purchase/Possess", false),
         new(VarAmSell, Svc109Id, ServiceVariantType.NA, "Amateur Radio Station Permit to Sell/Transfer", false),
         new(VarAmForeign, Svc109Id, ServiceVariantType.NA, "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor", false),
@@ -517,8 +516,7 @@ public static class PermitsCategorySeederData
         {
             new("typeOfApplication", "Application Type", new() { "permitType", "preferredCallSign", "licenseNo", "dateOfExpiry" }),
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation" }),
-            new("particulars", "Particulars", new() { "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
+            new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Acknowledgement & Applicant Signature", new() { "signatureField", "declarationCheckbox" })
