@@ -29,14 +29,11 @@ public static class PermitsCategorySeederData
         ""elements"": [""Class A"", ""Class B"", ""Class C""],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""proposedStation"", ""required"": false },
+            { ""key"": ""stationEquipment"", ""required"": true },
             { ""key"": ""particulars"", ""required"": false },
-            { ""key"": ""equipment"", ""required"": false },
-            { ""key"": ""antennas"", ""required"": false },
             { ""key"": ""sourceOfEquipment"", ""required"": false },
             { ""key"": ""intendedUse"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
+            { ""key"": ""declaration"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -518,15 +515,13 @@ public static class PermitsCategorySeederData
     {
         new("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Application Type", new() { "permitType", "preferredCallSign", "noOfYears", "licenseNo", "dateOfExpiry" }),
-            new("applicant", "Applicant Details", new() { "fullName", "birthDate", "sex", "nationality", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("proposedStation", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation" }),
-            new("particulars", "Particulars", new() { "callSign", "frequency", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "noOfUnits", "antennaDetails" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "makeTypeModel", "serialNumber", "frequencyRange", "proposedEquipments" }),
-            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo", "amateurLicenseNoPermitNo", "sellerAddress" }),
+            new("typeOfApplication", "Application Type", new() { "permitType", "preferredCallSign", "licenseNo", "dateOfExpiry" }),
+            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation" }),
+            new("particulars", "Particulars", new() { "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
+            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Acknowledgement & Applicant Signature", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("declaration", "Acknowledgement & Applicant Signature", new() { "signatureField", "declarationCheckbox" })
         }),
         new("NTC_AERO_PERMITS", Guid.Parse("fa000000-0000-0000-0000-000000000001"), Guid.Parse("fa0a0000-0000-0000-0000-000000000000"), new()
         {

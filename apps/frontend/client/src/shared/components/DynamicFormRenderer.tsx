@@ -757,49 +757,24 @@ export function DynamicFormRenderer({
     }
 
     if (isAmateurPermitService) {
-      if (isPurchaseOrPurchasePossess) {
-        if (
-          key === "proposedstation" ||
-          key === "equipment" ||
-          key === "antennas" ||
-          key === "sourceofequipment" ||
-          title.includes("station") ||
-          title.includes("source") ||
-          title.includes("antenna") ||
-          (title.includes("equipment") && !title.includes("intended"))
-        ) {
-          return false;
-        }
-      } else if (isVanityNew || isVanityRen || isSpecialEvent) {
-        if (
-          key === "proposedstation" ||
-          key === "antennas" ||
-          key === "sourceofequipment" ||
-          key === "intendeduse" ||
-          title.includes("station") ||
-          title.includes("source") ||
-          title.includes("antenna") ||
-          title.includes("intended") ||
-          (key === "particulars" && !title.includes("equipment"))
-        ) {
-          return false;
-        }
-      } else if (isForeignVisitor) {
-        if (
-          key === "particulars" ||
-          key === "antennas" ||
-          title.includes("antenna")
-        ) {
-          return false;
-        }
-      } else if (isStorageOrSell) {
-        if (
-          key === "equipment" ||
-          key === "antennas" ||
-          (title.includes("equipment") && !title.includes("intended") && !title.includes("source") && !title.includes("station") && !title.includes("particulars"))
-        ) {
-          return false;
-        }
+      const isAllowedAmateurSection =
+        key === "applicant" ||
+        title.includes("applicant") ||
+        key === "stationequipment" ||
+        key === "proposedstation" ||
+        title.includes("station/equipment") ||
+        title.includes("proposed station") ||
+        title.includes("station") ||
+        key === "particulars" ||
+        (title.includes("particulars") && !title.includes("equipment") && !title.includes("antenna") && !title.includes("signal")) ||
+        key === "sourceofequipment" ||
+        title.includes("source of equipment") ||
+        key === "intendeduse" ||
+        title.includes("intended use of equipment") ||
+        title.includes("intended use");
+
+      if (!isAllowedAmateurSection) {
+        return false;
       }
     }
 
@@ -1154,20 +1129,42 @@ export function DynamicFormRenderer({
               return getVasSectionPriority(a) - getVasSectionPriority(b);
             })
           : isAmateurPermitService
-          ? [...visibleSections].sort((a, b) => {
-              const getAmateurSectionPriority = (sec: FormSectionDto): number => {
+          ? visibleSections
+              .filter((sec) => {
                 const k = (sec.key || sec.id || "").toLowerCase();
                 const t = (sec.title || "").toLowerCase();
-                if (k === "applicant" || t.includes("applicant")) return 1;
-                if (k === "proposedstation" || t.includes("station") || t.includes("proposed station")) return 2;
-                if (k === "particulars" || t.includes("particulars")) return 3;
-                if (k === "equipment" || t.includes("equipment")) return 3.5;
-                if (k === "sourceofequipment" || t.includes("source")) return 4;
-                if (k === "intendeduse" || t.includes("intended")) return 5;
-                return 10;
-              };
-              return getAmateurSectionPriority(a) - getAmateurSectionPriority(b);
-            })
+                return (
+                  k === "applicant" ||
+                  t.includes("applicant") ||
+                  k === "stationequipment" ||
+                  k === "proposedstation" ||
+                  t.includes("station/equipment") ||
+                  t.includes("proposed station") ||
+                  k === "particulars" ||
+                  (t.includes("particulars") && !t.includes("equipment") && !t.includes("antenna") && !t.includes("signal")) ||
+                  k === "sourceofequipment" ||
+                  t.includes("source of equipment") ||
+                  k === "intendeduse" ||
+                  t.includes("intended use") ||
+                  k === "declaration" ||
+                  t.includes("acknowledgement") ||
+                  t.includes("declaration")
+                );
+              })
+              .sort((a, b) => {
+                const getAmateurSectionPriority = (sec: FormSectionDto): number => {
+                  const k = (sec.key || sec.id || "").toLowerCase();
+                  const t = (sec.title || "").toLowerCase();
+                  if (k === "applicant" || t.includes("applicant")) return 1;
+                  if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station")) return 2;
+                  if (k === "particulars" || t.includes("particulars")) return 3;
+                  if (k === "sourceofequipment" || t.includes("source")) return 4;
+                  if (k === "intendeduse" || t.includes("intended")) return 5;
+                  if (k === "declaration" || t.includes("declaration") || t.includes("acknowledgement")) return 6;
+                  return 10;
+                };
+                return getAmateurSectionPriority(a) - getAmateurSectionPriority(b);
+              })
           : isCopyOfCert
           ? (() => {
               const hasCopyParticulars = visibleSections.some(
@@ -1521,6 +1518,15 @@ export function DynamicFormRenderer({
 
                 // Remove Call Sign from Applicant Details in Amateur Permits
                 if (isAmateurPermitService && isApplicantSection && isCallSignField) {
+                  return null;
+                }
+
+                const isParticularsSection =
+                  sectionKeyLower.includes("particulars") ||
+                  section.title.toLowerCase().includes("particulars");
+
+                // In Amateur Permits, Call Sign and Frequency belong strictly to Section 3 (Station/Equipment), never duplicate in Section 4 (Particulars)
+                if (isAmateurPermitService && isParticularsSection && (isCallSignField || labelLower === "frequency" || targetId === FIELD_ID_FREQUENCY || fIdLower === "frequency" || labelLower.includes("antenna") || fIdLower.includes("antenna") || fIdLower.includes("noofunits"))) {
                   return null;
                 }
 
@@ -2321,14 +2327,11 @@ export function DynamicFormRenderer({
             const k = (sec.key || sec.id || "").toLowerCase();
             const t = (sec.title || "").toLowerCase();
             if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
-            if (k === "proposedstation" || t.includes("station") || t.includes("proposed station")) {
-              return isForeignVisitor ? "Particulars of Equipment" : "Station/Equipment";
+            if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station")) {
+              return "Station/Equipment";
             }
             if (k === "particulars" || t.includes("particulars")) {
-              return isVanityNew || isVanityRen || isSpecialEvent ? "Particulars of Equipment" : "Particulars";
-            }
-            if (k === "equipment" || t.includes("equipment")) {
-              return isForeignVisitor ? "Particulars of Proposed Equipment" : "Particulars of Equipment";
+              return "Particulars";
             }
             if (k === "sourceofequipment" || t.includes("source")) {
               return "Source of Equipment";
