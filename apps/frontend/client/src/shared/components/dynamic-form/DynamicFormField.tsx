@@ -101,14 +101,23 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           error={err}
         />
       ) : isRepeaterField ? (
-        <FormRepeaterTable
-          label={displayLabel}
-          isRequired={isRequired}
-          value={val}
-          fieldKey={targetId}
-          onChange={(json) => onChange(targetId, displayLabel, json)}
-          error={err}
-        />
+        <View style={{ width: "100%" }}>
+          {isAmateurPermitService && (
+            <View style={{ width: "100%", marginBottom: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 12 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#1E293B", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Particulars of Equipment
+              </Text>
+            </View>
+          )}
+          <FormRepeaterTable
+            label={displayLabel}
+            isRequired={isRequired}
+            value={val}
+            fieldKey={targetId}
+            onChange={(json) => onChange(targetId, displayLabel, json)}
+            error={err}
+          />
+        </View>
       ) : isBsdField || isVasRegField ? (
         <View style={{ backgroundColor: "#F8FAFC", borderWidth: 1, borderColor: "#CBD5E1", borderRadius: 10, padding: 14, gap: 6 }}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
@@ -133,7 +142,16 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
       ) : isCheckbox ? (
         <DeclarationCheckbox label={displayLabel} isRequired={isRequired} value={val} onChange={(chk) => onChange(targetId, displayLabel, chk)} error={err} />
       ) : isDropdown ? (
-        <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} />
+        <View style={{ width: "100%" }}>
+          {isAmateurPermitService && (targetId === "stationClass" || targetId.toLowerCase() === "stationclass") && (
+            <View style={{ width: "100%", marginBottom: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 12 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#1E293B", textTransform: "uppercase", letterSpacing: 0.5 }}>
+                Particulars of Station
+              </Text>
+            </View>
+          )}
+          <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} />
+        </View>
       ) : isDate ? (
         <DatePickerInput label={displayLabel} required={isRequired} value={val} onChangeText={(v) => onChange(targetId, displayLabel, v)} error={err} />
       ) : (
