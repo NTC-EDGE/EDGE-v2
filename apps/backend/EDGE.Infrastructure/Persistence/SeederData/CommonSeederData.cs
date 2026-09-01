@@ -205,9 +205,12 @@ public static class CommonSeederData
             ["noOfCopies"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000243"), FieldType = "dropdown", Label = "No. of Copies", SyncBackOnSubmit = false, ValidationRules = @"[""1"",""2"",""3"",""4"",""5"",""10""]" },
 
             // Accreditations (NTC 1-18) Section 3 Technical Personnel fields
-            ["personnelName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000252"), FieldType = "text", Label = "Name", SyncBackOnSubmit = false },
+            ["supervisingEngineer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000252"), FieldType = "text", Label = "Supervising Engineer", SyncBackOnSubmit = false },
             ["certificateEctNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000250"), FieldType = "text", Label = "Certificate/ECT No.", SyncBackOnSubmit = false },
-            ["certificateEctExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000251"), FieldType = "date", Label = "Certificate/ECT No. Date of Expiry", SyncBackOnSubmit = false }
+            ["certificateEctExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000255"), FieldType = "date", Label = "Certificate/ECT No. Date of Expiry", SyncBackOnSubmit = false },
+            ["technicianName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000253"), FieldType = "text", Label = "Technician Name", SyncBackOnSubmit = false },
+            ["technicianCertNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000254"), FieldType = "text", Label = "Certificate/Number", SyncBackOnSubmit = false },
+            ["technicianExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000251"), FieldType = "date", Label = "Certificate/Number Date of Expiry", SyncBackOnSubmit = false }
         };
     }
 }

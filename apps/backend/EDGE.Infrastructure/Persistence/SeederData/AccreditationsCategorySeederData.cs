@@ -158,7 +158,7 @@ public static class AccreditationsCategorySeederData
         {
             new("typeOfApplication", "Type of Application & Category", new() { "permitType", "noOfYears", "employmentType" }),
             new("applicant", "Applicant Details", new() { "companyName", "entityType", "dtiSecRegistration", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Technical Personnel", new() { "personnelName", "certificateEctNo", "certificateEctExpiryDate" }),
+            new("personnel", "Technical Personnel", new() { "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

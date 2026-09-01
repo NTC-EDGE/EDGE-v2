@@ -162,6 +162,23 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   const labelLower = (field.label || "").toLowerCase().trim();
   const idLower = (field.fieldId || field.id || "").toLowerCase().trim();
 
+  // 0. Company / Business Name topmost in Applicant Details
+  if (
+    idLower === "companyname" ||
+    idLower === "businessname" ||
+    idLower === "fd000000-0000-0000-0000-000000000081" ||
+    labelLower === "company / business name" ||
+    labelLower === "company name" ||
+    labelLower === "business / registered entity name" ||
+    labelLower === "business name"
+  ) {
+    return 0;
+  }
+
+  // 0.1. Entity Type and SEC/DTI Registration Number in Row 2
+  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower === "entity type" || labelLower.includes("entity type")) return 1;
+  if (idLower === "dtisecregistration" || idLower === "dti_sec_registration" || idLower === "fd000000-0000-0000-0000-000000000086" || labelLower.includes("sec / dti") || labelLower.includes("sec/dti") || labelLower.includes("dti / sec") || labelLower.includes("dti/sec")) return 2;
+
   // 1. Personal Identity Fields
   if (
     labelLower.includes("full name") ||
@@ -169,18 +186,18 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
     idLower === "fullname" ||
     idLower === FIELD_ID_FULL_NAME
   ) {
-    return 1;
+    return 3;
   }
   if (
     labelLower.includes("birth") ||
     idLower === "birthdate" ||
     idLower === FIELD_ID_BIRTH_DATE
   ) {
-    return 2;
+    return 4;
   }
-  if (labelLower.includes("sex") || labelLower.includes("gender")) return 3;
-  if (labelLower.includes("civil status")) return 4;
-  if (labelLower.includes("nationality") || labelLower.includes("citizenship")) return 5;
+  if (labelLower.includes("sex") || labelLower.includes("gender")) return 5;
+  if (labelLower.includes("civil status")) return 6;
+  if (labelLower.includes("nationality") || labelLower.includes("citizenship")) return 7;
 
   // 2. Address Fields in strict requested order:
   // First is Region, Province, Municipality/City, Barangay, then Street, then Zip Code
@@ -220,7 +237,6 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   if (labelLower.includes("email") || idLower === "email" || idLower === FIELD_ID_EMAIL) return 80;
 
   // 4. VAS Specific Fields Order
-  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower.includes("type of entity") || labelLower.includes("entity type")) return 84;
   if (idLower === "cpcnpacano" || idLower === FIELD_ID_CPCN_NO || labelLower.includes("cpcn / pa / ca no") || labelLower.includes("cpcn")) return 85;
   if (idLower === "cpcndateofexpiry" || idLower === FIELD_ID_CPCN_EXPIRY || labelLower.includes("cpcn / pa / ca date") || labelLower.includes("cpcn date of expiry") || labelLower.includes("cpcn / pa / ca no. date of expiry")) return 86;
   if (idLower === "corvasno" || idLower === "certificateno" || idLower === FIELD_ID_COR_VAS_NO || labelLower.includes("cor / vas no") || labelLower.includes("cor/vas no") || labelLower.includes("certificate no")) return 87;
@@ -229,6 +245,14 @@ function getFieldSortPriority(field: FieldDto, defaultIndex: number): number {
   if (idLower === "othertradename" || idLower === FIELD_ID_OTHER_TRADE_NAME || labelLower.includes("please specify")) return 90;
   if (idLower === "valueaddedservices" || labelLower.includes("value added service")) return 91;
   if (idLower === "vasregistrationno" || idLower === FIELD_ID_VAS_REG_NO || labelLower.includes("vas registration")) return 92;
+
+  // 5. Technical Personnel section fields order
+  if (idLower === "supervisingengineer" || idLower === "fd000000-0000-0000-0000-000000000252" || labelLower === "supervising engineer" || labelLower.includes("supervising engineer")) return 110;
+  if (idLower === "supervisingengineercertno" || idLower === "certificateectno" || idLower === "fd000000-0000-0000-0000-000000000250" || labelLower === "certificate/ect no." || (labelLower.includes("certificate/ect") && !labelLower.includes("expiry"))) return 120;
+  if (idLower === "supervisingengineerexpirydate" || idLower === "certificateectexpirydate" || idLower === "fd000000-0000-0000-0000-000000000255" || labelLower.includes("certificate/ect no. date of expiry") || labelLower.includes("certificate/ect date of expiry")) return 125;
+  if (idLower === "technicianname" || idLower === "fd000000-0000-0000-0000-000000000253" || labelLower === "technician name" || labelLower.includes("technician name")) return 130;
+  if (idLower === "techniciancertno" || idLower === "fd000000-0000-0000-0000-000000000254" || labelLower === "certificate/number" || (labelLower.includes("certificate/number") && !labelLower.includes("expiry"))) return 140;
+  if (idLower === "technicianexpirydate" || idLower === "fd000000-0000-0000-0000-000000000251" || labelLower.includes("certificate/number date of expiry") || labelLower === "date of expiry" || labelLower.includes("date of expiry")) return 150;
 
   return 100 + defaultIndex;
 }
@@ -1003,7 +1027,7 @@ export function DynamicFormRenderer({
                     return null;
                   }
 
-                  // Remove SEC / DTI Registration Number from the form
+                  // Remove SEC / DTI Registration Number from the form EXCEPT for CPE Supplier Accreditation
                   const isDtiSecField =
                     targetId === "fd000000-0000-0000-0000-000000000086" ||
                     fIdLower === "dtisecregistration" ||
@@ -1018,7 +1042,7 @@ export function DynamicFormRenderer({
                     labelLower.includes("dti / sec") ||
                     labelLower.includes("dti/sec");
 
-                  if (isDtiSecField) {
+                  if (isDtiSecField && !isCpeAccreditation) {
                     return null;
                   }
 
@@ -1171,7 +1195,57 @@ export function DynamicFormRenderer({
                   return null;
                 }
 
+                const isSupervisingEngineerField =
+                  fIdLower === "supervisingengineer" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000252" ||
+                  labelLower === "supervising engineer" ||
+                  labelLower.includes("supervising engineer");
+
+                const isCertificateEctNoField =
+                  fIdLower === "supervisingengineercertno" ||
+                  fIdLower === "certificateectno" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000250" ||
+                  labelLower === "certificate/ect no." ||
+                  labelLower === "certificate / ect no." ||
+                  (labelLower.includes("certificate/ect") && !labelLower.includes("expiry"));
+
+                const isCertificateEctExpiryDateField =
+                  fIdLower === "supervisingengineerexpirydate" ||
+                  fIdLower === "certificateectexpirydate" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000255" ||
+                  labelLower.includes("certificate/ect no. date of expiry") ||
+                  labelLower.includes("certificate/ect date of expiry");
+
+                const isTechnicianNameField =
+                  fIdLower === "technicianname" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000253" ||
+                  labelLower === "technician name" ||
+                  labelLower.includes("technician name");
+
+                const isTechnicianCertNoField =
+                  fIdLower === "techniciancertno" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000254" ||
+                  labelLower === "certificate/number" ||
+                  labelLower === "certificate / number" ||
+                  (labelLower.includes("certificate/number") && !labelLower.includes("expiry"));
+
+                const isTechnicianExpiryDateField =
+                  fIdLower === "technicianexpirydate" ||
+                  fIdLower === "fd000000-0000-0000-0000-000000000251" ||
+                  labelLower.includes("certificate/number date of expiry") ||
+                  labelLower === "date of expiry" ||
+                  labelLower.includes("date of expiry");
+
+                const isTechnicalPersonnelSection =
+                  section.title.toLowerCase().includes("technical personnel") ||
+                  section.title.toLowerCase().includes("personnel") ||
+                  section.key?.toLowerCase().includes("personnel");
+
                 const isNameField =
+                  !isSupervisingEngineerField &&
+                  !isTechnicianNameField &&
+                  !isRepresentativeField &&
+                  !isTechnicalPersonnelSection &&
                   !isApplicationTypeField &&
                   !isEmploymentStatusField &&
                   !isEmploymentTypeField &&
@@ -1663,7 +1737,20 @@ export function DynamicFormRenderer({
                   ? true
                   : (isAmateurCert && isExamSeminarField ? false : (field.isRequired ?? false));
 
-                const span = isNameField || isSignature || isCheckbox || isFile || isRepeaterField || isBsdField || isVasRegField || isVasServicesField || isEntityTypeField ? 12 : 6;
+                const isFullWidthField =
+                  isNameField ||
+                  isSignature ||
+                  isCheckbox ||
+                  isFile ||
+                  isRepeaterField ||
+                  isBsdField ||
+                  isVasRegField ||
+                  isVasServicesField ||
+                  isSupervisingEngineerField ||
+                  isTechnicianNameField ||
+                  (isEntityTypeField && !isCpeAccreditation);
+
+                const span = isFullWidthField ? 12 : 6;
 
                 return (
                   <FormCol key={targetId} span={span} compact={field.isCompact}>
