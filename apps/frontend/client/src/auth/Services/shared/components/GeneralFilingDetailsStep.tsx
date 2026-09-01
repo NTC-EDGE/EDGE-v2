@@ -930,7 +930,16 @@ export function GeneralFilingDetailsStep({
             handleDynamicFieldChange("elements", "Elements", elemTitle);
           }}
           noOfYears={currentNoOfYears}
-          onNoOfYearsChange={(y) => handleDynamicFieldChange(FIELD_ID_NO_OF_YEARS, "Number of Years", y)}
+          onNoOfYearsChange={(y) => {
+            updateActiveApplicant((prev) => ({
+              ...prev,
+              radioCertData: prev.radioCertData ? { ...prev.radioCertData, years: y } : ({ years: y } as any),
+              amateurLicenseData: prev.amateurLicenseData ? { ...prev.amateurLicenseData, noOfYears: y } : undefined,
+            }));
+            handleDynamicFieldChange(FIELD_ID_NO_OF_YEARS, "Number of Years", y);
+            handleDynamicFieldChange("noOfYears", "Number of Years", y);
+            handleDynamicFieldChange("years", "Number of Years", y);
+          }}
           variants={variants}
           variantElements={variantElements}
           applicantType={activeApplicant.applicantType}

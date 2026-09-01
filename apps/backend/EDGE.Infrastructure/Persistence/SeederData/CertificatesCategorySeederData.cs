@@ -480,7 +480,7 @@ public static class CertificatesCategorySeederData
     {
         new("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfCertificate", "Type of Certificate / Application", new() { "typeOfCertificate" }),
+            new("typeOfCertificate", "Type of Certificate / Application", new() { "typeOfCertificate", "noOfYears" }),
             new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality", "employmentStatus", "employmentType", "weight_kg", "height_cm" }),
             new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("applicantContact", "Contact Information", new() { "contactNo", "email" }),

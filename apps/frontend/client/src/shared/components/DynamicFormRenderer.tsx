@@ -426,16 +426,27 @@ export function DynamicFormRenderer({
   const isModification = (matchedVariant?.type || "").toUpperCase() === "MODIFICATION" || varDesc.includes("modification") || isLifetimeSupplementary;
   const isRenewalOrMod = isRenewal || isModification;
 
-  const isExcludedFromYears =
-    isLifetimeSupplementary ||
-    (isModification && (
-      varDesc.includes("foreign pilot") ||
-      varDesc.includes("pilot") ||
-      varDesc.includes("government") ||
-      varDesc.includes("gov") ||
-      varDesc.includes("land mobile") ||
-      varDesc.includes("special")
-    ));
+  const isRocService =
+    titLower.includes("radio operator") ||
+    titLower.includes("roc") ||
+    titLower.includes("operator certificate") ||
+    titLower.includes("ntc 1-02") ||
+    titLower.includes("ntc_1_02") ||
+    catLower.includes("radio operator") ||
+    catLower.includes("roc") ||
+    catLower.includes("certificate") ||
+    varDesc.includes("radio operator") ||
+    varDesc.includes("roc") ||
+    varDesc.includes("radiotelephone") ||
+    varDesc.includes("commercial radio") ||
+    varDesc.includes("aircraft") ||
+    varDesc.includes("foreign pilot") ||
+    varDesc.includes("pilot") ||
+    varDesc.includes("government") ||
+    varDesc.includes("land mobile") ||
+    varDesc.includes("special radio");
+
+  const isExcludedFromYears = isLifetimeSupplementary;
 
   const isCpeAccreditation =
     catLower.includes("accreditation") ||
@@ -444,7 +455,7 @@ export function DynamicFormRenderer({
     varDesc.includes("customer premises") ||
     varDesc.includes("cpe");
 
-  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, Commercial Radio Operator Certificates, CPE Supplier Accreditation, and Amateur Certificate Modification
+  // Multi-year validity selection (1, 2, 3 years) is applicable for Licenses, all Radio Operator Certificates, CPE Supplier Accreditation, and Amateur Certificate Modification
   const showNumberOfYears =
     !isCopyOfCert &&
     !isExam &&
@@ -452,12 +463,12 @@ export function DynamicFormRenderer({
     !isRequestOrComplaint &&
     !isDeviceRegistration &&
     !isVas &&
-    (!isAmateurCert || isModification) &&
     !isExcludedFromYears &&
     (isCpeAccreditation ||
+     isRocService ||
      (isAmateurCert && isModification) ||
      catLower.includes("license") ||
-     (catLower.includes("certificate") && (titLower.includes("operator") || titLower.includes("roc") || titLower.includes("tvro") || varDesc.includes("operator") || varDesc.includes("roc"))));
+     titLower.includes("license"));
 
   // Dynamic Certificate Services & Types Query
   const { serviceOptions: dynamicCertServiceOptions, getTypesForService } = useCertificateServicesQuery();
