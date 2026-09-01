@@ -290,7 +290,7 @@ public static class PermitsCategorySeederData
         ["FOREIGN_AMA_ROC"] = new(Guid.Parse("70000000-0000-0000-0000-000000000054"), "Foreign Amateur Radio Operator Certificate", "Copy of valid Amateur Radio Operator Certificate issued by the country of citizenship."),
         ["RECIPROCAL_PROOF"] = new(Guid.Parse("70000000-0000-0000-0000-000000000055"), "Proof of Reciprocal Privilege", "Any proof that country provides the same privilege with Filipino Amateurs."),
         ["PARA_ENDORSEMENT"] = new(Guid.Parse("70000000-0000-0000-0000-000000000056"), "Endorsement from PARA, Inc.", "Endorsement from recognized national organization (i.e. PARA, Inc.)."),
-        ["PHOTO_1X1"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "1x1 ID Picture", "Clear 1x1 ID picture taken within the last six (6) months."),
+        ["PHOTO_1X1"] = new(Guid.Parse("70000000-0000-0000-0000-000000000003"), "Please provide a clear 1x1 ID picture taken within the last six (6) months.*", "Please provide a clear 1x1 ID picture taken within the last six (6) months.*"),
         ["AM_VANITY_NEW_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000057"), "Vanity Call Sign Eligibility Proof", "Copy of valid ROC or RSL, and PARA Endorsement or proof of radio amateur activities (DXCC 5B, Continental Champion, DXpedition)."),
         ["AM_VANITY_REN_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000058"), "Vanity Renewal Requirements", "Copy of valid Amateur Radio Operator Certificate or Station License and Special Permit."),
         ["AM_SPECIAL_EVENT_REQ"] = new(Guid.Parse("70000000-0000-0000-0000-000000000078"), "Special Event Call Sign Request", "Letter Request stating nature and duration of event, and valid ROC/RSL."),

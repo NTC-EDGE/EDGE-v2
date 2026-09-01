@@ -346,7 +346,7 @@ public static class LicensesCategorySeederData
         ),
         ["PHOTO_1X1_RECENT"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000003"),
-            "Please provide a clear 1x1 ID picture taken within the last six (6) months.",
+            "Please provide a clear 1x1 ID picture taken within the last six (6) months.*",
             "Please provide a clear 1x1 ID picture taken within the last six (6) months.*"
         ),
         ["PHOTOCOPY_OF_AT_RSL"] = new(
