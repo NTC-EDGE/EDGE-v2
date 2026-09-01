@@ -90,9 +90,10 @@ export function CPEStep5ApplicationForm({
       <View style={certStyles.formSection}>
         <Text style={certStyles.formSectionHeading}>2. Applicant Details</Text>
         <View style={certStyles.formGrid}>
+          {/* Row 1: Company / Business Name* (Most Top, Full Width) */}
           <View style={certStyles.formCol12}>
             <ValidatedInput
-              label="Business / Registered Entity Name"
+              label="Company / Business Name"
               placeholder="e.g. Acme Communications Philippines Corp."
               value={activeApplicant.businessName}
               onChangeText={(val) => handleFieldChange("businessName", val)}
@@ -101,6 +102,7 @@ export function CPEStep5ApplicationForm({
               required
             />
           </View>
+          {/* Row 2: 2 columns - Entity Type and SEC/DTI Registration Number */}
           <View style={certStyles.formCol6}>
             <Text style={certStyles.selectLabel}>Entity Type*</Text>
             <Select
@@ -116,7 +118,7 @@ export function CPEStep5ApplicationForm({
           </View>
           <View style={certStyles.formCol6}>
             <ValidatedInput
-              label="SEC/DTI Registration Number"
+              label="SEC / DTI Registration Number"
               placeholder="Registration Number"
               value={activeApplicant.dtiNo}
               onChangeText={(val) => handleFieldChange("dtiNo", val)}
@@ -154,31 +156,27 @@ export function CPEStep5ApplicationForm({
       <View style={certStyles.formSection}>
         <Text style={certStyles.formSectionHeading}>3. Technical Personnel</Text>
         <View style={certStyles.formGrid}>
+          {/* Supervising Engineer - 1 row */}
           <View style={certStyles.formCol12}>
             <ValidatedInput
-              label="Name"
-              placeholder="Full Name"
-              value={activeApplicant.technicianName || activeApplicant.engineerName || ""}
-              onChangeText={(val) => {
-                handleFieldChange("technicianName", val);
-                handleFieldChange("engineerName", val);
-              }}
-              error={errors.technicianName}
-              touched={touched.technicianName}
+              label="Supervising Engineer"
+              placeholder="Supervising Engineer Full Name"
+              value={activeApplicant.engineerName || ""}
+              onChangeText={(val) => handleFieldChange("engineerName", val)}
+              error={errors.engineerName}
+              touched={touched.engineerName}
               required
             />
           </View>
+          {/* Certificate/ECT No.* and Certificate/ECT No. Date of Expiry* - shared 1 row with 2 columns */}
           <View style={certStyles.formCol6}>
             <ValidatedInput
               label="Certificate/ECT No."
               placeholder="Certificate / ECT Number"
-              value={activeApplicant.ectNo || activeApplicant.eceNo || ""}
-              onChangeText={(val) => {
-                handleFieldChange("ectNo", val);
-                handleFieldChange("eceNo", val);
-              }}
-              error={errors.ectNo}
-              touched={touched.ectNo}
+              value={activeApplicant.eceNo || ""}
+              onChangeText={(val) => handleFieldChange("eceNo", val)}
+              error={errors.eceNo}
+              touched={touched.eceNo}
               required
             />
           </View>
@@ -190,6 +188,42 @@ export function CPEStep5ApplicationForm({
               onChangeText={(val) => handleFieldChange("expiryDate", val)}
               error={errors.expiryDate}
               touched={touched.expiryDate}
+              required
+            />
+          </View>
+
+          {/* Technician Name* - 1 row */}
+          <View style={certStyles.formCol12}>
+            <ValidatedInput
+              label="Technician Name"
+              placeholder="Technician Full Name"
+              value={activeApplicant.technicianName || ""}
+              onChangeText={(val) => handleFieldChange("technicianName", val)}
+              error={errors.technicianName}
+              touched={touched.technicianName}
+              required
+            />
+          </View>
+          {/* Certificate/Number* and Certificate/Number Date of Expiry* - shared 1 row with 2 columns */}
+          <View style={certStyles.formCol6}>
+            <ValidatedInput
+              label="Certificate/Number"
+              placeholder="Certificate Number"
+              value={activeApplicant.ectNo || ""}
+              onChangeText={(val) => handleFieldChange("ectNo", val)}
+              error={errors.ectNo}
+              touched={touched.ectNo}
+              required
+            />
+          </View>
+          <View style={certStyles.formCol6}>
+            <DatePickerInput
+              label="Certificate/Number Date of Expiry"
+              placeholder="MM/DD/YYYY"
+              value={activeApplicant.expiryYear || activeApplicant.expiryDate || ""}
+              onChangeText={(val) => handleFieldChange("expiryYear", val)}
+              error={errors.expiryYear}
+              touched={touched.expiryYear}
               required
             />
           </View>

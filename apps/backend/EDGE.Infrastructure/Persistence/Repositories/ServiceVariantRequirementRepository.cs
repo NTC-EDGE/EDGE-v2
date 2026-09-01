@@ -27,6 +27,7 @@ public class ServiceVariantRequirementRepository : IServiceVariantRequirementRep
             .Include(svr => svr.Requirement)
             .Include(svr => svr.ServiceVariant)
                 .ThenInclude(sv => sv!.Service)
+            .OrderBy(svr => svr.CreatedAt)
             .AsQueryable();
 
         if (serviceVariantId.HasValue && serviceVariantId.Value != Guid.Empty)
@@ -34,7 +35,8 @@ public class ServiceVariantRequirementRepository : IServiceVariantRequirementRep
             query = query.Where(svr => svr.ServiceVariantId == serviceVariantId.Value);
         }
 
-        return await query.ToListAsync(cancellationToken);
+        var list = await query.ToListAsync(cancellationToken);
+        return list.OrderBy(svr => svr.CreatedAt).ToList();
     }
 
     public async Task AddAsync(ServiceVariantRequirement serviceVariantRequirement, CancellationToken cancellationToken = default)
