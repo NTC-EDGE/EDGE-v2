@@ -68,6 +68,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
   const isCopyOfCert = (catLower.includes("certificate") || catLower.includes("permit")) && (titLower.includes("copy") || titLower.includes("ntc 1-21") || titLower.includes("ntc_1_21") || isDuplicateCopy || isCertifiedTrueCopy);
   const isAmateurPermitService = catLower.includes("permit") && (titLower.includes("amateur") || titLower.includes("ntc 1-09") || titLower.includes("ntc_1_09") || varDesc.includes("amateur"));
+  const isAmateurPurchaseVariant =
+    isAmateurPermitService &&
+    !varDesc.includes("storage") &&
+    (varDesc.includes("permit to purchase") ||
+      varDesc.includes("purchase/possess") ||
+      varDesc.includes("purchase to possess") ||
+      (varDesc.includes("purchase") && !varDesc.includes("sell")));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03")), isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
   const isModification = varDesc.includes("modification"), isRenewal = varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
@@ -110,7 +117,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
     if (isAmateurPermitService) {
-      return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || t.includes("station") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
+      if (isAmateurPurchaseVariant && (k === "sourceofequipment" || t.includes("source"))) return false;
+      return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
     }
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
   });
@@ -121,7 +129,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           const k = (s.key || s.id || "").toLowerCase();
           const t = (s.title || "").toLowerCase();
           if (k === "applicant" || t.includes("applicant")) return 1;
-          if (k === "stationequipment" || k === "proposedstation" || t.includes("station")) return 2;
+          if (k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular")) return 2;
           if (k === "sourceofequipment" || t.includes("source")) return 3;
           if (k === "intendeduse" || t.includes("intended")) return 4;
           return 10;
@@ -181,7 +189,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
 
     let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
-    if ((labelLower === "frequency" || rawTargetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !val) val = "Within Authorized Amateur Band";
+    if ((labelLower === "frequency" || rawTargetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !isAmateurPurchaseVariant && !val) val = "Within Authorized Amateur Band";
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
     if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
@@ -259,9 +267,64 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const sectionFields = [...rawFields].sort((a, b) => getFieldSortPriority(a, rawFields.indexOf(a)) - getFieldSortPriority(b, rawFields.indexOf(b)));
         const secKeyLower = (section.key || section.id || "").toLowerCase();
         const secTitleLower = (section.title || "").toLowerCase();
-        const isStationEquipmentSection = secKeyLower.includes("stationequipment") || secKeyLower.includes("proposedstation") || (secTitleLower.includes("station") && secTitleLower.includes("equipment"));
+        const isStationEquipmentSection =
+          secKeyLower.includes("stationequipment") ||
+          secKeyLower.includes("proposedstation") ||
+          secKeyLower.includes("particulars") ||
+          (secTitleLower.includes("station") && secTitleLower.includes("equipment")) ||
+          secTitleLower.includes("particulars");
 
         if (isStationEquipmentSection) {
+          if (isAmateurPurchaseVariant) {
+            const purchaseCallSignField: FieldDto = {
+              fieldId: FIELD_ID_CALL_SIGN,
+              id: "callSign",
+              label: "Call Sign",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "Enter Call Sign...",
+            };
+
+            const purchaseFrequenciesField: FieldDto = {
+              fieldId: FIELD_ID_FREQUENCY,
+              id: "frequency",
+              label: "Frequency(ies)",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. 144.0-146.0 MHz, 430.0-440.0 MHz",
+            };
+
+            const purchaseParticularsField: FieldDto = {
+              fieldId: "particulars",
+              id: "particulars",
+              label: "Particulars",
+              fieldType: "repeater",
+              isRequired: true,
+            };
+
+            const renderedCallSign = renderFieldInstance(purchaseCallSignField, 0, section);
+            const renderedFrequencies = renderFieldInstance(purchaseFrequenciesField, 1, section);
+            const renderedParticulars = renderFieldInstance(purchaseParticularsField, 2, section);
+
+            return (
+              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant)}</Text>
+                  </View>
+                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+                </View>
+
+                <FormGrid>
+                  {renderedCallSign}
+                  {renderedFrequencies}
+                  {renderedParticulars}
+                </FormGrid>
+              </View>
+            );
+          }
+
           const canonicalPermitStationFields: FieldDto[] = [
             {
               fieldId: FIELD_ID_CALL_SIGN,
