@@ -40,6 +40,7 @@ export function FormRepeaterTable({
   instruction = "Provide complete details for each equipment item / entry.",
   fieldKey,
   parentMakeTypeModel,
+  showCallSign = false,
 }: FormRepeaterTableProps) {
   const resolvedColumns = resolveRepeaterColumns(fieldKey, label, columns);
   const {
@@ -100,6 +101,7 @@ export function FormRepeaterTable({
             isDeviceTable={isDeviceTable}
             isEquipmentsTable={isEquipmentsTable}
             resolvedColumns={resolvedColumns}
+            showCallSign={showCallSign}
             onRemoveRow={handleRemoveRow}
             onCellChange={handleCellChange}
             onEquipmentUnitChange={handleEquipmentUnitChange}

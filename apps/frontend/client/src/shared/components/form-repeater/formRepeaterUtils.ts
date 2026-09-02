@@ -49,9 +49,10 @@ export function parseEquipmentEntries(val: unknown): EquipmentUnitEntry[] {
         const idVal = typeof item.id === "string" && item.id.length > 0 ? item.id : `eq-${idx}-${Date.now()}`;
         const serialVal = typeof item.serialNumber === "string" ? item.serialNumber : typeof item.serial === "string" ? item.serial : "";
         const freqVal = typeof item.frequency === "string" ? item.frequency : typeof item.frequencyRange === "string" ? item.frequencyRange : "";
-        entries.push({ id: idVal, serialNumber: serialVal, frequency: freqVal });
+        const callSignVal = typeof item.callSign === "string" ? item.callSign : typeof item.callsign === "string" ? item.callsign : "";
+        entries.push({ id: idVal, serialNumber: serialVal, frequency: freqVal, callSign: callSignVal });
       } else if (typeof item === "string" && item.trim() !== "") {
-        entries.push({ id: `eq-${idx}-${Date.now()}`, serialNumber: item.trim(), frequency: "" });
+        entries.push({ id: `eq-${idx}-${Date.now()}`, serialNumber: item.trim(), frequency: "", callSign: "" });
       }
     });
     if (entries.length > 0) return entries;
@@ -71,7 +72,7 @@ export function parseEquipmentEntries(val: unknown): EquipmentUnitEntry[] {
     }
   }
 
-  return [{ id: `eq-1`, serialNumber: "", frequency: "" }];
+  return [{ id: `eq-1`, serialNumber: "", frequency: "", callSign: "" }];
 }
 
 export function createEmptyRow(cols: FormRepeaterColumn[]): Record<string, string> {

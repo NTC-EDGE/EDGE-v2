@@ -190,7 +190,7 @@ export function useFormRepeater({
     rowIndex: number,
     colKey: string,
     unitIndex: number,
-    field: "serialNumber" | "frequency",
+    field: "serialNumber" | "frequency" | "callSign",
     text: string
   ) => {
     const currentRow = rows[rowIndex];
@@ -200,6 +200,7 @@ export function useFormRepeater({
     const updatedUnits = currentUnits.map((u, idx) => idx === unitIndex ? { ...u, [field]: text } : u);
     const serialStrings = updatedUnits.map((s) => s.serialNumber).filter((s) => s.trim().length > 0);
     const freqStrings = updatedUnits.map((s) => s.frequency).filter((s) => s.trim().length > 0);
+    const callSignStrings = updatedUnits.map((s) => s.callSign || "").filter((s) => s.trim().length > 0);
     const jsonSerialized = JSON.stringify(updatedUnits);
 
     const updated = rows.map((r, idx) => idx === rowIndex ? {
@@ -209,6 +210,7 @@ export function useFormRepeater({
       serialNumber: serialStrings.join(", ") || (updatedUnits[0]?.serialNumber ?? ""),
       frequency: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
       frequencyRange: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
+      callSign: callSignStrings.join(", ") || (updatedUnits[0]?.callSign ?? ""),
     } : r);
     emitChange(updated);
   };

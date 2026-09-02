@@ -18,13 +18,14 @@ interface FormRepeaterRowProps {
   isDeviceTable: boolean;
   isEquipmentsTable: boolean;
   resolvedColumns: FormRepeaterColumn[];
+  showCallSign?: boolean;
   onRemoveRow: (rowIndex: number) => void;
   onCellChange: (rowIndex: number, columnKey: string, cellValue: string) => void;
   onEquipmentUnitChange: (
     rowIndex: number,
     colKey: string,
     unitIndex: number,
-    field: "serialNumber" | "frequency",
+    field: "serialNumber" | "frequency" | "callSign",
     text: string
   ) => void;
   onAddEquipmentUnit: (rowIndex: number, colKey: string) => void;
@@ -42,6 +43,7 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
   isDeviceTable,
   isEquipmentsTable,
   resolvedColumns,
+  showCallSign = false,
   onRemoveRow,
   onCellChange,
   onEquipmentUnitChange,
@@ -93,6 +95,7 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
                 rowIndex={rowIndex}
                 col={col}
                 rawEquipmentsValue={rowItem[col.key] || rowItem.equipments}
+                showCallSign={showCallSign}
                 onEquipmentUnitChange={onEquipmentUnitChange}
                 onAddEquipmentUnit={onAddEquipmentUnit}
                 onRemoveEquipmentUnit={onRemoveEquipmentUnit}

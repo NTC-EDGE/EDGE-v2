@@ -11,11 +11,12 @@ interface FormRepeaterEquipmentsFieldProps {
   rowIndex: number;
   col: FormRepeaterColumn;
   rawEquipmentsValue?: string;
+  showCallSign?: boolean;
   onEquipmentUnitChange: (
     rowIndex: number,
     colKey: string,
     unitIndex: number,
-    field: "serialNumber" | "frequency",
+    field: "serialNumber" | "frequency" | "callSign",
     text: string
   ) => void;
   onAddEquipmentUnit: (rowIndex: number, colKey: string) => void;
@@ -26,6 +27,7 @@ export const FormRepeaterEquipmentsField: React.FC<FormRepeaterEquipmentsFieldPr
   rowIndex,
   col,
   rawEquipmentsValue,
+  showCallSign = false,
   onEquipmentUnitChange,
   onAddEquipmentUnit,
   onRemoveEquipmentUnit,
@@ -67,7 +69,7 @@ export const FormRepeaterEquipmentsField: React.FC<FormRepeaterEquipmentsFieldPr
               </View>
 
               <FormGrid>
-                <FormCol span={6}>
+                <FormCol span={showCallSign ? 4 : 6}>
                   <ValidatedInput
                     label="Serial Number"
                     required
@@ -77,9 +79,9 @@ export const FormRepeaterEquipmentsField: React.FC<FormRepeaterEquipmentsFieldPr
                     style={{ marginBottom: 0 }}
                   />
                 </FormCol>
-                <FormCol span={6}>
+                <FormCol span={showCallSign ? 4 : 6}>
                   <ValidatedInput
-                    label="Frequency / Frequency Range"
+                    label={showCallSign ? "Frequency Range" : "Frequency / Frequency Range"}
                     required
                     placeholder="e.g. 118.0 - 136.975 MHz"
                     value={unitItem.frequency}
@@ -87,6 +89,18 @@ export const FormRepeaterEquipmentsField: React.FC<FormRepeaterEquipmentsFieldPr
                     style={{ marginBottom: 0 }}
                   />
                 </FormCol>
+                {showCallSign && (
+                  <FormCol span={4}>
+                    <ValidatedInput
+                      label="Call Sign"
+                      required
+                      placeholder="e.g. 4F1XXX / W1AW"
+                      value={unitItem.callSign || ""}
+                      onChangeText={(text) => onEquipmentUnitChange(rowIndex, col.key, uIdx, "callSign", text)}
+                      style={{ marginBottom: 0 }}
+                    />
+                  </FormCol>
+                )}
               </FormGrid>
             </View>
           ))}

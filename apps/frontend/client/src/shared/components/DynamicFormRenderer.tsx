@@ -80,6 +80,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isModification = varDesc.includes("modification"), isRenewal = varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
   const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary"), isVanityNew = varDesc.includes("special permit for use of vanity call sign (new)");
   const isVanityRen = varDesc.includes("special permit for use of vanity call sign (renewal)"), isSpecialEvent = varDesc.includes("special event call sign"), isForeignVisitor = varDesc.includes("foreign visitor");
+  const isVanityOrSpecialEvent = isVanityNew || isVanityRen || isSpecialEvent;
   const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
@@ -117,7 +118,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
     if (isAmateurPermitService) {
-      if (isAmateurPurchaseVariant && (k === "sourceofequipment" || t.includes("source"))) return false;
+      if ((isAmateurPurchaseVariant || isVanityOrSpecialEvent) && (k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended"))) return false;
       return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
     }
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
@@ -152,7 +153,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const secKeyLower = (section.key || section.id || "").toLowerCase();
 
     if (isAmateurPermitService && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
-    if (isAmateurPermitService && (rawTargetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
+    if (isAmateurPermitService && !isVanityOrSpecialEvent && (rawTargetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
     if (isAmateurPermitService && (rawType === "signature" || rawType === "checkbox" || labelLower.includes("signature") || labelLower.includes("declare") || fIdLower.includes("signature") || fIdLower.includes("declaration"))) return null;
 
     const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || rawTargetId === FIELD_ID_FULL_NAME;
@@ -163,7 +164,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || (fIdLower === "stationclass" && isAmateurPermitService);
+    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || fIdLower === "sex" || labelLower === "sex" || (fIdLower === "stationclass" && isAmateurPermitService);
     const isDate = rawType === "date" || labelLower.includes("date");
     const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts");
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
@@ -194,6 +195,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     let dropdownOptions: Array<{ label: string; value: string }> = [];
     if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "stationclass" || labelLower.includes("station class") || rawTargetId === FIELD_ID_STATION_CLASS) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
+    else if (fIdLower === "sex" || labelLower === "sex") dropdownOptions = [{ label: "Male", value: "Male" }, { label: "Female", value: "Female" }, { label: "Other", value: "Other" }];
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
     else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
@@ -216,6 +218,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isIntendedUseField={isIntendedUseField} isVasServicesField={isVasServicesField} isSignature={isSignature} isCheckbox={isCheckbox}
         isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
         isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
+        isForeignVisitor={isForeignVisitor}
         structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
         parentMakeTypeModel={parentMakeTypeModel}
         onChange={onChange} onStructuredNameChange={onStructuredNameChange}
@@ -267,6 +270,37 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const sectionFields = [...rawFields].sort((a, b) => getFieldSortPriority(a, rawFields.indexOf(a)) - getFieldSortPriority(b, rawFields.indexOf(b)));
         const secKeyLower = (section.key || section.id || "").toLowerCase();
         const secTitleLower = (section.title || "").toLowerCase();
+
+        if (isVanityOrSpecialEvent && secKeyLower.includes("applicant")) {
+          const vanityApplicantFields: FieldDto[] = [
+            { fieldId: "fullName", id: "fullName", label: "Full Name", fieldType: "text", isRequired: true },
+            { fieldId: "dateOfBirth", id: "dateOfBirth", label: "Date of Birth", fieldType: "date", isRequired: true },
+            { fieldId: "sex", id: "sex", label: "Sex", fieldType: "dropdown", isRequired: true, options: ["Male", "Female", "Other"] },
+            { fieldId: "nationality", id: "nationality", label: "Nationality", fieldType: "text", isRequired: true, placeholder: "e.g. Filipino" },
+            { fieldId: "region", id: "region", label: "Region", fieldType: "dropdown", isRequired: true },
+            { fieldId: "province", id: "province", label: "Province", fieldType: "dropdown", isRequired: true },
+            { fieldId: "city", id: "city", label: "City / Municipality", fieldType: "dropdown", isRequired: true },
+            { fieldId: "barangay", id: "barangay", label: "Barangay", fieldType: "dropdown", isRequired: true },
+            { fieldId: "street", id: "street", label: "Street / Building Address", fieldType: "text", isRequired: true },
+            { fieldId: "zipCode", id: "zipCode", label: "Zip Code", fieldType: "text", isRequired: true },
+            { fieldId: "contactNo", id: "contactNo", label: "Contact Number", fieldType: "tel", isRequired: true },
+            { fieldId: "email", id: "email", label: "Email Address", fieldType: "email", isRequired: true },
+          ];
+          const renderedVanityApplicant = vanityApplicantFields.map((f, idx) => renderFieldInstance(f, idx, section)).filter(Boolean);
+          return (
+            <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionTitleRow}>
+                  <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                  <Text style={styles.sectionTitle}>Applicant Details</Text>
+                </View>
+                <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+              </View>
+              <FormGrid>{renderedVanityApplicant}</FormGrid>
+            </View>
+          );
+        }
+
         const isStationEquipmentSection =
           secKeyLower.includes("stationequipment") ||
           secKeyLower.includes("proposedstation") ||
@@ -311,7 +345,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleRow}>
                     <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant)}</Text>
+                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor)}</Text>
                   </View>
                   <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
                 </View>
@@ -321,6 +355,29 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                   {renderedFrequencies}
                   {renderedParticulars}
                 </FormGrid>
+              </View>
+            );
+          }
+
+          if (isVanityOrSpecialEvent) {
+            const vanityEquipmentField: FieldDto = {
+              fieldId: "equipmentDetails",
+              id: "equipmentDetails",
+              label: "Particulars of Equipment",
+              fieldType: "repeater",
+              isRequired: true,
+            };
+            const renderedVanityEq = renderFieldInstance(vanityEquipmentField, 0, section);
+            return (
+              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                    <Text style={styles.sectionTitle}>Particulars of Equipment</Text>
+                  </View>
+                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+                </View>
+                <FormGrid>{renderedVanityEq}</FormGrid>
               </View>
             );
           }
@@ -393,7 +450,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             {
               fieldId: FIELD_ID_STATION_CLASS,
               id: "stationClass",
-              label: "Station Class",
+              label: "Class of Station",
               fieldType: "dropdown",
               isRequired: true,
               options: ["RT", "FX", "FB", "FX/FB", "ML", "P", "Others"],
@@ -449,11 +506,100 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             {
               fieldId: "equipmentDetails",
               id: "equipmentDetails",
-              label: "Particulars of Equipment",
+              label: "Particulars of Proposed Equipment",
               fieldType: "repeater",
               isRequired: true,
             },
           ];
+
+          if (isForeignVisitor) {
+            const foreignTopLevelFields: FieldDto[] = [
+              canonicalPermitStationFields[1], // Points of Comm / Service Area
+              canonicalPermitStationFields[2], // Frequency
+              canonicalPermitStationFields[3], // Bandwidth
+              canonicalPermitStationFields[4], // Unit
+              canonicalPermitStationFields[5], // Emission
+              canonicalPermitStationFields[6], // Power Output
+              canonicalPermitStationFields[7], // Hours of Operation
+            ];
+
+            const foreignStationFields: FieldDto[] = [
+              canonicalPermitStationFields[8],  // Class of Station
+              canonicalPermitStationFields[9],  // Exact Location
+              canonicalPermitStationFields[10], // Longitude
+              canonicalPermitStationFields[11], // Latitude
+              canonicalPermitStationFields[12], // Configuration
+              canonicalPermitStationFields[13], // Data Rate
+              canonicalPermitStationFields[14], // Remarks
+              canonicalPermitStationFields[15], // Particulars of Proposed Equipment
+            ];
+
+            const renderedForeignTop = foreignTopLevelFields
+              .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
+              .filter(Boolean);
+
+            return (
+              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                    <Text style={styles.sectionTitle}>Particulars of Equipment</Text>
+                  </View>
+                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+                </View>
+
+                {/* 1. Top-Level General Operating Fields */}
+                {renderedForeignTop.length > 0 && (
+                  <View style={{ marginBottom: 16 }}>
+                    <FormGrid>{renderedForeignTop}</FormGrid>
+                  </View>
+                )}
+
+                {/* 2. Station Particulars Repeater */}
+                {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
+                  const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
+                  const renderedStationFields = foreignStationFields.map((field, fIdx) =>
+                    renderFieldInstance(field, fIdx, section, instanceSuffix)
+                  ).filter(Boolean);
+
+                  return (
+                    <View
+                      key={`station-particular-${stationIdx}`}
+                      style={styles.stationParticularCard}
+                    >
+                      <View style={styles.stationParticularHeader}>
+                        <View style={styles.stationParticularPill}>
+                          <Text style={styles.stationParticularPillText}>
+                            Station Particular #{stationIdx + 1}
+                          </Text>
+                        </View>
+                        {stationIdx > 0 && (
+                          <TouchableOpacity
+                            onPress={() => handleRemoveStationParticular(stationIdx)}
+                            style={styles.removeStationBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Icon name="trash-2" size={13} color="#DC2626" />
+                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                      <FormGrid>{renderedStationFields}</FormGrid>
+                    </View>
+                  );
+                })}
+
+                <TouchableOpacity
+                  onPress={handleAddStationParticular}
+                  style={styles.addStationBtn}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="plus" size={15} color="#1D4ED8" />
+                  <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
+                </TouchableOpacity>
+              </View>
+            );
+          }
 
           const isPermitService =
             catLower.includes("permit") ||
@@ -496,14 +642,14 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
           const stationParticularFields: FieldDto[] = isPermitService
             ? [
-                canonicalPermitStationFields[8],  // Station Class
+                canonicalPermitStationFields[8],  // Class of Station
                 canonicalPermitStationFields[9],  // Exact Location
                 canonicalPermitStationFields[10], // Longitude
                 canonicalPermitStationFields[11], // Latitude
                 canonicalPermitStationFields[12], // Configuration
                 canonicalPermitStationFields[13], // Data Rate
                 canonicalPermitStationFields[14], // Remarks
-                canonicalPermitStationFields[15], // Particulars of Equipment
+                canonicalPermitStationFields[15], // Particulars of Proposed Equipment
               ]
             : sectionFields.filter((f) => !topLevelFields.some((tl) => (tl.fieldId || tl.id) === (f.fieldId || f.id)));
 
@@ -516,7 +662,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
                   <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService)}</Text>
+                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor)}</Text>
                 </View>
                 <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
               </View>

@@ -116,13 +116,21 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
   return 300 + defaultIndex;
 }
 
-export function getSectionTitle(sec: FormSectionDto, isAmateurPermitService: boolean, isAmateurPurchaseVariant?: boolean): string {
+export function getSectionTitle(
+  sec: FormSectionDto,
+  isAmateurPermitService: boolean,
+  isAmateurPurchaseVariant?: boolean,
+  isVanityOrSpecialEvent?: boolean,
+  isForeignVisitor?: boolean
+): string {
   if (isAmateurPermitService) {
     const k = (sec.key || sec.id || "").toLowerCase();
     const t = (sec.title || "").toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
-      return isAmateurPurchaseVariant ? "Particulars" : "Station/Equipment";
+      if (isAmateurPurchaseVariant) return "Particulars";
+      if (isVanityOrSpecialEvent || isForeignVisitor) return "Particulars of Equipment";
+      return "Particulars of Proposed Station / Equipment";
     }
     if (k === "sourceofequipment" || t.includes("source")) return "Source of Equipment";
     if (k === "intendeduse" || t.includes("intended")) return "Intended Use of Equipment";

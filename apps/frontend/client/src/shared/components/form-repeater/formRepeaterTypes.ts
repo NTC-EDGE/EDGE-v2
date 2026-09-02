@@ -16,6 +16,7 @@ export interface EquipmentUnitEntry {
   id: string;
   serialNumber: string;
   frequency: string;
+  callSign?: string;
 }
 
 export interface FormRepeaterTableProps {
@@ -31,4 +32,5 @@ export interface FormRepeaterTableProps {
   instruction?: string;
   fieldKey?: string;
   parentMakeTypeModel?: string;
+  showCallSign?: boolean;
 }
