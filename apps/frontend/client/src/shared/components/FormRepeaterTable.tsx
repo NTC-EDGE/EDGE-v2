@@ -10,7 +10,7 @@ import { FIELD_ID_DEVICES } from "../constants/fieldIds";
 export interface FormRepeaterColumn {
   key: string;
   label: string;
-  type?: "text" | "number" | "select" | "date" | "serials";
+  type?: "text" | "number" | "select" | "date" | "serials" | "equipments";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;
@@ -19,6 +19,12 @@ export interface FormRepeaterColumn {
 export interface DeviceSerialEntry {
   id: string;
   serialNumber: string;
+}
+
+export interface EquipmentUnitEntry {
+  id: string;
+  serialNumber: string;
+  frequency: string;
 }
 
 export interface FormRepeaterTableProps {
@@ -33,26 +39,27 @@ export interface FormRepeaterTableProps {
   maxRows?: number;
   instruction?: string;
   fieldKey?: string;
+  parentMakeTypeModel?: string;
 }
 
+export const DEFAULT_PERMIT_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = [
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300 / Motorola XiR P8668i", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
+];
+
 export const DEFAULT_EQUIPMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
-  { key: "make", label: "Make", placeholder: "e.g. ICOM, Yaesu, Kenwood", required: true },
-  { key: "typeModel", label: "Type / Model", placeholder: "e.g. IC-7300, FT-991A", required: true },
-  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-9821034", required: true },
-  { key: "frequencyRange", label: "Frequency Range / Power", placeholder: "e.g. 144-148 MHz / 100W", required: false },
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300 / Motorola XiR P8668i", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
 ];
 
 export const DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
-  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300", required: true },
-  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-9821034", required: true },
-  { key: "frequencyRange", label: "Frequency Range", placeholder: "e.g. 144-148 MHz", required: true },
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300 / Yaesu FT-991A", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
 ];
 
 export const DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = [
-  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300", required: true },
-  { key: "serialNumber", label: "Serial Number", placeholder: "e.g. SN-9821034", required: true },
-  { key: "frequencyRange", label: "Frequency Range", placeholder: "e.g. 144-148 MHz", required: true },
-  { key: "callSign", label: "Call Sign", placeholder: "e.g. DX1ABC", required: true },
+  { key: "makeTypeModel", label: "Make / Type / Model", placeholder: "e.g. ICOM IC-7300 / Kenwood TS-590SG", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
 ];
 
 export const DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
@@ -176,6 +183,39 @@ export function parseSerialEntries(val: unknown): DeviceSerialEntry[] {
   return [{ id: `serial-1`, serialNumber: "" }];
 }
 
+export function parseEquipmentEntries(val: unknown): EquipmentUnitEntry[] {
+  if (Array.isArray(val)) {
+    const entries: EquipmentUnitEntry[] = [];
+    val.forEach((item, idx) => {
+      if (isRecord(item)) {
+        const idVal = typeof item.id === "string" && item.id.length > 0 ? item.id : `eq-${idx}-${Date.now()}`;
+        const serialVal = typeof item.serialNumber === "string" ? item.serialNumber : typeof item.serial === "string" ? item.serial : "";
+        const freqVal = typeof item.frequency === "string" ? item.frequency : typeof item.frequencyRange === "string" ? item.frequencyRange : "";
+        entries.push({ id: idVal, serialNumber: serialVal, frequency: freqVal });
+      } else if (typeof item === "string" && item.trim() !== "") {
+        entries.push({ id: `eq-${idx}-${Date.now()}`, serialNumber: item.trim(), frequency: "" });
+      }
+    });
+    if (entries.length > 0) return entries;
+  }
+
+  if (typeof val === "string" && val.trim() !== "") {
+    const trimmed = val.trim();
+    if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parseEquipmentEntries(parsed);
+        }
+      } catch {
+        // Fallback
+      }
+    }
+  }
+
+  return [{ id: `eq-1`, serialNumber: "", frequency: "" }];
+}
+
 export function resolveRepeaterColumns(
   fieldKey?: string,
   fieldLabel?: string,
@@ -215,18 +255,21 @@ export function resolveRepeaterColumns(
     keyLower.includes("tvroequipment") ||
     keyLower.includes("tvroequipmentdetails") ||
     keyLower.includes("tvrodetails") ||
-    labelLower.includes("particulars of equipment") ||
-    (labelLower.includes("equipment") && (labelLower.includes("tvro") || keyLower.includes("tvro") || labelLower.includes("particular")))
+    (keyLower.includes("equipment") && keyLower.includes("tvro")) ||
+    (labelLower.includes("equipment") && labelLower.includes("tvro"))
   ) {
     return DEFAULT_TVRO_EQUIPMENT_COLUMNS;
   }
 
   if (
+    keyLower.includes("equipment") ||
+    keyLower.includes("equipmentdetails") ||
     keyLower.includes("proposedequipment") ||
     keyLower.includes("proposed_equipment") ||
-    labelLower.includes("proposed equipment")
+    labelLower.includes("proposed equipment") ||
+    labelLower.includes("particulars of equipment")
   ) {
-    return DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS;
+    return DEFAULT_PERMIT_EQUIPMENT_COLUMNS;
   }
 
   if (keyLower.includes("antenna") || labelLower.includes("antenna")) {
@@ -249,11 +292,13 @@ export function resolveRepeaterColumns(
     return DEFAULT_OFFICER_REPEATER_COLUMNS;
   }
 
-  return DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS;
+  return DEFAULT_PERMIT_EQUIPMENT_COLUMNS;
 }
 
 function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Record<string, string>> {
   const activeCols = cols || DEFAULT_EQUIPMENT_REPEATER_COLUMNS;
+  const isEquipments = activeCols.some((c) => c.type === "equipments" || c.key === "equipments");
+
   if (!value || value.trim() === "") {
     return [createEmptyRow(activeCols)];
   }
@@ -261,7 +306,8 @@ function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Re
   try {
     const parsed = JSON.parse(value);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((item) => {
+      const sourceList = isEquipments ? [parsed[0]] : parsed;
+      return sourceList.map((item) => {
         if (isRecord(item)) {
           const rowRecord: Record<string, string> = {};
           Object.keys(item).forEach((k) => {
@@ -296,6 +342,23 @@ function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Re
             }
           }
 
+          // Ensure equipments is populated if serial or frequency exists
+          if (!rowRecord.equipments) {
+            const fallbackEq = rowRecord.serialNumber || rowRecord.frequency || rowRecord.frequencyRange;
+            if (fallbackEq) {
+              const entries = parseEquipmentEntries([
+                {
+                  id: `eq-1`,
+                  serialNumber: rowRecord.serialNumber || "",
+                  frequency: rowRecord.frequency || rowRecord.frequencyRange || "",
+                },
+              ]);
+              rowRecord.equipments = JSON.stringify(entries);
+            } else {
+              rowRecord.equipments = JSON.stringify([{ id: `eq-1`, serialNumber: "", frequency: "" }]);
+            }
+          }
+
           if (!rowRecord._id) {
             rowRecord._id = String(Date.now() + Math.random());
           }
@@ -306,8 +369,8 @@ function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): Array<Re
     }
   } catch {
     // If string is comma separated or simple text, map to first column
-    const defaultColKey = (activeCols && activeCols[0]?.key) || "make";
-    return [{ [defaultColKey]: value, _id: String(Date.now() + Math.random()) }];
+    const defaultColKey = (activeCols && activeCols[0]?.key) || "makeTypeModel";
+    return [{ [defaultColKey]: value, equipments: JSON.stringify([{ id: `eq-1`, serialNumber: "", frequency: "" }]), _id: String(Date.now() + Math.random()) }];
   }
 
   return [createEmptyRow(activeCols)];
@@ -321,6 +384,11 @@ function createEmptyRow(cols: FormRepeaterColumn[]): Record<string, string> {
       row["typeOfEquipmentDevice"] = "Wireless Data Network (WDN) - Indoor";
       row["nameTypeModel"] = "";
       row["serialNumber"] = "";
+    } else if (col.type === "equipments" || col.key === "equipments") {
+      row[col.key] = JSON.stringify([{ id: `eq-1`, serialNumber: "", frequency: "" }]);
+      row["makeTypeModel"] = "";
+      row["serialNumber"] = "";
+      row["frequency"] = "";
     } else {
       row[col.key] = "";
     }
@@ -340,26 +408,82 @@ export function FormRepeaterTable({
   maxRows = 20,
   instruction = "Provide complete details for each equipment item / entry.",
   fieldKey,
+  parentMakeTypeModel,
 }: FormRepeaterTableProps) {
   const resolvedColumns = resolveRepeaterColumns(fieldKey, label, columns);
-  const [rows, setRows] = useState<Array<Record<string, string>>>(() =>
-    parseInitialRows(value, resolvedColumns)
-  );
+  const [rows, setRows] = useState<Array<Record<string, string>>>(() => {
+    const initial = parseInitialRows(value, resolvedColumns);
+    if (parentMakeTypeModel && parentMakeTypeModel.trim() !== "") {
+      const trimmed = parentMakeTypeModel.trim();
+      return initial.map((r) => ({
+        ...r,
+        makeTypeModel: trimmed,
+        nameTypeModel: trimmed,
+        make: trimmed,
+        typeModel: trimmed,
+      }));
+    }
+    return initial;
+  });
 
   const lastEmittedRef = useRef<string>(value);
 
   useEffect(() => {
     if (value !== lastEmittedRef.current && value !== "") {
       const parsed = parseInitialRows(value, resolvedColumns);
-      setRows(parsed);
+      const enriched = (parentMakeTypeModel && parentMakeTypeModel.trim() !== "")
+        ? parsed.map((r) => ({
+            ...r,
+            makeTypeModel: parentMakeTypeModel.trim(),
+            nameTypeModel: parentMakeTypeModel.trim(),
+            make: parentMakeTypeModel.trim(),
+            typeModel: parentMakeTypeModel.trim(),
+          }))
+        : parsed;
+      setRows(enriched);
       lastEmittedRef.current = value;
     }
-  }, [value, resolvedColumns]);
+  }, [value, resolvedColumns, parentMakeTypeModel]);
+
+  useEffect(() => {
+    if (parentMakeTypeModel && parentMakeTypeModel.trim() !== "") {
+      const trimmed = parentMakeTypeModel.trim();
+      setRows((prevRows) => {
+        let hasChanges = false;
+        const updated = prevRows.map((r) => {
+          if (r.makeTypeModel !== trimmed) {
+            hasChanges = true;
+            return {
+              ...r,
+              makeTypeModel: trimmed,
+              nameTypeModel: trimmed,
+              make: trimmed,
+              typeModel: trimmed,
+            };
+          }
+          return r;
+        });
+        if (hasChanges) {
+          const serialized = JSON.stringify(updated);
+          lastEmittedRef.current = serialized;
+          onChange(serialized);
+        }
+        return hasChanges ? updated : prevRows;
+      });
+    }
+  }, [parentMakeTypeModel]);
 
   const emitChange = (updatedRows: Array<Record<string, string>>) => {
     // Format rows with both standardized and helper keys
     const enrichedRows = updatedRows.map((r) => {
       const copy = { ...r };
+      if (parentMakeTypeModel && parentMakeTypeModel.trim() !== "") {
+        const trimmed = parentMakeTypeModel.trim();
+        copy.makeTypeModel = trimmed;
+        copy.nameTypeModel = trimmed;
+        copy.make = trimmed;
+        copy.typeModel = trimmed;
+      }
       if (copy.deviceType && !copy.typeOfEquipmentDevice) {
         copy.typeOfEquipmentDevice = copy.deviceType;
       }
@@ -478,6 +602,101 @@ export function FormRepeaterTable({
     emitChange(updated);
   };
 
+  const handleEquipmentUnitChange = (
+    rowIndex: number,
+    colKey: string,
+    unitIndex: number,
+    field: "serialNumber" | "frequency",
+    text: string
+  ) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawEquipmentsVal = currentRow[colKey] || currentRow.equipments;
+    const currentUnits = parseEquipmentEntries(rawEquipmentsVal);
+    const updatedUnits = currentUnits.map((u, idx) => {
+      if (idx === unitIndex) {
+        return { ...u, [field]: text };
+      }
+      return u;
+    });
+
+    const serialStrings = updatedUnits.map((s) => s.serialNumber).filter((s) => s.trim().length > 0);
+    const freqStrings = updatedUnits.map((s) => s.frequency).filter((s) => s.trim().length > 0);
+    const jsonSerialized = JSON.stringify(updatedUnits);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipments: jsonSerialized,
+          serialNumber: serialStrings.join(", ") || (updatedUnits[0]?.serialNumber ?? ""),
+          frequency: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
+          frequencyRange: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
+        };
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
+  const handleAddEquipmentUnit = (rowIndex: number, colKey: string) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawEquipmentsVal = currentRow[colKey] || currentRow.equipments;
+    const currentUnits = parseEquipmentEntries(rawEquipmentsVal);
+    const newUnit: EquipmentUnitEntry = {
+      id: `eq-${Date.now()}-${currentUnits.length}`,
+      serialNumber: "",
+      frequency: currentUnits[0]?.frequency || "",
+    };
+    const updatedUnits = [...currentUnits, newUnit];
+    const jsonSerialized = JSON.stringify(updatedUnits);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipments: jsonSerialized,
+        };
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
+  const handleRemoveEquipmentUnit = (rowIndex: number, colKey: string, unitIndex: number) => {
+    const currentRow = rows[rowIndex];
+    if (currentRow === undefined) return;
+
+    const rawEquipmentsVal = currentRow[colKey] || currentRow.equipments;
+    const currentUnits = parseEquipmentEntries(rawEquipmentsVal);
+    if (currentUnits.length <= 1) return;
+
+    const updatedUnits = currentUnits.filter((_, idx) => idx !== unitIndex);
+    const serialStrings = updatedUnits.map((s) => s.serialNumber).filter((s) => s.trim().length > 0);
+    const freqStrings = updatedUnits.map((s) => s.frequency).filter((s) => s.trim().length > 0);
+    const jsonSerialized = JSON.stringify(updatedUnits);
+
+    const updated = rows.map((r, idx) => {
+      if (idx === rowIndex) {
+        return {
+          ...r,
+          [colKey]: jsonSerialized,
+          equipments: jsonSerialized,
+          serialNumber: serialStrings.join(", ") || (updatedUnits[0]?.serialNumber ?? ""),
+          frequency: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
+          frequencyRange: freqStrings.join(", ") || (updatedUnits[0]?.frequency ?? ""),
+        };
+      }
+      return r;
+    });
+    emitChange(updated);
+  };
+
   const handleAddRow = () => {
     if (rows.length >= maxRows) return;
     const newRow = createEmptyRow(resolvedColumns);
@@ -492,11 +711,12 @@ export function FormRepeaterTable({
   };
 
   const isDeviceTable = resolvedColumns.some((c) => c.type === "serials" || c.key === "deviceType");
+  const isEquipmentsTable = resolvedColumns.some((c) => c.type === "equipments" || c.key === "equipments");
   const cleanLabel = label.replace(/Details|Particulars|Information|Technical/gi, "").trim() || "Item";
-  const btnLabel = addButtonLabel || (isDeviceTable ? "Add Another Equipment Device Group" : `Add ${cleanLabel}`);
+  const btnLabel = addButtonLabel || (isDeviceTable ? "Add Another Equipment Device Group" : isEquipmentsTable ? "Add Another Equipment (Make/Type/Model)" : `Add ${cleanLabel}`);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isEquipmentsTable && styles.containerMinimal]}>
       {/* Header */}
       <View style={styles.headerRow}>
         <View style={styles.titleWrapper}>
@@ -506,9 +726,11 @@ export function FormRepeaterTable({
           <Text style={styles.mainLabel}>{label}</Text>
           {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
         </View>
-        <Text style={styles.rowCountBadge}>
-          {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : "entry") : (isDeviceTable ? "device groups" : "entries")}
-        </Text>
+        {!isEquipmentsTable && (
+          <Text style={styles.rowCountBadge}>
+            {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : "entry") : (isDeviceTable ? "device groups" : "entries")}
+          </Text>
+        )}
       </View>
 
       {instruction && instruction.length > 0 && (
@@ -521,34 +743,115 @@ export function FormRepeaterTable({
           const rowId = rowItem._id || `row-${rowIndex}`;
 
           return (
-            <View key={rowId} style={styles.rowCard}>
-              <View style={styles.rowCardHeader}>
-                <View style={styles.rowNumberPill}>
-                  <Text style={styles.rowNumberText}>
-                    {isDeviceTable ? `Device Group #${rowIndex + 1}` : `#${rowIndex + 1}`}
-                  </Text>
-                </View>
-                {rows.length > minRows && (
-                  <TouchableOpacity
-                    onPress={() => handleRemoveRow(rowIndex)}
-                    style={styles.deleteButton}
-                    activeOpacity={0.7}
-                  >
-                    <Icon name="trash-2" size={13} color="#DC2626" />
-                    <Text style={styles.deleteButtonText}>
-                      {isDeviceTable ? "Remove Group" : "Remove"}
+            <View key={rowId} style={[styles.rowCard, isEquipmentsTable && styles.rowCardMinimal]}>
+              {!isEquipmentsTable && (
+                <View style={styles.rowCardHeader}>
+                  <View style={styles.rowNumberPill}>
+                    <Text style={styles.rowNumberText}>
+                      {isDeviceTable ? `Device Group #${rowIndex + 1}` : `#${rowIndex + 1}`}
                     </Text>
-                  </TouchableOpacity>
-                )}
-              </View>
+                  </View>
+                  {rows.length > minRows && (
+                    <TouchableOpacity
+                      onPress={() => handleRemoveRow(rowIndex)}
+                      style={styles.deleteButton}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="trash-2" size={13} color="#DC2626" />
+                      <Text style={styles.deleteButtonText}>
+                        {isDeviceTable ? "Remove Group" : "Remove"}
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
 
               <FormGrid>
                 {resolvedColumns.map((col) => {
                   const cellVal = rowItem[col.key] ?? "";
+                  const isEquipments = col.type === "equipments";
                   const isSerials = col.type === "serials";
                   const isSelect = col.type === "select";
                   const isDate = col.type === "date";
                   const isNumber = col.type === "number";
+
+                  if (isEquipments) {
+                    const unitsList = parseEquipmentEntries(
+                      rowItem[col.key] || rowItem.equipments
+                    );
+
+                    return (
+                      <FormCol key={`${rowId}-${col.key}`} span={12}>
+                        <View style={styles.serialsWrapper}>
+                          <View style={styles.serialsHeader}>
+                            <Text style={styles.serialsLabel}>
+                              {col.label}
+                              {col.required && <Text style={styles.requiredAsterisk}>*</Text>}
+                            </Text>
+                            <Text style={styles.serialsBadge}>
+                              {unitsList.length} {unitsList.length === 1 ? "unit" : "units"}
+                            </Text>
+                          </View>
+                          <Text style={styles.serialsInstruction}>
+                            Specify each unit's Serial Number and Operating Frequency / Range under this Make / Type / Model.
+                          </Text>
+
+                          <View style={styles.serialsList}>
+                            {unitsList.map((unitItem, uIdx) => (
+                              <View key={unitItem.id || `u-${uIdx}`} style={styles.unitSubCard}>
+                                <View style={styles.unitSubHeader}>
+                                  <Text style={styles.unitSubTitle}>Unit #{uIdx + 1}</Text>
+                                  {unitsList.length > 1 && (
+                                    <TouchableOpacity
+                                      onPress={() => handleRemoveEquipmentUnit(rowIndex, col.key, uIdx)}
+                                      style={styles.unitDeleteBtn}
+                                      activeOpacity={0.7}
+                                      accessibilityLabel={`Remove unit ${uIdx + 1}`}
+                                    >
+                                      <Icon name="trash-2" size={13} color="#DC2626" />
+                                      <Text style={styles.unitDeleteBtnText}>Remove Unit</Text>
+                                    </TouchableOpacity>
+                                  )}
+                                </View>
+
+                                <FormGrid>
+                                  <FormCol span={6}>
+                                    <ValidatedInput
+                                      label="Serial Number"
+                                      required
+                                      placeholder="e.g. SN-9821034"
+                                      value={unitItem.serialNumber}
+                                      onChangeText={(text) => handleEquipmentUnitChange(rowIndex, col.key, uIdx, "serialNumber", text)}
+                                      style={{ marginBottom: 0 }}
+                                    />
+                                  </FormCol>
+                                  <FormCol span={6}>
+                                    <ValidatedInput
+                                      label="Frequency / Frequency Range"
+                                      required
+                                      placeholder="e.g. 118.0 - 136.975 MHz"
+                                      value={unitItem.frequency}
+                                      onChangeText={(text) => handleEquipmentUnitChange(rowIndex, col.key, uIdx, "frequency", text)}
+                                      style={{ marginBottom: 0 }}
+                                    />
+                                  </FormCol>
+                                </FormGrid>
+                              </View>
+                            ))}
+                          </View>
+
+                          <TouchableOpacity
+                            onPress={() => handleAddEquipmentUnit(rowIndex, col.key)}
+                            style={styles.addSerialBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Icon name="plus" size={13} color="#1D4ED8" />
+                            <Text style={styles.addSerialBtnText}>Add Equipment Unit</Text>
+                          </TouchableOpacity>
+                        </View>
+                      </FormCol>
+                    );
+                  }
 
                   if (isSerials) {
                     const serialsList = parseSerialEntries(
@@ -610,7 +913,7 @@ export function FormRepeaterTable({
                   }
 
                   return (
-                    <FormCol key={`${rowId}-${col.key}`} span={6}>
+                    <FormCol key={`${rowId}-${col.key}`} span={isEquipmentsTable ? 12 : 6}>
                       {isSelect ? (
                         <Select
                           label={col.label}
@@ -647,7 +950,7 @@ export function FormRepeaterTable({
       </View>
 
       {/* Add Row Button */}
-      {rows.length < maxRows && (
+      {!isEquipmentsTable && rows.length < maxRows && (
         <TouchableOpacity
           onPress={handleAddRow}
           style={styles.addButton}
@@ -674,6 +977,17 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     padding: 16,
     marginBottom: 16,
+  },
+  containerMinimal: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    marginBottom: 0,
+  },
+  rowCardMinimal: {
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
   },
   headerRow: {
     flexDirection: "row",
@@ -870,5 +1184,44 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: "700",
     color: "#1D4ED8",
+  },
+  unitSubCard: {
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    padding: 12,
+    marginBottom: 8,
+  },
+  unitSubHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 8,
+  },
+  unitSubTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#334155",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+  },
+  unitDeleteBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+  },
+  unitDeleteBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#DC2626",
+    marginLeft: 4,
   },
 });

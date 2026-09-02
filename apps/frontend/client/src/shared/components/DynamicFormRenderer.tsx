@@ -1,9 +1,10 @@
 import React, { useState } from "react";
-import { View, Text } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
+import { Icon } from "@edge/ui";
 import { FormGrid } from "./FormGrid";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormSection1 } from "./dynamic-form/DynamicFormSection1";
-import { DynamicFormRendererProps, FormSectionDto } from "./dynamic-form/dynamicFormTypes";
+import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 import { getFieldSortPriority, getSectionTitle, parseOptions } from "./dynamic-form/dynamicFormUtils";
 import { useCertificateServicesQuery } from "./dynamic-form/useCertificateServicesQuery";
 import { useLocationData } from "./dynamic-form/useLocationData";
@@ -16,6 +17,7 @@ import {
   FIELD_ID_BANDWIDTH,
   FIELD_ID_BANDWIDTH_UNIT,
   FIELD_ID_VAS_REG_NO,
+  FIELD_ID_MAKE_TYPE_MODEL,
 } from "../constants/fieldIds";
 
 export type { DynamicFormRendererProps, FormDto, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
@@ -46,8 +48,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 }) => {
   const [selectedRegionId, setSelectedRegionId] = useState<string | undefined>();
   const [selectedProvinceId, setSelectedProvinceId] = useState<string | undefined>();
-  const [, setSelectedMunicipalityId] = useState<string | undefined>();
-  const { regions, provinces, municipalities, barangays } = useLocationData(selectedRegionId, selectedProvinceId);
+  const [selectedMunicipalityId, setSelectedMunicipalityId] = useState<string | undefined>();
+  const [stationParticularsCount, setStationParticularsCount] = useState<number>(1);
+  const { regions, provinces, municipalities, barangays } = useLocationData(selectedRegionId, selectedProvinceId, selectedMunicipalityId);
   useCertificateServicesQuery();
 
   const catLower = (serviceCategory || "").toLowerCase();
@@ -67,6 +70,31 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
+
+  // Auto-sync location IDs from existing values on load
+  React.useEffect(() => {
+    const rVal = (values?.["region"] || values?.["Region"] || "") as string;
+    if (rVal && regions.length > 0 && !selectedRegionId) {
+      const match = regions.find((r) => r.name.toLowerCase() === rVal.toLowerCase() || r.id === rVal);
+      if (match) setSelectedRegionId(match.id);
+    }
+  }, [values, regions, selectedRegionId]);
+
+  React.useEffect(() => {
+    const pVal = (values?.["province"] || values?.["Province"] || "") as string;
+    if (pVal && provinces.length > 0 && !selectedProvinceId) {
+      const match = provinces.find((p) => p.name.toLowerCase() === pVal.toLowerCase() || p.id === pVal);
+      if (match) setSelectedProvinceId(match.id);
+    }
+  }, [values, provinces, selectedProvinceId]);
+
+  React.useEffect(() => {
+    const cVal = (values?.["city"] || values?.["City"] || values?.["cityMunicipality"] || values?.["city_municipality"] || "") as string;
+    if (cVal && municipalities.length > 0 && !selectedMunicipalityId) {
+      const match = municipalities.find((m) => m.name.toLowerCase() === cVal.toLowerCase() || m.id === cVal);
+      if (match) setSelectedMunicipalityId(match.id);
+    }
+  }, [values, municipalities, selectedMunicipalityId]);
 
   const sections = form?.sections || [];
   const visibleSections = sections.filter((sec) => {
@@ -96,6 +124,102 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       })
     : visibleSections;
 
+  const renderFieldInstance = (
+    field: FieldDto,
+    fIdx: number,
+    section: FormSectionDto,
+    instanceSuffix: string = ""
+  ) => {
+    const rawTargetId = field.fieldId || field.id || `field-${fIdx}`;
+    const targetId = instanceSuffix.length > 0 ? `${rawTargetId}_${instanceSuffix}` : rawTargetId;
+    const fIdLower = rawTargetId.toLowerCase();
+    const labelLower = (field.label || "").toLowerCase().trim();
+    const rawType = (field.fieldType || field.type || "").toLowerCase();
+    const secKeyLower = (section.key || section.id || "").toLowerCase();
+
+    if (isAmateurPermitService && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
+    if (isAmateurPermitService && (rawTargetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
+    if (isAmateurPermitService && (rawType === "signature" || rawType === "checkbox" || labelLower.includes("signature") || labelLower.includes("declare") || fIdLower.includes("signature") || fIdLower.includes("declaration"))) return null;
+
+    const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || rawTargetId === FIELD_ID_FULL_NAME;
+    const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails");
+    const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
+    const isVasRegField = fIdLower.includes("vasregistration") || rawTargetId === FIELD_ID_VAS_REG_NO.toLowerCase();
+    const isIntendedUseField = fIdLower.includes("intendeduse") || labelLower.includes("intended use");
+    const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
+    const isSignature = rawType === "signature" || labelLower.includes("signature");
+    const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
+    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || (fIdLower === "stationclass" && isAmateurPermitService);
+    const isDate = rawType === "date" || labelLower.includes("date");
+    const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts");
+    const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
+    const isEmailField = labelLower.includes("email") || rawType === "email";
+
+    let span: 12 | 8 | 6 | 4 | 3 = (isNameField || isSignature || isCheckbox || isRepeaterField || isBsdField || isVasRegField || isIntendedUseField || isVasServicesField) ? 12 : 6;
+    if (fIdLower === "bandwidth" || fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH || rawTargetId === FIELD_ID_BANDWIDTH_UNIT) span = 3;
+    else if (fIdLower === "emission" || fIdLower === "poweroutput" || fIdLower === "hoursofoperation" || fIdLower === "configuration" || fIdLower === "datarate" || fIdLower === "remarks") span = 4;
+    else if (fIdLower === "stationclass" || fIdLower === "exactlocation" || fIdLower === "longitude" || fIdLower === "latitude" || fIdLower === "callsign" || fIdLower === "servicearea") span = 6;
+
+    let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
+    if ((labelLower === "frequency" || rawTargetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !val) val = "Within Authorized Amateur Band";
+
+    let dropdownOptions: Array<{ label: string; value: string }> = [];
+    if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    else if (fIdLower === "stationclass" && isAmateurPermitService) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
+    else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
+    else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
+    else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
+    else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
+    else dropdownOptions = parseOptions(field);
+
+    const parentMakeTypeModel =
+      (values && values["makeTypeModel"]) ||
+      (values && values["make_type_model"]) ||
+      (values && values[FIELD_ID_MAKE_TYPE_MODEL]) ||
+      (values && values["Make / Type / Model"]) ||
+      (values && values["Make/Type/Model"]) ||
+      "";
+
+    return (
+      <DynamicFormField
+        key={targetId} field={field} targetId={targetId} val={val} err={errors?.[targetId]} displayLabel={field.label}
+        isRequired={field.isRequired ?? false} span={span} dropdownOptions={dropdownOptions} placeholder={field.placeholder || `Enter ${field.label}...`}
+        isNameField={isNameField} isRepeaterField={isRepeaterField} isBsdField={isBsdField} isVasRegField={isVasRegField}
+        isIntendedUseField={isIntendedUseField} isVasServicesField={isVasServicesField} isSignature={isSignature} isCheckbox={isCheckbox}
+        isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
+        isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
+        structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
+        parentMakeTypeModel={parentMakeTypeModel}
+        onChange={onChange} onStructuredNameChange={onStructuredNameChange}
+        onDropdownChange={(v) => {
+          onChange(targetId, field.label, v);
+          if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) {
+            const found = regions.find((r: { id: string; name: string }) => r.name.toLowerCase() === v.toLowerCase() || r.id === v);
+            setSelectedRegionId(found?.id);
+            setSelectedProvinceId(undefined);
+            setSelectedMunicipalityId(undefined);
+          } else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) {
+            const found = provinces.find((p: { id: string; name: string }) => p.name.toLowerCase() === v.toLowerCase() || p.id === v);
+            setSelectedProvinceId(found?.id);
+            setSelectedMunicipalityId(undefined);
+          } else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) {
+            const found = municipalities.find((m: { id: string; name: string }) => m.name.toLowerCase() === v.toLowerCase() || m.id === v);
+            setSelectedMunicipalityId(found?.id);
+          }
+        }}
+      />
+    );
+  };
+
+  const handleAddStationParticular = () => {
+    setStationParticularsCount((prev) => Math.min(prev + 1, 10));
+  };
+
+  const handleRemoveStationParticular = (removeIdx: number) => {
+    if (stationParticularsCount <= 1) return;
+    setStationParticularsCount((prev) => prev - 1);
+  };
+
   return (
     <View style={styles.container}>
       {showApplicationTypeSection && (
@@ -113,68 +237,68 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const sectionDisplayNum = (showApplicationTypeSection ? 1 : 0) + sIdx + 1;
         const rawFields = section.fields || [];
         const sectionFields = [...rawFields].sort((a, b) => getFieldSortPriority(a, rawFields.indexOf(a)) - getFieldSortPriority(b, rawFields.indexOf(b)));
+        const secKeyLower = (section.key || section.id || "").toLowerCase();
+        const secTitleLower = (section.title || "").toLowerCase();
+        const isStationEquipmentSection = secKeyLower.includes("stationequipment") || secKeyLower.includes("proposedstation") || (secTitleLower.includes("station") && secTitleLower.includes("equipment"));
 
-        const renderedFields = sectionFields.map((field, fIdx) => {
-          const targetId = field.fieldId || field.id || `field-${fIdx}`;
-          const fIdLower = targetId.toLowerCase();
-          const labelLower = (field.label || "").toLowerCase().trim();
-          const rawType = (field.fieldType || field.type || "").toLowerCase();
-          const secKeyLower = (section.key || section.id || "").toLowerCase();
-
-          if (isAmateurPermitService && secKeyLower.includes("applicant") && (targetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
-          if (isAmateurPermitService && (targetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
-          if (isAmateurPermitService && (rawType === "signature" || rawType === "checkbox" || labelLower.includes("signature") || labelLower.includes("declare") || fIdLower.includes("signature") || fIdLower.includes("declaration"))) return null;
-
-          const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || targetId === FIELD_ID_FULL_NAME;
-          const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails");
-          const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
-          const isVasRegField = fIdLower.includes("vasregistration") || targetId === FIELD_ID_VAS_REG_NO.toLowerCase();
-          const isIntendedUseField = fIdLower.includes("intendeduse") || labelLower.includes("intended use");
-          const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
-          const isSignature = rawType === "signature" || labelLower.includes("signature");
-          const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-          const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || (fIdLower === "stationclass" && isAmateurPermitService);
-          const isDate = rawType === "date" || labelLower.includes("date");
-          const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts");
-          const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
-          const isEmailField = labelLower.includes("email") || rawType === "email";
-
-          let span: 12 | 8 | 6 | 4 | 3 = (isNameField || isSignature || isCheckbox || isRepeaterField || isBsdField || isVasRegField || isIntendedUseField || isVasServicesField) ? 12 : 6;
-          if (fIdLower === "bandwidth" || fIdLower === "bandwidthunit" || targetId === FIELD_ID_BANDWIDTH || targetId === FIELD_ID_BANDWIDTH_UNIT) span = 3;
-          else if (fIdLower === "emission" || fIdLower === "poweroutput" || fIdLower === "hoursofoperation" || fIdLower === "configuration" || fIdLower === "datarate" || fIdLower === "remarks") span = 4;
-          else if (fIdLower === "stationclass" || fIdLower === "exactlocation" || fIdLower === "longitude" || fIdLower === "latitude" || fIdLower === "callsign" || fIdLower === "servicearea") span = 6;
-
-          let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
-          if ((labelLower === "frequency" || targetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !val) val = "Within Authorized Amateur Band";
-
-          let dropdownOptions: Array<{ label: string; value: string }> = [];
-          if (fIdLower === "bandwidthunit" || targetId === FIELD_ID_BANDWIDTH_UNIT) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-          else if (fIdLower === "stationclass" && isAmateurPermitService) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
-          else if (labelLower === "region") dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
-          else if (labelLower === "province") dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
-          else if (labelLower.includes("city") || labelLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
-          else if (labelLower === "barangay") dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
-          else dropdownOptions = parseOptions(field);
-
+        if (isStationEquipmentSection) {
           return (
-            <DynamicFormField
-              key={targetId} field={field} targetId={targetId} val={val} err={errors?.[targetId]} displayLabel={field.label}
-              isRequired={field.isRequired ?? false} span={span} dropdownOptions={dropdownOptions} placeholder={field.placeholder || `Enter ${field.label}...`}
-              isNameField={isNameField} isRepeaterField={isRepeaterField} isBsdField={isBsdField} isVasRegField={isVasRegField}
-              isIntendedUseField={isIntendedUseField} isVasServicesField={isVasServicesField} isSignature={isSignature} isCheckbox={isCheckbox}
-              isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
-              isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
-              structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
-              onChange={onChange} onStructuredNameChange={onStructuredNameChange}
-              onDropdownChange={(v) => {
-                onChange(targetId, field.label, v);
-                if (labelLower === "region") setSelectedRegionId(regions.find((r: { id: string; name: string }) => r.name.toLowerCase() === v.toLowerCase())?.id);
-                else if (labelLower === "province") setSelectedProvinceId(provinces.find((p: { id: string; name: string }) => p.name.toLowerCase() === v.toLowerCase())?.id);
-                else if (labelLower.includes("city") || labelLower.includes("municipality")) setSelectedMunicipalityId(municipalities.find((m: { id: string; name: string }) => m.name.toLowerCase() === v.toLowerCase())?.id);
-              }}
-            />
+            <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+              <View style={styles.sectionHeaderRow}>
+                <View style={styles.sectionTitleRow}>
+                  <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService)}</Text>
+                </View>
+                <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+              </View>
+
+              {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
+                const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
+                const renderedFields = sectionFields.map((field, fIdx) =>
+                  renderFieldInstance(field, fIdx, section, instanceSuffix)
+                ).filter(Boolean);
+
+                return (
+                  <View key={`station-particular-${stationIdx}`} style={stationParticularsCount > 1 ? styles.stationParticularCard : { width: "100%" }}>
+                    {stationParticularsCount > 1 && (
+                      <View style={styles.stationParticularHeader}>
+                        <View style={styles.stationParticularPill}>
+                          <Text style={styles.stationParticularPillText}>
+                            Station Particular #{stationIdx + 1}
+                          </Text>
+                        </View>
+                        {stationIdx > 0 && (
+                          <TouchableOpacity
+                            onPress={() => handleRemoveStationParticular(stationIdx)}
+                            style={styles.removeStationBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Icon name="trash-2" size={13} color="#DC2626" />
+                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+                    )}
+                    <FormGrid>{renderedFields}</FormGrid>
+                  </View>
+                );
+              })}
+
+              <TouchableOpacity
+                onPress={handleAddStationParticular}
+                style={styles.addStationBtn}
+                activeOpacity={0.8}
+              >
+                <Icon name="plus" size={15} color="#1D4ED8" />
+                <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
+              </TouchableOpacity>
+            </View>
           );
-        }).filter(Boolean);
+        }
+
+        const renderedFields = sectionFields.map((field, fIdx) =>
+          renderFieldInstance(field, fIdx, section)
+        ).filter(Boolean);
 
         return (
           <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>

@@ -43,6 +43,7 @@ export interface DynamicFormFieldProps {
   applicantName?: string;
   isBulk?: boolean;
   appMode?: "SINGLE" | "BULK" | "";
+  parentMakeTypeModel?: string;
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
   onDropdownChange: (val: string) => void;
@@ -78,6 +79,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   applicantName,
   isBulk,
   appMode,
+  parentMakeTypeModel,
   onChange,
   onStructuredNameChange,
   onDropdownChange,
@@ -102,18 +104,12 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
         />
       ) : isRepeaterField ? (
         <View style={{ width: "100%" }}>
-          {isAmateurPermitService && (
-            <View style={{ width: "100%", marginBottom: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 12 }}>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#1E293B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Particulars of Equipment
-              </Text>
-            </View>
-          )}
           <FormRepeaterTable
             label={displayLabel}
             isRequired={isRequired}
             value={val}
             fieldKey={targetId}
+            parentMakeTypeModel={parentMakeTypeModel}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}
           />

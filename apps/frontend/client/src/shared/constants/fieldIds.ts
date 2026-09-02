@@ -155,5 +155,6 @@ export const FIELD_ID_BANDWIDTH_UNIT     = "fd000000-0000-0000-0000-000000000260
 export const FIELD_ID_NO_OF_UNITS        = "fd000000-0000-0000-0000-000000000262"; // Number of Units
 export const FIELD_ID_AMATEUR_LIC_PERMIT = "fd000000-0000-0000-0000-000000000266"; // Amateur License no./Permit to Possess No.
 export const FIELD_ID_PROPOSED_EQUIPMENT = "fd000000-0000-0000-0000-000000000267"; // Proposed Equipment Details (repeater)
+export const FIELD_ID_MAKE_TYPE_MODEL    = "fd000000-0000-0000-0000-000000000084"; // Make / Type / Model
 
 
