@@ -524,7 +524,7 @@ public static class PermitsCategorySeederData
         new("NTC_AERO_PERMITS", Guid.Parse("fa000000-0000-0000-0000-000000000001"), Guid.Parse("fa0a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "exactLocation", "longitude", "latitude", "bandwidth", "emission", "serviceArea", "powerOutput", "equipmentDetails" }),
+            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -533,7 +533,7 @@ public static class PermitsCategorySeederData
         new("NTC_MAR_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "exactLocation", "longitude", "latitude", "bandwidth", "emission", "serviceArea", "powerOutput", "equipmentDetails" }),
+            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -542,7 +542,7 @@ public static class PermitsCategorySeederData
         new("NTC_FLM_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "exactLocation", "longitude", "latitude", "bandwidth", "emission", "serviceArea", "powerOutput", "equipmentDetails" }),
+            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
@@ -551,7 +551,7 @@ public static class PermitsCategorySeederData
         new("NTC_PTE_PERMITS", Guid.Parse("fbe00000-0000-0000-0000-000000000001"), Guid.Parse("fbea0000-0000-0000-0000-000000000000"), new()
         {
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "exactLocation", "longitude", "latitude", "bandwidth", "emission", "serviceArea", "powerOutput", "equipmentDetails" }),
+            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),

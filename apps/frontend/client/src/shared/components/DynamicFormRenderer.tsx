@@ -13,9 +13,15 @@ import {
   FIELD_ID_FULL_NAME,
   FIELD_ID_BIRTH_DATE,
   FIELD_ID_CALL_SIGN,
+  FIELD_ID_SERVICE_AREA,
   FIELD_ID_FREQUENCY,
   FIELD_ID_BANDWIDTH,
   FIELD_ID_BANDWIDTH_UNIT,
+  FIELD_ID_EMISSION,
+  FIELD_ID_POWER_OUTPUT,
+  FIELD_ID_HOURS_OP,
+  FIELD_ID_STATION_CLASS,
+  FIELD_ID_REMARKS,
   FIELD_ID_VAS_REG_NO,
   FIELD_ID_MAKE_TYPE_MODEL,
 } from "../constants/fieldIds";
@@ -155,17 +161,31 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
     const isEmailField = labelLower.includes("email") || rawType === "email";
 
-    let span: 12 | 8 | 6 | 4 | 3 = (isNameField || isSignature || isCheckbox || isRepeaterField || isBsdField || isVasRegField || isIntendedUseField || isVasServicesField) ? 12 : 6;
-    if (fIdLower === "bandwidth" || fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH || rawTargetId === FIELD_ID_BANDWIDTH_UNIT) span = 3;
-    else if (fIdLower === "emission" || fIdLower === "poweroutput" || fIdLower === "hoursofoperation" || fIdLower === "configuration" || fIdLower === "datarate" || fIdLower === "remarks") span = 4;
-    else if (fIdLower === "stationclass" || fIdLower === "exactlocation" || fIdLower === "longitude" || fIdLower === "latitude" || fIdLower === "callsign" || fIdLower === "servicearea") span = 6;
+    let span: 12 | 8 | 6 | 4 | 3 = 6;
+    if (
+      isNameField ||
+      isSignature ||
+      isCheckbox ||
+      isRepeaterField ||
+      isBsdField ||
+      isVasRegField ||
+      isIntendedUseField ||
+      isVasServicesField ||
+      fIdLower === "remarks" ||
+      labelLower === "remarks" ||
+      rawTargetId === FIELD_ID_REMARKS
+    ) {
+      span = 12;
+    } else {
+      span = 6;
+    }
 
     let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
     if ((labelLower === "frequency" || rawTargetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !val) val = "Within Authorized Amateur Band";
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "stationclass" && isAmateurPermitService) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
+    if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    else if (fIdLower === "stationclass" || labelLower.includes("station class") || rawTargetId === FIELD_ID_STATION_CLASS) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
     else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
@@ -242,6 +262,192 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const isStationEquipmentSection = secKeyLower.includes("stationequipment") || secKeyLower.includes("proposedstation") || (secTitleLower.includes("station") && secTitleLower.includes("equipment"));
 
         if (isStationEquipmentSection) {
+          const canonicalPermitStationFields: FieldDto[] = [
+            {
+              fieldId: FIELD_ID_CALL_SIGN,
+              id: "callSign",
+              label: "Call Sign",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "Enter Call Sign...",
+            },
+            {
+              fieldId: FIELD_ID_SERVICE_AREA,
+              id: "serviceArea",
+              label: "Points of Comm/Service Area (optional)",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "Enter Points of Comm / Service Area...",
+            },
+            {
+              fieldId: FIELD_ID_FREQUENCY,
+              id: "frequency",
+              label: "Frequency: Within Authorized Amateur Band",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "Within Authorized Amateur Band",
+            },
+            {
+              fieldId: FIELD_ID_BANDWIDTH,
+              id: "bandwidth",
+              label: "Bandwidth",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. 25",
+            },
+            {
+              fieldId: FIELD_ID_BANDWIDTH_UNIT,
+              id: "bandwidthUnit",
+              label: "Unit",
+              fieldType: "dropdown",
+              isRequired: true,
+              options: ["KHz", "MHz", "GHz"],
+            },
+            {
+              fieldId: FIELD_ID_EMISSION,
+              id: "emission",
+              label: "Emission",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. 16K0F3E",
+            },
+            {
+              fieldId: FIELD_ID_POWER_OUTPUT,
+              id: "powerOutput",
+              label: "Power Output (watts)",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. 25",
+            },
+            {
+              fieldId: FIELD_ID_HOURS_OP,
+              id: "hoursOfOperation",
+              label: "Hours of Operation",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 24/7 or 0800-1700",
+            },
+            {
+              fieldId: FIELD_ID_STATION_CLASS,
+              id: "stationClass",
+              label: "Station Class",
+              fieldType: "dropdown",
+              isRequired: true,
+              options: ["RT", "FX", "FB", "FX/FB", "ML", "P", "Others"],
+            },
+            {
+              fieldId: "exactLocation",
+              id: "exactLocation",
+              label: "Exact Location",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "Enter Exact Station Location...",
+            },
+            {
+              fieldId: "longitude",
+              id: "longitude",
+              label: "Longitude (deg-min-sec)",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: `e.g. 121°03'22"E`,
+            },
+            {
+              fieldId: "latitude",
+              id: "latitude",
+              label: "Latitude (deg-min-sec)",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: `e.g. 14°38'31"N`,
+            },
+            {
+              fieldId: "configuration",
+              id: "configuration",
+              label: "Configuration",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "Enter Configuration...",
+            },
+            {
+              fieldId: "dataRate",
+              id: "dataRate",
+              label: "Data Rate",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 9600 bps",
+            },
+            {
+              fieldId: FIELD_ID_REMARKS,
+              id: "remarks",
+              label: "Remarks",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "Enter Remarks...",
+            },
+            {
+              fieldId: "equipmentDetails",
+              id: "equipmentDetails",
+              label: "Particulars of Equipment",
+              fieldType: "repeater",
+              isRequired: true,
+            },
+          ];
+
+          const isPermitService =
+            catLower.includes("permit") ||
+            titLower.includes("permit") ||
+            varDesc.includes("permit") ||
+            isAmateurPermitService;
+
+          const topLevelFields: FieldDto[] = isPermitService
+            ? [
+                canonicalPermitStationFields[0], // Call Sign
+                canonicalPermitStationFields[1], // Points of Comm / Service Area
+                canonicalPermitStationFields[2], // Frequency
+                canonicalPermitStationFields[3], // Bandwidth
+                canonicalPermitStationFields[4], // Unit
+                canonicalPermitStationFields[5], // Emission
+                canonicalPermitStationFields[6], // Power Output
+                canonicalPermitStationFields[7], // Hours of Operation
+              ]
+            : sectionFields.filter((f) => {
+                const rawId = (f.fieldId || f.id || "").toLowerCase();
+                const lbl = (f.label || "").toLowerCase();
+                return (
+                  rawId.includes("callsign") ||
+                  lbl.includes("call sign") ||
+                  rawId.includes("servicearea") ||
+                  lbl.includes("service area") ||
+                  lbl.includes("points of comm") ||
+                  rawId.includes("frequency") ||
+                  lbl.includes("frequency") ||
+                  rawId.includes("bandwidth") ||
+                  lbl.includes("bandwidth") ||
+                  rawId.includes("emission") ||
+                  lbl.includes("emission") ||
+                  rawId.includes("poweroutput") ||
+                  lbl.includes("power output") ||
+                  rawId.includes("hoursofoperation") ||
+                  lbl.includes("hours of operation")
+                );
+              });
+
+          const stationParticularFields: FieldDto[] = isPermitService
+            ? [
+                canonicalPermitStationFields[8],  // Station Class
+                canonicalPermitStationFields[9],  // Exact Location
+                canonicalPermitStationFields[10], // Longitude
+                canonicalPermitStationFields[11], // Latitude
+                canonicalPermitStationFields[12], // Configuration
+                canonicalPermitStationFields[13], // Data Rate
+                canonicalPermitStationFields[14], // Remarks
+                canonicalPermitStationFields[15], // Particulars of Equipment
+              ]
+            : sectionFields.filter((f) => !topLevelFields.some((tl) => (tl.fieldId || tl.id) === (f.fieldId || f.id)));
+
+          const renderedTopLevel = topLevelFields
+            .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
+            .filter(Boolean);
+
           return (
             <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
               <View style={styles.sectionHeaderRow}>
@@ -252,34 +458,43 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
               </View>
 
+              {/* 1. Top-Level General Operating Fields (Entered Once) */}
+              {renderedTopLevel.length > 0 && (
+                <View style={{ marginBottom: 16 }}>
+                  <FormGrid>{renderedTopLevel}</FormGrid>
+                </View>
+              )}
+
+              {/* 2. Station Particulars Repeater */}
               {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
                 const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
-                const renderedFields = sectionFields.map((field, fIdx) =>
+                const renderedStationFields = stationParticularFields.map((field, fIdx) =>
                   renderFieldInstance(field, fIdx, section, instanceSuffix)
                 ).filter(Boolean);
 
                 return (
-                  <View key={`station-particular-${stationIdx}`} style={stationParticularsCount > 1 ? styles.stationParticularCard : { width: "100%" }}>
-                    {stationParticularsCount > 1 && (
-                      <View style={styles.stationParticularHeader}>
-                        <View style={styles.stationParticularPill}>
-                          <Text style={styles.stationParticularPillText}>
-                            Station Particular #{stationIdx + 1}
-                          </Text>
-                        </View>
-                        {stationIdx > 0 && (
-                          <TouchableOpacity
-                            onPress={() => handleRemoveStationParticular(stationIdx)}
-                            style={styles.removeStationBtn}
-                            activeOpacity={0.7}
-                          >
-                            <Icon name="trash-2" size={13} color="#DC2626" />
-                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
-                          </TouchableOpacity>
-                        )}
+                  <View
+                    key={`station-particular-${stationIdx}`}
+                    style={styles.stationParticularCard}
+                  >
+                    <View style={styles.stationParticularHeader}>
+                      <View style={styles.stationParticularPill}>
+                        <Text style={styles.stationParticularPillText}>
+                          Station Particular #{stationIdx + 1}
+                        </Text>
                       </View>
-                    )}
-                    <FormGrid>{renderedFields}</FormGrid>
+                      {stationIdx > 0 && (
+                        <TouchableOpacity
+                          onPress={() => handleRemoveStationParticular(stationIdx)}
+                          style={styles.removeStationBtn}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name="trash-2" size={13} color="#DC2626" />
+                          <Text style={styles.removeStationBtnText}>Remove Station</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    <FormGrid>{renderedStationFields}</FormGrid>
                   </View>
                 );
               })}
