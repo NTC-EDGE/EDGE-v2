@@ -3,8 +3,8 @@ import { View, ViewStyle, useWindowDimensions } from "react-native";
 
 export interface FormColProps {
   children: React.ReactNode;
-  /** Column span on desktop/tablet: 12 (100%), 6 (50%), 4 (33%), 3 (25%) */
-  span?: 12 | 6 | 4 | 3;
+  /** Column span on desktop/tablet: 12 (100%), 8 (66.6%), 6 (50%), 4 (33%), 3 (25%) */
+  span?: 12 | 8 | 6 | 4 | 3;
   /** Set to true if the input field has a limited character display (e.g. Years, Gender, SG Level, Class, Zip Code) */
   compact?: boolean;
   style?: ViewStyle | ViewStyle[];
@@ -39,6 +39,9 @@ export function FormCol({ children, span = 6, compact = false, style }: FormColP
     switch (span) {
       case 12:
         computedStyle = { width: "100%", paddingHorizontal: 6, marginBottom: 12 };
+        break;
+      case 8:
+        computedStyle = { width: "66.666%", paddingHorizontal: 6, marginBottom: 12 };
         break;
       case 6:
         computedStyle = { width: "50%", paddingHorizontal: 6, marginBottom: 12 };

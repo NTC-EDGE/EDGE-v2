@@ -622,7 +622,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Name).IsRequired().HasMaxLength(500);
-            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.Property(e => e.Description).HasColumnType("text");
         });
 
         // ServiceVariantRequirement entity configuration
