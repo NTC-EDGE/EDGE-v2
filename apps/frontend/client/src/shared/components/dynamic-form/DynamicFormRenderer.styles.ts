@@ -78,4 +78,21 @@ export const dynamicFormStyles = StyleSheet.create({
     fontWeight: "700",
     color: "#1D4ED8",
   },
+  subSectionBox: {
+    backgroundColor: "#FFFFFF",
+    borderColor: "#E2E8F0",
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 14,
+    gap: 10,
+    marginTop: 14,
+    marginBottom: 4,
+  },
+  subSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#1E3A8A",
+    marginBottom: 4,
+  },
 });

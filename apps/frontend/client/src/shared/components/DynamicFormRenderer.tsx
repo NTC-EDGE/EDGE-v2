@@ -75,6 +75,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       varDesc.includes("purchase/possess") ||
       varDesc.includes("purchase to possess") ||
       (varDesc.includes("purchase") && !varDesc.includes("sell")));
+  const isAmateurSellTransfer =
+    isAmateurPermitService &&
+    (varDesc.includes("sell") || varDesc.includes("transfer"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03")), isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
   const isModification = varDesc.includes("modification"), isRenewal = varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
@@ -118,7 +121,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
     if (isAmateurPermitService) {
-      if ((isAmateurPurchaseVariant || isVanityOrSpecialEvent) && (k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended"))) return false;
+      if (isAmateurPurchaseVariant && (k === "sourceofequipment" || t.includes("source"))) return false;
+      if (isVanityOrSpecialEvent && (k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended"))) return false;
       return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
     }
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
@@ -180,6 +184,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       isVasRegField ||
       isIntendedUseField ||
       isVasServicesField ||
+      fIdLower.includes("beamwidth") ||
+      labelLower.includes("beamwidth") ||
+      fIdLower.includes("antennaremarks") ||
       fIdLower === "remarks" ||
       labelLower === "remarks" ||
       rawTargetId === FIELD_ID_REMARKS
@@ -653,6 +660,88 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               ]
             : sectionFields.filter((f) => !topLevelFields.some((tl) => (tl.fieldId || tl.id) === (f.fieldId || f.id)));
 
+          const findSeededField = (idMatch: string, fallback: FieldDto): FieldDto => {
+            const match = sectionFields.find((f) => {
+              const fId = (f.fieldId || f.id || "").toLowerCase();
+              return fId === idMatch.toLowerCase() || (f.label || "").toLowerCase().includes(idMatch.toLowerCase());
+            });
+            return match
+              ? {
+                  ...fallback,
+                  fieldId: match.fieldId || match.id || fallback.fieldId,
+                  id: match.id || match.fieldId || fallback.id,
+                  isRequired: match.isRequired ?? fallback.isRequired,
+                }
+              : fallback;
+          };
+
+          const antennaParticularFields: FieldDto[] = [
+            findSeededField("antennaType", {
+              fieldId: "antennaType",
+              id: "antennaType",
+              label: "Type",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. Yagi, Omni, Dipole",
+            }),
+            findSeededField("height", {
+              fieldId: "height",
+              id: "height",
+              label: "Height",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 1500 cm / 15m",
+            }),
+            findSeededField("gain", {
+              fieldId: "gain",
+              id: "gain",
+              label: "Gain",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 12 dB / 9 dBi",
+            }),
+            findSeededField("directivity", {
+              fieldId: "directivity",
+              id: "directivity",
+              label: "Directivity",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. Directional, Omni",
+            }),
+            findSeededField("diameter", {
+              fieldId: "diameter",
+              id: "diameter",
+              label: "Diameter",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 1.2m, N/A",
+            }),
+            findSeededField("polarization", {
+              fieldId: "polarization",
+              id: "polarization",
+              label: "Polarization",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. Vertical, Horizontal",
+            }),
+            findSeededField("beamwidth", {
+              fieldId: "beamwidth",
+              id: "beamwidth",
+              label: "Beamwidth",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. 60 deg",
+            }),
+            findSeededField("antennaRemarks", {
+              fieldId: "antennaRemarks",
+              id: "antennaRemarks",
+              label: "Remarks",
+              fieldType: "text",
+              isRequired: false,
+              placeholder: "e.g. Mast mounted",
+            }),
+          ];
+
           const renderedTopLevel = topLevelFields
             .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
             .filter(Boolean);
@@ -662,7 +751,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
                   <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor)}</Text>
+                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer)}</Text>
                 </View>
                 <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
               </View>
@@ -678,6 +767,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
                 const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
                 const renderedStationFields = stationParticularFields.map((field, fIdx) =>
+                  renderFieldInstance(field, fIdx, section, instanceSuffix)
+                ).filter(Boolean);
+
+                const renderedAntennaFields = antennaParticularFields.map((field, fIdx) =>
                   renderFieldInstance(field, fIdx, section, instanceSuffix)
                 ).filter(Boolean);
 
@@ -704,6 +797,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                       )}
                     </View>
                     <FormGrid>{renderedStationFields}</FormGrid>
+                    {isAmateurSellTransfer && (
+                      <View style={styles.subSectionBox}>
+                        <Text style={styles.subSectionTitle}>Particulars of Antenna</Text>
+                        <FormGrid>{renderedAntennaFields}</FormGrid>
+                      </View>
+                    )}
                   </View>
                 );
               })}
@@ -729,7 +828,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionTitleRow}>
                 <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService)}</Text>
+                <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer)}</Text>
               </View>
               <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
             </View>
