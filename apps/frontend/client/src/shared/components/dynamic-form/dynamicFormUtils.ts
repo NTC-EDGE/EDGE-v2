@@ -129,9 +129,9 @@ export function getSectionTitle(
     const t = (sec.title || "").toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
-      if (isAmateurPurchaseVariant) return "Particulars";
+      if (isAmateurPurchaseVariant || isVanityOrSpecialEvent) return "Particulars";
       if (isAmateurSellTransfer) return "Particulars of Station, Equipment & Antenna";
-      if (isVanityOrSpecialEvent || isForeignVisitor) return "Particulars of Equipment";
+      if (isForeignVisitor) return "Particulars of Equipment";
       return "Particulars of Proposed Station / Equipment";
     }
     if (k === "sourceofequipment" || t.includes("source")) return "Source of Equipment";

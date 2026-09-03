@@ -76,7 +76,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
       </View>
 
       <FormGrid>
-        <FormCol span={showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)}>
+        <FormCol span={(isVanityNew || isVanityRen || isSpecialEvent) && showNumberOfYears ? 4 : (showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12))}>
           <Select
             label="Type of Application"
             required
@@ -97,6 +97,20 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
             }}
           />
         </FormCol>
+
+        {(isVanityNew || isVanityRen || isSpecialEvent) && (
+          <FormCol span={showNumberOfYears ? 4 : 6}>
+            <ValidatedInput
+              label="Preferred Call Sign/s"
+              placeholder="e.g. 4F1AAA (Optional)"
+              value={values?.[FIELD_ID_PREFERRED_CALL_SIGN] || values?.["preferredCallSign"] || ""}
+              onChangeText={(val) => {
+                onChange(FIELD_ID_PREFERRED_CALL_SIGN, "Preferred Call Sign/s", val);
+                onChange("preferredCallSign", "Preferred Call Sign/s", val);
+              }}
+            />
+          </FormCol>
+        )}
 
         {showElements && (
           <FormCol span={showNumberOfYears ? 4 : 6}>
@@ -121,7 +135,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
         )}
 
         {showNumberOfYears && (
-          <FormCol span={showElements ? 4 : 6}>
+          <FormCol span={(isVanityNew || isVanityRen || isSpecialEvent) ? 4 : (showElements ? 4 : 6)}>
             <Select
               label="Number of Years"
               required
@@ -189,23 +203,9 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
           </>
         )}
 
-        {(isVanityNew || isVanityRen || isSpecialEvent) && (
-          <FormCol span={isVanityRen ? 4 : 6}>
-            <ValidatedInput
-              label="Preferred Call Sign/s"
-              placeholder="e.g. 4F1AAA (Optional)"
-              value={values?.[FIELD_ID_PREFERRED_CALL_SIGN] || values?.["preferredCallSign"] || ""}
-              onChangeText={(val) => {
-                onChange(FIELD_ID_PREFERRED_CALL_SIGN, "Preferred Call Sign/s", val);
-                onChange("preferredCallSign", "Preferred Call Sign/s", val);
-              }}
-            />
-          </FormCol>
-        )}
-
         {isVanityRen && (
           <>
-            <FormCol span={4}>
+            <FormCol span={6}>
               <ValidatedInput
                 label="Permit Number"
                 required
@@ -214,7 +214,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
                 onChangeText={(val) => onChange(FIELD_ID_LICENSE_NO, "Permit Number", val)}
               />
             </FormCol>
-            <FormCol span={4}>
+            <FormCol span={6}>
               <DatePickerInput
                 label="Date of Expiry"
                 required

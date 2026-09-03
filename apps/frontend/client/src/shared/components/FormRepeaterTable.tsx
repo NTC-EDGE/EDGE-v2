@@ -79,11 +79,9 @@ export function FormRepeaterTable({
           <Text style={styles.mainLabel}>{label}</Text>
           {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
         </View>
-        {!isEquipmentsTable && (
-          <Text style={styles.rowCountBadge}>
-            {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : "entry") : (isDeviceTable ? "device groups" : "entries")}
-          </Text>
-        )}
+        <Text style={styles.rowCountBadge}>
+          {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : isEquipmentsTable ? "equipment" : "entry") : (isDeviceTable ? "device groups" : isEquipmentsTable ? "equipments" : "entries")}
+        </Text>
       </View>
 
       {instruction && instruction.length > 0 && (
@@ -114,7 +112,7 @@ export function FormRepeaterTable({
         ))}
       </View>
 
-      {!isEquipmentsTable && rows.length < maxRows && (
+      {rows.length < maxRows && (
         <TouchableOpacity
           onPress={handleAddRow}
           style={styles.addButton}

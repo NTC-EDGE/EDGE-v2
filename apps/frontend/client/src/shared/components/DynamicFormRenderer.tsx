@@ -61,8 +61,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
   const catLower = (serviceCategory || "").toLowerCase();
   const titLower = (serviceTitle || "").toLowerCase();
-  const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
-  const varDesc = (matchedVariant?.description || matchedVariant?.name || matchedVariant?.type || "").toLowerCase();
+  const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId)) || variants[0];
+  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+  const varType = (matchedVariant?.type || "").toLowerCase();
 
   const isVas = catLower.includes("certificate") && (titLower.includes("value-added") || titLower.includes("vas") || varDesc.includes("vas") || varDesc.includes("value-added"));
   const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
@@ -80,11 +81,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     (varDesc.includes("sell") || varDesc.includes("transfer"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03")), isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
-  const isModification = varDesc.includes("modification"), isRenewal = varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
-  const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary"), isVanityNew = varDesc.includes("special permit for use of vanity call sign (new)");
-  const isVanityRen = varDesc.includes("special permit for use of vanity call sign (renewal)"), isSpecialEvent = varDesc.includes("special event call sign"), isForeignVisitor = varDesc.includes("foreign visitor");
-  const isVanityOrSpecialEvent = isVanityNew || isVanityRen || isSpecialEvent;
-  const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false), isIndividualVar = !isNonIndividualEntity;
+  const isModification = varType.includes("modification") || varDesc.includes("modification"), isRenewal = varType.includes("renewal") || varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
+  const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary");
+  const isVanity = varDesc.includes("vanity call sign") || varDesc.includes("vanity");
+  const isVanityRen = isVanity && (varType.includes("renewal") || varDesc.includes("renewal"));
+  const isVanityNew = isVanity && !isVanityRen;
+  const isSpecialEvent = varDesc.includes("special event");
+  const isForeignVisitor = varDesc.includes("foreign visitor");
+  const isVanityOrSpecialEvent = isVanity || isSpecialEvent;
+  const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
 
@@ -225,7 +230,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isIntendedUseField={isIntendedUseField} isVasServicesField={isVasServicesField} isSignature={isSignature} isCheckbox={isCheckbox}
         isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
         isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
-        isForeignVisitor={isForeignVisitor}
+        isForeignVisitor={isForeignVisitor} isVanityOrSpecialEvent={isVanityOrSpecialEvent}
         structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
         parentMakeTypeModel={parentMakeTypeModel}
         onChange={onChange} onStructuredNameChange={onStructuredNameChange}
@@ -370,7 +375,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             const vanityEquipmentField: FieldDto = {
               fieldId: "equipmentDetails",
               id: "equipmentDetails",
-              label: "Particulars of Equipment",
+              label: "Particulars of Proposed Equipment",
               fieldType: "repeater",
               isRequired: true,
             };
@@ -380,7 +385,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleRow}>
                     <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>Particulars of Equipment</Text>
+                    <Text style={styles.sectionTitle}>Particulars</Text>
                   </View>
                   <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
                 </View>
