@@ -59,11 +59,11 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const { regions, provinces, municipalities, barangays } = useLocationData(selectedRegionId, selectedProvinceId, selectedMunicipalityId);
   useCertificateServicesQuery();
 
-  const catLower = (serviceCategory || "").toLowerCase();
-  const titLower = (serviceTitle || "").toLowerCase();
+  const catLower = (serviceCategory || "").trim().toLowerCase();
+  const titLower = (serviceTitle || "").trim().toLowerCase();
   const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId)) || variants[0];
-  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
-  const varType = (matchedVariant?.type || "").toLowerCase();
+  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").trim().toLowerCase();
+  const varType = (matchedVariant?.type || "").trim().toLowerCase();
 
   const isVas = catLower.includes("certificate") && (titLower.includes("value-added") || titLower.includes("vas") || varDesc.includes("vas") || varDesc.includes("value-added"));
   const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");

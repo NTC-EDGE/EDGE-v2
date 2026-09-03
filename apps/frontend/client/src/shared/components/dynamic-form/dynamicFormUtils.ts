@@ -125,8 +125,8 @@ export function getSectionTitle(
   isAmateurSellTransfer?: boolean
 ): string {
   if (isAmateurPermitService) {
-    const k = (sec.key || sec.id || "").toLowerCase();
-    const t = (sec.title || "").toLowerCase();
+    const k = (sec.key || sec.id || "").trim().toLowerCase();
+    const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
       if (isAmateurPurchaseVariant || isVanityOrSpecialEvent) return "Particulars";
