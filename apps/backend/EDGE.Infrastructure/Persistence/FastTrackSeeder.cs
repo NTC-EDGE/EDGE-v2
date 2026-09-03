@@ -19,11 +19,26 @@ public static class FastTrackSeeder
         try
         {
             await context.Database.ExecuteSqlRawAsync(@"
-                ALTER TABLE ""ServiceVariants"" 
-                ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
+                CREATE SCHEMA IF NOT EXISTS public;
+                SET search_path TO public;
 
-                ALTER TABLE ""Requirements"" 
-                ALTER COLUMN ""Description"" TYPE text;
+                DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'ServiceVariants'
+                    ) THEN
+                        ALTER TABLE public.""ServiceVariants"" 
+                        ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'Requirements'
+                    ) THEN
+                        ALTER TABLE public.""Requirements"" 
+                        ALTER COLUMN ""Description"" TYPE text;
+                    END IF;
+                END $$;
             ");
         }
         catch
