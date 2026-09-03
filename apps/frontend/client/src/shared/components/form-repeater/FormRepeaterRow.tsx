@@ -56,12 +56,16 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
   const rowId = rowItem._id || `row-${rowIndex}`;
 
   return (
-    <View style={[styles.rowCard, isEquipmentsTable && styles.rowCardMinimal]}>
-      {!isEquipmentsTable && (
+    <View style={[styles.rowCard, isEquipmentsTable && totalRows === 1 && styles.rowCardMinimal]}>
+      {(totalRows > 1 || !isEquipmentsTable) && (
         <View style={styles.rowCardHeader}>
           <View style={styles.rowNumberPill}>
             <Text style={styles.rowNumberText}>
-              {isDeviceTable ? `Device Group #${rowIndex + 1}` : `#${rowIndex + 1}`}
+              {isDeviceTable
+                ? `Device Group #${rowIndex + 1}`
+                : isEquipmentsTable
+                ? `Equipment Item #${rowIndex + 1}`
+                : `#${rowIndex + 1}`}
             </Text>
           </View>
           {totalRows > minRows && (
@@ -72,7 +76,7 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
             >
               <Icon name="trash-2" size={13} color="#DC2626" />
               <Text style={styles.deleteButtonText}>
-                {isDeviceTable ? "Remove Group" : "Remove"}
+                {isDeviceTable ? "Remove Group" : isEquipmentsTable ? "Remove Equipment" : "Remove"}
               </Text>
             </TouchableOpacity>
           )}

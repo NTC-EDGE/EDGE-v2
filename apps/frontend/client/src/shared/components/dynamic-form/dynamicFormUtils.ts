@@ -121,15 +121,17 @@ export function getSectionTitle(
   isAmateurPermitService: boolean,
   isAmateurPurchaseVariant?: boolean,
   isVanityOrSpecialEvent?: boolean,
-  isForeignVisitor?: boolean
+  isForeignVisitor?: boolean,
+  isAmateurSellTransfer?: boolean
 ): string {
   if (isAmateurPermitService) {
-    const k = (sec.key || sec.id || "").toLowerCase();
-    const t = (sec.title || "").toLowerCase();
+    const k = (sec.key || sec.id || "").trim().toLowerCase();
+    const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
-      if (isAmateurPurchaseVariant) return "Particulars";
-      if (isVanityOrSpecialEvent || isForeignVisitor) return "Particulars of Equipment";
+      if (isAmateurPurchaseVariant || isVanityOrSpecialEvent) return "Particulars";
+      if (isAmateurSellTransfer) return "Particulars of Station, Equipment & Antenna";
+      if (isForeignVisitor) return "Particulars of Equipment";
       return "Particulars of Proposed Station / Equipment";
     }
     if (k === "sourceofequipment" || t.includes("source")) return "Source of Equipment";
