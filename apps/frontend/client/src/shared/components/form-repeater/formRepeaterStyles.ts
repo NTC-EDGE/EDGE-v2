@@ -144,17 +144,15 @@ export const styles = StyleSheet.create({
   },
   serialsWrapper: {
     marginTop: 8,
-    padding: 12,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
+    padding: 0,
+    backgroundColor: "transparent",
+    borderWidth: 0,
   },
   serialsHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    marginBottom: 2,
+    marginBottom: 4,
   },
   serialsLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -219,7 +217,7 @@ export const styles = StyleSheet.create({
     color: "#1D4ED8",
   },
   unitSubCard: {
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#E2E8F0",
