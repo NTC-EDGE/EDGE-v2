@@ -15,6 +15,7 @@ export {
   DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS,
   DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS,
   DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS,
+  DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS,
   DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS,
   DEFAULT_ANTENNA_REPEATER_COLUMNS,
   DEFAULT_DEVICE_REPEATER_COLUMNS,
@@ -41,6 +42,7 @@ export function FormRepeaterTable({
   fieldKey,
   parentMakeTypeModel,
   showCallSign = false,
+  hideAddButton = false,
 }: FormRepeaterTableProps) {
   const resolvedColumns = resolveRepeaterColumns(fieldKey, label, columns);
   const {
@@ -112,7 +114,7 @@ export function FormRepeaterTable({
         ))}
       </View>
 
-      {rows.length < maxRows && (
+      {!hideAddButton && rows.length < maxRows && (
         <TouchableOpacity
           onPress={handleAddRow}
           style={styles.addButton}

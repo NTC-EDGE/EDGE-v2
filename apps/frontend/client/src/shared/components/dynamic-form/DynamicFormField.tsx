@@ -41,11 +41,14 @@ export interface DynamicFormFieldProps {
   isIndividualVar: boolean;
   isForeignVisitor?: boolean;
   isVanityOrSpecialEvent?: boolean;
+  showCallSign?: boolean;
   structuredNameData?: Partial<StructuredNameData>;
   applicantName?: string;
   isBulk?: boolean;
   appMode?: "SINGLE" | "BULK" | "";
   parentMakeTypeModel?: string;
+  hideAddButton?: boolean;
+  maxRows?: number;
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
   onDropdownChange: (val: string) => void;
@@ -79,11 +82,14 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isIndividualVar,
   isForeignVisitor = false,
   isVanityOrSpecialEvent,
+  showCallSign = false,
   structuredNameData,
   applicantName,
   isBulk,
   appMode,
   parentMakeTypeModel,
+  hideAddButton,
+  maxRows,
   onChange,
   onStructuredNameChange,
   onDropdownChange,
@@ -92,16 +98,17 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
     <FormCol key={targetId} span={span} compact={field.isCompact}>
       {isNameField ? (
         <ApplicantNameField
-          label={isNonIndividualEntity ? "Applicant / Company Name" : (isAmateurPermitService && !isVanityOrSpecialEvent) ? "Applicant Name" : displayLabel}
+          label={isNonIndividualEntity ? "Applicant Name" : (isAmateurPermitService && !isVanityOrSpecialEvent) ? "Applicant Name" : displayLabel}
           isRequired={isRequired}
           value={val}
           structuredValue={
             isIndividualVar
               ? structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined
-              : structuredNameData ? { ...structuredNameData, applicantType: "company" } : undefined
+              : structuredNameData ? { ...structuredNameData, applicantType: "company" } : { applicantType: "company", firstName: "", middleName: "", lastName: "", suffix: "", companyName: val }
           }
-          allowCompany={isNonIndividualEntity || (isAmateurPermitService && !isVanityOrSpecialEvent)}
-          unifiedInput={isNonIndividualEntity || (isAmateurPermitService && !isVanityOrSpecialEvent)}
+          allowCompany={false}
+          unifiedInput={false}
+          seamless={true}
           onChange={(combined) => onChange(targetId, displayLabel, combined)}
           onStructuredChange={onStructuredNameChange}
           error={err}
@@ -114,7 +121,9 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             value={val}
             fieldKey={targetId}
             parentMakeTypeModel={parentMakeTypeModel}
-            showCallSign={isForeignVisitor}
+            showCallSign={showCallSign || isForeignVisitor}
+            hideAddButton={hideAddButton}
+            maxRows={maxRows}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}
           />
@@ -160,7 +169,31 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           label={displayLabel}
           required={isRequired}
           value={val}
-          onChangeText={(v) => onChange(targetId, displayLabel, v)}
+          onChangeText={(v) => {
+            onChange(targetId, displayLabel, v);
+            const targetLower = targetId.toLowerCase();
+            if (targetLower === "applicantname" || targetLower === "companyname") {
+              onStructuredNameChange?.({
+                applicantType: "company",
+                firstName: "",
+                middleName: "",
+                lastName: "",
+                suffix: "",
+                companyName: v,
+                representativeName: structuredNameData?.representativeName,
+              });
+            } else if (targetLower === "representativename") {
+              onStructuredNameChange?.({
+                applicantType: "company",
+                firstName: "",
+                middleName: "",
+                lastName: "",
+                suffix: "",
+                companyName: structuredNameData?.companyName || "",
+                representativeName: v,
+              });
+            }
+          }}
           placeholder={field.placeholder || (isContactField ? "09XXXXXXXXX or +639XXXXXXXXX" : isEmailField ? "user@example.com" : `Enter ${displayLabel}...`)}
           keyboardType={isContactField ? "phone-pad" : isEmailField ? "email-address" : isNumber ? "numeric" : "default"}
           autoCapitalize={isEmailField ? "none" : undefined}

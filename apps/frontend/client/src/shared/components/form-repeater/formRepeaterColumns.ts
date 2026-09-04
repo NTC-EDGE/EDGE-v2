@@ -40,6 +40,20 @@ export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] 
   },
 ];
 
+export const DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "classOfStation",
+    label: "Class of Station",
+    type: "select",
+    required: true,
+    placeholder: "Select Class of Station...",
+    options: [
+      { label: "FA", value: "FA" },
+      { label: "MA", value: "MA" },
+    ],
+  },
+];
+
 export const DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
   { key: "antennaType", label: "Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: true },
   { key: "height", label: "Height (cm.)", placeholder: "e.g. 1500 cm", required: false },
@@ -167,6 +181,15 @@ export function resolveRepeaterColumns(
   }
 
   if (
+    keyLower.includes("aeroparticulars") ||
+    keyLower.includes("aerostationparticulars") ||
+    keyLower.includes("aeropurchase") ||
+    (keyLower.includes("particulars") && (keyLower.includes("aero") || labelLower.includes("aero")))
+  ) {
+    return DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS;
+  }
+
+  if (
     keyLower === "particulars" ||
     keyLower.includes("purchaseparticulars") ||
     keyLower.includes("classofstationparticulars") ||
@@ -193,7 +216,6 @@ export function resolveRepeaterColumns(
     keyLower.includes("device") ||
     keyLower.includes("devicesdetails") ||
     keyLower === FIELD_ID_DEVICES.toLowerCase() ||
-    keyLower === "fd000000-0000-0000-0000-000000000035" ||
     labelLower.includes("device") ||
     labelLower.includes("registered devices") ||
     labelLower.includes("wdn") ||

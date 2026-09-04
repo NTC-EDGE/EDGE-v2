@@ -81,9 +81,9 @@ export const FormRepeaterEquipmentsField: React.FC<FormRepeaterEquipmentsFieldPr
                 </FormCol>
                 <FormCol span={showCallSign ? 4 : 6}>
                   <ValidatedInput
-                    label={showCallSign ? "Frequency Range" : "Frequency / Frequency Range"}
+                    label="Frequency / Frequency Range"
                     required
-                    placeholder="e.g. 118.0 - 136.975 MHz"
+                    placeholder={showCallSign ? "Within authorized aeronautical band" : "e.g. 118.0 - 136.975 MHz"}
                     value={unitItem.frequency}
                     onChangeText={(text) => onEquipmentUnitChange(rowIndex, col.key, uIdx, "frequency", text)}
                     style={{ marginBottom: 0 }}

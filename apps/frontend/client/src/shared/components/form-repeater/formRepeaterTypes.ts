@@ -33,4 +33,5 @@ export interface FormRepeaterTableProps {
   fieldKey?: string;
   parentMakeTypeModel?: string;
   showCallSign?: boolean;
+  hideAddButton?: boolean;
 }

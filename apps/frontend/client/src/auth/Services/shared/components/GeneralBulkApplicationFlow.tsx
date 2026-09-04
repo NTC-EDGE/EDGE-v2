@@ -244,6 +244,45 @@ export function GeneralBulkApplicationFlow({
           }
         }
 
+        // Skip Source of Equipment fields (optional section)
+        const isSourceOfEquipmentField =
+          idLower === "dealername" ||
+          idLower === "name of dealer" ||
+          idLower === "authorizedsellerbuyer" ||
+          idLower === "authorized seller/buyer" ||
+          idLower === "authorized seller / buyer" ||
+          idLower === "orinvoiceno" ||
+          idLower === "or/invoice no," ||
+          idLower === "or/invoice no." ||
+          idLower === "or/invoice no" ||
+          idLower === "permitrslno" ||
+          idLower === "permit/rsl no." ||
+          idLower === "permit/rsl no" ||
+          idLower === "selleraddress" ||
+          idLower === "seller address" ||
+          idLower === "fd000000-0000-0000-0000-000000000120" ||
+          idLower === "fd000000-0000-0000-0000-000000000121" ||
+          idLower === "fd000000-0000-0000-0000-000000000122" ||
+          idLower === "fd000000-0000-0000-0000-000000000123" ||
+          idLower === "fd000000-0000-0000-0000-000000000124";
+        if (isSourceOfEquipmentField) {
+          return;
+        }
+
+        // Skip Intended Use fields (optional section)
+        const isIntendedUseField =
+          idLower === "intendeduse" ||
+          idLower === "intendedusetype" ||
+          idLower === "intended_use" ||
+          idLower === "intended use" ||
+          idLower === "intended use of equipment" ||
+          idLower.includes("intended use") ||
+          idLower === "fd000000-0000-0000-0000-000000000126" ||
+          idLower === "fd000000-0000-0000-0000-000000000127";
+        if (isIntendedUseField) {
+          return;
+        }
+
         let val = filledMap.get(idLower);
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
           if (

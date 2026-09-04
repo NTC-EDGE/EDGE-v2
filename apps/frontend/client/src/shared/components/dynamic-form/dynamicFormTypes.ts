@@ -54,3 +54,39 @@ export interface DynamicFormRendererProps {
   isBulk?: boolean;
   appMode?: "SINGLE" | "BULK" | "";
 }
+
+export interface FormVariantFlags {
+  catLower: string;
+  titLower: string;
+  varDesc: string;
+  varType: string;
+  isVas: boolean;
+  isDuplicateCopy: boolean;
+  isCertifiedTrueCopy: boolean;
+  isCopyOfCert: boolean;
+  isAmateurPermitService: boolean;
+  isAeroService: boolean;
+  isAeroStationPurchase: boolean;
+  isAeroStationPossess: boolean;
+  isAmateurPurchaseVariant: boolean;
+  isAmateurSellTransfer: boolean;
+  isAmateurCert: boolean;
+  isCpeAccreditation: boolean;
+  isRocService: boolean;
+  isModification: boolean;
+  isRenewal: boolean;
+  isRenewalOrMod: boolean;
+  isLifetimeSupplementary: boolean;
+  isVanity: boolean;
+  isVanityRen: boolean;
+  isVanityNew: boolean;
+  isSpecialEvent: boolean;
+  isForeignVisitor: boolean;
+  isVanityOrSpecialEvent: boolean;
+  isNonIndividualEntity: boolean;
+  isIndividualVar: boolean;
+  showElements: boolean;
+  showNumberOfYears: boolean;
+  isPermitService: boolean;
+}
+
