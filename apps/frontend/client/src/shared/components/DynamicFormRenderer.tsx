@@ -3,7 +3,7 @@ import { View } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormSection1 } from "./dynamic-form/DynamicFormSection1";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
-import { getFieldSortPriority, parseOptions } from "./dynamic-form/dynamicFormUtils";
+import { getFieldSortPriority, parseOptions, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
 import { useCertificateServicesQuery } from "./dynamic-form/useCertificateServicesQuery";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
@@ -67,54 +67,43 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const { regions, provinces, municipalities, barangays } = useLocationData(selectedRegionId, selectedProvinceId, selectedMunicipalityId);
   useCertificateServicesQuery();
 
-  const catLower = (serviceCategory || "").trim().toLowerCase();
-  const titLower = (serviceTitle || "").trim().toLowerCase();
-  const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId)) || variants[0];
-  const varDesc = (matchedVariant?.description || matchedVariant?.name || "").trim().toLowerCase();
-  const varType = (matchedVariant?.type || "").trim().toLowerCase();
+  const flags = buildFormVariantFlags(
+    serviceCategory,
+    serviceTitle,
+    selectedVariantId,
+    variants,
+    variantElements,
+    applicantType
+  );
 
-  const isVas = catLower.includes("certificate") && (titLower.includes("value-added") || titLower.includes("vas") || varDesc.includes("vas") || varDesc.includes("value-added"));
-  const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
-  const isCopyOfCert = (catLower.includes("certificate") || catLower.includes("permit")) && (titLower.includes("copy") || titLower.includes("ntc 1-21") || titLower.includes("ntc_1_21") || isDuplicateCopy || isCertifiedTrueCopy);
-  const isAmateurPermitService = catLower.includes("permit") && (titLower.includes("amateur") || titLower.includes("ntc 1-09") || titLower.includes("ntc_1_09") || varDesc.includes("amateur"));
-  const isAeroService =
-    catLower.includes("aeronautical") ||
-    titLower.includes("aeronautical") ||
-    varDesc.includes("aeronautical") ||
-    (serviceTitle || "").trim().toLowerCase().includes("aeronautical");
-  const isAeroStationPurchase =
-    isAeroService &&
-    varDesc.includes("permit to purchase") &&
-    (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
-  const isAeroStationPossess =
-    isAeroService &&
-    (varDesc.includes("permit to possess") || varDesc.includes("possess")) &&
-    !varDesc.includes("purchase") &&
-    !varDesc.includes("storage") &&
-    (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
-  const isAmateurPurchaseVariant =
-    isAmateurPermitService &&
-    !varDesc.includes("storage") &&
-    (varDesc.includes("permit to purchase") ||
-      varDesc.includes("purchase/possess") ||
-      varDesc.includes("purchase to possess") ||
-      (varDesc.includes("purchase") && !varDesc.includes("sell")));
-  const isAmateurSellTransfer =
-    isAmateurPermitService &&
-    (varDesc.includes("sell") || varDesc.includes("transfer"));
-  const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03")), isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
-  const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
-  const isModification = varType.includes("modification") || varDesc.includes("modification"), isRenewal = varType.includes("renewal") || varDesc.includes("renewal"), isRenewalOrMod = isRenewal || isModification;
-  const isLifetimeSupplementary = varDesc.includes("lifetime amateur radio station supplementary");
-  const isVanity = varDesc.includes("vanity call sign") || varDesc.includes("vanity");
-  const isVanityRen = isVanity && (varType.includes("renewal") || varDesc.includes("renewal"));
-  const isVanityNew = isVanity && !isVanityRen;
-  const isSpecialEvent = varDesc.includes("special event");
-  const isForeignVisitor = varDesc.includes("foreign visitor");
-  const isVanityOrSpecialEvent = isVanity || isSpecialEvent;
-  const isNonIndividualEntity = applicantType === "company" || isAeroStationPurchase || isAeroStationPossess || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
-  const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
-  const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
+  const {
+    isVas,
+    isDuplicateCopy,
+    isCertifiedTrueCopy,
+    isCopyOfCert,
+    isAmateurPermitService,
+    isAeroService,
+    isAeroStationPurchase,
+    isAeroStationPossess,
+    isAmateurPurchaseVariant,
+    isAmateurSellTransfer,
+    isAmateurCert,
+    isCpeAccreditation,
+    isRocService,
+    isModification,
+    isRenewal,
+    isRenewalOrMod,
+    isLifetimeSupplementary,
+    isVanityNew,
+    isVanityRen,
+    isSpecialEvent,
+    isForeignVisitor,
+    isVanityOrSpecialEvent,
+    isNonIndividualEntity,
+    isIndividualVar,
+    showElements,
+    showNumberOfYears,
+  } = flags;
 
   // Auto-sync location IDs from existing values on load
   React.useEffect(() => {
@@ -398,11 +387,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 key={section.id || section.key || `section-${sIdx}`}
                 section={section}
                 sectionDisplayNum={sectionDisplayNum}
-                isAmateurPermitService={isAmateurPermitService}
-                isAmateurPurchaseVariant={isAmateurPurchaseVariant}
-                isVanityOrSpecialEvent={isVanityOrSpecialEvent}
-                isForeignVisitor={isForeignVisitor}
-                isAeroStationPurchase={isAeroStationPurchase}
+                flags={flags}
                 renderFieldInstance={renderFieldInstance}
               />
             );
@@ -564,12 +549,6 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             );
           }
 
-          const isPermitService =
-            catLower.includes("permit") ||
-            titLower.includes("permit") ||
-            varDesc.includes("permit") ||
-            isAmateurPermitService;
-
           return (
             <PermitStationEquipmentSection
               key={section.id || section.key || `section-${sIdx}`}
@@ -578,13 +557,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               stationParticularsCount={stationParticularsCount}
               sectionFields={sectionFields}
               canonicalPermitStationFields={canonicalPermitStationFields}
-              isPermitService={isPermitService}
-              isAmateurSellTransfer={isAmateurSellTransfer}
-              isAmateurPermitService={isAmateurPermitService}
-              isAmateurPurchaseVariant={isAmateurPurchaseVariant}
-              isVanityOrSpecialEvent={isVanityOrSpecialEvent}
-              isForeignVisitor={isForeignVisitor}
-              isAeroStationPurchase={isAeroStationPurchase}
+              flags={flags}
               onAddStationParticular={handleAddStationParticular}
               onRemoveStationParticular={handleRemoveStationParticular}
               renderFieldInstance={renderFieldInstance}
@@ -598,12 +571,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             section={section}
             sectionDisplayNum={sectionDisplayNum}
             sectionFields={sectionFields}
-            isAmateurPermitService={isAmateurPermitService}
-            isAmateurPurchaseVariant={isAmateurPurchaseVariant}
-            isVanityOrSpecialEvent={isVanityOrSpecialEvent}
-            isForeignVisitor={isForeignVisitor}
-            isAmateurSellTransfer={isAmateurSellTransfer}
-            isAeroStationPurchase={isAeroStationPurchase}
+            flags={flags}
             renderFieldInstance={renderFieldInstance}
           />
         );

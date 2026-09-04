@@ -216,7 +216,6 @@ export function resolveRepeaterColumns(
     keyLower.includes("device") ||
     keyLower.includes("devicesdetails") ||
     keyLower === FIELD_ID_DEVICES.toLowerCase() ||
-    keyLower === "fd000000-0000-0000-0000-000000000035" ||
     labelLower.includes("device") ||
     labelLower.includes("registered devices") ||
     labelLower.includes("wdn") ||

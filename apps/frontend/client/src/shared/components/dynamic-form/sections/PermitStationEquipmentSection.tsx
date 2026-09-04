@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Icon } from "@edge/ui";
 import { FormGrid } from "../../FormGrid";
-import { FieldDto, FormSectionDto } from "../dynamicFormTypes";
+import { FieldDto, FormSectionDto, FormVariantFlags } from "../dynamicFormTypes";
 import { dynamicFormStyles as styles } from "../DynamicFormRenderer.styles";
 import { getSectionTitle } from "../dynamicFormUtils";
 
@@ -12,13 +12,7 @@ interface PermitStationEquipmentSectionProps {
   stationParticularsCount: number;
   sectionFields: FieldDto[];
   canonicalPermitStationFields: FieldDto[];
-  isPermitService: boolean;
-  isAmateurSellTransfer?: boolean;
-  isAmateurPermitService: boolean;
-  isAmateurPurchaseVariant?: boolean;
-  isVanityOrSpecialEvent?: boolean;
-  isForeignVisitor?: boolean;
-  isAeroStationPurchase?: boolean;
+  flags: FormVariantFlags;
   onAddStationParticular: () => void;
   onRemoveStationParticular: (idx: number) => void;
   renderFieldInstance: (field: FieldDto, fIdx: number, section: FormSectionDto, instanceSuffix?: string) => React.ReactNode;
@@ -30,18 +24,12 @@ export const PermitStationEquipmentSection: React.FC<PermitStationEquipmentSecti
   stationParticularsCount,
   sectionFields,
   canonicalPermitStationFields,
-  isPermitService,
-  isAmateurSellTransfer,
-  isAmateurPermitService,
-  isAmateurPurchaseVariant,
-  isVanityOrSpecialEvent,
-  isForeignVisitor,
-  isAeroStationPurchase,
+  flags,
   onAddStationParticular,
   onRemoveStationParticular,
   renderFieldInstance,
 }) => {
-  const topLevelFields: FieldDto[] = isPermitService
+  const topLevelFields: FieldDto[] = flags.isPermitService
     ? [
         canonicalPermitStationFields[0], // Call Sign
         canonicalPermitStationFields[1], // Points of Comm / Service Area
@@ -74,7 +62,7 @@ export const PermitStationEquipmentSection: React.FC<PermitStationEquipmentSecti
         );
       });
 
-  const stationParticularFields: FieldDto[] = isPermitService
+  const stationParticularFields: FieldDto[] = flags.isPermitService
     ? [
         canonicalPermitStationFields[8],  // Class of Station
         canonicalPermitStationFields[9],  // Exact Location
@@ -173,15 +161,7 @@ export const PermitStationEquipmentSection: React.FC<PermitStationEquipmentSecti
     .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
     .filter(Boolean);
 
-  const title = getSectionTitle(
-    section,
-    isAmateurPermitService,
-    isAmateurPurchaseVariant,
-    isVanityOrSpecialEvent,
-    isForeignVisitor,
-    isAmateurSellTransfer,
-    isAeroStationPurchase
-  );
+  const title = getSectionTitle(section, flags);
 
   return (
     <View key={section.id || section.key || `section-${sectionDisplayNum}`} style={styles.sectionCard}>
@@ -238,7 +218,7 @@ export const PermitStationEquipmentSection: React.FC<PermitStationEquipmentSecti
               )}
             </View>
             <FormGrid>{renderedStationFields}</FormGrid>
-            {isAmateurSellTransfer && (
+            {flags.isAmateurSellTransfer && (
               <View style={styles.subSectionBox}>
                 <Text style={styles.subSectionTitle}>Particulars of Antenna</Text>
                 <FormGrid>{renderedAntennaFields}</FormGrid>

@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text } from "react-native";
 import { FormGrid } from "../../FormGrid";
-import { FieldDto, FormSectionDto } from "../dynamicFormTypes";
+import { FieldDto, FormSectionDto, FormVariantFlags } from "../dynamicFormTypes";
 import { dynamicFormStyles as styles } from "../DynamicFormRenderer.styles";
 import { FIELD_ID_CALL_SIGN, FIELD_ID_FREQUENCY } from "../../../constants/fieldIds";
 import { getSectionTitle } from "../dynamicFormUtils";
@@ -9,22 +9,14 @@ import { getSectionTitle } from "../dynamicFormUtils";
 interface AmateurPurchaseSectionProps {
   section: FormSectionDto;
   sectionDisplayNum: number;
-  isAmateurPermitService: boolean;
-  isAmateurPurchaseVariant?: boolean;
-  isVanityOrSpecialEvent?: boolean;
-  isForeignVisitor?: boolean;
-  isAeroStationPurchase?: boolean;
+  flags: FormVariantFlags;
   renderFieldInstance: (field: FieldDto, fIdx: number, section: FormSectionDto, instanceSuffix?: string) => React.ReactNode;
 }
 
 export const AmateurPurchaseSection: React.FC<AmateurPurchaseSectionProps> = ({
   section,
   sectionDisplayNum,
-  isAmateurPermitService,
-  isAmateurPurchaseVariant,
-  isVanityOrSpecialEvent,
-  isForeignVisitor,
-  isAeroStationPurchase,
+  flags,
   renderFieldInstance,
 }) => {
   const purchaseCallSignField: FieldDto = {
@@ -57,15 +49,7 @@ export const AmateurPurchaseSection: React.FC<AmateurPurchaseSectionProps> = ({
   const renderedFrequencies = renderFieldInstance(purchaseFrequenciesField, 1, section);
   const renderedParticulars = renderFieldInstance(purchaseParticularsField, 2, section);
 
-  const title = getSectionTitle(
-    section,
-    isAmateurPermitService,
-    isAmateurPurchaseVariant,
-    isVanityOrSpecialEvent,
-    isForeignVisitor,
-    undefined,
-    isAeroStationPurchase
-  );
+  const title = getSectionTitle(section, flags);
 
   return (
     <View key={section.id || section.key || `section-${sectionDisplayNum}`} style={styles.sectionCard}>
