@@ -221,7 +221,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       span = 6;
     }
 
-    let val = (values && values[targetId]) || (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
+    let val = instanceSuffix.length > 0
+      ? (values && values[targetId]) || ""
+      : (values && values[targetId]) || (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
     if ((fIdLower === "applicantname" || fIdLower === "fullname") && !val) {
       val = (values && (values["companyName"] || values["fullName"] || values["Applicant Name"])) || (structuredNameData && (structuredNameData.companyName || structuredNameData.firstName)) || (applicantName ?? "") || "";
     } else if (fIdLower === "representativename" && !val) {
@@ -246,13 +248,16 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
     else dropdownOptions = parseOptions(field);
 
-    const parentMakeTypeModel =
-      (values && values["makeTypeModel"]) ||
-      (values && values["make_type_model"]) ||
-      (values && values[FIELD_ID_MAKE_TYPE_MODEL]) ||
-      (values && values["Make / Type / Model"]) ||
-      (values && values["Make/Type/Model"]) ||
-      "";
+    const parentMakeTypeModel = instanceSuffix.length > 0
+      ? (values && values[`makeTypeModel_${instanceSuffix}`]) ||
+        (values && values[`make_type_model_${instanceSuffix}`]) ||
+        ""
+      : (values && values["makeTypeModel"]) ||
+        (values && values["make_type_model"]) ||
+        (values && values[FIELD_ID_MAKE_TYPE_MODEL]) ||
+        (values && values["Make / Type / Model"]) ||
+        (values && values["Make/Type/Model"]) ||
+        "";
 
     return (
       <DynamicFormField
