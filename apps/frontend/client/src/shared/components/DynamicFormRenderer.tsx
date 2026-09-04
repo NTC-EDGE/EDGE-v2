@@ -272,6 +272,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     setStationParticularsCount((prev) => prev - 1);
   };
 
+  const natureOfServiceField = form?.sections
+    ?.flatMap((s) => s.fields || [])
+    ?.find((f) => {
+      const fid = (f.fieldId || f.id || "").toLowerCase();
+      const flbl = (f.label || "").toLowerCase();
+      return fid.includes("natureofservice") || flbl.includes("nature of service") || flbl === "type";
+    });
+  const natureOfServiceOptions = natureOfServiceField ? parseOptions(natureOfServiceField) : undefined;
+
   return (
     <View style={styles.container}>
       {showApplicationTypeSection && (
@@ -282,6 +291,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           isModification={isModification} isLifetimeSupplementary={isLifetimeSupplementary} isRenewalOrMod={isRenewalOrMod}
           isRenewal={isRenewal} isVanityNew={isVanityNew} isVanityRen={isVanityRen} isSpecialEvent={isSpecialEvent}
           isAeroStationPurchase={isAeroStationPurchase}
+          natureOfServiceOptions={natureOfServiceOptions && natureOfServiceOptions.length > 0 ? natureOfServiceOptions : undefined}
           values={values} onVariantChange={onVariantChange} onElementChange={onElementChange} onNoOfYearsChange={onNoOfYearsChange} onChange={onChange}
         />
       )}

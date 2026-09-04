@@ -34,6 +34,7 @@ export interface DynamicFormSection1Props {
   isVanityRen: boolean;
   isSpecialEvent: boolean;
   isAeroStationPurchase?: boolean;
+  natureOfServiceOptions?: Array<{ label: string; value: string }>;
   values: Record<string, string>;
   onVariantChange?: (variantId: string, variantName: string) => void;
   onElementChange?: (elementId: string, elementTitle: string) => void;
@@ -66,6 +67,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
   isVanityRen,
   isSpecialEvent,
   isAeroStationPurchase,
+  natureOfServiceOptions,
   values,
   onVariantChange,
   onElementChange,
@@ -111,7 +113,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
               label="Type"
               required
               value={values?.["natureOfService"] || values?.["type"] || values?.["serviceType"] || values?.["Type"] || "CV Private"}
-              options={AERO_NATURE_OPTIONS}
+              options={natureOfServiceOptions && natureOfServiceOptions.length > 0 ? natureOfServiceOptions : AERO_NATURE_OPTIONS}
               placeholder="Select Type..."
               onValueChange={(val: string) => {
                 onChange("natureOfService", "Type", val);

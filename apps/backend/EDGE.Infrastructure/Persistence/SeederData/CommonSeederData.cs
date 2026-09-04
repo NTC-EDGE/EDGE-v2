@@ -152,6 +152,9 @@ public static class CommonSeederData
             ["amateurLicenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000125"), FieldType = "text", Label = "Amateur License No", SyncBackOnSubmit = false },
             ["intendedUseType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000126"), FieldType = "checkbox_group", Label = "Intended Use of Equipment", SyncBackOnSubmit = false, ValidationRules = @"[""Additional Radio Equipment"",""New Radio Station"",""Change of Equipment"",""Storage at"",""Others""]" },
             ["specifyDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000127"), FieldType = "text", Label = "Specify Details", SyncBackOnSubmit = false },
+            ["natureOfService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000129"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false, ValidationRules = @"[""CV Private"",""CO Government""]" },
+            ["aeroClassOfStation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000130"), FieldType = "dropdown", Label = "Class of Station", SyncBackOnSubmit = false, ValidationRules = @"[""FA"",""MA""]" },
+            ["aeroStationParticulars"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000131"), FieldType = "repeater", Label = "Particulars of Proposed Station / Equipment", SyncBackOnSubmit = false, ValidationRules = @"[{""key"":""classOfStation"",""label"":""Class of Station"",""type"":""select"",""options"":[""FA"",""MA""]}]" },
 
             // Amateur Radio Station License (NTC_AMA_LICENSES) specific fields
             ["appType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000200"), FieldType = "dropdown", Label = "Application Type", SyncBackOnSubmit = false, ValidationRules = "[\"NEW\",\"RENEWAL\",\"MODIFICATION\"]" },
