@@ -258,7 +258,7 @@ export default function RolesPermissionsPage() {
     isLoading: rolesLoading,
     error: rolesError,
     mutate: mutateRoles,
-  } = useRoles(null, true); // includeSystemRoles = true for system admin
+  } = useRoles(undefined, true); // includeSystemRoles = true for system admin
   const roles: Role[] = Array.isArray(rolesData) ? rolesData : [];
 
   const { data: permsData, isLoading: permsLoading } = usePermissionCatalog();
