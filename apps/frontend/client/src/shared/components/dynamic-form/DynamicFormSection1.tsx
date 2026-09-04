@@ -33,12 +33,18 @@ export interface DynamicFormSection1Props {
   isVanityNew: boolean;
   isVanityRen: boolean;
   isSpecialEvent: boolean;
+  isAeroStationPurchase?: boolean;
   values: Record<string, string>;
   onVariantChange?: (variantId: string, variantName: string) => void;
   onElementChange?: (elementId: string, elementTitle: string) => void;
   onNoOfYearsChange?: (years: string) => void;
   onChange: (fieldId: string, label: string, value: string) => void;
 }
+
+const AERO_NATURE_OPTIONS = [
+  { label: "CV Private", value: "CV Private" },
+  { label: "CO Government", value: "CO Government" },
+];
 
 export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
   serviceCategory,
@@ -59,6 +65,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
   isVanityNew,
   isVanityRen,
   isSpecialEvent,
+  isAeroStationPurchase,
   values,
   onVariantChange,
   onElementChange,
@@ -76,7 +83,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
       </View>
 
       <FormGrid>
-        <FormCol span={(isVanityNew || isVanityRen || isSpecialEvent) && showNumberOfYears ? 4 : (showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12))}>
+        <FormCol span={isAeroStationPurchase ? 6 : ((isVanityNew || isVanityRen || isSpecialEvent) && showNumberOfYears ? 4 : (showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)))}>
           <Select
             label="Type of Application"
             required
@@ -97,6 +104,22 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
             }}
           />
         </FormCol>
+
+        {isAeroStationPurchase && (
+          <FormCol span={6}>
+            <Select
+              label="Type"
+              required
+              value={values?.["natureOfService"] || values?.["type"] || values?.["serviceType"] || values?.["Type"] || "CV Private"}
+              options={AERO_NATURE_OPTIONS}
+              placeholder="Select Type..."
+              onValueChange={(val: string) => {
+                onChange("natureOfService", "Type", val);
+                onChange("type", "Type", val);
+              }}
+            />
+          </FormCol>
+        )}
 
         {(isVanityNew || isVanityRen || isSpecialEvent) && (
           <FormCol span={showNumberOfYears ? 4 : 6}>

@@ -40,6 +40,20 @@ export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] 
   },
 ];
 
+export const DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "classOfStation",
+    label: "Class of Station",
+    type: "select",
+    required: true,
+    placeholder: "Select Class of Station...",
+    options: [
+      { label: "FA", value: "FA" },
+      { label: "MA", value: "MA" },
+    ],
+  },
+];
+
 export const DEFAULT_AMATEUR_ANTENNA_REPEATER_COLUMNS: FormRepeaterColumn[] = [
   { key: "antennaType", label: "Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: true },
   { key: "height", label: "Height (cm.)", placeholder: "e.g. 1500 cm", required: false },
@@ -164,6 +178,15 @@ export function resolveRepeaterColumns(
     (labelLower.includes("equipment") && labelLower.includes("tvro"))
   ) {
     return DEFAULT_TVRO_EQUIPMENT_COLUMNS;
+  }
+
+  if (
+    keyLower.includes("aeroparticulars") ||
+    keyLower.includes("aerostationparticulars") ||
+    keyLower.includes("aeropurchase") ||
+    (keyLower.includes("particulars") && (keyLower.includes("aero") || labelLower.includes("aero")))
+  ) {
+    return DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS;
   }
 
   if (

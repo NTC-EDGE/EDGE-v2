@@ -92,16 +92,16 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
     <FormCol key={targetId} span={span} compact={field.isCompact}>
       {isNameField ? (
         <ApplicantNameField
-          label={isNonIndividualEntity ? "Applicant / Company Name" : (isAmateurPermitService && !isVanityOrSpecialEvent) ? "Applicant Name" : displayLabel}
+          label={isNonIndividualEntity ? "Applicant Name" : (isAmateurPermitService && !isVanityOrSpecialEvent) ? "Applicant Name" : displayLabel}
           isRequired={isRequired}
           value={val}
           structuredValue={
             isIndividualVar
               ? structuredNameData ? { ...structuredNameData, applicantType: "individual" } : undefined
-              : structuredNameData ? { ...structuredNameData, applicantType: "company" } : undefined
+              : structuredNameData ? { ...structuredNameData, applicantType: "company" } : { applicantType: "company", firstName: "", middleName: "", lastName: "", suffix: "", companyName: val }
           }
-          allowCompany={isNonIndividualEntity || (isAmateurPermitService && !isVanityOrSpecialEvent)}
-          unifiedInput={isNonIndividualEntity || (isAmateurPermitService && !isVanityOrSpecialEvent)}
+          allowCompany={false}
+          unifiedInput={false}
           onChange={(combined) => onChange(targetId, displayLabel, combined)}
           onStructuredChange={onStructuredNameChange}
           error={err}

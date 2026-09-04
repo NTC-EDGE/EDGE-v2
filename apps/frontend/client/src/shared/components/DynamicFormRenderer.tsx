@@ -69,6 +69,15 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isDuplicateCopy = varDesc.includes("duplicate"), isCertifiedTrueCopy = varDesc.includes("certified true copy") || varDesc.includes("true copy");
   const isCopyOfCert = (catLower.includes("certificate") || catLower.includes("permit")) && (titLower.includes("copy") || titLower.includes("ntc 1-21") || titLower.includes("ntc_1_21") || isDuplicateCopy || isCertifiedTrueCopy);
   const isAmateurPermitService = catLower.includes("permit") && (titLower.includes("amateur") || titLower.includes("ntc 1-09") || titLower.includes("ntc_1_09") || varDesc.includes("amateur"));
+  const isAeroService =
+    catLower.includes("aeronautical") ||
+    titLower.includes("aeronautical") ||
+    varDesc.includes("aeronautical") ||
+    (serviceTitle || "").trim().toLowerCase().includes("aeronautical");
+  const isAeroStationPurchase =
+    isAeroService &&
+    varDesc.includes("permit to purchase") &&
+    (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
   const isAmateurPurchaseVariant =
     isAmateurPermitService &&
     !varDesc.includes("storage") &&
@@ -89,7 +98,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isSpecialEvent = varDesc.includes("special event");
   const isForeignVisitor = varDesc.includes("foreign visitor");
   const isVanityOrSpecialEvent = isVanity || isSpecialEvent;
-  const isNonIndividualEntity = applicantType === "company" || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
+  const isNonIndividualEntity = applicantType === "company" || isAeroStationPurchase || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
 
@@ -121,23 +130,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const sections = form?.sections || [];
   const visibleSections = sections.filter((sec) => {
     if (!sec) return false;
-    const k = (sec.key || sec.id || "").toLowerCase();
-    const t = (sec.title || "").toLowerCase();
+    const k = (sec.key || sec.id || "").trim().toLowerCase();
+    const t = (sec.title || "").trim().toLowerCase();
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
-    if (isAmateurPermitService) {
-      if (isAmateurPurchaseVariant && (k === "sourceofequipment" || t.includes("source"))) return false;
+    if (isAmateurPermitService || isAeroStationPurchase) {
+      if ((isAmateurPurchaseVariant || isAeroStationPurchase) && (k === "sourceofequipment" || t.includes("source"))) return false;
       if (isVanityOrSpecialEvent && (k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended"))) return false;
       return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
     }
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
   });
 
-  const sortedSections = isAmateurPermitService
+  const sortedSections = (isAmateurPermitService || isAeroStationPurchase)
     ? [...visibleSections].sort((a, b) => {
         const getPri = (s: FormSectionDto) => {
-          const k = (s.key || s.id || "").toLowerCase();
-          const t = (s.title || "").toLowerCase();
+          const k = (s.key || s.id || "").trim().toLowerCase();
+          const t = (s.title || "").trim().toLowerCase();
           if (k === "applicant" || t.includes("applicant")) return 1;
           if (k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular")) return 2;
           if (k === "sourceofequipment" || t.includes("source")) return 3;
@@ -272,6 +281,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           showElements={showElements} showNumberOfYears={showNumberOfYears} isVas={isVas} isAmateurCert={isAmateurCert}
           isModification={isModification} isLifetimeSupplementary={isLifetimeSupplementary} isRenewalOrMod={isRenewalOrMod}
           isRenewal={isRenewal} isVanityNew={isVanityNew} isVanityRen={isVanityRen} isSpecialEvent={isSpecialEvent}
+          isAeroStationPurchase={isAeroStationPurchase}
           values={values} onVariantChange={onVariantChange} onElementChange={onElementChange} onNoOfYearsChange={onNoOfYearsChange} onChange={onChange}
         />
       )}
@@ -321,6 +331,34 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           secTitleLower.includes("particulars");
 
         if (isStationEquipmentSection) {
+          if (isAeroStationPurchase) {
+            const aeroParticularsField: FieldDto = {
+              fieldId: "aeroStationParticulars",
+              id: "aeroStationParticulars",
+              label: "Particulars of Proposed Station / Equipment",
+              fieldType: "repeater",
+              isRequired: true,
+            };
+
+            const renderedAeroParticulars = renderFieldInstance(aeroParticularsField, 0, section);
+
+            return (
+              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                    <Text style={styles.sectionTitle}>Particulars of Proposed Station / Equipment</Text>
+                  </View>
+                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+                </View>
+
+                <FormGrid>
+                  {renderedAeroParticulars}
+                </FormGrid>
+              </View>
+            );
+          }
+
           if (isAmateurPurchaseVariant) {
             const purchaseCallSignField: FieldDto = {
               fieldId: FIELD_ID_CALL_SIGN,
@@ -357,7 +395,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 <View style={styles.sectionHeaderRow}>
                   <View style={styles.sectionTitleRow}>
                     <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor)}</Text>
+                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, undefined, isAeroStationPurchase)}</Text>
                   </View>
                   <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
                 </View>
@@ -756,7 +794,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               <View style={styles.sectionHeaderRow}>
                 <View style={styles.sectionTitleRow}>
                   <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer)}</Text>
+                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer, isAeroStationPurchase)}</Text>
                 </View>
                 <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
               </View>
@@ -833,7 +871,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             <View style={styles.sectionHeaderRow}>
               <View style={styles.sectionTitleRow}>
                 <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer)}</Text>
+                <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer, isAeroStationPurchase)}</Text>
               </View>
               <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
             </View>

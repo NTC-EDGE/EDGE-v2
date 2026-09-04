@@ -108,7 +108,7 @@ export function ApplicantNameField({
   const companyName = structuredValue?.companyName ?? (activeType === "company" ? value : "");
   const representativeName = structuredValue?.representativeName ?? "";
 
-  const isCompanyMode = allowCompany && activeType === "company";
+  const isCompanyMode = activeType === "company";
 
   const handleIndividualChange = (
     newFn: string,

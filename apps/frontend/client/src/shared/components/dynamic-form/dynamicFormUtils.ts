@@ -122,9 +122,10 @@ export function getSectionTitle(
   isAmateurPurchaseVariant?: boolean,
   isVanityOrSpecialEvent?: boolean,
   isForeignVisitor?: boolean,
-  isAmateurSellTransfer?: boolean
+  isAmateurSellTransfer?: boolean,
+  isAeroStationPurchase?: boolean
 ): string {
-  if (isAmateurPermitService) {
+  if (isAmateurPermitService || isAeroStationPurchase) {
     const k = (sec.key || sec.id || "").trim().toLowerCase();
     const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
