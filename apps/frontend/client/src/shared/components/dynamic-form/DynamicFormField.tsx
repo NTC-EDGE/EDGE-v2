@@ -104,6 +104,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           }
           allowCompany={false}
           unifiedInput={false}
+          seamless={true}
           onChange={(combined) => onChange(targetId, displayLabel, combined)}
           onStructuredChange={onStructuredNameChange}
           error={err}
