@@ -175,6 +175,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const labelLower = (field.label || "").toLowerCase().trim();
     const rawType = (field.fieldType || field.type || "").toLowerCase();
     const secKeyLower = (section.key || section.id || "").toLowerCase();
+    const secTitleLower = (section.title || "").toLowerCase();
 
     if (isAmateurPermitService && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
     if ((isAmateurPermitService || isNonIndividualEntity) && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_BIRTH_DATE || fIdLower === "birthdate" || labelLower.includes("birth") || rawTargetId === "sex" || fIdLower === "sex" || labelLower === "sex" || rawTargetId === "civilstatus" || fIdLower === "civilstatus" || labelLower.includes("civil status") || rawTargetId === "nationality" || fIdLower === "nationality" || labelLower.includes("nationality") || fIdLower === "representativename")) return null;
@@ -259,10 +260,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         (values && values["Make/Type/Model"]) ||
         "";
 
+    const isSourceOfEquipmentSection = secKeyLower.includes("sourceofequipment") || secKeyLower.includes("source") || secTitleLower.includes("source");
+    const isFieldRequired = isSourceOfEquipmentSection ? false : (field.isRequired ?? false);
+
     return (
       <DynamicFormField
         key={targetId} field={field} targetId={targetId} val={val} err={errors?.[targetId]} displayLabel={field.label}
-        isRequired={field.isRequired ?? false} span={span} dropdownOptions={dropdownOptions} placeholder={field.placeholder || `Enter ${field.label}...`}
+        isRequired={isFieldRequired} span={span} dropdownOptions={dropdownOptions} placeholder={field.placeholder || `Enter ${field.label}...`}
         isNameField={isNameField} isRepeaterField={isRepeaterField} isBsdField={isBsdField} isVasRegField={isVasRegField}
         isIntendedUseField={isIntendedUseField} isVasServicesField={isVasServicesField} isSignature={isSignature} isCheckbox={isCheckbox}
         isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
