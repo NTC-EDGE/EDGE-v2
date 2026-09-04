@@ -110,7 +110,12 @@ export function EmployeeFormModal({
           )}
 
           {/* Form Scrollable Body */}
-          <EmployeeForm formState={formState} isMobile={isMobile} tenantId={tenantId} />
+          <EmployeeForm
+            formState={formState}
+            isMobile={isMobile}
+            tenantId={tenantId}
+            isEditing={isEditing}
+          />
 
           {/* Modal Sticky Footer Actions */}
           <View style={modalStyles.modalFooter}>

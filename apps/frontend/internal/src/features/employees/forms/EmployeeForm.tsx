@@ -5,6 +5,7 @@ import { useAdminRoles, useAdminFieldOffices } from '@edge/api';
 import { useEmployeeForm } from '../hooks/useEmployeeForm';
 import { SystemRoleSection } from '../components/SystemRoleSection';
 import { BasicInfoSection } from '../components/BasicInfoSection';
+import { AccountProvisioningSection } from '../components/AccountProvisioningSection';
 import { AssignmentSection } from '../components/AssignmentSection';
 import { SignatureSection } from '../components/SignatureSection';
 import { modalStyles } from '../styles/employeeModalStyles';
@@ -13,9 +14,10 @@ interface EmployeeFormProps {
   formState: ReturnType<typeof useEmployeeForm>;
   isMobile: boolean;
   tenantId?: string;
+  isEditing?: boolean;
 }
 
-export function EmployeeForm({ formState, isMobile, tenantId }: EmployeeFormProps) {
+export function EmployeeForm({ formState, isMobile, tenantId, isEditing = false }: EmployeeFormProps) {
   const {
     form,
     isRoleDropdownOpen,
@@ -31,6 +33,10 @@ export function EmployeeForm({ formState, isMobile, tenantId }: EmployeeFormProp
 
   const currentRole = useWatch({ control: form.control, name: 'role' });
   const currentFieldOffice = useWatch({ control: form.control, name: 'fieldOffice' });
+  const provisioningMethod = useWatch({
+    control: form.control,
+    name: 'provisioningMethod',
+  }) ?? 'email';
   const signatureDisplay = useWatch({
     control: form.control,
     name: 'signatureDisplay',
@@ -65,7 +71,19 @@ export function EmployeeForm({ formState, isMobile, tenantId }: EmployeeFormProp
       {/* 2. Basic Info Section */}
       <BasicInfoSection control={form.control} isMobile={isMobile} />
 
-      {/* 3. Assignment & Details Section (Live Backend Field Offices) */}
+      {/* 3. Account Provisioning & Signup Method (Create mode only) */}
+      {!isEditing && (
+        <AccountProvisioningSection
+          control={form.control}
+          isMobile={isMobile}
+          provisioningMethod={provisioningMethod}
+          onSelectMethod={(method) =>
+            form.setValue('provisioningMethod', method, { shouldValidate: true })
+          }
+        />
+      )}
+
+      {/* 4. Assignment & Details Section (Live Backend Field Offices) */}
       <AssignmentSection
         control={form.control}
         fieldOfficeValue={currentFieldOffice}
@@ -83,7 +101,7 @@ export function EmployeeForm({ formState, isMobile, tenantId }: EmployeeFormProp
         isMobile={isMobile}
       />
 
-      {/* 4. Signature Section */}
+      {/* 5. Signature Section */}
       <SignatureSection
         signatureDisplay={signatureDisplay}
         onChangeSignatureDisplay={(val) =>

@@ -37,15 +37,20 @@ export function mapTenantClientToUser(client: TenantClientDto, tenantName?: stri
     ? brandColors[charCodeSum % brandColors.length]
     : COLORS.brand.secondary;
 
-  const validStatus: UserStatus =
+  let validStatus: UserStatus = 'Under Review';
+  if (
     client.status === 'Active License' ||
     client.status === 'Under Review' ||
     client.status === 'Returned for Correction' ||
-    client.status === 'Draft'
-      ? (client.status as UserStatus)
-      : client.status === 'Complete' || client.status === 'Active'
-      ? 'Active License'
-      : 'Under Review';
+    client.status === 'Draft' ||
+    client.status === 'Active' ||
+    client.status === 'Pending' ||
+    client.status === 'Inactive'
+  ) {
+    validStatus = client.status;
+  } else if (client.status === 'Complete') {
+    validStatus = 'Active License';
+  }
 
   return {
     id: client.id,
@@ -125,7 +130,16 @@ export function mapTenantClientDetailsToUser(details: TenantClientDetailsDto, te
     organization: details.organization || (isCompany ? details.name : 'Individual Radio Permittee'),
     licenseCategory: details.serviceType || 'Fixed & Land Mobile Radio Network',
     applicationsCount: details.totalApplications,
-    status: (details.status as UserStatus) || 'Active License',
+    status:
+      details.status === 'Active License' ||
+      details.status === 'Under Review' ||
+      details.status === 'Returned for Correction' ||
+      details.status === 'Draft' ||
+      details.status === 'Active' ||
+      details.status === 'Pending' ||
+      details.status === 'Inactive'
+        ? details.status
+        : 'Active License',
     phone: details.contactNumber || '+63 (88) 856-4200',
     address: details.address || 'Regional Regulatory District, Cagayan de Oro City',
     createdDate: details.registeredDate ? new Date(details.registeredDate).toISOString().split('T')[0] : '2026-01-15',

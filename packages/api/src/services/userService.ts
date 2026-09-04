@@ -19,6 +19,7 @@ export interface CreateUserApiRequest {
   designation?: string;
   eSignature?: string;
   isSuperAdmin?: boolean;
+  sendInvitation?: boolean;
   redirectUrl?: string;
 }
 

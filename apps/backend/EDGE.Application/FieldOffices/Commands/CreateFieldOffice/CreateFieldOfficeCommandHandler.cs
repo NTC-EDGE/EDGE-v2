@@ -37,20 +37,15 @@ public class CreateFieldOfficeCommandHandler : IRequestHandler<CreateFieldOffice
     {
         // 1. Resolve Tenant
         var tenantId = request.TenantId.GetValueOrDefault();
-        Tenant? tenant = null;
-        if (tenantId != Guid.Empty)
+        if (tenantId == Guid.Empty)
         {
-            tenant = await _tenantRepository.GetByIdAsync(tenantId, cancellationToken);
+            throw new ArgumentException("Tenant ID is required to create a field office.", nameof(request.TenantId));
         }
+
+        var tenant = await _tenantRepository.GetByIdAsync(tenantId, cancellationToken);
         if (tenant == null)
         {
-            var tenants = await _tenantRepository.GetAllAsync(cancellationToken);
-            tenant = tenants.FirstOrDefault();
-            if (tenant == null)
-            {
-                throw new KeyNotFoundException("No active tenant found in system to associate with field office.");
-            }
-            tenantId = tenant.Id;
+            throw new KeyNotFoundException($"Tenant with ID '{tenantId}' was not found.");
         }
 
         // 2. Resolve Region

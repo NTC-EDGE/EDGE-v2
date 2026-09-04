@@ -175,16 +175,23 @@ public static class RolePermissionDataSeeder
 
         var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();
 
-        var existingInDb = (await context.RolePermissions
+        var existingInDb = await context.RolePermissions
             .IgnoreQueryFilters()
-            .Select(rp => new { rp.RoleId, rp.PermissionKey })
-            .ToListAsync())
-            .Select(rp => (rp.RoleId, rp.PermissionKey))
-            .ToHashSet();
+            .ToListAsync();
+        var existingMap = existingInDb.ToDictionary(rp => (rp.RoleId, rp.PermissionKey));
 
         foreach (var (roleId, permKey) in uniqueTargetRolePermissions)
         {
-            if (!existingInDb.Contains((roleId, permKey)))
+            if (existingMap.TryGetValue((roleId, permKey), out var existingRp))
+            {
+                if (existingRp.IsDeleted)
+                {
+                    existingRp.IsDeleted = false;
+                    existingRp.IsDeletedBy = string.Empty;
+                    existingRp.LastModifiedAt = staticDate;
+                }
+            }
+            else
             {
                 var rpEntity = new RolePermission
                 {
