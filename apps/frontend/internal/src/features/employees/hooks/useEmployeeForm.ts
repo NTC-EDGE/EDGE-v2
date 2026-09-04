@@ -40,6 +40,8 @@ export function useEmployeeForm({
     designation: '',
     signatureDisplay: 'beside',
     signatureFileName: null,
+    provisioningMethod: 'email',
+    password: '',
   };
 
   const form = useForm<EmployeeFormData>({
@@ -68,6 +70,8 @@ export function useEmployeeForm({
         signatureFileName: initialEmployee.signatureUri
           ? 'Uploaded_Signature.png'
           : null,
+        provisioningMethod: initialEmployee.provisioningMethod ?? 'email',
+        password: '',
       });
     } else {
       form.reset(defaultValues);
@@ -139,6 +143,8 @@ export function useEmployeeForm({
           data.signatureFileName !== null && data.signatureFileName !== undefined
             ? 'mock_signature.png'
             : undefined,
+        provisioningMethod: data.provisioningMethod,
+        password: data.password ? data.password.trim() : undefined,
       });
     } catch (err: unknown) {
       if (err instanceof Error) {

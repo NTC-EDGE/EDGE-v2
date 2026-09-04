@@ -160,8 +160,14 @@ export function UsersScreenContent({
 
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
 
-  const showToast = (msg: string) => {
-    toast.success(msg);
+  const showToast = (msg: string, variant: 'success' | 'error' | 'info' = 'success') => {
+    if (variant === 'error') {
+      toast.error(msg);
+    } else if (variant === 'info') {
+      toast.info(msg);
+    } else {
+      toast.success(msg);
+    }
   };
 
   useEffect(() => {
@@ -172,9 +178,9 @@ export function UsersScreenContent({
     setIsSyncing(true);
     try {
       await Promise.all([refetchClients(), refetchTransactions()]);
-      showToast(`Synchronized with ${currentTenantName} regulatory database`);
+      showToast(`Synchronized with ${currentTenantName} regulatory database`, 'success');
     } catch {
-      showToast('Synced regulatory records');
+      showToast('Failed to synchronize regulatory records with database.', 'error');
     } finally {
       setIsSyncing(false);
     }

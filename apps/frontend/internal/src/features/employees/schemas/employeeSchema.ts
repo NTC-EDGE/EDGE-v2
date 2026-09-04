@@ -19,6 +19,8 @@ export const employeeFormSchema = z.object({
   designation: z.string(),
   signatureDisplay: z.enum(['beside', 'above']),
   signatureFileName: z.string().nullable(),
+  provisioningMethod: z.enum(['email', 'manual']),
+  password: z.string().optional(),
 });
 
 export type EmployeeFormData = z.infer<typeof employeeFormSchema>;
