@@ -1,14 +1,22 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { Icon } from "@edge/ui";
-import { FormGrid } from "./FormGrid";
+import { View } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormSection1 } from "./dynamic-form/DynamicFormSection1";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
-import { getFieldSortPriority, getSectionTitle, parseOptions } from "./dynamic-form/dynamicFormUtils";
+import { getFieldSortPriority, parseOptions } from "./dynamic-form/dynamicFormUtils";
 import { useCertificateServicesQuery } from "./dynamic-form/useCertificateServicesQuery";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
+import {
+  VanitySpecialApplicantSection,
+  AeroStationPossessSection,
+  AeroStationPurchaseSection,
+  AmateurPurchaseSection,
+  VanityEquipmentSection,
+  ForeignVisitorStationSection,
+  PermitStationEquipmentSection,
+  DefaultDynamicSection,
+} from "./dynamic-form/sections";
 import {
   FIELD_ID_FULL_NAME,
   FIELD_ID_BIRTH_DATE,
@@ -341,32 +349,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         const secTitleLower = (section.title || "").toLowerCase();
 
         if (isVanityOrSpecialEvent && secKeyLower.includes("applicant")) {
-          const vanityApplicantFields: FieldDto[] = [
-            { fieldId: "fullName", id: "fullName", label: "Full Name", fieldType: "text", isRequired: true },
-            { fieldId: "dateOfBirth", id: "dateOfBirth", label: "Date of Birth", fieldType: "date", isRequired: true },
-            { fieldId: "sex", id: "sex", label: "Sex", fieldType: "dropdown", isRequired: true, options: ["Male", "Female", "Other"] },
-            { fieldId: "nationality", id: "nationality", label: "Nationality", fieldType: "text", isRequired: true, placeholder: "e.g. Filipino" },
-            { fieldId: "region", id: "region", label: "Region", fieldType: "dropdown", isRequired: true },
-            { fieldId: "province", id: "province", label: "Province", fieldType: "dropdown", isRequired: true },
-            { fieldId: "city", id: "city", label: "City / Municipality", fieldType: "dropdown", isRequired: true },
-            { fieldId: "barangay", id: "barangay", label: "Barangay", fieldType: "dropdown", isRequired: true },
-            { fieldId: "street", id: "street", label: "Street / Building Address", fieldType: "text", isRequired: true },
-            { fieldId: "zipCode", id: "zipCode", label: "Zip Code", fieldType: "text", isRequired: true },
-            { fieldId: "contactNo", id: "contactNo", label: "Contact Number", fieldType: "tel", isRequired: true },
-            { fieldId: "email", id: "email", label: "Email Address", fieldType: "email", isRequired: true },
-          ];
-          const renderedVanityApplicant = vanityApplicantFields.map((f, idx) => renderFieldInstance(f, idx, section)).filter(Boolean);
           return (
-            <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionTitleRow}>
-                  <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                  <Text style={styles.sectionTitle}>Applicant Details</Text>
-                </View>
-                <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-              </View>
-              <FormGrid>{renderedVanityApplicant}</FormGrid>
-            </View>
+            <VanitySpecialApplicantSection
+              key={section.id || section.key || `section-${sIdx}`}
+              section={section}
+              sectionDisplayNum={sectionDisplayNum}
+              renderFieldInstance={renderFieldInstance}
+            />
           );
         }
 
@@ -379,328 +368,54 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
         if (isStationEquipmentSection) {
           if (isAeroStationPossess) {
-            const aeroPossessTopFields: FieldDto[] = [
-              {
-                fieldId: FIELD_ID_SERVICE_AREA,
-                id: "serviceArea",
-                label: "Points of Comm/Service Area (optional)",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "Enter Points of Comm / Service Area...",
-              },
-              {
-                fieldId: FIELD_ID_FREQUENCY,
-                id: "frequency",
-                label: "Frequency: Within Authorized Aeronautical Band",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "Within Authorized Aeronautical Band",
-              },
-              {
-                fieldId: "frequencyUnit",
-                id: "frequencyUnit",
-                label: "Frequency Unit",
-                fieldType: "dropdown",
-                isRequired: true,
-                options: ["KHz", "MHz", "GHz"],
-              },
-              {
-                fieldId: FIELD_ID_BANDWIDTH,
-                id: "bandwidth",
-                label: "Bandwidth",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "e.g. 25",
-              },
-              {
-                fieldId: FIELD_ID_BANDWIDTH_UNIT,
-                id: "bandwidthUnit",
-                label: "Bandwidth Unit",
-                fieldType: "dropdown",
-                isRequired: true,
-                options: ["KHz", "MHz", "GHz"],
-              },
-              {
-                fieldId: FIELD_ID_EMISSION,
-                id: "emission",
-                label: "Emission",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "e.g. 6K00A3E",
-              },
-              {
-                fieldId: FIELD_ID_POWER_OUTPUT,
-                id: "powerOutput",
-                label: "Power Output (watts)",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "e.g. 50",
-              },
-              {
-                fieldId: FIELD_ID_HOURS_OP,
-                id: "hoursOfOperation",
-                label: "Hours of Operation",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "e.g. 24/7 or H24",
-              },
-            ];
-
-            const aeroClassField: FieldDto = {
-              fieldId: FIELD_ID_STATION_CLASS,
-              id: "stationClass",
-              label: "Class of Station",
-              fieldType: "dropdown",
-              isRequired: true,
-              options: ["FA", "MA"],
-            };
-
-            const aeroProposedStationFields: FieldDto[] = [
-              {
-                fieldId: "exactLocation",
-                id: "exactLocation",
-                label: "Exact Location",
-                fieldType: "text",
-                isRequired: true,
-                placeholder: "Enter exact station location...",
-              },
-              {
-                fieldId: "longitude",
-                id: "longitude",
-                label: "Longitude (deg-min-sec)",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "e.g. 120° 58' 42\" E",
-              },
-              {
-                fieldId: "latitude",
-                id: "latitude",
-                label: "Latitude (deg-min-sec)",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "e.g. 14° 35' 38\" N",
-              },
-              {
-                fieldId: "configuration",
-                id: "configuration",
-                label: "Configuration",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "Enter configuration...",
-              },
-              {
-                fieldId: "dataRate",
-                id: "dataRate",
-                label: "Data Rate",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "Enter data rate...",
-              },
-              {
-                fieldId: FIELD_ID_REMARKS,
-                id: "remarks",
-                label: "Remarks",
-                fieldType: "text",
-                isRequired: false,
-                placeholder: "Enter remarks...",
-              },
-            ];
-
-            const aeroEquipmentField: FieldDto = {
-              fieldId: "equipmentDetails",
-              id: "equipmentDetails",
-              label: "Particulars of Proposed Equipment",
-              fieldType: "repeater",
-              isRequired: true,
-            };
-
-            const renderedTopLevel = aeroPossessTopFields
-              .map((f, idx) => renderFieldInstance(f, idx, section))
-              .filter(Boolean);
-
             return (
-              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleRow}>
-                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>Particulars of Proposed Station / Equipment</Text>
-                  </View>
-                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-                </View>
-
-                {/* 1. Top-Level General Operating Fields */}
-                <FormGrid>{renderedTopLevel}</FormGrid>
-
-                {/* 2. Station Particulars Repeater */}
-                {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
-                  const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
-                  const renderedClassField = renderFieldInstance(aeroClassField, 0, section, instanceSuffix);
-                  const renderedProposedStationFields = aeroProposedStationFields
-                    .map((field, fIdx) => renderFieldInstance(field, fIdx, section, instanceSuffix))
-                    .filter(Boolean);
-                  const renderedEquipment = renderFieldInstance(aeroEquipmentField, 0, section, instanceSuffix);
-
-                  return (
-                    <View
-                      key={`station-particular-${stationIdx}`}
-                      style={styles.stationParticularCard}
-                    >
-                      <View style={styles.stationParticularHeader}>
-                        <View style={styles.stationParticularPill}>
-                          <Text style={styles.stationParticularPillText}>
-                            Station Particular #{stationIdx + 1}
-                          </Text>
-                        </View>
-                        {stationIdx > 0 && (
-                          <TouchableOpacity
-                            onPress={() => handleRemoveStationParticular(stationIdx)}
-                            style={styles.removeStationBtn}
-                            activeOpacity={0.7}
-                          >
-                            <Icon name="trash-2" size={13} color="#DC2626" />
-                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-
-                      {/* Class of Station (One Row) */}
-                      <FormGrid>{renderedClassField}</FormGrid>
-
-                      {/* Particulars of Proposed Station */}
-                      <View style={styles.subSectionBox}>
-                        <Text style={styles.subSectionTitle}>Particulars of Proposed Station</Text>
-                        <FormGrid>{renderedProposedStationFields}</FormGrid>
-                      </View>
-
-                      {/* Particulars of Proposed Equipment */}
-                      <View style={{ width: "100%", marginTop: 12 }}>
-                        {renderedEquipment}
-                      </View>
-                    </View>
-                  );
-                })}
-
-                <TouchableOpacity
-                  onPress={handleAddStationParticular}
-                  style={styles.addStationBtn}
-                  activeOpacity={0.8}
-                >
-                  <Icon name="plus" size={15} color="#1D4ED8" />
-                  <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
-                </TouchableOpacity>
-              </View>
+              <AeroStationPossessSection
+                key={section.id || section.key || `section-${sIdx}`}
+                section={section}
+                sectionDisplayNum={sectionDisplayNum}
+                stationParticularsCount={stationParticularsCount}
+                onAddStationParticular={handleAddStationParticular}
+                onRemoveStationParticular={handleRemoveStationParticular}
+                renderFieldInstance={renderFieldInstance}
+              />
             );
           }
 
           if (isAeroStationPurchase) {
-            const aeroPowerOutputField: FieldDto = {
-              fieldId: FIELD_ID_POWER_OUTPUT,
-              id: "powerOutput",
-              label: "Power Output (watts)",
-              fieldType: "text",
-              isRequired: true,
-              placeholder: "e.g. 50",
-            };
-
-            const aeroParticularsField: FieldDto = {
-              fieldId: "aeroStationParticulars",
-              id: "aeroStationParticulars",
-              label: "Class of Station",
-              fieldType: "repeater",
-              isRequired: true,
-            };
-
-            const renderedPowerOutput = renderFieldInstance(aeroPowerOutputField, 0, section);
-            const renderedAeroParticulars = renderFieldInstance(aeroParticularsField, 1, section);
-
             return (
-              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleRow}>
-                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>Particulars of Proposed Station / Equipment</Text>
-                  </View>
-                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-                </View>
-
-                <FormGrid>
-                  {renderedPowerOutput}
-                  {renderedAeroParticulars}
-                </FormGrid>
-              </View>
+              <AeroStationPurchaseSection
+                key={section.id || section.key || `section-${sIdx}`}
+                section={section}
+                sectionDisplayNum={sectionDisplayNum}
+                renderFieldInstance={renderFieldInstance}
+              />
             );
           }
 
           if (isAmateurPurchaseVariant) {
-            const purchaseCallSignField: FieldDto = {
-              fieldId: FIELD_ID_CALL_SIGN,
-              id: "callSign",
-              label: "Call Sign",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "Enter Call Sign...",
-            };
-
-            const purchaseFrequenciesField: FieldDto = {
-              fieldId: FIELD_ID_FREQUENCY,
-              id: "frequency",
-              label: "Frequency(ies)",
-              fieldType: "text",
-              isRequired: true,
-              placeholder: "e.g. 144.0-146.0 MHz, 430.0-440.0 MHz",
-            };
-
-            const purchaseParticularsField: FieldDto = {
-              fieldId: "particulars",
-              id: "particulars",
-              label: "Particulars",
-              fieldType: "repeater",
-              isRequired: true,
-            };
-
-            const renderedCallSign = renderFieldInstance(purchaseCallSignField, 0, section);
-            const renderedFrequencies = renderFieldInstance(purchaseFrequenciesField, 1, section);
-            const renderedParticulars = renderFieldInstance(purchaseParticularsField, 2, section);
-
             return (
-              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleRow}>
-                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, undefined, isAeroStationPurchase)}</Text>
-                  </View>
-                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-                </View>
-
-                <FormGrid>
-                  {renderedCallSign}
-                  {renderedFrequencies}
-                  {renderedParticulars}
-                </FormGrid>
-              </View>
+              <AmateurPurchaseSection
+                key={section.id || section.key || `section-${sIdx}`}
+                section={section}
+                sectionDisplayNum={sectionDisplayNum}
+                isAmateurPermitService={isAmateurPermitService}
+                isAmateurPurchaseVariant={isAmateurPurchaseVariant}
+                isVanityOrSpecialEvent={isVanityOrSpecialEvent}
+                isForeignVisitor={isForeignVisitor}
+                isAeroStationPurchase={isAeroStationPurchase}
+                renderFieldInstance={renderFieldInstance}
+              />
             );
           }
 
           if (isVanityOrSpecialEvent) {
-            const vanityEquipmentField: FieldDto = {
-              fieldId: "equipmentDetails",
-              id: "equipmentDetails",
-              label: "Particulars of Proposed Equipment",
-              fieldType: "repeater",
-              isRequired: true,
-            };
-            const renderedVanityEq = renderFieldInstance(vanityEquipmentField, 0, section);
             return (
-              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleRow}>
-                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>Particulars</Text>
-                  </View>
-                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-                </View>
-                <FormGrid>{renderedVanityEq}</FormGrid>
-              </View>
+              <VanityEquipmentSection
+                key={section.id || section.key || `section-${sIdx}`}
+                section={section}
+                sectionDisplayNum={sectionDisplayNum}
+                renderFieldInstance={renderFieldInstance}
+              />
             );
           }
 
@@ -835,91 +550,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           ];
 
           if (isForeignVisitor) {
-            const foreignTopLevelFields: FieldDto[] = [
-              canonicalPermitStationFields[1], // Points of Comm / Service Area
-              canonicalPermitStationFields[2], // Frequency
-              canonicalPermitStationFields[3], // Bandwidth
-              canonicalPermitStationFields[4], // Unit
-              canonicalPermitStationFields[5], // Emission
-              canonicalPermitStationFields[6], // Power Output
-              canonicalPermitStationFields[7], // Hours of Operation
-            ];
-
-            const foreignStationFields: FieldDto[] = [
-              canonicalPermitStationFields[8],  // Class of Station
-              canonicalPermitStationFields[9],  // Exact Location
-              canonicalPermitStationFields[10], // Longitude
-              canonicalPermitStationFields[11], // Latitude
-              canonicalPermitStationFields[12], // Configuration
-              canonicalPermitStationFields[13], // Data Rate
-              canonicalPermitStationFields[14], // Remarks
-              canonicalPermitStationFields[15], // Particulars of Proposed Equipment
-            ];
-
-            const renderedForeignTop = foreignTopLevelFields
-              .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
-              .filter(Boolean);
-
             return (
-              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-                <View style={styles.sectionHeaderRow}>
-                  <View style={styles.sectionTitleRow}>
-                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                    <Text style={styles.sectionTitle}>Particulars of Equipment</Text>
-                  </View>
-                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-                </View>
-
-                {/* 1. Top-Level General Operating Fields */}
-                {renderedForeignTop.length > 0 && (
-                  <View style={{ marginBottom: 16 }}>
-                    <FormGrid>{renderedForeignTop}</FormGrid>
-                  </View>
-                )}
-
-                {/* 2. Station Particulars Repeater */}
-                {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
-                  const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
-                  const renderedStationFields = foreignStationFields.map((field, fIdx) =>
-                    renderFieldInstance(field, fIdx, section, instanceSuffix)
-                  ).filter(Boolean);
-
-                  return (
-                    <View
-                      key={`station-particular-${stationIdx}`}
-                      style={styles.stationParticularCard}
-                    >
-                      <View style={styles.stationParticularHeader}>
-                        <View style={styles.stationParticularPill}>
-                          <Text style={styles.stationParticularPillText}>
-                            Station Particular #{stationIdx + 1}
-                          </Text>
-                        </View>
-                        {stationIdx > 0 && (
-                          <TouchableOpacity
-                            onPress={() => handleRemoveStationParticular(stationIdx)}
-                            style={styles.removeStationBtn}
-                            activeOpacity={0.7}
-                          >
-                            <Icon name="trash-2" size={13} color="#DC2626" />
-                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
-                          </TouchableOpacity>
-                        )}
-                      </View>
-                      <FormGrid>{renderedStationFields}</FormGrid>
-                    </View>
-                  );
-                })}
-
-                <TouchableOpacity
-                  onPress={handleAddStationParticular}
-                  style={styles.addStationBtn}
-                  activeOpacity={0.8}
-                >
-                  <Icon name="plus" size={15} color="#1D4ED8" />
-                  <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
-                </TouchableOpacity>
-              </View>
+              <ForeignVisitorStationSection
+                key={section.id || section.key || `section-${sIdx}`}
+                section={section}
+                sectionDisplayNum={sectionDisplayNum}
+                stationParticularsCount={stationParticularsCount}
+                canonicalPermitStationFields={canonicalPermitStationFields}
+                onAddStationParticular={handleAddStationParticular}
+                onRemoveStationParticular={handleRemoveStationParticular}
+                renderFieldInstance={renderFieldInstance}
+              />
             );
           }
 
@@ -929,226 +570,42 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             varDesc.includes("permit") ||
             isAmateurPermitService;
 
-          const topLevelFields: FieldDto[] = isPermitService
-            ? [
-                canonicalPermitStationFields[0], // Call Sign
-                canonicalPermitStationFields[1], // Points of Comm / Service Area
-                canonicalPermitStationFields[2], // Frequency
-                canonicalPermitStationFields[3], // Bandwidth
-                canonicalPermitStationFields[4], // Unit
-                canonicalPermitStationFields[5], // Emission
-                canonicalPermitStationFields[6], // Power Output
-                canonicalPermitStationFields[7], // Hours of Operation
-              ]
-            : sectionFields.filter((f) => {
-                const rawId = (f.fieldId || f.id || "").toLowerCase();
-                const lbl = (f.label || "").toLowerCase();
-                return (
-                  rawId.includes("callsign") ||
-                  lbl.includes("call sign") ||
-                  rawId.includes("servicearea") ||
-                  lbl.includes("service area") ||
-                  lbl.includes("points of comm") ||
-                  rawId.includes("frequency") ||
-                  lbl.includes("frequency") ||
-                  rawId.includes("bandwidth") ||
-                  lbl.includes("bandwidth") ||
-                  rawId.includes("emission") ||
-                  lbl.includes("emission") ||
-                  rawId.includes("poweroutput") ||
-                  lbl.includes("power output") ||
-                  rawId.includes("hoursofoperation") ||
-                  lbl.includes("hours of operation")
-                );
-              });
-
-          const stationParticularFields: FieldDto[] = isPermitService
-            ? [
-                canonicalPermitStationFields[8],  // Class of Station
-                canonicalPermitStationFields[9],  // Exact Location
-                canonicalPermitStationFields[10], // Longitude
-                canonicalPermitStationFields[11], // Latitude
-                canonicalPermitStationFields[12], // Configuration
-                canonicalPermitStationFields[13], // Data Rate
-                canonicalPermitStationFields[14], // Remarks
-                canonicalPermitStationFields[15], // Particulars of Proposed Equipment
-              ]
-            : sectionFields.filter((f) => !topLevelFields.some((tl) => (tl.fieldId || tl.id) === (f.fieldId || f.id)));
-
-          const findSeededField = (idMatch: string, fallback: FieldDto): FieldDto => {
-            const match = sectionFields.find((f) => {
-              const fId = (f.fieldId || f.id || "").toLowerCase();
-              return fId === idMatch.toLowerCase() || (f.label || "").toLowerCase().includes(idMatch.toLowerCase());
-            });
-            return match
-              ? {
-                  ...fallback,
-                  fieldId: match.fieldId || match.id || fallback.fieldId,
-                  id: match.id || match.fieldId || fallback.id,
-                  isRequired: match.isRequired ?? fallback.isRequired,
-                }
-              : fallback;
-          };
-
-          const antennaParticularFields: FieldDto[] = [
-            findSeededField("antennaType", {
-              fieldId: "antennaType",
-              id: "antennaType",
-              label: "Type",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. Yagi, Omni, Dipole",
-            }),
-            findSeededField("height", {
-              fieldId: "height",
-              id: "height",
-              label: "Height",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. 1500 cm / 15m",
-            }),
-            findSeededField("gain", {
-              fieldId: "gain",
-              id: "gain",
-              label: "Gain",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. 12 dB / 9 dBi",
-            }),
-            findSeededField("directivity", {
-              fieldId: "directivity",
-              id: "directivity",
-              label: "Directivity",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. Directional, Omni",
-            }),
-            findSeededField("diameter", {
-              fieldId: "diameter",
-              id: "diameter",
-              label: "Diameter",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. 1.2m, N/A",
-            }),
-            findSeededField("polarization", {
-              fieldId: "polarization",
-              id: "polarization",
-              label: "Polarization",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. Vertical, Horizontal",
-            }),
-            findSeededField("beamwidth", {
-              fieldId: "beamwidth",
-              id: "beamwidth",
-              label: "Beamwidth",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. 60 deg",
-            }),
-            findSeededField("antennaRemarks", {
-              fieldId: "antennaRemarks",
-              id: "antennaRemarks",
-              label: "Remarks",
-              fieldType: "text",
-              isRequired: false,
-              placeholder: "e.g. Mast mounted",
-            }),
-          ];
-
-          const renderedTopLevel = topLevelFields
-            .map((field, fIdx) => renderFieldInstance(field, fIdx, section))
-            .filter(Boolean);
-
           return (
-            <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-              <View style={styles.sectionHeaderRow}>
-                <View style={styles.sectionTitleRow}>
-                  <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                  <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer, isAeroStationPurchase)}</Text>
-                </View>
-                <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-              </View>
-
-              {/* 1. Top-Level General Operating Fields (Entered Once) */}
-              {renderedTopLevel.length > 0 && (
-                <View style={{ marginBottom: 16 }}>
-                  <FormGrid>{renderedTopLevel}</FormGrid>
-                </View>
-              )}
-
-              {/* 2. Station Particulars Repeater */}
-              {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
-                const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
-                const renderedStationFields = stationParticularFields.map((field, fIdx) =>
-                  renderFieldInstance(field, fIdx, section, instanceSuffix)
-                ).filter(Boolean);
-
-                const renderedAntennaFields = antennaParticularFields.map((field, fIdx) =>
-                  renderFieldInstance(field, fIdx, section, instanceSuffix)
-                ).filter(Boolean);
-
-                return (
-                  <View
-                    key={`station-particular-${stationIdx}`}
-                    style={styles.stationParticularCard}
-                  >
-                    <View style={styles.stationParticularHeader}>
-                      <View style={styles.stationParticularPill}>
-                        <Text style={styles.stationParticularPillText}>
-                          Station Particular #{stationIdx + 1}
-                        </Text>
-                      </View>
-                      {stationIdx > 0 && (
-                        <TouchableOpacity
-                          onPress={() => handleRemoveStationParticular(stationIdx)}
-                          style={styles.removeStationBtn}
-                          activeOpacity={0.7}
-                        >
-                          <Icon name="trash-2" size={13} color="#DC2626" />
-                          <Text style={styles.removeStationBtnText}>Remove Station</Text>
-                        </TouchableOpacity>
-                      )}
-                    </View>
-                    <FormGrid>{renderedStationFields}</FormGrid>
-                    {isAmateurSellTransfer && (
-                      <View style={styles.subSectionBox}>
-                        <Text style={styles.subSectionTitle}>Particulars of Antenna</Text>
-                        <FormGrid>{renderedAntennaFields}</FormGrid>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-
-              <TouchableOpacity
-                onPress={handleAddStationParticular}
-                style={styles.addStationBtn}
-                activeOpacity={0.8}
-              >
-                <Icon name="plus" size={15} color="#1D4ED8" />
-                <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
-              </TouchableOpacity>
-            </View>
+            <PermitStationEquipmentSection
+              key={section.id || section.key || `section-${sIdx}`}
+              section={section}
+              sectionDisplayNum={sectionDisplayNum}
+              stationParticularsCount={stationParticularsCount}
+              sectionFields={sectionFields}
+              canonicalPermitStationFields={canonicalPermitStationFields}
+              isPermitService={isPermitService}
+              isAmateurSellTransfer={isAmateurSellTransfer}
+              isAmateurPermitService={isAmateurPermitService}
+              isAmateurPurchaseVariant={isAmateurPurchaseVariant}
+              isVanityOrSpecialEvent={isVanityOrSpecialEvent}
+              isForeignVisitor={isForeignVisitor}
+              isAeroStationPurchase={isAeroStationPurchase}
+              onAddStationParticular={handleAddStationParticular}
+              onRemoveStationParticular={handleRemoveStationParticular}
+              renderFieldInstance={renderFieldInstance}
+            />
           );
         }
 
-        const renderedFields = sectionFields.map((field, fIdx) =>
-          renderFieldInstance(field, fIdx, section)
-        ).filter(Boolean);
-
         return (
-          <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
-            <View style={styles.sectionHeaderRow}>
-              <View style={styles.sectionTitleRow}>
-                <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
-                <Text style={styles.sectionTitle}>{getSectionTitle(section, isAmateurPermitService, isAmateurPurchaseVariant, isVanityOrSpecialEvent, isForeignVisitor, isAmateurSellTransfer, isAeroStationPurchase)}</Text>
-              </View>
-              <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
-            </View>
-            <FormGrid>{renderedFields}</FormGrid>
-          </View>
+          <DefaultDynamicSection
+            key={section.id || section.key || `section-${sIdx}`}
+            section={section}
+            sectionDisplayNum={sectionDisplayNum}
+            sectionFields={sectionFields}
+            isAmateurPermitService={isAmateurPermitService}
+            isAmateurPurchaseVariant={isAmateurPurchaseVariant}
+            isVanityOrSpecialEvent={isVanityOrSpecialEvent}
+            isForeignVisitor={isForeignVisitor}
+            isAmateurSellTransfer={isAmateurSellTransfer}
+            isAeroStationPurchase={isAeroStationPurchase}
+            renderFieldInstance={renderFieldInstance}
+          />
         );
       })}
     </View>
