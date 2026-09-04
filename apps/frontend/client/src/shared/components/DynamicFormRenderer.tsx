@@ -188,7 +188,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || fIdLower === "sex" || labelLower === "sex" || (fIdLower === "stationclass" && isAmateurPermitService);
+    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || fIdLower === "sex" || labelLower === "sex" || (fIdLower === "stationclass" && (isAmateurPermitService || isAeroService));
     const isDate = rawType === "date" || labelLower.includes("date");
     const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts");
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
@@ -204,6 +204,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       isVasRegField ||
       isIntendedUseField ||
       isVasServicesField ||
+      (isAeroStationPossess && fIdLower === "stationclass") ||
+      (isAeroStationPossess && fIdLower === "exactlocation") ||
       fIdLower.includes("beamwidth") ||
       labelLower.includes("beamwidth") ||
       fIdLower.includes("antennaremarks") ||
@@ -230,7 +232,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     let dropdownOptions: Array<{ label: string; value: string }> = [];
     if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "stationclass" || labelLower.includes("station class") || rawTargetId === FIELD_ID_STATION_CLASS) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
+    else if (fIdLower === "stationclass" || labelLower.includes("station class") || rawTargetId === FIELD_ID_STATION_CLASS) {
+      if (isAeroService) {
+        dropdownOptions = [{ label: "FA", value: "FA" }, { label: "MA", value: "MA" }];
+      } else {
+        dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
+      }
+    }
     else if (fIdLower === "sex" || labelLower === "sex") dropdownOptions = [{ label: "Male", value: "Male" }, { label: "Female", value: "Female" }, { label: "Other", value: "Other" }];
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
@@ -256,6 +264,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
         isForeignVisitor={isForeignVisitor} isVanityOrSpecialEvent={isVanityOrSpecialEvent}
         showCallSign={isForeignVisitor || (isAeroStationPossess && isRepeaterField)}
+        hideAddButton={isAeroStationPossess && isRepeaterField}
+        maxRows={isAeroStationPossess && isRepeaterField ? 1 : undefined}
         structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
         parentMakeTypeModel={parentMakeTypeModel}
         onChange={onChange} onStructuredNameChange={onStructuredNameChange}
@@ -359,7 +369,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
         if (isStationEquipmentSection) {
           if (isAeroStationPossess) {
-            const aeroPossessFields: FieldDto[] = [
+            const aeroPossessTopFields: FieldDto[] = [
               {
                 fieldId: FIELD_ID_SERVICE_AREA,
                 id: "serviceArea",
@@ -424,18 +434,79 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 isRequired: true,
                 placeholder: "e.g. 24/7 or H24",
               },
+            ];
+
+            const aeroClassField: FieldDto = {
+              fieldId: FIELD_ID_STATION_CLASS,
+              id: "stationClass",
+              label: "Class of Station",
+              fieldType: "dropdown",
+              isRequired: true,
+              options: ["FA", "MA"],
+            };
+
+            const aeroProposedStationFields: FieldDto[] = [
               {
-                fieldId: "equipmentDetails",
-                id: "equipmentDetails",
-                label: "Particulars of Proposed Equipment",
-                fieldType: "repeater",
+                fieldId: "exactLocation",
+                id: "exactLocation",
+                label: "Exact Location",
+                fieldType: "text",
                 isRequired: true,
+                placeholder: "Enter exact station location...",
+              },
+              {
+                fieldId: "longitude",
+                id: "longitude",
+                label: "Longitude (deg-min-sec)",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "e.g. 120° 58' 42\" E",
+              },
+              {
+                fieldId: "latitude",
+                id: "latitude",
+                label: "Latitude (deg-min-sec)",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "e.g. 14° 35' 38\" N",
+              },
+              {
+                fieldId: "configuration",
+                id: "configuration",
+                label: "Configuration",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "Enter configuration...",
+              },
+              {
+                fieldId: "dataRate",
+                id: "dataRate",
+                label: "Data Rate",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "Enter data rate...",
+              },
+              {
+                fieldId: FIELD_ID_REMARKS,
+                id: "remarks",
+                label: "Remarks",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "Enter remarks...",
               },
             ];
 
-            const renderedAeroPossess = aeroPossessFields.map((f, idx) => {
-              return renderFieldInstance(f, idx, section);
-            }).filter(Boolean);
+            const aeroEquipmentField: FieldDto = {
+              fieldId: "equipmentDetails",
+              id: "equipmentDetails",
+              label: "Particulars of Proposed Equipment",
+              fieldType: "repeater",
+              isRequired: true,
+            };
+
+            const renderedTopLevel = aeroPossessTopFields
+              .map((f, idx) => renderFieldInstance(f, idx, section))
+              .filter(Boolean);
 
             return (
               <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
@@ -447,9 +518,66 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                   <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
                 </View>
 
-                <FormGrid>
-                  {renderedAeroPossess}
-                </FormGrid>
+                {/* 1. Top-Level General Operating Fields */}
+                <FormGrid>{renderedTopLevel}</FormGrid>
+
+                {/* 2. Station Particulars Repeater */}
+                {Array.from({ length: stationParticularsCount }).map((_, stationIdx) => {
+                  const instanceSuffix = stationIdx === 0 ? "" : `station_${stationIdx}`;
+                  const renderedClassField = renderFieldInstance(aeroClassField, 0, section, instanceSuffix);
+                  const renderedProposedStationFields = aeroProposedStationFields
+                    .map((field, fIdx) => renderFieldInstance(field, fIdx, section, instanceSuffix))
+                    .filter(Boolean);
+                  const renderedEquipment = renderFieldInstance(aeroEquipmentField, 0, section, instanceSuffix);
+
+                  return (
+                    <View
+                      key={`station-particular-${stationIdx}`}
+                      style={styles.stationParticularCard}
+                    >
+                      <View style={styles.stationParticularHeader}>
+                        <View style={styles.stationParticularPill}>
+                          <Text style={styles.stationParticularPillText}>
+                            Station Particular #{stationIdx + 1}
+                          </Text>
+                        </View>
+                        {stationIdx > 0 && (
+                          <TouchableOpacity
+                            onPress={() => handleRemoveStationParticular(stationIdx)}
+                            style={styles.removeStationBtn}
+                            activeOpacity={0.7}
+                          >
+                            <Icon name="trash-2" size={13} color="#DC2626" />
+                            <Text style={styles.removeStationBtnText}>Remove Station</Text>
+                          </TouchableOpacity>
+                        )}
+                      </View>
+
+                      {/* Class of Station (One Row) */}
+                      <FormGrid>{renderedClassField}</FormGrid>
+
+                      {/* Particulars of Proposed Station */}
+                      <View style={styles.subSectionBox}>
+                        <Text style={styles.subSectionTitle}>Particulars of Proposed Station</Text>
+                        <FormGrid>{renderedProposedStationFields}</FormGrid>
+                      </View>
+
+                      {/* Particulars of Proposed Equipment */}
+                      <View style={{ width: "100%", marginTop: 12 }}>
+                        {renderedEquipment}
+                      </View>
+                    </View>
+                  );
+                })}
+
+                <TouchableOpacity
+                  onPress={handleAddStationParticular}
+                  style={styles.addStationBtn}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="plus" size={15} color="#1D4ED8" />
+                  <Text style={styles.addStationBtnText}>Add Another Station Particular</Text>
+                </TouchableOpacity>
               </View>
             );
           }

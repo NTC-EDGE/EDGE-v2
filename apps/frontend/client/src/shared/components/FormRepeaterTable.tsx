@@ -42,6 +42,7 @@ export function FormRepeaterTable({
   fieldKey,
   parentMakeTypeModel,
   showCallSign = false,
+  hideAddButton = false,
 }: FormRepeaterTableProps) {
   const resolvedColumns = resolveRepeaterColumns(fieldKey, label, columns);
   const {
@@ -113,7 +114,7 @@ export function FormRepeaterTable({
         ))}
       </View>
 
-      {rows.length < maxRows && (
+      {!hideAddButton && rows.length < maxRows && (
         <TouchableOpacity
           onPress={handleAddRow}
           style={styles.addButton}

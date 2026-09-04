@@ -47,6 +47,8 @@ export interface DynamicFormFieldProps {
   isBulk?: boolean;
   appMode?: "SINGLE" | "BULK" | "";
   parentMakeTypeModel?: string;
+  hideAddButton?: boolean;
+  maxRows?: number;
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
   onDropdownChange: (val: string) => void;
@@ -86,6 +88,8 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isBulk,
   appMode,
   parentMakeTypeModel,
+  hideAddButton,
+  maxRows,
   onChange,
   onStructuredNameChange,
   onDropdownChange,
@@ -118,6 +122,8 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             fieldKey={targetId}
             parentMakeTypeModel={parentMakeTypeModel}
             showCallSign={showCallSign || isForeignVisitor}
+            hideAddButton={hideAddButton}
+            maxRows={maxRows}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}
           />
