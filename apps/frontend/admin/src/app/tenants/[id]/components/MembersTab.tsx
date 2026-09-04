@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import {
   Users,
   UserPlus,
@@ -11,8 +11,10 @@ import {
   Trash2,
   Loader2,
   Eye,
-  Info,
-  UserCheck
+  UserCheck,
+  Key,
+  Lock,
+  EyeOff
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ActionMenu } from "@/components/ui/action-menu";
@@ -45,26 +47,28 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
   const { useTenantMembers, useMemberDetails, assignUserToTenant, updateMemberDetails, removeUserFromTenant } = useTenantMemberService();
   const { useFieldOffices } = useFieldOfficeService();
   const { useRoles } = useRoleService();
-  const { useUsers } = useUserService();
+  const { useUsers, createUser } = useUserService();
 
-  const { data: fetchedMembers, mutate: mutateMembers, isLoading: loadingMembers } = useTenantMembers(tenantId);
-  const { data: fetchedRoles } = useRoles(tenantId);
-  const { data: allUsers, isLoading: loadingUsers } = useUsers();
-  const rolesList: Role[] = fetchedRoles ?? [];
-
-  const [isAssignMemberOpen, setIsAssignMemberOpen] = useState(false);
+  const [isAddEmployeeOpen, setIsAddEmployeeOpen] = useState(false);
+  const [addMode, setAddMode] = useState<"create" | "assign">("create");
   const [isEditMemberOpen, setIsEditMemberOpen] = useState(false);
   const [isRemoveMemberOpen, setIsRemoveMemberOpen] = useState(false);
   const [isViewMemberOpen, setIsViewMemberOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [selectedMember, setSelectedMember] = useState<TenantMember | null>(null);
   const [viewingMemberId, setViewingMemberId] = useState<string | null>(null);
 
-  const { data: localFieldOffices } = useFieldOffices(
-    isAssignMemberOpen || isEditMemberOpen ? tenantId : null,
-    isAssignMemberOpen || isEditMemberOpen ? currentTenant.regionId : null
-  );
-  const activeFieldOfficesList = localFieldOffices ?? fieldOfficesList;
+  const isFormOpen = isAddEmployeeOpen || isEditMemberOpen;
+  const isAssignMode = isAddEmployeeOpen && addMode === "assign";
+
+  const { data: fetchedMembers, mutate: mutateMembers, isLoading: loadingMembers } = useTenantMembers(tenantId);
+  const { data: fetchedRoles, isLoading: loadingRoles } = useRoles(isFormOpen ? tenantId : null);
+  const { data: allUsers, isLoading: loadingUsers } = useUsers(isAssignMode);
+  const rolesList: Role[] = fetchedRoles ?? [];
+
+  const { data: localFieldOffices, isLoading: loadingFieldOffices } = useFieldOffices(isFormOpen ? tenantId : null);
+  const activeFieldOfficesList = localFieldOffices ?? [];
 
   const { data: memberDetails, isLoading: loadingMemberDetails } = useMemberDetails(
     tenantId,
@@ -76,15 +80,35 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     setIsViewMemberOpen(true);
   };
 
+  // Form state for creating a new employee account (with automatic tenant membership)
+  const [newEmployeeData, setNewEmployeeData] = useState({
+    email: "",
+    firstName: "",
+    lastName: "",
+    middleName: "",
+    suffix: "",
+    contactNumber: "",
+    roleId: "",
+    fieldOfficeId: "",
+    jobTitle: "",
+    level: "",
+    division: "",
+    position: "",
+    designation: "",
+    provisioningMethod: "email" as "email" | "manual",
+    password: "",
+  });
+
+  // Form state for assigning an existing user or editing an existing member
   const [memberFormData, setMemberFormData] = useState({
     userId: "",
     roleId: "",
     fieldOfficeId: "",
     jobTitle: "",
-    level: "SG-18",
-    division: "Licensing & Permit Division",
-    position: "Engineer III",
-    designation: "Spectrum Regulator",
+    level: "",
+    division: "",
+    position: "",
+    designation: "",
   });
 
   const tenantMembersList: TenantMember[] = fetchedMembers ?? [];
@@ -114,32 +138,72 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
   }, [rolesList]);
 
   const fieldOfficeOptions: SelectOption[] = useMemo(() => {
-    return [
-      { value: "", label: "Headquarters / Main Regional Office (Unassigned)" },
-      ...activeFieldOfficesList.map((fo) => ({
+    return (activeFieldOfficesList || []).map((fo) => {
+      const details = [fo.provinceName, fo.address].filter(Boolean).join(" • ");
+      return {
         value: fo.id,
-        label: fo.name,
-        description: fo.address || undefined,
-      })),
-    ];
+        label: fo.code ? `${fo.name} (${fo.code})` : fo.name,
+        description: details || undefined,
+        badge: fo.isActive ? "Active" : "Inactive",
+      };
+    });
   }, [activeFieldOfficesList]);
 
-  const handleOpenAssignMember = () => {
+  // Sync default roleId once roles are fetched on-demand
+  useEffect(() => {
+    if (rolesList.length > 0) {
+      setNewEmployeeData((prev) => (prev.roleId ? prev : { ...prev, roleId: rolesList[0].id }));
+      setMemberFormData((prev) => (prev.roleId ? prev : { ...prev, roleId: rolesList[0].id }));
+    }
+  }, [rolesList]);
+
+  // Sync default userId once users are fetched in assign mode
+  useEffect(() => {
+    if (userOptions.length > 0) {
+      const firstAvailable = userOptions.find((u) => !u.disabled);
+      if (firstAvailable) {
+        setMemberFormData((prev) => (prev.userId ? prev : { ...prev, userId: firstAvailable.value }));
+      }
+    }
+  }, [userOptions]);
+
+  const handleOpenAddEmployee = () => {
     const defaultRoleId = rolesList.length > 0 ? rolesList[0].id : "";
-    const defaultFieldOfficeId = activeFieldOfficesList.length > 0 ? activeFieldOfficesList[0].id : "";
     const availableUser = userOptions.find((u) => !u.disabled);
+
+    setAddMode("create");
+    setShowPassword(false);
+
+    setNewEmployeeData({
+      email: "",
+      firstName: "",
+      lastName: "",
+      middleName: "",
+      suffix: "",
+      contactNumber: "",
+      roleId: defaultRoleId,
+      fieldOfficeId: "",
+      jobTitle: "",
+      level: "",
+      division: "",
+      position: "",
+      designation: "",
+      provisioningMethod: "email",
+      password: "",
+    });
 
     setMemberFormData({
       userId: availableUser ? availableUser.value : "",
       roleId: defaultRoleId,
-      fieldOfficeId: defaultFieldOfficeId,
-      jobTitle: "Regulator Officer",
-      level: "SG-18",
-      division: "Licensing & Permit Division",
-      position: "Engineer III",
-      designation: "Spectrum Regulator",
+      fieldOfficeId: "",
+      jobTitle: "",
+      level: "",
+      division: "",
+      position: "",
+      designation: "",
     });
-    setIsAssignMemberOpen(true);
+
+    setIsAddEmployeeOpen(true);
   };
 
   const handleOpenEditMember = (member: TenantMember) => {
@@ -148,11 +212,11 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       userId: member.userId,
       roleId: member.roleId,
       fieldOfficeId: member.fieldOfficeId ?? "",
-      jobTitle: member.jobTitle ?? "Staff Officer",
-      level: member.level ?? "SG-18",
-      division: member.division ?? "Operations",
-      position: member.position ?? "Officer",
-      designation: member.designation ?? "Regulator",
+      jobTitle: member.jobTitle ?? "",
+      level: member.level ?? "",
+      division: member.division ?? "",
+      position: member.position ?? "",
+      designation: member.designation ?? "",
     });
     setIsEditMemberOpen(true);
   };
@@ -162,33 +226,94 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     setIsRemoveMemberOpen(true);
   };
 
-  const handleAssignMemberSubmit = async (e: React.FormEvent) => {
+  const handleAddEmployeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberFormData.userId || !memberFormData.roleId) {
-      showToast.error("Please select a user account and security role.");
-      return;
-    }
 
-    setIsSubmitting(true);
-    try {
-      await assignUserToTenant(tenantId, {
-        tenantId: tenantId,
-        userId: memberFormData.userId,
-        roleId: memberFormData.roleId,
-        fieldOfficeId: memberFormData.fieldOfficeId || null,
-        jobTitle: memberFormData.jobTitle || null,
-        level: memberFormData.level || null,
-        division: memberFormData.division,
-        position: memberFormData.position,
-        designation: memberFormData.designation || null,
-      });
-      await mutateMembers();
-      setIsAssignMemberOpen(false);
-      showToast.success("Staff member assigned to tenant branch successfully!");
-    } catch (err: unknown) {
-      showToast.error(getErrorMessage(err, "Failed to assign staff member to tenant."));
-    } finally {
-      setIsSubmitting(false);
+    if (addMode === "create") {
+      // 1. Validation for New Account Creation
+      if (!newEmployeeData.email.trim() || !newEmployeeData.firstName.trim() || !newEmployeeData.lastName.trim()) {
+        showToast.error("Email address, first name, and last name are required.");
+        return;
+      }
+      if (!newEmployeeData.roleId) {
+        showToast.error("Please select a security role for the employee.");
+        return;
+      }
+      if (!newEmployeeData.division.trim() || !newEmployeeData.position.trim()) {
+        showToast.error("Division and position are required.");
+        return;
+      }
+
+      const matchedRole = rolesList.find((r) => r.id === newEmployeeData.roleId);
+      const isEmailInvitation = newEmployeeData.provisioningMethod === "email";
+      const manualPassword =
+        newEmployeeData.provisioningMethod === "manual" && newEmployeeData.password.trim().length > 0
+          ? newEmployeeData.password.trim()
+          : undefined;
+
+      setIsSubmitting(true);
+      try {
+        await createUser({
+          email: newEmployeeData.email.trim().toLowerCase(),
+          firstName: newEmployeeData.firstName.trim(),
+          lastName: newEmployeeData.lastName.trim(),
+          middleName: newEmployeeData.middleName.trim() || undefined,
+          suffix: newEmployeeData.suffix.trim() || undefined,
+          contactNumber: newEmployeeData.contactNumber.trim() || undefined,
+          roleKey: matchedRole?.key || "evaluator",
+          tenantId: tenantId,
+          fieldOfficeId: newEmployeeData.fieldOfficeId || undefined,
+          jobTitle: newEmployeeData.jobTitle.trim() || undefined,
+          level: newEmployeeData.level.trim() || undefined,
+          division: newEmployeeData.division.trim(),
+          position: newEmployeeData.position.trim(),
+          designation: newEmployeeData.designation.trim() || undefined,
+          sendInvitation: isEmailInvitation,
+          password: manualPassword,
+        });
+
+        await mutateMembers();
+        setIsAddEmployeeOpen(false);
+
+        const fullName = `${newEmployeeData.firstName} ${newEmployeeData.lastName}`.trim();
+        if (isEmailInvitation) {
+          showToast.success(`Employee account created for ${fullName}. An invitation email was sent to ${newEmployeeData.email}.`);
+        } else {
+          showToast.success(`Employee account created for ${fullName} and automatically assigned to ${currentTenant.name}.`);
+        }
+      } catch (err: unknown) {
+        showToast.error(getErrorMessage(err, "Failed to create employee account."));
+      } finally {
+        setIsSubmitting(false);
+      }
+    } else {
+      // 2. Assigning Existing User Account
+      if (!memberFormData.userId || !memberFormData.roleId) {
+        showToast.error("Please select a user account and security role.");
+        return;
+      }
+
+      setIsSubmitting(true);
+      try {
+        await assignUserToTenant(tenantId, {
+          tenantId: tenantId,
+          userId: memberFormData.userId,
+          roleId: memberFormData.roleId,
+          fieldOfficeId: memberFormData.fieldOfficeId || null,
+          jobTitle: memberFormData.jobTitle || null,
+          level: memberFormData.level || null,
+          division: memberFormData.division,
+          position: memberFormData.position,
+          designation: memberFormData.designation || null,
+        });
+        await mutateMembers();
+        setIsAddEmployeeOpen(false);
+        showToast.success("Employee assigned to tenant branch successfully!");
+      } catch (err: unknown) {
+        showToast.error(getErrorMessage(err, "Failed to assign employee to tenant."));
+      } finally {
+        setIsSubmitting(false);
+      }
     }
   };
 
@@ -211,9 +336,9 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       });
       await mutateMembers();
       setIsEditMemberOpen(false);
-      showToast.success("Member details updated successfully.");
+      showToast.success("Employee details updated successfully.");
     } catch (err: unknown) {
-      showToast.error(getErrorMessage(err, "Failed to update member details."));
+      showToast.error(getErrorMessage(err, "Failed to update employee details."));
     } finally {
       setIsSubmitting(false);
     }
@@ -227,9 +352,9 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       await removeUserFromTenant(tenantId, selectedMember.id);
       await mutateMembers();
       setIsRemoveMemberOpen(false);
-      showToast.success("Staff member unassigned from tenant successfully.");
+      showToast.success("Employee unassigned from tenant successfully.");
     } catch (err: unknown) {
-      showToast.error(getErrorMessage(err, "Failed to unassign member."));
+      showToast.error(getErrorMessage(err, "Failed to unassign employee."));
     } finally {
       setIsSubmitting(false);
     }
@@ -239,16 +364,16 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     <div className="space-y-4 min-w-0">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-200 dark:border-slate-800">
         <div>
-          <h3 className="text-base font-bold text-slate-900 dark:text-white">Assigned Tenant Members & Staff</h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400">Personnel assigned to this regional administrative tenant branch.</p>
+          <h3 className="text-base font-bold text-slate-900 dark:text-white">Tenant Employees</h3>
+          <p className="text-xs text-slate-500 dark:text-slate-400">Employees assigned to this regional administrative tenant branch.</p>
         </div>
         {canManageTenantMembers && (
           <Button
-            onClick={handleOpenAssignMember}
+            onClick={handleOpenAddEmployee}
             className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center justify-center gap-2 shadow-lg shadow-indigo-600/20 shrink-0"
           >
             <UserPlus className="w-4 h-4" />
-            <span>Assign Staff Member</span>
+            <span>Add Employee</span>
           </Button>
         )}
       </div>
@@ -256,16 +381,16 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
       {loadingMembers && !fetchedMembers ? (
         <div className="p-12 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40">
           <Loader2 className="w-8 h-8 animate-spin text-indigo-500 mb-3" />
-          <span className="text-xs font-semibold">Loading assigned staff members...</span>
+          <span className="text-xs font-semibold">Loading assigned employees...</span>
         </div>
       ) : tenantMembersList.length === 0 ? (
         <div className="p-12 text-center flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 min-w-0">
           <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 flex items-center justify-center mb-3 border border-indigo-500/20 shadow-sm">
             <Users className="w-6 h-6" />
           </div>
-          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Staff Members Assigned</h4>
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Employees Assigned</h4>
           <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm">
-            There are currently no staff officers or personnel assigned to this regional tenant office. Click the button above to assign a staff member.
+            There are currently no employees assigned to this regional tenant office. Click the button above to create a new employee account.
           </p>
         </div>
       ) : (
@@ -291,25 +416,25 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
 
                 <div className="flex items-center gap-1.5 shrink-0">
                   <span className="hidden sm:inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 items-center gap-1 shrink-0">
-                    <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> <span className="truncate max-w-[90px]">{member.jobTitle ?? "Staff"}</span>
+                    <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> <span className="truncate max-w-[90px]">{member.jobTitle ?? "Employee"}</span>
                   </span>
 
                   <ActionMenu
                     items={[
                       {
-                        label: "View Member Details",
+                        label: "View Employee Details",
                         icon: Eye,
                         onClick: () => handleOpenViewMember(member),
                       },
                       ...(canManageTenantMembers
                         ? [
                             {
-                              label: "Edit Member Details",
+                              label: "Edit Employee Details",
                               icon: Edit2,
                               onClick: () => handleOpenEditMember(member),
                             },
                             {
-                              label: "Unassign Member",
+                              label: "Unassign Employee",
                               icon: Trash2,
                               onClick: () => handleOpenRemoveMember(member),
                               variant: "destructive" as const,
@@ -323,7 +448,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
 
               <div className="sm:hidden">
                 <span className="inline-flex px-2 py-0.5 rounded-full text-[10px] font-medium bg-sky-500/10 text-sky-700 dark:text-sky-300 border border-sky-500/20 items-center gap-1">
-                  <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> {member.jobTitle ?? "Staff Officer"}
+                  <ShieldCheck className="w-3 h-3 text-sky-500 dark:text-sky-400 shrink-0" /> {member.jobTitle ?? "Employee"}
                 </span>
               </div>
 
@@ -347,134 +472,438 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         </div>
       )}
 
-      {/* Assign Member Modal */}
-      <Dialog open={isAssignMemberOpen} onOpenChange={setIsAssignMemberOpen}>
-        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[540px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
+      {/* Add / Create Employee Modal */}
+      <Dialog open={isAddEmployeeOpen} onOpenChange={setIsAddEmployeeOpen}>
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[620px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <UserPlus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Assign New Staff Member
+              <UserPlus className="w-5 h-5 text-indigo-500 dark:text-indigo-400" />
+              {addMode === "create" ? "Create Employee Account" : "Assign Existing Platform User"}
             </DialogTitle>
             <DialogDescription className="text-xs text-slate-500 dark:text-slate-400">
-              Select an existing platform user account and configure their regional role and office details.
+              {addMode === "create"
+                ? `Create a new staff user account via Clerk with automatic membership in ${currentTenant.name}.`
+                : `Select an existing platform user account and configure their deployment in ${currentTenant.name}.`}
             </DialogDescription>
           </DialogHeader>
 
-          <form onSubmit={handleAssignMemberSubmit} className="space-y-4 pt-2">
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select User Account *</label>
-              {loadingUsers ? (
-                <div className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-500">
-                  <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
-                  <span>Loading platform users...</span>
+          {/* Mode Switcher Tabs */}
+          <div className="flex items-center gap-2 p-1 bg-slate-100 dark:bg-slate-950 rounded-xl border border-slate-200 dark:border-slate-800 mt-2">
+            <button
+              type="button"
+              onClick={() => setAddMode("create")}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                addMode === "create"
+                  ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Create New Employee Account
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddMode("assign")}
+              className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all ${
+                addMode === "assign"
+                  ? "bg-white dark:bg-slate-800 text-indigo-600 dark:text-indigo-400 shadow-sm"
+                  : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
+              }`}
+            >
+              Assign Existing User
+            </button>
+          </div>
+
+          <form onSubmit={handleAddEmployeeSubmit} className="space-y-4 pt-2">
+            {addMode === "create" ? (
+              <>
+                {/* Basic Personal Information */}
+                <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Basic Information
+                  </h4>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        First Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="First Name"
+                        value={newEmployeeData.firstName}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, firstName: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Last Name <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Last Name"
+                        value={newEmployeeData.lastName}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, lastName: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Middle Name</label>
+                      <input
+                        type="text"
+                        placeholder="Middle Name"
+                        value={newEmployeeData.middleName}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, middleName: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Suffix</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Jr., III"
+                        value={newEmployeeData.suffix}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, suffix: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                        Email Address <span className="text-rose-500">*</span>
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        placeholder="staff.email@ntc.gov.ph"
+                        value={newEmployeeData.email}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, email: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Contact Number</label>
+                      <input
+                        type="tel"
+                        placeholder="+63 900 000 0000"
+                        value={newEmployeeData.contactNumber}
+                        onChange={(e) => setNewEmployeeData({ ...newEmployeeData, contactNumber: e.target.value })}
+                        className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                      />
+                    </div>
+                  </div>
                 </div>
-              ) : (
-                <SearchableSelect
-                  value={memberFormData.userId}
-                  onChange={(val) => setMemberFormData({ ...memberFormData, userId: val })}
-                  options={userOptions}
-                  placeholder="Search user by name or email..."
-                  searchPlaceholder="Type name or email..."
-                  maxHeight="max-h-56"
-                />
-              )}
-            </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
-                <SearchableSelect
-                  value={memberFormData.roleId}
-                  onChange={(val) => setMemberFormData({ ...memberFormData, roleId: val })}
-                  options={roleOptions}
-                  placeholder="Select Security Role..."
-                  searchPlaceholder="Filter roles..."
-                  maxHeight="max-h-48"
-                />
-              </div>
+                {/* Provisioning / Signup Method Selection */}
+                <div className="space-y-3 p-3.5 bg-slate-50 dark:bg-slate-950/60 rounded-xl border border-slate-200 dark:border-slate-800">
+                  <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200 uppercase tracking-wider">
+                    Signup & Account Provisioning
+                  </h4>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
-                <SearchableSelect
-                  value={memberFormData.fieldOfficeId}
-                  onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
-                  options={fieldOfficeOptions}
-                  placeholder="Select Field Office..."
-                  searchPlaceholder="Filter offices..."
-                  maxHeight="max-h-48"
-                />
-              </div>
-            </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div
+                      onClick={() => setNewEmployeeData({ ...newEmployeeData, provisioningMethod: "email" })}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        newEmployeeData.provisioningMethod === "email"
+                          ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30"
+                          : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Mail className={`w-4 h-4 ${newEmployeeData.provisioningMethod === "email" ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`} />
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">Email Invitation</span>
+                        </div>
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${newEmployeeData.provisioningMethod === "email" ? "border-indigo-600" : "border-slate-400"}`}>
+                          {newEmployeeData.provisioningMethod === "email" && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        Dispatches an official Clerk email invitation link for the employee to choose their password.
+                      </p>
+                    </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
-                <input
-                  type="text"
-                  placeholder="e.g. Senior Spectrum Officer"
-                  value={memberFormData.jobTitle}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, jobTitle: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+                    <div
+                      onClick={() => setNewEmployeeData({ ...newEmployeeData, provisioningMethod: "manual" })}
+                      className={`p-3 rounded-xl border cursor-pointer transition-all ${
+                        newEmployeeData.provisioningMethod === "manual"
+                          ? "border-indigo-600 bg-indigo-50/50 dark:bg-indigo-950/30"
+                          : "border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900"
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <Key className={`w-4 h-4 ${newEmployeeData.provisioningMethod === "manual" ? "text-indigo-600 dark:text-indigo-400" : "text-slate-500"}`} />
+                          <span className="text-xs font-bold text-slate-900 dark:text-white">Manual Setup</span>
+                        </div>
+                        <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${newEmployeeData.provisioningMethod === "manual" ? "border-indigo-600" : "border-slate-400"}`}>
+                          {newEmployeeData.provisioningMethod === "manual" && <span className="w-1.5 h-1.5 rounded-full bg-indigo-600" />}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
+                        Provisions account credentials immediately without waiting for invitation email delivery.
+                      </p>
+                    </div>
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Salary Grade Level</label>
-                <input
-                  type="text"
-                  placeholder="e.g. SG-18"
-                  value={memberFormData.level}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, level: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
+                  {newEmployeeData.provisioningMethod === "manual" && (
+                    <div className="space-y-1 pt-1">
+                      <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+                        <span>Initial Password <span className="text-slate-400 font-normal">(Optional)</span></span>
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          placeholder="Leave blank for auto-generated password (NtcStaff_XXXXX!)"
+                          value={newEmployeeData.password}
+                          onChange={(e) => setNewEmployeeData({ ...newEmployeeData, password: e.target.value })}
+                          className="w-full px-3 py-2 pr-9 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Division *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Operations & Enforcement"
-                  value={memberFormData.division}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, division: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
+                {/* Role and Office Assignment */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Security Role <span className="text-rose-500">*</span>
+                    </label>
+                    <SearchableSelect
+                      value={newEmployeeData.roleId}
+                      onChange={(val) => setNewEmployeeData({ ...newEmployeeData, roleId: val })}
+                      options={roleOptions}
+                      placeholder={loadingRoles ? "Loading security roles..." : "Select Security Role..."}
+                      searchPlaceholder="Filter roles..."
+                      maxHeight="max-h-48"
+                    />
+                  </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Position *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Engineer III"
-                  value={memberFormData.position}
-                  onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                />
-              </div>
-            </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                    <SearchableSelect
+                      value={newEmployeeData.fieldOfficeId}
+                      onChange={(val) => setNewEmployeeData({ ...newEmployeeData, fieldOfficeId: val })}
+                      options={fieldOfficeOptions}
+                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
+                      searchPlaceholder="Filter offices..."
+                      maxHeight="max-h-48"
+                      clearable
+                    />
+                  </div>
+                </div>
 
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Designation</label>
-              <input
-                type="text"
-                placeholder="e.g. Chief Spectrum Audit Investigator"
-                value={memberFormData.designation}
-                onChange={(e) => setMemberFormData({ ...memberFormData, designation: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-              />
-            </div>
+                {/* Employment Details */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Senior Spectrum Officer"
+                      value={newEmployeeData.jobTitle}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, jobTitle: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Salary Grade Level</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. SG-18"
+                      value={newEmployeeData.level}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, level: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Division <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Operations & Enforcement"
+                      value={newEmployeeData.division}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, division: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                      Position <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Engineer III"
+                      value={newEmployeeData.position}
+                      onChange={(e) => setNewEmployeeData({ ...newEmployeeData, position: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Designation</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Chief Spectrum Audit Investigator"
+                    value={newEmployeeData.designation}
+                    onChange={(e) => setNewEmployeeData({ ...newEmployeeData, designation: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Assign Existing Platform User Mode */}
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Select User Account *</label>
+                  {loadingUsers ? (
+                    <div className="flex items-center gap-2 p-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-xl text-xs text-slate-500">
+                      <Loader2 className="w-4 h-4 animate-spin text-indigo-500" />
+                      <span>Loading platform users...</span>
+                    </div>
+                  ) : (
+                    <SearchableSelect
+                      value={memberFormData.userId}
+                      onChange={(val) => setMemberFormData({ ...memberFormData, userId: val })}
+                      options={userOptions}
+                      placeholder="Search user by name or email..."
+                      searchPlaceholder="Type name or email..."
+                      maxHeight="max-h-56"
+                    />
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Security Role *</label>
+                    <SearchableSelect
+                      value={memberFormData.roleId}
+                      onChange={(val) => setMemberFormData({ ...memberFormData, roleId: val })}
+                      options={roleOptions}
+                      placeholder={loadingRoles ? "Loading security roles..." : "Select Security Role..."}
+                      searchPlaceholder="Filter roles..."
+                      maxHeight="max-h-48"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Field Office Assignment</label>
+                    <SearchableSelect
+                      value={memberFormData.fieldOfficeId}
+                      onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
+                      options={fieldOfficeOptions}
+                      placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
+                      searchPlaceholder="Filter offices..."
+                      maxHeight="max-h-48"
+                      clearable
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Job Title</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Senior Spectrum Officer"
+                      value={memberFormData.jobTitle}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, jobTitle: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Salary Grade Level</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. SG-18"
+                      value={memberFormData.level}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, level: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Division *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Operations & Enforcement"
+                      value={memberFormData.division}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, division: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Position *</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Engineer III"
+                      value={memberFormData.position}
+                      onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
+                      className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Designation</label>
+                  <input
+                    type="text"
+                    placeholder="e.g. Chief Spectrum Audit Investigator"
+                    value={memberFormData.designation}
+                    onChange={(e) => setMemberFormData({ ...memberFormData, designation: e.target.value })}
+                    className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  />
+                </div>
+              </>
+            )}
 
             <DialogFooter className="pt-4 border-t border-slate-200 dark:border-slate-800 flex-col-reverse sm:flex-row gap-2">
-              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setIsAssignMemberOpen(false)}>Cancel</Button>
-              <Button type="submit" disabled={isSubmitting || !memberFormData.userId} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold">
+              <Button type="button" variant="outline" disabled={isSubmitting} onClick={() => setIsAddEmployeeOpen(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={isSubmitting || (addMode === "assign" && !memberFormData.userId)}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold"
+              >
                 {isSubmitting ? (
                   <span className="flex items-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" /> Assigning...
+                    <Loader2 className="w-4 h-4 animate-spin" /> {addMode === "create" ? "Creating Account..." : "Assigning..."}
                   </span>
                 ) : (
-                  "Assign Staff Member"
+                  addMode === "create" ? "Create Employee Account" : "Assign Employee"
                 )}
               </Button>
             </DialogFooter>
@@ -487,7 +916,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[540px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Member Details
+              <Edit2 className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Edit Employee Details
             </DialogTitle>
           </DialogHeader>
 
@@ -507,7 +936,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   value={memberFormData.roleId}
                   onChange={(val) => setMemberFormData({ ...memberFormData, roleId: val })}
                   options={roleOptions}
-                  placeholder="Select Security Role..."
+                  placeholder={loadingRoles ? "Loading security roles..." : "Select Security Role..."}
                   searchPlaceholder="Filter roles..."
                   maxHeight="max-h-48"
                 />
@@ -519,9 +948,10 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   value={memberFormData.fieldOfficeId}
                   onChange={(val) => setMemberFormData({ ...memberFormData, fieldOfficeId: val })}
                   options={fieldOfficeOptions}
-                  placeholder="Select Field Office..."
+                  placeholder={loadingFieldOffices ? "Loading field offices..." : "Select Field Office (Optional)..."}
                   searchPlaceholder="Filter offices..."
                   maxHeight="max-h-48"
+                  clearable
                 />
               </div>
             </div>
@@ -534,7 +964,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   placeholder="e.g. Senior Spectrum Officer"
                   value={memberFormData.jobTitle}
                   onChange={(e) => setMemberFormData({ ...memberFormData, jobTitle: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -545,7 +975,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   placeholder="e.g. SG-18"
                   value={memberFormData.level}
                   onChange={(e) => setMemberFormData({ ...memberFormData, level: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -559,7 +989,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   placeholder="e.g. Operations & Enforcement"
                   value={memberFormData.division}
                   onChange={(e) => setMemberFormData({ ...memberFormData, division: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
 
@@ -571,7 +1001,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   placeholder="e.g. Engineer III"
                   value={memberFormData.position}
                   onChange={(e) => setMemberFormData({ ...memberFormData, position: e.target.value })}
-                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 />
               </div>
             </div>
@@ -583,7 +1013,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                 placeholder="e.g. Chief Spectrum Audit Investigator"
                 value={memberFormData.designation}
                 onChange={(e) => setMemberFormData({ ...memberFormData, designation: e.target.value })}
-                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                className="w-full px-3.5 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
               />
             </div>
 
@@ -595,19 +1025,20 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                     <Loader2 className="w-4 h-4 animate-spin" /> Saving...
                   </span>
                 ) : (
-                  "Save Member Details"
+                  "Save Employee Details"
                 )}
               </Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
+
       {/* Remove Member Modal */}
       <Dialog open={isRemoveMemberOpen} onOpenChange={setIsRemoveMemberOpen}>
         <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[440px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2 text-rose-500 dark:text-rose-400">
-              <Trash2 className="w-5 h-5" /> Unassign Staff Member
+              <Trash2 className="w-5 h-5" /> Unassign Employee
             </DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
               Are you sure you want to unassign <span className="text-slate-900 dark:text-white font-bold">{selectedMember?.userFirstName} {selectedMember?.userLastName}</span> from this tenant branch?
@@ -622,7 +1053,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                   <Loader2 className="w-4 h-4 animate-spin" /> Unassigning...
                 </span>
               ) : (
-                "Unassign Member"
+                "Unassign Employee"
               )}
             </Button>
           </DialogFooter>
@@ -634,10 +1065,10 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[550px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6 rounded-2xl">
           <DialogHeader className="pb-4 border-b border-slate-200 dark:border-slate-800/80">
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
-              <Eye className="w-5 h-5 text-sky-500 dark:text-sky-400" /> Staff Member Details
+              <Eye className="w-5 h-5 text-sky-500 dark:text-sky-400" /> Employee Details
             </DialogTitle>
             <DialogDescription className="text-slate-600 dark:text-slate-400 text-xs">
-              Detailed membership and deployment profile information.
+              Detailed employment and deployment profile information.
             </DialogDescription>
           </DialogHeader>
 
@@ -661,7 +1092,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
                     <h4 className="text-lg font-bold text-slate-900 dark:text-white leading-snug">
                       {displayedMember.userFirstName} {displayedMember.userLastName}
                     </h4>
-                    <p className="text-xs text-sky-600 dark:text-sky-400 font-semibold">{displayedMember.jobTitle ?? "Staff Member"}</p>
+                    <p className="text-xs text-sky-600 dark:text-sky-400 font-semibold">{displayedMember.jobTitle ?? "Employee"}</p>
                     <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-slate-400 dark:text-slate-500" /> {displayedMember.userEmail}
                     </p>
@@ -727,7 +1158,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
             );
           })() : (
             <div className="py-8 text-center text-slate-500 dark:text-slate-400 text-sm">
-              Failed to load member details.
+              Failed to load employee details.
             </div>
           )}
         </DialogContent>

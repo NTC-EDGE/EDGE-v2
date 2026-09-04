@@ -17,11 +17,33 @@ export interface CurrentUserProfile {
   isSuperAdmin: boolean;
 }
 
-export function useUserService() {
-  const { useQuery, put, patch, del } = useApi();
+export interface CreateUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  password?: string;
+  roleKey?: string;
+  tenantId?: string;
+  fieldOfficeId?: string;
+  jobTitle?: string;
+  level?: string;
+  division?: string;
+  position?: string;
+  designation?: string;
+  eSignature?: string;
+  isSuperAdmin?: boolean;
+  sendInvitation?: boolean;
+  redirectUrl?: string;
+}
 
-  const useUsers = () => {
-    return useQuery<User[]>('/api/v2/users');
+export function useUserService() {
+  const { useQuery, post, put, patch, del } = useApi();
+
+  const useUsers = (enabled: boolean = true) => {
+    return useQuery<User[]>(enabled ? '/api/v2/users' : null);
   };
 
   const useUser = (id: string | null) => {
@@ -30,6 +52,13 @@ export function useUserService() {
 
   const useCurrentUserProfile = () => {
     return useQuery<CurrentUserProfile>('/api/v2/users/me');
+  };
+
+  /**
+   * Creates a new user account via Clerk and syncs database & tenant membership.
+   */
+  const createUser = async (data: CreateUserRequest): Promise<User> => {
+    return post<User, CreateUserRequest>('/api/v2/users', data);
   };
 
   /**
@@ -55,6 +84,7 @@ export function useUserService() {
     useUsers,
     useUser,
     useCurrentUserProfile,
+    createUser,
     updateUser,
     updateUserSuperAdmin,
     deleteUser,
