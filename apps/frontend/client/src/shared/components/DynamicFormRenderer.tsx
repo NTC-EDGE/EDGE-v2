@@ -593,15 +593,25 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           }
 
           if (isAeroStationPurchase) {
+            const aeroPowerOutputField: FieldDto = {
+              fieldId: FIELD_ID_POWER_OUTPUT,
+              id: "powerOutput",
+              label: "Power Output (watts)",
+              fieldType: "text",
+              isRequired: true,
+              placeholder: "e.g. 50",
+            };
+
             const aeroParticularsField: FieldDto = {
               fieldId: "aeroStationParticulars",
               id: "aeroStationParticulars",
-              label: "Particulars of Proposed Station / Equipment",
+              label: "Class of Station",
               fieldType: "repeater",
               isRequired: true,
             };
 
-            const renderedAeroParticulars = renderFieldInstance(aeroParticularsField, 0, section);
+            const renderedPowerOutput = renderFieldInstance(aeroPowerOutputField, 0, section);
+            const renderedAeroParticulars = renderFieldInstance(aeroParticularsField, 1, section);
 
             return (
               <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
@@ -614,6 +624,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                 </View>
 
                 <FormGrid>
+                  {renderedPowerOutput}
                   {renderedAeroParticulars}
                 </FormGrid>
               </View>
