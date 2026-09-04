@@ -124,6 +124,8 @@ public static class RolePermissionDataSeeder
         var targetRolePermissions = new List<(Guid RoleId, string PermissionKey)>
         {
             // Client
+            (actualClientRoleId, Permissions.ReadTenants),
+            (actualClientRoleId, Permissions.ReadRoles),
             (actualClientRoleId, Permissions.SubmitApplication),
             (actualClientRoleId, Permissions.ViewOwnApplications),
             (actualClientRoleId, Permissions.ReadApplication),
@@ -134,36 +136,65 @@ public static class RolePermissionDataSeeder
             (actualClientRoleId, Permissions.DownloadStorage),
 
             // Evaluator
+            (actualEvaluatorRoleId, Permissions.ReadTenants),
+            (actualEvaluatorRoleId, Permissions.ReadRoles),
             (actualEvaluatorRoleId, Permissions.ViewAllApplications),
             (actualEvaluatorRoleId, Permissions.ViewOwnApplications),
             (actualEvaluatorRoleId, Permissions.ReadApplication),
+            (actualEvaluatorRoleId, Permissions.UpdateApplication),
             (actualEvaluatorRoleId, Permissions.EvaluateApplication),
             (actualEvaluatorRoleId, Permissions.ReadServices),
             (actualEvaluatorRoleId, Permissions.ReadRequirements),
             (actualEvaluatorRoleId, Permissions.ReadStorage),
             (actualEvaluatorRoleId, Permissions.DownloadStorage),
+            (actualEvaluatorRoleId, Permissions.UploadStorage),
+            (actualEvaluatorRoleId, Permissions.ReadServiceNotes),
+            (actualEvaluatorRoleId, Permissions.CreateServiceNotes),
+            (actualEvaluatorRoleId, Permissions.UpdateServiceNotes),
+            (actualEvaluatorRoleId, Permissions.ReadSoaNotes),
+            (actualEvaluatorRoleId, Permissions.CreateSoaNotes),
+            (actualEvaluatorRoleId, Permissions.UpdateSoaNotes),
 
             // Higher-Ups
+            (actualHigherUpsRoleId, Permissions.ReadTenants),
+            (actualHigherUpsRoleId, Permissions.ReadRoles),
             (actualHigherUpsRoleId, Permissions.ViewAllApplications),
             (actualHigherUpsRoleId, Permissions.ViewOwnApplications),
             (actualHigherUpsRoleId, Permissions.ReadApplication),
             (actualHigherUpsRoleId, Permissions.ApproveApplication),
             (actualHigherUpsRoleId, Permissions.ReadServices),
             (actualHigherUpsRoleId, Permissions.ReadRequirements),
+            (actualHigherUpsRoleId, Permissions.ReadStorage),
+            (actualHigherUpsRoleId, Permissions.DownloadStorage),
+            (actualHigherUpsRoleId, Permissions.ReadServiceNotes),
+            (actualHigherUpsRoleId, Permissions.ReadSoaNotes),
 
             // Accountant
+            (actualAccountantRoleId, Permissions.ReadTenants),
+            (actualAccountantRoleId, Permissions.ReadRoles),
             (actualAccountantRoleId, Permissions.ViewAllApplications),
             (actualAccountantRoleId, Permissions.ViewOwnApplications),
             (actualAccountantRoleId, Permissions.ReadApplication),
             (actualAccountantRoleId, Permissions.CreateBilling),
+            (actualAccountantRoleId, Permissions.ApproveSoa),
+            (actualAccountantRoleId, Permissions.ReturnSoa),
             (actualAccountantRoleId, Permissions.ReadServices),
+            (actualAccountantRoleId, Permissions.ReadRequirements),
+            (actualAccountantRoleId, Permissions.ReadStorage),
+            (actualAccountantRoleId, Permissions.DownloadStorage),
 
             // Cashier
+            (actualCashierRoleId, Permissions.ReadTenants),
+            (actualCashierRoleId, Permissions.ReadRoles),
             (actualCashierRoleId, Permissions.ViewAllApplications),
             (actualCashierRoleId, Permissions.ViewOwnApplications),
             (actualCashierRoleId, Permissions.ReadApplication),
             (actualCashierRoleId, Permissions.CollectPayment),
+            (actualCashierRoleId, Permissions.ReturnOp),
             (actualCashierRoleId, Permissions.ReadServices),
+            (actualCashierRoleId, Permissions.ReadRequirements),
+            (actualCashierRoleId, Permissions.ReadStorage),
+            (actualCashierRoleId, Permissions.DownloadStorage),
         };
 
         // Add all permissions to SuperAdmin and Admin roles dynamically

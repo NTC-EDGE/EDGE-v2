@@ -113,22 +113,17 @@ public class UserAuthorizationService : IUserAuthorizationService
         var tenantId = _tenantContextService.TenantId;
         if (!tenantId.HasValue)
         {
-            // Fallback to default tenant if only one membership exists
             var memberships = await _dbContext.TenantMembers
                 .Include(m => m.Role)
-                .Where(m => m.UserId == user.Id)
+                .Where(m => m.UserId == user.Id && !m.IsDeleted)
                 .ToListAsync(cancellationToken);
 
-            if (memberships.Count == 1)
-            {
-                return memberships[0].Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase);
-            }
-            return false;
+            return memberships.Any(m => m.Role != null && m.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase));
         }
 
         var member = await _dbContext.TenantMembers
             .Include(m => m.Role)
-            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value, cancellationToken);
+            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value && !m.IsDeleted, cancellationToken);
 
         return member?.Role?.Key?.Equals(role, StringComparison.OrdinalIgnoreCase) == true;
     }
@@ -156,8 +151,10 @@ public class UserAuthorizationService : IUserAuthorizationService
                 Permissions.ReadTenants,
                 Permissions.ReadRoles,
                 Permissions.ReadServices,
+                Permissions.ReadRequirements,
                 Permissions.SubmitApplication,
                 Permissions.ViewOwnApplications,
+                Permissions.ReadApplication,
                 Permissions.UploadStorage,
                 Permissions.ReadStorage,
                 Permissions.DownloadStorage
@@ -180,7 +177,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             {
                 var query = from tm in _dbContext.Set<TenantMember>()
                             join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                            where tm.UserId == user.Id && tm.TenantId == tenantId.Value
+                            where tm.UserId == user.Id && tm.TenantId == tenantId.Value && !tm.IsDeleted
                             select rp.PermissionKey;
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
@@ -190,7 +187,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 // Fallback: if no active tenant in request or specified tenant has no matches, load permissions across all active memberships
                 var query = from tm in _dbContext.Set<TenantMember>()
                             join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
-                            where tm.UserId == user.Id
+                            where tm.UserId == user.Id && !tm.IsDeleted
                             select rp.PermissionKey;
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
@@ -203,6 +200,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadTenants,
                     Permissions.ReadRoles,
                     Permissions.ReadServices,
+                    Permissions.ReadRequirements,
                     Permissions.SubmitApplication,
                     Permissions.ViewOwnApplications,
                     Permissions.ReadApplication,
@@ -210,6 +208,25 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadStorage,
                     Permissions.DownloadStorage
                 };
+            }
+            else
+            {
+                // Ensure foundational read permissions are always available to active staff members
+                var basePermissions = new[]
+                {
+                    Permissions.ReadTenants,
+                    Permissions.ReadRoles,
+                    Permissions.ReadServices,
+                    Permissions.ReadRequirements
+                };
+
+                foreach (var basePerm in basePermissions)
+                {
+                    if (!dbPermissions.Contains(basePerm))
+                    {
+                        dbPermissions.Add(basePerm);
+                    }
+                }
             }
 
             _cachedPermissions = dbPermissions;

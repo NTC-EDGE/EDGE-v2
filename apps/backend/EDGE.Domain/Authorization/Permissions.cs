@@ -150,7 +150,7 @@ public static class Permissions
         new(RevokeRolePermissions, "Roles & Permissions", "Revoke Permissions", PermissionScope.Internal, "Allows revoking permissions from roles"),
 
         // Tenants & Members
-        new(ReadTenants, "Tenants Management", "Read Tenants", PermissionScope.SystemAdmin, "Allows viewing organization tenants"),
+        new(ReadTenants, "Tenants Management", "Read Tenants", PermissionScope.Internal, "Allows viewing organization tenants"),
         new(CreateTenants, "Tenants Management", "Create Tenants", PermissionScope.SystemAdmin, "Allows provisioning new tenants"),
         new(UpdateTenants, "Tenants Management", "Update Tenants", PermissionScope.SystemAdmin, "Allows updating tenant settings"),
         new(DeleteTenants, "Tenants Management", "Delete Tenants", PermissionScope.SystemAdmin, "Allows removing organization tenants"),

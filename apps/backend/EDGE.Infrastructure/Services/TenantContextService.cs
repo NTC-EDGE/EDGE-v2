@@ -33,11 +33,42 @@ public class TenantContextService : ITenantContextService
             var httpContext = _httpContextAccessor.HttpContext;
             if (httpContext == null) return null;
 
-            // Extract tenantId strictly from URL route path parameter ({tenantId})
+            // 1. Check {tenantId} in route path parameters
             var routeTenantId = httpContext.GetRouteValue("tenantId")?.ToString();
             if (!string.IsNullOrEmpty(routeTenantId) && Guid.TryParse(routeTenantId, out var tenantIdFromRoute))
             {
                 return tenantIdFromRoute;
+            }
+
+            // 2. Check {id} in route path if the URL path contains /tenants/
+            var path = httpContext.Request.Path.Value ?? string.Empty;
+            if (path.Contains("/tenants/", StringComparison.OrdinalIgnoreCase))
+            {
+                var routeId = httpContext.GetRouteValue("id")?.ToString();
+                if (!string.IsNullOrEmpty(routeId) && Guid.TryParse(routeId, out var tenantIdFromIdRoute))
+                {
+                    return tenantIdFromIdRoute;
+                }
+            }
+
+            // 3. Check query string parameters (?tenantId=... or ?tenant_id=...)
+            if (httpContext.Request.Query.TryGetValue("tenantId", out var queryTenantId) &&
+                Guid.TryParse(queryTenantId.ToString(), out var parsedQueryTenantId))
+            {
+                return parsedQueryTenantId;
+            }
+
+            if (httpContext.Request.Query.TryGetValue("tenant_id", out var queryTenantIdSnake) &&
+                Guid.TryParse(queryTenantIdSnake.ToString(), out var parsedQueryTenantIdSnake))
+            {
+                return parsedQueryTenantIdSnake;
+            }
+
+            // 4. Check request headers (X-Tenant-Id / x-tenant-id)
+            if (httpContext.Request.Headers.TryGetValue("X-Tenant-Id", out var headerTenantId) &&
+                Guid.TryParse(headerTenantId.ToString(), out var parsedHeaderTenantId))
+            {
+                return parsedHeaderTenantId;
             }
 
             return null;
