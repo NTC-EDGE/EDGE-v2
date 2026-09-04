@@ -78,6 +78,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     isAeroService &&
     varDesc.includes("permit to purchase") &&
     (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
+  const isAeroStationPossess =
+    isAeroService &&
+    (varDesc.includes("permit to possess") || varDesc.includes("possess")) &&
+    !varDesc.includes("purchase") &&
+    !varDesc.includes("storage") &&
+    (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
   const isAmateurPurchaseVariant =
     isAmateurPermitService &&
     !varDesc.includes("storage") &&
@@ -98,7 +104,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isSpecialEvent = varDesc.includes("special event");
   const isForeignVisitor = varDesc.includes("foreign visitor");
   const isVanityOrSpecialEvent = isVanity || isSpecialEvent;
-  const isNonIndividualEntity = applicantType === "company" || isAeroStationPurchase || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
+  const isNonIndividualEntity = applicantType === "company" || isAeroStationPurchase || isAeroStationPossess || (!applicantType && matchedVariant?.isIndividual === false && !isVanityOrSpecialEvent), isIndividualVar = !isNonIndividualEntity;
   const showElements = !isCopyOfCert && variantElements.length > 0 && !isLifetimeSupplementary && !varDesc.includes("special radio operator");
   const showNumberOfYears = !isDuplicateCopy && !isCertifiedTrueCopy && !isVas && (isCpeAccreditation || isRocService || (isAmateurCert && isModification) || (isAmateurPermitService && (isForeignVisitor || isVanityNew || isVanityRen || isSpecialEvent)));
 
@@ -134,7 +140,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const t = (sec.title || "").trim().toLowerCase();
     if (k.includes("type") || t.includes("application type")) return false;
     if (hideSections.includes(k) || hideSections.includes(t)) return false;
-    if (isAmateurPermitService || isAeroStationPurchase) {
+    if (isAmateurPermitService || isAeroStationPurchase || isAeroStationPossess) {
       if ((isAmateurPurchaseVariant || isAeroStationPurchase) && (k === "sourceofequipment" || t.includes("source"))) return false;
       if (isVanityOrSpecialEvent && (k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended"))) return false;
       return k === "applicant" || t.includes("applicant") || k === "stationequipment" || k === "proposedstation" || k === "particulars" || t.includes("station") || t.includes("particular") || k === "sourceofequipment" || t.includes("source") || k === "intendeduse" || t.includes("intended");
@@ -142,7 +148,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     return !k.includes("declaration") && !t.includes("declaration") && !k.includes("payment") && !t.includes("payment") && !k.includes("classification") && !t.includes("classification");
   });
 
-  const sortedSections = (isAmateurPermitService || isAeroStationPurchase)
+  const sortedSections = (isAmateurPermitService || isAeroStationPurchase || isAeroStationPossess)
     ? [...visibleSections].sort((a, b) => {
         const getPri = (s: FormSectionDto) => {
           const k = (s.key || s.id || "").trim().toLowerCase();
@@ -171,10 +177,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const secKeyLower = (section.key || section.id || "").toLowerCase();
 
     if (isAmateurPermitService && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_CALL_SIGN || fIdLower === "callsign" || labelLower.includes("call sign"))) return null;
-    if (isAmateurPermitService && !isVanityOrSpecialEvent && (rawTargetId === FIELD_ID_BIRTH_DATE || labelLower.includes("birth") || labelLower.includes("sex") || labelLower.includes("nationality"))) return null;
+    if ((isAmateurPermitService || isNonIndividualEntity) && secKeyLower.includes("applicant") && (rawTargetId === FIELD_ID_BIRTH_DATE || fIdLower === "birthdate" || labelLower.includes("birth") || rawTargetId === "sex" || fIdLower === "sex" || labelLower === "sex" || rawTargetId === "civilstatus" || fIdLower === "civilstatus" || labelLower.includes("civil status") || rawTargetId === "nationality" || fIdLower === "nationality" || labelLower.includes("nationality") || fIdLower === "representativename")) return null;
     if (isAmateurPermitService && (rawType === "signature" || rawType === "checkbox" || labelLower.includes("signature") || labelLower.includes("declare") || fIdLower.includes("signature") || fIdLower.includes("declaration"))) return null;
 
-    const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || rawTargetId === FIELD_ID_FULL_NAME;
+    const isNameField = labelLower.includes("full name") || labelLower.includes("applicant name") || fIdLower === "fullname" || rawTargetId === FIELD_ID_FULL_NAME || fIdLower === "companyname" || fIdLower === "applicantname";
     const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails");
     const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
     const isVasRegField = fIdLower.includes("vasregistration") || rawTargetId === FIELD_ID_VAS_REG_NO.toLowerCase();
@@ -191,9 +197,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     let span: 12 | 8 | 6 | 4 | 3 = 6;
     if (
       isNameField ||
+      isRepeaterField ||
       isSignature ||
       isCheckbox ||
-      isRepeaterField ||
       isBsdField ||
       isVasRegField ||
       isIntendedUseField ||
@@ -201,6 +207,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       fIdLower.includes("beamwidth") ||
       labelLower.includes("beamwidth") ||
       fIdLower.includes("antennaremarks") ||
+      fIdLower.includes("servicearea") ||
+      labelLower.includes("service area") ||
+      labelLower.includes("points of comm") ||
       fIdLower === "remarks" ||
       labelLower === "remarks" ||
       rawTargetId === FIELD_ID_REMARKS
@@ -210,11 +219,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       span = 6;
     }
 
-    let val = (values && values[targetId]) || (values && field.label && values[field.label]) || "";
+    let val = (values && values[targetId]) || (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
+    if ((fIdLower === "applicantname" || fIdLower === "fullname") && !val) {
+      val = (values && (values["companyName"] || values["fullName"] || values["Applicant Name"])) || (structuredNameData && (structuredNameData.companyName || structuredNameData.firstName)) || (applicantName ?? "") || "";
+    } else if (fIdLower === "representativename" && !val) {
+      val = (values && (values["representativeName"] || values["Authorized Representative Name"])) || (structuredNameData && structuredNameData.representativeName) || "";
+    }
     if ((labelLower === "frequency" || rawTargetId === FIELD_ID_FREQUENCY) && isAmateurPermitService && !isAmateurPurchaseVariant && !val) val = "Within Authorized Amateur Band";
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    else if (fIdLower === "bandwidthunit" || rawTargetId === FIELD_ID_BANDWIDTH_UNIT || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "stationclass" || labelLower.includes("station class") || rawTargetId === FIELD_ID_STATION_CLASS) dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "Others", value: "Others" }];
     else if (fIdLower === "sex" || labelLower === "sex") dropdownOptions = [{ label: "Male", value: "Male" }, { label: "Female", value: "Female" }, { label: "Other", value: "Other" }];
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
@@ -240,6 +255,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isDropdown={isDropdown} isDate={isDate} isNumber={isNumber} isContactField={isContactField} isEmailField={isEmailField}
         isNonIndividualEntity={isNonIndividualEntity} isAmateurPermitService={isAmateurPermitService} isIndividualVar={isIndividualVar}
         isForeignVisitor={isForeignVisitor} isVanityOrSpecialEvent={isVanityOrSpecialEvent}
+        showCallSign={isForeignVisitor || (isAeroStationPossess && isRepeaterField)}
         structuredNameData={structuredNameData} applicantName={applicantName} isBulk={isBulk} appMode={appMode}
         parentMakeTypeModel={parentMakeTypeModel}
         onChange={onChange} onStructuredNameChange={onStructuredNameChange}
@@ -291,6 +307,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           isModification={isModification} isLifetimeSupplementary={isLifetimeSupplementary} isRenewalOrMod={isRenewalOrMod}
           isRenewal={isRenewal} isVanityNew={isVanityNew} isVanityRen={isVanityRen} isSpecialEvent={isSpecialEvent}
           isAeroStationPurchase={isAeroStationPurchase}
+          isAeroStationPossess={isAeroStationPossess}
           natureOfServiceOptions={natureOfServiceOptions && natureOfServiceOptions.length > 0 ? natureOfServiceOptions : undefined}
           values={values} onVariantChange={onVariantChange} onElementChange={onElementChange} onNoOfYearsChange={onNoOfYearsChange} onChange={onChange}
         />
@@ -341,6 +358,102 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           secTitleLower.includes("particulars");
 
         if (isStationEquipmentSection) {
+          if (isAeroStationPossess) {
+            const aeroPossessFields: FieldDto[] = [
+              {
+                fieldId: FIELD_ID_SERVICE_AREA,
+                id: "serviceArea",
+                label: "Points of Comm/Service Area (optional)",
+                fieldType: "text",
+                isRequired: false,
+                placeholder: "Enter Points of Comm / Service Area...",
+              },
+              {
+                fieldId: FIELD_ID_FREQUENCY,
+                id: "frequency",
+                label: "Frequency: Within Authorized Aeronautical Band",
+                fieldType: "text",
+                isRequired: true,
+                placeholder: "Within Authorized Aeronautical Band",
+              },
+              {
+                fieldId: "frequencyUnit",
+                id: "frequencyUnit",
+                label: "Frequency Unit",
+                fieldType: "dropdown",
+                isRequired: true,
+                options: ["KHz", "MHz", "GHz"],
+              },
+              {
+                fieldId: FIELD_ID_BANDWIDTH,
+                id: "bandwidth",
+                label: "Bandwidth",
+                fieldType: "text",
+                isRequired: true,
+                placeholder: "e.g. 25",
+              },
+              {
+                fieldId: FIELD_ID_BANDWIDTH_UNIT,
+                id: "bandwidthUnit",
+                label: "Bandwidth Unit",
+                fieldType: "dropdown",
+                isRequired: true,
+                options: ["KHz", "MHz", "GHz"],
+              },
+              {
+                fieldId: FIELD_ID_EMISSION,
+                id: "emission",
+                label: "Emission",
+                fieldType: "text",
+                isRequired: true,
+                placeholder: "e.g. 6K00A3E",
+              },
+              {
+                fieldId: FIELD_ID_POWER_OUTPUT,
+                id: "powerOutput",
+                label: "Power Output (watts)",
+                fieldType: "text",
+                isRequired: true,
+                placeholder: "e.g. 50",
+              },
+              {
+                fieldId: FIELD_ID_HOURS_OP,
+                id: "hoursOfOperation",
+                label: "Hours of Operation",
+                fieldType: "text",
+                isRequired: true,
+                placeholder: "e.g. 24/7 or H24",
+              },
+              {
+                fieldId: "equipmentDetails",
+                id: "equipmentDetails",
+                label: "Particulars of Proposed Equipment",
+                fieldType: "repeater",
+                isRequired: true,
+              },
+            ];
+
+            const renderedAeroPossess = aeroPossessFields.map((f, idx) => {
+              return renderFieldInstance(f, idx, section);
+            }).filter(Boolean);
+
+            return (
+              <View key={section.id || section.key || `section-${sIdx}`} style={styles.sectionCard}>
+                <View style={styles.sectionHeaderRow}>
+                  <View style={styles.sectionTitleRow}>
+                    <View style={styles.iconCircle}><Text style={styles.iconCircleText}>{sectionDisplayNum}</Text></View>
+                    <Text style={styles.sectionTitle}>Particulars of Proposed Station / Equipment</Text>
+                  </View>
+                  <View style={styles.sectionBadge}><Text style={styles.sectionBadgeText}>SECTION {sectionDisplayNum}</Text></View>
+                </View>
+
+                <FormGrid>
+                  {renderedAeroPossess}
+                </FormGrid>
+              </View>
+            );
+          }
+
           if (isAeroStationPurchase) {
             const aeroParticularsField: FieldDto = {
               fieldId: "aeroStationParticulars",

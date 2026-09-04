@@ -153,6 +153,7 @@ public static class CommonSeederData
             ["intendedUseType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000126"), FieldType = "checkbox_group", Label = "Intended Use of Equipment", SyncBackOnSubmit = false, ValidationRules = @"[""Additional Radio Equipment"",""New Radio Station"",""Change of Equipment"",""Storage at"",""Others""]" },
             ["specifyDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000127"), FieldType = "text", Label = "Specify Details", SyncBackOnSubmit = false },
             ["natureOfService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000129"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false, ValidationRules = @"[""CV Private"",""CO Government""]" },
+            ["frequencyUnit"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000132"), FieldType = "dropdown", Label = "Frequency Unit", SyncBackOnSubmit = false, ValidationRules = @"[""KHz"",""MHz"",""GHz""]" },
             ["aeroClassOfStation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000130"), FieldType = "dropdown", Label = "Class of Station", SyncBackOnSubmit = false, ValidationRules = @"[""FA"",""MA""]" },
             ["aeroStationParticulars"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000131"), FieldType = "repeater", Label = "Particulars of Proposed Station / Equipment", SyncBackOnSubmit = false, ValidationRules = @"[{""key"":""classOfStation"",""label"":""Class of Station"",""type"":""select"",""options"":[""FA"",""MA""]}]" },
 
@@ -184,6 +185,7 @@ public static class CommonSeederData
 
             // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
             ["companyName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000081"), FieldType = "text", Label = "Company / Business Name", SyncBackOnSubmit = true },
+            ["applicantName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000088"), FieldType = "text", Label = "Applicant Name", SyncBackOnSubmit = true },
             ["representativeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000082"), FieldType = "text", Label = "Authorized Representative Name", SyncBackOnSubmit = false },
             ["representativePosition"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000083"), FieldType = "text", Label = "Designation / Position", SyncBackOnSubmit = false },
             ["makeTypeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000084"), FieldType = "text", Label = "Make / Type / Model", SyncBackOnSubmit = false },

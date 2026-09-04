@@ -51,11 +51,14 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
   const labelLower = (field.label || "").toLowerCase().trim();
   const idLower = (field.fieldId || field.id || "").toLowerCase().trim();
 
-  // Company / Business Name topmost in Applicant Details
+  // Company / Applicant Name topmost in Applicant Details
   if (
+    idLower === "applicantname" ||
     idLower === "companyname" ||
     idLower === "businessname" ||
     idLower === "fd000000-0000-0000-0000-000000000081" ||
+    idLower === "fd000000-0000-0000-0000-000000000088" ||
+    labelLower === "applicant name" ||
     labelLower === "company / business name" ||
     labelLower === "company name" ||
     labelLower === "business / registered entity name" ||
@@ -64,9 +67,19 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
     return 0;
   }
 
+  // Representative Name right after Applicant Name
+  if (
+    idLower === "representativename" ||
+    idLower === "fd000000-0000-0000-0000-000000000082" ||
+    labelLower.includes("representative") ||
+    labelLower.includes("authorized representative")
+  ) {
+    return 1;
+  }
+
   // Entity Type and SEC/DTI Registration Number in Row 2
-  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower === "entity type" || labelLower.includes("entity type")) return 1;
-  if (idLower === "dtisecregistration" || idLower === "dti_sec_registration" || idLower === "fd000000-0000-0000-0000-000000000086" || labelLower.includes("sec / dti") || labelLower.includes("sec/dti") || labelLower.includes("dti / sec") || labelLower.includes("dti/sec")) return 2;
+  if (idLower === "entitytype" || idLower === FIELD_ID_ENTITY_TYPE || labelLower === "entity type" || labelLower.includes("entity type")) return 2;
+  if (idLower === "dtisecregistration" || idLower === "dti_sec_registration" || idLower === "fd000000-0000-0000-0000-000000000086" || labelLower.includes("sec / dti") || labelLower.includes("sec/dti") || labelLower.includes("dti / sec") || labelLower.includes("dti/sec")) return 3;
 
   // Personal Identity Fields
   if (labelLower.includes("full name") || labelLower.includes("legal name") || idLower === "fullname" || idLower === FIELD_ID_FULL_NAME) return 3;

@@ -41,6 +41,7 @@ export interface DynamicFormFieldProps {
   isIndividualVar: boolean;
   isForeignVisitor?: boolean;
   isVanityOrSpecialEvent?: boolean;
+  showCallSign?: boolean;
   structuredNameData?: Partial<StructuredNameData>;
   applicantName?: string;
   isBulk?: boolean;
@@ -79,6 +80,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isIndividualVar,
   isForeignVisitor = false,
   isVanityOrSpecialEvent,
+  showCallSign = false,
   structuredNameData,
   applicantName,
   isBulk,
@@ -114,7 +116,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             value={val}
             fieldKey={targetId}
             parentMakeTypeModel={parentMakeTypeModel}
-            showCallSign={isForeignVisitor}
+            showCallSign={showCallSign || isForeignVisitor}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}
           />
@@ -160,7 +162,31 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           label={displayLabel}
           required={isRequired}
           value={val}
-          onChangeText={(v) => onChange(targetId, displayLabel, v)}
+          onChangeText={(v) => {
+            onChange(targetId, displayLabel, v);
+            const targetLower = targetId.toLowerCase();
+            if (targetLower === "applicantname" || targetLower === "companyname") {
+              onStructuredNameChange?.({
+                applicantType: "company",
+                firstName: "",
+                middleName: "",
+                lastName: "",
+                suffix: "",
+                companyName: v,
+                representativeName: structuredNameData?.representativeName,
+              });
+            } else if (targetLower === "representativename") {
+              onStructuredNameChange?.({
+                applicantType: "company",
+                firstName: "",
+                middleName: "",
+                lastName: "",
+                suffix: "",
+                companyName: structuredNameData?.companyName || "",
+                representativeName: v,
+              });
+            }
+          }}
           placeholder={field.placeholder || (isContactField ? "09XXXXXXXXX or +639XXXXXXXXX" : isEmailField ? "user@example.com" : `Enter ${displayLabel}...`)}
           keyboardType={isContactField ? "phone-pad" : isEmailField ? "email-address" : isNumber ? "numeric" : "default"}
           autoCapitalize={isEmailField ? "none" : undefined}

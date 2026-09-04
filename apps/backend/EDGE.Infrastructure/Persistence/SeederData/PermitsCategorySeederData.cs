@@ -525,7 +525,7 @@ public static class PermitsCategorySeederData
         {
             new("typeOfApplication", "Application Type", new() { "permitType", "natureOfService" }),
             new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "aeroStationParticulars", "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
+            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "aeroStationParticulars", "serviceArea", "frequency", "frequencyUnit", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),

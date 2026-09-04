@@ -34,6 +34,7 @@ export interface DynamicFormSection1Props {
   isVanityRen: boolean;
   isSpecialEvent: boolean;
   isAeroStationPurchase?: boolean;
+  isAeroStationPossess?: boolean;
   natureOfServiceOptions?: Array<{ label: string; value: string }>;
   values: Record<string, string>;
   onVariantChange?: (variantId: string, variantName: string) => void;
@@ -67,6 +68,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
   isVanityRen,
   isSpecialEvent,
   isAeroStationPurchase,
+  isAeroStationPossess,
   natureOfServiceOptions,
   values,
   onVariantChange,
@@ -74,6 +76,8 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
   onNoOfYearsChange,
   onChange,
 }) => {
+  const isAeroOption = isAeroStationPurchase || isAeroStationPossess;
+
   return (
     <View style={styles.sectionCard}>
       <View style={styles.sectionHeaderRow}>
@@ -85,7 +89,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
       </View>
 
       <FormGrid>
-        <FormCol span={isAeroStationPurchase ? 6 : ((isVanityNew || isVanityRen || isSpecialEvent) && showNumberOfYears ? 4 : (showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)))}>
+        <FormCol span={isAeroOption ? 6 : ((isVanityNew || isVanityRen || isSpecialEvent) && showNumberOfYears ? 4 : (showNumberOfYears ? (showElements ? 4 : 6) : (showElements ? 6 : 12)))}>
           <Select
             label="Type of Application"
             required
@@ -107,7 +111,7 @@ export const DynamicFormSection1: React.FC<DynamicFormSection1Props> = ({
           />
         </FormCol>
 
-        {isAeroStationPurchase && (
+        {isAeroOption && (
           <FormCol span={6}>
             <Select
               label="Type"
