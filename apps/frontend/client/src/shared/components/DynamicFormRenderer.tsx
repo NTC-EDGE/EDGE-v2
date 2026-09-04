@@ -261,7 +261,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         "";
 
     const isSourceOfEquipmentSection = secKeyLower.includes("sourceofequipment") || secKeyLower.includes("source") || secTitleLower.includes("source");
-    const isFieldRequired = isSourceOfEquipmentSection ? false : (field.isRequired ?? false);
+    const isIntendedUseSection = secKeyLower.includes("intendeduse") || secKeyLower.includes("intended") || secTitleLower.includes("intended");
+    const isFieldRequired = (isSourceOfEquipmentSection || isIntendedUseSection) ? false : (field.isRequired ?? false);
 
     return (
       <DynamicFormField

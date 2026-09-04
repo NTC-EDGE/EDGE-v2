@@ -403,6 +403,20 @@ export function handleWizardNext({
           return;
         }
 
+        // Skip Intended Use fields (optional section)
+        const isIntendedUseField =
+          idLower === "intendeduse" ||
+          idLower === "intendedusetype" ||
+          idLower === "intended_use" ||
+          idLower === "intended use" ||
+          idLower === "intended use of equipment" ||
+          idLower.includes("intended use") ||
+          idLower === "fd000000-0000-0000-0000-000000000126" ||
+          idLower === "fd000000-0000-0000-0000-000000000127";
+        if (isIntendedUseField) {
+          return;
+        }
+
         let val = filledMap.get(idLower);
         if (!val) {
           val =
