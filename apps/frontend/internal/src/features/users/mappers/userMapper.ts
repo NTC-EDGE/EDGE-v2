@@ -6,19 +6,23 @@ import { User, UserStatus, UserTransaction } from '../types';
  * Maps a backend TenantClientDto into the frontend User (Permittee) domain model.
  */
 export function mapTenantClientToUser(client: TenantClientDto, tenantName?: string): User {
-  const isCompany =
-    (client.organization &&
-      client.organization.toLowerCase() !== 'individual applicant' &&
-      client.organization.toLowerCase() !== 'individual') ||
-    client.name.includes('Corp') ||
-    client.name.includes('Inc') ||
-    client.name.includes('Telecom') ||
-    client.name.includes('Broadcast') ||
-    client.name.includes('Communications') ||
-    client.name.includes('Network') ||
-    client.name.includes('Cooperative');
+  const clientName = client.name || 'Permittee';
+  const clientId = client.id || '000000';
+  const org = client.organization || '';
 
-  const initials = client.name
+  const isCompany =
+    (org.length > 0 &&
+      org.toLowerCase() !== 'individual applicant' &&
+      org.toLowerCase() !== 'individual') ||
+    clientName.includes('Corp') ||
+    clientName.includes('Inc') ||
+    clientName.includes('Telecom') ||
+    clientName.includes('Broadcast') ||
+    clientName.includes('Communications') ||
+    clientName.includes('Network') ||
+    clientName.includes('Cooperative');
+
+  const initials = clientName
     .split(' ')
     .filter((w) => w.length > 0)
     .map((w) => w[0])
@@ -32,7 +36,7 @@ export function mapTenantClientToUser(client: TenantClientDto, tenantName?: stri
     COLORS.brand.purpleDark,
     COLORS.brand.deepNavy,
   ];
-  const charCodeSum = client.name.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  const charCodeSum = clientName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const avatarBg = isCompany
     ? brandColors[charCodeSum % brandColors.length]
     : COLORS.brand.secondary;
@@ -52,30 +56,40 @@ export function mapTenantClientToUser(client: TenantClientDto, tenantName?: stri
     validStatus = 'Active License';
   }
 
+  let formattedDate = new Date().toISOString().split('T')[0];
+  if (client.registeredDate) {
+    try {
+      const parsedDate = new Date(client.registeredDate);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        formattedDate = parsedDate.toISOString().split('T')[0];
+      }
+    } catch {
+      // fallback to formattedDate
+    }
+  }
+
   return {
-    id: client.id,
+    id: clientId,
     userId: client.userId,
     accountType: isCompany ? 'Company' : 'Individual',
     avatarType: isCompany ? 'initials' : 'icon',
-    avatarInitials: initials || 'NT',
+    avatarInitials: initials.length > 0 ? initials : 'NT',
     avatarBgColor: avatarBg,
-    name: client.name,
+    name: clientName,
     email: client.email || 'permittee.desk@ntc.gov.ph',
     region: tenantName || 'Regional Regulatory District',
     tenantName: tenantName || 'Regional Regulatory District',
-    organization: client.organization || (isCompany ? client.name : 'Individual Radio Permittee'),
+    organization: org || (isCompany ? clientName : 'Individual Radio Permittee'),
     licenseCategory: client.licenseCategory || 'Fixed & Land Mobile Radio Network',
-    applicationsCount: client.applicationCount > 0 ? client.applicationCount : 1,
+    applicationsCount: client.applicationCount && client.applicationCount > 0 ? client.applicationCount : 1,
     status: validStatus,
     phone: '+63 (88) 856-4200',
     address: 'Regional Regulatory District, Cagayan de Oro City, Misamis Oriental',
-    createdDate: client.registeredDate
-      ? new Date(client.registeredDate).toISOString().split('T')[0]
-      : new Date().toISOString().split('T')[0],
+    createdDate: formattedDate,
     description: `Registered NTC Permittee under ${tenantName || 'Regional Regulatory District'}.`,
     totalPaidAmount: (client.applicationCount || 1) * 3850,
-    companyRegistrationNumber: isCompany ? `SEC-REG-2024-${client.id.slice(0, 6).toUpperCase()}` : undefined,
-    taxIdentificationNumber: `TIN-402-${client.id.slice(0, 3)}-${client.id.slice(3, 6)}`,
+    companyRegistrationNumber: isCompany ? `SEC-REG-2024-${clientId.slice(0, 6).toUpperCase()}` : undefined,
+    taxIdentificationNumber: `TIN-402-${clientId.slice(0, 3)}-${clientId.slice(3, 6)}`,
   };
 }
 
@@ -83,19 +97,23 @@ export function mapTenantClientToUser(client: TenantClientDto, tenantName?: stri
  * Maps a full backend TenantClientDetailsDto into the User domain model.
  */
 export function mapTenantClientDetailsToUser(details: TenantClientDetailsDto, tenantName?: string): User {
-  const isCompany =
-    (details.organization &&
-      details.organization.toLowerCase() !== 'individual applicant' &&
-      details.organization.toLowerCase() !== 'individual') ||
-    details.name.includes('Corp') ||
-    details.name.includes('Inc') ||
-    details.name.includes('Telecom') ||
-    details.name.includes('Broadcast') ||
-    details.name.includes('Communications') ||
-    details.name.includes('Network') ||
-    details.name.includes('Cooperative');
+  const detailsName = details.name || 'Permittee';
+  const detailsId = details.id || '000000';
+  const org = details.organization || '';
 
-  const initials = details.name
+  const isCompany =
+    (org.length > 0 &&
+      org.toLowerCase() !== 'individual applicant' &&
+      org.toLowerCase() !== 'individual') ||
+    detailsName.includes('Corp') ||
+    detailsName.includes('Inc') ||
+    detailsName.includes('Telecom') ||
+    detailsName.includes('Broadcast') ||
+    detailsName.includes('Communications') ||
+    detailsName.includes('Network') ||
+    detailsName.includes('Cooperative');
+
+  const initials = detailsName
     .split(' ')
     .filter((w) => w.length > 0)
     .map((w) => w[0])
@@ -104,32 +122,44 @@ export function mapTenantClientDetailsToUser(details: TenantClientDetailsDto, te
     .toUpperCase();
 
   const mappedTransactions: UserTransaction[] = (details.transactions || []).map((tx) => ({
-    id: tx.id,
-    refNo: tx.refNo,
+    id: tx.id || `tx-${Math.random().toString().slice(2, 6)}`,
+    refNo: tx.refNo || 'REF-NTC',
     type: tx.type || 'Radio Station Authorization Filing',
     serviceType: details.serviceType || 'Fixed & Land Mobile Radio Network',
-    applicationNumber: tx.refNo,
-    amount: tx.amount,
-    status: tx.status,
+    applicationNumber: tx.refNo || 'APP-NTC',
+    amount: typeof tx.amount === 'number' ? tx.amount : 0,
+    status: tx.status || 'Paid',
     date: tx.date ? new Date(tx.date).toLocaleDateString() : 'Recent',
   }));
 
   const totalCalculated = mappedTransactions.reduce((acc, t) => acc + t.amount, 0);
 
+  let formattedDate = '2026-01-15';
+  if (details.registeredDate) {
+    try {
+      const parsedDate = new Date(details.registeredDate);
+      if (!Number.isNaN(parsedDate.getTime())) {
+        formattedDate = parsedDate.toISOString().split('T')[0];
+      }
+    } catch {
+      // fallback
+    }
+  }
+
   return {
-    id: details.id,
+    id: detailsId,
     userId: details.userId,
     accountType: isCompany ? 'Company' : 'Individual',
     avatarType: isCompany ? 'initials' : 'icon',
-    avatarInitials: initials || 'NT',
+    avatarInitials: initials.length > 0 ? initials : 'NT',
     avatarBgColor: isCompany ? COLORS.brand.royalBlue : COLORS.brand.secondary,
-    name: details.name,
-    email: details.email,
+    name: detailsName,
+    email: details.email || 'permittee.desk@ntc.gov.ph',
     region: tenantName || 'Regional Regulatory District',
     tenantName: tenantName || 'Regional Regulatory District',
-    organization: details.organization || (isCompany ? details.name : 'Individual Radio Permittee'),
+    organization: org || (isCompany ? detailsName : 'Individual Radio Permittee'),
     licenseCategory: details.serviceType || 'Fixed & Land Mobile Radio Network',
-    applicationsCount: details.totalApplications,
+    applicationsCount: details.totalApplications || 1,
     status:
       details.status === 'Active License' ||
       details.status === 'Under Review' ||
@@ -142,11 +172,11 @@ export function mapTenantClientDetailsToUser(details: TenantClientDetailsDto, te
         : 'Active License',
     phone: details.contactNumber || '+63 (88) 856-4200',
     address: details.address || 'Regional Regulatory District, Cagayan de Oro City',
-    createdDate: details.registeredDate ? new Date(details.registeredDate).toISOString().split('T')[0] : '2026-01-15',
+    createdDate: formattedDate,
     totalBilledAmount: totalCalculated,
     totalPaidAmount: totalCalculated,
-    companyRegistrationNumber: details.companyRegistrationNumber || (isCompany ? `SEC-CS2020-${details.id.slice(0, 6).toUpperCase()}` : undefined),
-    taxIdentificationNumber: `TIN-402-${details.id.slice(0, 3)}-${details.id.slice(3, 6)}`,
+    companyRegistrationNumber: details.companyRegistrationNumber || (isCompany ? `SEC-CS2020-${detailsId.slice(0, 6).toUpperCase()}` : undefined),
+    taxIdentificationNumber: `TIN-402-${detailsId.slice(0, 3)}-${detailsId.slice(3, 6)}`,
     transactions: mappedTransactions,
   };
 }

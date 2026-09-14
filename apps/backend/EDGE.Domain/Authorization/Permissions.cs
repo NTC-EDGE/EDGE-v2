@@ -100,6 +100,13 @@ public static class Permissions
     public const string CollectPayment = "billing.collect";
     public const string ReturnOp = "billing.op_return";
 
+    // Schedules
+    public const string ReadSchedules = "schedules.read";
+    public const string CreateSchedules = "schedules.create";
+    public const string UpdateSchedules = "schedules.update";
+    public const string DeleteSchedules = "schedules.delete";
+    public const string PublishSchedules = "schedules.publish";
+
     // System
     public const string SystemAdmin = "system.admin";
 
@@ -180,6 +187,13 @@ public static class Permissions
         new(ReturnSoa, "Billing & Fees", "Return SOA", PermissionScope.Internal, "Allows returning Statements of Account to evaluator"),
         new(CollectPayment, "Billing & Fees", "Collect Payment", PermissionScope.Internal, "Allows processing fee payments"),
         new(ReturnOp, "Billing & Fees", "Return OP", PermissionScope.Internal, "Allows returning Orders of Payment"),
+
+        // Schedules
+        new(ReadSchedules, "Schedules", "Read Schedules", PermissionScope.Internal, "Allows viewing examination and appointment schedules for the regional tenant"),
+        new(CreateSchedules, "Schedules", "Create Schedules", PermissionScope.Internal, "Allows creating examination and appointment schedules for the regional tenant"),
+        new(UpdateSchedules, "Schedules", "Update Schedules", PermissionScope.Internal, "Allows editing examination and appointment schedules for the regional tenant"),
+        new(DeleteSchedules, "Schedules", "Delete Schedules", PermissionScope.Internal, "Allows removing draft examination and appointment schedules for the regional tenant"),
+        new(PublishSchedules, "Schedules", "Publish Schedules", PermissionScope.Internal, "Allows publishing or unpublishing examination schedules for public applicant viewing"),
 
         // System
         new(SystemAdmin, "System", "System Administrator", PermissionScope.SystemAdmin, "Full system administration access")

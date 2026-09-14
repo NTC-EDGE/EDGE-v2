@@ -14,6 +14,6 @@ public class UnauthorizedAccessExceptionStrategy : IExceptionStrategy
         var message = string.IsNullOrWhiteSpace(exception.Message)
             ? "You are not authorized to perform this operation."
             : exception.Message;
-        return (HttpStatusCode.Unauthorized, message, null);
+        return (HttpStatusCode.Forbidden, message, null);
     }
 }

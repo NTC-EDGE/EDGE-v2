@@ -217,7 +217,8 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadTenants,
                     Permissions.ReadRoles,
                     Permissions.ReadServices,
-                    Permissions.ReadRequirements
+                    Permissions.ReadRequirements,
+                    Permissions.ReadSchedules
                 };
 
                 foreach (var basePerm in basePermissions)

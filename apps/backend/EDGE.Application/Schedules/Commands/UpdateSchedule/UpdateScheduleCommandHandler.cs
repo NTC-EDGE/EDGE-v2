@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Schedules.DTOs;
 
@@ -8,13 +9,16 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService _tenantContextService;
 
     public UpdateScheduleCommandHandler(
         IScheduleRepository scheduleRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<ScheduleDto?> Handle(UpdateScheduleCommand request, CancellationToken cancellationToken)
@@ -24,6 +28,11 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         {
             return null;
         }
+
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            schedule.TenantId,
+            "You are not authorized to modify schedules for this regional tenant.",
+            cancellationToken);
 
         if (schedule.IsPublished)
         {

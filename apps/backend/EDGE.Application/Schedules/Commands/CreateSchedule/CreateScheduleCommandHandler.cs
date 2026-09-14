@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Schedules.DTOs;
@@ -10,19 +11,26 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService _tenantContextService;
 
     public CreateScheduleCommandHandler(
         IScheduleRepository scheduleRepository,
         IServiceRepository serviceRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _serviceRepository = serviceRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<ScheduleDto> Handle(CreateScheduleCommand request, CancellationToken cancellationToken)
     {
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TenantId,
+            "You are not authorized to create schedules for this regional tenant.",
+            cancellationToken);
         var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
         if (service == null)
         {

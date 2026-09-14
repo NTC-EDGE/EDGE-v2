@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.TenantMembers.DTOs;
@@ -9,15 +10,18 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
 {
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantMemberRepository _memberRepository;
+    private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
 
     public AssignUserToTenantCommandHandler(
         ITenantRepository tenantRepository,
         ITenantMemberRepository memberRepository,
+        ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork)
     {
         _tenantRepository = tenantRepository;
         _memberRepository = memberRepository;
+        _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
     }
 
@@ -29,6 +33,12 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         {
             throw new KeyNotFoundException($"Tenant with ID '{request.TenantId}' was not found.");
         }
+
+        // 2. Verify Caller Tenant Authorization (SuperAdmins can assign to any tenant; Tenant Admins can only assign to their own tenant)
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TenantId,
+            "You are only authorized to assign members to your own regional tenant.",
+            cancellationToken);
 
         // 2. Verify duplication
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);

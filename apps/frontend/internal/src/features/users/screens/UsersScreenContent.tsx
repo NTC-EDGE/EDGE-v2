@@ -217,7 +217,7 @@ export function UsersScreenContent({
     const total = users.length;
     const individual = users.filter((u) => u.accountType === 'Individual').length;
     const company = users.filter((u) => u.accountType === 'Company').length;
-    const totalApps = users.reduce((acc, u) => acc + u.applicationsCount, 0);
+    const totalApps = users.reduce((acc, u) => acc + (u.applicationsCount || 0), 0);
     return { total, individual, company, totalApps };
   }, [users]);
 
@@ -277,7 +277,7 @@ export function UsersScreenContent({
         header: 'Permittee ID',
         cell: (info) => (
           <View style={styles.tableIdBadge}>
-            <Text style={styles.tableIdText}>{String(info.getValue()).slice(0, 10)}</Text>
+            <Text style={styles.tableIdText}>{String(info.getValue() || '').slice(0, 10)}</Text>
           </View>
         ),
         meta: { flex: 0.9 },
@@ -286,7 +286,7 @@ export function UsersScreenContent({
         accessorKey: 'accountType',
         header: 'Entity Type',
         cell: (info) => {
-          const type = String(info.getValue());
+          const type = String(info.getValue() || 'Individual');
           return (
             <View style={type === 'Company' ? styles.companyBadge : styles.individualBadge}>
               <Text style={type === 'Company' ? styles.companyBadgeText : styles.individualBadgeText}>
@@ -302,6 +302,8 @@ export function UsersScreenContent({
         header: 'Permittee / Organization',
         cell: (info) => {
           const user = info.row.original;
+          const uName = user.name || 'Permittee';
+          const initials = user.avatarInitials || (uName.slice(0, 2).toUpperCase() || 'NT');
           return (
             <View style={styles.tableClientCell}>
               {user.avatarType === 'icon' ? (
@@ -310,11 +312,11 @@ export function UsersScreenContent({
                 </View>
               ) : (
                 <View style={[styles.tableAvatarInitialsCircle, { backgroundColor: user.avatarBgColor || COLORS.brand.royalBlue }]}>
-                  <Text style={styles.tableAvatarInitialsText}>{user.avatarInitials || user.name.slice(0, 2).toUpperCase()}</Text>
+                  <Text style={styles.tableAvatarInitialsText}>{initials}</Text>
                 </View>
               )}
               <View style={styles.tableClientTextGroup}>
-                <Text style={styles.tableNameText} numberOfLines={1}>{user.name}</Text>
+                <Text style={styles.tableNameText} numberOfLines={1}>{uName}</Text>
                 {user.organization && user.organization !== 'Individual Permittee' && (
                   <Text style={styles.tableOrgSubtitle} numberOfLines={1}>{user.organization}</Text>
                 )}
@@ -331,7 +333,7 @@ export function UsersScreenContent({
           const user = info.row.original;
           return (
             <View style={styles.tableContactGroup}>
-              <Text style={styles.tableEmailText} numberOfLines={1}>{user.email}</Text>
+              <Text style={styles.tableEmailText} numberOfLines={1}>{user.email || '—'}</Text>
               <Text style={styles.tablePhoneText} numberOfLines={1}>{user.phone || '+63 (88) 856-4200'}</Text>
             </View>
           );
@@ -355,7 +357,7 @@ export function UsersScreenContent({
         cell: (info) => (
           <View style={styles.tableFilingsPill}>
             <Lucide name="file-text" size={12} color={COLORS.brand[700]} style={styles.chipIcon} />
-            <Text style={styles.tableFilingsText}>{String(info.getValue())} Filings</Text>
+            <Text style={styles.tableFilingsText}>{String(info.getValue() ?? '0')} Filings</Text>
           </View>
         ),
         meta: { flex: 1.1 },
@@ -363,7 +365,7 @@ export function UsersScreenContent({
       {
         accessorKey: 'status',
         header: 'Regulatory Status',
-        cell: (info) => <StatusBadge status={String(info.getValue())} />,
+        cell: (info) => <StatusBadge status={String(info.getValue() || 'Under Review')} />,
         meta: { flex: 1.2 },
       },
       {
