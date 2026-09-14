@@ -7,6 +7,7 @@ using EDGE.Infrastructure.Authorization;
 using EDGE.Application.TenantMembers.Commands;
 using EDGE.Application.TenantMembers.Queries;
 using EDGE.Application.TenantMembers.DTOs;
+using EDGE.Api.Filters;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
@@ -18,7 +19,8 @@ public static class TenantMemberEndpoints
     public static RouteGroupBuilder MapTenantMemberEndpoints(this RouteGroupBuilder group)
     {
         var members = group.MapGroup("tenants/{tenantId:guid}/members")
-            .WithTags("Tenant Members");
+            .WithTags("Tenant Members")
+            .RequireTenantMembership();
 
         members.MapPost("/", AssignUserToTenant)
             .WithName("AssignUserToTenant")

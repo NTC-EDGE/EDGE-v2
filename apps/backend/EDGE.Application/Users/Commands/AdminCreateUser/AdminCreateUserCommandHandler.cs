@@ -81,7 +81,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             targetTenant = await _tenantRepository.GetByIdAsync(_tenantContextService.TenantId.Value, cancellationToken);
         }
 
-        if (targetTenant == null)
+        if (targetTenant == null && isSuperAdminCaller)
         {
             var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
             targetTenant = allTenants.FirstOrDefault(t => t.IsActive) ?? allTenants.FirstOrDefault();
@@ -93,6 +93,12 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
         }
 
         var targetTenantId = targetTenant.Id;
+
+        // Ensure non-SuperAdmin callers can only create members in their own active tenant
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            targetTenantId,
+            "You are only authorized to create and assign users for your own regional tenant.",
+            cancellationToken);
 
         // 3. Resolve Role
         var role = await _roleRepository.GetByKeyAsync(normalizedRoleKey, cancellationToken);
