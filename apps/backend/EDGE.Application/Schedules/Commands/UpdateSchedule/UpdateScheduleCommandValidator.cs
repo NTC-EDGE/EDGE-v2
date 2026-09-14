@@ -12,7 +12,7 @@ public class UpdateScheduleCommandValidator : AbstractValidator<UpdateScheduleCo
             .NotEmpty().WithMessage("Schedule Id is required.")
             .MustAsync(async (id, cancellationToken) =>
             {
-                var schedule = await scheduleRepository.GetByIdAsync(id, cancellationToken);
+                var schedule = await scheduleRepository.GetByIdAsync(id, asNoTracking: true, cancellationToken);
                 return schedule != null && schedule.Service?.ServiceCategory?.Type == ServiceCategoryType.Exam;
             })
             .WithMessage("Schedule does not exist or does not belong to an Examination service.");

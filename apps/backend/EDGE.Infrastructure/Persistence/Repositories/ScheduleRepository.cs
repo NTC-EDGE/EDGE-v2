@@ -20,10 +20,22 @@ public class ScheduleRepository : IScheduleRepository
 
     public async Task<Schedule?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Schedules
+        return await GetByIdAsync(id, asNoTracking: false, cancellationToken);
+    }
+
+    public async Task<Schedule?> GetByIdAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Schedules
             .Include(s => s.Service)
                 .ThenInclude(s => s!.ServiceCategory)
-            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+            .AsQueryable();
+
+        if (asNoTracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
     public async Task<(List<Schedule> Items, int TotalCount)> GetAllAsync(
