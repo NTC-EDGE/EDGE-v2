@@ -16,7 +16,9 @@ public static class ClerkAuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddClerkAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var clerkAuthority = configuration["Clerk:Authority"];
+        var clerkAuthority = configuration["Clerk:Authority"]
+            ?? configuration["CLERK_AUTHORITY"]
+            ?? configuration["Clerk__Authority"];
 
         if (string.IsNullOrWhiteSpace(clerkAuthority))
         {

@@ -19,7 +19,9 @@ public class ClerkWebhookVerificationFilter : IEndpointFilter
     {
         var httpContext = context.HttpContext;
         var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
-        var webhookSecret = configuration["Clerk:WebhookSecret"];
+        var webhookSecret = configuration["Clerk:WebhookSecret"]
+            ?? configuration["CLERK_WEBHOOK_SECRET"]
+            ?? configuration["Clerk__WebhookSecret"];
         if (string.IsNullOrEmpty(webhookSecret))
         {
             return Results.BadRequest("Webhook secret not configured");

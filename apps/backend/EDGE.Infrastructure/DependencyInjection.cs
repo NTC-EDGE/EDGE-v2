@@ -108,7 +108,10 @@ public static class DependencyInjection
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
         {
             var configuration = sp.GetRequiredService<IConfiguration>();
-            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            var clerkSecret = configuration["Clerk:SecretKey"]
+                ?? configuration["CLERK_SECRET_KEY"]
+                ?? configuration["Clerk__SecretKey"]
+                ?? "";
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
             client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
         });
