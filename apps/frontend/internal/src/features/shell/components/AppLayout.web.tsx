@@ -7,6 +7,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileBottomTabBar } from "./MobileBottomTabBar";
 import { StandardScreenWrapper } from "./StandardScreenWrapper";
+import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -23,7 +24,6 @@ export function AppLayout({
   const {
     currentRole,
     user,
-    logout,
     showRoleDropdown,
     toggleRoleDropdown,
     closeRoleDropdown,
@@ -35,6 +35,11 @@ export function AppLayout({
     isSidebarOpen,
     closeSidebar,
     toggleSidebar,
+    isSignOutConfirmVisible,
+    isSigningOut,
+    promptSignOut,
+    closeSignOutModal,
+    confirmSignOut,
   } = useShellState();
 
   const { width } = useWindowDimensions();
@@ -104,7 +109,7 @@ export function AppLayout({
         isLogoutHovered={isLogoutHovered}
         setIsLogoutHovered={setIsLogoutHovered}
         user={user}
-        onLogout={logout}
+        onLogout={promptSignOut}
         isMobile={isMobile}
         onMenuPress={toggleSidebar}
         onNavigate={handleLinkPress}
@@ -118,7 +123,7 @@ export function AppLayout({
             links={links}
             activeScreen={activeScreen}
             onNavigate={handleLinkPress}
-            onLogout={logout}
+            onLogout={promptSignOut}
           />
         )}
 
@@ -141,7 +146,7 @@ export function AppLayout({
                 onNavigate={handleLinkPress}
                 isMobile={true}
                 onClose={closeSidebar}
-                onLogout={logout}
+                onLogout={promptSignOut}
                 onRoleSelect={handleRoleSelect}
               />
             </Animated.View>
@@ -155,6 +160,14 @@ export function AppLayout({
           </StandardScreenWrapper>
         </View>
       </View>
+
+      {/* Sign Out Confirmation Modal */}
+      <SignOutConfirmModal
+        visible={isSignOutConfirmVisible}
+        loading={isSigningOut}
+        onClose={closeSignOutModal}
+        onConfirm={confirmSignOut}
+      />
 
       {/* Mobile Bottom Tab Bar */}
       {isMobile && activeScreen !== "AccountSettings" && (

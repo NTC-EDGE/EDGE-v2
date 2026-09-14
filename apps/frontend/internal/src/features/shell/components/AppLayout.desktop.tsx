@@ -6,6 +6,7 @@ import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { StandardScreenWrapper } from "./StandardScreenWrapper";
+import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -22,7 +23,6 @@ export function AppLayout({
   const {
     currentRole,
     user,
-    logout,
     showRoleDropdown,
     toggleRoleDropdown,
     closeRoleDropdown,
@@ -31,6 +31,11 @@ export function AppLayout({
     setIsSwitcherHovered,
     isLogoutHovered,
     setIsLogoutHovered,
+    isSignOutConfirmVisible,
+    isSigningOut,
+    promptSignOut,
+    closeSignOutModal,
+    confirmSignOut,
   } = useShellState();
 
   const links = ROLE_NAVIGATION_LINKS[currentRole];
@@ -68,7 +73,7 @@ export function AppLayout({
         isLogoutHovered={isLogoutHovered}
         setIsLogoutHovered={setIsLogoutHovered}
         user={user}
-        onLogout={logout}
+        onLogout={promptSignOut}
         isMobile={false}
         onNavigate={handleLinkPress}
       />
@@ -80,7 +85,7 @@ export function AppLayout({
             links={links}
             activeScreen={activeScreen}
             onNavigate={handleLinkPress}
-            onLogout={logout}
+            onLogout={promptSignOut}
           />
         )}
 
@@ -90,6 +95,14 @@ export function AppLayout({
           </StandardScreenWrapper>
         </View>
       </View>
+
+      {/* Sign Out Confirmation Modal */}
+      <SignOutConfirmModal
+        visible={isSignOutConfirmVisible}
+        loading={isSigningOut}
+        onClose={closeSignOutModal}
+        onConfirm={confirmSignOut}
+      />
 
       {/* Desktop Workstation Status Bar */}
       <View style={[styles.desktopStatusBar, { borderTopColor: isDark ? colors.border : COLORS.neutral[800] }]}>
