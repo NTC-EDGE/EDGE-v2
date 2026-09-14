@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Schedules.DTOs;
 
@@ -8,11 +9,22 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService _tenantContextService;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
 
-    public SetSchedulePublishCommandHandler(IScheduleRepository scheduleRepository, IUnitOfWork unitOfWork)
+    public SetSchedulePublishCommandHandler(
+        IScheduleRepository scheduleRepository,
+        IUnitOfWork unitOfWork,
+        ITenantContextService tenantContextService,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository)
     {
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
     }
 
     public async Task<ScheduleDto?> Handle(SetSchedulePublishStatusCommand request, CancellationToken cancellationToken)
@@ -21,6 +33,20 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
         if (schedule is null)
         {
             return null;
+        }
+
+        var authUserId = _currentUserService.UserId;
+        var user = !string.IsNullOrWhiteSpace(authUserId)
+            ? await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken)
+            : null;
+
+        if (user != null && !user.IsSuperAdmin)
+        {
+            var isMember = await _tenantContextService.IsUserActiveMemberAsync(schedule.TenantId, cancellationToken);
+            if (!isMember)
+            {
+                throw new UnauthorizedAccessException("You are not authorized to publish schedules for this regional tenant.");
+            }
         }
 
         var newPublishStatus = request.IsPublished ?? !schedule.IsPublished;
