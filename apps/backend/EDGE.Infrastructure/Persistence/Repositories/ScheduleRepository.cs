@@ -21,7 +21,6 @@ public class ScheduleRepository : IScheduleRepository
     public async Task<Schedule?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.Schedules
-            .AsNoTracking()
             .Include(s => s.Service)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }

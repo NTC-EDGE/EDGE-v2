@@ -12,6 +12,7 @@ export { useTheme } from './theme/useTheme';
 export * from './components/Avatar';
 export * from './components/Button';
 export * from './components/FormFieldInput';
+export * from './components/DatePickerField';
 export * from './components/AlertToast';
 export * from './tables/DataTable';
 export * from './tables/StatusBadge';

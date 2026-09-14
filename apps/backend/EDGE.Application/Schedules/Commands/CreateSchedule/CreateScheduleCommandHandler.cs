@@ -34,10 +34,10 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             ServiceId = request.ServiceId,
             TenantId = request.TenantId,
             Venue = request.Venue,
-            StartDate = request.StartDate,
-            EndDate = request.EndDate,
-            StartApplication = request.StartApplication,
-            EndApplication = request.EndApplication,
+            StartDate = ToUtc(request.StartDate),
+            EndDate = ToUtc(request.EndDate),
+            StartApplication = ToUtc(request.StartApplication),
+            EndApplication = ToUtc(request.EndApplication),
             IsPublished = request.IsPublished,
             MaximumSlots = request.MaximumSlots,
             Remarks = request.Remarks
@@ -62,5 +62,20 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             schedule.Remarks,
             schedule.CreatedAt
         );
+    }
+
+    private static DateTime ToUtc(DateTime dateTime)
+    {
+        return dateTime.Kind == DateTimeKind.Utc
+            ? dateTime
+            : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+    }
+
+    private static DateTime? ToUtc(DateTime? dateTime)
+    {
+        if (!dateTime.HasValue) return null;
+        return dateTime.Value.Kind == DateTimeKind.Utc
+            ? dateTime.Value
+            : DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Utc);
     }
 }

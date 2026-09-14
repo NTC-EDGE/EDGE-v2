@@ -18,7 +18,7 @@ public class UpdateScheduleCommandValidator : AbstractValidator<UpdateScheduleCo
 
         RuleFor(x => x.EndDate)
             .NotEmpty().WithMessage("EndDate is required.")
-            .GreaterThan(x => x.StartDate).WithMessage("EndDate must be later than StartDate.");
+            .GreaterThanOrEqualTo(x => x.StartDate).WithMessage("EndDate must be on or later than StartDate.");
 
         When(x => x.StartApplication.HasValue, () =>
         {

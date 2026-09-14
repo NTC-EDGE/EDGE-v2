@@ -166,6 +166,50 @@ export interface UpdateExamScheduleCommand {
   remarks?: string | null;
 }
 
+export interface ScheduleItemDto {
+  id: string;
+  serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+  createdAt: string;
+}
+
+export interface CreateSchedulePayload {
+  serviceId: string;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished?: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface UpdateSchedulePayload {
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface PublishSchedulePayload {
+  isPublished?: boolean | null;
+}
+
 // Tenant and Member Management Types
 export interface Tenant {
   id: string;
