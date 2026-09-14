@@ -39,6 +39,28 @@ export interface CreateUserRequest {
   redirectUrl?: string;
 }
 
+export interface SyncedUserSummary {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  roleKey?: string | null;
+  action: string;
+}
+
+export interface SyncClerkUsersResultDto {
+  totalClerkUsers: number;
+  createdUsers: number;
+  updatedUsers: number;
+  tenantMembershipsCreated: number;
+  message: string;
+  syncedUsers: SyncedUserSummary[];
+}
+
 export function useUserService() {
   const { useQuery, post, put, patch, del } = useApi();
 
@@ -59,6 +81,16 @@ export function useUserService() {
    */
   const createUser = async (data: CreateUserRequest): Promise<User> => {
     return post<User, CreateUserRequest>('/api/v2/users', data);
+  };
+
+  /**
+   * Synchronizes all registered users from Clerk into the database.
+   */
+  const syncClerkUsers = async (assignDefaultTenant: boolean = true): Promise<SyncClerkUsersResultDto> => {
+    return post<SyncClerkUsersResultDto, { assignDefaultTenantIfMissing: boolean }>(
+      '/api/v2/users/sync-clerk',
+      { assignDefaultTenantIfMissing: assignDefaultTenant }
+    );
   };
 
   /**
@@ -85,6 +117,7 @@ export function useUserService() {
     useUser,
     useCurrentUserProfile,
     createUser,
+    syncClerkUsers,
     updateUser,
     updateUserSuperAdmin,
     deleteUser,
