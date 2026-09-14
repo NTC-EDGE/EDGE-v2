@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { CheckCircle, WifiOff } from "lucide-react";
+import { mutate } from "swr";
 
 export function BackendStatusIndicator() {
   const [isOffline, setIsOffline] = useState(false);
@@ -23,6 +24,8 @@ export function BackendStatusIndicator() {
     const handleOnline = () => {
       setIsOffline(false);
       setShowToast(true);
+      // Automatically refresh all active page queries now that backend is restored
+      void mutate(() => true, undefined, { revalidate: true });
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => setShowToast(false), 3000);
     };
