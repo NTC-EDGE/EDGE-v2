@@ -225,7 +225,7 @@ export function ScheduleDetailModal({
                   TESTING VENUE / LOCATION
                 </Text>
                 <Text style={[styles.infoValue, { color: colors.text }]}>
-                  {schedule.venue}
+                  {schedule.venue || 'Venue Unassigned'}
                 </Text>
               </View>
             </View>

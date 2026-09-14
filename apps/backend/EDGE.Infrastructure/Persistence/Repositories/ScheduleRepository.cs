@@ -22,6 +22,7 @@ public class ScheduleRepository : IScheduleRepository
     {
         return await _context.Schedules
             .Include(s => s.Service)
+                .ThenInclude(s => s!.ServiceCategory)
             .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 

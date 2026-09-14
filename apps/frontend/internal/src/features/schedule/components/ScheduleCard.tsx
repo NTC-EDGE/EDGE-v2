@@ -331,7 +331,7 @@ export function ScheduleCard({
         <View style={styles.metaRow}>
           <Lucide name="map-pin" size={14} color={colors.textMuted} style={styles.metaIcon} />
           <Text style={[styles.metaText, { color: colors.text }]} numberOfLines={2}>
-            {schedule.venue}
+            {schedule.venue || 'Venue Unassigned'}
           </Text>
         </View>
 

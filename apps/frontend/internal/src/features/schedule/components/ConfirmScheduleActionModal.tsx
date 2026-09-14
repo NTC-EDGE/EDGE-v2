@@ -143,7 +143,7 @@ export function ConfirmScheduleActionModal({
   };
 
   const config = getActionConfig();
-  const venueText = pendingFormData?.venue || schedule.venue;
+  const venueText = pendingFormData?.venue || schedule.venue || 'Venue Unassigned';
   const rawStartDate = pendingFormData?.startDate || schedule.startDate;
   const rawEndDate = pendingFormData?.endDate || schedule.endDate;
   const dateRangeText = formatLongDateRange(rawStartDate, rawEndDate);

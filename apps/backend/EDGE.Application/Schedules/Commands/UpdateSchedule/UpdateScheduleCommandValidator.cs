@@ -1,13 +1,21 @@
 using FluentValidation;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Schedules.Commands.UpdateSchedule;
 
 public class UpdateScheduleCommandValidator : AbstractValidator<UpdateScheduleCommand>
 {
-    public UpdateScheduleCommandValidator()
+    public UpdateScheduleCommandValidator(IScheduleRepository scheduleRepository)
     {
         RuleFor(x => x.Id)
-            .NotEmpty().WithMessage("Schedule Id is required.");
+            .NotEmpty().WithMessage("Schedule Id is required.")
+            .MustAsync(async (id, cancellationToken) =>
+            {
+                var schedule = await scheduleRepository.GetByIdAsync(id, cancellationToken);
+                return schedule != null && schedule.Service?.ServiceCategory?.Type == ServiceCategoryType.Exam;
+            })
+            .WithMessage("Schedule does not exist or does not belong to an Examination service.");
 
         RuleFor(x => x.Venue)
             .NotEmpty().WithMessage("Venue is required.")

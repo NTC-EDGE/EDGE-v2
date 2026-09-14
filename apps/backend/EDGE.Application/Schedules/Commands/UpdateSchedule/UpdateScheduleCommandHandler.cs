@@ -30,6 +30,11 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             throw new InvalidOperationException("Published schedules cannot be edited. Please unpublish the schedule to draft status before making changes.");
         }
 
+        if (schedule.Service?.ServiceCategory?.Type != EDGE.Domain.Enums.ServiceCategoryType.Exam)
+        {
+            throw new InvalidOperationException("Schedules can only be maintained for Examination services.");
+        }
+
         schedule.Venue = request.Venue;
         schedule.StartDate = ToUtc(request.StartDate);
         schedule.EndDate = ToUtc(request.EndDate);
