@@ -52,7 +52,7 @@ public class SyncClerkUsersCommandHandlerTests
         var superAdminRole = new Role { Id = Guid.NewGuid(), Key = "superadmin", Name = "Super Admin" };
 
         _userAuthorizationServiceMock
-            .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))
+            .Setup(u => u.HasRoleAsync(SystemRoles.SuperAdmin, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
         _tenantRepositoryMock
@@ -84,7 +84,7 @@ public class SyncClerkUsersCommandHandlerTests
         };
 
         _clerkUserServiceMock
-            .Setup(c => c.GetAllUsersAsync(500, 0, It.IsAny<CancellationToken>()))
+            .Setup(c => c.GetAllUsersAsync(500, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(clerkUsers);
 
         var command = new SyncClerkUsersCommand();
@@ -121,7 +121,7 @@ public class SyncClerkUsersCommandHandlerTests
     {
         // Arrange
         _userAuthorizationServiceMock
-            .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))
+            .Setup(u => u.HasRoleAsync(SystemRoles.SuperAdmin, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
 
         _userAuthorizationServiceMock

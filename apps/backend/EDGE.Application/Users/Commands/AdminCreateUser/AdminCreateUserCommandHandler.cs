@@ -51,10 +51,10 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
     public async Task<AdminCreateUserResultDto> Handle(AdminCreateUserCommand request, CancellationToken cancellationToken)
     {
         var normalizedEmail = request.Email.Trim().ToLowerInvariant();
-        var normalizedRoleKey = (request.RoleKey ?? "evaluator").Trim().ToLowerInvariant();
+        var normalizedRoleKey = (request.RoleKey ?? SystemRoles.Evaluator).Trim().ToLowerInvariant();
 
         // 1. Authorization Verification
-        var isSuperAdminCaller = await _userAuthorizationService.HasRoleAsync("superadmin", cancellationToken);
+        var isSuperAdminCaller = await _userAuthorizationService.HasRoleAsync(SystemRoles.SuperAdmin, cancellationToken);
         var hasManageUsersPermission = await _userAuthorizationService.HasPermissionAsync(Permissions.ManageUsers, cancellationToken)
                                        || await _userAuthorizationService.HasPermissionAsync(Permissions.CreateUsers, cancellationToken);
 

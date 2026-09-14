@@ -9,7 +9,7 @@ public interface IClerkUserService
     Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email);
     Task<ClerkUserResponse?> GetUserByIdAsync(string userId);
     Task<ClerkInvitationResponse> CreateInvitationAsync(CreateClerkInvitationPayload payload);
-    Task<List<ClerkUserResponse>> GetAllUsersAsync(int limit = 500, int offset = 0, CancellationToken cancellationToken = default);
+    Task<List<ClerkUserResponse>> GetAllUsersAsync(int pageSize = 500, int? maxTotalUsers = null, CancellationToken cancellationToken = default);
 }
 
 public class CreateClerkInvitationPayload

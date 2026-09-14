@@ -49,7 +49,7 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
     public async Task<SyncClerkUsersResultDto> Handle(SyncClerkUsersCommand request, CancellationToken cancellationToken)
     {
         // 1. Authorization Verification
-        var isSuperAdminCaller = await _userAuthorizationService.HasRoleAsync("superadmin", cancellationToken);
+        var isSuperAdminCaller = await _userAuthorizationService.HasRoleAsync(SystemRoles.SuperAdmin, cancellationToken);
         var hasManageUsers = await _userAuthorizationService.HasPermissionAsync(Permissions.ManageUsers, cancellationToken)
                              || await _userAuthorizationService.HasPermissionAsync(Permissions.CreateUsers, cancellationToken);
 
@@ -59,9 +59,9 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
             throw new UnauthorizedAccessException("You do not have permission to sync users from Clerk.");
         }
 
-        // 2. Fetch all users from Clerk
+        // 2. Fetch all users from Clerk across all pages
         _logger.LogInformation("Initiating Clerk user synchronization...");
-        var clerkUsers = await _clerkUserService.GetAllUsersAsync(500, 0, cancellationToken);
+        var clerkUsers = await _clerkUserService.GetAllUsersAsync(500, null, cancellationToken);
 
         // 3. Load DB Context data (tenants, roles, existing users)
         var allLocalUsers = await _userRepository.GetAllAsync(cancellationToken);
@@ -69,11 +69,11 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
         var allRoles = await _roleRepository.GetAllAsync(cancellationToken);
 
         var defaultTenant = allTenants.FirstOrDefault(t => t.IsActive) ?? allTenants.FirstOrDefault();
-        var defaultRole = allRoles.FirstOrDefault(r => r.Key.Equals("evaluator", StringComparison.OrdinalIgnoreCase))
+        var defaultRole = allRoles.FirstOrDefault(r => r.Key.Equals(SystemRoles.Evaluator, StringComparison.OrdinalIgnoreCase))
                           ?? allRoles.FirstOrDefault(r => !r.IsSystemRole)
                           ?? allRoles.FirstOrDefault();
 
-        var superAdminRole = allRoles.FirstOrDefault(r => r.Key.Equals("superadmin", StringComparison.OrdinalIgnoreCase)
+        var superAdminRole = allRoles.FirstOrDefault(r => r.Key.Equals(SystemRoles.SuperAdmin, StringComparison.OrdinalIgnoreCase)
                                                           || r.Name.Equals("Super Admin", StringComparison.OrdinalIgnoreCase));
 
         int createdCount = 0;
@@ -188,6 +188,12 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
 
                     await _tenantMemberRepository.AddAsync(newMember, cancellationToken);
                     membershipsCreated++;
+                }
+                else if (existingMembership.RoleId != targetRole.Id)
+                {
+                    existingMembership.RoleId = targetRole.Id;
+                    if (string.IsNullOrWhiteSpace(existingMembership.JobTitle)) existingMembership.JobTitle = targetRole.Name;
+                    if (string.IsNullOrWhiteSpace(existingMembership.Position)) existingMembership.Position = targetRole.Name;
                 }
             }
 

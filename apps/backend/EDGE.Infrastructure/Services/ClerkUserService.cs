@@ -237,15 +237,15 @@ public class ClerkUserService : IClerkUserService
         return invitationResponse ?? new ClerkInvitationResponse { EmailAddress = payload.EmailAddress, Status = "pending" };
     }
 
-    public async Task<List<ClerkUserResponse>> GetAllUsersAsync(int limit = 500, int offset = 0, CancellationToken cancellationToken = default)
+    public async Task<List<ClerkUserResponse>> GetAllUsersAsync(int pageSize = 500, int? maxTotalUsers = null, CancellationToken cancellationToken = default)
     {
         var allUsers = new List<ClerkUserResponse>();
-        var currentOffset = offset;
-        var pageSize = Math.Clamp(limit, 1, 500);
+        var currentOffset = 0;
+        var batchSize = Math.Clamp(pageSize, 1, 500);
 
         while (!cancellationToken.IsCancellationRequested)
         {
-            var requestUri = $"users?limit={pageSize}&offset={currentOffset}&order_by=-created_at";
+            var requestUri = $"users?limit={batchSize}&offset={currentOffset}&order_by=-created_at";
             HttpResponseMessage response = await _httpClient.GetAsync(requestUri, cancellationToken);
             string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
 
@@ -266,7 +266,7 @@ public class ClerkUserService : IClerkUserService
 
             allUsers.AddRange(batch);
 
-            if (batch.Count < pageSize || allUsers.Count >= limit)
+            if (batch.Count < batchSize || (maxTotalUsers.HasValue && allUsers.Count >= maxTotalUsers.Value))
             {
                 break;
             }
