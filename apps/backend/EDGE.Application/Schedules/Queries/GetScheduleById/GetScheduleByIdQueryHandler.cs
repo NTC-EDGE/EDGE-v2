@@ -9,19 +9,13 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly ITenantContextService _tenantContextService;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IUserRepository _userRepository;
 
     public GetScheduleByIdQueryHandler(
         IScheduleRepository scheduleRepository,
-        ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _tenantContextService = tenantContextService;
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
     }
 
     public async Task<ScheduleDto?> Handle(GetScheduleByIdQuery request, CancellationToken cancellationToken)
@@ -32,18 +26,10 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
             return null;
         }
 
-        var authUserId = _currentUserService.UserId;
-        var user = !string.IsNullOrWhiteSpace(authUserId)
-            ? await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken)
-            : null;
-
-        if (user != null && !user.IsSuperAdmin)
+        var isMember = await _tenantContextService.IsUserActiveMemberAsync(schedule.TenantId, cancellationToken);
+        if (!isMember)
         {
-            var isMember = await _tenantContextService.IsUserActiveMemberAsync(schedule.TenantId, cancellationToken);
-            if (!isMember)
-            {
-                return null;
-            }
+            return null;
         }
 
         return new ScheduleDto(

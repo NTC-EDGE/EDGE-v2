@@ -12,40 +12,25 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
     private readonly IServiceRepository _serviceRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITenantContextService _tenantContextService;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IUserRepository _userRepository;
 
     public CreateScheduleCommandHandler(
         IScheduleRepository scheduleRepository,
         IServiceRepository serviceRepository,
         IUnitOfWork unitOfWork,
-        ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _serviceRepository = serviceRepository;
         _unitOfWork = unitOfWork;
         _tenantContextService = tenantContextService;
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
     }
 
     public async Task<ScheduleDto> Handle(CreateScheduleCommand request, CancellationToken cancellationToken)
     {
-        var authUserId = _currentUserService.UserId;
-        var user = !string.IsNullOrWhiteSpace(authUserId)
-            ? await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken)
-            : null;
-
-        if (user != null && !user.IsSuperAdmin)
-        {
-            var isMember = await _tenantContextService.IsUserActiveMemberAsync(request.TenantId, cancellationToken);
-            if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to create schedules for this regional tenant.");
-            }
-        }
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TenantId,
+            "You are not authorized to create schedules for this regional tenant.",
+            cancellationToken);
         var service = await _serviceRepository.GetByIdAsync(request.ServiceId, cancellationToken);
         if (service == null)
         {

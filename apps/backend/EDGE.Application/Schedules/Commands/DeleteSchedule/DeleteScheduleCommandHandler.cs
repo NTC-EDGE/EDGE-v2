@@ -9,21 +9,15 @@ public class DeleteScheduleCommandHandler : IRequestHandler<DeleteScheduleComman
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITenantContextService _tenantContextService;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IUserRepository _userRepository;
 
     public DeleteScheduleCommandHandler(
         IScheduleRepository scheduleRepository,
         IUnitOfWork unitOfWork,
-        ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
         _tenantContextService = tenantContextService;
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
     }
 
     public async Task<bool> Handle(DeleteScheduleCommand request, CancellationToken cancellationToken)
@@ -34,19 +28,10 @@ public class DeleteScheduleCommandHandler : IRequestHandler<DeleteScheduleComman
             return false;
         }
 
-        var authUserId = _currentUserService.UserId;
-        var user = !string.IsNullOrWhiteSpace(authUserId)
-            ? await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken)
-            : null;
-
-        if (user != null && !user.IsSuperAdmin)
-        {
-            var isMember = await _tenantContextService.IsUserActiveMemberAsync(schedule.TenantId, cancellationToken);
-            if (!isMember)
-            {
-                throw new UnauthorizedAccessException("You are not authorized to delete schedules for this regional tenant.");
-            }
-        }
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            schedule.TenantId,
+            "You are not authorized to delete schedules for this regional tenant.",
+            cancellationToken);
 
         if (schedule.IsPublished)
         {

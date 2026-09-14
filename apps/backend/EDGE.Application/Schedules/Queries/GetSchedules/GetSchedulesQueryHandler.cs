@@ -10,19 +10,13 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly ITenantContextService _tenantContextService;
-    private readonly ICurrentUserService _currentUserService;
-    private readonly IUserRepository _userRepository;
 
     public GetSchedulesQueryHandler(
         IScheduleRepository scheduleRepository,
-        ITenantContextService tenantContextService,
-        ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _tenantContextService = tenantContextService;
-        _currentUserService = currentUserService;
-        _userRepository = userRepository;
     }
 
     public async Task<PaginatedApiResponse<ScheduleDto>> Handle(GetSchedulesQuery request, CancellationToken cancellationToken)
@@ -30,15 +24,11 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;
         var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
 
-        var authUserId = _currentUserService.UserId;
-        var user = !string.IsNullOrWhiteSpace(authUserId)
-            ? await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken)
-            : null;
-
+        var isSuperAdmin = await _tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
         Guid? effectiveTenantId = request.TenantId;
-        if (user != null && !user.IsSuperAdmin)
+
+        if (!isSuperAdmin)
         {
-            var activeTenantId = _tenantContextService.TenantId;
             if (request.TenantId.HasValue)
             {
                 var isMember = await _tenantContextService.IsUserActiveMemberAsync(request.TenantId.Value, cancellationToken);
@@ -48,9 +38,24 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
                 }
                 effectiveTenantId = request.TenantId.Value;
             }
-            else if (activeTenantId.HasValue)
+            else if (_tenantContextService.TenantId.HasValue)
             {
-                effectiveTenantId = activeTenantId.Value;
+                var isMember = await _tenantContextService.IsUserActiveMemberOfCurrentTenantAsync(cancellationToken);
+                if (!isMember)
+                {
+                    return new PaginatedApiResponse<ScheduleDto>([], pageNumber, pageSize, 0);
+                }
+                effectiveTenantId = _tenantContextService.TenantId.Value;
+            }
+            else
+            {
+                // Fallback: If neither request.TenantId nor ambient TenantId is present, resolve user's assigned active tenants
+                var activeTenantIds = await _tenantContextService.GetUserActiveTenantIdsAsync(cancellationToken);
+                if (activeTenantIds.Count == 0)
+                {
+                    return new PaginatedApiResponse<ScheduleDto>([], pageNumber, pageSize, 0);
+                }
+                effectiveTenantId = activeTenantIds[0];
             }
         }
 
