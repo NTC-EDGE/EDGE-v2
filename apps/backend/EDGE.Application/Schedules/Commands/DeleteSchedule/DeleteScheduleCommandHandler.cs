@@ -22,6 +22,11 @@ public class DeleteScheduleCommandHandler : IRequestHandler<DeleteScheduleComman
             return false;
         }
 
+        if (schedule.IsPublished)
+        {
+            throw new InvalidOperationException("Published schedules cannot be deleted. Please unpublish the schedule to draft status before deleting.");
+        }
+
         _scheduleRepository.Delete(schedule);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

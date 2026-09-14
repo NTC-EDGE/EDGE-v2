@@ -7,16 +7,13 @@ namespace EDGE.Application.Schedules.Commands.UpdateSchedule;
 public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleCommand, ScheduleDto?>
 {
     private readonly IScheduleRepository _scheduleRepository;
-    private readonly IServiceRepository _serviceRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateScheduleCommandHandler(
         IScheduleRepository scheduleRepository,
-        IServiceRepository serviceRepository,
         IUnitOfWork unitOfWork)
     {
         _scheduleRepository = scheduleRepository;
-        _serviceRepository = serviceRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -28,17 +25,21 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             return null;
         }
 
-        var service = await _serviceRepository.GetByIdAsync(schedule.ServiceId, cancellationToken);
-        if (service == null)
+        if (schedule.IsPublished)
         {
-            throw new InvalidOperationException($"Service with ID '{schedule.ServiceId}' does not exist.");
+            throw new InvalidOperationException("Published schedules cannot be edited. Please unpublish the schedule to draft status before making changes.");
+        }
+
+        if (schedule.Service?.ServiceCategory?.Type != EDGE.Domain.Enums.ServiceCategoryType.Exam)
+        {
+            throw new InvalidOperationException("Schedules can only be maintained for Examination services.");
         }
 
         schedule.Venue = request.Venue;
-        schedule.StartDate = request.StartDate;
-        schedule.EndDate = request.EndDate;
-        schedule.StartApplication = request.StartApplication;
-        schedule.EndApplication = request.EndApplication;
+        schedule.StartDate = ToUtc(request.StartDate);
+        schedule.EndDate = ToUtc(request.EndDate);
+        schedule.StartApplication = ToUtc(request.StartApplication);
+        schedule.EndApplication = ToUtc(request.EndApplication);
         schedule.MaximumSlots = request.MaximumSlots;
         schedule.Remarks = request.Remarks;
 
@@ -48,8 +49,8 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
         return new ScheduleDto(
             schedule.Id,
             schedule.ServiceId,
-            service.Name,
-            service.Code,
+            schedule.Service?.Name,
+            schedule.Service?.Code,
             schedule.TenantId,
             schedule.Venue,
             schedule.StartDate,
@@ -61,5 +62,20 @@ public class UpdateScheduleCommandHandler : IRequestHandler<UpdateScheduleComman
             schedule.Remarks,
             schedule.CreatedAt
         );
+    }
+
+    private static DateTime ToUtc(DateTime dateTime)
+    {
+        return dateTime.Kind == DateTimeKind.Utc
+            ? dateTime
+            : DateTime.SpecifyKind(dateTime, DateTimeKind.Utc);
+    }
+
+    private static DateTime? ToUtc(DateTime? dateTime)
+    {
+        if (!dateTime.HasValue) return null;
+        return dateTime.Value.Kind == DateTimeKind.Utc
+            ? dateTime.Value
+            : DateTime.SpecifyKind(dateTime.Value, DateTimeKind.Utc);
     }
 }

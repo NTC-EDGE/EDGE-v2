@@ -101,6 +101,14 @@ export function ActivityCard({
   const displayAccountType =
     application.filingUser?.accountType || application.applicantType;
 
+  const isBulk =
+    application.applicationType === "BULK" ||
+    (application.applicantsList !== undefined && application.applicantsList.length > 1);
+
+  const totalApplicants = isBulk
+    ? (application.applicantsList && application.applicantsList.length > 0 ? application.applicantsList.length : 1)
+    : 1;
+
   const initials    = getAvatarInitials(displayFilingName);
   const statusStyle = getStatusStyle(application.status);
   const timestamp   = formatTimestamp(application.createdAt);
@@ -151,6 +159,39 @@ export function ActivityCard({
               <Text style={[styles.timestamp, { color: textMuted }]}>{timestamp}</Text>
             </View>
             <View style={styles.subHeaderRow}>
+              {/* Single / Bulk Mode Tag */}
+              <View
+                style={[
+                  styles.modePill,
+                  isBulk
+                    ? {
+                        backgroundColor: isDark ? 'rgba(180, 83, 9, 0.2)' : '#FEF3C7',
+                        borderColor: isDark ? '#B45309' : '#FDE68A',
+                      }
+                    : {
+                        backgroundColor: isDark ? 'rgba(29, 78, 216, 0.2)' : '#EFF6FF',
+                        borderColor: isDark ? '#1D4ED8' : '#DBEAFE',
+                      },
+                ]}
+              >
+                <Lucide
+                  name={isBulk ? "users" : "user"}
+                  size={10}
+                  color={isBulk ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#60A5FA' : '#1D4ED8')}
+                />
+                <Text
+                  style={[
+                    styles.modePillText,
+                    {
+                      color: isBulk ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#60A5FA' : '#1D4ED8'),
+                    },
+                  ]}
+                >
+                  {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
+                </Text>
+              </View>
+
+              <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
               <Text style={[styles.entityType, { color: textMuted }]}>{displayAccountType}</Text>
               <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
               <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
@@ -193,7 +234,7 @@ export function ActivityCard({
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
             <Lucide name="user-plus" size={10} color={textMuted} />
             <Text style={[styles.assignText, { color: textSub }]}>
-              {application.assignedTo}
+              {application.assignedTo || 'Unassigned'}
             </Text>
           </View>
           <View style={styles.badgeRow}>
@@ -215,22 +256,38 @@ export function ActivityCard({
             <View
               style={[
                 styles.typePill,
-                application.applicationType === "BULK"
-                  ? { backgroundColor: brandBg, borderColor: brandColor, borderWidth: 1 }
-                  : { backgroundColor: pillBg },
+                isBulk
+                  ? {
+                      backgroundColor: isDark ? 'rgba(180, 83, 9, 0.15)' : '#FFFBEB',
+                      borderColor: isDark ? '#B45309' : '#FDE68A',
+                      borderWidth: 1,
+                    }
+                  : {
+                      backgroundColor: isDark ? 'rgba(29, 78, 216, 0.12)' : '#F0F9FF',
+                      borderColor: isDark ? '#1D4ED8' : '#BAE6FD',
+                      borderWidth: 1,
+                    },
               ]}
             >
+              <Lucide
+                name={isBulk ? "layers" : "file-text"}
+                size={10}
+                color={isBulk ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? '#60A5FA' : '#0284C7')}
+              />
               <Text
                 style={[
                   styles.typePillText,
-                  application.applicationType === "BULK"
-                    ? { color: brandColor, fontWeight: "700" }
-                    : { color: textSub },
+                  {
+                    color: isBulk ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? '#60A5FA' : '#0284C7'),
+                    fontWeight: TYPOGRAPHY.weights.semibold,
+                  },
                 ]}
               >
-                {application.applicationType === "BULK" && application.applicantsList && application.applicantsList.length > 0
-                  ? `BULK • ${application.applicantsList.length}`
-                  : application.applicationType}
+                {isBulk
+                  ? totalApplicants > 1
+                    ? `Bulk • ${totalApplicants} Applicants`
+                    : 'Bulk Application'
+                  : 'Single Application'}
               </Text>
             </View>
           </View>
@@ -457,6 +514,9 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   typePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
@@ -465,6 +525,21 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 9,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  modePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  modePillText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.3,
   },
   menuOverlay: {
     flex: 1,

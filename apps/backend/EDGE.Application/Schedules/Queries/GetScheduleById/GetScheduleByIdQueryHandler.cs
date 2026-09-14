@@ -15,7 +15,7 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
 
     public async Task<ScheduleDto?> Handle(GetScheduleByIdQuery request, CancellationToken cancellationToken)
     {
-        var schedule = await _scheduleRepository.GetByIdAsync(request.Id, cancellationToken);
+        var schedule = await _scheduleRepository.GetByIdAsync(request.Id, asNoTracking: true, cancellationToken);
         if (schedule is null)
         {
             return null;

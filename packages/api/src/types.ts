@@ -166,6 +166,50 @@ export interface UpdateExamScheduleCommand {
   remarks?: string | null;
 }
 
+export interface ScheduleItemDto {
+  id: string;
+  serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+  createdAt: string;
+}
+
+export interface CreateSchedulePayload {
+  serviceId: string;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished?: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface UpdateSchedulePayload {
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface PublishSchedulePayload {
+  isPublished?: boolean | null;
+}
+
 // Tenant and Member Management Types
 export interface Tenant {
   id: string;
@@ -848,7 +892,10 @@ export interface ApplicationServiceDto {
   id: string;
   applicantId?: string;
   serviceId: string;
+  serviceName?: string;
+  serviceCategory?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
 }
 
@@ -931,6 +978,11 @@ export interface ApplicationDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   filingUser?: FilingUserDto;
   services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
@@ -968,6 +1020,11 @@ export interface ApplicationSummaryDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   filingUser?: FilingUserDto;
   services: ApplicationServiceDto[];
   applicants: ApplicantSummaryDto[];

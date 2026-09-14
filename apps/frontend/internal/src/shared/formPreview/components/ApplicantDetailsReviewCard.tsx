@@ -1,0 +1,118 @@
+import React from 'react';
+import { View } from 'react-native';
+import { SectionCard } from './SectionCard';
+import { SummaryRow } from './SummaryRow';
+
+export interface ApplicantDetailsSnapshot {
+  applicantType?: string;
+  companyName?: string | null;
+  representativeName?: string | null;
+  notes?: string | null;
+}
+
+export interface ApplicantDetailsReviewCardProps {
+  activeApplicant?: ApplicantDetailsSnapshot;
+  resolvedFullName: string | null;
+  resolvedEmail: string;
+  resolvedContactNo: string;
+  resolvedAddress: string | null;
+  resolvedBirthDate: string | null;
+  resolvedSex: string | null;
+  resolvedCivilStatus: string | null;
+  resolvedNationality: string | null;
+}
+
+export function ApplicantDetailsReviewCard({
+  activeApplicant,
+  resolvedFullName,
+  resolvedEmail,
+  resolvedContactNo,
+  resolvedAddress,
+  resolvedBirthDate,
+  resolvedSex,
+  resolvedCivilStatus,
+  resolvedNationality,
+}: ApplicantDetailsReviewCardProps) {
+  const applicantType = activeApplicant?.applicantType || 'individual';
+  const companyName = activeApplicant?.companyName || null;
+  const representativeName = activeApplicant?.representativeName || null;
+  const notes = activeApplicant?.notes || null;
+
+  const hasApplicantData =
+    resolvedFullName !== null ||
+    Boolean(companyName) ||
+    Boolean(representativeName) ||
+    resolvedEmail.length > 0 ||
+    resolvedContactNo.length > 0 ||
+    resolvedAddress !== null ||
+    resolvedSex !== null ||
+    resolvedCivilStatus !== null ||
+    resolvedNationality !== null ||
+    resolvedBirthDate !== null ||
+    Boolean(notes);
+
+  if (!hasApplicantData) {
+    return null;
+  }
+
+  return (
+    <SectionCard icon="user" title="Applicant Details" accentColor="#1D4ED8">
+      {resolvedFullName !== null && (
+        <SummaryRow
+          label={applicantType === 'company' ? 'Applicant / Company Name' : 'Full Legal Name'}
+          value={resolvedFullName}
+        />
+      )}
+      {applicantType === 'company' && companyName ? (
+        <SummaryRow label="Registered Business / Corporate Name" value={companyName} />
+      ) : null}
+      {representativeName ? (
+        <SummaryRow label="Authorized Representative" value={representativeName} />
+      ) : null}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {resolvedEmail.length > 0 ? (
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Email Address" value={resolvedEmail} />
+          </View>
+        ) : null}
+        {resolvedContactNo.length > 0 ? (
+          <View style={{ flex: 1 }}>
+            <SummaryRow label="Contact / Mobile Number" value={resolvedContactNo} />
+          </View>
+        ) : null}
+      </View>
+      {resolvedAddress !== null && (
+        <SummaryRow label="Complete Residential / Office Address" value={resolvedAddress} />
+      )}
+      {applicantType !== 'company' && (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {resolvedBirthDate !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Date of Birth" value={resolvedBirthDate} />
+              </View>
+            ) : null}
+            {resolvedSex !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Sex / Gender" value={resolvedSex} />
+              </View>
+            ) : null}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {resolvedCivilStatus !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Civil Status" value={resolvedCivilStatus} />
+              </View>
+            ) : null}
+            {resolvedNationality !== null ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
+              </View>
+            ) : null}
+          </View>
+        </>
+      )}
+      {notes ? <SummaryRow label="Special Notes / Remarks" value={notes} /> : null}
+    </SectionCard>
+  );
+}
