@@ -848,7 +848,10 @@ export interface ApplicationServiceDto {
   id: string;
   applicantId?: string;
   serviceId: string;
+  serviceName?: string;
+  serviceCategory?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
 }
 
@@ -931,6 +934,11 @@ export interface ApplicationDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   filingUser?: FilingUserDto;
   services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
@@ -968,6 +976,11 @@ export interface ApplicationSummaryDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   filingUser?: FilingUserDto;
   services: ApplicationServiceDto[];
   applicants: ApplicantSummaryDto[];

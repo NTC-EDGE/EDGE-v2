@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Image,
   Alert,
   Platform,
   Animated,
@@ -17,7 +16,6 @@ import {
   COLORS,
   SPACING,
   RADIUS,
-  SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
   SkeletonLoader,
@@ -44,6 +42,16 @@ import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { UserRole } from "../../shell/context/RoleContext";
 import { isAllowedRequirementFileType } from "../../../utils/fileValidation";
+import { HeroReviewHeader } from "../components/HeroReviewHeader";
+import { ApplicantParticularsCard } from "../components/ApplicantParticularsCard";
+import { BulkMetricsGrid } from "../components/BulkMetricsGrid";
+import {
+  SectionCard,
+  SummaryRow,
+  BaseApplicationPreview,
+  DigitalSignatureReviewCard,
+} from "../../../shared/formPreview";
+import { CustomDocPreviewModal } from "../../../shared/components/CustomDocPreviewModal";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -52,10 +60,10 @@ const INNER_TABS: {
   label: string;
   icon: "file-text" | "user" | "credit-card";
 }[] = [
-    { key: "details", label: "Application Details", icon: "file-text" },
-    { key: "applicant-record", label: "Applicant Records", icon: "user" },
-    { key: "soa", label: "SOA & Payment", icon: "credit-card" },
-  ];
+  { key: "details", label: "Application Details", icon: "file-text" },
+  { key: "applicant-record", label: "Applicant Records", icon: "user" },
+  { key: "soa", label: "SOA & Payment", icon: "credit-card" },
+];
 
 function getStatusStyle(status: string): { bg: string; text: string } {
   const s = status.toLowerCase();
@@ -116,11 +124,14 @@ function amountToWords(n: number): string {
 
   const toWords = (num: number): string => {
     if (num === 0) return "";
-    if (num < 20) return (ones[num] ?? "") + " ";
+    const oneVal = ones[num];
+    if (num < 20) return (oneVal !== undefined ? oneVal : "") + " ";
+    const tenVal = tens[Math.floor(num / 10)];
     if (num < 100)
-      return (tens[Math.floor(num / 10)] ?? "") + " " + toWords(num % 10);
+      return (tenVal !== undefined ? tenVal : "") + " " + toWords(num % 10);
+    const hundredVal = ones[Math.floor(num / 100)];
     return (
-      (ones[Math.floor(num / 100)] ?? "") + " Hundred " + toWords(num % 100)
+      (hundredVal !== undefined ? hundredVal : "") + " Hundred " + toWords(num % 100)
     );
   };
 
@@ -183,28 +194,28 @@ function InfoRow({
 }: InfoRowProps) {
   const { colors, isDark } = useTheme();
   return (
-    <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-      <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{label}</Text>
+    <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+      <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{label}</Text>
       {isEditing ? (
         <View style={infoStyles.editRow}>
           <TextInput
-            style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
+            style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500] }]}
             value={editValue}
             onChangeText={onEditChange}
             onBlur={onEditDone}
           />
           {showRowSaveButton && onEditDone && (
-            <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]} onPress={onEditDone}>
-              <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save</Text>
+            <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} onPress={onEditDone}>
+              <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>Save</Text>
             </Pressable>
           )}
         </View>
       ) : (
         <View style={infoStyles.valueRow}>
-          <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{value}</Text>
+          <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{value}</Text>
           {onEdit !== undefined && (
             <Pressable onPress={onEdit}>
-              <Text style={[infoStyles.editLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
+              <Text style={[infoStyles.editLink, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Edit</Text>
             </Pressable>
           )}
         </View>
@@ -212,6 +223,7 @@ function InfoRow({
     </View>
   );
 }
+
 const infoStyles = StyleSheet.create({
   row: {
     flexDirection: "row",
@@ -279,6 +291,7 @@ function ApplicationDetailsTab({
   selectedApplicantIndex,
   onSelectApplicantIndex,
   onInspectApplicant,
+  onPreviewFile,
 }: {
   app: ApplicationData;
   isEditable: boolean;
@@ -286,6 +299,7 @@ function ApplicationDetailsTab({
   selectedApplicantIndex?: number;
   onSelectApplicantIndex?: (index: number) => void;
   onInspectApplicant?: (index: number) => void;
+  onPreviewFile?: (uri: string, name: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const [isEditingSection, setIsEditingSection] = useState(false);
@@ -320,32 +334,8 @@ function ApplicationDetailsTab({
   const [natDraft, setNatDraft] = useState(app.basicInfo?.nationality ?? '');
   const [empStatusDraft, setEmpStatusDraft] = useState(app.basicInfo?.employmentStatus ?? '');
 
-  const [editingRef, setEditingRef] = useState(false);
-  const [editingPermit, setEditingPermit] = useState(false);
   const [editingNote, setEditingNote] = useState(false);
-  const [editingApplicant, setEditingApplicant] = useState(false);
-  const [editingAccountType, setEditingAccountType] = useState(false);
-  const [editingEmail, setEditingEmail] = useState(false);
-  const [editingBarangay, setEditingBarangay] = useState(false);
-  const [editingProvince, setEditingProvince] = useState(false);
-  const [editingCity, setEditingCity] = useState(false);
-  const [editingZipCode, setEditingZipCode] = useState(false);
-  const [editingCompName, setEditingCompName] = useState(false);
-  const [editingCompRegNo, setEditingCompRegNo] = useState(false);
-  const [editingCompAddr, setEditingCompAddr] = useState(false);
-  const [editingCompContact, setEditingCompContact] = useState(false);
-  const [editingCompEmail, setEditingCompEmail] = useState(false);
-  const [editingLastName, setEditingLastName] = useState(false);
-  const [editingFirstName, setEditingFirstName] = useState(false);
-  const [editingMiddleName, setEditingMiddleName] = useState(false);
-  const [editingExtName, setEditingExtName] = useState(false);
-  const [editingPob, setEditingPob] = useState(false);
-  const [editingDob, setEditingDob] = useState(false);
-  const [editingSex, setEditingSex] = useState(false);
-  const [editingWeight, setEditingWeight] = useState(false);
-  const [editingHeight, setEditingHeight] = useState(false);
-  const [editingNationality, setEditingNationality] = useState(false);
-  const [editingEmpStatus, setEditingEmpStatus] = useState(false);
+  const [rosterSearch, setRosterSearch] = useState('');
 
   const [localApplicants, setLocalApplicants] = useState<ApplicantItem[]>(app.applicantsList ?? []);
 
@@ -355,23 +345,99 @@ function ApplicationDetailsTab({
     }
   }, [app.applicantsList]);
 
+  const activeApplicant = (localApplicants.length > 0)
+    ? localApplicants[Math.min(selectedApplicantIndex ?? 0, localApplicants.length - 1)]
+    : undefined;
+
+  const { formData } = useApplicationFormWithSubmission(
+    app.id,
+    activeApplicant?.id,
+    activeApplicant?.serviceVariantId
+  );
+
+  const flatFormValues = useMemo(() => {
+    if (!formData || !formData.sections) return [];
+    return formData.sections.flatMap((sec) =>
+      sec.fields.map((f) => ({
+        fieldId: f.fieldId,
+        fieldLabel: f.label,
+        value: f.value ?? '',
+      }))
+    );
+  }, [formData]);
+
+  const isExamService = useMemo(() => {
+    const cat = (app.category || '').toLowerCase();
+    const title = (app.serviceName || app.permitTitle || '').toLowerCase();
+    return cat.includes('exam') || title.includes('exam') || title.includes('admission') || title.includes('operator examination');
+  }, [app.category, app.serviceName, app.permitTitle]);
+
+  const appliedServices = useMemo(() => {
+    if (app.services && app.services.length > 0) {
+      const map = new Map<string, { id?: string; name: string; category?: string; variant?: string }>();
+      for (const s of app.services) {
+        const name = s.serviceName || app.serviceName || app.permitTitle || 'Permit / Service Application';
+        const category = s.serviceCategory || app.serviceCategory || app.category || undefined;
+        const variant = s.serviceVariantName || app.serviceVariantName || undefined;
+        const key = `${s.serviceId ?? ''}-${name}-${variant ?? ''}`;
+        if (!map.has(key)) {
+          map.set(key, { id: s.id, name, category, variant });
+        }
+      }
+      return Array.from(map.values());
+    }
+    return [
+      {
+        name: app.serviceName || app.permitTitle || 'Permit / Service Application',
+        category: app.serviceCategory || app.category || undefined,
+        variant: app.serviceVariantName || undefined,
+      },
+    ];
+  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, app.serviceVariantName]);
+
+  const scheduleSummaryText = useMemo(() => {
+    if (app.assignedTo && app.assignedTo.trim().length > 0) {
+      return app.assignedTo;
+    }
+    if (app.office && app.office.trim().length > 0) {
+      return `NTC Field Office • ${app.office}`;
+    }
+    return null;
+  }, [app.assignedTo, app.office]);
+
+  const filteredApplicants = useMemo(() => {
+    if (!rosterSearch.trim()) return localApplicants;
+    const q = rosterSearch.toLowerCase().trim();
+    return localApplicants.filter(
+      (a) =>
+        a.name.toLowerCase().includes(q) ||
+        a.applicantType.toLowerCase().includes(q) ||
+        (a.status && a.status.toLowerCase().includes(q))
+    );
+  }, [localApplicants, rosterSearch]);
+
   const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
     const updated = [...localApplicants];
-    updated[idx] = { ...updated[idx], status: newStatus };
-    setLocalApplicants(updated);
-    if (!isEditingRoster) {
-      updateApplication(app.id, { applicantsList: updated });
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = { ...target, status: newStatus };
+      setLocalApplicants(updated);
+      if (!isEditingRoster) {
+        updateApplication(app.id, { applicantsList: updated });
+      }
     }
   };
 
   const handleUpdateRosterRow = (idx: number, patch: Partial<ApplicantItem>) => {
     const updated = [...localApplicants];
-    let newApplicant = { ...updated[idx], ...patch };
+    const target = updated[idx];
+    if (!target) return;
 
-    // Synchronize basicInfo.firstName and basicInfo.lastName when full name changes for Individuals
+    const newApplicant = { ...target, ...patch };
+
     if (patch.name !== undefined && newApplicant.applicantType === 'Individual') {
       const parts = patch.name.trim().split(/\s+/);
-      const firstName = parts[0] || '';
+      const firstName = parts[0] ?? '';
       const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
       newApplicant.basicInfo = {
         ...(newApplicant.basicInfo ?? {
@@ -437,11 +503,10 @@ function ApplicationDetailsTab({
   };
 
   const handleSaveAllRoster = () => {
-    // Synchronize basicInfo.firstName and basicInfo.lastName for all Individual applicants
     const synchronized = localApplicants.map((item) => {
       if (item.applicantType === 'Individual' && item.name) {
         const parts = item.name.trim().split(/\s+/);
-        const firstName = parts[0] || '';
+        const firstName = parts[0] ?? '';
         const lastName = parts.length > 1 ? parts.slice(1).join(' ') : '';
         return {
           ...item,
@@ -474,9 +539,14 @@ function ApplicationDetailsTab({
 
   const statusStyle = getStatusStyle(app.status);
 
+  const bulkTotal = localApplicants.length;
+  const bulkApproved = localApplicants.filter((a) => a.status === 'Complete').length;
+  const bulkDeclined = localApplicants.filter((a) => a.status === 'Incomplete').length;
+  const bulkPending = localApplicants.filter((a) => a.status === 'ForEndorsement' || !a.status).length;
+
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Top Section Header with Global Section Edit Mode Toggle */}
+      {/* ── Status Banner ── */}
       <View style={[styles.statusBlock, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }]}>
         <View style={[styles.statusRow, { gap: SPACING[12], alignItems: 'center' }]}>
           <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
@@ -516,6 +586,20 @@ function ApplicationDetailsTab({
         )}
       </View>
 
+      <View style={{ paddingHorizontal: SPACING[16], paddingTop: SPACING[16] }}>
+        {/* ── 1. Hero Review Header: Services, Processing Office, Mode, Variant ── */}
+        <HeroReviewHeader
+          services={appliedServices}
+          serviceName={app.serviceName || app.permitTitle || 'Permit / Service Application'}
+          isExamService={isExamService}
+          variantLabel={app.serviceVariantName || 'Standard'}
+          scheduleSummaryText={scheduleSummaryText}
+          mode={app.applicationType === 'BULK' ? 'Bulk' : 'Single'}
+          totalApplicants={localApplicants.length}
+        />
+      </View>
+
+      {/* ── Reference & Document Number block ── */}
       <View style={styles.infoBlock}>
         <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>REFERENCE NUMBER</Text>
         <InfoRow
@@ -538,7 +622,7 @@ function ApplicationDetailsTab({
         />
       </View>
 
-      {/* ALWAYS SHOW FILING ENTITY & SUBMITTER DETAILS FOR ALL APPLICATION/ACCOUNT TYPES */}
+      {/* ── Filing Entity & Submitter Details ── */}
       <SectionHeader title="FILING ENTITY & SUBMITTER DETAILS" />
       <View style={styles.infoBlock}>
         <InfoRow label="Submitted By:" value={app.filingUser?.name ?? "—"} />
@@ -629,12 +713,18 @@ function ApplicationDetailsTab({
         )}
       </View>
 
-      {/* BULK BATCH SUMMARY TABLE */}
+      {/* ── Bulk Applications Section ── */}
       {app.applicationType === 'BULK' && localApplicants.length > 0 && (
-        <>
-          {/* BULK BATCH APPLICANTS TABLE WITH FULL-TABLE TOGGLE EDIT */}
+        <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
+          <BulkMetricsGrid
+            totalSubmitted={bulkTotal}
+            approvedCount={bulkApproved}
+            declinedCount={bulkDeclined}
+            pendingCount={bulkPending}
+          />
+
           <SectionHeader
-            title={`APPLICANTS BATCH SUMMARY (${localApplicants.length} APPLICANTS)`}
+            title={`APPLICANTS BATCH ROSTER (${localApplicants.length} APPLICANTS)`}
             rightAction={
               isEditable ? (
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -665,8 +755,16 @@ function ApplicationDetailsTab({
               ) : null
             }
           />
+
+          <TextInput
+            style={[styles.rosterSearchInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
+            placeholder="Search roster applicants by name, type, or status..."
+            placeholderTextColor={colors.neutral[400]}
+            value={rosterSearch}
+            onChangeText={setRosterSearch}
+          />
+
           <View style={[styles.denseTableContainer, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white, borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
-            {/* Table Header */}
             <View style={[styles.denseTableHeader, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
               <Text style={[styles.denseHeaderCell, { width: 35, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>#</Text>
               <Text style={[styles.denseHeaderCell, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>APPLICANT NAME</Text>
@@ -676,8 +774,7 @@ function ApplicationDetailsTab({
               <Text style={[styles.denseHeaderCell, { width: 100, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>ACTION</Text>
             </View>
 
-            {/* Table Body Rows */}
-            {localApplicants.map((item, idx) => {
+            {filteredApplicants.map((item, idx) => {
               const isRowEditing = isEditingRoster;
               return (
                 <View
@@ -793,10 +890,50 @@ function ApplicationDetailsTab({
               );
             })}
           </View>
-        </>
+        </View>
       )}
 
-      {/* Application History section */}
+      {/* ── Single Applicant Details Particulars & Form Preview ── */}
+      {app.applicationType !== 'BULK' && (
+        <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
+          <ApplicantParticularsCard
+            applicant={{
+              applicantName: app.applicant,
+              name: app.applicant,
+              email: app.contactDetails?.email,
+              mobileNumber: app.contactDetails?.contactNumber,
+              streetAddress: app.address?.barangay,
+              barangay: app.address?.barangay,
+              cityMunicipality: app.address?.city,
+              province: app.address?.province,
+              zipCode: app.address?.zipCode,
+              birthDate: app.basicInfo?.dob,
+              sex: app.basicInfo?.sex,
+              nationality: app.basicInfo?.nationality,
+              companyName: app.companyDetails?.name,
+              representativeName: app.filingUser?.name,
+              notes: app.note,
+            }}
+          />
+
+          {/* Structured Form Submissions */}
+          {formData && (
+            <BaseApplicationPreview
+              service={{
+                title: app.serviceName || app.permitTitle,
+                category: app.serviceCategory || app.category,
+              }}
+              form={formData}
+              formFieldValues={flatFormValues}
+              showApplicantCard={false}
+              showSignatureCard={true}
+              onPreviewFile={onPreviewFile}
+            />
+          )}
+        </View>
+      )}
+
+      {/* ── Application History section ── */}
       {app.history && app.history.length > 0 && (
         <>
           <SectionHeader title="APPLICATION HISTORY" />
@@ -812,13 +949,13 @@ function ApplicationDetailsTab({
                       ]}
                     />
                     {idx !== app.history.length - 1 && (
-                      <View style={[styles.historyLine, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
+                      <View style={[styles.historyLine, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
                     )}
                   </View>
                   <View style={styles.historyRight}>
-                    <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{entry.action}</Text>
-                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by {entry.staff}</Text>
-                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>{entry.timestamp}</Text>
+                    <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{entry.action}</Text>
+                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>by {entry.staff}</Text>
+                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>{entry.timestamp}</Text>
                   </View>
                 </View>
               ))}
@@ -827,10 +964,10 @@ function ApplicationDetailsTab({
         </>
       )}
 
-      {/* NOTE */}
+      {/* ── Note Block ── */}
       <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
         <View style={styles.noteHeader}>
-          <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>NOTE</Text>
+          <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>EVALUATION NOTES / REMARKS</Text>
           {isEditable && !editingNote && (
             <Pressable
               onPress={() => {
@@ -863,7 +1000,7 @@ function ApplicationDetailsTab({
             </Pressable>
           </View>
         ) : (
-          <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{app.note}</Text>
+          <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{app.note || 'No evaluation notes recorded.'}</Text>
         )}
       </View>
 
@@ -878,12 +1015,14 @@ function ApplicantRecordTab({
   onSelectApplicantIndex,
   updateApplication,
   isEditable,
+  onPreviewFile,
 }: {
   app: ApplicationData;
   selectedApplicantIndex?: number;
   onSelectApplicantIndex?: (index: number) => void;
   updateApplication?: (id: string, patch: Partial<ApplicationData>) => void;
   isEditable?: boolean;
+  onPreviewFile?: (uri: string, name: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const effectiveApplicants = useMemo(() => {
@@ -899,10 +1038,10 @@ function ApplicantRecordTab({
       contactNumber: app.contactDetails?.contactNumber || '',
       email: app.contactDetails?.email || '',
       address: typeof app.address === 'string' ? app.address : `${app.address?.city ?? ''}, ${app.address?.province ?? ''}`.trim(),
-      barangay: '',
-      city: '',
-      province: '',
-      zipCode: '',
+      barangay: app.address?.barangay || '',
+      city: app.address?.city || '',
+      province: app.address?.province || '',
+      zipCode: app.address?.zipCode || '',
       basicInfo: app.basicInfo ? {
         lastName: app.basicInfo.lastName,
         firstName: app.basicInfo.firstName,
@@ -927,12 +1066,8 @@ function ApplicantRecordTab({
     setLocalApplicants(effectiveApplicants);
   }, [effectiveApplicants]);
 
-  const applicants = (localApplicants.length > 0 && localApplicants[0]?.id === effectiveApplicants[0]?.id)
-    ? localApplicants
-    : effectiveApplicants;
-  const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, applicants.length - 1));
-  const activeApplicant = applicants[activeIdx];
-  const bi = activeApplicant?.basicInfo;
+  const activeIdx = Math.min(selectedApplicantIndex ?? 0, Math.max(0, localApplicants.length - 1));
+  const activeApplicant = localApplicants[activeIdx];
 
   const [isEditingProfile, setIsEditingProfile] = useState(false);
   const [isEditingForm, setIsEditingForm] = useState(false);
@@ -941,15 +1076,10 @@ function ApplicantRecordTab({
   const [lnProfileDraft, setLnProfileDraft] = useState('');
   const [mnProfileDraft, setMnProfileDraft] = useState('');
   const [extProfileDraft, setExtProfileDraft] = useState('');
-  const [editingType, setEditingType] = useState(false);
   const [typeDraft, setTypeDraft] = useState('');
-  const [editingContact, setEditingContact] = useState(false);
   const [contactDraft, setContactDraft] = useState('');
-  const [editingEmail, setEditingEmail] = useState(false);
   const [emailDraft, setEmailDraft] = useState('');
-  const [editingAddress, setEditingAddress] = useState(false);
   const [addressDraft, setAddressDraft] = useState('');
-  const [editingZip, setEditingZip] = useState(false);
   const [zipDraft, setZipDraft] = useState('');
   const [dobDraft, setDobDraft] = useState('');
   const [sexDraft, setSexDraft] = useState('');
@@ -980,28 +1110,40 @@ function ApplicantRecordTab({
     }
   }, [formData]);
 
+  const flatFormValues = useMemo(() => {
+    if (!formData || !formData.sections) return [];
+    return formData.sections.flatMap((sec) =>
+      sec.fields.map((f) => ({
+        fieldId: f.fieldId,
+        fieldLabel: f.label,
+        value: formDraftValues[f.fieldId] ?? f.value ?? '',
+      }))
+    );
+  }, [formData, formDraftValues]);
+
   const handleSaveProfile = () => {
     const updated = [...localApplicants];
-    if (updated[activeIdx]) {
+    const target = updated[activeIdx];
+    if (target) {
       const compiledName = [fnProfileDraft, mnProfileDraft, lnProfileDraft, extProfileDraft].filter(Boolean).join(' ').trim();
-      const finalName = compiledName || updated[activeIdx].name;
+      const finalName = compiledName || target.name;
       updated[activeIdx] = {
-        ...updated[activeIdx],
+        ...target,
         name: finalName,
-        applicantType: (typeDraft as 'Individual' | 'Company') || updated[activeIdx].applicantType,
-        contactNumber: contactDraft || updated[activeIdx].contactNumber,
-        email: emailDraft || updated[activeIdx].email,
-        address: addressDraft || updated[activeIdx].address,
-        zipCode: zipDraft || updated[activeIdx].zipCode,
+        applicantType: (typeDraft as 'Individual' | 'Company') || target.applicantType,
+        contactNumber: contactDraft || target.contactNumber,
+        email: emailDraft || target.email,
+        address: addressDraft || target.address,
+        zipCode: zipDraft || target.zipCode,
         companyDetails: typeDraft === 'Company' ? {
           name: compNameProfileDraft,
           registrationNumber: compRegNoProfileDraft,
           address: compAddressProfileDraft,
           contactNumber: compContactProfileDraft,
           email: compEmailProfileDraft,
-        } : updated[activeIdx].companyDetails,
+        } : target.companyDetails,
         basicInfo: {
-          ...(updated[activeIdx].basicInfo ?? {
+          ...(target.basicInfo ?? {
             lastName: '',
             firstName: '',
             middleName: '',
@@ -1031,11 +1173,11 @@ function ApplicantRecordTab({
           lastName: lnProfileDraft,
           middleName: mnProfileDraft,
           suffix: extProfileDraft,
-          contactNumber: contactDraft || updated[activeIdx].contactNumber,
-          email: emailDraft || updated[activeIdx].email,
-          address: addressDraft || updated[activeIdx].address,
-          zipCode: zipDraft || updated[activeIdx].zipCode,
-          applicantType: typeDraft || updated[activeIdx].applicantType,
+          contactNumber: contactDraft || target.contactNumber,
+          email: emailDraft || target.email,
+          address: addressDraft || target.address,
+          zipCode: zipDraft || target.zipCode,
+          applicantType: typeDraft || target.applicantType,
           dob: dobDraft,
           sex: sexDraft,
           nationality: nationalityDraft,
@@ -1061,7 +1203,7 @@ function ApplicantRecordTab({
       }))
     );
 
-    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
+    const [res] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
     if (res && res.succeeded) {
       setIsEditingForm(false);
       refetchForm();
@@ -1090,7 +1232,7 @@ function ApplicantRecordTab({
       return;
     }
     setIsLoadingRequirements(true);
-    const [res, err] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
+    const [res] = await applicationService.getApplicantRequirements(app.id, activeApplicant.id);
     setIsLoadingRequirements(false);
     if (res !== null && res.data !== undefined && res.data !== null) {
       setApplicantRequirementsState(res.data);
@@ -1110,8 +1252,9 @@ function ApplicantRecordTab({
   const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
     if (!isEditable) return;
     const updated = [...localApplicants];
-    if (updated[idx]) {
-      updated[idx] = { ...updated[idx], status: newStatus };
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = { ...target, status: newStatus };
       setLocalApplicants(updated);
       if (updateApplication) {
         updateApplication(app.id, { applicantsList: updated });
@@ -1122,20 +1265,13 @@ function ApplicantRecordTab({
   const handleSetRemarks = (idx: number, text: string) => {
     if (!isEditable) return;
     const updated = [...localApplicants];
-    if (updated[idx]) {
-      updated[idx] = { ...updated[idx], evaluationRemarks: text };
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = { ...target, evaluationRemarks: text };
       setLocalApplicants(updated);
       if (updateApplication) {
         updateApplication(app.id, { applicantsList: updated });
       }
-    }
-  };
-
-  const handleViewRequirement = (label: string, fileUrl?: string) => {
-    if (fileUrl !== undefined && fileUrl !== null && Platform.OS === 'web') {
-      window.open(fileUrl, '_blank');
-    } else {
-      Alert.alert("View Requirement Document", `Viewing submitted document: ${label}`);
     }
   };
 
@@ -1279,14 +1415,10 @@ function ApplicantRecordTab({
     }
   };
 
-  const applicantRequirements = (activeApplicant?.requirements && activeApplicant.requirements.length > 0)
-    ? activeApplicant.requirements
-    : app.requirements;
-
   return (
     <View style={{ flex: 1 }}>
-      {/* Fixed Sticky Top Applicant Selector Bar for Bulk Applications */}
-      {applicants.length > 0 && (
+      {/* ── Fixed Sticky Top Applicant Selector Bar ── */}
+      {localApplicants.length > 0 && (
         <View
           style={[
             styles.applicantSelectorBar,
@@ -1316,7 +1448,7 @@ function ApplicantRecordTab({
           <View style={styles.selectorCenter}>
             <Lucide name="user" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
             <Text style={[styles.selectorTitleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-              Applicant Record {activeIdx + 1} of {applicants.length}:
+              Applicant Record {activeIdx + 1} of {localApplicants.length}:
             </Text>
             <Text style={[styles.selectorNameText, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
               {activeApplicant?.name}
@@ -1324,9 +1456,9 @@ function ApplicantRecordTab({
           </View>
 
           <Pressable
-            disabled={activeIdx >= applicants.length - 1}
-            onPress={() => onSelectApplicantIndex?.(Math.min(applicants.length - 1, activeIdx + 1))}
-            style={[styles.selectorNavBtn, activeIdx >= applicants.length - 1 && { opacity: 0.3 }]}
+            disabled={activeIdx >= localApplicants.length - 1}
+            onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
+            style={[styles.selectorNavBtn, activeIdx >= localApplicants.length - 1 && { opacity: 0.3 }]}
           >
             <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
             <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
@@ -1334,9 +1466,8 @@ function ApplicantRecordTab({
         </View>
       )}
 
-      {/* Scrollable Content Area */}
+      {/* ── Scrollable Content Area ── */}
       <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-
         {/* Section 1: Personal & Profile Info */}
         <SectionHeader
           title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"}
@@ -1399,211 +1530,34 @@ function ApplicantRecordTab({
             ) : null
           }
         />
-        <View style={styles.infoBlock}>
-          {activeApplicant ? (
-            <>
-              {isEditingProfile ? (
-                <>
-                  <InfoRow
-                    label="First Name:"
-                    value={bi?.firstName || ''}
-                    isEditing={true}
-                    editValue={fnProfileDraft}
-                    onEditChange={setFnProfileDraft}
-                  />
-                  <InfoRow
-                    label="Middle Name:"
-                    value={bi?.middleName || ''}
-                    isEditing={true}
-                    editValue={mnProfileDraft}
-                    onEditChange={setMnProfileDraft}
-                  />
-                  <InfoRow
-                    label="Last Name:"
-                    value={bi?.lastName || ''}
-                    isEditing={true}
-                    editValue={lnProfileDraft}
-                    onEditChange={setLnProfileDraft}
-                  />
-                  <InfoRow
-                    label="Suffix:"
-                    value={bi?.extensionName || ''}
-                    isEditing={true}
-                    editValue={extProfileDraft}
-                    onEditChange={setExtProfileDraft}
-                  />
-                </>
-              ) : (
-                <InfoRow
-                  label="Full Name:"
-                  value={activeApplicant.name}
-                  isEditing={false}
-                />
-              )}
-              <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>Applicant Type:</Text>
-                {isEditingProfile ? (
-                  <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-                    <Pressable
-                      style={{
-                        backgroundColor: typeDraft === 'Individual'
-                          ? (isDark ? colors.brand[500] : colors.brand[700])
-                          : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
-                        borderWidth: 1,
-                        paddingHorizontal: 16,
-                        paddingVertical: 6,
-                        borderRadius: RADIUS.button,
-                      }}
-                      onPress={() => setTypeDraft('Individual')}
-                    >
-                      <Text style={{
-                        color: typeDraft === 'Individual' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
-                        fontWeight: '600',
-                        fontSize: TYPOGRAPHY.sizes.body,
-                      }}>
-                        Individual
-                      </Text>
-                    </Pressable>
-                    <Pressable
-                      style={{
-                        backgroundColor: typeDraft === 'Company'
-                          ? (isDark ? colors.brand[500] : colors.brand[700])
-                          : (isDark ? colors.neutral[800] : colors.neutral[100]),
-                        borderColor: isDark ? colors.brand[500] : colors.brand[600],
-                        borderWidth: 1,
-                        paddingHorizontal: 16,
-                        paddingVertical: 6,
-                        borderRadius: RADIUS.button,
-                      }}
-                      onPress={() => setTypeDraft('Company')}
-                    >
-                      <Text style={{
-                        color: typeDraft === 'Company' ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[700]),
-                        fontWeight: '600',
-                        fontSize: TYPOGRAPHY.sizes.body,
-                      }}>
-                        Company
-                      </Text>
-                    </Pressable>
-                  </View>
-                ) : (
-                  <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                    {activeApplicant.applicantType}
-                  </Text>
-                )}
-              </View>
-              {(isEditingProfile ? typeDraft === 'Company' : activeApplicant.applicantType === 'Company') && (
-                <>
-                  <InfoRow
-                    label="Company Name:"
-                    value={activeApplicant.companyDetails?.name ?? app.companyDetails?.name ?? app.filingUser?.company?.name ?? '—'}
-                    isEditing={isEditingProfile}
-                    editValue={compNameProfileDraft}
-                    onEditChange={setCompNameProfileDraft}
-                  />
-                  <InfoRow
-                    label="Company Reg No:"
-                    value={activeApplicant.companyDetails?.registrationNumber ?? app.companyDetails?.registrationNumber ?? app.filingUser?.company?.registrationNumber ?? '—'}
-                    isEditing={isEditingProfile}
-                    editValue={compRegNoProfileDraft}
-                    onEditChange={setCompRegNoProfileDraft}
-                  />
-                  <InfoRow
-                    label="Company Address:"
-                    value={activeApplicant.companyDetails?.address ?? app.companyDetails?.address ?? app.filingUser?.company?.address ?? '—'}
-                    isEditing={isEditingProfile}
-                    editValue={compAddressProfileDraft}
-                    onEditChange={setCompAddressProfileDraft}
-                  />
-                  <InfoRow
-                    label="Company Contact:"
-                    value={activeApplicant.companyDetails?.contactNumber ?? app.companyDetails?.contactNumber ?? app.filingUser?.company?.contactNumber ?? '—'}
-                    isEditing={isEditingProfile}
-                    editValue={compContactProfileDraft}
-                    onEditChange={setCompContactProfileDraft}
-                  />
-                  <InfoRow
-                    label="Company Email:"
-                    value={activeApplicant.companyDetails?.email ?? app.companyDetails?.email ?? app.filingUser?.company?.email ?? '—'}
-                    isEditing={isEditingProfile}
-                    editValue={compEmailProfileDraft}
-                    onEditChange={setCompEmailProfileDraft}
-                  />
-                </>
-              )}
-              <InfoRow
-                label="Contact Number:"
-                value={activeApplicant.contactNumber || '—'}
-                isEditing={isEditingProfile}
-                editValue={contactDraft}
-                onEditChange={setContactDraft}
-              />
-              <InfoRow
-                label="Email Address:"
-                value={activeApplicant.email || '—'}
-                isEditing={isEditingProfile}
-                editValue={emailDraft}
-                onEditChange={setEmailDraft}
-              />
-              <InfoRow
-                label="Address / Barangay:"
-                value={activeApplicant.address || '—'}
-                isEditing={isEditingProfile}
-                editValue={addressDraft}
-                onEditChange={setAddressDraft}
-              />
-              <InfoRow
-                label="Zip Code:"
-                value={activeApplicant.zipCode || '—'}
-                isEditing={isEditingProfile}
-                editValue={zipDraft}
-                onEditChange={setZipDraft}
-              />
-              <InfoRow
-                label="Date of Birth:"
-                value={bi?.dob || '—'}
-                isEditing={isEditingProfile}
-                editValue={dobDraft}
-                onEditChange={setDobDraft}
-              />
-              <InfoRow
-                label="Sex:"
-                value={bi?.sex || '—'}
-                isEditing={isEditingProfile}
-                editValue={sexDraft}
-                onEditChange={setSexDraft}
-              />
-              <InfoRow
-                label="Nationality:"
-                value={bi?.nationality || '—'}
-                isEditing={isEditingProfile}
-                editValue={nationalityDraft}
-                onEditChange={setNationalityDraft}
-              />
-              {bi ? (
-                <>
-                  {bi.height > 0 ? <InfoRow label="Height:" value={`${bi.height} cm`} /> : null}
-                  {bi.weight > 0 ? <InfoRow label="Weight:" value={`${bi.weight} kg`} /> : null}
-                </>
-              ) : null}
-            </>
-          ) : (
-            <>
-              <Text style={[styles.submittedText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                {app.applicationDetails.submittedAt}
-              </Text>
-              <Text style={[styles.permitCategoryText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{app.permitTitle}</Text>
-              <Text style={[styles.formTypeText, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                {app.applicationDetails.formType}
-              </Text>
-            </>
+
+        <View style={{ paddingHorizontal: SPACING[16] }}>
+          {activeApplicant && (
+            <ApplicantParticularsCard
+              applicant={{
+                applicantName: activeApplicant.name,
+                name: activeApplicant.name,
+                email: activeApplicant.email,
+                mobileNumber: activeApplicant.contactNumber,
+                streetAddress: activeApplicant.address,
+                barangay: activeApplicant.barangay,
+                cityMunicipality: activeApplicant.city,
+                province: activeApplicant.province,
+                zipCode: activeApplicant.zipCode,
+                birthDate: activeApplicant.basicInfo?.dob,
+                sex: activeApplicant.basicInfo?.sex,
+                nationality: activeApplicant.basicInfo?.nationality,
+                companyName: activeApplicant.companyDetails?.name,
+                representativeName: activeApplicant.applicantType === 'Company' ? app.filingUser?.name : undefined,
+                notes: activeApplicant.evaluationRemarks,
+              }}
+            />
           )}
         </View>
 
         {/* Section 2: Completed Service Form Submissions */}
         <SectionHeader
-          title="2. COMPLETED SERVICE FORM SUBMISSIONS"
+          title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
           rightAction={
             isEditable && formData && formData.sections.length > 0 ? (
               <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
@@ -1634,33 +1588,25 @@ function ApplicantRecordTab({
             ) : null
           }
         />
-        <View style={styles.infoBlock}>
+
+        <View style={{ paddingHorizontal: SPACING[16] }}>
           {isLoadingForm ? (
             <View style={{ padding: 16, alignItems: 'center' }}>
-              <Text style={{ color: isDark ? colors.neutral[400] : colors.neutral[600], fontSize: 13 }}>
-                Loading form submission...
-              </Text>
+              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
+              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
             </View>
           ) : formData && formData.sections.length > 0 ? (
-            formData.sections.map((sec) => (
-              <View key={sec.key} style={{ marginBottom: 16 }}>
-                <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[600], marginBottom: 8, textTransform: 'uppercase', letterSpacing: 0.5 }}>
-                  {sec.title}
-                </Text>
-                {sec.fields.map((ff) => (
-                  <InfoRow
-                    key={ff.fieldId}
-                    label={`${ff.label}:`}
-                    value={ff.value || '—'}
-                    isEditing={isEditingForm}
-                    editValue={formDraftValues[ff.fieldId] ?? ''}
-                    onEditChange={(newVal) => {
-                      setFormDraftValues((prev) => ({ ...prev, [ff.fieldId]: newVal }));
-                    }}
-                  />
-                ))}
-              </View>
-            ))
+            <BaseApplicationPreview
+              service={{
+                title: app.serviceName || app.permitTitle,
+                category: app.serviceCategory || app.category,
+              }}
+              form={formData}
+              formFieldValues={flatFormValues}
+              showApplicantCard={false}
+              showSignatureCard={true}
+              onPreviewFile={onPreviewFile}
+            />
           ) : (
             <View style={styles.emptyReqs}>
               <Lucide name="file-text" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
@@ -1749,7 +1695,7 @@ function ApplicantRecordTab({
                       {reqItem.fileName || 'No document file attached'}
                     </Text>
                     {isAttached && reqItem.url !== undefined && reqItem.url !== null && (
-                      <Pressable onPress={() => handleViewRequirement(reqItem.requirementName, reqItem.url ?? undefined)}>
+                      <Pressable onPress={() => onPreviewFile?.(reqItem.url ?? '', reqItem.requirementName)}>
                         <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
                       </Pressable>
                     )}
@@ -1790,9 +1736,9 @@ function ApplicantRecordTab({
             <SectionHeader title="ACCOUNTABLE FORM" />
             <View style={styles.infoBlock}>
               {accountableForms.map((form) => (
-                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
                   <View style={styles.formCardLeft}>
-                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
+                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF' }]}>
                       <Lucide
                         name="file-text"
                         size={18}
@@ -1800,17 +1746,17 @@ function ApplicantRecordTab({
                       />
                     </View>
                     <View>
-                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
+                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>DOCUMENT ATTACHMENT</Text>
+                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{form.name}</Text>
                       <View style={styles.formActions}>
                         {form.canView && (
                           <Pressable onPress={() => handleAction(form, "View")}>
-                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
                           </Pressable>
                         )}
                         {form.canPrint && (
                           <Pressable onPress={() => handleAction(form, "Print")}>
-                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
                           </Pressable>
                         )}
                       </View>
@@ -1818,7 +1764,7 @@ function ApplicantRecordTab({
                   </View>
                   {form.canDownload && (
                     <Pressable
-                      style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+                      style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
                       onPress={() => handleAction(form, "Download")}
                     >
                       <Lucide
@@ -1826,7 +1772,7 @@ function ApplicantRecordTab({
                         size={14}
                         color={isDark ? colors.neutral[400] : colors.neutral[600]}
                       />
-                      <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
+                      <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>Download</Text>
                     </Pressable>
                   )}
                 </View>
@@ -1841,9 +1787,9 @@ function ApplicantRecordTab({
             <SectionHeader title="DOWNLOAD FORM" />
             <View style={styles.infoBlock}>
               {downloadForms.map((form) => (
-                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+                <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
                   <View style={styles.formCardLeft}>
-                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
+                    <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF' }]}>
                       <Lucide
                         name="file-text"
                         size={18}
@@ -1851,17 +1797,17 @@ function ApplicantRecordTab({
                       />
                     </View>
                     <View>
-                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
+                      <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>DOCUMENT ATTACHMENT</Text>
+                      <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{form.name}</Text>
                       <View style={styles.formActions}>
                         {form.canView && (
                           <Pressable onPress={() => handleAction(form, "View")}>
-                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
                           </Pressable>
                         )}
                         {form.canPrint && (
                           <Pressable onPress={() => handleAction(form, "Print")}>
-                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
+                            <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
                           </Pressable>
                         )}
                       </View>
@@ -1870,7 +1816,7 @@ function ApplicantRecordTab({
                   <View style={styles.formBtnGroup}>
                     {form.canDownload && (
                       <Pressable
-                        style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+                        style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
                         onPress={() => handleAction(form, "Download")}
                       >
                         <Lucide
@@ -1878,12 +1824,12 @@ function ApplicantRecordTab({
                           size={14}
                           color={isDark ? colors.neutral[400] : colors.neutral[600]}
                         />
-                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
+                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>Download</Text>
                       </Pressable>
                     )}
                     {form.canRefresh && (
                       <Pressable
-                        style={[styles.refreshBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+                        style={[styles.refreshBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
                         onPress={() => handleAction(form, "Refresh")}
                       >
                         <Lucide
@@ -1891,7 +1837,7 @@ function ApplicantRecordTab({
                           size={14}
                           color={isDark ? colors.neutral[400] : colors.neutral[600]}
                         />
-                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Refresh</Text>
+                        <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>Refresh</Text>
                       </Pressable>
                     )}
                   </View>
@@ -1901,12 +1847,10 @@ function ApplicantRecordTab({
           </>
         )}
 
-
-
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* Fixed Sticky Bottom Dock — Evaluator Panel */}
+      {/* ── Fixed Sticky Bottom Dock — Evaluator Panel ── */}
       {activeApplicant && (
         <View
           style={[
@@ -1922,7 +1866,6 @@ function ApplicantRecordTab({
             },
           ]}
         >
-          {/* Accent stripe at top — full-width via absolute positioning */}
           <View
             pointerEvents="none"
             style={[
@@ -1938,13 +1881,11 @@ function ApplicantRecordTab({
           />
 
           <View style={styles.evalDockRow}>
-            {/* Left — Verdict chips */}
             <View style={styles.evalDockLeft}>
               <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                VERDICT — {activeApplicant.name.split(' ')[0].toUpperCase()}
+                VERDICT — {activeApplicant.name.split(' ')[0]?.toUpperCase() ?? 'APPLICANT'}
               </Text>
               <View style={styles.evalChipRow}>
-                {/* Complete chip */}
                 <Pressable
                   disabled={!isEditable}
                   style={[
@@ -1975,7 +1916,6 @@ function ApplicantRecordTab({
                   }]}>Complete</Text>
                 </Pressable>
 
-                {/* Incomplete chip */}
                 <Pressable
                   disabled={!isEditable}
                   style={[
@@ -2006,7 +1946,6 @@ function ApplicantRecordTab({
                   }]}>Incomplete</Text>
                 </Pressable>
 
-                {/* For Endorsement chip */}
                 <Pressable
                   disabled={!isEditable}
                   style={[
@@ -2039,10 +1978,8 @@ function ApplicantRecordTab({
               </View>
             </View>
 
-            {/* Divider */}
             <View style={[styles.evalDockDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
 
-            {/* Right — Remarks */}
             <View style={styles.evalDockRight}>
               <Text style={[styles.evalDockLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
                 REMARKS
@@ -2072,46 +2009,6 @@ function ApplicantRecordTab({
   );
 }
 
-function RequirementsTab({ app }: { app: ApplicationData }) {
-  const { colors, isDark } = useTheme();
-  const handleViewRequirement = (label: string) => {
-    Alert.alert("View Requirement", `Viewing document: ${label}`);
-  };
-
-  return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {app.requirements.length === 0 ? (
-        <View style={styles.emptyReqs}>
-          <Lucide name="folder" size={28} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-          <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No requirements submitted</Text>
-        </View>
-      ) : (
-        app.requirements.map((req, idx) => (
-          <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-            <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{req.label}</Text>
-            {req.note !== undefined && req.note.length > 0 && (
-              <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{req.note}</Text>
-            )}
-            <View style={styles.reqFileRow}>
-              <Lucide name="file" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-              <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]} numberOfLines={1}>
-                {req.filename}
-              </Text>
-              <Pressable onPress={() => handleViewRequirement(req.label)}>
-                <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-              </Pressable>
-            </View>
-            <View style={[styles.reqThumbnail, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-              <Lucide name="image" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-            </View>
-          </View>
-        ))
-      )}
-      <View style={{ height: 80 }} />
-    </ScrollView>
-  );
-}
-
 function SoaPaymentTab({
   app,
   isEditable,
@@ -2133,18 +2030,15 @@ function SoaPaymentTab({
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* OFFICIAL BILLING RECORD */}
-      <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>OFFICIAL BILLING RECORD</Text>
+      <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
         <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-        <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
+        <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
           Review the billing particulars, charges, and due date below.
         </Text>
 
-        {/* Fee table */}
-        <View style={[styles.feeTable, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}>
-          {/* Header */}
-          <View style={[styles.feeTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+        <View style={[styles.feeTable, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
+          <View style={[styles.feeTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
             {[
               "Particular",
               "No. of Years",
@@ -2167,16 +2061,16 @@ function SoaPaymentTab({
               </Text>
             ))}
           </View>
-          <View style={[styles.feeTableDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
+          <View style={[styles.feeTableDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
 
           {app.soaItems.map((item, idx) => (
-            <View key={idx} style={[styles.feeTableRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
+            <View key={idx} style={[styles.feeTableRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
               <View style={{ flex: 2 }}>
-                <Text style={[styles.feeParticularName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{item.particular}</Text>
-                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>
+                <Text style={[styles.feeParticularName, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{item.particular}</Text>
+                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
                   Validity • {item.validityYears} Year(s)
                 </Text>
-                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>Code: {item.code}</Text>
+                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>Code: {item.code}</Text>
               </View>
               <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                 {item.validityYears}
@@ -2197,22 +2091,21 @@ function SoaPaymentTab({
           ))}
         </View>
 
-        {/* Total Amount Due */}
-        <View style={[styles.totalBox, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+        <View style={[styles.totalBox, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
           <View style={styles.totalRight}>
-            <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>TOTAL AMOUNT DUE</Text>
+            <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>TOTAL AMOUNT DUE</Text>
             <Text style={[styles.totalAmount, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
               {formatAmount(app.totalAmountDue)}
             </Text>
-            <Text style={[styles.totalWords, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{amountWords.toUpperCase()}</Text>
+            <Text style={[styles.totalWords, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{amountWords.toUpperCase()}</Text>
             <View style={styles.totalDueDateRow}>
-              <Text style={[styles.totalDueDateLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
+              <Text style={[styles.totalDueDateLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
                 To be paid on or before:
               </Text>
               {editingDueDate ? (
                 <View style={styles.inlineEditRow}>
                   <TextInput
-                    style={[styles.inlineEditInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
+                    style={[styles.inlineEditInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.brand[500] : colors.brand[500] }]}
                     value={dueDraft}
                     onChangeText={setDueDraft}
                     autoFocus
@@ -2223,11 +2116,11 @@ function SoaPaymentTab({
                       updateApplication(app.id, { dueDate: dueDraft });
                     }}
                   >
-                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
+                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Save</Text>
                   </Pressable>
                 </View>
               ) : (
-                <Text style={[styles.totalDueDate, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{app.dueDate}</Text>
+                <Text style={[styles.totalDueDate, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{app.dueDate}</Text>
               )}
             </View>
             {isEditable && !editingDueDate && (
@@ -2239,49 +2132,46 @@ function SoaPaymentTab({
                 }}
               >
                 <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
+                <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Edit</Text>
               </Pressable>
             )}
           </View>
         </View>
       </View>
 
-      {/* Payment Summary */}
-      <View style={[styles.paymentSection, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+      <View style={[styles.paymentSection, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
         <View style={styles.paymentSectionHeader}>
-          <View style={[styles.paymentSectionIcon, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
+          <View style={[styles.paymentSectionIcon, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
             <Lucide name="circle" size={20} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
           </View>
-          <Text style={[styles.paymentSectionTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>Payment Summary</Text>
+          <Text style={[styles.paymentSectionTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Payment Summary</Text>
         </View>
 
         <View style={styles.paymentRow}>
-          {/* Amount Received blue card */}
-          <View style={[styles.amountReceivedCard, { backgroundColor: isDark ? colors.brand[500] : colors.brand[800], }]}>
+          <View style={[styles.amountReceivedCard, { backgroundColor: isDark ? colors.brand[500] : colors.brand[800] }]}>
             <Text style={styles.amountReceivedLabel}>AMOUNT RECEIVED</Text>
-            <Text style={[styles.amountReceivedValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+            <Text style={[styles.amountReceivedValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
               {app.payment.amountReceived}
             </Text>
             {excess > 0 && (
               <View style={styles.excessBadge}>
-                <Text style={[styles.excessBadgeText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Excess: ₱{excess}</Text>
+                <Text style={[styles.excessBadgeText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>Excess: ₱{excess}</Text>
               </View>
             )}
             <View style={styles.paymentMethodBlock}>
               <Text style={styles.paymentMethodLabel}>PAYMENT METHOD</Text>
-              <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+              <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
                 {app.payment.method}
               </Text>
             </View>
           </View>
 
-          {/* OR Number column */}
           <View style={styles.orColumn}>
-            <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>OFFICIAL RECEIPT (OR) NUMBER</Text>
+            <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>OFFICIAL RECEIPT (OR) NUMBER</Text>
             {editingOrNumber ? (
               <View style={styles.inlineEditRow}>
                 <TextInput
-                  style={[styles.inlineEditInput, { flex: 1, color: isDark ? colors.neutral[100] : colors.neutral[900], }]}
+                  style={[styles.inlineEditInput, { flex: 1, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
                   value={orDraft}
                   onChangeText={setOrDraft}
                   autoFocus
@@ -2296,37 +2186,36 @@ function SoaPaymentTab({
                     });
                   }}
                 >
-                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
+                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Save</Text>
                 </Pressable>
               </View>
             ) : (
               <View style={styles.orValueRow}>
-                <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700], }]}>
+                <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                   {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
                 </Text>
                 {isEditable && (
                   <Pressable
-                    style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600], }]}
+                    style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600] }]}
                     onPress={() => {
                       setOrDraft(app.payment.orNumber);
                       setEditingOrNumber(true);
                     }}
                   >
                     <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
+                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>EDIT</Text>
                   </Pressable>
                 )}
               </View>
             )}
 
-            {/* Additional Payment Info for Checks */}
             {app.payment.method === "check" && (
               <View style={{ marginTop: SPACING[16] }}>
-                <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>CHECK DETAILS</Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
+                <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>CHECK DETAILS</Text>
+                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
                   No: {app.payment.checkNumber || "—"}
                 </Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
+                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
                   Bank: {app.payment.checkName || "—"}
                 </Text>
               </View>
@@ -2335,14 +2224,13 @@ function SoaPaymentTab({
         </View>
       </View>
 
-      {/* Correction Audit Trail */}
       <Pressable
-        style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
+        style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
         onPress={() => setAuditOpen((p) => !p)}
       >
         <View style={styles.auditHeaderLeft}>
           <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-          <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
+          <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
             CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
           </Text>
         </View>
@@ -2356,12 +2244,12 @@ function SoaPaymentTab({
       {auditOpen && (
         <View style={styles.auditList}>
           {app.correctionAuditTrail.length === 0 ? (
-            <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No audit trail entries.</Text>
+            <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
           ) : (
             app.correctionAuditTrail.map((entry) => (
-              <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-                <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700], }]}>{entry.action}</Text>
-                <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>
+              <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
+                <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
                   By {entry.staff} • {entry.timestamp}
                 </Text>
               </View>
@@ -2382,7 +2270,6 @@ export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void })
 
   return (
     <View style={{ flex: 1, backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }}>
-      {/* Top Bar / Header Banner Skeleton */}
       <View
         style={{
           flexDirection: 'row',
@@ -2408,7 +2295,6 @@ export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void })
         </View>
       </View>
 
-      {/* Inner Tabs Bar Skeleton */}
       <View
         style={{
           flexDirection: 'row',
@@ -2425,13 +2311,11 @@ export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void })
         <SkeletonLoader width={140} height={36} borderRadius={6} />
       </View>
 
-      {/* Content Workspace Skeleton */}
       <ScrollView
         style={{ flex: 1 }}
         contentContainerStyle={{ padding: SPACING[16], gap: SPACING[16] }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Section 1: Overview Card */}
         <View
           style={{
             borderRadius: RADIUS.card,
@@ -2451,7 +2335,6 @@ export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void })
           </View>
         </View>
 
-        {/* Section 2: Applicants Roster & Record */}
         <View
           style={{
             borderRadius: RADIUS.card,
@@ -2468,24 +2351,8 @@ export function ApplicationReviewSkeleton({ onClose }: { onClose?: () => void })
             <SkeletonLoader width="100%" height={52} borderRadius={RADIUS.card} />
           </View>
         </View>
-
-        {/* Section 3: Form Submissions / Requirements Table */}
-        <View
-          style={{
-            borderRadius: RADIUS.card,
-            borderWidth: 1,
-            borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
-            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
-            padding: SPACING[16],
-            gap: SPACING[12],
-          }}
-        >
-          <SkeletonLoader width={260} height={18} borderRadius={4} />
-          <SkeletonLoader width="100%" height={100} borderRadius={RADIUS.card} />
-        </View>
       </ScrollView>
 
-      {/* Bottom Sticky Action Bar Skeleton */}
       <View
         style={{
           flexDirection: 'row',
@@ -2556,61 +2423,14 @@ export function ApplicationReviewScreenContent({
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
 
+  const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
+
   useEffect(() => {
     setSelectedApplicantIndex(0);
   }, [selectedApplication?.id]);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
-
-  // Mouse drag-to-scroll for the tab bar on web
-  useEffect(() => {
-    if (Platform.OS !== 'web' || !isNarrow) return;
-    const node = tabScrollRef.current?.getScrollableNode();
-    if (!(node instanceof HTMLElement)) return;
-
-    node.style.cursor = 'grab';
-
-    let dragging = false;
-    let startX = 0;
-    let originScrollLeft = 0;
-
-    const onMouseDown = (e: MouseEvent) => {
-      dragging = true;
-      startX = e.pageX - node.offsetLeft;
-      originScrollLeft = node.scrollLeft;
-      node.style.cursor = 'grabbing';
-      node.style.userSelect = 'none';
-    };
-
-    const onMouseMove = (e: MouseEvent) => {
-      if (!dragging) return;
-      e.preventDefault();
-      const x = e.pageX - node.offsetLeft;
-      node.scrollLeft = originScrollLeft - (x - startX);
-    };
-
-    const stopDrag = () => {
-      if (!dragging) return;
-      dragging = false;
-      node.style.cursor = 'grab';
-      node.style.userSelect = '';
-    };
-
-    node.addEventListener('mousedown', onMouseDown);
-    node.addEventListener('mousemove', onMouseMove);
-    node.addEventListener('mouseup', stopDrag);
-    node.addEventListener('mouseleave', stopDrag);
-
-    return () => {
-      node.removeEventListener('mousedown', onMouseDown);
-      node.removeEventListener('mousemove', onMouseMove);
-      node.removeEventListener('mouseup', stopDrag);
-      node.removeEventListener('mouseleave', stopDrag);
-      node.style.cursor = '';
-      node.style.userSelect = '';
-    };
-  }, [isNarrow]);
 
   useEffect(() => {
     fadeAnim.setValue(0);
@@ -2639,19 +2459,19 @@ export function ApplicationReviewScreenContent({
   if (selectedApplication === null) {
     return (
       <ScrollView
-        style={[styles.emptyPanelScroll, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}
+        style={[styles.emptyPanelScroll, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}
         contentContainerStyle={styles.emptyPanelContainer}
         showsVerticalScrollIndicator={false}
       >
-        <View style={[styles.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-          <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
+        <View style={[styles.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+          <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
             <Text style={[styles.summaryTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Work Queue Summary</Text>
           </View>
 
-          <View style={[styles.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+          <View style={[styles.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
             <Lucide name="info" size={16} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-            <Text style={[styles.guideText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
+            <Text style={[styles.guideText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
               Select an application from the left feed to start reviewing
               details, endorsing, or approving requests.
             </Text>
@@ -2660,8 +2480,8 @@ export function ApplicationReviewScreenContent({
 
         <View style={styles.actionPrompt}>
           <Lucide name="mouse-pointer" size={32} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-          <Text style={[styles.emptyPanelTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No Application Selected</Text>
-          <Text style={[styles.emptyPanelSub, { color: isDark ? colors.neutral[600] : colors.neutral[300], }]}>
+          <Text style={[styles.emptyPanelTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No Application Selected</Text>
+          <Text style={[styles.emptyPanelSub, { color: isDark ? colors.neutral[600] : colors.neutral[300] }]}>
             Select an application from the queue to view full details and perform evaluation actions.
           </Text>
         </View>
@@ -2821,9 +2641,7 @@ export function ApplicationReviewScreenContent({
         },
       ]}>
         {isNarrow ? (
-          // ── Narrow: two rows ──
           <>
-            {/* Row 1: Scrollable tabs */}
             <ScrollView
               ref={tabScrollRef}
               horizontal
@@ -2858,7 +2676,6 @@ export function ApplicationReviewScreenContent({
               })}
             </ScrollView>
 
-            {/* Row 2: Actions — always visible */}
             <View style={[styles.innerTabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
               <View style={styles.headerActionRow}>
                 <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
@@ -2883,7 +2700,6 @@ export function ApplicationReviewScreenContent({
             </View>
           </>
         ) : (
-          // ── Wide: single row ──
           <View style={styles.innerTabBar}>
             {INNER_TABS.map((tab) => {
               const isActive = innerTab === tab.key;
@@ -2937,11 +2753,10 @@ export function ApplicationReviewScreenContent({
 
       {/* Read-only banner */}
       {!isEditable && (
-        <View style={[styles.readOnlyBanner, { backgroundColor: colors.brand.yellowLight, }]}>
+        <View style={[styles.readOnlyBanner, { backgroundColor: colors.brand.yellowLight }]}>
           <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
           <Text style={[styles.readOnlyText, { color: isDark ? COLORS.semantic.warningText : COLORS.semantic.warningText }]}>
-            Read-only — actions only available on Pending applications with
-            actionable status
+            Read-only — actions only available on Pending applications with actionable status
           </Text>
         </View>
       )}
@@ -2959,6 +2774,7 @@ export function ApplicationReviewScreenContent({
             setSelectedApplicantIndex(idx);
             setInnerTab("applicant-record");
           }}
+          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
         />
       )}
       {innerTab === "applicant-record" && (
@@ -2969,6 +2785,7 @@ export function ApplicationReviewScreenContent({
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           updateApplication={updateApplication}
           isEditable={isEditable}
+          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
         />
       )}
       {innerTab === "soa" && (
@@ -2981,7 +2798,7 @@ export function ApplicationReviewScreenContent({
       )}
 
       {/* ── Bottom Action Bar ── */}
-      <View style={[styles.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
+      <View style={[styles.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
         {showCashierBtn ? (
           <Pressable
             style={[
@@ -3132,7 +2949,13 @@ export function ApplicationReviewScreenContent({
         )}
       </View>
 
-      {/* ── Modals ── */}
+      {/* ── Document Preview Modal ── */}
+      <CustomDocPreviewModal
+        previewCustomDoc={previewCustomDoc}
+        onClose={() => setPreviewCustomDoc(null)}
+      />
+
+      {/* ── Evaluation Action Modals ── */}
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
@@ -3166,7 +2989,6 @@ export function ApplicationReviewScreenContent({
 // ─── Styles ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  // Empty state
   emptyPanelScroll: {
     flex: 1,
   },
@@ -3182,7 +3004,6 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     width: "100%",
     maxWidth: 500,
-    ...SHADOWS.card,
     marginBottom: SPACING[24],
   },
   summaryHeader: {
@@ -3198,33 +3019,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
     fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: SPACING[20],
-    gap: SPACING[6],
-  },
-  statBox: {
-    alignItems: "center",
-    justifyContent: "center",
-    flex: 1,
-    minWidth: 0,
-    paddingHorizontal: 2,
-  },
-  statValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 22,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textAlign: "center",
-  },
-  statLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    marginTop: 4,
-    textAlign: "center",
-    lineHeight: 14,
   },
   guideBox: {
     flexDirection: "row",
@@ -3257,13 +3051,11 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Panel shell
   panel: {
     flex: 1,
     flexDirection: "column",
   },
 
-  // Inner tab bar
   innerTabBarWrapper: {
     borderBottomWidth: 1,
   },
@@ -3300,9 +3092,6 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  innerTabTextActive: {
-    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   innerTabUnderline: {
     position: "absolute",
@@ -3343,7 +3132,6 @@ const styles = StyleSheet.create({
     marginLeft: SPACING[4],
   },
 
-  // Read-only banner
   readOnlyBanner: {
     flexDirection: "row",
     alignItems: "center",
@@ -3359,12 +3147,10 @@ const styles = StyleSheet.create({
     color: COLORS.semantic.warningText,
   },
 
-  // Tab content
   tabContent: {
     flex: 1,
   },
 
-  // Status block
   statusBlock: {
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[12],
@@ -3391,7 +3177,6 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.label,
   },
 
-  // Info block
   infoBlock: {
     paddingHorizontal: SPACING[16],
   },
@@ -3401,33 +3186,305 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    paddingTop: SPACING[12],
-    paddingBottom: SPACING[4],
+    marginBottom: SPACING[4],
   },
 
-  // Note block
+  rosterSearchInput: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginBottom: 10,
+  },
+
+  denseTableContainer: {
+    borderWidth: 1,
+    borderRadius: 8,
+    overflow: 'hidden',
+    marginBottom: 16,
+  },
+  denseTableHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+  },
+  denseHeaderCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  denseTableRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+  },
+  denseRowIndex: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  denseRowName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  denseRowSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+  },
+  denseRowType: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+  },
+  denseRowRemarks: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+  },
+  miniStatusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  miniStatusText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+  },
+
+  inspectBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  inspectBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '600',
+  },
+
+  applicantSelectorBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderRadius: 8,
+    marginHorizontal: SPACING[16],
+  },
+  selectorNavBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  selectorNavBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  selectorCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  selectorTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+  },
+  selectorNameText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: '700',
+  },
+
+  reqItem: {
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  reqLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  reqNote: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+  },
+  reqFileRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 4,
+  },
+  reqFilename: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    flex: 1,
+  },
+  reqViewLink: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: '600',
+  },
+  emptyReqs: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 24,
+    gap: 6,
+  },
+  emptyReqsText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+  },
+
+  formCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderRadius: RADIUS.card,
+    padding: SPACING[12],
+    marginVertical: SPACING[4],
+  },
+  formCardLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[10],
+    flex: 1,
+  },
+  formDocIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  formDocLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  formDocName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  formActions: {
+    flexDirection: "row",
+    gap: SPACING[10],
+    marginTop: SPACING[2],
+  },
+  formActionLink: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  formBtnGroup: {
+    flexDirection: "row",
+    gap: SPACING[6],
+  },
+  downloadBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[4],
+    borderWidth: 1,
+    borderRadius: RADIUS.button,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: SPACING[4],
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+  },
+  refreshBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[4],
+    borderWidth: 1,
+    borderRadius: RADIUS.button,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: SPACING[4],
+  },
+
+  historyList: {
+    paddingVertical: SPACING[4],
+  },
+  historyItem: {
+    flexDirection: "row",
+    gap: SPACING[12],
+  },
+  historyLeft: {
+    alignItems: "center",
+    width: 14,
+  },
+  historyCircle: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: COLORS.neutral[400],
+    marginTop: 4,
+  },
+  historyCircleActive: {
+    backgroundColor: COLORS.brand[700],
+  },
+  historyLine: {
+    width: 2,
+    flex: 1,
+    minHeight: 30,
+    marginVertical: 2,
+  },
+  historyRight: {
+    flex: 1,
+    paddingBottom: SPACING[12],
+  },
+  historyAction: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  historyStaff: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+  },
+  historyDate: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    marginTop: 1,
+  },
+
   noteBlock: {
-    margin: SPACING[16],
+    marginHorizontal: SPACING[16],
+    marginVertical: SPACING[12],
     borderWidth: 1,
     borderRadius: RADIUS.card,
-    padding: SPACING[16],
+    padding: SPACING[12],
   },
   noteHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: SPACING[8],
+    marginBottom: SPACING[6],
   },
   editLinkBlue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.label,
     fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.3,
   },
   noteText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 22,
+    lineHeight: 18,
   },
   noteInput: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -3435,780 +3492,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: RADIUS.input,
     padding: SPACING[8],
-    minHeight: 100,
-    lineHeight: 22,
+    minHeight: 60,
   },
   saveNoteBtn: {
     alignSelf: "flex-end",
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[4],
     borderRadius: RADIUS.button,
   },
   saveNoteBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-
-  // Application Details tab
-  submittedText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    paddingVertical: SPACING[8],
-  },
-  permitCategoryText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 2,
-  },
-  formTypeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingBottom: SPACING[12],
-  },
-  formCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingVertical: SPACING[12],
-    borderBottomWidth: 1,
-    borderLeftWidth: 3,
-    paddingLeft: SPACING[12],
-    marginBottom: SPACING[8],
-    borderRadius: RADIUS.input,
-    ...SHADOWS.card,
-  },
-  formCardLeft: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: SPACING[8],
-    flex: 1,
-  },
-  formDocIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.input,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  formDocLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  formDocName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  formActions: {
-    flexDirection: "row",
-    gap: SPACING[12],
-  },
-  formActionLink: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  formBtnGroup: {
-    flexDirection: "row",
-    gap: SPACING[8],
-    alignItems: "center",
-  },
-  downloadBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-  },
-  refreshBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-  },
-  downloadBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-  },
-
-  // Requirements tab
-  reqItem: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
-    borderBottomWidth: 1,
-  },
-  reqLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginBottom: 4,
-  },
-  reqNote: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontStyle: "italic",
-    marginBottom: SPACING[8],
-    lineHeight: 18,
-  },
-  reqFileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[8],
-  },
-  reqFilename: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    flex: 1,
-  },
-  reqViewLink: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.label,
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
-  reqThumbnail: {
-    width: 150,
-    height: 100,
-    borderRadius: RADIUS.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyReqs: {
-    alignItems: "center",
-    paddingVertical: SPACING[48],
-    gap: SPACING[8],
-  },
-  emptyReqsText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-  },
 
-  // SOA & Payment tab
-  billingContainer: {
-    margin: SPACING[16],
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    ...SHADOWS.card,
-  },
-  billingLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: SPACING[4],
-  },
-  billingTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.pageTitle,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 4,
-  },
-  billingSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    marginBottom: SPACING[16],
-    lineHeight: 20,
-  },
-
-  // Fee table
-  feeTable: {
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    overflow: "hidden",
-    marginBottom: SPACING[16],
-  },
-  feeTableHeader: {
-    flexDirection: "row",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-  },
-  feeTableHeaderCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  feeTableDivider: {
-    height: 1,
-  },
-  feeTableRow: {
-    flexDirection: "row",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[12],
-    borderTopWidth: 1,
-    alignItems: "flex-start",
-  },
-  feeParticularName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  feeParticularSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  feeTableCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    textAlign: "right",
-    paddingTop: 2,
-  },
-
-  // Total box
-  totalBox: {
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    marginBottom: SPACING[8],
-  },
-  totalRight: {
-    alignItems: "flex-end",
-  },
-  totalLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  totalAmount: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 4,
-  },
-  totalWords: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontStyle: "italic",
-    marginBottom: SPACING[8],
-    textAlign: "right",
-  },
-  totalDueDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[4],
-  },
-  totalDueDateLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-  },
-  totalDueDate: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  editLinkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  inlineEditRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginTop: 4,
-  },
-  inlineEditInput: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    minWidth: 120,
-  },
-  inlineEditSave: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-
-  // Payment section
-  paymentSection: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[16],
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    ...SHADOWS.card,
-  },
-  paymentSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[16],
-  },
-  paymentSectionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  paymentSectionTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  paymentRow: {
-    flexDirection: "row",
-    gap: SPACING[16],
-  },
-  amountReceivedCard: {
-    padding: SPACING[24],
-    borderRadius: RADIUS.card,
-    width: 220,
-    gap: SPACING[12],
-  },
-  amountReceivedLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  amountReceivedValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  excessBadge: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignSelf: "flex-start",
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.circle,
-  },
-  excessBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  paymentMethodBlock: {
-    marginTop: SPACING[4],
-  },
-  paymentMethodLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "rgba(255,255,255,0.6)",
-    textTransform: "uppercase",
-  },
-  paymentMethodValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "capitalize",
-  },
-  orColumn: {
-    flex: 1,
-    justifyContent: "flex-start",
-  },
-  orLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: SPACING[8],
-  },
-  orValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-  },
-  orValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  orEditBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.circle,
-    borderWidth: 1,
-  },
-  orEditText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.3,
-  },
-
-  checkInfoText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-
-  // History / Audit trail
-  historyList: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[24],
-    paddingTop: SPACING[8],
-  },
-  historyItem: {
-    flexDirection: "row",
-    minHeight: 60,
-  },
-  historyLeft: {
-    width: 24,
-    alignItems: "center",
-  },
-  historyLine: {
-    position: "absolute",
-    top: 20,
-    bottom: 0,
-    width: 2,
-  },
-  historyCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 6,
-    zIndex: 1,
-  },
-  historyCircleActive: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginLeft: -1,
-  },
-  historyRight: {
-    flex: 1,
-    paddingLeft: SPACING[16],
-    paddingBottom: SPACING[20],
-  },
-  historyAction: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  historyStaff: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  historyDate: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  historyEmpty: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingVertical: SPACING[12],
-    textAlign: "center",
-  },
-
-  auditHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: SPACING[16],
-    paddingVertical: SPACING[12],
-    borderTopWidth: 1,
-  },
-  auditHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-  },
-  auditTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  auditList: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[16],
-  },
-  auditEmpty: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingVertical: SPACING[12],
-  },
-  auditEntry: {
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  auditDesc: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 20,
-  },
-  auditMeta: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 4,
-  },
-
-  // Bottom action bar
-  actionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING[12],
-    paddingVertical: SPACING[12],
-    paddingHorizontal: SPACING[16],
-    borderTopWidth: 1,
-    ...SHADOWS.card,
-  },
-  actionBtnPrimary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-    minWidth: 140,
-    maxWidth: 180,
-  },
-  actionBtnPrimaryText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  actionBtnOutline: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-    borderWidth: 1.5,
-    minWidth: 140,
-    maxWidth: 180,
-  },
-  actionBtnOutlineText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  actionBtnDisabled: {
-    opacity: 0.45,
-  },
-  actionBtnDisabledText: {
-  },
-
-  // Bulk Roster & Applicant Selector
-  applicantSelectorBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[10],
-    marginHorizontal: SPACING[16],
-    marginTop: SPACING[12],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-  },
-  selectorNavBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.button,
-  },
-  selectorNavBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  selectorCenter: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[6],
-  },
-  selectorTitleText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-  },
-  selectorNameText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  bulkHeaderRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-  },
-  bulkItemRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[10],
-    borderBottomWidth: 1,
-  },
-  bulkCellHeader: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-  },
-  bulkCellText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-  },
-  inspectBtn: {
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.button,
-  },
-  inspectBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-
-  // Dense Applicants Summary Table
-  denseTableContainer: {
-    marginHorizontal: SPACING[16],
-    marginVertical: SPACING[8],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  denseTableHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[10],
-    borderBottomWidth: 1,
-  },
-  denseHeaderCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  denseTableRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[10],
-    borderBottomWidth: 1,
-  },
-  denseRowIndex: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  denseRowName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  denseRowSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    marginTop: 1,
-  },
-  denseRowType: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-  },
-  denseRowRemarks: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-  },
-
-  // Expanded applicant card styles
-  applicantExpandedCard: {
-    marginHorizontal: SPACING[12],
-    marginVertical: SPACING[8],
-    padding: SPACING[12],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-  },
-  expandedHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[8],
-    paddingBottom: SPACING[6],
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
-  },
-  expandedTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  expandedGrid: {
-    gap: 2,
-  },
-  expandedSubTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginBottom: 4,
-  },
-  miniStatusBadge: {
-    paddingHorizontal: SPACING[6],
-    paddingVertical: 2,
-    borderRadius: RADIUS.button,
-  },
-  miniStatusText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  evaluatorControlBox: {
-    marginTop: SPACING[12],
-    padding: SPACING[10],
-    borderRadius: RADIUS.input,
-    borderWidth: 1,
-  },
-  evalStatusBtn: {
-    paddingHorizontal: SPACING[10],
-    paddingVertical: SPACING[6],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: "transparent",
-  },
-  evalStatusBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  remarksInput: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[10],
-    paddingVertical: SPACING[6],
-    marginTop: SPACING[4],
-  },
   evaluatorControlBoxSticky: {
     paddingHorizontal: SPACING[16],
     paddingTop: SPACING[12],
@@ -4280,100 +3577,329 @@ const styles = StyleSheet.create({
     textAlignVertical: 'top' as const,
   },
 
-  // Master-Detail Split Workspace styles
-  masterDetailWrapper: {
+  billingContainer: {
+    margin: SPACING[16],
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    padding: SPACING[16],
+  },
+  billingLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  billingTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: 2,
+  },
+  billingSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    marginBottom: SPACING[12],
+  },
+  feeTable: {
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    overflow: "hidden",
+    marginBottom: SPACING[16],
+  },
+  feeTableHeader: {
+    flexDirection: "row",
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+  },
+  feeTableHeaderCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: "uppercase",
+  },
+  feeTableDivider: {
+    height: 1,
+  },
+  feeTableRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[8],
+    borderTopWidth: 1,
+  },
+  feeParticularName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  feeParticularSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+  },
+  feeTableCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    textAlign: "right",
+  },
+  totalBox: {
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    padding: SPACING[12],
+  },
+  totalRight: {
+    alignItems: "flex-end",
+  },
+  totalLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  totalAmount: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 22,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginVertical: 2,
+  },
+  totalWords: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    textAlign: "right",
+  },
+  totalDueDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+    marginTop: SPACING[8],
+  },
+  totalDueDateLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+  },
+  totalDueDate: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  inlineEditRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  inlineEditInput: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[6],
+    paddingVertical: SPACING[2],
+  },
+  inlineEditSave: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  editLinkRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[4],
+    marginTop: SPACING[4],
+  },
+
+  paymentSection: {
+    marginHorizontal: SPACING[16],
+    marginBottom: SPACING[16],
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    padding: SPACING[16],
+  },
+  paymentSectionHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[8],
+    marginBottom: SPACING[12],
+  },
+  paymentSectionIcon: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  paymentSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  paymentRow: {
     flexDirection: "row",
     gap: SPACING[12],
-    marginHorizontal: SPACING[16],
-    marginVertical: SPACING[8],
-    minHeight: 480,
   },
-  rosterSidebarContainer: {
-    width: 260,
+  amountReceivedCard: {
     borderRadius: RADIUS.card,
-    borderWidth: 1,
-    overflow: "hidden",
-  },
-  rosterSidebarHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[6],
-    paddingHorizontal: SPACING[10],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  rosterSidebarTitleText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  rosterCardItem: {
-    paddingHorizontal: SPACING[10],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  rosterCardTop: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[6],
-  },
-  rosterCardIndex: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  rosterCardName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    padding: SPACING[12],
     flex: 1,
   },
-  rosterCardBottom: {
+  amountReceivedLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: "rgba(255,255,255,0.8)",
+    letterSpacing: 0.5,
+  },
+  amountReceivedValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 20,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginVertical: 2,
+  },
+  excessBadge: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: RADIUS.circle,
+    paddingHorizontal: SPACING[6],
+    paddingVertical: 2,
+    alignSelf: "flex-start",
+    marginBottom: SPACING[8],
+  },
+  excessBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  paymentMethodBlock: {
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.2)",
+    paddingTop: SPACING[6],
+  },
+  paymentMethodLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    color: "rgba(255,255,255,0.7)",
+  },
+  paymentMethodValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: "uppercase",
+  },
+  orColumn: {
+    flex: 1,
+  },
+  orLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  orValueRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     marginTop: 4,
   },
-  rosterCardSub: {
+  orValue: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
-  focusWorkspacePane: {
-    flex: 1,
-    borderRadius: RADIUS.card,
+  orEditBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
     borderWidth: 1,
-    overflow: "hidden",
+    borderRadius: RADIUS.button,
+    paddingHorizontal: SPACING[6],
+    paddingVertical: 2,
   },
-  focusNavHeader: {
+  orEditText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  checkInfoText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    marginTop: 2,
+  },
+
+  auditHeader: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[10],
+    borderTopWidth: 1,
   },
-  focusNavBtn: {
+  auditHeaderLeft: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
+    gap: SPACING[8],
   },
-  focusNavBtnText: {
+  auditTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  focusNavTitleBox: {
-    alignItems: "center",
-  },
-  focusNavSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-  },
-  focusNavTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  auditList: {
+    paddingHorizontal: SPACING[16],
+    paddingBottom: SPACING[12],
+  },
+  auditEmpty: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    paddingVertical: SPACING[6],
+  },
+  auditEntry: {
+    paddingVertical: SPACING[6],
+    borderBottomWidth: 1,
+  },
+  auditDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+  },
+  auditMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.label,
+    marginTop: 1,
+  },
+
+  actionBar: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[12],
+    borderTopWidth: 1,
+  },
+  actionBtnPrimary: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[8],
+    borderRadius: RADIUS.button,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  actionBtnPrimaryText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  actionBtnOutline: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[8],
+    borderRadius: RADIUS.button,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  actionBtnOutlineText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  actionBtnDisabled: {
+    opacity: 0.5,
   },
 });

@@ -2,8 +2,15 @@ import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
 import {
   ApplicationData,
   ApplicationStatus,
+  ApplicationCategory,
   QueueTab,
 } from '../../../types/application';
+
+function parseApplicationCategory(cat?: string): ApplicationCategory {
+  if (!cat) return 'Permits';
+  const valid: ApplicationCategory[] = ['Exams', 'Permits', 'Licenses', 'Accreditations', 'Certificates', 'Complaints and Request'];
+  return valid.find((c) => c.toLowerCase() === cat.toLowerCase()) ?? 'Permits';
+}
 
 function mapBEStatusToFE(status: string): ApplicationStatus {
   const map: Record<string, ApplicationStatus> = {
@@ -146,7 +153,13 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
   });
 
   const feStatus = mapBEStatusToFE(dto.status);
-  const isBulk = dto.submissionMode === 'Bulk' || applicantsList.length > 1;
+  const isBulk =
+    dto.submissionMode?.toUpperCase() === 'BULK' ||
+    (Array.isArray(dto.applicants) && dto.applicants.length > 1) ||
+    applicantsList.length > 1;
+
+  const resolvedServiceName = dto.serviceName || 'Permit Evaluation';
+  const resolvedCategory = parseApplicationCategory(dto.serviceCategory);
 
   return {
     id: dto.id,
@@ -156,25 +169,36 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     filingUser,
     applicant: applicantName,
     applicantType: isCompanySubmission ? 'Company' : 'Individual',
-    permitTitle: 'Permit Evaluation',
-    category: 'Permits',
+    permitTitle: resolvedServiceName,
+    category: resolvedCategory,
     status: feStatus,
     queueTab: deriveQueueTab(feStatus),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
+    mode: isBulk ? 'Bulk' : 'Single',
+    serviceName: dto.serviceName ?? '',
+    serviceCategory: dto.serviceCategory ?? '',
+    serviceVariantName: dto.serviceVariantName ?? '',
+    office: dto.office ?? '',
     applicantsList,
     services: dto.services?.length
       ? dto.services.map((s) => ({
           id: s.id,
           applicantId: s.applicantId,
           serviceId: s.serviceId,
+          serviceName: s.serviceName ?? dto.serviceName,
+          serviceCategory: s.serviceCategory ?? dto.serviceCategory,
           serviceVariantId: s.serviceVariantId,
+          serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
           submissionId: s.submissionId,
         }))
       : applicantsList.map((a) => ({
           id: a.id,
           applicantId: a.id,
           serviceId: a.serviceId ?? '',
+          serviceName: dto.serviceName ?? '',
+          serviceCategory: dto.serviceCategory ?? '',
           serviceVariantId: a.serviceVariantId,
+          serviceVariantName: dto.serviceVariantName ?? '',
           submissionId: a.submissionId,
         })),
     createdAt: dto.createdAt,

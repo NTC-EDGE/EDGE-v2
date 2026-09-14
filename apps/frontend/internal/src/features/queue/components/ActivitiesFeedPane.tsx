@@ -41,7 +41,18 @@ type FilterStatus = Extract<
   "Approved" | "Returned" | "Completed"
 >;
 
+type FilterMode = "SINGLE" | "BULK";
+
 // ─── Static config ───────────────────────────────────────────────────────────
+
+const FILTER_MODES: {
+  label: string;
+  value: FilterMode;
+  icon: "user" | "users";
+}[] = [
+  { label: "Single Application", value: "SINGLE", icon: "user" },
+  { label: "Bulk Application",   value: "BULK",   icon: "users" },
+];
 
 const FILTER_STATUSES: {
   label: string;
@@ -162,6 +173,7 @@ export function ActivitiesFeedPane({
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
   const [activeStatuses,    setActiveStatuses]    = useState<Set<string>>(new Set());
   const [activeCategories,  setActiveCategories]  = useState<Set<ApplicationCategory>>(new Set());
+  const [activeModes,       setActiveModes]       = useState<Set<FilterMode>>(new Set());
   const [dateFrom,          setDateFrom]          = useState("");
   const [dateTo,            setDateTo]            = useState("");
   const [showSortDropdown,  setShowSortDropdown]  = useState(false);
@@ -199,6 +211,14 @@ export function ActivitiesFeedPane({
     });
   }, []);
 
+  const toggleMode = useCallback((mode: FilterMode) => {
+    setActiveModes((prev) => {
+      const next = new Set(prev);
+      if (next.has(mode)) next.delete(mode); else next.add(mode);
+      return next;
+    });
+  }, []);
+
   const toggleGroupCollapse = useCallback((dateKey: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
@@ -212,6 +232,7 @@ export function ActivitiesFeedPane({
     setSortOrder("newest");
     setActiveStatuses(new Set());
     setActiveCategories(new Set());
+    setActiveModes(new Set());
     setDateFrom("");
     setDateTo("");
     setShowSortDropdown(false);
@@ -222,16 +243,27 @@ export function ActivitiesFeedPane({
 
   // ── Filtered data ───────────────────────────────────────────────────────────
   const filteredGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filtered = applications.filter((app) => {
       if (app.status === "Draft" || app.isArchived) return false;
       if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) return false;
-      if (
-        searchQuery.trim().length > 0 &&
-        !app.applicant.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !app.permitTitle.toLowerCase().includes(searchQuery.toLowerCase())
-      ) return false;
+      if (q.length > 0) {
+        const matchesApplicant = app.applicant.toLowerCase().includes(q);
+        const matchesTitle = app.permitTitle.toLowerCase().includes(q);
+        const matchesRef = app.referenceNumber.toLowerCase().includes(q);
+        const matchesAppNum = app.applicationNumber.toLowerCase().includes(q);
+        const matchesType = app.applicationType.toLowerCase().includes(q);
+        const matchesMode =
+          (app.applicationType === "BULK" && "bulk application".includes(q)) ||
+          (app.applicationType === "SINGLE" && "single application".includes(q));
+
+        if (!matchesApplicant && !matchesTitle && !matchesRef && !matchesAppNum && !matchesType && !matchesMode) {
+          return false;
+        }
+      }
       if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;
+      if (activeModes.size > 0 && !activeModes.has(app.applicationType)) return false;
       if (dateFrom.length === 10) {
         const appDate = new Date(app.createdAt);
         if (appDate < new Date(dateFrom)) return false;
@@ -244,11 +276,12 @@ export function ActivitiesFeedPane({
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, dateFrom, dateTo, sortOrder]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||
     activeCategories.size > 0 ||
+    activeModes.size > 0 ||
     dateFrom.length > 0 ||
     dateTo.length > 0;
 
@@ -378,6 +411,24 @@ export function ActivitiesFeedPane({
               <Switch
                 value={activeStatuses.has(s.value)}
                 onValueChange={() => toggleStatus(s.value)}
+                trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[200], true: brandColor }}
+                thumbColor={COLORS.neutral.white}
+              />
+            </View>
+          ))}
+
+          <View style={[styles.filterPanelHeader, { marginTop: SPACING[12] }]}>
+            <Text style={[styles.panelSectionTitle, { color: textMuted }]}>Application Mode</Text>
+          </View>
+          {FILTER_MODES.map((m) => (
+            <View key={m.value} style={[styles.filterRow, { borderBottomColor: borderSoft }]}>
+              <View style={styles.filterRowLeft}>
+                <Lucide name={m.icon} size={14} color={textMuted} />
+                <Text style={[styles.filterRowLabel, { color: text }]}>{m.label}</Text>
+              </View>
+              <Switch
+                value={activeModes.has(m.value)}
+                onValueChange={() => toggleMode(m.value)}
                 trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[200], true: brandColor }}
                 thumbColor={COLORS.neutral.white}
               />

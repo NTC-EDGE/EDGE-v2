@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 
@@ -304,6 +305,84 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
                         CorrectedAt = DateTime.UtcNow
                     }, cancellationToken);
                     comp.Email = request.CompanyDetails.Email;
+                }
+            }
+
+            // Process ApplicantsList (Roster status & evaluation remarks)
+            if (request.ApplicantsList != null && request.ApplicantsList.Count > 0)
+            {
+                foreach (var rosterItem in request.ApplicantsList)
+                {
+                    ApplicationApplicant? matchedAppApplicant = null;
+                    if (Guid.TryParse(rosterItem.Id, out var parsedAppId))
+                    {
+                        matchedAppApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == parsedAppId);
+                    }
+
+                    if (matchedAppApplicant == null && !string.IsNullOrEmpty(rosterItem.Name))
+                    {
+                        matchedAppApplicant = app.ApplicationApplicants.FirstOrDefault(aa =>
+                            aa.Applicant != null &&
+                            aa.Applicant.ApplicantDetail != null &&
+                            $"{aa.Applicant.ApplicantDetail.FirstName} {aa.Applicant.ApplicantDetail.LastName}".Trim().Equals(rosterItem.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (matchedAppApplicant?.Applicant != null)
+                    {
+                        var applicant = matchedAppApplicant.Applicant;
+
+                        // Update Status
+                        if (!string.IsNullOrEmpty(rosterItem.Status) && Enum.TryParse<ApplicantStatus>(rosterItem.Status, true, out var parsedStatus))
+                        {
+                            if (applicant.Status != parsedStatus)
+                            {
+                                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                                {
+                                    ApplicationId = app.Id,
+                                    Category = "Applicant Evaluation",
+                                    FieldName = $"Applicant_{applicant.Id}_Status",
+                                    OldValue = applicant.Status.ToString(),
+                                    NewValue = parsedStatus.ToString(),
+                                    CorrectedByStaff = staffName,
+                                    CorrectedAt = DateTime.UtcNow
+                                }, cancellationToken);
+                                applicant.Status = parsedStatus;
+                            }
+                        }
+
+                        // Update Evaluation Remarks
+                        if (rosterItem.EvaluationRemarks != null && rosterItem.EvaluationRemarks != applicant.EvaluationRemarks)
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Applicant Evaluation",
+                                FieldName = $"Applicant_{applicant.Id}_Remarks",
+                                OldValue = applicant.EvaluationRemarks ?? string.Empty,
+                                NewValue = rosterItem.EvaluationRemarks,
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+                            applicant.EvaluationRemarks = rosterItem.EvaluationRemarks;
+                        }
+
+                        // Update Applicant Type
+                        if (!string.IsNullOrEmpty(rosterItem.ApplicantType) && Enum.TryParse<ApplicantType>(rosterItem.ApplicantType, true, out var parsedType))
+                        {
+                            applicant.ApplicantType = parsedType;
+                        }
+
+                        // Update Name if provided
+                        if (!string.IsNullOrEmpty(rosterItem.Name) && applicant.ApplicantDetail != null)
+                        {
+                            var parts = rosterItem.Name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length > 0)
+                            {
+                                applicant.ApplicantDetail.FirstName = parts[0];
+                                applicant.ApplicantDetail.LastName = parts.Length > 1 ? string.Join(" ", parts.Skip(1)) : string.Empty;
+                            }
+                        }
+                    }
                 }
             }
 
