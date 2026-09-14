@@ -68,7 +68,7 @@ export function UserCard({ user, onView, onEdit, onDelete }: UserCardProps) {
               ]}
             >
               <Text style={styles.avatarInitialsText}>
-                {user.avatarInitials || user.name.slice(0, 2).toUpperCase()}
+                {user.avatarInitials || ((user.name || 'Permittee').slice(0, 2).toUpperCase() || 'NT')}
               </Text>
             </View>
           )}
@@ -76,7 +76,7 @@ export function UserCard({ user, onView, onEdit, onDelete }: UserCardProps) {
 
         <View style={styles.identityGroup}>
           <View style={styles.idAndTypeRow}>
-            <Text style={styles.clientIdText}>ID: {user.id.slice(0, 10)}</Text>
+            <Text style={styles.clientIdText}>ID: {(user.id || '').slice(0, 10)}</Text>
             <View
               style={
                 user.accountType === 'Company' ? styles.companyBadge : styles.individualBadge
@@ -95,7 +95,7 @@ export function UserCard({ user, onView, onEdit, onDelete }: UserCardProps) {
           </View>
 
           <Text style={styles.userName} numberOfLines={1}>
-            {user.name}
+            {user.name || 'Permittee'}
           </Text>
 
           {user.organization && user.organization !== 'Individual Permittee' && (

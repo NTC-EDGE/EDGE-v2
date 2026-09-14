@@ -49,34 +49,37 @@ export function UserDetailsScreen({
     user.id
   );
 
+  const userId = user.id || '000000';
+  const userName = user.name || 'Permittee';
+
   const transactions: UserTransaction[] =
     liveDetails?.transactions && liveDetails.transactions.length > 0
       ? liveDetails.transactions.map((tx) => ({
-          id: tx.id,
-          refNo: tx.refNo,
-          type: tx.type,
+          id: tx.id || `tx-${Math.random().toString().slice(2, 6)}`,
+          refNo: tx.refNo || 'REF-NTC',
+          type: tx.type || 'Radio Station Authorization Filing',
           serviceType: user.licenseCategory || 'Telecommunications Service',
-          applicationNumber: tx.refNo,
-          amount: tx.amount,
-          status: tx.status,
+          applicationNumber: tx.refNo || 'APP-NTC',
+          amount: typeof tx.amount === 'number' ? tx.amount : 0,
+          status: tx.status || 'Paid',
           date: tx.date ? new Date(tx.date).toLocaleDateString() : 'Recent',
         }))
       : user.transactions && user.transactions.length > 0
       ? user.transactions
       : [
           {
-            id: `tx-${user.id}-1`,
-            refNo: `REF-2024-${user.id.slice(0, 5).toUpperCase()}`,
+            id: `tx-${userId}-1`,
+            refNo: `REF-2024-${userId.slice(0, 5).toUpperCase()}`,
             type: 'Application Filing',
             serviceType: user.licenseCategory || 'Radio Station Authorization',
-            applicationNumber: `APP-${user.id.slice(0, 4)}`,
+            applicationNumber: `APP-${userId.slice(0, 4)}`,
             amount: user.totalPaidAmount || 4500,
             status: 'Paid',
-            date: user.createdDate,
+            date: user.createdDate || '2026-01-15',
           },
         ];
 
-  const totalFilings = liveDetails?.totalApplications ?? user.applicationsCount;
+  const totalFilings = liveDetails?.totalApplications ?? user.applicationsCount ?? 1;
   const totalAmount = user.totalPaidAmount ?? (transactions.reduce((acc, t) => acc + t.amount, 0) || 4500);
 
   return (
@@ -114,7 +117,7 @@ export function UserDetailsScreen({
                   ]}
                 >
                   <Text style={styles.avatarInitialsText}>
-                    {user.avatarInitials || user.name.slice(0, 2).toUpperCase()}
+                    {user.avatarInitials || (userName.slice(0, 2).toUpperCase() || 'NT')}
                   </Text>
                 </View>
               )}
@@ -123,7 +126,7 @@ export function UserDetailsScreen({
             {/* Profile Info */}
             <View style={styles.profileSection}>
               <View style={styles.titleRow}>
-                <Text style={styles.userName}>{user.name}</Text>
+                <Text style={styles.userName}>{userName}</Text>
                 <StatusBadge status={user.status} />
               </View>
 
@@ -133,7 +136,7 @@ export function UserDetailsScreen({
 
               <View style={styles.badgesRow}>
                 <View style={styles.clientIdBadge}>
-                  <Text style={styles.clientIdText}>Permittee ID: {user.id.slice(0, 12)}</Text>
+                  <Text style={styles.clientIdText}>Permittee ID: {userId.slice(0, 12)}</Text>
                 </View>
                 <View
                   style={
@@ -482,7 +485,7 @@ export function UserDetailsScreen({
                   {user.licenseCategory || 'Commercial Radio Station Authorization'}
                 </Text>
                 <Text style={styles.permitMeta}>
-                  Permit No: NTC-RX-2024-LIC-{user.id.slice(0, 4)} • Valid until Dec 31, 2026
+                  Permit No: NTC-RX-2024-LIC-{userId.slice(0, 4)} • Valid until Dec 31, 2026
                 </Text>
               </View>
               <StatusBadge status="Approved" />
