@@ -53,22 +53,16 @@ export function ScheduleScreen() {
           title="Operational & Examination Schedules"
           subtitle="Desktop Workstation • Manage examination dates, testing centers, filing periods, and portal publishing."
           action={
-            <View style={styles.headerActions}>
-              <Button
-                variant="outline"
-                leftIcon={<Lucide name="refresh-cw" size={13} color={colors.text} />}
-                onPress={() => state.refetch()}
-              >
-                Refresh
-              </Button>
-              <Button
-                variant="primary"
-                leftIcon={<Lucide name="plus" size={14} color={COLORS.neutral.white} />}
-                onPress={state.handleOpenCreate}
-              >
-                Create Schedule
-              </Button>
-            </View>
+            <Button
+              variant="primary"
+              size="md"
+              fullWidth={false}
+              style={styles.createBtn}
+              leftIcon={<Lucide name="plus" size={16} color={COLORS.neutral.white} />}
+              onPress={state.handleOpenCreate}
+            >
+              Create Schedule
+            </Button>
           }
         />
 
@@ -332,10 +326,9 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     width: '100%',
   },
-  headerActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[8],
+  createBtn: {
+    minWidth: 160,
+    paddingHorizontal: SPACING[16],
   },
   statsGrid: {
     flexDirection: 'row',

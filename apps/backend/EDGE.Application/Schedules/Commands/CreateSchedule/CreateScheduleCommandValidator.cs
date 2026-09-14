@@ -1,13 +1,21 @@
 using FluentValidation;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Schedules.Commands.CreateSchedule;
 
 public class CreateScheduleCommandValidator : AbstractValidator<CreateScheduleCommand>
 {
-    public CreateScheduleCommandValidator()
+    public CreateScheduleCommandValidator(IServiceRepository serviceRepository)
     {
         RuleFor(x => x.ServiceId)
-            .NotEmpty().WithMessage("ServiceId is required.");
+            .NotEmpty().WithMessage("ServiceId is required.")
+            .MustAsync(async (serviceId, cancellationToken) =>
+            {
+                var service = await serviceRepository.GetByIdAsync(serviceId, cancellationToken);
+                return service != null && service.ServiceCategory?.Type == ServiceCategoryType.Exam;
+            })
+            .WithMessage("Schedules can only be created for Examination services.");
 
         RuleFor(x => x.TenantId)
             .NotEmpty().WithMessage("TenantId is required.");

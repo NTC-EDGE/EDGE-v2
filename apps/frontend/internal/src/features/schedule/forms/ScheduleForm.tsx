@@ -15,6 +15,7 @@ import {
   SPACING,
   RADIUS,
   TYPOGRAPHY,
+  SHADOWS,
   FormFieldInput,
   DatePickerField,
   Button,
@@ -44,265 +45,292 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
   const currentServiceId = useWatch({ control: form.control, name: 'serviceId' });
   const isPublishedValue = useWatch({ control: form.control, name: 'isPublished' }) ?? false;
 
+  const examServices = React.useMemo(() => {
+    return services.filter((svc) => {
+      const catType = (svc.serviceCategoryType ?? '').trim().toLowerCase();
+      const catCode = (svc.serviceCategoryCode ?? '').trim().toLowerCase();
+      return catType === 'exam' || catCode === 'exam' || catCode === 'examination';
+    });
+  }, [services]);
+
   const selectedService = services.find((s) => s.id === currentServiceId);
 
   return (
-    <ScrollView
-      style={styles.formScroll}
-      contentContainerStyle={styles.formContainer}
-      keyboardShouldPersistTaps="handled"
-    >
-      {errorMessage !== null && errorMessage !== undefined && (
-        <View style={[styles.errorBox, { backgroundColor: COLORS.semantic.errorBg, borderColor: COLORS.semantic.errorBorder }]}>
-          <Lucide name="alert-triangle" size={16} color={COLORS.semantic.error} />
-          <Text style={[styles.errorText, { color: COLORS.semantic.errorText }]}>
-            {errorMessage}
-          </Text>
-        </View>
-      )}
-
-      {/* Service Selector */}
-      <View style={styles.section}>
-        <Text style={[styles.sectionLabel, { color: colors.text }]}>
-          Examination / Service Target <Text style={{ color: COLORS.semantic.error }}>*</Text>
-        </Text>
-        <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
-          Select the license or examination service category for this schedule.
-        </Text>
-
-        <Pressable
-          style={[
-            styles.selectTrigger,
-            {
-              backgroundColor: isDark ? colors.neutral[800] : colors.cardBg,
-              borderColor: isServiceDropdownOpen ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.border,
-            },
-            isEditing && styles.disabledTrigger,
-            Platform.select({ web: { cursor: 'pointer' } }),
-          ]}
-          onPress={() => {
-            if (!isEditing) {
-              setIsServiceDropdownOpen(!isServiceDropdownOpen);
-            }
-          }}
-          disabled={isEditing}
-        >
-          <View style={styles.selectTriggerLeft}>
-            <Lucide
-              name="book-open"
-              size={16}
-              color={selectedService ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
-            />
-            <Text
-              style={[
-                styles.selectTriggerText,
-                { color: selectedService ? colors.text : colors.textMuted },
-              ]}
-              numberOfLines={1}
-            >
-              {selectedService
-                ? `${selectedService.name} (${selectedService.code || selectedService.serviceCategoryCode || 'NTC'})`
-                : isServicesLoading
-                ? 'Loading services catalog...'
-                : 'Select Examination / Service...'}
+    <View style={styles.formRoot}>
+      <ScrollView
+        style={styles.formScroll}
+        contentContainerStyle={styles.formContainer}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {errorMessage !== null && errorMessage !== undefined && (
+          <View style={[styles.errorBox, { backgroundColor: COLORS.semantic.errorBg, borderColor: COLORS.semantic.errorBorder }]}>
+            <Lucide name="alert-triangle" size={16} color={COLORS.semantic.error} />
+            <Text style={[styles.errorText, { color: COLORS.semantic.errorText }]}>
+              {errorMessage}
             </Text>
           </View>
-          <Lucide
-            name={isServiceDropdownOpen ? 'chevron-up' : 'chevron-down'}
-            size={16}
-            color={colors.textMuted}
-          />
-        </Pressable>
+        )}
 
-        {isServiceDropdownOpen && (
-          <View
-            style={[
-              styles.dropdownMenu,
-              {
-                backgroundColor: isDark ? colors.neutral[800] : colors.cardBg,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <ScrollView style={styles.dropdownScroll} nestedScrollEnabled>
-              {services.length === 0 && !isServicesLoading && (
-                <View style={styles.emptyDropdown}>
-                  <Text style={[styles.dropdownItemText, { color: colors.textMuted }]}>
-                    No services found.
-                  </Text>
-                </View>
-              )}
-              {services.map((svc) => {
-                const isSelected = svc.id === currentServiceId;
-                return (
-                  <Pressable
-                    key={svc.id}
-                    style={[
-                      styles.dropdownItem,
-                      isSelected && {
-                        backgroundColor: isDark ? colors.neutral[700] : colors.brand.light,
-                      },
-                      Platform.select({ web: { cursor: 'pointer' } }),
-                    ]}
-                    onPress={() => {
-                      form.setValue('serviceId', svc.id, { shouldValidate: true });
-                      setIsServiceDropdownOpen(false);
-                    }}
-                  >
-                    <View style={styles.dropdownItemContent}>
-                      <Text
-                        style={[
-                          styles.dropdownItemText,
-                          {
-                            color: isSelected
-                              ? isDark
-                                ? colors.brand[500]
-                                : colors.brand.primary
-                              : colors.text,
-                            fontWeight: isSelected ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.regular,
-                          },
-                        ]}
-                      >
-                        {svc.name}
-                      </Text>
-                      <Text style={[styles.dropdownItemSub, { color: colors.textMuted }]}>
-                        {svc.code || svc.serviceCategoryCode} • {svc.serviceCategoryType || 'Standard'}
+        {/* Service Selector */}
+        <View style={[styles.section, { zIndex: isServiceDropdownOpen ? 1000 : 1 }]}>
+          <Text style={[styles.sectionLabel, { color: colors.text }]}>
+            Examination Service Target <Text style={{ color: COLORS.semantic.error }}>*</Text>
+          </Text>
+          <Text style={[styles.fieldHint, { color: colors.textMuted }]}>
+            Select the examination service for this schedule (schedules are configured for exam services only).
+          </Text>
+
+          <View style={styles.selectWrapper}>
+            <Pressable
+              style={[
+                styles.selectTrigger,
+                {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.cardBg,
+                  borderColor: isServiceDropdownOpen ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.border,
+                },
+                isEditing && styles.disabledTrigger,
+                Platform.select({ web: { cursor: isEditing ? 'default' : 'pointer' } as object }),
+              ]}
+              onPress={() => {
+                if (!isEditing) {
+                  setIsServiceDropdownOpen(!isServiceDropdownOpen);
+                }
+              }}
+              disabled={isEditing}
+            >
+              <View style={styles.selectTriggerLeft}>
+                <Lucide
+                  name="book-open"
+                  size={16}
+                  color={selectedService ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
+                />
+                <Text
+                  style={[
+                    styles.selectTriggerText,
+                    { color: selectedService ? colors.text : colors.textMuted },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {selectedService
+                    ? `${selectedService.name} (${selectedService.code || selectedService.serviceCategoryCode || 'EXAM'})`
+                    : isServicesLoading
+                    ? 'Loading examination services catalog...'
+                    : 'Select Examination Service...'}
+                </Text>
+              </View>
+              <Lucide
+                name={isServiceDropdownOpen ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={colors.textMuted}
+              />
+            </Pressable>
+
+            {isServiceDropdownOpen && (
+              <View
+                style={[
+                  styles.floatingDropdownMenu,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.cardBg,
+                    borderColor: isDark ? colors.neutral[700] : colors.border,
+                  },
+                ]}
+              >
+                <ScrollView style={styles.dropdownScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+                  {examServices.length === 0 && !isServicesLoading && (
+                    <View style={styles.emptyDropdown}>
+                      <Text style={[styles.dropdownItemText, { color: colors.textMuted }]}>
+                        No examination services found.
                       </Text>
                     </View>
-                    {isSelected && (
-                      <Lucide
-                        name="check"
-                        size={15}
-                        color={isDark ? colors.brand[500] : colors.brand.primary}
-                      />
-                    )}
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
+                  )}
+                  {examServices.map((svc) => {
+                    const isSelected = svc.id === currentServiceId;
+                    return (
+                      <Pressable
+                        key={svc.id}
+                        style={[
+                          styles.dropdownItem,
+                          isSelected && {
+                            backgroundColor: isDark ? colors.neutral[700] : colors.brand.light,
+                          },
+                          Platform.select({ web: { cursor: 'pointer' } as object }),
+                        ]}
+                        onPress={() => {
+                          form.setValue('serviceId', svc.id, { shouldValidate: true });
+                          setIsServiceDropdownOpen(false);
+                        }}
+                      >
+                        <View style={styles.dropdownItemContent}>
+                          <Text
+                            style={[
+                              styles.dropdownItemText,
+                              {
+                                color: isSelected
+                                  ? isDark
+                                    ? colors.brand[500]
+                                    : colors.brand.primary
+                                  : colors.text,
+                                fontWeight: isSelected ? TYPOGRAPHY.weights.bold : TYPOGRAPHY.weights.regular,
+                              },
+                            ]}
+                          >
+                            {svc.name}
+                          </Text>
+                          <Text style={[styles.dropdownItemSub, { color: colors.textMuted }]}>
+                            {svc.code || svc.serviceCategoryCode || 'EXAM'} • Examination
+                          </Text>
+                        </View>
+                        {isSelected && (
+                          <Lucide
+                            name="check"
+                            size={15}
+                            color={isDark ? colors.brand[500] : colors.brand.primary}
+                          />
+                        )}
+                      </Pressable>
+                    );
+                  })}
+                </ScrollView>
+              </View>
+            )}
           </View>
-        )}
 
-        {form.formState.errors.serviceId && (
-          <Text style={styles.fieldError}>
-            {form.formState.errors.serviceId.message}
-          </Text>
-        )}
-      </View>
-
-      {/* Venue Location */}
-      <FormFieldInput
-        control={form.control}
-        name="venue"
-        label="Venue & Testing Center Location"
-        placeholder="e.g. NTC Multi-Purpose Hall, NCR Regional Office, Diliman, QC"
-      />
-
-      {/* Examination Schedule Dates */}
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <DatePickerField
-            control={form.control}
-            name="startDate"
-            label="Event / Exam Start Date"
-            required
-            placeholder="YYYY-MM-DD"
-          />
+          {form.formState.errors.serviceId && (
+            <Text style={styles.fieldError}>
+              {form.formState.errors.serviceId.message}
+            </Text>
+          )}
         </View>
 
-        <View style={styles.gridCol}>
-          <DatePickerField
-            control={form.control}
-            name="endDate"
-            label="Event / Exam End Date"
-            required
-            placeholder="YYYY-MM-DD"
-          />
-        </View>
-      </View>
+        {/* Venue Location */}
+        <FormFieldInput
+          control={form.control}
+          name="venue"
+          label="Venue & Testing Center Location"
+          placeholder="e.g. NTC Multi-Purpose Hall, NCR Regional Office, Diliman, QC"
+        />
 
-      {/* Application Filing Window */}
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <DatePickerField
-            control={form.control}
-            name="startApplication"
-            label="Application Open Date"
-            placeholder="YYYY-MM-DD"
-          />
-        </View>
+        {/* Examination Schedule Dates */}
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+            <DatePickerField
+              control={form.control}
+              name="startDate"
+              label="Event / Exam Start Date"
+              required
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
 
-        <View style={styles.gridCol}>
-          <DatePickerField
-            control={form.control}
-            name="endApplication"
-            label="Application Deadline"
-            placeholder="YYYY-MM-DD"
-          />
-        </View>
-      </View>
-
-      {/* Slots Capacity & Remarks */}
-      <View style={styles.gridRow}>
-        <View style={styles.gridCol}>
-          <FormFieldInput
-            control={form.control}
-            name="maximumSlots"
-            label="Maximum Slots Capacity"
-            placeholder="e.g. 50"
-            keyboardType="numeric"
-          />
+          <View style={styles.gridCol}>
+            <DatePickerField
+              control={form.control}
+              name="endDate"
+              label="Event / Exam End Date"
+              required
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
         </View>
 
-        <View style={styles.gridCol}>
-          <FormFieldInput
-            control={form.control}
-            name="remarks"
-            label="Special Instructions / Remarks"
-            placeholder="e.g. Bring valid 2x2 photo and black pen"
+        {/* Application Filing Window */}
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+            <DatePickerField
+              control={form.control}
+              name="startApplication"
+              label="Application Open Date"
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+
+          <View style={styles.gridCol}>
+            <DatePickerField
+              control={form.control}
+              name="endApplication"
+              label="Application Deadline"
+              placeholder="YYYY-MM-DD"
+            />
+          </View>
+        </View>
+
+        {/* Slots Capacity & Remarks */}
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+            <FormFieldInput
+              control={form.control}
+              name="maximumSlots"
+              label="Maximum Slots Capacity"
+              placeholder="e.g. 50"
+              keyboardType="numeric"
+            />
+          </View>
+
+          <View style={styles.gridCol}>
+            <FormFieldInput
+              control={form.control}
+              name="remarks"
+              label="Special Instructions / Remarks"
+              placeholder="e.g. Bring valid 2x2 photo and black pen"
+            />
+          </View>
+        </View>
+
+        {/* Publish Toggle Switch */}
+        <View
+          style={[
+            styles.publishRow,
+            {
+              backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+              borderColor: colors.border,
+            },
+          ]}
+        >
+          <View style={styles.publishInfo}>
+            <View style={styles.publishTitleRow}>
+              <Lucide
+                name={isPublishedValue ? 'globe' : 'eye-off'}
+                size={16}
+                color={isPublishedValue ? COLORS.semantic.success : colors.textMuted}
+              />
+              <Text style={[styles.publishTitle, { color: colors.text }]}>
+                {isPublishedValue ? 'Published to Client Portal' : 'Save as Internal Draft'}
+              </Text>
+            </View>
+            <Text style={[styles.publishDesc, { color: colors.textMuted }]}>
+              {isPublishedValue
+                ? 'This examination schedule is visible to applicants in the public services portal.'
+                : 'Keep this schedule unpublished and invisible to clients while finalizing dates.'}
+            </Text>
+          </View>
+
+          <Switch
+            value={isPublishedValue}
+            onValueChange={(val) => form.setValue('isPublished', val, { shouldValidate: true })}
+            trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[300], true: COLORS.semantic.success }}
+            thumbColor={COLORS.neutral.white}
           />
         </View>
-      </View>
+      </ScrollView>
 
-      {/* Publish Toggle Switch */}
+      {/* Fixed Sticky Form Footer */}
       <View
         style={[
-          styles.publishRow,
+          styles.formFooter,
           {
-            backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-            borderColor: colors.border,
+            borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200],
+            backgroundColor: colors.cardBg,
           },
         ]}
       >
-        <View style={styles.publishInfo}>
-          <View style={styles.publishTitleRow}>
-            <Lucide
-              name={isPublishedValue ? 'globe' : 'eye-off'}
-              size={16}
-              color={isPublishedValue ? COLORS.semantic.success : colors.textMuted}
-            />
-            <Text style={[styles.publishTitle, { color: colors.text }]}>
-              {isPublishedValue ? 'Published to Client Portal' : 'Save as Internal Draft'}
-            </Text>
-          </View>
-          <Text style={[styles.publishDesc, { color: colors.textMuted }]}>
-            {isPublishedValue
-              ? 'This examination schedule is visible to applicants in the public services portal.'
-              : 'Keep this schedule unpublished and invisible to clients while finalizing dates.'}
-          </Text>
-        </View>
-
-        <Switch
-          value={isPublishedValue}
-          onValueChange={(val) => form.setValue('isPublished', val, { shouldValidate: true })}
-          trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[300], true: COLORS.semantic.success }}
-          thumbColor={COLORS.neutral.white}
-        />
-      </View>
-
-      {/* Form Action Buttons */}
-      <View style={styles.formFooter}>
-        <Button variant="outline" onPress={onCancel} isDisabled={isSubmitting}>
+        <Button
+          variant="outline"
+          onPress={onCancel}
+          isDisabled={isSubmitting}
+          fullWidth={false}
+          style={styles.footerBtn}
+        >
           Cancel
         </Button>
         <Button
@@ -310,20 +338,27 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
           leftIcon={<Lucide name="check" size={16} color={COLORS.neutral.white} />}
           onPress={onSubmit}
           isLoading={isSubmitting}
+          fullWidth={false}
+          style={styles.footerBtn}
         >
           {isEditing ? 'Save Changes' : 'Create Schedule'}
         </Button>
       </View>
-    </ScrollView>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  formRoot: {
+    flex: 1,
+    flexDirection: 'column',
+    overflow: 'hidden',
+  },
   formScroll: {
     flex: 1,
   },
   formContainer: {
-    padding: SPACING[16],
+    padding: SPACING[20],
     gap: SPACING[16],
   },
   errorBox: {
@@ -342,6 +377,10 @@ const styles = StyleSheet.create({
   },
   section: {
     gap: SPACING[6],
+    position: 'relative',
+  },
+  selectWrapper: {
+    position: 'relative',
   },
   sectionLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -376,16 +415,26 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.body,
     flex: 1,
   },
-  dropdownMenu: {
+  floatingDropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    right: 0,
     marginTop: 4,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    maxHeight: 200,
+    maxHeight: 220,
     overflow: 'hidden',
-    zIndex: 50,
+    zIndex: 99999,
+    ...SHADOWS.modal,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 8px 10px -6px rgba(0, 0, 0, 0.3)',
+      },
+    }),
   },
   dropdownScroll: {
-    maxHeight: 200,
+    maxHeight: 220,
   },
   emptyDropdown: {
     padding: SPACING[12],
@@ -461,9 +510,11 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     gap: SPACING[10],
-    marginTop: SPACING[8],
-    paddingTop: SPACING[12],
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[12],
     borderTopWidth: 1,
-    borderTopColor: 'rgba(150, 150, 150, 0.15)',
+  },
+  footerBtn: {
+    minWidth: 120,
   },
 });

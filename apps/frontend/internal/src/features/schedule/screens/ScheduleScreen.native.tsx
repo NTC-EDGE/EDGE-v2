@@ -55,10 +55,12 @@ export function ScheduleScreen() {
             <Button
               variant="primary"
               size="sm"
+              fullWidth={false}
+              style={styles.createBtn}
               leftIcon={<Lucide name="plus" size={14} color={COLORS.neutral.white} />}
               onPress={state.handleOpenCreate}
             >
-              Add
+              Add Schedule
             </Button>
           }
         />
@@ -231,6 +233,10 @@ const styles = StyleSheet.create({
     padding: SPACING[16],
     paddingBottom: 40,
     gap: SPACING[16],
+  },
+  createBtn: {
+    minWidth: 120,
+    paddingHorizontal: SPACING[12],
   },
   statsRow: {
     flexDirection: 'row',

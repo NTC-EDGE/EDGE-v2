@@ -29,6 +29,11 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             throw new InvalidOperationException($"Service with ID '{request.ServiceId}' does not exist.");
         }
 
+        if (service.ServiceCategory?.Type != EDGE.Domain.Enums.ServiceCategoryType.Exam)
+        {
+            throw new InvalidOperationException("Schedules can only be created for Examination services.");
+        }
+
         var schedule = new Schedule
         {
             ServiceId = request.ServiceId,
