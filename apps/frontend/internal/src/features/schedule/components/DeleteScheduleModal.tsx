@@ -134,7 +134,7 @@ export function DeleteScheduleModal({
               {schedule.serviceName || 'General Examination'}
             </Text>
             <Text style={[styles.previewMeta, { color: colors.textMuted }]}>
-              Venue: {schedule.venue}
+              Venue: {schedule.venue || 'Venue Unassigned'}
             </Text>
             <Text style={[styles.previewMeta, { color: colors.textMuted }]}>
               Schedule: {dateRangeText}
