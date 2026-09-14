@@ -9,6 +9,7 @@ public interface IClerkUserService
     Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email);
     Task<ClerkUserResponse?> GetUserByIdAsync(string userId);
     Task<ClerkInvitationResponse> CreateInvitationAsync(CreateClerkInvitationPayload payload);
+    Task<List<ClerkUserResponse>> GetAllUsersAsync(int limit = 500, int offset = 0, CancellationToken cancellationToken = default);
 }
 
 public class CreateClerkInvitationPayload
@@ -59,4 +60,6 @@ public class ClerkUserResponse
     [JsonPropertyName("email_addresses")] public List<ClerkEmailAddress> EmailAddresses { get; set; } = new();
     [JsonPropertyName("first_name")] public string? FirstName { get; set; }
     [JsonPropertyName("last_name")] public string? LastName { get; set; }
+    [JsonPropertyName("public_metadata")] public System.Text.Json.JsonElement? PublicMetadata { get; set; }
+    [JsonPropertyName("private_metadata")] public System.Text.Json.JsonElement? PrivateMetadata { get; set; }
 }

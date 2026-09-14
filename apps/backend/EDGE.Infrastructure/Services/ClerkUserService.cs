@@ -236,4 +236,46 @@ public class ClerkUserService : IClerkUserService
         var invitationResponse = JsonSerializer.Deserialize<ClerkInvitationResponse>(responseBody, ResponseSerializerOptions);
         return invitationResponse ?? new ClerkInvitationResponse { EmailAddress = payload.EmailAddress, Status = "pending" };
     }
+
+    public async Task<List<ClerkUserResponse>> GetAllUsersAsync(int limit = 500, int offset = 0, CancellationToken cancellationToken = default)
+    {
+        var allUsers = new List<ClerkUserResponse>();
+        var currentOffset = offset;
+        var pageSize = Math.Clamp(limit, 1, 500);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var requestUri = $"users?limit={pageSize}&offset={currentOffset}&order_by=-created_at";
+            HttpResponseMessage response = await _httpClient.GetAsync(requestUri, cancellationToken);
+            string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+                _logger.LogError("Clerk get all users failed. Status: {Status} Error: {Error} Body: {Body}",
+                    response.StatusCode, errorDetails, responseBody);
+
+                throw new InvalidOperationException($"Clerk get all users failed: {errorDetails}");
+            }
+
+            var batch = JsonSerializer.Deserialize<List<ClerkUserResponse>>(responseBody, ResponseSerializerOptions) ?? new List<ClerkUserResponse>();
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            allUsers.AddRange(batch);
+
+            if (batch.Count < pageSize || allUsers.Count >= limit)
+            {
+                break;
+            }
+
+            currentOffset += batch.Count;
+        }
+
+        _logger.LogInformation("Clerk GetAllUsersAsync retrieved {Count} users total.", allUsers.Count);
+        return allUsers;
+    }
 }
+

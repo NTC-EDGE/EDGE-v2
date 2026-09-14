@@ -10,8 +10,10 @@ import {
   SupportDiagnosticNote,
   Region,
 } from "@edge/api";
+import { toast } from "sonner";
 import { useSupportService } from "@/services/supportService";
 import { useRegionService } from "@/services/regionService";
+import { useUserService } from "@/services/userService";
 
 // Modular Components (< 200 lines each)
 import { MOCK_SUPPORT_USERS, generateMockDiagnostics } from "@/components/support-users/mockData";
@@ -90,6 +92,23 @@ function GlobalUserDirectoryContent() {
   const regions: Region[] = Array.isArray(fetchedRegions)
     ? fetchedRegions
     : fetchedRegions?.data ?? [];
+
+  const { syncClerkUsers } = useUserService();
+  const [syncLoading, setSyncLoading] = useState(false);
+
+  const handleSyncClerk = async () => {
+    setSyncLoading(true);
+    try {
+      const result = await syncClerkUsers(true);
+      toast.success(result.message || "Clerk users synchronized successfully.");
+      await mutateUsers();
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to synchronize Clerk users.";
+      toast.error(errorMsg);
+    } finally {
+      setSyncLoading(false);
+    }
+  };
 
   const [localUsers, setLocalUsers] = useState<GlobalSupportUser[]>([]);
 
@@ -372,7 +391,11 @@ function GlobalUserDirectoryContent() {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      <SupportHeaderBanner metrics={metrics} />
+      <SupportHeaderBanner
+        metrics={metrics}
+        onSyncClerk={handleSyncClerk}
+        syncLoading={syncLoading}
+      />
 
       <SupportFilterToolbar
         searchTerm={searchTerm}
