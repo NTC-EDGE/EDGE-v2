@@ -1,6 +1,7 @@
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using EDGE.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,9 +17,7 @@ public static class ClerkAuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddClerkAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var clerkAuthority = configuration["Clerk:Authority"]
-            ?? configuration["CLERK_AUTHORITY"]
-            ?? configuration["Clerk__Authority"];
+        var clerkAuthority = configuration.GetClerkAuthority();
 
         if (string.IsNullOrWhiteSpace(clerkAuthority))
         {
