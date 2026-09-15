@@ -14,6 +14,8 @@ namespace EDGE.Application.Auth.Commands.VerifyStaffSession;
 public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessionCommand, ApiResponse<VerifyStaffSessionDto>>
 {
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly IGeographicRepository _geographicRepository;
     private readonly IRoleRepository _roleRepository;
@@ -21,12 +23,16 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
     public VerifyStaffSessionCommandHandler(
         ICurrentUserService currentUserService,
+        IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
         IGeographicRepository geographicRepository,
         IRoleRepository roleRepository,
         IRolePermissionRepository rolePermissionRepository)
     {
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
+        _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _geographicRepository = geographicRepository;
         _roleRepository = roleRepository;
@@ -41,7 +47,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var selectedRegionInput = request.SelectedRegion.Trim();
 
         // 1. Fetch available administrative regions to compare codes and names
-        var allRegions = await _geographicRepository.GetRegionsAsync(activeOnly: true, cancellationToken);
+        var allRegions = await _geographicRepository.GetRegionsAsync(activeOnly: true, cancellationToken) ?? new List<Region>();
         var targetRegion = allRegions.FirstOrDefault(r =>
             string.Equals(r.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
             string.Equals(r.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
@@ -49,39 +55,59 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             selectedRegionInput.Contains(r.Name, StringComparison.OrdinalIgnoreCase)
         ) ?? allRegions.FirstOrDefault(r => string.Equals(r.Code, "NCR", StringComparison.OrdinalIgnoreCase));
 
-        var regionCode = targetRegion?.Code ?? "NCR";
-        var regionName = targetRegion?.Name ?? "National Capital Region";
+        var regionCode = targetRegion?.Code ?? (!string.IsNullOrWhiteSpace(selectedRegionInput) ? selectedRegionInput : "NCR");
+        var regionName = targetRegion?.Name ?? (regionCode.Equals("NCR", StringComparison.OrdinalIgnoreCase) ? "National Capital Region" : $"Region {regionCode}");
 
-        // 2. Validate tenant regional access against caller context and resolve database Tenant
-        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        var callerTenantId = _currentUserService.TenantId;
-        Tenant? resolvedTenant = null;
-
-        if (callerTenantId.HasValue)
+        // 2. Resolve Authenticated User and Database Record
+        User? user = null;
+        if (!string.IsNullOrEmpty(rawUserId))
         {
-            var tenant = allTenants.FirstOrDefault(t => t.Id == callerTenantId.Value);
-            if (tenant != null)
+            user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
+            if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
             {
-                resolvedTenant = tenant;
-                var assignedRegion = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
-                if (assignedRegion != null)
+                user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            }
+        }
+
+        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken) ?? new List<Tenant>();
+        Tenant? resolvedTenant = null;
+        TenantMember? matchingMembership = null;
+
+        if (user != null)
+        {
+            var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
+            if (userMemberships.Count > 0)
+            {
+                // Find membership matching the selected region or tenant code/name
+                matchingMembership = userMemberships.FirstOrDefault(m =>
                 {
-                    var assignedRegionClean = assignedRegion.Code.Trim().ToLowerInvariant();
-                    var selectedRegionClean = selectedRegionInput.ToLowerInvariant();
+                    var t = allTenants.FirstOrDefault(tenant => tenant.Id == m.TenantId);
+                    if (t == null) return false;
+                    if (targetRegion != null && t.RegionId != Guid.Empty && t.RegionId == targetRegion.Id) return true;
+                    return string.Equals(t.Code, selectedRegionInput, StringComparison.OrdinalIgnoreCase) ||
+                           string.Equals(t.Name, selectedRegionInput, StringComparison.OrdinalIgnoreCase);
+                });
 
-                    bool isMatch = selectedRegionClean.Contains(assignedRegionClean) ||
-                                   assignedRegionClean.Contains(selectedRegionClean) ||
-                                   (assignedRegion.Name != null && selectedRegionClean.Contains(assignedRegion.Name.ToLowerInvariant()));
+                if (matchingMembership == null && !user.IsSuperAdmin)
+                {
+                    // User has assigned region(s) but selected an unassigned region
+                    var firstAssignedTenant = allTenants.FirstOrDefault(t => t.Id == userMemberships[0].TenantId);
+                    var firstAssignedRegion = firstAssignedTenant != null && firstAssignedTenant.RegionId != Guid.Empty
+                        ? allRegions.FirstOrDefault(r => r.Id == firstAssignedTenant.RegionId)
+                        : null;
 
-                    if (!isMatch)
-                    {
-                        return ApiResponse<VerifyStaffSessionDto>.Fail(
-                            $"Access Denied: Your staff account is assigned to Regional Office '{assignedRegion.Code} - {assignedRegion.Name}'. You cannot log into '{request.SelectedRegion}'."
-                        );
-                    }
+                    var assignedRegionLabel = firstAssignedRegion != null
+                        ? $"{firstAssignedRegion.Code} - {firstAssignedRegion.Name}"
+                        : firstAssignedTenant?.Name ?? "an assigned region";
 
-                    regionCode = assignedRegion.Code;
-                    regionName = assignedRegion.Name ?? regionName;
+                    return ApiResponse<VerifyStaffSessionDto>.Fail(
+                        $"Access Denied: Your staff account is assigned to Regional Office '{assignedRegionLabel}'. You cannot log into '{request.SelectedRegion}'."
+                    );
+                }
+
+                if (matchingMembership != null)
+                {
+                    resolvedTenant = allTenants.FirstOrDefault(t => t.Id == matchingMembership.TenantId);
                 }
             }
         }
@@ -103,19 +129,33 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var finalTenantId = resolvedTenant?.Id ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
         var finalTenantName = resolvedTenant?.Name ?? $"NTC Regional Office - {regionCode}";
 
-        // 3. Fetch real system roles and permission keys from PostgreSQL database
-        var systemRoles = await _roleRepository.GetAllAsync(cancellationToken);
-        var adminRole = systemRoles.FirstOrDefault(r => r.Key == "admin" || r.Name == "Administrator")
-                     ?? systemRoles.FirstOrDefault();
-
+        // 3. Resolve user's actual assigned Role and Permissions
         var assignedRoleNames = new List<string>();
         var effectivePermissions = new List<string>();
 
-        if (adminRole != null)
+        var systemRoles = await _roleRepository.GetAllAsync(cancellationToken) ?? new List<Role>();
+        Role? resolvedRole = null;
+        if (matchingMembership != null && matchingMembership.RoleId != Guid.Empty)
         {
-            assignedRoleNames.Add(adminRole.Name);
-            var rolePerms = await _rolePermissionRepository.GetPermissionKeysForRoleAsync(adminRole.Id, cancellationToken);
-            if (rolePerms.Count > 0)
+            resolvedRole = matchingMembership.Role ?? await _roleRepository.GetByIdAsync(matchingMembership.RoleId, cancellationToken);
+        }
+
+        if (resolvedRole == null && user != null && user.IsSuperAdmin)
+        {
+            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "super_admin" || r.Name == "Super Administrator" || r.Key == "admin");
+        }
+
+        if (resolvedRole == null)
+        {
+            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "admin" || r.Name == "Administrator")
+                        ?? systemRoles.FirstOrDefault();
+        }
+
+        if (resolvedRole != null)
+        {
+            assignedRoleNames.Add(resolvedRole.Name);
+            var rolePerms = await _rolePermissionRepository.GetPermissionKeysForRoleAsync(resolvedRole.Id, cancellationToken);
+            if (rolePerms != null && rolePerms.Count > 0)
             {
                 effectivePermissions.AddRange(rolePerms);
             }
@@ -131,8 +171,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         }
 
         var dto = new VerifyStaffSessionDto(
-            UserId: !string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid(),
-            Email: "staff@ntc.gov.ph",
+            UserId: user?.Id ?? (!string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid()),
+            Email: user?.Email ?? "staff@ntc.gov.ph",
             TenantId: finalTenantId,
             TenantName: finalTenantName,
             RegionCode: regionCode,

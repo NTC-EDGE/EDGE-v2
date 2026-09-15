@@ -13,17 +13,20 @@ namespace EDGE.Application.TenantMembers.Queries;
 public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMembershipsQuery, ApiResponse<List<TenantRegionMembershipDto>>>
 {
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IGeographicRepository _geographicRepository;
 
     public GetMyTenantMembershipsQueryHandler(
         ICurrentUserService currentUserService,
+        IUserRepository userRepository,
         ITenantRepository tenantRepository,
         ITenantMemberRepository tenantMemberRepository,
         IGeographicRepository geographicRepository)
     {
         _currentUserService = currentUserService;
+        _userRepository = userRepository;
         _tenantRepository = tenantRepository;
         _tenantMemberRepository = tenantMemberRepository;
         _geographicRepository = geographicRepository;
@@ -39,16 +42,21 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
 
         var list = new List<TenantRegionMembershipDto>();
 
-        if (!string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var userId))
+        if (!string.IsNullOrEmpty(rawUserId))
         {
-            var callerTenantId = _currentUserService.TenantId;
-            if (callerTenantId.HasValue)
+            var user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
+            if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
             {
-                var singleMember = await _tenantMemberRepository.GetByTenantAndUserAsync(callerTenantId.Value, userId, cancellationToken);
-                if (singleMember != null && !singleMember.IsDeleted)
+                user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            }
+
+            if (user != null)
+            {
+                var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken);
+                foreach (var mem in userMemberships)
                 {
-                    var tenant = allTenants.FirstOrDefault(t => t.Id == singleMember.TenantId);
-                    if (tenant != null)
+                    var tenant = allTenants.FirstOrDefault(t => t.Id == mem.TenantId);
+                    if (tenant != null && tenant.IsActive)
                     {
                         var region = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
                         list.Add(new TenantRegionMembershipDto(
@@ -63,8 +71,8 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
             }
         }
 
-        // If development mode or default fallback, provide default regional office option
-        if (list.Count == 0)
+        // If no explicit tenant memberships exist and user is not authenticated or mock development fallback
+        if (list.Count == 0 && string.IsNullOrEmpty(rawUserId))
         {
             var defaultNcr = allRegions.FirstOrDefault(r => string.Equals(r.Code, "NCR", StringComparison.OrdinalIgnoreCase));
             var defaultTenant = allTenants.FirstOrDefault();
