@@ -4,6 +4,10 @@ import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
 import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
+import {
+  consumePendingQueueApplication,
+  subscribeToQueueApplication,
+} from '../data/internalApplicationNavigationHelper';
 
 export function ActivitiesScreen() {
   const { colors, isDark } = useTheme();
@@ -16,6 +20,19 @@ export function ActivitiesScreen() {
 
   const handleClose = () => setSelectedId(null);
   const handleCollapse = () => setIsPanelCollapsed((p) => !p);
+
+  useEffect(() => {
+    const pending = consumePendingQueueApplication();
+    if (pending !== null && pending !== '') {
+      setSelectedId(pending);
+    }
+
+    const unsubscribe = subscribeToQueueApplication((appId) => {
+      setSelectedId(appId);
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     Animated.timing(collapseAnim, {

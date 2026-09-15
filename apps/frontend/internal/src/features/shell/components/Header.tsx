@@ -24,6 +24,7 @@ import { useAdminApplications, useAdminAnnouncements } from '@edge/api';
 import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS, NavigationLink } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
 import { EditAccountModal } from '../../auth/components/EditAccountModal';
+import { openQueueApplication } from '../../queue/data/internalApplicationNavigationHelper';
 
 // ─── Constants & Storage ──────────────────────────────────────────────────────
 
@@ -162,6 +163,7 @@ export function Header({
   const notifications = useMemo(() => {
     const list: Array<{
       id: string;
+      appId?: string;
       title: string;
       description: string;
       timestamp?: string;
@@ -174,6 +176,7 @@ export function Header({
       for (const app of applications) {
         list.push({
           id: `app_${app.id}`,
+          appId: app.id,
           title: 'Application Submitted',
           description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? 'N/A'}: ${app.serviceName ?? 'Application'} awaiting evaluation`,
           timestamp: app.createdAt,
@@ -359,6 +362,9 @@ export function Header({
                       onPress={() => {
                         markAsRead(item.id);
                         setNotifOpen(false);
+                        if (item.appId !== undefined && item.appId !== null && item.appId !== '') {
+                          openQueueApplication(item.appId);
+                        }
                         if (onNavigate !== undefined) {
                           onNavigate(item.screen);
                         }
