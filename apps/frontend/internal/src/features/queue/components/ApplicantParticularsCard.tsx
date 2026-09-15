@@ -31,15 +31,30 @@ interface ApplicantParticularsCardProps {
 export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCardProps) {
   if (!applicant) return null;
 
-  const street = applicant.streetAddress || '';
-  const brgy = applicant.barangay ? `Brgy. ${applicant.barangay}` : '';
-  const city = applicant.cityMunicipality || applicant.city || '';
-  const prov = applicant.province || '';
-  const reg = applicant.region && applicant.region !== 'N/A' ? `(${applicant.region})` : '';
-  const zip = applicant.zipCode || '';
+  const street = (applicant.streetAddress || '').trim();
+  const rawBrgy = (applicant.barangay || '').trim();
+  const brgy = rawBrgy
+    ? (rawBrgy.toLowerCase().startsWith('brgy') || rawBrgy.toLowerCase().startsWith('barangay') ? rawBrgy : `Brgy. ${rawBrgy}`)
+    : '';
+  const city = (applicant.cityMunicipality || applicant.city || '').trim();
+  const prov = (applicant.province || '').trim();
+  const reg = applicant.region && applicant.region !== 'N/A' ? `(${applicant.region.trim()})` : '';
+  const zip = (applicant.zipCode || '').trim();
 
-  const addressComponents = [street, brgy, city, prov, reg, zip].filter(Boolean);
-  const fullAddress = addressComponents.join(', ');
+  let fullAddress = street;
+  if (brgy || city || prov || zip) {
+    const parts = [
+      street && (!rawBrgy || !street.toLowerCase().includes(rawBrgy.toLowerCase())) ? street : (street || undefined),
+      brgy && (!street || !street.toLowerCase().includes(rawBrgy.toLowerCase())) ? brgy : undefined,
+      city && (!street || !street.toLowerCase().includes(city.toLowerCase())) ? city : undefined,
+      prov && (!street || !street.toLowerCase().includes(prov.toLowerCase())) ? prov : undefined,
+      reg && (!street || !street.toLowerCase().includes(reg.toLowerCase())) ? reg : undefined,
+      zip && (!street || !street.includes(zip)) ? zip : undefined,
+    ].filter((p): p is string => Boolean(p && p.trim()));
+    if (parts.length > 0) {
+      fullAddress = parts.join(', ');
+    }
+  }
 
   const fullName = applicant.applicantName || applicant.name || null;
   const email = applicant.email || '';
