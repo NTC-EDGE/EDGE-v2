@@ -206,31 +206,58 @@ export function useApplicationDetailsData(initialApp: Application) {
         if (Array.isArray(aReqs)) {
           aReqs.forEach(pushReq);
         }
+        const aUploads = (a as { uploads?: Record<string, { name?: string; uri?: string } | string> }).uploads;
+        if (aUploads && typeof aUploads === 'object') {
+          Object.entries(aUploads).forEach(([k, up]) => {
+            if (up) {
+              const uName = typeof up === 'string' ? up : up.name || k;
+              const uUri = typeof up === 'string' ? '' : up.uri || '';
+              pushReq({
+                id: `upload-${k}`,
+                name: uName,
+                fileName: uName,
+                url: uUri,
+                category: 'ATTACHMENT',
+              });
+            }
+          });
+        }
       });
     }
 
     if (rawReqs.length > 0) {
       return rawReqs.map((req: RawRequirement, index: number) => {
         const urlStr = req.url || '';
-        const fileName = req.name || req.fileName || (urlStr ? urlStr.split('/').pop() : undefined) || `Attachment_${index + 1}.pdf`;
+        const hasFile = Boolean(
+          (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+          (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+        );
+
+        const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : req.name || `Requirement_${index + 1}`);
         let cat: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' = 'ATTACHMENT';
         if (['ATTACHMENT','ISSUED_PERMIT','RECEIPT','SOA','ADMISSION_SLIP'].includes(req.category || '')) cat = req.category as typeof cat;
-        const ext = fileName.toLowerCase().split('.').pop() || '';
+        const ext = rawName.toLowerCase().split('.').pop() || '';
         let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
         if (['jpg','jpeg','png','webp','gif','bmp','svg'].includes(ext)) typ = 'IMAGE';
         else if (['zip','rar','7z'].includes(ext)) typ = 'ZIP';
         else if (['doc','docx'].includes(ext)) typ = 'DOCX';
+
         let formattedSize = req.size;
-        if (!formattedSize && req.fileSizeBytes) formattedSize = (req.fileSizeBytes / (1024 * 1024)).toFixed(2) + ' MB';
+        if (!formattedSize && req.fileSizeBytes) {
+          formattedSize = req.fileSizeBytes >= 1024 * 1024
+            ? `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+
         return {
           id: req.id || req.storedFileId || `doc-${index}`,
-          name: fileName,
+          name: rawName,
           type: typ,
-          size: formattedSize || '1.2 MB',
+          size: formattedSize || (hasFile ? '1.2 MB' : ''),
           category: cat,
           uploadedAt: req.uploadedAt || app.submittedAt || new Date().toISOString(),
-          url: req.url,
-          storedFileId: req.storedFileId,
+          url: hasFile ? req.url : undefined,
+          storedFileId: hasFile ? req.storedFileId : undefined,
         };
       });
     }

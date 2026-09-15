@@ -312,7 +312,12 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
   if (rawList.length > 0) {
     return rawList.map((req, idx) => {
       const urlStr = req.url || '';
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `Attachment_${idx + 1}.pdf`;
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
+
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : req.name || `Requirement_${idx + 1}`);
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -350,11 +355,11 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         id: req.id || req.storedFileId || `req-doc-${idx + 1}`,
         name: rawName,
         type: typ,
-        size: sizeFormatted || '350 KB',
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category,
         uploadedAt: req.uploadedAt || app.submittedAt,
-        url: req.url,
-        storedFileId: req.storedFileId,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
       };
     });
   }
@@ -371,7 +376,12 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
     for (let rIdx = 0; rIdx < apReqs.length; rIdx++) {
       const req = apReqs[rIdx];
       const urlStr = req.url || '';
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf`;
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
+
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf` : req.name || `Requirement_${rIdx + 1}`);
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -396,11 +406,11 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         id: req.id || req.storedFileId || `ap-${aIdx}-req-${rIdx + 1}`,
         name: rawName,
         type: typ,
-        size: sizeFormatted || '350 KB',
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category: 'ATTACHMENT',
         uploadedAt: req.uploadedAt || app.submittedAt,
-        url: req.url,
-        storedFileId: req.storedFileId,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
       });
     }
   }

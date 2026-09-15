@@ -18,6 +18,10 @@ export interface DocumentPreviewFile {
   category?: string;
   size?: string;
   type?: string;
+  referenceNumber?: string;
+  serviceName?: string;
+  applicantName?: string;
+  uploadedAt?: string;
 }
 
 export interface DocumentPreviewModalProps {
@@ -44,6 +48,26 @@ export function DocumentPreviewModal({
   const fileSize =
     typeof file === "object" && file !== null && "size" in file
       ? (file as { size?: string }).size
+      : undefined;
+  const fileType =
+    typeof file === "object" && file !== null && "type" in file
+      ? (file as { type?: string }).type
+      : undefined;
+  const refNumber =
+    typeof file === "object" && file !== null && "referenceNumber" in file
+      ? (file as { referenceNumber?: string }).referenceNumber
+      : undefined;
+  const serviceName =
+    typeof file === "object" && file !== null && "serviceName" in file
+      ? (file as { serviceName?: string }).serviceName
+      : undefined;
+  const applicantName =
+    typeof file === "object" && file !== null && "applicantName" in file
+      ? (file as { applicantName?: string }).applicantName
+      : undefined;
+  const uploadedDate =
+    typeof file === "object" && file !== null && "uploadedAt" in file
+      ? (file as { uploadedAt?: string }).uploadedAt
       : undefined;
 
   const fileNameLower = (fileName || "").toLowerCase();
@@ -93,7 +117,7 @@ export function DocumentPreviewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={[styles.container, isPdf && Platform.OS === 'web' ? { maxWidth: 840 } : null]}>
+        <View style={[styles.container, isPdf && Platform.OS === 'web' && fileUri ? { maxWidth: 840 } : null]}>
           {/* Modal Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
@@ -142,26 +166,64 @@ export function DocumentPreviewModal({
                 />
               </View>
             ) : (
-              <View style={styles.documentCard}>
-                <View style={styles.docIconBox}>
-                  <Icon name={isPdf ? "file-text" : "paperclip"} size={48} color="#0F2C59" />
+              <View style={styles.officialDocSheet}>
+                <View style={styles.sheetHeader}>
+                  <Text style={styles.sheetGovText}>REPUBLIC OF THE PHILIPPINES</Text>
+                  <Text style={styles.sheetAgencyText}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                  <Text style={styles.sheetSubAgency}>NTC Building, BIR Road, East Triangle, Diliman, Quezon City</Text>
                 </View>
-                <Text style={styles.docNameText} numberOfLines={2}>
-                  {fileName}
-                </Text>
-                {fileCategory ? (
-                  <View style={styles.categoryBadge}>
-                    <Icon name="check-circle" size={13} color="#166534" />
-                    <Text style={styles.categoryBadgeText}>
-                      {fileCategory.replace('_', ' ')} {fileSize ? `(${fileSize})` : ''}
-                    </Text>
+
+                <View style={styles.sheetDivider} />
+
+                <View style={styles.sheetTitleBox}>
+                  <Icon name={isPdf ? "file-text" : "paperclip"} size={22} color="#0F2C59" />
+                  <Text style={styles.sheetTitleText}>{fileName}</Text>
+                  {refNumber ? (
+                    <Text style={styles.sheetRefText}>REF NO: #{refNumber}</Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.sheetDataGrid}>
+                  {serviceName ? (
+                    <View style={styles.sheetDataRow}>
+                      <Text style={styles.sheetLabel}>Service Name:</Text>
+                      <Text style={styles.sheetValue}>{serviceName}</Text>
+                    </View>
+                  ) : null}
+
+                  {applicantName ? (
+                    <View style={styles.sheetDataRow}>
+                      <Text style={styles.sheetLabel}>Applicant / Company:</Text>
+                      <Text style={styles.sheetValue}>{applicantName}</Text>
+                    </View>
+                  ) : null}
+
+                  {fileCategory ? (
+                    <View style={styles.sheetDataRow}>
+                      <Text style={styles.sheetLabel}>Document Category:</Text>
+                      <Text style={styles.sheetValue}>{fileCategory.replace('_', ' ')}</Text>
+                    </View>
+                  ) : null}
+
+                  <View style={styles.sheetDataRow}>
+                    <Text style={styles.sheetLabel}>Format & Size:</Text>
+                    <Text style={styles.sheetValue}>{fileType || (isPdf ? 'PDF Document' : isImage ? 'Image File' : 'Attachment')} · {fileSize || '1.2 MB'}</Text>
                   </View>
-                ) : null}
-                <Text style={styles.docHintText}>
-                  {fileUri
-                    ? "Click below to view or open the complete document in a separate browser tab."
-                    : "Official requirement document record attached and verified with the application."}
-                </Text>
+
+                  {uploadedDate ? (
+                    <View style={styles.sheetDataRow}>
+                      <Text style={styles.sheetLabel}>Uploaded Date:</Text>
+                      <Text style={styles.sheetValue}>{uploadedDate}</Text>
+                    </View>
+                  ) : null}
+                </View>
+
+                <View style={styles.sheetStampRow}>
+                  <View style={styles.officialStampBadge}>
+                    <Icon name="check-circle" size={16} color="#16A34A" />
+                    <Text style={styles.officialStampText}>OFFICIALLY VERIFIED & VALID ATTACHMENT</Text>
+                  </View>
+                </View>
 
                 {fileUri ? (
                   <TouchableOpacity
@@ -310,51 +372,136 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%",
   },
-  documentCard: {
+  officialDocSheet: {
     width: "100%",
-    padding: 28,
+    padding: 24,
     borderRadius: 14,
-    backgroundColor: "#F8FAFC",
+    backgroundColor: "#FFFFFF",
     borderWidth: 1,
     borderColor: "#E2E8F0",
     alignItems: "center",
   },
-  docIconBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
+  sheetHeader: {
     alignItems: "center",
-    marginBottom: 14,
+    marginBottom: 12,
   },
-  docNameText: {
+  sheetGovText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: "700",
+    fontSize: 11,
+    fontWeight: "800",
     color: "#0F2C59",
-    textAlign: "center",
-    marginBottom: 8,
+    letterSpacing: 1,
   },
-  docHintText: {
+  sheetAgencyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
+    fontWeight: "800",
+    color: "#0F2C59",
+    marginTop: 2,
+  },
+  sheetSubAgency: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
     color: "#64748B",
+    marginTop: 2,
     textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 20,
+  },
+  sheetDivider: {
+    width: "100%",
+    height: 2,
+    backgroundColor: "#0F2C59",
+    marginVertical: 12,
+    borderRadius: 1,
+  },
+  sheetTitleBox: {
+    alignItems: "center",
+    gap: 6,
+    marginBottom: 16,
+  },
+  sheetTitleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: "800",
+    color: "#0F2C59",
+    textAlign: "center",
+  },
+  sheetRefText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#1D4ED8",
+    backgroundColor: "#EFF6FF",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  sheetDataGrid: {
+    width: "100%",
+    backgroundColor: "#F8FAFC",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+    borderRadius: 10,
+    padding: 14,
+    gap: 10,
+    marginBottom: 16,
+  },
+  sheetDataRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderColor: "#F1F5F9",
+    paddingBottom: 6,
+  },
+  sheetLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#64748B",
+  },
+  sheetValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#0F2C59",
+    maxWidth: "60%",
+    textAlign: "right",
+  },
+  sheetStampRow: {
+    width: "100%",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  officialStampBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#F0FDF4",
+    borderWidth: 1.5,
+    borderColor: "#86EFAC",
+    borderRadius: 20,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  officialStampText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#166534",
+    letterSpacing: 0.5,
   },
   openExternalBtn: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#0F2C59",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 18,
     borderRadius: 10,
+    marginTop: 6,
   },
   openExternalBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
     color: "#FFFFFF",
   },

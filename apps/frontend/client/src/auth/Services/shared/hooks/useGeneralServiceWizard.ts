@@ -968,6 +968,42 @@ export function useGeneralServiceWizard(
       );
     }
 
+    if (!isDraft) {
+      const effectiveRequirements: Array<ServiceRequirementItem | string> =
+        variantRequirements && variantRequirements.length > 0
+          ? variantRequirements
+          : service.requirements && service.requirements.length > 0
+          ? service.requirements
+          : [];
+
+      const mandatoryList = effectiveRequirements
+        .map((req, idx) => ({ req, idx }))
+        .filter(({ req }) => isRequirementMandatory(req));
+
+      if (mandatoryList.length > 0) {
+        const applicantsToValidate =
+          appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+
+        for (let i = 0; i < applicantsToValidate.length; i++) {
+          const appToVal = applicantsToValidate[i];
+          const missing = mandatoryList.filter(
+            ({ req, idx }) => !isRequirementUploaded(req, idx, appToVal.uploads)
+          );
+          if (missing.length > 0) {
+            const missingNames = missing.map(({ req, idx }) => {
+              if (typeof req === "string") return req.replace(/\*$/, "").trim();
+              return (req.name || req.label || req.title || `Requirement #${idx + 1}`).replace(/\*$/, "").trim();
+            });
+            const applicantLabel =
+              [appToVal.firstName, appToVal.lastName].filter(Boolean).join(" ") || `Applicant #${i + 1}`;
+            throw new Error(
+              `Mandatory supporting documents are missing for ${applicantLabel}: ${missingNames.join(", ")}. Please upload all required attachments before submitting.`
+            );
+          }
+        }
+      }
+    }
+
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
