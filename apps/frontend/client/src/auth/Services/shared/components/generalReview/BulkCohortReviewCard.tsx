@@ -30,7 +30,10 @@ export function BulkCohortReviewCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="user-check" size={14} color="#16A34A" />
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-            {[activeApplicant?.firstName, activeApplicant?.lastName].filter(Boolean).join(' ') || 'Unnamed Applicant'}
+            {[activeApplicant?.firstName, activeApplicant?.lastName].filter(Boolean).join(' ') ||
+              activeApplicant?.companyName ||
+              activeApplicant?.representativeName ||
+              `Applicant ${currentApplicantIndex + 1}`}
           </Text>
         </View>
       </View>

@@ -490,7 +490,17 @@ interface ApiApplicantDto {
   applicantType?: string;
   status?: string;
   includedInSOA?: boolean;
+  companyName?: string;
   company?: { name?: string; address?: string };
+  representativeName?: string;
+  notes?: string;
+  evaluationRemarks?: string;
+  birthDate?: string;
+  birthMonth?: string;
+  birthDay?: string;
+  birthYear?: string;
+  civilStatus?: string;
+  examineeType?: string;
   details?: {
     firstName?: string;
     lastName?: string;
@@ -509,6 +519,16 @@ interface ApiApplicantDto {
     mobileNumber?: string;
     emailAddress?: string;
     email?: string;
+    birthDate?: string;
+    birthMonth?: string;
+    birthDay?: string;
+    birthYear?: string;
+    civilStatus?: string;
+    companyName?: string;
+    representativeName?: string;
+    notes?: string;
+    examineeType?: string;
+    formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   };
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   firstName?: string;
@@ -615,14 +635,50 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   const mappedApplicants: BulkApplicant[] = rawApplicants.map((ap, idx) => {
     const apDetails = ap.details || ap;
-    const name =
-      ap.name ||
-      (apDetails.firstName && apDetails.lastName
+    const apFormFields = ap.formFieldValues || apDetails.formFieldValues || [];
+    const findApFv = (predicate: (lbl: string, id: string) => boolean) =>
+      apFormFields.find((f: { fieldLabel?: string; label?: string; key?: string; fieldId?: string; value?: string }) =>
+        predicate((f.fieldLabel || f.label || f.key || '').toLowerCase(), f.fieldId || '')
+      )?.value;
+
+    const rawCandidate =
+      apDetails.firstName && apDetails.lastName
         ? `${apDetails.firstName} ${apDetails.lastName}`
-        : `Applicant #${idx + 1}`);
+        : ap.name;
+
+    const name =
+      rawCandidate && !isGenericCandidate(rawCandidate)
+        ? rawCandidate.trim()
+        : (ap.company?.name || `Applicant #${idx + 1}`);
 
     const appType = ap.applicantType || 'Individual';
     const appStatus = normalizeApplicationStatus(ap.status || rawStatus);
+
+    const birthDate =
+      apDetails.birthDate ||
+      (apDetails.birthMonth && apDetails.birthDay && apDetails.birthYear
+        ? `${apDetails.birthMonth} ${apDetails.birthDay}, ${apDetails.birthYear}`
+        : findApFv((lbl) => lbl.includes('birth')));
+
+    const civilStatus = apDetails.civilStatus || findApFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+    const barangay = apDetails.barangayName || apDetails.barangay || findApFv((lbl) => lbl.includes('barangay')) || '';
+    const cityMunicipality = apDetails.cityMunicipality || findApFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) || 'N/A';
+    const province = apDetails.province || findApFv((lbl) => lbl.includes('province')) || 'N/A';
+    const region = apDetails.region || findApFv((lbl) => lbl.includes('region')) || 'N/A';
+    const zipCode = apDetails.zipCode || findApFv((lbl) => lbl.includes('zip')) || '';
+
+    const compName =
+      apDetails.companyName ||
+      ap.companyName ||
+      ap.company?.name ||
+      (appType === 'Company' ? companyName : undefined);
+
+    const repName =
+      apDetails.representativeName ||
+      ap.representativeName ||
+      (appType === 'Company' ? (filingUser?.name || undefined) : undefined);
+
+    const notes = apDetails.notes || ap.notes || (ap as { evaluationRemarks?: string }).evaluationRemarks;
 
     return {
       id: ap.id || `app-cand-${idx}`,
@@ -633,31 +689,41 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
       nationality: apDetails.nationality || 'Filipino',
       streetAddress: apDetails.address || apDetails.streetAddress || 'N/A',
-      barangay: apDetails.barangayName || apDetails.barangay || '',
-      cityMunicipality: apDetails.cityMunicipality || 'N/A',
-      province: apDetails.province || 'N/A',
-      region: apDetails.region || 'N/A',
-      zipCode: apDetails.zipCode || '',
+      barangay,
+      cityMunicipality,
+      province,
+      region,
+      zipCode,
       mobileNumber: apDetails.contactNumber || apDetails.mobileNumber || 'N/A',
       email: apDetails.emailAddress || apDetails.email || 'N/A',
-      examineeType: 'New',
+      examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+      birthDate,
+      civilStatus,
+      companyName: compName,
+      representativeName: repName,
+      notes,
       details: {
         firstName: apDetails.firstName,
         lastName: apDetails.lastName,
         sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
         nationality: apDetails.nationality,
         address: apDetails.address || apDetails.streetAddress,
-        barangay: apDetails.barangayName || apDetails.barangay,
-        cityMunicipality: apDetails.cityMunicipality,
-        province: apDetails.province,
-        region: apDetails.region,
-        zipCode: apDetails.zipCode,
+        barangay,
+        cityMunicipality,
+        province,
+        region,
+        zipCode,
         contactNumber: apDetails.contactNumber || apDetails.mobileNumber,
         emailAddress: apDetails.emailAddress || apDetails.email,
-        examineeType: 'New',
-        formFieldValues: ap.formFieldValues || [],
+        examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+        birthDate,
+        civilStatus,
+        companyName: compName,
+        representativeName: repName,
+        notes,
+        formFieldValues: apFormFields,
       },
-      formFieldValues: ap.formFieldValues || [],
+      formFieldValues: apFormFields,
       serviceId: ap.serviceId || dto.serviceId,
       serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
     };
