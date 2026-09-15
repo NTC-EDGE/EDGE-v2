@@ -83,9 +83,11 @@ export interface ApplicantItem {
   contactNumber: string;
   email: string;
   address: string;
+  streetAddress?: string;
   barangay: string;
   city: string;
   province: string;
+  region?: string;
   zipCode: string;
   basicInfo?: {
     lastName: string;
@@ -98,6 +100,7 @@ export interface ApplicantItem {
     weight: number;
     height: number;
     nationality: string;
+    civilStatus?: string;
     employmentStatus: string;
     occupation: string;
   };
@@ -158,9 +161,12 @@ export interface ApplicationData {
   mode?: string;
   filingUser?: FilingUserData;
   address: {
+    streetAddress?: string;
+    address?: string;
     barangay: string;
     province: string;
     city: string;
+    region?: string;
     zipCode: string;
   };
   contactDetails: {
@@ -178,6 +184,7 @@ export interface ApplicationData {
     weight: number;
     height: number;
     nationality: string;
+    civilStatus?: string;
     employmentStatus: string;
     occupation: string;
   };

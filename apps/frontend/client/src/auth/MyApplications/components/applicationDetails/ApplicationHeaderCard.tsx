@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Application, formatRelativeTime } from '../../data/applicationsData';
@@ -16,8 +16,6 @@ interface ApplicationHeaderCardProps {
   resolvedServiceVariant?: string;
   primaryName: string;
   docsCount: number;
-  activeTab: 'DETAILS' | 'DOCUMENTS';
-  setActiveTab: (tab: 'DETAILS' | 'DOCUMENTS') => void;
 }
 
 export function ApplicationHeaderCard({
@@ -30,8 +28,6 @@ export function ApplicationHeaderCard({
   resolvedServiceVariant,
   primaryName,
   docsCount,
-  activeTab,
-  setActiveTab,
 }: ApplicationHeaderCardProps) {
   return (
     <View style={styles.headerCard}>
@@ -74,6 +70,15 @@ export function ApplicationHeaderCard({
             </Text>
           </View>
         ) : null}
+
+        {docsCount > 0 ? (
+          <View style={[styles.headerCategoryBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+            <Icon name="paperclip" size={11} color="#16A34A" />
+            <Text style={[styles.headerCategoryBadgeText, { color: '#16A34A' }]}>
+              {docsCount} ATTACHED DOCUMENT{docsCount === 1 ? '' : 'S'}
+            </Text>
+          </View>
+        ) : null}
       </View>
 
       <Text style={[styles.appTitle, { fontSize: isDesktop ? 24 : 20 }]}>{app.serviceName}</Text>
@@ -92,39 +97,6 @@ export function ApplicationHeaderCard({
           </Text>
         </View>
       )}
-
-      {/* Navigation Tabs */}
-      <View style={styles.tabsContainer}>
-        <TouchableOpacity
-          onPress={() => setActiveTab('DETAILS')}
-          style={[styles.tabItem, activeTab === 'DETAILS' && styles.tabItemActive]}
-          activeOpacity={0.8}
-        >
-          <Icon
-            name="user"
-            size={16}
-            color={activeTab === 'DETAILS' ? '#1D4ED8' : '#64748B'}
-          />
-          <Text style={[styles.tabText, activeTab === 'DETAILS' && styles.tabTextActive]}>
-            Applicant Details
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          onPress={() => setActiveTab('DOCUMENTS')}
-          style={[styles.tabItem, activeTab === 'DOCUMENTS' && styles.tabItemActive]}
-          activeOpacity={0.8}
-        >
-          <Icon
-            name="file-text"
-            size={16}
-            color={activeTab === 'DOCUMENTS' ? '#1D4ED8' : '#64748B'}
-          />
-          <Text style={[styles.tabText, activeTab === 'DOCUMENTS' && styles.tabTextActive]}>
-            Documents ({docsCount})
-          </Text>
-        </TouchableOpacity>
-      </View>
     </View>
   );
 }

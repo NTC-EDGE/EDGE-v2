@@ -89,8 +89,12 @@ export interface SingleApplication {
   representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   soaNumber?: string | null;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   office?: string;
@@ -101,6 +105,13 @@ export interface SingleApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 }
 
 export interface BulkApplicant {
@@ -167,6 +178,12 @@ export interface BulkApplicant {
   applicantType?: string;
   includedInSoa?: boolean;
   examineeType?: ExamineeType;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
 }
 
 export interface BulkApplication {
@@ -185,12 +202,16 @@ export interface BulkApplication {
   // Backend dynamic fields compatibility
   submissionMode?: string;
   Applicants?: BulkApplicant[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   companyDetail?: { name?: string };
   company?: { name?: string };
   Company?: { Name?: string };
   representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
@@ -202,6 +223,13 @@ export interface BulkApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 
   // Single Application fields (optional here for API compatibility)
   applicantName?: string;
@@ -298,7 +326,12 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
   if (rawList.length > 0) {
     return rawList.map((req, idx) => {
       const urlStr = req.url || '';
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `Attachment_${idx + 1}.pdf`;
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
+
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : req.name || `Requirement_${idx + 1}`);
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -336,11 +369,11 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         id: req.id || req.storedFileId || `req-doc-${idx + 1}`,
         name: rawName,
         type: typ,
-        size: sizeFormatted || '350 KB',
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category,
         uploadedAt: req.uploadedAt || app.submittedAt,
-        url: req.url,
-        storedFileId: req.storedFileId,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
       };
     });
   }
@@ -357,7 +390,12 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
     for (let rIdx = 0; rIdx < apReqs.length; rIdx++) {
       const req = apReqs[rIdx];
       const urlStr = req.url || '';
-      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf`;
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
+
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf` : req.name || `Requirement_${rIdx + 1}`);
       const ext = rawName.toLowerCase().split('.').pop() || '';
       
       let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
@@ -382,11 +420,11 @@ export function getAppDocuments(app: Application): ApplicationDocument[] {
         id: req.id || req.storedFileId || `ap-${aIdx}-req-${rIdx + 1}`,
         name: rawName,
         type: typ,
-        size: sizeFormatted || '350 KB',
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
         category: 'ATTACHMENT',
         uploadedAt: req.uploadedAt || app.submittedAt,
-        url: req.url,
-        storedFileId: req.storedFileId,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
       });
     }
   }
@@ -476,7 +514,17 @@ interface ApiApplicantDto {
   applicantType?: string;
   status?: string;
   includedInSOA?: boolean;
+  companyName?: string;
   company?: { name?: string; address?: string };
+  representativeName?: string;
+  notes?: string;
+  evaluationRemarks?: string;
+  birthDate?: string;
+  birthMonth?: string;
+  birthDay?: string;
+  birthYear?: string;
+  civilStatus?: string;
+  examineeType?: string;
   details?: {
     firstName?: string;
     lastName?: string;
@@ -495,6 +543,16 @@ interface ApiApplicantDto {
     mobileNumber?: string;
     emailAddress?: string;
     email?: string;
+    birthDate?: string;
+    birthMonth?: string;
+    birthDay?: string;
+    birthYear?: string;
+    civilStatus?: string;
+    companyName?: string;
+    representativeName?: string;
+    notes?: string;
+    examineeType?: string;
+    formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   };
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   firstName?: string;
@@ -516,6 +574,12 @@ interface ApiApplicantDto {
   email?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
 }
 
 interface ApiApplicationDto {
@@ -545,8 +609,12 @@ interface ApiApplicationDto {
   services?: Array<{ id?: string; name?: string; category?: string }>;
   applicants?: ApiApplicantDto[];
   Applicants?: ApiApplicantDto[];
+  applicationApplicants?: ApiApplicantDto[];
+  ApplicationApplicants?: ApiApplicantDto[];
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
   companyName?: string;
@@ -568,13 +636,73 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     filingUser?.name ||
     'Company Applicant';
 
+  const isGenericCandidate = (val?: string | null): boolean => {
+    if (!val || typeof val !== 'string') return true;
+    const lower = val.trim().toLowerCase();
+    if (['applicant details', 'applicant detail', 'applicant', 'unnamed applicant', 'unnamed', 'n/a', 'na', 'none', 'juan dela cruz'].includes(lower)) return true;
+    if (/^applicant(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    return false;
+  };
+
+  const isValidCandidate = (val?: string | null): val is string => {
+    return typeof val === 'string' && val.trim().length > 0 && !isGenericCandidate(val);
+  };
+
+  const formatProperName = (name?: string | null): string => {
+    if (!name || typeof name !== 'string') return '';
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    return trimmed
+      .split(/\s+/)
+      .map((word) => {
+        if (!word) return '';
+        if (word.includes('-')) {
+          return word
+            .split('-')
+            .map((part) => {
+              if (!part) return '';
+              if (part === part.toLowerCase()) {
+                return part.charAt(0).toUpperCase() + part.slice(1);
+              }
+              return part;
+            })
+            .join('-');
+        }
+        if (word === word.toLowerCase()) {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+      })
+      .join(' ');
+  };
+
   const firstApplicant = rawApplicants.length > 0 ? rawApplicants[0] : undefined;
   const firstDetails = firstApplicant?.details || firstApplicant;
+  const rawFirstAppCandidate =
+    firstDetails?.firstName && firstDetails?.lastName
+      ? [firstDetails.firstName, firstDetails.middleName, firstDetails.lastName].filter(Boolean).join(' ')
+      : firstApplicant?.name;
+
+  const firstDetailsComp = firstDetails?.companyName;
+  const firstAppComp = firstApplicant?.companyName;
+  const firstAppNestedComp = firstApplicant?.company?.name;
+
   const applicantName =
-    dto.applicantName ||
-    (firstDetails?.firstName && firstDetails?.lastName
-      ? `${firstDetails.firstName} ${firstDetails.lastName}`
-      : firstApplicant?.name || filingUser?.name || 'Applicant');
+    isValidCandidate(dto.applicantName)
+      ? formatProperName(dto.applicantName)
+      : isValidCandidate(rawFirstAppCandidate)
+        ? formatProperName(rawFirstAppCandidate)
+        : isValidCandidate(firstDetailsComp)
+          ? formatProperName(firstDetailsComp)
+          : isValidCandidate(firstAppComp)
+            ? formatProperName(firstAppComp)
+            : isValidCandidate(firstAppNestedComp)
+              ? formatProperName(firstAppNestedComp)
+              : isValidCandidate(companyName)
+                ? formatProperName(companyName)
+                : formatProperName(filingUser?.name) || 'Applicant';
 
   const refNumber =
     dto.referenceNumber ||
@@ -589,14 +717,65 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   const mappedApplicants: BulkApplicant[] = rawApplicants.map((ap, idx) => {
     const apDetails = ap.details || ap;
-    const name =
-      ap.name ||
-      (apDetails.firstName && apDetails.lastName
-        ? `${apDetails.firstName} ${apDetails.lastName}`
-        : `Applicant #${idx + 1}`);
+    const apFormFields = ap.formFieldValues || apDetails.formFieldValues || [];
+    const findApFv = (predicate: (lbl: string, id: string) => boolean) =>
+      apFormFields.find((f: { fieldLabel?: string; label?: string; key?: string; fieldId?: string; value?: string }) =>
+        predicate((f.fieldLabel || f.label || f.key || '').toLowerCase(), f.fieldId || '')
+      )?.value;
+
+    const rawCandidate =
+      apDetails.firstName && apDetails.lastName
+        ? [apDetails.firstName, apDetails.middleName, apDetails.lastName].filter(Boolean).join(' ')
+        : ap.name;
+
+    const fvNameCandidate = findApFv((lbl) =>
+      lbl.includes('full name') ||
+      lbl.includes('applicant name') ||
+      lbl.includes('name of applicant') ||
+      lbl.includes('business name') ||
+      lbl.includes('company name') ||
+      lbl.includes('corporate name')
+    );
 
     const appType = ap.applicantType || 'Individual';
     const appStatus = normalizeApplicationStatus(ap.status || rawStatus);
+
+    const compName =
+      apDetails.companyName ||
+      ap.companyName ||
+      ap.company?.name ||
+      (appType === 'Company' ? companyName : undefined);
+
+    const repName =
+      apDetails.representativeName ||
+      ap.representativeName ||
+      (appType === 'Company' ? (filingUser?.name || undefined) : undefined);
+
+    const name =
+      isValidCandidate(rawCandidate)
+        ? formatProperName(rawCandidate)
+        : isValidCandidate(fvNameCandidate)
+          ? formatProperName(fvNameCandidate)
+          : isValidCandidate(compName)
+            ? formatProperName(compName)
+            : isValidCandidate(repName)
+              ? formatProperName(repName)
+              : formatProperName(filingUser?.name) || formatProperName(compName) || formatProperName(repName) || 'Applicant';
+
+    const birthDate =
+      apDetails.birthDate ||
+      (apDetails.birthMonth && apDetails.birthDay && apDetails.birthYear
+        ? `${apDetails.birthMonth} ${apDetails.birthDay}, ${apDetails.birthYear}`
+        : findApFv((lbl) => lbl.includes('birth')));
+
+    const civilStatus = apDetails.civilStatus || findApFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+    const barangay = apDetails.barangayName || apDetails.barangay || findApFv((lbl) => lbl.includes('barangay')) || '';
+    const cityMunicipality = apDetails.cityMunicipality || findApFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) || 'N/A';
+    const province = apDetails.province || findApFv((lbl) => lbl.includes('province')) || 'N/A';
+    const region = apDetails.region || findApFv((lbl) => lbl.includes('region')) || 'N/A';
+    const zipCode = apDetails.zipCode || findApFv((lbl) => lbl.includes('zip')) || '';
+
+    const notes = apDetails.notes || ap.notes || ap.evaluationRemarks;
 
     return {
       id: ap.id || `app-cand-${idx}`,
@@ -607,31 +786,41 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
       nationality: apDetails.nationality || 'Filipino',
       streetAddress: apDetails.address || apDetails.streetAddress || 'N/A',
-      barangay: apDetails.barangayName || apDetails.barangay || '',
-      cityMunicipality: apDetails.cityMunicipality || 'N/A',
-      province: apDetails.province || 'N/A',
-      region: apDetails.region || 'N/A',
-      zipCode: apDetails.zipCode || '',
+      barangay,
+      cityMunicipality,
+      province,
+      region,
+      zipCode,
       mobileNumber: apDetails.contactNumber || apDetails.mobileNumber || 'N/A',
       email: apDetails.emailAddress || apDetails.email || 'N/A',
-      examineeType: 'New',
+      examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+      birthDate,
+      civilStatus,
+      companyName: compName,
+      representativeName: repName,
+      notes,
       details: {
         firstName: apDetails.firstName,
         lastName: apDetails.lastName,
         sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
         nationality: apDetails.nationality,
         address: apDetails.address || apDetails.streetAddress,
-        barangay: apDetails.barangayName || apDetails.barangay,
-        cityMunicipality: apDetails.cityMunicipality,
-        province: apDetails.province,
-        region: apDetails.region,
-        zipCode: apDetails.zipCode,
+        barangay,
+        cityMunicipality,
+        province,
+        region,
+        zipCode,
         contactNumber: apDetails.contactNumber || apDetails.mobileNumber,
         emailAddress: apDetails.emailAddress || apDetails.email,
-        examineeType: 'New',
-        formFieldValues: ap.formFieldValues || [],
+        examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+        birthDate,
+        civilStatus,
+        companyName: compName,
+        representativeName: repName,
+        notes,
+        formFieldValues: apFormFields,
       },
-      formFieldValues: ap.formFieldValues || [],
+      formFieldValues: apFormFields,
       serviceId: ap.serviceId || dto.serviceId,
       serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
     };
@@ -686,6 +875,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       tenantId: dto.tenantId,
       serviceId: dto.serviceId,
       serviceVariantId: dto.serviceVariantId,
+      filingUser: dto.filingUser,
     };
     return bulkApp;
   }
@@ -701,6 +891,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     submittedAt,
     serviceId: dto.serviceId,
     serviceVariantId: dto.serviceVariantId,
+    filingUser: dto.filingUser,
     applicantName,
     sex: firstDetails?.sex === 'Female' ? 'Female' : 'Male',
     nationality: firstDetails?.nationality || 'Filipino',

@@ -194,13 +194,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Step 1: Regular Clerk Credentials Authentication
     try {
-      const res = await signIn.password({
-        emailAddress: email,
-        password,
-      });
+      let res;
+      try {
+        res = await signIn.password({
+          emailAddress: email,
+          password,
+        });
 
-      if (res.error !== null && res.error !== undefined) {
-        throw res.error;
+        if (res.error !== null && res.error !== undefined) {
+          throw res.error;
+        }
+      } catch (pwErr: unknown) {
+        const errMsg = pwErr instanceof Error ? pwErr.message : String(pwErr);
+        const errObj = typeof pwErr === "object" && pwErr !== null ? (pwErr as Record<string, unknown>) : {};
+        const isStrategyInvalid =
+          errMsg.includes("strategy_for_user_invalid") ||
+          errMsg.includes("verification strategy is not valid") ||
+          errObj.code === "strategy_for_user_invalid" ||
+          (Array.isArray(errObj.errors) &&
+            (errObj.errors as Array<{ code?: string }>).some(
+              (e) => e.code === "strategy_for_user_invalid"
+            ));
+
+        const rawSignInObj = signIn as unknown as { create?: (opts: { identifier: string }) => Promise<unknown> };
+        if (isStrategyInvalid && typeof rawSignInObj.create === "function") {
+          await rawSignInObj.create({ identifier: email });
+        } else {
+          throw pwErr;
+        }
       }
 
       if (signIn.status === "complete") {

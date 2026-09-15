@@ -1,4 +1,4 @@
-﻿import { ApplicationDocument, ApplicationStatus, RawRequirement } from '../../data/applicationsData';
+import { ApplicationDocument, ApplicationStatus, RawRequirement } from '../../data/applicationsData';
 
 export interface ApplicationDetailsPageProps {
   app: import('../../data/applicationsData').Application;
@@ -18,8 +18,10 @@ export interface RawApplicantDetails {
   fullName?: string;
   applicantName?: string;
   firstName?: string;
+  middleName?: string;
   lastName?: string;
   first_name?: string;
+  middle_name?: string;
   last_name?: string;
   companyName?: string;
   representativeName?: string;
@@ -52,6 +54,8 @@ export interface RawApplicantHolder {
   applicantName?: string;
   applicationType?: string;
   applicantType?: string;
+  companyName?: string;
+  representativeName?: string;
   details?: RawApplicantDetails;
   formFieldValues?: RawFormFieldItem[];
   requirements?: RawRequirement[];

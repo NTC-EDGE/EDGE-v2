@@ -11,7 +11,7 @@ export function useApplicationDetailsData(initialApp: Application) {
 
   useEffect(() => {
     setApp(initialApp);
-    if (initialApp.id && (!initialApp.requirements || initialApp.requirements.length === 0)) {
+    if (initialApp.id) {
       let isMounted = true;
       const loadFullDetails = async () => {
         try {
@@ -20,7 +20,55 @@ export function useApplicationDetailsData(initialApp: Application) {
             const resObj = res as { succeeded?: boolean; data?: unknown };
             const payload = resObj.succeeded && resObj.data !== undefined ? resObj.data : res;
             if (payload !== null && typeof payload === 'object') {
-              setApp(mapApiApplicationToApplication(payload as Parameters<typeof mapApiApplicationToApplication>[0]));
+              const mapped = mapApiApplicationToApplication(payload as Parameters<typeof mapApiApplicationToApplication>[0]);
+
+              const rawPayload = payload as { applicants?: Array<{ id?: string; applicantId?: string; requirements?: RawRequirement[] }> };
+              const payloadApplicants = Array.isArray(rawPayload.applicants) ? rawPayload.applicants : [];
+
+              if ((!mapped.requirements || mapped.requirements.length === 0) && payloadApplicants.length > 0) {
+                const fetchedReqs: RawRequirement[] = [];
+                for (const pa of payloadApplicants) {
+                  const aid = pa.id || pa.applicantId;
+                  if (aid) {
+                    try {
+                      const reqRes = await api.get<unknown>(`/api/v2/applications/${initialApp.id}/applicants/${aid}/requirements`);
+                      if (reqRes !== null && typeof reqRes === 'object') {
+                        const rObj = reqRes as { succeeded?: boolean; data?: unknown };
+                        const rData = rObj.succeeded && rObj.data !== undefined ? rObj.data : reqRes;
+                        if (Array.isArray(rData)) {
+                          rData.forEach((item: unknown) => {
+                            if (item !== null && typeof item === 'object') {
+                              const io = item as Record<string, unknown>;
+                              fetchedReqs.push({
+                                id: typeof io.id === 'string' ? io.id : typeof io.requirementId === 'string' ? io.requirementId : undefined,
+                                requirementId: typeof io.requirementId === 'string' ? io.requirementId : undefined,
+                                serviceVariantRequirementId: typeof io.serviceVariantRequirementId === 'string' ? io.serviceVariantRequirementId : undefined,
+                                name: typeof io.name === 'string' ? io.name : typeof io.requirementName === 'string' ? io.requirementName : typeof io.fileName === 'string' ? io.fileName : undefined,
+                                fileName: typeof io.fileName === 'string' ? io.fileName : typeof io.name === 'string' ? io.name : undefined,
+                                storedFileId: typeof io.storedFileId === 'string' ? io.storedFileId : undefined,
+                                url: typeof io.url === 'string' ? io.url : undefined,
+                                category: typeof io.category === 'string' ? io.category : 'ATTACHMENT',
+                                isApproved: typeof io.isApproved === 'boolean' ? io.isApproved : undefined,
+                                applicantId: aid,
+                              });
+                            }
+                          });
+                        }
+                      }
+                    } catch (rErr) {
+                      console.warn('Could not fetch applicant requirements:', rErr);
+                    }
+                  }
+                }
+                if (fetchedReqs.length > 0) {
+                  mapped.requirements = fetchedReqs;
+                  mapped.documents = fetchedReqs;
+                }
+              }
+
+              if (isMounted) {
+                setApp(mapped);
+              }
             }
           }
         } catch (err) {
@@ -127,21 +175,91 @@ export function useApplicationDetailsData(initialApp: Application) {
   const pendingCount = isBulk ? appApplicants.filter((a) => { const s = normalizeStatus(a.status); return s !== 'APPROVED' && s !== 'DECLINED'; }).length : 0;
 
   const docs = useMemo<ApplicationDocument[]>(() => {
-    const rawReqs = app.requirements || app.Requirements || app.documents || app.Documents;
-    if (Array.isArray(rawReqs) && rawReqs.length > 0) {
+    const rawReqs: RawRequirement[] = [];
+    const pushReq = (r: RawRequirement | undefined | null) => {
+      if (r && !rawReqs.some((existing) => (r.id && existing.id === r.id) || (r.storedFileId && existing.storedFileId === r.storedFileId) || (r.url && existing.url === r.url))) {
+        rawReqs.push(r);
+      }
+    };
+
+    const topList =
+      app.requirements ||
+      app.Requirements ||
+      app.applicationRequirements ||
+      app.ApplicationRequirements ||
+      app.documents ||
+      app.Documents;
+
+    if (Array.isArray(topList)) {
+      topList.forEach(pushReq);
+    }
+
+    const appList = app.applicants || app.Applicants || [];
+    if (Array.isArray(appList)) {
+      appList.forEach((a) => {
+        const aReqs =
+          a.requirements ||
+          a.Requirements ||
+          a.documents ||
+          a.Documents ||
+          a.applicationRequirements ||
+          a.ApplicationRequirements;
+        if (Array.isArray(aReqs)) {
+          aReqs.forEach(pushReq);
+        }
+        const aUploads = (a as { uploads?: Record<string, { name?: string; uri?: string } | string> }).uploads;
+        if (aUploads && typeof aUploads === 'object') {
+          Object.entries(aUploads).forEach(([k, up]) => {
+            if (up) {
+              const uName = typeof up === 'string' ? up : up.name || k;
+              const uUri = typeof up === 'string' ? '' : up.uri || '';
+              pushReq({
+                id: `upload-${k}`,
+                name: uName,
+                fileName: uName,
+                url: uUri,
+                category: 'ATTACHMENT',
+              });
+            }
+          });
+        }
+      });
+    }
+
+    if (rawReqs.length > 0) {
       return rawReqs.map((req: RawRequirement, index: number) => {
         const urlStr = req.url || '';
-        const fileName = req.name || req.fileName || (urlStr ? urlStr.split('/').pop() : undefined) || `Document_${index + 1}.pdf`;
+        const hasFile = Boolean(
+          (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+          (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+        );
+
+        const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${index + 1}.pdf` : req.name || `Requirement_${index + 1}`);
         let cat: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP' = 'ATTACHMENT';
         if (['ATTACHMENT','ISSUED_PERMIT','RECEIPT','SOA','ADMISSION_SLIP'].includes(req.category || '')) cat = req.category as typeof cat;
-        const ext = fileName.toLowerCase().split('.').pop() || '';
-        let typ: 'PDF' | 'DOCX' | 'ZIP' | 'IMAGE' = 'PDF';
-        if (['jpg','jpeg','png','webp','gif','bmp'].includes(ext)) typ = 'IMAGE';
+        const ext = rawName.toLowerCase().split('.').pop() || '';
+        let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+        if (['jpg','jpeg','png','webp','gif','bmp','svg'].includes(ext)) typ = 'IMAGE';
         else if (['zip','rar','7z'].includes(ext)) typ = 'ZIP';
         else if (['doc','docx'].includes(ext)) typ = 'DOCX';
+
         let formattedSize = req.size;
-        if (!formattedSize && req.fileSizeBytes) formattedSize = (req.fileSizeBytes / (1024 * 1024)).toFixed(2) + ' MB';
-        return { id: req.id || `doc-${index}`, name: fileName, type: typ, size: formattedSize || '1.2 MB', category: cat, uploadedAt: req.uploadedAt || app.submittedAt || new Date().toISOString(), url: req.url, storedFileId: req.storedFileId };
+        if (!formattedSize && req.fileSizeBytes) {
+          formattedSize = req.fileSizeBytes >= 1024 * 1024
+            ? `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`
+            : `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+
+        return {
+          id: req.id || req.storedFileId || `doc-${index}`,
+          name: rawName,
+          type: typ,
+          size: formattedSize || (hasFile ? '1.2 MB' : ''),
+          category: cat,
+          uploadedAt: req.uploadedAt || app.submittedAt || new Date().toISOString(),
+          url: hasFile ? req.url : undefined,
+          storedFileId: hasFile ? req.storedFileId : undefined,
+        };
       });
     }
     return getAppDocuments(app);

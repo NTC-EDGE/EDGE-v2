@@ -45,22 +45,71 @@ function deriveQueueTab(status: ApplicationStatus): QueueTab {
 
 export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDto): ApplicationData {
   const rawFilingUser = dto.filingUser;
-  const isGuest = dto.isGuest || !rawFilingUser;
+  const GENERIC_NAMES = new Set([
+    'applicant details',
+    'applicant detail',
+    'applicant',
+    'unnamed applicant',
+    'unnamed',
+    'n/a',
+    'na',
+    'none',
+    'juan dela cruz',
+  ]);
 
-  // Guest fallback: only resolve first applicant details if application is from a guest (no logged-in filing user)
-  const guestApplicant = isGuest ? dto.applicants?.[0] : undefined;
-  const guestDetail = guestApplicant?.details;
+  const isValidName = (val?: string | null): val is string => {
+    if (!val || typeof val !== 'string') return false;
+    const trimmed = val.trim().toLowerCase();
+    if (!trimmed) return false;
+    if (GENERIC_NAMES.has(trimmed)) return false;
+    if (/^applicant(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+    return true;
+  };
+
+  const formatProperName = (name?: string | null): string => {
+    if (!name || typeof name !== 'string') return '';
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    return trimmed
+      .split(/\s+/)
+      .map((word) => {
+        if (!word) return '';
+        if (word.includes('-')) {
+          return word
+            .split('-')
+            .map((part) => {
+              if (!part) return '';
+              if (part === part.toLowerCase()) {
+                return part.charAt(0).toUpperCase() + part.slice(1);
+              }
+              return part;
+            })
+            .join('-');
+        }
+        if (word === word.toLowerCase()) {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+      })
+      .join(' ');
+  };
+
+  const primaryApplicant = dto.applicants?.[0];
+  const primaryDetail = primaryApplicant?.details;
+  const primaryFormFields = primaryApplicant?.formFieldValues ?? [];
 
   const isCompanySubmission =
     rawFilingUser?.accountType === 'Company' ||
-    guestApplicant?.applicantType === 'Company' ||
+    primaryApplicant?.applicantType === 'Company' ||
     dto.submissionMode === 'Bulk';
 
-  const companyObj = rawFilingUser?.company ?? guestDetail?.company ?? guestApplicant?.company;
+  const companyObj = rawFilingUser?.company ?? primaryDetail?.company ?? primaryApplicant?.company;
 
   const companyDetails = companyObj
     ? {
-      name: companyObj.name ?? '',
+      name: formatProperName(companyObj.name ?? ''),
       registrationNumber: companyObj.registrationNumber ?? '',
       address: companyObj.address ?? '',
       contactNumber: companyObj.contactNumber ?? '',
@@ -71,12 +120,12 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
   const filingUser = rawFilingUser
     ? {
       id: rawFilingUser.id,
-      name: rawFilingUser.name ?? '',
+      name: formatProperName(rawFilingUser.name ?? ''),
       email: rawFilingUser.email ?? '',
       accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
       company: rawFilingUser.company
         ? {
-          name: rawFilingUser.company.name ?? '',
+          name: formatProperName(rawFilingUser.company.name ?? ''),
           registrationNumber: rawFilingUser.company.registrationNumber ?? '',
           address: rawFilingUser.company.address ?? '',
           contactNumber: rawFilingUser.company.contactNumber ?? '',
@@ -86,28 +135,63 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     }
     : undefined;
 
-  // Summary header display: Filing User is the primary source; fall back to guest applicant details only for guest submissions
-  const applicantName = rawFilingUser?.name
-    ? rawFilingUser.name
-    : isCompanySubmission
-      ? (companyDetails?.name ?? '')
-      : guestDetail
-        ? `${guestDetail.firstName} ${guestDetail.lastName}`.trim()
-        : '';
+  const primaryApplicantName =
+    primaryApplicant && 'name' in primaryApplicant && typeof primaryApplicant.name === 'string'
+      ? primaryApplicant.name
+      : '';
 
-  const contactEmail = rawFilingUser?.email ?? guestDetail?.email ?? '';
-  const contactPhone = guestDetail?.contactNumber ?? rawFilingUser?.company?.contactNumber ?? '';
+  const primaryFullName = primaryDetail
+    ? [primaryDetail.firstName, primaryDetail.middleName, primaryDetail.lastName, primaryDetail.suffix]
+        .filter(Boolean)
+        .join(' ')
+        .trim()
+    : primaryApplicantName;
+
+  const applicantName =
+    isValidName(primaryFullName)
+      ? formatProperName(primaryFullName)
+      : isCompanySubmission && isValidName(companyDetails?.name)
+        ? formatProperName(companyDetails.name)
+        : isValidName(rawFilingUser?.name)
+          ? formatProperName(rawFilingUser.name)
+          : isValidName(companyObj?.name)
+            ? formatProperName(companyObj.name)
+            : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+
+  const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
+    primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+
+  const brgyPrimary = findPrimaryFv((lbl) => lbl.includes('barangay')) ?? '';
+  const cityPrimary = findPrimaryFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) ?? '';
+  const provPrimary = findPrimaryFv((lbl) => lbl.includes('province')) ?? '';
+  const regPrimary = findPrimaryFv((lbl) => lbl.includes('region')) ?? '';
+  const zipPrimary = primaryDetail?.zipCode ?? findPrimaryFv((lbl) => lbl.includes('zip')) ?? '';
+  const dobPrimary = primaryDetail?.birthDate ?? findPrimaryFv((lbl) => lbl.includes('birth')) ?? '';
+  const sexPrimary = primaryDetail?.sex ?? findPrimaryFv((lbl) => lbl.includes('sex') || lbl.includes('gender')) ?? '';
+  const natPrimary = primaryDetail?.nationality ?? findPrimaryFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship')) ?? 'Filipino';
+  const civilPrimary = findPrimaryFv((lbl) => lbl.includes('civil') || lbl.includes('marital')) ?? '';
+
+  const primaryStreet = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
+  const contactEmail = primaryDetail?.emailAddress ?? primaryDetail?.email ?? rawFilingUser?.email ?? '';
+  const contactPhone = primaryDetail?.contactNumber ?? rawFilingUser?.company?.contactNumber ?? '';
 
   const applicantsList = (dto.applicants ?? []).map((appItem, idx) => {
     const ad = appItem.details;
-    const name = ad
-      ? `${ad.firstName} ${ad.lastName}`.trim()
-      : (appItem.company?.name || `Applicant ${idx + 1}`);
+    const formFields = appItem.formFieldValues ?? [];
+
+    const rawAppItemName =
+      'name' in appItem && typeof appItem.name === 'string'
+        ? appItem.name
+        : (appItem.company?.name || '');
+
+    const nameCandidate = ad
+      ? [ad.firstName, ad.middleName, ad.lastName, ad.suffix].filter(Boolean).join(' ').trim()
+      : rawAppItemName;
 
     const itemComp = appItem.company ?? ad?.company;
     const itemCompanyDetails = itemComp
       ? {
-        name: itemComp.name ?? '',
+        name: formatProperName(itemComp.name ?? ''),
         registrationNumber: itemComp.registrationNumber ?? '',
         address: itemComp.address ?? '',
         contactNumber: itemComp.contactNumber ?? '',
@@ -115,9 +199,42 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       }
       : undefined;
 
+    const findFv = (predicate: (lbl: string, id: string) => boolean) =>
+      formFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+
+    const fvNameCandidate = findFv((lbl) =>
+      lbl.includes('full name') ||
+      lbl.includes('applicant name') ||
+      lbl.includes('name of applicant') ||
+      lbl.includes('business name') ||
+      lbl.includes('company name') ||
+      lbl.includes('corporate name')
+    );
+
+    const resolvedName =
+      isValidName(nameCandidate)
+        ? formatProperName(nameCandidate)
+        : isValidName(fvNameCandidate)
+          ? formatProperName(fvNameCandidate)
+          : isValidName(itemComp?.name)
+            ? formatProperName(itemComp.name)
+            : isValidName(rawFilingUser?.name)
+              ? formatProperName(rawFilingUser.name)
+              : formatProperName(itemComp?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
+
+    const brgyFromFv = findFv((lbl) => lbl.includes('barangay'));
+    const cityFromFv = findFv((lbl) => lbl.includes('city') || lbl.includes('municipality'));
+    const provFromFv = findFv((lbl) => lbl.includes('province'));
+    const regFromFv = findFv((lbl) => lbl.includes('region'));
+    const zipFromFv = findFv((lbl) => lbl.includes('zip'));
+    const dobFromFv = findFv((lbl) => lbl.includes('birth'));
+    const sexFromFv = findFv((lbl) => lbl.includes('sex') || lbl.includes('gender'));
+    const natFromFv = findFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship'));
+    const civilFromFv = findFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+
     return {
       id: appItem.id || `app-${idx}`,
-      name,
+      name: resolvedName,
       applicantType: appItem.applicantType === 'Company' ? ('Company' as const) : ('Individual' as const),
       status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
         ? (appItem.status as 'Incomplete' | 'ForEndorsement')
@@ -129,25 +246,42 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
       address: ad?.address ?? '',
-      barangay: ad?.address ?? '',
-      city: '',
-      province: '',
-      zipCode: ad?.zipCode ?? '',
+      streetAddress: ad?.address ?? '',
+      barangay: brgyFromFv ?? '',
+      city: cityFromFv ?? '',
+      province: provFromFv ?? '',
+      region: regFromFv ?? '',
+      zipCode: ad?.zipCode ?? zipFromFv ?? '',
       companyDetails: itemCompanyDetails,
       basicInfo: ad ? {
         lastName: ad.lastName ?? '',
         firstName: ad.firstName ?? '',
         middleName: ad.middleName ?? '',
         extensionName: ad.suffix ?? '',
-        dob: ad.birthDate ?? '',
+        dob: ad.birthDate ?? dobFromFv ?? '',
         placeOfBirth: '',
-        sex: ad.sex ?? '',
+        sex: ad.sex ?? sexFromFv ?? '',
         weight: ad.weight ?? 0,
         height: ad.height ?? 0,
-        nationality: ad.nationality ?? '',
+        nationality: ad.nationality ?? natFromFv ?? 'Filipino',
+        civilStatus: civilFromFv ?? '',
         employmentStatus: '',
         occupation: '',
-      } : undefined,
+      } : (dobFromFv || sexFromFv || natFromFv || civilFromFv ? {
+        lastName: '',
+        firstName: '',
+        middleName: '',
+        extensionName: '',
+        dob: dobFromFv ?? '',
+        placeOfBirth: '',
+        sex: sexFromFv ?? '',
+        weight: 0,
+        height: 0,
+        nationality: natFromFv ?? 'Filipino',
+        civilStatus: civilFromFv ?? '',
+        employmentStatus: '',
+        occupation: '',
+      } : undefined),
       requirements: [],
     };
   });
@@ -209,10 +343,13 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     isPinned: Boolean(dto.isPinned),
     isArchived: Boolean(dto.isArchived),
     address: {
-      barangay: guestDetail?.address ?? rawFilingUser?.company?.address ?? '',
-      province: '',
-      city: '',
-      zipCode: guestDetail?.zipCode ?? '',
+      streetAddress: primaryStreet,
+      address: primaryStreet,
+      barangay: brgyPrimary,
+      province: provPrimary,
+      city: cityPrimary,
+      region: regPrimary,
+      zipCode: zipPrimary,
     },
     companyDetails,
     contactDetails: {
@@ -220,16 +357,17 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       email: contactEmail,
     },
     basicInfo: {
-      lastName: guestDetail?.lastName ?? (rawFilingUser?.name?.split(' ')[1] ?? ''),
-      firstName: guestDetail?.firstName ?? (rawFilingUser?.name?.split(' ')[0] ?? ''),
-      middleName: guestDetail?.middleName ?? '',
-      extensionName: guestDetail?.suffix ?? '',
-      dob: guestDetail?.birthDate ?? '',
+      lastName: primaryDetail?.lastName ?? (rawFilingUser?.name?.split(' ').slice(1).join(' ') ?? ''),
+      firstName: primaryDetail?.firstName ?? (rawFilingUser?.name?.split(' ')[0] ?? ''),
+      middleName: primaryDetail?.middleName ?? '',
+      extensionName: primaryDetail?.suffix ?? '',
+      dob: dobPrimary,
       placeOfBirth: '',
-      sex: guestDetail?.sex ?? '',
-      weight: guestDetail?.weight ?? 0,
-      height: guestDetail?.height ?? 0,
-      nationality: guestDetail?.nationality ?? '',
+      sex: sexPrimary,
+      weight: primaryDetail?.weight ?? 0,
+      height: primaryDetail?.height ?? 0,
+      nationality: natPrimary,
+      civilStatus: civilPrimary,
       employmentStatus: '',
       occupation: '',
     },

@@ -7,6 +7,8 @@ import { ApplicantParticularsCard } from './ApplicantParticularsCard';
 import { ApplicantRequirementsCard } from './ApplicantRequirementsCard';
 import { HeroReviewHeader } from './HeroReviewHeader';
 
+import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
+
 interface SingleApplicantSectionProps {
   app: Application;
   singleApplicant: {
@@ -37,7 +39,9 @@ interface SingleApplicantSectionProps {
   docs: ApplicationDocument[];
   onPreviewFile: (uri: string, name: string) => void;
   onPreviewDoc: (doc: ApplicationDocument) => void;
-  onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
+  onPreviewCustomDoc: (doc: DocumentPreviewFile) => void;
+  onDownloadDoc?: (doc: ApplicationDocument) => void;
+  previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
 }
 
@@ -54,6 +58,8 @@ export function SingleApplicantSection({
   onPreviewFile,
   onPreviewDoc,
   onPreviewCustomDoc,
+  onDownloadDoc,
+  previewLoadingId,
   setPreviewLoadingId,
 }: SingleApplicantSectionProps) {
   return (
@@ -124,6 +130,8 @@ export function SingleApplicantSection({
         docs={docs}
         onPreviewDoc={onPreviewDoc}
         onPreviewCustomDoc={onPreviewCustomDoc}
+        onDownloadDoc={onDownloadDoc}
+        previewLoadingId={previewLoadingId}
         setPreviewLoadingId={setPreviewLoadingId}
       />
     </View>

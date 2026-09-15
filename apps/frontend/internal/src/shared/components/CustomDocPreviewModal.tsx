@@ -1,8 +1,8 @@
 import React from 'react';
-import { DocumentPreviewModal } from './DocumentPreviewModal';
+import { DocumentPreviewModal, DocumentPreviewFile } from './DocumentPreviewModal';
 
 interface CustomDocPreviewModalProps {
-  previewCustomDoc: { uri: string; name: string } | null;
+  previewCustomDoc: DocumentPreviewFile | null;
   onClose: () => void;
 }
 
