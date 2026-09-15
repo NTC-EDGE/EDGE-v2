@@ -8,6 +8,7 @@ import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
 import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+import { getRequirementsList } from "../components/wizard/CPEStep6DocumentUpload";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
@@ -316,6 +317,35 @@ export function useCPEAccreditationWizard({
     const expiryMonthNum = months[activeApplicant.expiryMonth] || "01";
     const expiryDateStr = `${activeApplicant.expiryYear}-${expiryMonthNum}-${String(activeApplicant.expiryDate).padStart(2, "0")}`;
     const address = `${activeApplicant.unitBldgNo || ""}, ${activeApplicant.street}, ${activeApplicant.barangay}, ${activeApplicant.city}, ${activeApplicant.province}, ${activeApplicant.zipCode}`;
+
+    if (!isDraft) {
+      const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+      const applicantsToValidate = isBulkSubmission ? applicants : [activeApplicant];
+      for (let i = 0; i < applicantsToValidate.length; i++) {
+        const appToVal = applicantsToValidate[i];
+        const reqList = getRequirementsList(appToVal.appType);
+        const missingIdxs: number[] = [];
+        reqList.forEach((req, idx) => {
+          const key = idx.toString();
+          const upVal = appToVal.uploads?.[key];
+          const isUploaded = Boolean(
+            upVal &&
+            ((typeof upVal === "string" && upVal.trim().length > 0) ||
+             (typeof upVal === "object" && (upVal.name || upVal.uri)))
+          );
+          if (!isUploaded) {
+            missingIdxs.push(idx);
+          }
+        });
+        if (missingIdxs.length > 0) {
+          const missingNames = missingIdxs.map((idx) => reqList[idx]);
+          const label = appToVal.businessName || appToVal.engineerName || `Applicant #${i + 1}`;
+          throw new Error(
+            `Mandatory supporting documents are missing for ${label}: ${missingNames.join(", ")}. Please upload all required attachments before submitting.`
+          );
+        }
+      }
+    }
 
     try {
       if (serviceId) {
