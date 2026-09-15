@@ -10,6 +10,7 @@ import {
   View,
 } from 'react-native';
 import { Icon as Lucide, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { useAdminApplications } from '@edge/api';
 import {
   NAV_GROUP_ORDER,
   NavigationLink,
@@ -125,7 +126,28 @@ export function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const grouped = groupLinks(links);
+  // Unevaluated applications count for Activities badge
+  const { applications, pagination, statistics } = useAdminApplications({
+    queueTab: 'pending',
+    scope: 'queue',
+  });
+
+  const pendingCount =
+    statistics?.evaluatingCount ??
+    pagination?.totalCount ??
+    (Array.isArray(applications) ? applications.length : 0);
+
+  const enrichedLinks = links.map((link) => {
+    if (link.screen === 'Activities' || link.name === 'Activities') {
+      return {
+        ...link,
+        badgeCount: link.badgeCount !== undefined ? link.badgeCount : pendingCount > 0 ? pendingCount : undefined,
+      };
+    }
+    return link;
+  });
+
+  const grouped = groupLinks(enrichedLinks);
 
   const sidebarBg = isDark ? colors.neutral[900] : colors.cardBg;
   const borderColor = colors.border;
