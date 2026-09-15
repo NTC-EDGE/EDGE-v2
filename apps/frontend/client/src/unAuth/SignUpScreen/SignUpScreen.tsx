@@ -362,7 +362,7 @@ export function SignUpScreen() {
                   value={password}
                   onChangeText={setPassword}
                   error={passwordError}
-                  secureTextEntry={true}
+                  isPassword={true}
                   autoCapitalize="none"
                   iconName="lock"
                 />
@@ -373,7 +373,7 @@ export function SignUpScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   error={confirmPasswordError}
-                  secureTextEntry={true}
+                  isPassword={true}
                   autoCapitalize="none"
                   iconName="lock"
                 />

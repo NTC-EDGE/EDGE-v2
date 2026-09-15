@@ -280,7 +280,7 @@ export function ForgotPasswordScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 error={newPasswordError}
-                secureTextEntry={true}
+                isPassword={true}
                 autoCapitalize="none"
                 iconName="lock"
               />
@@ -290,7 +290,7 @@ export function ForgotPasswordScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 error={confirmPasswordError}
-                secureTextEntry={true}
+                isPassword={true}
                 autoCapitalize="none"
                 iconName="lock"
               />
