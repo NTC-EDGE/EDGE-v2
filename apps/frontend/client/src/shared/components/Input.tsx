@@ -8,11 +8,8 @@ import {
   TextStyle,
   Platform,
 } from 'react-native';
-import { Icon as Lucide, injectPasswordRevealStyles } from '@edge/ui';
+import { Icon as Lucide } from '@edge/ui';
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from '../theme/tokens';
-
-// Suppress browser-native password reveal icons (e.g. Edge ::-ms-reveal) on Web
-injectPasswordRevealStyles();
 
 type LucideIconName = ComponentProps<typeof Lucide>['name'];
 

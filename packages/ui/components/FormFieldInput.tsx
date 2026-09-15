@@ -12,10 +12,6 @@ import { Control, Controller, FieldValues, Path } from "react-hook-form";
 import { TYPOGRAPHY } from "../theme/tokens";
 import { useTheme } from "../theme/useTheme";
 import { Feather as Icon } from "@expo/vector-icons";
-import { injectPasswordRevealStyles } from "../utils/webStyles";
-
-// Suppress browser-native password reveal icons (e.g. Edge ::-ms-reveal) on Web
-injectPasswordRevealStyles();
 
 export interface FormFieldInputProps<T extends FieldValues> extends Omit<TextInputProps, "value" | "onChangeText"> {
   control: Control<T>;
