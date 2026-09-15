@@ -50,6 +50,14 @@ export function BulkApplicantDocList({
   onPreviewCustomDoc,
 }: BulkApplicantDocListProps) {
   const api = useApi();
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   if (selectedApplicantDocs.length === 0) return null;
 
@@ -138,22 +146,28 @@ export function BulkApplicantDocList({
               {hasFile ? (
                 <TouchableOpacity
                   onPress={async () => {
-                    if (doc.url) {
+                    const rawFileUrl = doc.url || (doc.storedFileId ? `/api/v2/tenants/aa0cd342-7265-4d9e-9242-948fc7e3d0a8/storage/files/${doc.storedFileId}` : undefined);
+                    if (rawFileUrl) {
                       try {
                         const baseUrl =
                           (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
-                        const fullUrl = doc.url.startsWith('http') ? doc.url : `${baseUrl}${doc.url}`;
+                        const fullUrl = rawFileUrl.startsWith('http') ? rawFileUrl : `${baseUrl}${rawFileUrl}`;
                         const blob = await api.get<Blob>(fullUrl);
+                        if (!isMountedRef.current) return;
                         const objectUrl =
                           typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
                             ? URL.createObjectURL(blob as unknown as Blob)
                             : fullUrl;
                         onPreviewCustomDoc({ uri: objectUrl, name: doc.name });
                       } catch {
-                        onPreviewCustomDoc({ uri: doc.url, name: doc.name });
+                        if (isMountedRef.current) {
+                          onPreviewCustomDoc({ uri: rawFileUrl, name: doc.name });
+                        }
                       }
                     } else {
-                      onPreviewDoc(doc);
+                      if (isMountedRef.current) {
+                        onPreviewDoc(doc);
+                      }
                     }
                   }}
                   style={{
