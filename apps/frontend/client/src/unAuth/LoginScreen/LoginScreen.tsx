@@ -253,7 +253,7 @@ export function LoginScreen() {
                   value={password}
                   onChangeText={setPassword}
                   error={passwordError}
-                  secureTextEntry={true}
+                  isPassword={true}
                   autoCapitalize="none"
                   iconName="lock"
                 />

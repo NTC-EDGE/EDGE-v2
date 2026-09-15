@@ -1,5 +1,6 @@
-import { createContext, useContext, useState, ReactNode, ComponentProps } from 'react';
+import { createContext, useContext, useState, useEffect, ReactNode, ComponentProps } from 'react';
 import { Icon } from '@edge/ui';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 export type UserRole =
   | 'Admin'
@@ -108,6 +109,21 @@ export const ROLE_NAVIGATION_LINKS = {
   ],
 } as const satisfies Record<UserRole, readonly NavigationLink[]>;
 
+function mapToUserRole(roleStr?: string | null): UserRole | null {
+  if (typeof roleStr !== 'string' || roleStr.trim().length === 0) return null;
+  const normalized = roleStr.trim().toLowerCase().replace(/[_-]/g, ' ');
+
+  if (normalized.includes('evaluator')) return 'Evaluator';
+  if (normalized.includes('chief') || normalized.includes('eod')) return 'Chief of EOD';
+  if (normalized.includes('director')) return 'Regional Director';
+  if (normalized.includes('legal')) return 'Legal';
+  if (normalized.includes('accountant')) return 'Accountant';
+  if (normalized.includes('cashier')) return 'Cashier';
+  if (normalized.includes('admin')) return 'Admin';
+
+  return null;
+}
+
 interface RoleContextType {
   currentRole: UserRole;
   setCurrentRole: (role: UserRole) => void;
@@ -120,9 +136,39 @@ export function RoleProvider({ children }: { children: ReactNode }) {
 
   return (
     <RoleContext.Provider value={{ currentRole, setCurrentRole }}>
-      {children}
+      <RoleStateSynchronizer currentRole={currentRole} setCurrentRole={setCurrentRole}>
+        {children}
+      </RoleStateSynchronizer>
     </RoleContext.Provider>
   );
+}
+
+function RoleStateSynchronizer({
+  children,
+  currentRole,
+  setCurrentRole,
+}: {
+  children: ReactNode;
+  currentRole: UserRole;
+  setCurrentRole: (role: UserRole) => void;
+}) {
+  const { user } = useAuthContext();
+
+  useEffect(() => {
+    if (user?.roles !== undefined && user.roles !== null && Array.isArray(user.roles) && user.roles.length > 0) {
+      for (const r of user.roles) {
+        const mapped = mapToUserRole(r);
+        if (mapped !== null) {
+          if (currentRole !== mapped) {
+            setCurrentRole(mapped);
+          }
+          break;
+        }
+      }
+    }
+  }, [user?.roles, currentRole, setCurrentRole]);
+
+  return <>{children}</>;
 }
 
 export function useRole(): RoleContextType {

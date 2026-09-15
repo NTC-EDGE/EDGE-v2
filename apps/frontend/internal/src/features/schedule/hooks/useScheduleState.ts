@@ -202,9 +202,7 @@ export function useScheduleState() {
       isPublished: formData.isPublished,
     };
 
-    const [, err] = await safeAsync(
-      scheduleService.createSchedule(createPayload)
-    );
+    const [, err] = await scheduleService.createSchedule(createPayload);
 
     if (err !== null) {
       showToast(err || 'Failed to create schedule.', 'error');
@@ -232,9 +230,7 @@ export function useScheduleState() {
 
     if (confirmModal.type === 'publish' || confirmModal.type === 'unpublish') {
       const newStatus = confirmModal.type === 'publish';
-      const [, err] = await safeAsync(
-        scheduleService.togglePublish(confirmModal.schedule.id, newStatus)
-      );
+      const [, err] = await scheduleService.togglePublish(confirmModal.schedule.id, newStatus);
 
       if (err !== null) {
         showToast(err || 'Failed to update schedule publication status.', 'error');
@@ -261,9 +257,7 @@ export function useScheduleState() {
           remarks: confirmModal.pendingFormData.remarks?.trim() || null,
         };
 
-        const [, err] = await safeAsync(
-          scheduleService.updateSchedule(confirmModal.schedule.id, updatePayload)
-        );
+        const [, err] = await scheduleService.updateSchedule(confirmModal.schedule.id, updatePayload);
 
         if (err !== null) {
           showToast(err || 'Failed to update schedule.', 'error');
@@ -289,9 +283,7 @@ export function useScheduleState() {
       return;
     }
 
-    const [, err] = await safeAsync(
-      scheduleService.deleteSchedule(deleteModal.item.id)
-    );
+    const [, err] = await scheduleService.deleteSchedule(deleteModal.item.id);
 
     if (err !== null) {
       showToast(err || 'Failed to delete schedule.', 'error');
