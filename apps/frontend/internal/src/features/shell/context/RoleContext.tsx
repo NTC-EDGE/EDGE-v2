@@ -109,17 +109,55 @@ export const ROLE_NAVIGATION_LINKS = {
   ],
 } as const satisfies Record<UserRole, readonly NavigationLink[]>;
 
-function mapToUserRole(roleStr?: string | null): UserRole | null {
-  if (typeof roleStr !== 'string' || roleStr.trim().length === 0) return null;
-  const normalized = roleStr.trim().toLowerCase().replace(/[_-]/g, ' ');
+const EXACT_ROLE_MAP: Readonly<Record<string, UserRole>> = {
+  admin: 'Admin',
+  administrator: 'Admin',
+  super_admin: 'Admin',
+  'super admin': 'Admin',
+  superadmin: 'Admin',
+  superadministrator: 'Admin',
+  'super administrator': 'Admin',
+  evaluator: 'Evaluator',
+  'chief of eod': 'Chief of EOD',
+  chief_of_eod: 'Chief of EOD',
+  'chief-of-eod': 'Chief of EOD',
+  chiefeod: 'Chief of EOD',
+  'regional director': 'Regional Director',
+  regional_director: 'Regional Director',
+  'regional-director': 'Regional Director',
+  director: 'Regional Director',
+  legal: 'Legal',
+  legal_officer: 'Legal',
+  'legal officer': 'Legal',
+  accountant: 'Accountant',
+  cashier: 'Cashier',
+};
 
-  if (normalized.includes('evaluator')) return 'Evaluator';
-  if (normalized.includes('chief') || normalized.includes('eod')) return 'Chief of EOD';
-  if (normalized.includes('director')) return 'Regional Director';
-  if (normalized.includes('legal')) return 'Legal';
-  if (normalized.includes('accountant')) return 'Accountant';
-  if (normalized.includes('cashier')) return 'Cashier';
-  if (normalized.includes('admin')) return 'Admin';
+export function mapToUserRole(roleStr?: string | null): UserRole | null {
+  if (typeof roleStr !== 'string' || roleStr.trim().length === 0) return null;
+  const clean = roleStr.trim().toLowerCase();
+
+  // 1. Direct dictionary match for standardized slugs and names
+  if (clean in EXACT_ROLE_MAP) {
+    return EXACT_ROLE_MAP[clean];
+  }
+
+  // 2. Normalized space-delimited match
+  const normalized = clean.replace(/[_-]+/g, ' ').trim();
+  if (normalized in EXACT_ROLE_MAP) {
+    return EXACT_ROLE_MAP[normalized];
+  }
+
+  // 3. Token-based priority matching (high-specificity compound roles first)
+  const tokens = normalized.split(/\s+/);
+
+  if (tokens.includes('chief') || tokens.includes('eod')) return 'Chief of EOD';
+  if (tokens.includes('director')) return 'Regional Director';
+  if (tokens.includes('evaluator')) return 'Evaluator';
+  if (tokens.includes('accountant')) return 'Accountant';
+  if (tokens.includes('cashier')) return 'Cashier';
+  if (tokens.includes('legal')) return 'Legal';
+  if (tokens.includes('admin') || tokens.includes('administrator')) return 'Admin';
 
   return null;
 }

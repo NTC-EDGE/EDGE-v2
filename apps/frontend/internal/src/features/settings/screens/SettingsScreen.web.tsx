@@ -21,53 +21,24 @@ import {
   ThemeToggle,
 } from "@edge/ui";
 import { useAuthContext } from "../../auth/context/AuthContext";
-import { useRole, ROLES, UserRole } from "../../shell/context/RoleContext";
+import { useRole } from "../../shell/context/RoleContext";
 import { useAppNavigation } from "../../../navigation/types";
-
-type TabType = "profile" | "security" | "appearance" | "support";
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (
-    typeof error === "object" &&
-    error !== null &&
-    "message" in error &&
-    typeof error.message === "string"
-  ) {
-    return error.message;
-  }
-  return "An unexpected error occurred.";
-}
-
-function isObjectWithCreatePassword(obj: unknown): obj is {
-  createPassword: (params: {
-    newPassword: string;
-    signOutOfOtherSessions?: boolean;
-  }) => Promise<unknown>;
-} {
-  return (
-    typeof obj === "object" &&
-    obj !== null &&
-    typeof Reflect.get(obj, "createPassword") === "function"
-  );
-}
+import {
+  TabType,
+  getErrorMessage,
+  isObjectWithCreatePassword,
+  calculatePasswordStrength,
+  validatePasswordChange,
+} from "../utils/settingsUtils";
 
 export function SettingsScreen(): React.ReactElement {
   const { colors, isDark, setMode } = useTheme();
   const { clerkUser } = useAuthContext();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const navigation = useAppNavigation();
 
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const [selectedRole, setSelectedRole] = useState<UserRole>(currentRole);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-
-  useEffect(() => {
-    if (!isEditingProfile) {
-      setSelectedRole(currentRole);
-    }
-  }, [currentRole, isEditingProfile]);
 
   const handleBackToDashboard = () => {
     navigation.navigate("Dashboard");
@@ -113,32 +84,7 @@ export function SettingsScreen(): React.ReactElement {
 
   // Password checklist calculations
   const pChecklist = useMemo(() => {
-    const hasMinLength = newPassword.length >= 8;
-    const hasUpperAndLower = /[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword);
-    const hasNumber = /[0-9]/.test(newPassword);
-
-    let strengthText = "Weak";
-    let strengthColor: string = colors.semantic.error;
-    const count = (hasMinLength ? 1 : 0) + (hasUpperAndLower ? 1 : 0) + (hasNumber ? 1 : 0);
-
-    if (newPassword.length === 0) {
-      strengthText = "None";
-      strengthColor = colors.textMuted;
-    } else if (count === 2) {
-      strengthText = "Medium";
-      strengthColor = colors.semantic.warning;
-    } else if (count === 3) {
-      strengthText = "Strong";
-      strengthColor = colors.semantic.success;
-    }
-
-    return {
-      hasMinLength,
-      hasUpperAndLower,
-      hasNumber,
-      strengthText,
-      strengthColor,
-    };
+    return calculatePasswordStrength(newPassword, colors);
   }, [newPassword, colors]);
 
   const handleSaveProfile = async () => {
@@ -183,18 +129,15 @@ export function SettingsScreen(): React.ReactElement {
       const hasPassword = Boolean(clerkUser?.passwordEnabled);
 
       if (newPassword.length > 0) {
-        if (hasPassword && currentPassword.trim().length === 0) {
-          setSecurityError("Please enter your current password.");
-          setSecurityLoading(false);
-          return;
-        }
-        if (newPassword.length < 8) {
-          setSecurityError("New password must be at least 8 characters.");
-          setSecurityLoading(false);
-          return;
-        }
-        if (newPassword !== confirmPassword) {
-          setSecurityError("New password and confirmation do not match.");
+        const validationError = validatePasswordChange({
+          hasPassword,
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        });
+
+        if (validationError !== null) {
+          setSecurityError(validationError);
           setSecurityLoading(false);
           return;
         }
