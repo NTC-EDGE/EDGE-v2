@@ -109,15 +109,30 @@ export const ROLE_NAVIGATION_LINKS = {
   ],
 } as const satisfies Record<UserRole, readonly NavigationLink[]>;
 
+export const ROLE_HIERARCHY_PRIORITY: readonly UserRole[] = [
+  'Admin',
+  'Regional Director',
+  'Chief of EOD',
+  'Legal',
+  'Evaluator',
+  'Accountant',
+  'Cashier',
+] as const;
+
 const EXACT_ROLE_MAP: Readonly<Record<string, UserRole>> = {
   admin: 'Admin',
   administrator: 'Admin',
+  system_admin: 'Admin',
+  'system admin': 'Admin',
   super_admin: 'Admin',
   'super admin': 'Admin',
   superadmin: 'Admin',
   superadministrator: 'Admin',
   'super administrator': 'Admin',
   evaluator: 'Evaluator',
+  standard_user: 'Evaluator',
+  'standard user': 'Evaluator',
+  approver: 'Regional Director',
   'chief of eod': 'Chief of EOD',
   chief_of_eod: 'Chief of EOD',
   'chief-of-eod': 'Chief of EOD',
@@ -194,13 +209,22 @@ function RoleStateSynchronizer({
 
   useEffect(() => {
     if (user?.roles !== undefined && user.roles !== null && Array.isArray(user.roles) && user.roles.length > 0) {
-      for (const r of user.roles) {
-        const mapped = mapToUserRole(r);
-        if (mapped !== null) {
-          if (currentRole !== mapped) {
-            setCurrentRole(mapped);
-          }
-          break;
+      const matchedRoles = user.roles
+        .map((r) => mapToUserRole(r))
+        .filter((r): r is UserRole => r !== null);
+
+      if (matchedRoles.length > 0) {
+        matchedRoles.sort((a, b) => {
+          const indexA = ROLE_HIERARCHY_PRIORITY.indexOf(a);
+          const indexB = ROLE_HIERARCHY_PRIORITY.indexOf(b);
+          const rankA = indexA === -1 ? Number.MAX_SAFE_INTEGER : indexA;
+          const rankB = indexB === -1 ? Number.MAX_SAFE_INTEGER : indexB;
+          return rankA - rankB;
+        });
+
+        const primaryRole = matchedRoles[0];
+        if (primaryRole !== undefined && currentRole !== primaryRole) {
+          setCurrentRole(primaryRole);
         }
       }
     }
