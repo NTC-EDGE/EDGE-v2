@@ -101,6 +101,13 @@ export interface SingleApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 }
 
 export interface BulkApplicant {
@@ -202,6 +209,13 @@ export interface BulkApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 
   // Single Application fields (optional here for API compatibility)
   applicantName?: string;
@@ -568,13 +582,25 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     filingUser?.name ||
     'Company Applicant';
 
+  const isGenericCandidate = (val?: string | null): boolean => {
+    if (!val || typeof val !== 'string') return true;
+    const lower = val.trim().toLowerCase();
+    return ['applicant details', 'applicant detail', 'applicant', 'unnamed applicant', 'n/a', 'na', 'none', 'juan dela cruz'].includes(lower);
+  };
+
   const firstApplicant = rawApplicants.length > 0 ? rawApplicants[0] : undefined;
   const firstDetails = firstApplicant?.details || firstApplicant;
-  const applicantName =
-    dto.applicantName ||
-    (firstDetails?.firstName && firstDetails?.lastName
+  const rawFirstAppCandidate =
+    firstDetails?.firstName && firstDetails?.lastName
       ? `${firstDetails.firstName} ${firstDetails.lastName}`
-      : firstApplicant?.name || filingUser?.name || 'Applicant');
+      : firstApplicant?.name;
+
+  const applicantName =
+    dto.applicantName && !isGenericCandidate(dto.applicantName)
+      ? dto.applicantName.trim()
+      : rawFirstAppCandidate && !isGenericCandidate(rawFirstAppCandidate)
+        ? rawFirstAppCandidate.trim()
+        : filingUser?.name || 'Applicant';
 
   const refNumber =
     dto.referenceNumber ||
@@ -686,6 +712,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       tenantId: dto.tenantId,
       serviceId: dto.serviceId,
       serviceVariantId: dto.serviceVariantId,
+      filingUser: dto.filingUser,
     };
     return bulkApp;
   }
@@ -701,6 +728,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     submittedAt,
     serviceId: dto.serviceId,
     serviceVariantId: dto.serviceVariantId,
+    filingUser: dto.filingUser,
     applicantName,
     sex: firstDetails?.sex === 'Female' ? 'Female' : 'Male',
     nationality: firstDetails?.nationality || 'Filipino',

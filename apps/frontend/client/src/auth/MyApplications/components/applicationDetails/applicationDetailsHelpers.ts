@@ -35,43 +35,70 @@ export {
 
 // ─── My Application-specific data extraction helpers ─────────────────────────
 
+const GENERIC_NAMES = new Set([
+  'applicant details',
+  'applicant detail',
+  'applicant',
+  'unnamed applicant',
+  'n/a',
+  'na',
+  'none',
+  'juan dela cruz',
+]);
+
+function isValidName(val: unknown): val is string {
+  if (typeof val !== 'string') return false;
+  const trimmed = val.trim();
+  if (!trimmed) return false;
+  return !GENERIC_NAMES.has(trimmed.toLowerCase());
+}
+
 export function extractApplicantFullName(
   app: Application | null | undefined,
   details: RawApplicantDetails | null | undefined,
   first: RawApplicantHolder | null | undefined
 ): string {
-  if (first?.name && typeof first.name === 'string' && first.name.trim() && first.name !== 'Unnamed Applicant') return first.name.trim();
-  if (first?.applicantName && typeof first.applicantName === 'string' && first.applicantName.trim()) return first.applicantName.trim();
-  if (details?.fullName && typeof details.fullName === 'string' && details.fullName.trim()) return details.fullName.trim();
-  if (details?.applicantName && typeof details.applicantName === 'string' && details.applicantName.trim()) return details.applicantName.trim();
+  if (isValidName(first?.name)) return first.name.trim();
+  if (isValidName(first?.applicantName)) return first.applicantName.trim();
+  if (isValidName(details?.fullName)) return details.fullName.trim();
+  if (isValidName(details?.applicantName)) return details.applicantName.trim();
 
   const firstName = details?.firstName || details?.first_name || '';
   const lastName = details?.lastName || details?.last_name || '';
   const combined = `${firstName} ${lastName}`.trim();
-  if (combined.length > 0) return combined;
+  if (isValidName(combined)) return combined;
 
-  if (app?.applicantName && typeof app.applicantName === 'string' && app.applicantName.trim() && app.applicantName !== 'Unnamed Applicant') {
+  if (isValidName(app?.applicantName)) {
     return app.applicantName.trim();
   }
 
   const fvList: RawFormFieldItem[] =
-    (Array.isArray(details?.formFieldValues) && details?.formFieldValues ? details.formFieldValues :
-      Array.isArray(first?.formFieldValues) && first?.formFieldValues ? first.formFieldValues :
-      Array.isArray(app?.formFieldValues) && app?.formFieldValues ? (app.formFieldValues as RawFormFieldItem[]) : []);
+    (Array.isArray(details?.formFieldValues) && details.formFieldValues.length > 0 ? details.formFieldValues :
+      Array.isArray(first?.formFieldValues) && first.formFieldValues.length > 0 ? first.formFieldValues :
+      Array.isArray(app?.formFieldValues) && app.formFieldValues.length > 0 ? (app.formFieldValues as RawFormFieldItem[]) : []);
 
   if (fvList.length > 0) {
     const knownFv = fvList.find((fv) => fv.fieldId === FIELD_ID_FULL_NAME);
-    if (knownFv?.value?.trim()) return knownFv.value.trim();
+    if (isValidName(knownFv?.value)) return knownFv.value.trim();
 
     const matchedFv = fvList.find((fv) => {
       const lbl = (fv.fieldLabel || fv.label || fv.key || fv.fieldId || '').toLowerCase();
-      return lbl.includes('full name') || lbl.includes('applicant name') || lbl.includes('name of applicant') || lbl.includes('business name') || lbl.includes('company name');
+      return (
+        lbl.includes('full name') ||
+        lbl.includes('applicant name') ||
+        lbl.includes('name of applicant') ||
+        lbl.includes('business name') ||
+        lbl.includes('company name')
+      );
     });
-    if (matchedFv?.value?.trim()) return matchedFv.value.trim();
+    if (isValidName(matchedFv?.value)) return matchedFv.value.trim();
   }
 
-  if (app?.companyName && typeof app.companyName === 'string' && app.companyName.trim()) return app.companyName.trim();
-  return 'Juan dela Cruz';
+  if (isValidName(app?.filingUser?.name)) return app.filingUser.name.trim();
+  if (isValidName(app?.filingUser?.company?.name)) return app.filingUser.company.name.trim();
+  if (isValidName(app?.companyName)) return app.companyName.trim();
+
+  return 'Applicant';
 }
 
 export function resolveBirthDate(
