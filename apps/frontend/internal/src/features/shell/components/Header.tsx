@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import {
   Image,
   ImageSourcePropType,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   View,
@@ -19,9 +20,53 @@ import {
   ThemeToggle,
   useTheme,
 } from '@edge/ui';
-import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS } from '../context/RoleContext';
+import { useAdminApplications, useAdminAnnouncements } from '@edge/api';
+import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS, NavigationLink } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
 import { EditAccountModal } from '../../auth/components/EditAccountModal';
+
+// ─── Constants & Storage ──────────────────────────────────────────────────────
+
+const NOTIF_STORAGE_KEY = 'edge_internal_read_notifications';
+
+function getStoredReadNotifs(): Set<string> {
+  if (Platform.OS !== 'web') return new Set();
+  try {
+    const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
+    if (raw !== null && raw !== '') {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveStoredReadNotifs(set: Set<string>): void {
+  if (Platform.OS !== 'web') return;
+  try {
+    window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+function formatTimeAgo(dateString?: string): string {
+  if (!dateString) return 'Just now';
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  if (diffMinutes < 1) return 'Just now';
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 // ─── Asset ───────────────────────────────────────────────────────────────────
 
@@ -70,11 +115,8 @@ function getBreadcrumb(
   activeScreen: string,
   currentRole: UserRole,
 ): { group: string; screen: string } | null {
-  const links = ROLE_NAVIGATION_LINKS[currentRole];
-  // links is a readonly array of NavigationLink
-  const found = (links as ReadonlyArray<{ name: string; screen: string; group: string }>).find(
-    (l) => l.screen === activeScreen,
-  );
+  const links: readonly NavigationLink[] = ROLE_NAVIGATION_LINKS[currentRole];
+  const found = links.find((l) => l.screen === activeScreen);
   if (found === undefined) return null;
   return { group: found.group, screen: found.name };
 }
@@ -100,15 +142,86 @@ export function Header({
 }: HeaderProps) {
   const { colors, isDark } = useTheme();
   const [profileOpen, setProfileOpen] = useState(false);
+  const [notifOpen, setNotifOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredReadNotifs());
 
   const profileName = user?.name ?? 'User';
   const profileEmail = user?.email ?? '';
   const initials = getInitials(profileName);
   const breadcrumb = getBreadcrumb(activeScreen, currentRole);
 
-  // Unread notifications mock count
-  const notifCount = 3;
+  // Applications and Announcements
+  const { applications } = useAdminApplications({
+    queueTab: 'pending',
+    scope: 'queue',
+  });
+
+  const { announcements } = useAdminAnnouncements();
+
+  const notifications = useMemo(() => {
+    const list: Array<{
+      id: string;
+      title: string;
+      description: string;
+      timestamp?: string;
+      type: 'evaluation' | 'announcement';
+      screen: string;
+      isRead: boolean;
+    }> = [];
+
+    if (Array.isArray(applications)) {
+      for (const app of applications) {
+        list.push({
+          id: `app_${app.id}`,
+          title: 'Application Submitted',
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? 'N/A'}: ${app.serviceName ?? 'Application'} awaiting evaluation`,
+          timestamp: app.createdAt,
+          type: 'evaluation',
+          screen: 'Activities',
+          isRead: readNotifIds.has(`app_${app.id}`),
+        });
+      }
+    }
+
+    if (Array.isArray(announcements)) {
+      for (const item of announcements) {
+        if (item.isActive) {
+          list.push({
+            id: `ann_${item.id}`,
+            title: item.title,
+            description: item.message,
+            timestamp: item.createdAt,
+            type: 'announcement',
+            screen: 'Announcements',
+            isRead: readNotifIds.has(`ann_${item.id}`),
+          });
+        }
+      }
+    }
+
+    return list;
+  }, [applications, announcements, readNotifIds]);
+
+  const unreadCount = useMemo(() => {
+    return notifications.filter((n) => !n.isRead).length;
+  }, [notifications]);
+
+  const markAllAsRead = useCallback(() => {
+    const nextSet = new Set(readNotifIds);
+    for (const n of notifications) {
+      nextSet.add(n.id);
+    }
+    setReadNotifIds(nextSet);
+    saveStoredReadNotifs(nextSet);
+  }, [notifications, readNotifIds]);
+
+  const markAsRead = useCallback((id: string) => {
+    const nextSet = new Set(readNotifIds);
+    nextSet.add(id);
+    setReadNotifIds(nextSet);
+    saveStoredReadNotifs(nextSet);
+  }, [readNotifIds]);
 
   const dropdownBg = isDark ? colors.neutral[900] : colors.cardBg;
   const dropdownBorder = isDark ? colors.neutral[800] : colors.border;
@@ -141,7 +254,7 @@ export function Header({
       backgroundColor: isDark ? '#1E3A8A' : colors.cardBg,
       borderBottomColor: headerBorderColor,
     },
-  }) as ViewStyle;
+  }) ?? {};
 
   return (
     <View
@@ -185,14 +298,127 @@ export function Header({
 
         {/* Notifications bell */}
         <View style={styles.bellWrap}>
-          <Pressable style={[styles.iconBtn, { backgroundColor: iconBtnBg }]}>
+          <Pressable
+            onPress={() => setNotifOpen((prev) => !prev)}
+            style={[styles.iconBtn, { backgroundColor: iconBtnBg }]}
+          >
             <Lucide name="bell" size={16} color={iconColor} />
           </Pressable>
-          {notifCount > 0 && (
+          {unreadCount > 0 && (
             <View style={styles.badge}>
               <Text style={styles.badgeText}>
-                {notifCount > 9 ? '9+' : String(notifCount)}
+                {unreadCount > 9 ? '9+' : String(unreadCount)}
               </Text>
+            </View>
+          )}
+
+          {/* Notifications Dropdown */}
+          {notifOpen && (
+            <View
+              style={[
+                styles.notifDropdown,
+                SHADOWS.modal,
+                {
+                  backgroundColor: dropdownBg,
+                  borderColor: dropdownBorder,
+                },
+              ]}
+            >
+              <View style={[styles.notifHeader, { borderBottomColor: dropdownBorder }]}>
+                <View style={styles.notifHeaderTitleRow}>
+                  <Text style={[styles.notifTitle, { color: dropdownText }]}>
+                    Notifications
+                  </Text>
+                  {unreadCount > 0 && (
+                    <View style={styles.unreadBadge}>
+                      <Text style={styles.unreadBadgeText}>{unreadCount} new</Text>
+                    </View>
+                  )}
+                </View>
+                {unreadCount > 0 && (
+                  <Pressable onPress={markAllAsRead}>
+                    <Text style={[styles.markAllReadText, { color: colors.brand[500] }]}>
+                      Mark all as read
+                    </Text>
+                  </Pressable>
+                )}
+              </View>
+
+              <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
+                {notifications.length === 0 ? (
+                  <View style={styles.notifEmpty}>
+                    <Lucide name="bell-off" size={24} color={isDark ? '#64748B' : '#94A3B8'} />
+                    <Text style={[styles.notifEmptyText, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+                      No notifications right now
+                    </Text>
+                  </View>
+                ) : (
+                  notifications.map((item) => (
+                    <Pressable
+                      key={item.id}
+                      onPress={() => {
+                        markAsRead(item.id);
+                        setNotifOpen(false);
+                        if (onNavigate !== undefined) {
+                          onNavigate(item.screen);
+                        }
+                      }}
+                      style={[
+                        styles.notifItem,
+                        !item.isRead && {
+                          backgroundColor: isDark
+                            ? 'rgba(59, 130, 246, 0.08)'
+                            : 'rgba(59, 130, 246, 0.04)',
+                        },
+                      ]}
+                    >
+                      <View style={styles.notifItemIconWrap}>
+                        <Lucide
+                          name={item.type === 'announcement' ? 'volume-2' : 'activity'}
+                          size={14}
+                          color={
+                            item.isRead
+                              ? isDark ? '#64748B' : '#94A3B8'
+                              : isDark ? colors.brand[400] : colors.brand[600]
+                          }
+                        />
+                      </View>
+                      <View style={styles.notifItemContent}>
+                        <View style={styles.notifItemHeaderRow}>
+                          <Text
+                            style={[
+                              styles.notifItemTitle,
+                              {
+                                color: dropdownText,
+                                fontWeight: item.isRead
+                                  ? TYPOGRAPHY.weights.regular
+                                  : TYPOGRAPHY.weights.semibold,
+                              },
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {item.title}
+                          </Text>
+                          {!item.isRead && (
+                            <View style={[styles.unreadDot, { backgroundColor: colors.brand[500] }]} />
+                          )}
+                        </View>
+                        <Text
+                          style={[styles.notifItemDesc, { color: isDark ? '#94A3B8' : '#64748B' }]}
+                          numberOfLines={2}
+                        >
+                          {item.description}
+                        </Text>
+                        {item.timestamp !== undefined && (
+                          <Text style={[styles.notifItemTime, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+                            {formatTimeAgo(item.timestamp)}
+                          </Text>
+                        )}
+                      </View>
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
             </View>
           )}
         </View>
@@ -520,6 +746,120 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  notifDropdown: {
+    position: 'absolute',
+    top: 44,
+    right: 0,
+    width: 320,
+    maxHeight: 380,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    zIndex: 200,
+    overflow: 'hidden',
+  },
+  notifHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  notifHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  notifTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  unreadBadge: {
+    backgroundColor: 'rgba(59, 130, 246, 0.15)',
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  unreadBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#3B82F6',
+  },
+  markAllReadText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    ...Platform.select({
+      web: { cursor: 'pointer' },
+    }),
+  },
+  notifList: {
+    maxHeight: 320,
+  },
+  notifEmpty: {
+    padding: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  notifEmptyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+  },
+  notifItem: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.04)',
+    gap: 10,
+    alignItems: 'flex-start',
+    ...Platform.select({
+      web: { cursor: 'pointer' },
+    }),
+  },
+  notifItemIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  notifItemContent: {
+    flex: 1,
+  },
+  notifItemHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+  },
+  notifItemTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    flex: 1,
+  },
+  unreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  notifItemDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  notifItemTime: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    marginTop: 4,
   },
 });
 

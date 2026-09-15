@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,63 @@ import {
   Platform,
   StyleSheet,
 } from "react-native";
+import useSWR from "swr";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
+import {
+  apiClient,
+  ApiResponse,
+  PagedApplicationListDto,
+  ApplicationSummaryDto,
+  StatementOfAccountDto,
+} from "@edge/api";
 import { useUser, useAuth } from "@clerk/expo";
 import { useAppNavigation } from "../../navigation";
+import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
 import { ClientFooter } from "./ClientFooter";
 import { ConfirmationDialog } from "./ConfirmationDialog";
 
 const ntcLogo = require("../../../assets/ntc-logo.png");
+
+const CLIENT_NOTIF_STORAGE_KEY = "edge_client_read_notifications";
+
+function getStoredClientReadNotifs(): Set<string> {
+  if (Platform.OS !== "web") return new Set();
+  try {
+    const raw = window.localStorage.getItem(CLIENT_NOTIF_STORAGE_KEY);
+    if (raw !== null && raw !== "") {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveStoredClientReadNotifs(set: Set<string>): void {
+  if (Platform.OS !== "web") return;
+  try {
+    window.localStorage.setItem(CLIENT_NOTIF_STORAGE_KEY, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+function formatClientTimeAgo(dateString?: string): string {
+  if (!dateString) return "Just now";
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMinutes = Math.floor(diffMs / 60000);
+  if (diffMinutes < 1) return "Just now";
+  if (diffMinutes < 60) return `${diffMinutes}m ago`;
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  return `${diffDays}d ago`;
+}
 
 interface ClientAppLayoutProps {
   activeTab: "services" | "my-applications" | "settings";
@@ -39,6 +89,124 @@ export function ClientAppLayout({
   // Clerk Auth
   const { user: clerkUser } = useUser();
   const { signOut } = useAuth();
+
+  // Real-time user application notifications & action counts
+  const { data: myAppsData } = useSWR<ApiResponse<PagedApplicationListDto>>(
+    clerkUser !== null && clerkUser !== undefined ? "/api/v2/applications/me" : null,
+    async (url: string) => {
+      const res = await apiClient.get<ApiResponse<PagedApplicationListDto>>(url);
+      return res.data;
+    },
+    { revalidateOnFocus: false }
+  );
+
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredClientReadNotifs());
+
+  const clientNotifications = useMemo(() => {
+    const list: Array<{
+      id: string;
+      appId?: string;
+      title: string;
+      description: string;
+      timestamp?: string;
+      type: "returned" | "payment" | "status";
+      targetTab: "services" | "my-applications" | "settings";
+      isRead: boolean;
+    }> = [];
+
+    const payload = myAppsData?.data;
+    const items: ApplicationSummaryDto[] = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.items)
+      ? payload.items
+      : [];
+
+    for (const app of items) {
+      const hasApprovedSoa =
+        Array.isArray(app.statementsOfAccount) &&
+        app.statementsOfAccount.some((s: StatementOfAccountDto) => s.status === "Approved");
+
+      if (app.status === "Returned") {
+        list.push({
+          id: `client_ret_${app.id}`,
+          appId: app.id,
+          title: "Application Returned for Correction",
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Remarks - ${app.remarks ?? "Please check required corrections."}`,
+          timestamp: app.createdAt,
+          type: "returned",
+          targetTab: "my-applications",
+          isRead: readNotifIds.has(`client_ret_${app.id}`),
+        });
+      } else if (hasApprovedSoa) {
+        list.push({
+          id: `client_pay_${app.id}`,
+          appId: app.id,
+          title: "Payment Required – SOA Issued",
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Statement of Account approved. Order of Payment is ready.`,
+          timestamp: app.createdAt,
+          type: "payment",
+          targetTab: "my-applications",
+          isRead: readNotifIds.has(`client_pay_${app.id}`),
+        });
+      } else if (app.status === "Approved" || app.status === "Completed") {
+        list.push({
+          id: `client_app_${app.id}`,
+          appId: app.id,
+          title: `Application ${app.status}`,
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: ${app.serviceName ?? "Application"} has been ${app.status.toLowerCase()}.`,
+          timestamp: app.createdAt,
+          type: "status",
+          targetTab: "my-applications",
+          isRead: readNotifIds.has(`client_app_${app.id}`),
+        });
+      } else if (app.status === "Evaluating") {
+        list.push({
+          id: `client_eval_${app.id}`,
+          appId: app.id,
+          title: "Application Under Evaluation",
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Being reviewed by NTC evaluators.`,
+          timestamp: app.createdAt,
+          type: "status",
+          targetTab: "my-applications",
+          isRead: readNotifIds.has(`client_eval_${app.id}`),
+        });
+      } else if (app.status === "Submitted") {
+        list.push({
+          id: `client_sub_${app.id}`,
+          appId: app.id,
+          title: "Application Submitted Successfully",
+          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Queued for evaluation.`,
+          timestamp: app.createdAt,
+          type: "status",
+          targetTab: "my-applications",
+          isRead: readNotifIds.has(`client_sub_${app.id}`),
+        });
+      }
+    }
+
+    return list;
+  }, [myAppsData, readNotifIds]);
+
+  const unreadCount = useMemo(() => {
+    return clientNotifications.filter((n) => !n.isRead).length;
+  }, [clientNotifications]);
+
+  const markAllAsRead = useCallback(() => {
+    const nextSet = new Set(readNotifIds);
+    for (const n of clientNotifications) {
+      nextSet.add(n.id);
+    }
+    setReadNotifIds(nextSet);
+    saveStoredClientReadNotifs(nextSet);
+  }, [clientNotifications, readNotifIds]);
+
+  const markAsRead = useCallback((id: string) => {
+    const nextSet = new Set(readNotifIds);
+    nextSet.add(id);
+    setReadNotifIds(nextSet);
+    saveStoredClientReadNotifs(nextSet);
+  }, [readNotifIds]);
 
   // Local UI States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -115,6 +283,112 @@ export function ClientAppLayout({
 
         {userProfile !== null && (
           <View style={styles.headerRight}>
+            {/* Notification Bell */}
+            <View style={{ position: "relative" }}>
+              <TouchableOpacity
+                onPress={() => setIsNotifOpen((prev) => !prev)}
+                style={styles.bellBtn}
+                activeOpacity={0.7}
+              >
+                <Icon name="bell" size={16} color="#FFFFFF" />
+                {unreadCount > 0 && (
+                  <View style={styles.bellBadge}>
+                    <Text style={styles.bellBadgeText}>
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
+              {/* Client Notifications Dropdown */}
+              {isNotifOpen && (
+                <>
+                  <TouchableOpacity
+                    style={styles.dropdownBackdrop}
+                    onPress={() => setIsNotifOpen(false)}
+                    activeOpacity={1}
+                  />
+                  <View style={styles.clientNotifDropdown}>
+                    <View style={styles.clientNotifHeader}>
+                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                        <Text style={styles.clientNotifTitle}>Notifications</Text>
+                        {unreadCount > 0 && (
+                          <View style={styles.clientUnreadBadge}>
+                            <Text style={styles.clientUnreadBadgeText}>{unreadCount} new</Text>
+                          </View>
+                        )}
+                      </View>
+                      {unreadCount > 0 && (
+                        <TouchableOpacity onPress={markAllAsRead}>
+                          <Text style={styles.clientMarkAllText}>Mark all as read</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    <View style={{ maxHeight: 320 }}>
+                      {clientNotifications.length === 0 ? (
+                        <View style={styles.clientNotifEmpty}>
+                          <Icon name="bell-off" size={24} color="#94A3B8" />
+                          <Text style={styles.clientNotifEmptyText}>
+                            No notifications right now
+                          </Text>
+                        </View>
+                      ) : (
+                        clientNotifications.map((item) => (
+                          <TouchableOpacity
+                            key={item.id}
+                            onPress={() => {
+                              markAsRead(item.id);
+                              setIsNotifOpen(false);
+                              if (item.appId !== undefined && item.appId !== null) {
+                                openApplicationDetail(item.appId);
+                              }
+                              handleTabClick(item.targetTab);
+                            }}
+                            style={[
+                              styles.clientNotifItem,
+                              !item.isRead && styles.clientNotifItemUnread,
+                            ]}
+                            activeOpacity={0.7}
+                          >
+                            <View style={styles.clientNotifIconWrap}>
+                              <Icon
+                                name={item.type === "returned" ? "alert-circle" : "file-text"}
+                                size={14}
+                                color={item.isRead ? "#94A3B8" : "#2563EB"}
+                              />
+                            </View>
+                            <View style={{ flex: 1 }}>
+                              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                                <Text
+                                  style={[
+                                    styles.clientNotifItemTitle,
+                                    { fontWeight: item.isRead ? "500" : "700" },
+                                  ]}
+                                  numberOfLines={1}
+                                >
+                                  {item.title}
+                                </Text>
+                                {!item.isRead && <View style={styles.clientUnreadDot} />}
+                              </View>
+                              <Text style={styles.clientNotifItemDesc} numberOfLines={2}>
+                                {item.description}
+                              </Text>
+                              {item.timestamp !== undefined && (
+                                <Text style={styles.clientNotifItemTime}>
+                                  {formatClientTimeAgo(item.timestamp)}
+                                </Text>
+                              )}
+                            </View>
+                          </TouchableOpacity>
+                        ))
+                      )}
+                    </View>
+                  </View>
+                </>
+              )}
+            </View>
+
             <TouchableOpacity
               onPress={() => setIsProfileVisible(true)}
               style={styles.profileAvatarBtn}
@@ -411,6 +685,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[20],
     borderBottomWidth: 3,
     borderBottomColor: "#D97706",
+    zIndex: 1000,
+    elevation: 10,
+    position: "relative",
+    overflow: "visible",
     ...Platform.select({
       web: {
         backgroundImage: "linear-gradient(135deg, #0F2C59 0%, #1E3E62 60%, #1E40AF 100%)",
@@ -449,6 +727,162 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    zIndex: 1001,
+    position: "relative",
+    overflow: "visible",
+  },
+  dropdownBackdrop: {
+    position: "absolute",
+    top: -500,
+    left: -1000,
+    right: -1000,
+    bottom: -1500,
+    zIndex: 9998,
+    backgroundColor: "transparent",
+  },
+  bellBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    backgroundColor: "rgba(255, 255, 255, 0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(255, 255, 255, 0.2)",
+    justifyContent: "center",
+    alignItems: "center",
+    position: "relative",
+  },
+  bellBadge: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: "#DC2626",
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 4,
+    borderWidth: 1.5,
+    borderColor: "#0F2C59",
+  },
+  bellBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    color: "#FFFFFF",
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 12,
+  },
+  clientNotifDropdown: {
+    position: "absolute",
+    top: 44,
+    right: 0,
+    width: 330,
+    maxHeight: 390,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    backgroundColor: "#FFFFFF",
+    zIndex: 99999,
+    elevation: 25,
+    overflow: "hidden",
+    ...Platform.select({
+      web: {
+        boxShadow: "0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)",
+      },
+    }),
+  },
+  clientNotifHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    backgroundColor: "#FAFAFC",
+  },
+  clientNotifTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#0F2C59",
+  },
+  clientUnreadBadge: {
+    backgroundColor: "rgba(37, 99, 235, 0.1)",
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+  },
+  clientUnreadBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#2563EB",
+  },
+  clientMarkAllText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#2563EB",
+  },
+  clientNotifEmpty: {
+    padding: 24,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  clientNotifEmptyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#94A3B8",
+  },
+  clientNotifItem: {
+    flexDirection: "row",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "#F1F5F9",
+    gap: 10,
+    alignItems: "flex-start",
+    backgroundColor: "#FFFFFF",
+  },
+  clientNotifItemUnread: {
+    backgroundColor: "#F8FAFC",
+  },
+  clientNotifIconWrap: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: "rgba(37, 99, 235, 0.1)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 2,
+    flexShrink: 0,
+  },
+  clientNotifItemTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#1E293B",
+    flex: 1,
+  },
+  clientUnreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: "#2563EB",
+  },
+  clientNotifItemDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: "#64748B",
+    marginTop: 2,
+    lineHeight: 15,
+  },
+  clientNotifItemTime: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    color: "#94A3B8",
+    marginTop: 4,
   },
   profileAvatarBtn: {
     flexDirection: "row",
