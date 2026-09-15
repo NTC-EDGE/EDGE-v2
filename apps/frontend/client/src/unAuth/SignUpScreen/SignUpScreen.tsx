@@ -152,7 +152,21 @@ export function SignUpScreen() {
     } catch (err: unknown) {
       let errMsg = "Sign up failed. Please check your inputs.";
       if (isClerkAPIResponseError(err)) {
-        errMsg = err.errors[0]?.message || errMsg;
+        const firstErr = err.errors[0];
+        const errCode = firstErr?.code || "";
+        const rawMsg = firstErr?.message || "";
+        if (
+          errCode === "form_identifier_exists" ||
+          errCode === "form_identifier_not_unique" ||
+          rawMsg.toLowerCase().includes("already exists") ||
+          rawMsg.toLowerCase().includes("taken") ||
+          rawMsg.toLowerCase().includes("in use")
+        ) {
+          errMsg = "An account with this email address already exists. One email address must be associated with only one account.";
+          setEmailError("This email address is already in use by an existing account.");
+        } else {
+          errMsg = rawMsg || errMsg;
+        }
       } else if (err instanceof Error) {
         errMsg = err.message;
       }
