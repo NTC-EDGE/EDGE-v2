@@ -97,7 +97,7 @@ export function ClientAppLayout({
       const res = await apiClient.get<ApiResponse<PagedApplicationListDto>>(url);
       return res.data;
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true, refreshInterval: 30000 }
   );
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);

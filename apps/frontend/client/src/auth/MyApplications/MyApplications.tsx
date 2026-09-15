@@ -16,6 +16,7 @@ import {
   getAppDocuments,
   getStatusLabel,
   ApplicationDocument,
+  ApiApplicationDto,
   mapApiApplicationToApplication,
 } from "./data/applicationsData";
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
@@ -25,6 +26,11 @@ import {
   consumePendingApplicationDetail,
 } from "../../shared/helpers/applicationNavigationHelper";
 import { styles } from "./MyApplications.styles";
+
+interface SingleApplicationResponse {
+  succeeded?: boolean;
+  data?: ApiApplicationDto;
+}
 
 const LIST_PAGE_SIZE = 6;
 
@@ -82,16 +88,10 @@ export function MyApplications() {
 
       try {
         setIsLoading(true);
-        const res = await api.get<unknown>(`/api/v2/applications/${appId}`);
-        if (res !== null && typeof res === "object") {
-          const resObj = res as {
-            succeeded?: boolean;
-            data?: Parameters<typeof mapApiApplicationToApplication>[0];
-          };
-          if (resObj.succeeded && resObj.data !== null && typeof resObj.data === "object") {
-            const mapped = mapApiApplicationToApplication(resObj.data);
-            setSelectedApp(mapped);
-          }
+        const res = await api.get<SingleApplicationResponse>(`/api/v2/applications/${appId}`);
+        if (res !== null && res.succeeded === true && res.data !== null && res.data !== undefined) {
+          const mapped = mapApiApplicationToApplication(res.data);
+          setSelectedApp(mapped);
         }
       } catch {
         // ignore

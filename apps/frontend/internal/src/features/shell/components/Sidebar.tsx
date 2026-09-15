@@ -127,10 +127,16 @@ export function Sidebar({
   }, []);
 
   // Unevaluated applications count for Activities badge
-  const { applications, pagination, statistics } = useAdminApplications({
-    queueTab: 'pending',
-    scope: 'queue',
-  });
+  const { applications, pagination, statistics } = useAdminApplications(
+    {
+      queueTab: 'pending',
+      scope: 'queue',
+    },
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+    }
+  );
 
   const pendingCount =
     statistics?.evaluatingCount ??

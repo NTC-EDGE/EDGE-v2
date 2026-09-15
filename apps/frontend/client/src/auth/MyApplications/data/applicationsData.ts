@@ -582,7 +582,7 @@ interface ApiApplicantDto {
   Documents?: RawRequirement[];
 }
 
-interface ApiApplicationDto {
+export interface ApiApplicationDto {
   id?: string;
   tenantId?: string;
   applicationNumber?: string;

@@ -153,12 +153,21 @@ export function Header({
   const breadcrumb = getBreadcrumb(activeScreen, currentRole);
 
   // Applications and Announcements
-  const { applications } = useAdminApplications({
-    queueTab: 'pending',
-    scope: 'queue',
-  });
+  const { applications } = useAdminApplications(
+    {
+      queueTab: 'pending',
+      scope: 'queue',
+    },
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+    }
+  );
 
-  const { announcements } = useAdminAnnouncements();
+  const { announcements } = useAdminAnnouncements({
+    refreshInterval: 60000,
+    revalidateOnFocus: true,
+  });
 
   const notifications = useMemo(() => {
     const list: Array<{
