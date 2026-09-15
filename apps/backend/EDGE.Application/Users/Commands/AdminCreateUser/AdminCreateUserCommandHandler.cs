@@ -120,7 +120,22 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             }
         }
 
-        // 4. Dispatch Clerk Email Invitation (if enabled)
+        // 4. Verify One Email Per Account Rule (No duplicate email allowed across any region)
+        var existingUser = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
+        if (existingUser != null)
+        {
+            _logger.LogWarning("Admin user creation rejected: Email '{Email}' is already registered in the system (UserId: {UserId}).", normalizedEmail, existingUser.Id);
+            throw new InvalidOperationException($"An account with the email address '{normalizedEmail}' already exists. One email address must be associated with only one account across all regions.");
+        }
+
+        var existingClerkUsers = await _clerkUserService.GetUsersByEmailAsync(normalizedEmail);
+        if (existingClerkUsers.Any())
+        {
+            _logger.LogWarning("Admin user creation rejected: Email '{Email}' is already registered in Clerk.", normalizedEmail);
+            throw new InvalidOperationException($"An account with the email address '{normalizedEmail}' already exists. One email address must be associated with only one account across all regions.");
+        }
+
+        // 5. Dispatch Clerk Email Invitation (if enabled)
         var redirectUrl = !string.IsNullOrWhiteSpace(request.RedirectUrl)
             ? request.RedirectUrl
             : "http://localhost:8081";
@@ -141,7 +156,7 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
                     },
                     RedirectUrl = redirectUrl,
                     Notify = true,
-                    IgnoreExisting = true
+                    IgnoreExisting = false
                 });
                 invitationSent = true;
                 _logger.LogInformation("Clerk invitation sent successfully to: {Email} with RedirectUrl: {RedirectUrl}", normalizedEmail, redirectUrl);
@@ -149,7 +164,8 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             catch (InvalidOperationException ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
                                                        ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase))
             {
-                _logger.LogInformation("Clerk invitation skipped: User {Email} is already registered.", normalizedEmail);
+                _logger.LogWarning("Clerk invitation rejected: User {Email} is already registered.", normalizedEmail);
+                throw new InvalidOperationException($"An account with the email address '{normalizedEmail}' already exists. One email address must be associated with only one account across all regions.");
             }
             catch (Exception ex)
             {
@@ -157,95 +173,56 @@ public class AdminCreateUserCommandHandler : IRequestHandler<AdminCreateUserComm
             }
         }
 
-        // 5. Create or Retrieve User in Clerk
-        var existingClerkUsers = await _clerkUserService.GetUsersByEmailAsync(normalizedEmail);
-        var clerkUser = existingClerkUsers.FirstOrDefault();
+        // 6. Create User in Clerk
+        var rawPassword = !string.IsNullOrWhiteSpace(request.Password)
+            ? request.Password
+            : GenerateSecureTemporaryPassword();
 
-        if (clerkUser == null)
+        var clerkPayload = new CreateClerkUserPayload
         {
-            var rawPassword = !string.IsNullOrWhiteSpace(request.Password)
-                ? request.Password
-                : GenerateSecureTemporaryPassword();
-
-            var clerkPayload = new CreateClerkUserPayload
+            EmailAddress = normalizedEmail,
+            Username = GenerateSafeClerkUsername(request.FirstName, request.LastName, normalizedEmail),
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            Password = rawPassword,
+            PublicMetadata = new
             {
-                EmailAddress = normalizedEmail,
-                Username = GenerateSafeClerkUsername(request.FirstName, request.LastName, normalizedEmail),
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
-                Password = rawPassword,
-                PublicMetadata = new
-                {
-                    role = role.Key,
-                    tenant_id = targetTenantId.ToString(),
-                    is_super_admin = request.IsSuperAdmin
-                }
-            };
-
-            try
-            {
-                clerkUser = await _clerkUserService.CreateUserAsync(clerkPayload);
-                _logger.LogInformation("Successfully created Clerk user with Id: {ClerkId} for email: {Email}", clerkUser.Id, normalizedEmail);
+                role = role.Key,
+                tenant_id = targetTenantId.ToString(),
+                is_super_admin = request.IsSuperAdmin
             }
-            catch (InvalidOperationException ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
-                                                       ex.Message.Contains("form_identifier_not_unique", StringComparison.OrdinalIgnoreCase) ||
-                                                       ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase) ||
-                                                       ex.Message.Contains("already taken", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogWarning("User already exists in Clerk, retrieving user record for email: {Email}", normalizedEmail);
-                existingClerkUsers = await _clerkUserService.GetUsersByEmailAsync(normalizedEmail);
-                clerkUser = existingClerkUsers.FirstOrDefault();
-                if (clerkUser == null)
-                {
-                    throw;
-                }
-            }
-        }
-        else
+        };
+
+        ClerkUserResponse clerkUser;
+        try
         {
-            _logger.LogInformation("Reusing existing Clerk user with Id: {ClerkId} for email: {Email}", clerkUser.Id, normalizedEmail);
-            await _clerkUserService.UpdateUserMetadataAsync(clerkUser.Id, new UserMetadataPayload
-            {
-                PublicMetadata = new
-                {
-                    role = role.Key,
-                    tenant_id = targetTenantId.ToString(),
-                    is_super_admin = request.IsSuperAdmin
-                }
-            });
+            clerkUser = await _clerkUserService.CreateUserAsync(clerkPayload);
+            _logger.LogInformation("Successfully created Clerk user with Id: {ClerkId} for email: {Email}", clerkUser.Id, normalizedEmail);
+        }
+        catch (InvalidOperationException ex) when (ex.Message.Contains("form_identifier_exists", StringComparison.OrdinalIgnoreCase) ||
+                                                   ex.Message.Contains("form_identifier_not_unique", StringComparison.OrdinalIgnoreCase) ||
+                                                   ex.Message.Contains("already exists", StringComparison.OrdinalIgnoreCase) ||
+                                                   ex.Message.Contains("already taken", StringComparison.OrdinalIgnoreCase))
+        {
+            _logger.LogWarning("User creation rejected by Clerk: Email '{Email}' is already taken.", normalizedEmail);
+            throw new InvalidOperationException($"An account with the email address '{normalizedEmail}' already exists. One email address must be associated with only one account across all regions.");
         }
 
-        // 6. Create or Update Local Database User
-        var user = await _userRepository.GetByEmailAsync(normalizedEmail, cancellationToken);
-
-        if (user == null)
+        // 7. Create Local Database User
+        var user = new User
         {
-            user = new User
-            {
-                Id = Guid.NewGuid(),
-                AuthUserId = clerkUser.Id,
-                Email = normalizedEmail,
-                FirstName = request.FirstName.Trim(),
-                LastName = request.LastName.Trim(),
-                MiddleName = request.MiddleName?.Trim(),
-                Suffix = request.Suffix?.Trim(),
-                ContactNumber = request.ContactNumber?.Trim(),
-                ESignature = request.ESignature,
-                IsSuperAdmin = request.IsSuperAdmin
-            };
-            await _userRepository.AddAsync(user, cancellationToken);
-        }
-        else
-        {
-            user.AuthUserId = clerkUser.Id;
-            user.FirstName = request.FirstName.Trim();
-            user.LastName = request.LastName.Trim();
-            if (!string.IsNullOrWhiteSpace(request.MiddleName)) user.MiddleName = request.MiddleName.Trim();
-            if (!string.IsNullOrWhiteSpace(request.Suffix)) user.Suffix = request.Suffix.Trim();
-            if (!string.IsNullOrWhiteSpace(request.ContactNumber)) user.ContactNumber = request.ContactNumber.Trim();
-            if (!string.IsNullOrWhiteSpace(request.ESignature)) user.ESignature = request.ESignature;
-            if (isSuperAdminCaller) user.IsSuperAdmin = request.IsSuperAdmin;
-        }
+            Id = Guid.NewGuid(),
+            AuthUserId = clerkUser.Id,
+            Email = normalizedEmail,
+            FirstName = request.FirstName.Trim(),
+            LastName = request.LastName.Trim(),
+            MiddleName = request.MiddleName?.Trim(),
+            Suffix = request.Suffix?.Trim(),
+            ContactNumber = request.ContactNumber?.Trim(),
+            ESignature = request.ESignature,
+            IsSuperAdmin = request.IsSuperAdmin
+        };
+        await _userRepository.AddAsync(user, cancellationToken);
 
         // 7. Create or Update Tenant Membership
         var existingMembership = await _tenantMemberRepository.GetByTenantAndUserAsync(targetTenantId, user.Id, cancellationToken);
