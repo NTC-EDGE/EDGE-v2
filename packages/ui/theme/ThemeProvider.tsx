@@ -3,6 +3,10 @@ import { useColorScheme } from 'react-native';
 import { ThemeMode, ThemeContextValue, ThemeColors } from './types';
 import { LIGHT_COLORS, DARK_COLORS } from './tokens';
 import { themeStorage } from './themeStorage';
+import { injectPasswordRevealStyles } from '../utils/webStyles';
+
+// Initialize global web style fixes
+injectPasswordRevealStyles();
 
 export const ThemeContext = createContext<ThemeContextValue | null>(null);
 

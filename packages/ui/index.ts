@@ -7,6 +7,7 @@ export * from './theme/tokens';
 export * from './theme/themeStorage';
 export { ThemeProvider, ThemeContext, type ThemeProviderProps } from './theme/ThemeProvider';
 export { useTheme } from './theme/useTheme';
+export * from './utils/webStyles';
 
 // Existing Shared UI Components
 export * from './components/Avatar';
