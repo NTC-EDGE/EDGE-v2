@@ -20,9 +20,9 @@ import { ApplicationHeaderCard } from './applicationDetails/ApplicationHeaderCar
 import { ApplicationProgressStepper } from './applicationDetails/ApplicationProgressStepper';
 import { BulkApplicantsSection } from './applicationDetails/BulkApplicantsSection';
 import { SingleApplicantSection } from './applicationDetails/SingleApplicantSection';
-import { DocumentsSection } from './applicationDetails/DocumentsSection';
 import { DocumentPreviewSection } from './applicationDetails/DocumentPreviewSection';
 import { CustomDocPreviewModal } from './applicationDetails/CustomDocPreviewModal';
+import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 
 const TABLE_PAGE_SIZE = 6;
 
@@ -36,7 +36,6 @@ export function ApplicationDetailsPage({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 992;
 
-  const [activeTab, setActiveTab] = useState<'DETAILS' | 'DOCUMENTS'>('DETAILS');
   const [tableSearch, setTableSearch] = useState('');
   const [tablePage, setTablePage] = useState(1);
 
@@ -80,7 +79,7 @@ export function ApplicationDetailsPage({
   const effectiveSelectedApplicant = selectedApplicant || (appApplicants.length > 0 ? appApplicants[0] : null);
 
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
-  const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
+  const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
 
   const { selectedApplicantFormFields, selectedApplicantDocs } = useSelectedBulkApplicant(
@@ -97,7 +96,7 @@ export function ApplicationDetailsPage({
     [app.status]
   );
 
-  const handleSetPreviewCustomDoc = (doc: { uri: string; name: string } | null) => {
+  const handleSetPreviewCustomDoc = (doc: DocumentPreviewFile | null) => {
     setPreviewCustomDoc(doc);
   };
 
@@ -127,72 +126,60 @@ export function ApplicationDetailsPage({
           resolvedServiceVariant={resolvedServiceVariant}
           primaryName={primaryName}
           docsCount={docs.length}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
         />
 
-        {activeTab === 'DETAILS' && (
-          <View style={styles.tabContentList}>
-            <ApplicationProgressStepper currentStepIndex={currentStepIndex} />
+        <View style={styles.tabContentList}>
+          <ApplicationProgressStepper currentStepIndex={currentStepIndex} />
 
-            {isBulk ? (
-              <BulkApplicantsSection
-                app={app}
-                appApplicants={appApplicants}
-                totalSubmitted={totalSubmitted}
-                approvedCount={approvedCount}
-                declinedCount={declinedCount}
-                pendingCount={pendingCount}
-                tableSearch={tableSearch}
-                setTableSearch={setTableSearch}
-                tablePage={tablePage}
-                setTablePage={setTablePage}
-                totalPages={totalPages}
-                pagedApplicants={pagedApplicants}
-                selectedApplicant={effectiveSelectedApplicant}
-                onSelectApplicant={setSelectedApplicant}
-                selectedApplicantFormFields={selectedApplicantFormFields}
-                selectedApplicantDocs={selectedApplicantDocs}
-                isExamService={isExamService}
-                scheduleSummaryText={scheduleSummaryText}
-                variantLabel={variantLabel}
-                isDesktop={isDesktop}
-                onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
-                onPreviewDoc={setPreviewDoc}
-                onPreviewCustomDoc={handleSetPreviewCustomDoc}
-                setPreviewLoadingId={setPreviewLoadingId}
-              />
-            ) : (
-              <SingleApplicantSection
-                app={app}
-                singleApplicant={singleApplicant}
-                primaryName={primaryName}
-                formFieldValues={formFieldValues}
-                isExamService={isExamService}
-                scheduleSummaryText={scheduleSummaryText}
-                variantLabel={variantLabel}
-                isDesktop={isDesktop}
-                docs={docs}
-                onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
-                onPreviewDoc={setPreviewDoc}
-                onPreviewCustomDoc={handleSetPreviewCustomDoc}
-                setPreviewLoadingId={setPreviewLoadingId}
-              />
-            )}
-          </View>
-        )}
-
-        {activeTab === 'DOCUMENTS' && (
-          <DocumentsSection
-            app={app}
-            docs={docs}
-            onPreviewDoc={setPreviewDoc}
-            onPreviewCustomDoc={handleSetPreviewCustomDoc}
-            onDownloadDoc={onDownloadDoc}
-            previewLoadingId={previewLoadingId}
-            setPreviewLoadingId={setPreviewLoadingId}
-          />
-        )}
+          {isBulk ? (
+            <BulkApplicantsSection
+              app={app}
+              appApplicants={appApplicants}
+              totalSubmitted={totalSubmitted}
+              approvedCount={approvedCount}
+              declinedCount={declinedCount}
+              pendingCount={pendingCount}
+              tableSearch={tableSearch}
+              setTableSearch={setTableSearch}
+              tablePage={tablePage}
+              setTablePage={setTablePage}
+              totalPages={totalPages}
+              pagedApplicants={pagedApplicants}
+              selectedApplicant={effectiveSelectedApplicant}
+              onSelectApplicant={setSelectedApplicant}
+              selectedApplicantFormFields={selectedApplicantFormFields}
+              selectedApplicantDocs={selectedApplicantDocs}
+              isExamService={isExamService}
+              scheduleSummaryText={scheduleSummaryText}
+              variantLabel={variantLabel}
+              isDesktop={isDesktop}
+              onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
+              onPreviewDoc={setPreviewDoc}
+              onPreviewCustomDoc={handleSetPreviewCustomDoc}
+              onDownloadDoc={onDownloadDoc}
+              previewLoadingId={previewLoadingId}
+              setPreviewLoadingId={setPreviewLoadingId}
+            />
+          ) : (
+            <SingleApplicantSection
+              app={app}
+              singleApplicant={singleApplicant}
+              primaryName={primaryName}
+              formFieldValues={formFieldValues}
+              isExamService={isExamService}
+              scheduleSummaryText={scheduleSummaryText}
+              variantLabel={variantLabel}
+              isDesktop={isDesktop}
+              docs={docs}
+              onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
+              onPreviewDoc={setPreviewDoc}
+              onPreviewCustomDoc={handleSetPreviewCustomDoc}
+              onDownloadDoc={onDownloadDoc}
+              previewLoadingId={previewLoadingId}
+              setPreviewLoadingId={setPreviewLoadingId}
+            />
+          )}
+        </View>
       </View>
 
       <DocumentPreviewSection

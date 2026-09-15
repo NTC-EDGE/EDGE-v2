@@ -20,6 +20,8 @@ import { SingleApplicantSection } from './SingleApplicantSection';
 import { FormFieldValue } from '../../../../shared/formPreview';
 import { extractApplicantFullName } from './applicationDetailsHelpers';
 
+import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
+
 interface BulkApplicantsSectionProps {
   app: Application;
   appApplicants: BulkApplicant[];
@@ -43,7 +45,9 @@ interface BulkApplicantsSectionProps {
   isDesktop: boolean;
   onPreviewFile: (uri: string, name: string) => void;
   onPreviewDoc: (doc: ApplicationDocument) => void;
-  onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
+  onPreviewCustomDoc: (doc: DocumentPreviewFile) => void;
+  onDownloadDoc?: (doc: ApplicationDocument) => void;
+  previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
 }
 
@@ -73,6 +77,8 @@ export function BulkApplicantsSection({
   onPreviewFile,
   onPreviewDoc,
   onPreviewCustomDoc,
+  onDownloadDoc,
+  previewLoadingId,
   setPreviewLoadingId,
 }: BulkApplicantsSectionProps) {
   const activeApplicant = selectedApplicant || (appApplicants.length > 0 ? appApplicants[0] : null);
@@ -311,6 +317,8 @@ export function BulkApplicantsSection({
               onPreviewFile={onPreviewFile}
               onPreviewDoc={onPreviewDoc}
               onPreviewCustomDoc={onPreviewCustomDoc}
+              onDownloadDoc={onDownloadDoc}
+              previewLoadingId={previewLoadingId}
               setPreviewLoadingId={setPreviewLoadingId}
             />
           ) : (

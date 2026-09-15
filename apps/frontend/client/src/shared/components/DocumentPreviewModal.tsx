@@ -12,10 +12,18 @@ import {
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 
+export interface DocumentPreviewFile {
+  name: string;
+  uri?: string;
+  category?: string;
+  size?: string;
+  type?: string;
+}
+
 interface DocumentPreviewModalProps {
   visible: boolean;
   onClose: () => void;
-  file: { name: string; uri?: string } | string | null;
+  file: DocumentPreviewFile | string | null;
   label?: string;
 }
 
@@ -29,16 +37,35 @@ export function DocumentPreviewModal({
 
   const fileName = typeof file === "string" ? file : file.name || "Attachment Document";
   const fileUri = typeof file === "string" ? "" : file.uri || "";
+  const fileCategory =
+    typeof file === "object" && file !== null && "category" in file
+      ? (file as { category?: string }).category
+      : undefined;
+  const fileSize =
+    typeof file === "object" && file !== null && "size" in file
+      ? (file as { size?: string }).size
+      : undefined;
 
-  const isImage = Boolean(
-    fileUri &&
-      (fileUri.toLowerCase().endsWith(".png") ||
-        fileUri.toLowerCase().endsWith(".jpg") ||
-        fileUri.toLowerCase().endsWith(".jpeg") ||
-        fileUri.toLowerCase().endsWith(".webp") ||
-        fileUri.startsWith("data:image") ||
-        fileUri.startsWith("blob:"))
-  );
+  const fileNameLower = (fileName || "").toLowerCase();
+  const uriLower = (fileUri || "").toLowerCase();
+
+  const isPdf =
+    fileNameLower.endsWith(".pdf") ||
+    uriLower.endsWith(".pdf") ||
+    uriLower.includes("application/pdf") ||
+    (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "PDF");
+
+  const isImage =
+    !isPdf &&
+    (fileNameLower.endsWith(".png") ||
+      fileNameLower.endsWith(".jpg") ||
+      fileNameLower.endsWith(".jpeg") ||
+      fileNameLower.endsWith(".webp") ||
+      fileNameLower.endsWith(".gif") ||
+      fileNameLower.endsWith(".svg") ||
+      uriLower.startsWith("data:image") ||
+      (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "IMAGE") ||
+      (uriLower.startsWith("blob:") && !isPdf));
 
   const handleOpenExternal = async () => {
     if (!fileUri) return;
@@ -66,22 +93,24 @@ export function DocumentPreviewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
+        <View style={[styles.container, isPdf && Platform.OS === 'web' ? { maxWidth: 840 } : null]}>
           {/* Modal Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Icon name={isImage ? "image" : "file-text"} size={18} color="#0F2C59" />
+                <Icon
+                  name={isPdf ? "file-text" : isImage ? "image" : "paperclip"}
+                  size={18}
+                  color="#0F2C59"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.headerTitle} numberOfLines={1}>
                   {fileName}
                 </Text>
-                {label ? (
-                  <Text style={styles.headerSubtitle} numberOfLines={1}>
-                    {label}
-                  </Text>
-                ) : null}
+                <Text style={styles.headerSubtitle} numberOfLines={1}>
+                  {label || (fileCategory ? `${fileCategory.replace('_', ' ')} ${fileSize ? `· ${fileSize}` : ''}` : isPdf ? 'PDF Document' : isImage ? 'Image Attachment' : 'Attached Document')}
+                </Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -91,7 +120,20 @@ export function DocumentPreviewModal({
 
           {/* Modal Content Body */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isImage && fileUri ? (
+            {isPdf && fileUri && Platform.OS === 'web' ? (
+              <View style={styles.pdfWrapper}>
+                <iframe
+                  src={fileUri}
+                  title={fileName}
+                  style={{
+                    width: '100%',
+                    height: 520,
+                    border: 'none',
+                    borderRadius: 10,
+                  }}
+                />
+              </View>
+            ) : isImage && fileUri ? (
               <View style={styles.imageWrapper}>
                 <Image
                   source={{ uri: fileUri }}
@@ -102,15 +144,23 @@ export function DocumentPreviewModal({
             ) : (
               <View style={styles.documentCard}>
                 <View style={styles.docIconBox}>
-                  <Icon name="file-text" size={48} color="#0F2C59" />
+                  <Icon name={isPdf ? "file-text" : "paperclip"} size={48} color="#0F2C59" />
                 </View>
                 <Text style={styles.docNameText} numberOfLines={2}>
                   {fileName}
                 </Text>
+                {fileCategory ? (
+                  <View style={styles.categoryBadge}>
+                    <Icon name="check-circle" size={13} color="#166534" />
+                    <Text style={styles.categoryBadgeText}>
+                      {fileCategory.replace('_', ' ')} {fileSize ? `(${fileSize})` : ''}
+                    </Text>
+                  </View>
+                ) : null}
                 <Text style={styles.docHintText}>
                   {fileUri
-                    ? "Click below to view or open the full document in a separate preview tab."
-                    : "Uploaded document record confirmed and attached for review."}
+                    ? "Click below to view or open the complete document in a separate browser tab."
+                    : "Official requirement document record attached and verified with the application."}
                 </Text>
 
                 {fileUri ? (
@@ -228,6 +278,33 @@ const styles = StyleSheet.create({
     alignItems: "center",
     borderWidth: 1,
     borderColor: "#CBD5E1",
+  },
+  pdfWrapper: {
+    width: "100%",
+    minHeight: 520,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+  },
+  categoryBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1,
+    borderColor: "#86EFAC",
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    marginBottom: 10,
+  },
+  categoryBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: "700",
+    color: "#166534",
   },
   previewImage: {
     width: "100%",

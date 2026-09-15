@@ -1,4 +1,4 @@
-﻿import { useState, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Application, ApplicationDocument, BulkApplicant, RawRequirement } from '../../data/applicationsData';
 import { RawApplicantHolder } from './applicationDetailsTypes';
 
@@ -33,7 +33,12 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
       (rawMatch?.requirements as RawRequirement[]) ||
       ((rawMatch as { Requirements?: RawRequirement[] })?.Requirements as RawRequirement[]) ||
       [];
-    const candidateReqs = matchedReqs.length > 0 ? matchedReqs : directReqs;
+    const candidateReqs =
+      matchedReqs.length > 0
+        ? matchedReqs
+        : directReqs.length > 0
+          ? directReqs
+          : rawReqs;
 
     return candidateReqs.map((req, idx) => {
       const urlStr = req.url || '';
