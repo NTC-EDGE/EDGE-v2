@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -28,12 +28,13 @@ import { openQueueApplication } from '../../queue/data/internalApplicationNaviga
 
 // ─── Constants & Storage ──────────────────────────────────────────────────────
 
-const NOTIF_STORAGE_KEY = 'edge_internal_read_notifications';
+const NOTIF_STORAGE_PREFIX = 'edge_internal_read_notifications';
 
-function getStoredReadNotifs(): Set<string> {
+function getStoredReadNotifs(userId?: string): Set<string> {
   if (Platform.OS !== 'web') return new Set();
   try {
-    const raw = window.localStorage.getItem(NOTIF_STORAGE_KEY);
+    const key = userId !== undefined && userId !== '' ? `${NOTIF_STORAGE_PREFIX}_${userId}` : NOTIF_STORAGE_PREFIX;
+    const raw = window.localStorage.getItem(key);
     if (raw !== null && raw !== '') {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -46,10 +47,11 @@ function getStoredReadNotifs(): Set<string> {
   return new Set();
 }
 
-function saveStoredReadNotifs(set: Set<string>): void {
+function saveStoredReadNotifs(set: Set<string>, userId?: string): void {
   if (Platform.OS !== 'web') return;
   try {
-    window.localStorage.setItem(NOTIF_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    const key = userId !== undefined && userId !== '' ? `${NOTIF_STORAGE_PREFIX}_${userId}` : NOTIF_STORAGE_PREFIX;
+    window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
   } catch {
     // ignore
   }
@@ -145,7 +147,13 @@ export function Header({
   const [profileOpen, setProfileOpen] = useState(false);
   const [notifOpen, setNotifOpen] = useState(false);
   const [settingsModalOpen, setSettingsModalOpen] = useState(false);
-  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredReadNotifs());
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredReadNotifs(user?.email));
+
+  useEffect(() => {
+    if (user?.email !== undefined && user?.email !== '') {
+      setReadNotifIds(getStoredReadNotifs(user.email));
+    }
+  }, [user?.email]);
 
   const profileName = user?.name ?? 'User';
   const profileEmail = user?.email ?? '';
@@ -225,15 +233,15 @@ export function Header({
       nextSet.add(n.id);
     }
     setReadNotifIds(nextSet);
-    saveStoredReadNotifs(nextSet);
-  }, [notifications, readNotifIds]);
+    saveStoredReadNotifs(nextSet, user?.email);
+  }, [notifications, readNotifIds, user?.email]);
 
   const markAsRead = useCallback((id: string) => {
     const nextSet = new Set(readNotifIds);
     nextSet.add(id);
     setReadNotifIds(nextSet);
-    saveStoredReadNotifs(nextSet);
-  }, [readNotifIds]);
+    saveStoredReadNotifs(nextSet, user?.email);
+  }, [readNotifIds, user?.email]);
 
   const dropdownBg = isDark ? colors.neutral[900] : colors.cardBg;
   const dropdownBorder = isDark ? colors.neutral[800] : colors.border;
@@ -326,16 +334,18 @@ export function Header({
 
           {/* Notifications Dropdown */}
           {notifOpen && (
-            <View
-              style={[
-                styles.notifDropdown,
-                SHADOWS.modal,
-                {
-                  backgroundColor: dropdownBg,
-                  borderColor: dropdownBorder,
-                },
-              ]}
-            >
+            <>
+              <Pressable style={styles.backdrop} onPress={() => setNotifOpen(false)} />
+              <View
+                style={[
+                  styles.notifDropdown,
+                  SHADOWS.modal,
+                  {
+                    backgroundColor: dropdownBg,
+                    borderColor: dropdownBorder,
+                  },
+                ]}
+              >
               <View style={[styles.notifHeader, { borderBottomColor: dropdownBorder }]}>
                 <View style={styles.notifHeaderTitleRow}>
                   <Text style={[styles.notifTitle, { color: dropdownText }]}>
@@ -435,6 +445,7 @@ export function Header({
                 )}
               </ScrollView>
             </View>
+            </>
           )}
         </View>
 
@@ -468,16 +479,18 @@ export function Header({
 
             {/* Profile dropdown */}
             {profileOpen && (
-              <View
-                style={[
-                  styles.dropdown,
-                  SHADOWS.modal,
-                  {
-                    backgroundColor: dropdownBg,
-                    borderColor: dropdownBorder,
-                  },
-                ]}
-              >
+              <>
+                <Pressable style={styles.backdrop} onPress={() => setProfileOpen(false)} />
+                <View
+                  style={[
+                    styles.dropdown,
+                    SHADOWS.modal,
+                    {
+                      backgroundColor: dropdownBg,
+                      borderColor: dropdownBorder,
+                    },
+                  ]}
+                >
                 {/* Identity */}
                 <View style={styles.dropdownIdent}>
                   <Text style={[styles.dropdownName, { color: dropdownText }]}>
@@ -553,6 +566,7 @@ export function Header({
                   </Text>
                 </Pressable>
               </View>
+              </>
             )}
           </View>
         ) : (
@@ -647,6 +661,15 @@ const styles = StyleSheet.create({
         transition: 'background-color 120ms ease',
       },
     }),
+  },
+  backdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 150,
+    backgroundColor: 'transparent',
   },
   bellWrap: {
     position: 'relative',

@@ -6,6 +6,7 @@ export interface UseAdminApplicationsOptions {
   refreshInterval?: number;
   revalidateOnFocus?: boolean;
   revalidateIfStale?: boolean;
+  dedupingInterval?: number;
 }
 
 export function useAdminApplications(
@@ -44,6 +45,7 @@ export function useAdminApplications(
       revalidateOnFocus: options?.revalidateOnFocus ?? false,
       revalidateIfStale: options?.revalidateIfStale,
       refreshInterval: options?.refreshInterval,
+      dedupingInterval: options?.dedupingInterval ?? 5000,
     }
   );
 

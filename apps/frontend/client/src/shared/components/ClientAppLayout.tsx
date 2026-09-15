@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   View,
   Text,
@@ -26,12 +26,13 @@ import { ConfirmationDialog } from "./ConfirmationDialog";
 
 const ntcLogo = require("../../../assets/ntc-logo.png");
 
-const CLIENT_NOTIF_STORAGE_KEY = "edge_client_read_notifications";
+const CLIENT_NOTIF_STORAGE_PREFIX = "edge_client_read_notifications";
 
-function getStoredClientReadNotifs(): Set<string> {
+function getStoredClientReadNotifs(userId?: string): Set<string> {
   if (Platform.OS !== "web") return new Set();
   try {
-    const raw = window.localStorage.getItem(CLIENT_NOTIF_STORAGE_KEY);
+    const key = userId !== undefined && userId !== "" ? `${CLIENT_NOTIF_STORAGE_PREFIX}_${userId}` : CLIENT_NOTIF_STORAGE_PREFIX;
+    const raw = window.localStorage.getItem(key);
     if (raw !== null && raw !== "") {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
@@ -44,10 +45,11 @@ function getStoredClientReadNotifs(): Set<string> {
   return new Set();
 }
 
-function saveStoredClientReadNotifs(set: Set<string>): void {
+function saveStoredClientReadNotifs(set: Set<string>, userId?: string): void {
   if (Platform.OS !== "web") return;
   try {
-    window.localStorage.setItem(CLIENT_NOTIF_STORAGE_KEY, JSON.stringify(Array.from(set)));
+    const key = userId !== undefined && userId !== "" ? `${CLIENT_NOTIF_STORAGE_PREFIX}_${userId}` : CLIENT_NOTIF_STORAGE_PREFIX;
+    window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
   } catch {
     // ignore
   }
@@ -101,7 +103,13 @@ export function ClientAppLayout({
   );
 
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredClientReadNotifs());
+  const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredClientReadNotifs(clerkUser?.id));
+
+  useEffect(() => {
+    if (clerkUser?.id !== undefined) {
+      setReadNotifIds(getStoredClientReadNotifs(clerkUser.id));
+    }
+  }, [clerkUser?.id]);
 
   const clientNotifications = useMemo(() => {
     const list: Array<{
@@ -198,15 +206,15 @@ export function ClientAppLayout({
       nextSet.add(n.id);
     }
     setReadNotifIds(nextSet);
-    saveStoredClientReadNotifs(nextSet);
-  }, [clientNotifications, readNotifIds]);
+    saveStoredClientReadNotifs(nextSet, clerkUser?.id);
+  }, [clientNotifications, readNotifIds, clerkUser?.id]);
 
   const markAsRead = useCallback((id: string) => {
     const nextSet = new Set(readNotifIds);
     nextSet.add(id);
     setReadNotifIds(nextSet);
-    saveStoredClientReadNotifs(nextSet);
-  }, [readNotifIds]);
+    saveStoredClientReadNotifs(nextSet, clerkUser?.id);
+  }, [readNotifIds, clerkUser?.id]);
 
   // Local UI States
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -733,10 +741,10 @@ const styles = StyleSheet.create({
   },
   dropdownBackdrop: {
     position: "absolute",
-    top: -500,
-    left: -1000,
-    right: -1000,
-    bottom: -1500,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     zIndex: 9998,
     backgroundColor: "transparent",
   },

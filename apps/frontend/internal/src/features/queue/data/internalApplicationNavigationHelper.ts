@@ -4,9 +4,17 @@ let pendingQueueApplicationId: string | null = null;
 const listeners = new Set<QueueApplicationListener>();
 
 export function openQueueApplication(appId: string): void {
-  pendingQueueApplicationId = appId;
-  for (const listener of listeners) {
-    listener(appId);
+  if (listeners.size > 0) {
+    pendingQueueApplicationId = null;
+    for (const listener of listeners) {
+      try {
+        listener(appId);
+      } catch {
+        // guard against faulty subscriber
+      }
+    }
+  } else {
+    pendingQueueApplicationId = appId;
   }
 }
 
@@ -22,3 +30,4 @@ export function subscribeToQueueApplication(listener: QueueApplicationListener):
     listeners.delete(listener);
   };
 }
+

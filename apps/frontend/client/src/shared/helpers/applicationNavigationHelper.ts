@@ -4,9 +4,17 @@ let pendingAppDetailId: string | null = null;
 const listeners = new Set<AppDetailListener>();
 
 export function openApplicationDetail(appId: string): void {
-  pendingAppDetailId = appId;
-  for (const listener of listeners) {
-    listener(appId);
+  if (listeners.size > 0) {
+    pendingAppDetailId = null;
+    for (const listener of listeners) {
+      try {
+        listener(appId);
+      } catch {
+        // guard against faulty subscriber
+      }
+    }
+  } else {
+    pendingAppDetailId = appId;
   }
 }
 
@@ -22,3 +30,4 @@ export function subscribeToApplicationDetail(listener: AppDetailListener): () =>
     listeners.delete(listener);
   };
 }
+
