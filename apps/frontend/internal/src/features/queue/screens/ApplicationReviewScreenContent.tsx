@@ -900,6 +900,7 @@ function ApplicationDetailsTab({
             applicant={{
               applicantName: app.applicant,
               name: app.applicant,
+              applicantType: app.applicantType === 'Company' ? 'company' : 'individual',
               email: app.contactDetails?.email,
               mobileNumber: app.contactDetails?.contactNumber,
               streetAddress: app.address?.streetAddress || app.address?.address,
@@ -912,8 +913,14 @@ function ApplicationDetailsTab({
               sex: app.basicInfo?.sex,
               civilStatus: app.basicInfo?.civilStatus,
               nationality: app.basicInfo?.nationality,
-              companyName: app.companyDetails?.name,
+              companyName: app.companyDetails?.name || app.filingUser?.company?.name,
+              registrationNumber: app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber,
+              companyAddress: app.companyDetails?.address || app.filingUser?.company?.address,
+              companyEmail: app.companyDetails?.email || app.filingUser?.company?.email,
+              companyContactNumber: app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber,
               representativeName: app.filingUser?.name,
+              representativeEmail: app.filingUser?.email,
+              representativeContactNumber: app.filingUser?.company?.contactNumber,
               notes: app.note,
             }}
           />
@@ -1033,7 +1040,7 @@ function ApplicantRecordTab({
     }
     return [{
       id: app.id,
-      name: app.applicant || `${app.basicInfo?.firstName ?? ''} ${app.basicInfo?.lastName ?? ''}`.trim() || "Applicant 1",
+      name: app.applicant || `${app.basicInfo?.firstName ?? ''} ${app.basicInfo?.lastName ?? ''}`.trim() || app.companyDetails?.name || app.filingUser?.name || "Applicant",
       applicantType: (app.applicantType === 'Company' ? 'Company' : 'Individual') as 'Individual' | 'Company',
       status: 'Complete' as const,
       evaluationRemarks: '',
@@ -1543,6 +1550,7 @@ function ApplicantRecordTab({
               applicant={{
                 applicantName: activeApplicant.name,
                 name: activeApplicant.name,
+                applicantType: activeApplicant.applicantType === 'Company' ? 'company' : 'individual',
                 email: activeApplicant.email,
                 mobileNumber: activeApplicant.contactNumber,
                 streetAddress: activeApplicant.streetAddress || activeApplicant.address,
@@ -1556,7 +1564,13 @@ function ApplicantRecordTab({
                 civilStatus: activeApplicant.basicInfo?.civilStatus,
                 nationality: activeApplicant.basicInfo?.nationality,
                 companyName: activeApplicant.companyDetails?.name || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.name : undefined),
+                registrationNumber: activeApplicant.companyDetails?.registrationNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.registrationNumber : undefined),
+                companyAddress: activeApplicant.companyDetails?.address || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.address : undefined),
+                companyEmail: activeApplicant.companyDetails?.email || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.email : undefined),
+                companyContactNumber: activeApplicant.companyDetails?.contactNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.contactNumber : undefined),
                 representativeName: activeApplicant.applicantType === 'Company' ? app.filingUser?.name : undefined,
+                representativeEmail: activeApplicant.applicantType === 'Company' ? app.filingUser?.email : undefined,
+                representativeContactNumber: activeApplicant.applicantType === 'Company' ? app.filingUser?.company?.contactNumber : undefined,
                 notes: activeApplicant.evaluationRemarks,
               }}
             />

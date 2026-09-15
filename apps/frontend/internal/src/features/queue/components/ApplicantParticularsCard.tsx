@@ -4,6 +4,7 @@ import { ApplicantDetailsReviewCard } from '../../../shared/formPreview/componen
 export interface ApplicantParticularsData {
   applicantName?: string | null;
   name?: string | null;
+  applicantType?: string | null;
   sex?: string | null;
   nationality?: string | null;
   streetAddress?: string | null;
@@ -19,7 +20,13 @@ export interface ApplicantParticularsData {
   birthDate?: string | null;
   civilStatus?: string | null;
   companyName?: string | null;
+  registrationNumber?: string | null;
+  companyAddress?: string | null;
+  companyEmail?: string | null;
+  companyContactNumber?: string | null;
   representativeName?: string | null;
+  representativeEmail?: string | null;
+  representativeContactNumber?: string | null;
   notes?: string | null;
 }
 
@@ -60,12 +67,23 @@ export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCard
   const email = applicant.email || '';
   const contactNo = applicant.mobileNumber || applicant.contactNumber || '';
 
+  const isCompany =
+    applicant.applicantType === 'company' ||
+    applicant.applicantType === 'Company' ||
+    Boolean(applicant.companyName);
+
   return (
     <ApplicantDetailsReviewCard
       activeApplicant={{
-        applicantType: applicant.companyName ? 'company' : 'individual',
+        applicantType: isCompany ? 'company' : 'individual',
         companyName: applicant.companyName || null,
+        registrationNumber: applicant.registrationNumber || null,
+        companyAddress: applicant.companyAddress || null,
+        companyEmail: applicant.companyEmail || null,
+        companyContactNumber: applicant.companyContactNumber || null,
         representativeName: applicant.representativeName || null,
+        representativeEmail: applicant.representativeEmail || null,
+        representativeContactNumber: applicant.representativeContactNumber || null,
         notes: applicant.notes || null,
       }}
       resolvedFullName={fullName}

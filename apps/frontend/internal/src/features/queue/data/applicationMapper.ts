@@ -50,6 +50,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     'applicant detail',
     'applicant',
     'unnamed applicant',
+    'unnamed',
     'n/a',
     'na',
     'none',
@@ -58,9 +59,41 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   const isValidName = (val?: string | null): val is string => {
     if (!val || typeof val !== 'string') return false;
-    const trimmed = val.trim();
+    const trimmed = val.trim().toLowerCase();
     if (!trimmed) return false;
-    return !GENERIC_NAMES.has(trimmed.toLowerCase());
+    if (GENERIC_NAMES.has(trimmed)) return false;
+    if (/^applicant(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+    return true;
+  };
+
+  const formatProperName = (name?: string | null): string => {
+    if (!name || typeof name !== 'string') return '';
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    return trimmed
+      .split(/\s+/)
+      .map((word) => {
+        if (!word) return '';
+        if (word.includes('-')) {
+          return word
+            .split('-')
+            .map((part) => {
+              if (!part) return '';
+              if (part === part.toLowerCase()) {
+                return part.charAt(0).toUpperCase() + part.slice(1);
+              }
+              return part;
+            })
+            .join('-');
+        }
+        if (word === word.toLowerCase()) {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+      })
+      .join(' ');
   };
 
   const primaryApplicant = dto.applicants?.[0];
@@ -76,7 +109,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   const companyDetails = companyObj
     ? {
-      name: companyObj.name ?? '',
+      name: formatProperName(companyObj.name ?? ''),
       registrationNumber: companyObj.registrationNumber ?? '',
       address: companyObj.address ?? '',
       contactNumber: companyObj.contactNumber ?? '',
@@ -87,12 +120,12 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
   const filingUser = rawFilingUser
     ? {
       id: rawFilingUser.id,
-      name: rawFilingUser.name ?? '',
+      name: formatProperName(rawFilingUser.name ?? ''),
       email: rawFilingUser.email ?? '',
       accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
       company: rawFilingUser.company
         ? {
-          name: rawFilingUser.company.name ?? '',
+          name: formatProperName(rawFilingUser.company.name ?? ''),
           registrationNumber: rawFilingUser.company.registrationNumber ?? '',
           address: rawFilingUser.company.address ?? '',
           contactNumber: rawFilingUser.company.contactNumber ?? '',
@@ -116,14 +149,14 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
   const applicantName =
     isValidName(primaryFullName)
-      ? primaryFullName
+      ? formatProperName(primaryFullName)
       : isCompanySubmission && isValidName(companyDetails?.name)
-        ? companyDetails.name
+        ? formatProperName(companyDetails.name)
         : isValidName(rawFilingUser?.name)
-          ? rawFilingUser.name
+          ? formatProperName(rawFilingUser.name)
           : isValidName(companyObj?.name)
-            ? companyObj.name
-            : 'Applicant';
+            ? formatProperName(companyObj.name)
+            : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
   const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
     primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
@@ -149,16 +182,16 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     const rawAppItemName =
       'name' in appItem && typeof appItem.name === 'string'
         ? appItem.name
-        : (appItem.company?.name || `Applicant ${idx + 1}`);
+        : (appItem.company?.name || '');
 
-    const name = ad
+    const nameCandidate = ad
       ? [ad.firstName, ad.middleName, ad.lastName, ad.suffix].filter(Boolean).join(' ').trim()
       : rawAppItemName;
 
     const itemComp = appItem.company ?? ad?.company;
     const itemCompanyDetails = itemComp
       ? {
-        name: itemComp.name ?? '',
+        name: formatProperName(itemComp.name ?? ''),
         registrationNumber: itemComp.registrationNumber ?? '',
         address: itemComp.address ?? '',
         contactNumber: itemComp.contactNumber ?? '',
@@ -168,6 +201,26 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
     const findFv = (predicate: (lbl: string, id: string) => boolean) =>
       formFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+
+    const fvNameCandidate = findFv((lbl) =>
+      lbl.includes('full name') ||
+      lbl.includes('applicant name') ||
+      lbl.includes('name of applicant') ||
+      lbl.includes('business name') ||
+      lbl.includes('company name') ||
+      lbl.includes('corporate name')
+    );
+
+    const resolvedName =
+      isValidName(nameCandidate)
+        ? formatProperName(nameCandidate)
+        : isValidName(fvNameCandidate)
+          ? formatProperName(fvNameCandidate)
+          : isValidName(itemComp?.name)
+            ? formatProperName(itemComp.name)
+            : isValidName(rawFilingUser?.name)
+              ? formatProperName(rawFilingUser.name)
+              : formatProperName(itemComp?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
     const brgyFromFv = findFv((lbl) => lbl.includes('barangay'));
     const cityFromFv = findFv((lbl) => lbl.includes('city') || lbl.includes('municipality'));
@@ -181,7 +234,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
 
     return {
       id: appItem.id || `app-${idx}`,
-      name: isValidName(name) ? name : (itemComp?.name || `Applicant ${idx + 1}`),
+      name: resolvedName,
       applicantType: appItem.applicantType === 'Company' ? ('Company' as const) : ('Individual' as const),
       status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
         ? (appItem.status as 'Incomplete' | 'ForEndorsement')

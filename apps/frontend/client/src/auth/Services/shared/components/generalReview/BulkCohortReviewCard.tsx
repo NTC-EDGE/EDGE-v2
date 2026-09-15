@@ -3,6 +3,7 @@ import { View, Text } from 'react-native';
 import { TYPOGRAPHY, Icon } from '@edge/ui';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { SectionCard } from '../../../../../shared/formPreview';
+import { getApplicantDisplayName } from '../../helpers/applicantDisplayHelper';
 
 interface BulkCohortReviewCardProps {
   appMode: 'SINGLE' | 'BULK' | '';
@@ -20,6 +21,7 @@ export function BulkCohortReviewCard({
   }
 
   const activeApplicant = applicants[currentApplicantIndex] || applicants[0];
+  const displayName = getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1);
 
   return (
     <SectionCard icon="users" title="Group Application Cohort" accentColor="#0F2C59">
@@ -30,10 +32,7 @@ export function BulkCohortReviewCard({
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Icon name="user-check" size={14} color="#16A34A" />
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
-            {[activeApplicant?.firstName, activeApplicant?.lastName].filter(Boolean).join(' ') ||
-              activeApplicant?.companyName ||
-              activeApplicant?.representativeName ||
-              `Applicant ${currentApplicantIndex + 1}`}
+            {displayName}
           </Text>
         </View>
       </View>

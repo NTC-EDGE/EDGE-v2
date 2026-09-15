@@ -17,7 +17,13 @@ interface ApplicantParticularsCardProps {
     birthDate: string | null;
     civilStatus: string | null;
     companyName: string | null;
+    registrationNumber?: string | null;
+    companyAddress?: string | null;
+    companyEmail?: string | null;
+    companyContactNumber?: string | null;
     representativeName: string | null;
+    representativeEmail?: string | null;
+    representativeContactNumber?: string | null;
     notes: string | null;
   } | null;
   isDesktop?: boolean;
@@ -41,7 +47,13 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
       activeApplicant={{
         applicantType: singleApplicant.companyName ? 'company' : 'individual',
         companyName: singleApplicant.companyName,
+        registrationNumber: singleApplicant.registrationNumber || null,
+        companyAddress: singleApplicant.companyAddress || null,
+        companyEmail: singleApplicant.companyEmail || null,
+        companyContactNumber: singleApplicant.companyContactNumber || null,
         representativeName: singleApplicant.representativeName,
+        representativeEmail: singleApplicant.representativeEmail || null,
+        representativeContactNumber: singleApplicant.representativeContactNumber || null,
         notes: singleApplicant.notes,
       }}
       resolvedFullName={singleApplicant.applicantName || null}

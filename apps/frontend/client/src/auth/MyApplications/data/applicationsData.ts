@@ -605,22 +605,70 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const isGenericCandidate = (val?: string | null): boolean => {
     if (!val || typeof val !== 'string') return true;
     const lower = val.trim().toLowerCase();
-    return ['applicant details', 'applicant detail', 'applicant', 'unnamed applicant', 'n/a', 'na', 'none', 'juan dela cruz'].includes(lower);
+    if (['applicant details', 'applicant detail', 'applicant', 'unnamed applicant', 'unnamed', 'n/a', 'na', 'none', 'juan dela cruz'].includes(lower)) return true;
+    if (/^applicant(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    return false;
+  };
+
+  const isValidCandidate = (val?: string | null): val is string => {
+    return typeof val === 'string' && val.trim().length > 0 && !isGenericCandidate(val);
+  };
+
+  const formatProperName = (name?: string | null): string => {
+    if (!name || typeof name !== 'string') return '';
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    return trimmed
+      .split(/\s+/)
+      .map((word) => {
+        if (!word) return '';
+        if (word.includes('-')) {
+          return word
+            .split('-')
+            .map((part) => {
+              if (!part) return '';
+              if (part === part.toLowerCase()) {
+                return part.charAt(0).toUpperCase() + part.slice(1);
+              }
+              return part;
+            })
+            .join('-');
+        }
+        if (word === word.toLowerCase()) {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+      })
+      .join(' ');
   };
 
   const firstApplicant = rawApplicants.length > 0 ? rawApplicants[0] : undefined;
   const firstDetails = firstApplicant?.details || firstApplicant;
   const rawFirstAppCandidate =
     firstDetails?.firstName && firstDetails?.lastName
-      ? `${firstDetails.firstName} ${firstDetails.lastName}`
+      ? [firstDetails.firstName, firstDetails.middleName, firstDetails.lastName].filter(Boolean).join(' ')
       : firstApplicant?.name;
 
+  const firstDetailsComp = firstDetails?.companyName;
+  const firstAppComp = firstApplicant?.companyName;
+  const firstAppNestedComp = firstApplicant?.company?.name;
+
   const applicantName =
-    dto.applicantName && !isGenericCandidate(dto.applicantName)
-      ? dto.applicantName.trim()
-      : rawFirstAppCandidate && !isGenericCandidate(rawFirstAppCandidate)
-        ? rawFirstAppCandidate.trim()
-        : filingUser?.name || 'Applicant';
+    isValidCandidate(dto.applicantName)
+      ? formatProperName(dto.applicantName)
+      : isValidCandidate(rawFirstAppCandidate)
+        ? formatProperName(rawFirstAppCandidate)
+        : isValidCandidate(firstDetailsComp)
+          ? formatProperName(firstDetailsComp)
+          : isValidCandidate(firstAppComp)
+            ? formatProperName(firstAppComp)
+            : isValidCandidate(firstAppNestedComp)
+              ? formatProperName(firstAppNestedComp)
+              : isValidCandidate(companyName)
+                ? formatProperName(companyName)
+                : formatProperName(filingUser?.name) || 'Applicant';
 
   const refNumber =
     dto.referenceNumber ||
@@ -643,16 +691,42 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
     const rawCandidate =
       apDetails.firstName && apDetails.lastName
-        ? `${apDetails.firstName} ${apDetails.lastName}`
+        ? [apDetails.firstName, apDetails.middleName, apDetails.lastName].filter(Boolean).join(' ')
         : ap.name;
 
-    const name =
-      rawCandidate && !isGenericCandidate(rawCandidate)
-        ? rawCandidate.trim()
-        : (ap.company?.name || `Applicant #${idx + 1}`);
+    const fvNameCandidate = findApFv((lbl) =>
+      lbl.includes('full name') ||
+      lbl.includes('applicant name') ||
+      lbl.includes('name of applicant') ||
+      lbl.includes('business name') ||
+      lbl.includes('company name') ||
+      lbl.includes('corporate name')
+    );
 
     const appType = ap.applicantType || 'Individual';
     const appStatus = normalizeApplicationStatus(ap.status || rawStatus);
+
+    const compName =
+      apDetails.companyName ||
+      ap.companyName ||
+      ap.company?.name ||
+      (appType === 'Company' ? companyName : undefined);
+
+    const repName =
+      apDetails.representativeName ||
+      ap.representativeName ||
+      (appType === 'Company' ? (filingUser?.name || undefined) : undefined);
+
+    const name =
+      isValidCandidate(rawCandidate)
+        ? formatProperName(rawCandidate)
+        : isValidCandidate(fvNameCandidate)
+          ? formatProperName(fvNameCandidate)
+          : isValidCandidate(compName)
+            ? formatProperName(compName)
+            : isValidCandidate(repName)
+              ? formatProperName(repName)
+              : formatProperName(filingUser?.name) || formatProperName(compName) || formatProperName(repName) || 'Applicant';
 
     const birthDate =
       apDetails.birthDate ||
@@ -667,18 +741,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     const region = apDetails.region || findApFv((lbl) => lbl.includes('region')) || 'N/A';
     const zipCode = apDetails.zipCode || findApFv((lbl) => lbl.includes('zip')) || '';
 
-    const compName =
-      apDetails.companyName ||
-      ap.companyName ||
-      ap.company?.name ||
-      (appType === 'Company' ? companyName : undefined);
-
-    const repName =
-      apDetails.representativeName ||
-      ap.representativeName ||
-      (appType === 'Company' ? (filingUser?.name || undefined) : undefined);
-
-    const notes = apDetails.notes || ap.notes || (ap as { evaluationRemarks?: string }).evaluationRemarks;
+    const notes = apDetails.notes || ap.notes || ap.evaluationRemarks;
 
     return {
       id: ap.id || `app-cand-${idx}`,
