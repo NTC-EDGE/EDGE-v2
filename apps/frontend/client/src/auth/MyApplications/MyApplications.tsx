@@ -16,11 +16,21 @@ import {
   getAppDocuments,
   getStatusLabel,
   ApplicationDocument,
+  ApiApplicationDto,
   mapApiApplicationToApplication,
 } from "./data/applicationsData";
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
 import { ClientAppLayout } from "../../shared/components/ClientAppLayout";
+import {
+  subscribeToApplicationDetail,
+  consumePendingApplicationDetail,
+} from "../../shared/helpers/applicationNavigationHelper";
 import { styles } from "./MyApplications.styles";
+
+interface SingleApplicationResponse {
+  succeeded?: boolean;
+  data?: ApiApplicationDto;
+}
 
 const LIST_PAGE_SIZE = 6;
 
@@ -66,6 +76,45 @@ export function MyApplications() {
 
   // Debounce search query
   const [debouncedSearch, setDebouncedSearch] = useState(filterText);
+
+  // Handler to load application by ID directly if navigated from notification
+  const openAppById = useCallback(
+    async (appId: string) => {
+      const found = applications.find((a) => a.id === appId);
+      if (found !== undefined) {
+        setSelectedApp(found);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const res = await api.get<SingleApplicationResponse>(`/api/v2/applications/${appId}`);
+        if (res !== null && res.succeeded === true && res.data !== null && res.data !== undefined) {
+          const mapped = mapApiApplicationToApplication(res.data);
+          setSelectedApp(mapped);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [applications, api]
+  );
+
+  // Subscribe to cross-screen notification clicks
+  useEffect(() => {
+    const pendingId = consumePendingApplicationDetail();
+    if (pendingId !== null) {
+      openAppById(pendingId);
+    }
+
+    const unsubscribe = subscribeToApplicationDetail((appId) => {
+      openAppById(appId);
+    });
+
+    return unsubscribe;
+  }, [openAppById]);
 
   useEffect(() => {
     if (filterText === debouncedSearch) return;

@@ -2,15 +2,25 @@ import useSWR from 'swr';
 import { apiClient } from '../apiClient';
 import { ApiResponse, ApplicationSummaryDto, PagedApplicationListDto } from '../types';
 
-export function useAdminApplications(params?: {
-  queueTab?: string;
-  scope?: 'queue' | 'region';
-  status?: string;
-  pageNumber?: number;
-  pageSize?: number;
-  searchTerm?: string;
-  mode?: string;
-}) {
+export interface UseAdminApplicationsOptions {
+  refreshInterval?: number;
+  revalidateOnFocus?: boolean;
+  revalidateIfStale?: boolean;
+  dedupingInterval?: number;
+}
+
+export function useAdminApplications(
+  params?: {
+    queueTab?: string;
+    scope?: 'queue' | 'region';
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    mode?: string;
+  },
+  options?: UseAdminApplicationsOptions
+) {
   const searchParams = new URLSearchParams();
   if (params?.queueTab) searchParams.set('queueTab', params.queueTab);
   if (params?.scope) searchParams.set('scope', params.scope);
@@ -31,7 +41,12 @@ export function useAdminApplications(params?: {
       const res = await apiClient.get<ApiResponse<PagedApplicationListDto | ApplicationSummaryDto[]>>(url);
       return res.data;
     },
-    { revalidateOnFocus: false }
+    {
+      revalidateOnFocus: options?.revalidateOnFocus ?? false,
+      revalidateIfStale: options?.revalidateIfStale,
+      refreshInterval: options?.refreshInterval,
+      dedupingInterval: options?.dedupingInterval ?? 5000,
+    }
   );
 
   const payloadData = data?.data;

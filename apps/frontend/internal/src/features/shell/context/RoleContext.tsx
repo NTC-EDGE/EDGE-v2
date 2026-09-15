@@ -26,6 +26,7 @@ export interface NavigationLink {
   screen: string;
   icon: ComponentProps<typeof Icon>['name'];
   group: NavGroup;
+  badgeCount?: number;
 }
 
 export const ROLES: readonly UserRole[] = [
