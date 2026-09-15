@@ -1,6 +1,5 @@
-import { useState, useMemo } from 'react';
+import { useMemo } from 'react';
 import { Application, ApplicationDocument, BulkApplicant, RawRequirement } from '../../data/applicationsData';
-import { RawApplicantHolder } from './applicationDetailsTypes';
 
 export function useSelectedBulkApplicant(app: Application, selectedApplicant: BulkApplicant | null) {
   const selectedApplicantFormFields = useMemo(() => {
@@ -18,20 +17,25 @@ export function useSelectedBulkApplicant(app: Application, selectedApplicant: Bu
 
   const selectedApplicantDocs = useMemo<ApplicationDocument[]>(() => {
     if (!selectedApplicant) return [];
-    const rawReqs = (app.requirements ||
-      app.Requirements ||
-      (app as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
-      (app as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
-      app.documents ||
-      app.Documents ||
-      []) as RawRequirement[];
+    const rawReqs =
+      app.requirements ??
+      app.Requirements ??
+      app.applicationRequirements ??
+      app.ApplicationRequirements ??
+      app.documents ??
+      app.Documents ??
+      [];
 
     const matchedReqs = rawReqs.filter((r) => r.applicantId === selectedApplicant.id);
-    const rawApplicants = (app.applicants || app.Applicants || []) as RawApplicantHolder[];
+    const rawApplicants = app.applicants ?? app.Applicants ?? [];
     const rawMatch = rawApplicants.find((a) => a.id === selectedApplicant.id);
     const directReqs: RawRequirement[] =
-      (rawMatch?.requirements as RawRequirement[]) ||
-      ((rawMatch as { Requirements?: RawRequirement[] })?.Requirements as RawRequirement[]) ||
+      rawMatch?.requirements ??
+      rawMatch?.Requirements ??
+      rawMatch?.applicationRequirements ??
+      rawMatch?.ApplicationRequirements ??
+      rawMatch?.documents ??
+      rawMatch?.Documents ??
       [];
     const candidateReqs =
       matchedReqs.length > 0

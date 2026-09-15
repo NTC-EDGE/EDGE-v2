@@ -63,6 +63,14 @@ export function ApplicantRequirementsCard({
   setPreviewLoadingId,
 }: ApplicantRequirementsCardProps) {
   const { getToken } = useAuth();
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const availableDocsCount = docs.filter((d) => isDocAvailable(d)).length;
   const unavailableDocsCount = docs.length - availableDocsCount;
@@ -178,7 +186,9 @@ export function ApplicantRequirementsCard({
                   return;
                 }
 
-                setPreviewLoadingId(doc.id);
+                if (isMountedRef.current) {
+                  setPreviewLoadingId(doc.id);
+                }
                 try {
                   const baseUrl =
                     (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
@@ -188,8 +198,11 @@ export function ApplicantRequirementsCard({
                   if (token) headers['Authorization'] = `Bearer ${token}`;
 
                   const response = await fetch(fullUrl, { headers });
+                  if (!isMountedRef.current) return;
+
                   if (response.ok) {
                     const blob = await response.blob();
+                    if (!isMountedRef.current) return;
                     const objectUrl =
                       typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
                         ? URL.createObjectURL(blob)
@@ -221,8 +234,28 @@ export function ApplicantRequirementsCard({
                   }
                 } catch (fetchErr) {
                   console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
+                  if (isMountedRef.current) {
+                    onPreviewCustomDoc({
+                      uri: fileUrl,
+                      name: doc.name,
+                      category: doc.category,
+                      size: doc.size,
+                      type: doc.type,
+                      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
+                      serviceName: app.serviceName || 'Standard Licensing Application',
+                      applicantName: primaryApplicantName,
+                      uploadedAt: doc.uploadedAt || app.submittedAt,
+                    });
+                  }
+                } finally {
+                  if (isMountedRef.current) {
+                    setPreviewLoadingId(null);
+                  }
+                }
+              } else {
+                if (isMountedRef.current) {
                   onPreviewCustomDoc({
-                    uri: fileUrl,
+                    uri: '',
                     name: doc.name,
                     category: doc.category,
                     size: doc.size,
@@ -232,21 +265,7 @@ export function ApplicantRequirementsCard({
                     applicantName: primaryApplicantName,
                     uploadedAt: doc.uploadedAt || app.submittedAt,
                   });
-                } finally {
-                  setPreviewLoadingId(null);
                 }
-              } else {
-                onPreviewCustomDoc({
-                  uri: '',
-                  name: doc.name,
-                  category: doc.category,
-                  size: doc.size,
-                  type: doc.type,
-                  referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
-                  serviceName: app.serviceName || 'Standard Licensing Application',
-                  applicantName: primaryApplicantName,
-                  uploadedAt: doc.uploadedAt || app.submittedAt,
-                });
               }
             };
 

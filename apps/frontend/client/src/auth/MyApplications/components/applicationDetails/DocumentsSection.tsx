@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
@@ -25,6 +25,14 @@ export function DocumentsSection({
   setPreviewLoadingId,
 }: DocumentsSectionProps) {
   const api = useApi();
+  const isMountedRef = React.useRef(true);
+
+  React.useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   return (
     <View style={styles.tabContentList}>
@@ -46,13 +54,16 @@ export function DocumentsSection({
           const fileUrl: string | undefined = doc.url ?? matched?.url ?? undefined;
 
           if (fileUrl !== undefined && fileUrl !== '') {
-            setPreviewLoadingId(doc.id);
+            if (isMountedRef.current) {
+              setPreviewLoadingId(doc.id);
+            }
             try {
               const baseUrl =
                 (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
               const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
 
               const blob = await api.get<Blob>(fullUrl);
+              if (!isMountedRef.current) return;
               const objectUrl =
                 typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
                   ? URL.createObjectURL(blob as unknown as Blob)
@@ -61,12 +72,18 @@ export function DocumentsSection({
               onPreviewCustomDoc({ uri: objectUrl, name: doc.name });
             } catch (fetchErr) {
               console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
-              onPreviewCustomDoc({ uri: fileUrl, name: doc.name });
+              if (isMountedRef.current) {
+                onPreviewCustomDoc({ uri: fileUrl, name: doc.name });
+              }
             } finally {
-              setPreviewLoadingId(null);
+              if (isMountedRef.current) {
+                setPreviewLoadingId(null);
+              }
             }
           } else {
-            onPreviewDoc(doc);
+            if (isMountedRef.current) {
+              onPreviewDoc(doc);
+            }
           }
         };
 

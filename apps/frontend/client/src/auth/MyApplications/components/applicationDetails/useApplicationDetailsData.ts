@@ -185,8 +185,8 @@ export function useApplicationDetailsData(initialApp: Application) {
     const topList =
       app.requirements ||
       app.Requirements ||
-      (app as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
-      (app as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
+      app.applicationRequirements ||
+      app.ApplicationRequirements ||
       app.documents ||
       app.Documents;
 
@@ -194,15 +194,16 @@ export function useApplicationDetailsData(initialApp: Application) {
       topList.forEach(pushReq);
     }
 
-    const appList = (app.applicants || app.Applicants || []) as RawApplicantHolder[];
+    const appList = app.applicants || app.Applicants || [];
     if (Array.isArray(appList)) {
       appList.forEach((a) => {
         const aReqs =
           a.requirements ||
           a.Requirements ||
-          (a as { documents?: RawRequirement[] }).documents ||
-          (a as { Documents?: RawRequirement[] }).Documents ||
-          (a as { applicationRequirements?: RawRequirement[] }).applicationRequirements;
+          a.documents ||
+          a.Documents ||
+          a.applicationRequirements ||
+          a.ApplicationRequirements;
         if (Array.isArray(aReqs)) {
           aReqs.forEach(pushReq);
         }

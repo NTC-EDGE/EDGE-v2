@@ -89,8 +89,12 @@ export interface SingleApplication {
   representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   soaNumber?: string | null;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   office?: string;
@@ -174,6 +178,12 @@ export interface BulkApplicant {
   applicantType?: string;
   includedInSoa?: boolean;
   examineeType?: ExamineeType;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
 }
 
 export interface BulkApplication {
@@ -192,12 +202,16 @@ export interface BulkApplication {
   // Backend dynamic fields compatibility
   submissionMode?: string;
   Applicants?: BulkApplicant[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   companyDetail?: { name?: string };
   company?: { name?: string };
   Company?: { Name?: string };
   representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
@@ -560,6 +574,12 @@ interface ApiApplicantDto {
   email?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
 }
 
 interface ApiApplicationDto {
@@ -589,8 +609,12 @@ interface ApiApplicationDto {
   services?: Array<{ id?: string; name?: string; category?: string }>;
   applicants?: ApiApplicantDto[];
   Applicants?: ApiApplicantDto[];
+  applicationApplicants?: ApiApplicantDto[];
+  ApplicationApplicants?: ApiApplicantDto[];
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
   companyName?: string;
