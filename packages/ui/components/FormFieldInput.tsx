@@ -13,6 +13,33 @@ import { TYPOGRAPHY } from "../theme/tokens";
 import { useTheme } from "../theme/useTheme";
 import { Feather as Icon } from "@expo/vector-icons";
 
+// Suppress browser-native password reveal icons (e.g. Edge ::-ms-reveal) on Web to avoid double eye icons
+if (Platform.OS === "web" && typeof document !== "undefined") {
+  const styleId = "edge-hide-native-password-reveal";
+  if (!document.getElementById(styleId)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = styleId;
+    styleEl.innerHTML = `
+      input::-ms-reveal,
+      input::-ms-clear {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+      }
+      input::-webkit-contacts-auto-fill-button,
+      input::-webkit-credentials-auto-fill-button {
+        visibility: hidden !important;
+        display: none !important;
+        pointer-events: none !important;
+        height: 0 !important;
+        width: 0 !important;
+        margin: 0 !important;
+      }
+    `;
+    document.head.appendChild(styleEl);
+  }
+}
+
 export interface FormFieldInputProps<T extends FieldValues> extends Omit<TextInputProps, "value" | "onChangeText"> {
   control: Control<T>;
   name: Path<T>;
