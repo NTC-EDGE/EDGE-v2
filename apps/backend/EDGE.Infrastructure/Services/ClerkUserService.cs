@@ -115,10 +115,10 @@ public class ClerkUserService : IClerkUserService
         return userResponse;
     }
 
-    private static string GenerateSafeFallbackUsername(string? firstName, string? lastName, string? email)
+    public static string GenerateSafeFallbackUsername(string? firstName, string? lastName, string? email)
     {
-        var cleanFirst = new string((firstName ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
-        var cleanLast = new string((lastName ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        var cleanFirst = new string((firstName ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
+        var cleanLast = new string((lastName ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
 
         string baseName;
         if (!string.IsNullOrWhiteSpace(cleanFirst) && !string.IsNullOrWhiteSpace(cleanLast))
@@ -129,25 +129,37 @@ public class ClerkUserService : IClerkUserService
         {
             baseName = cleanFirst;
         }
+        else if (!string.IsNullOrWhiteSpace(cleanLast))
+        {
+            baseName = cleanLast;
+        }
         else if (!string.IsNullOrWhiteSpace(email))
         {
             var emailPrefix = email.Split('@')[0];
-            baseName = new string(emailPrefix.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+            baseName = new string(emailPrefix.Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
         }
         else
         {
             baseName = "user";
         }
 
-        if (string.IsNullOrWhiteSpace(baseName) || baseName.Length < 3)
+        if (string.IsNullOrWhiteSpace(baseName))
         {
             baseName = "user";
+        }
+        else if (baseName.Length < 3)
+        {
+            baseName = $"{baseName}user";
         }
 
         var randomSuffix = Guid.NewGuid().ToString("N")[..6];
         var username = $"{baseName}_{randomSuffix}";
 
-        if (username.Length > 64)
+        if (username.Length < 4)
+        {
+            username = $"user_{randomSuffix}";
+        }
+        else if (username.Length > 64)
         {
             username = username[..64];
         }

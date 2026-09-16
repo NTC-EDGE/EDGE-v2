@@ -3,17 +3,19 @@
  * Ensures username length is between 4 and 64 characters, containing only alphanumeric characters and underscores.
  */
 export function generateSafeUsername(firstName?: string, lastName?: string, email?: string): string {
-  const cleanFirst = (firstName || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-  const cleanLast = (lastName || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const cleanFirst = (firstName ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+  const cleanLast = (lastName ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
 
   let base = '';
-  if (cleanFirst && cleanLast) {
+  if (cleanFirst.length > 0 && cleanLast.length > 0) {
     base = `${cleanFirst}_${cleanLast}`;
-  } else if (cleanFirst) {
+  } else if (cleanFirst.length > 0) {
     base = cleanFirst;
+  } else if (cleanLast.length > 0) {
+    base = cleanLast;
   } else {
-    const emailPrefix = (email?.split('@')[0] || '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
-    base = emailPrefix || 'user';
+    const emailPrefix = (email?.split('@')[0] ?? '').replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+    base = emailPrefix.length > 0 ? emailPrefix : 'user';
   }
 
   if (base.length < 3) {
