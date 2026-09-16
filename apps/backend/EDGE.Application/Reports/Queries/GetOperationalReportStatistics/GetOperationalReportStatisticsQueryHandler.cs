@@ -80,25 +80,60 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             targetTenantId = request.TenantId;
         }
 
-        // Fetch live applications dataset filtered by tenant
-        var pagedApps = await _applicationRepository.GetPagedApplicationSummaryDtosAsync(
-            pageNumber: 1,
-            pageSize: 1000,
-            tenantId: targetTenantId,
-            cancellationToken: cancellationToken);
+        // Fetch live applications dataset filtered by tenant with batched pagination
+        var tenantApps = new List<ApplicationSummaryDto>();
+        var currentAppPage = 1;
+        while (tenantApps.Count < ReportConstants.MaxSafetyRecordThreshold)
+        {
+            var pagedApps = await _applicationRepository.GetPagedApplicationSummaryDtosAsync(
+                pageNumber: currentAppPage,
+                pageSize: ReportConstants.DefaultBatchPageSize,
+                tenantId: targetTenantId,
+                cancellationToken: cancellationToken);
 
-        var tenantApps = pagedApps?.Items ?? new List<ApplicationSummaryDto>();
+            var batch = pagedApps?.Items;
+            if (batch == null || batch.Count == 0)
+            {
+                break;
+            }
 
-        // Fetch live transactions dataset
+            tenantApps.AddRange(batch);
+
+            if (pagedApps == null || !pagedApps.HasNextPage || tenantApps.Count >= pagedApps.TotalCount)
+            {
+                break;
+            }
+
+            currentAppPage++;
+        }
+
+        // Fetch live transactions dataset with batched pagination
         var transactions = new List<TenantTransactionDto>();
         if (targetTenantId.HasValue)
         {
-            var (txItems, _) = await _tenantRepository.GetTenantTransactionsAsync(
-                targetTenantId.Value,
-                pageNumber: 1,
-                pageSize: 1000,
-                cancellationToken: cancellationToken);
-            transactions = txItems ?? new List<TenantTransactionDto>();
+            var currentTxPage = 1;
+            while (transactions.Count < ReportConstants.MaxSafetyRecordThreshold)
+            {
+                var (txItems, totalTxCount) = await _tenantRepository.GetTenantTransactionsAsync(
+                    targetTenantId.Value,
+                    pageNumber: currentTxPage,
+                    pageSize: ReportConstants.DefaultBatchPageSize,
+                    cancellationToken: cancellationToken);
+
+                if (txItems == null || txItems.Count == 0)
+                {
+                    break;
+                }
+
+                transactions.AddRange(txItems);
+
+                if (transactions.Count >= totalTxCount || txItems.Count < ReportConstants.DefaultBatchPageSize)
+                {
+                    break;
+                }
+
+                currentTxPage++;
+            }
         }
 
         // Fetch live feedback dataset

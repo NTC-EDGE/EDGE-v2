@@ -242,4 +242,76 @@ public class GetOperationalReportStatisticsQueryHandlerTests
         // Assert
         result.IsValid.Should().Be(shouldBeValid);
     }
+
+    [Fact]
+    public async Task Handle_WhenApplicationsExceedSinglePage_ShouldBatchFetchAllPages()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user-123");
+        _tenantContextServiceMock.Setup(s => s.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>())).ReturnsAsync(false);
+        _tenantContextServiceMock.Setup(s => s.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+
+        var page1Items = Enumerable.Range(1, 1000).Select(i => new ApplicationSummaryDto
+        {
+            Id = Guid.NewGuid(),
+            Status = "Approved",
+            CreatedAt = new DateTime(2026, 3, 15, 0, 0, 0, DateTimeKind.Utc)
+        }).ToList();
+
+        var page2Items = Enumerable.Range(1001, 500).Select(i => new ApplicationSummaryDto
+        {
+            Id = Guid.NewGuid(),
+            Status = "Approved",
+            CreatedAt = new DateTime(2026, 3, 16, 0, 0, 0, DateTimeKind.Utc)
+        }).ToList();
+
+        var page1Result = new PagedApplicationListDto
+        {
+            Items = page1Items,
+            PageNumber = 1,
+            PageSize = 1000,
+            TotalCount = 1500
+        };
+
+        var page2Result = new PagedApplicationListDto
+        {
+            Items = page2Items,
+            PageNumber = 2,
+            PageSize = 1000,
+            TotalCount = 1500
+        };
+
+        _applicationRepositoryMock
+            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 1, 1000, null, null, tenantId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(page1Result);
+
+        _applicationRepositoryMock
+            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 2, 1000, null, null, tenantId, null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(page2Result);
+
+        _tenantRepositoryMock
+            .Setup(t => t.GetTenantTransactionsAsync(tenantId, null, 1, 1000, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((new List<TenantTransactionDto>(), 0));
+
+        _feedbackRepositoryMock
+            .Setup(f => f.GetAllAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<FeedbackEntity>());
+
+        var query = new GetOperationalReportStatisticsQuery(
+            TenantId: tenantId,
+            PeriodMode: "monthly",
+            Year: 2026,
+            Month: 3
+        );
+
+        // Act
+        var response = await _handler.Handle(query, CancellationToken.None);
+
+        // Assert
+        response.Succeeded.Should().BeTrue();
+        response.Data.Should().NotBeNull();
+        response.Data!.Summary.TotalApps.Should().Be(1500);
+        response.Data.Summary.ApprovedCount.Should().Be(1500);
+    }
 }
