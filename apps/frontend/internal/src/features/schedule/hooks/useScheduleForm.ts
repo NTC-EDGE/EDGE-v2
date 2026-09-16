@@ -30,6 +30,8 @@ export function useScheduleForm({
     venue: '',
     startDate: new Date().toISOString().slice(0, 10),
     endDate: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
+    startTime: '08:00 AM',
+    endTime: '05:00 PM',
     startApplication: new Date().toISOString().slice(0, 10),
     endApplication: new Date(Date.now() + 86400000 * 7).toISOString().slice(0, 10),
     maximumSlots: '50',
@@ -64,6 +66,8 @@ export function useScheduleForm({
         venue: initialSchedule.venue ?? '',
         startDate: formatDateForInput(initialSchedule.startDate),
         endDate: formatDateForInput(initialSchedule.endDate),
+        startTime: initialSchedule.startTime ?? '08:00 AM',
+        endTime: initialSchedule.endTime ?? '05:00 PM',
         startApplication: formatDateForInput(initialSchedule.startApplication),
         endApplication: formatDateForInput(initialSchedule.endApplication),
         maximumSlots:

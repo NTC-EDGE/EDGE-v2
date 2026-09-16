@@ -175,6 +175,8 @@ export interface ScheduleItemDto {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   isPublished: boolean;
@@ -189,6 +191,8 @@ export interface CreateSchedulePayload {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   isPublished?: boolean;
@@ -200,6 +204,8 @@ export interface UpdateSchedulePayload {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   maximumSlots?: number | null;

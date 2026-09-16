@@ -248,6 +248,11 @@ export function ScheduleDetailModal({
                 <Text style={[styles.timelineValue, { color: colors.text }]}>
                   {examDateRange}
                 </Text>
+                {(schedule.startTime || schedule.endTime) && (
+                  <Text style={[styles.timelineSubValue, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                    Session: {[schedule.startTime, schedule.endTime].filter(Boolean).join(' – ')}
+                  </Text>
+                )}
               </View>
 
               <View
@@ -486,6 +491,12 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  timelineSubValue: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginTop: 2,
   },
   timelineSub: {
     fontFamily: TYPOGRAPHY.fonts.primary,

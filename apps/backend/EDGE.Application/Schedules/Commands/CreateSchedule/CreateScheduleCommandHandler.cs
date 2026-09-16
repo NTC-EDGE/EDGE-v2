@@ -49,6 +49,8 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             Venue = request.Venue,
             StartDate = ToUtc(request.StartDate),
             EndDate = ToUtc(request.EndDate),
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
             StartApplication = ToUtc(request.StartApplication),
             EndApplication = ToUtc(request.EndApplication),
             IsPublished = request.IsPublished,
@@ -73,7 +75,9 @@ public class CreateScheduleCommandHandler : IRequestHandler<CreateScheduleComman
             schedule.IsPublished,
             schedule.MaximumSlots,
             schedule.Remarks,
-            schedule.CreatedAt
+            schedule.CreatedAt,
+            schedule.StartTime,
+            schedule.EndTime
         );
     }
 

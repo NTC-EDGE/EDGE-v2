@@ -80,7 +80,9 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
             s.IsPublished,
             s.MaximumSlots,
             s.Remarks,
-            s.CreatedAt
+            s.CreatedAt,
+            s.StartTime,
+            s.EndTime
         )).ToList();
 
         return new PaginatedApiResponse<ScheduleDto>(scheduleDtos, pageNumber, pageSize, totalCount);

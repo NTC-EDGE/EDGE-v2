@@ -62,7 +62,9 @@ public class CreateScheduleCommandHandlerTests
             EndApplication: DateTime.UtcNow.AddDays(7),
             IsPublished: false,
             MaximumSlots: 50,
-            Remarks: "Bring valid IDs"
+            Remarks: "Bring valid IDs",
+            StartTime: "08:00 AM",
+            EndTime: "05:00 PM"
         );
 
         // Act
@@ -75,6 +77,8 @@ public class CreateScheduleCommandHandlerTests
         result.Venue.Should().Be("NTC Regional Testing Center");
         result.ServiceName.Should().Be("Radio Operator Exam");
         result.MaximumSlots.Should().Be(50);
+        result.StartTime.Should().Be("08:00 AM");
+        result.EndTime.Should().Be("05:00 PM");
 
         _scheduleRepositoryMock.Verify(s => s.AddAsync(It.IsAny<Schedule>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);

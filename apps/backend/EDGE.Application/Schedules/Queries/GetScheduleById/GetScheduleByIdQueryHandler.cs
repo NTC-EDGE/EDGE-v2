@@ -46,7 +46,9 @@ public class GetScheduleByIdQueryHandler : IRequestHandler<GetScheduleByIdQuery,
             schedule.IsPublished,
             schedule.MaximumSlots,
             schedule.Remarks,
-            schedule.CreatedAt
+            schedule.CreatedAt,
+            schedule.StartTime,
+            schedule.EndTime
         );
     }
 }

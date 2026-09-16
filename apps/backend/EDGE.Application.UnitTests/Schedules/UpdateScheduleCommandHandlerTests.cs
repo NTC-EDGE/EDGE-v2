@@ -68,7 +68,9 @@ public class UpdateScheduleCommandHandlerTests
             StartDate: DateTime.UtcNow.AddDays(12),
             EndDate: DateTime.UtcNow.AddDays(13),
             MaximumSlots: 75,
-            Remarks: "Updated Venue"
+            Remarks: "Updated Venue",
+            StartTime: "09:00 AM",
+            EndTime: "04:00 PM"
         );
 
         // Act
@@ -79,6 +81,8 @@ public class UpdateScheduleCommandHandlerTests
         result!.Venue.Should().Be("New Examination Hall");
         result.MaximumSlots.Should().Be(75);
         result.Remarks.Should().Be("Updated Venue");
+        result.StartTime.Should().Be("09:00 AM");
+        result.EndTime.Should().Be("04:00 PM");
 
         _scheduleRepositoryMock.Verify(s => s.Update(It.IsAny<Schedule>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
