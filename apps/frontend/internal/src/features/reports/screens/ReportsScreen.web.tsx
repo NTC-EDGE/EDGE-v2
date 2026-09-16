@@ -25,10 +25,15 @@ import {
 import {
   useReportsState,
   ReportType,
+  PeriodMode,
   TimeRangeFilter,
   CategoryFilter,
+  StatutoryPeriod,
+  PeriodicStatBucket,
 } from '../hooks/useReportsState';
 import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
+import { StatutoryReportPreviewModal } from '../components/StatutoryReportPreviewModal';
+import { StatutoryReportSummary } from '../types/statutoryReports';
 
 type FeatherIconName = React.ComponentProps<typeof Lucide>['name'];
 
@@ -37,6 +42,36 @@ const REPORT_TABS: Array<{ id: ReportType; label: string; icon: FeatherIconName 
   { id: 'financial', label: 'Financial Collections', icon: 'dollar-sign' },
   { id: 'compliance', label: 'Compliance & SLA', icon: 'shield' },
   { id: 'satisfaction', label: 'Client Feedback (CSAT)', icon: 'star' },
+  { id: 'statutory', label: 'National Govt Submissions', icon: 'book' },
+];
+
+const PERIOD_MODES: Array<{ id: PeriodMode; label: string; icon: FeatherIconName }> = [
+  { id: 'monthly', label: 'Monthly Report', icon: 'calendar' },
+  { id: 'quarterly', label: 'Quarterly Report', icon: 'pie-chart' },
+  { id: 'yearly', label: 'Yearly Report', icon: 'bar-chart-2' },
+  { id: 'rolling', label: 'Rolling Range', icon: 'clock' },
+];
+
+const MONTHS = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
+
+const QUARTERS = [
+  { q: 1, label: 'Q1 (Jan - Mar)' },
+  { q: 2, label: 'Q2 (Apr - Jun)' },
+  { q: 3, label: 'Q3 (Jul - Sep)' },
+  { q: 4, label: 'Q4 (Oct - Dec)' },
+];
+
+const YEARS = [2026, 2025, 2024, 2023];
+
+const STATUTORY_PERIODS: Array<{ id: StatutoryPeriod; label: string }> = [
+  { id: 'Q1 2026', label: '1st Quarter 2026' },
+  { id: 'Q2 2026', label: '2nd Quarter 2026' },
+  { id: 'Q3 2026', label: '3rd Quarter 2026' },
+  { id: 'Q4 2026', label: '4th Quarter 2026' },
+  { id: 'Annual 2026', label: 'Annual 2026' },
 ];
 
 const TIME_RANGES: Array<{ id: TimeRangeFilter; label: string }> = [
@@ -163,6 +198,415 @@ export function ReportsScreen() {
             </View>
           }
         />
+
+        {/* ── Report Tab Navigation & Filters Toolbar (Positioned at top for stable UX) ── */}
+        <AnimatedCard style={[styles.toolbarCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+          {/* Main Report Tabs */}
+          <View style={styles.reportTabsRow}>
+            {REPORT_TABS.map((tab) => {
+              const isActive = state.reportType === tab.id;
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={[
+                    styles.reportTabBtn,
+                    { borderColor: colors.border },
+                    isActive && {
+                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } }),
+                  ]}
+                  onPress={() => {
+                    state.setReportType(tab.id);
+                    state.setCurrentPage(1);
+                  }}
+                >
+                  <Lucide
+                    name={tab.icon}
+                    size={14}
+                    color={isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
+                  />
+                  <Text
+                    style={[
+                      styles.reportTabText,
+                      { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      isActive && { fontWeight: TYPOGRAPHY.weights.bold },
+                    ]}
+                  >
+                    {tab.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </View>
+
+          {/* Period Granularity Switcher (Monthly, Quarterly, Yearly, Rolling) */}
+          {state.reportType !== 'statutory' && (
+            <View style={styles.periodGranularityRow}>
+              <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Report Frequency:</Text>
+              <View style={styles.periodModeBtnGroup}>
+                {PERIOD_MODES.map((pm) => {
+                  const isActive = state.periodMode === pm.id;
+                  return (
+                    <Pressable
+                      key={pm.id}
+                      style={[
+                        styles.periodModeBtn,
+                        { borderColor: colors.border },
+                        isActive && {
+                          backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                          borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => {
+                        state.setPeriodMode(pm.id);
+                        state.setCurrentPage(1);
+                      }}
+                    >
+                      <Lucide
+                        name={pm.icon}
+                        size={12}
+                        color={isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
+                      />
+                      <Text
+                        style={[
+                          styles.periodModeBtnText,
+                          { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                          isActive && { fontWeight: TYPOGRAPHY.weights.bold },
+                        ]}
+                      >
+                        {pm.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
+          )}
+
+          {/* Granular Sub-Filters (Month / Quarter / Year / Rolling / Category) */}
+          <View style={styles.filterControlsRow}>
+            {state.reportType === 'statutory' ? (
+              <View style={styles.filterPillsGroup}>
+                <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Filing Term:</Text>
+                {STATUTORY_PERIODS.map((p) => {
+                  const isActive = state.selectedPeriod === p.id;
+                  return (
+                    <Pressable
+                      key={p.id}
+                      style={[
+                        styles.smallPill,
+                        { borderColor: colors.border },
+                        isActive && {
+                          backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                          borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                        },
+                        Platform.select({ web: { cursor: 'pointer' } }),
+                      ]}
+                      onPress={() => {
+                        state.setSelectedPeriod(p.id);
+                      }}
+                    >
+                      <Text
+                        style={[
+                          styles.smallPillText,
+                          { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                          isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                        ]}
+                      >
+                        {p.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <>
+                {/* Monthly Sub-Selector */}
+                {state.periodMode === 'monthly' && (
+                  <View style={styles.granularSubGroup}>
+                    {/* Year Selector */}
+                    <View style={styles.filterPillsGroup}>
+                      <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Year:</Text>
+                      {YEARS.map((yr) => {
+                        const isActive = state.selectedYear === yr;
+                        return (
+                          <Pressable
+                            key={yr}
+                            style={[
+                              styles.smallPill,
+                              { borderColor: colors.border },
+                              isActive && {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                                borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                              },
+                              Platform.select({ web: { cursor: 'pointer' } }),
+                            ]}
+                            onPress={() => {
+                              state.setSelectedYear(yr);
+                              state.setCurrentPage(1);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPillText,
+                                { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                                isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                              ]}
+                            >
+                              {yr}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {/* Month Selector */}
+                    <View style={styles.filterPillsGroup}>
+                      <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Month:</Text>
+                      {MONTHS.map((m, idx) => {
+                        const isActive = state.selectedMonth === idx;
+                        return (
+                          <Pressable
+                            key={m}
+                            style={[
+                              styles.smallPill,
+                              { borderColor: colors.border },
+                              isActive && {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                                borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                              },
+                              Platform.select({ web: { cursor: 'pointer' } }),
+                            ]}
+                            onPress={() => {
+                              state.setSelectedMonth(idx);
+                              state.setCurrentPage(1);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPillText,
+                                { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                                isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                              ]}
+                            >
+                              {m}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Quarterly Sub-Selector */}
+                {state.periodMode === 'quarterly' && (
+                  <View style={styles.granularSubGroup}>
+                    {/* Year Selector */}
+                    <View style={styles.filterPillsGroup}>
+                      <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Year:</Text>
+                      {YEARS.map((yr) => {
+                        const isActive = state.selectedYear === yr;
+                        return (
+                          <Pressable
+                            key={yr}
+                            style={[
+                              styles.smallPill,
+                              { borderColor: colors.border },
+                              isActive && {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                                borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                              },
+                              Platform.select({ web: { cursor: 'pointer' } }),
+                            ]}
+                            onPress={() => {
+                              state.setSelectedYear(yr);
+                              state.setCurrentPage(1);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPillText,
+                                { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                                isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                              ]}
+                            >
+                              {yr}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+
+                    {/* Quarter Selector */}
+                    <View style={styles.filterPillsGroup}>
+                      <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Quarter:</Text>
+                      {QUARTERS.map((qObj) => {
+                        const isActive = state.selectedQuarter === qObj.q;
+                        return (
+                          <Pressable
+                            key={qObj.q}
+                            style={[
+                              styles.smallPill,
+                              { borderColor: colors.border },
+                              isActive && {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                                borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                              },
+                              Platform.select({ web: { cursor: 'pointer' } }),
+                            ]}
+                            onPress={() => {
+                              state.setSelectedQuarter(qObj.q);
+                              state.setCurrentPage(1);
+                            }}
+                          >
+                            <Text
+                              style={[
+                                styles.smallPillText,
+                                { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                                isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                              ]}
+                            >
+                              {qObj.label}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
+                    </View>
+                  </View>
+                )}
+
+                {/* Yearly Sub-Selector */}
+                {state.periodMode === 'yearly' && (
+                  <View style={styles.filterPillsGroup}>
+                    <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Year:</Text>
+                    {YEARS.map((yr) => {
+                      const isActive = state.selectedYear === yr;
+                      return (
+                        <Pressable
+                          key={yr}
+                          style={[
+                            styles.smallPill,
+                            { borderColor: colors.border },
+                            isActive && {
+                              backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                            },
+                            Platform.select({ web: { cursor: 'pointer' } }),
+                          ]}
+                          onPress={() => {
+                            state.setSelectedYear(yr);
+                            state.setCurrentPage(1);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.smallPillText,
+                              { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                              isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                            ]}
+                          >
+                            {yr}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Rolling Sub-Selector */}
+                {state.periodMode === 'rolling' && (
+                  <View style={styles.filterPillsGroup}>
+                    <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Rolling Range:</Text>
+                    {TIME_RANGES.map((t) => {
+                      const isActive = state.timeRange === t.id;
+                      return (
+                        <Pressable
+                          key={t.id}
+                          style={[
+                            styles.smallPill,
+                            { borderColor: colors.border },
+                            isActive && {
+                              backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                            },
+                            Platform.select({ web: { cursor: 'pointer' } }),
+                          ]}
+                          onPress={() => {
+                            state.setTimeRange(t.id);
+                            state.setCurrentPage(1);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.smallPillText,
+                              { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                              isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                            ]}
+                          >
+                            {t.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+
+                {/* Category Filter */}
+                {(state.reportType === 'applications' || state.reportType === 'compliance') && (
+                  <View style={styles.filterPillsGroup}>
+                    <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Category:</Text>
+                    {CATEGORIES.map((c) => {
+                      const isActive = state.categoryFilter === c.id;
+                      return (
+                        <Pressable
+                          key={c.id}
+                          style={[
+                            styles.smallPill,
+                            { borderColor: colors.border },
+                            isActive && {
+                              backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                            },
+                            Platform.select({ web: { cursor: 'pointer' } }),
+                          ]}
+                          onPress={() => {
+                            state.setCategoryFilter(c.id);
+                            state.setCurrentPage(1);
+                          }}
+                        >
+                          <Text
+                            style={[
+                              styles.smallPillText,
+                              { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                              isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
+                            ]}
+                          >
+                            {c.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          {/* Search Bar */}
+          <View style={styles.searchContainer}>
+            <SearchBar
+              value={state.searchQuery}
+              onChangeText={(text) => {
+                state.setSearchQuery(text);
+                state.setCurrentPage(1);
+              }}
+              placeholder="Search by Reference #, Applicant Name, Service Category, or Keyword..."
+            />
+          </View>
+        </AnimatedCard>
 
         {/* ── KPI Summary Cards ── */}
         <View style={styles.statsGrid}>
@@ -301,135 +745,109 @@ export function ReportsScreen() {
           </View>
         </AnimatedCard>
 
-        {/* ── Report Tab Navigation & Filters Toolbar ── */}
-        <AnimatedCard style={[styles.toolbarCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-          {/* Main Report Tabs */}
-          <View style={styles.reportTabsRow}>
-            {REPORT_TABS.map((tab) => {
-              const isActive = state.reportType === tab.id;
-              return (
-                <Pressable
-                  key={tab.id}
-                  style={[
-                    styles.reportTabBtn,
-                    { borderColor: colors.border },
-                    isActive && {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                    },
-                    Platform.select({ web: { cursor: 'pointer' } }),
-                  ]}
-                  onPress={() => {
-                    state.setReportType(tab.id);
-                    state.setCurrentPage(1);
-                  }}
-                >
-                  <Lucide
-                    name={tab.icon}
-                    size={14}
-                    color={isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
-                  />
-                  <Text
-                    style={[
-                      styles.reportTabText,
-                      { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      isActive && { fontWeight: TYPOGRAPHY.weights.bold },
-                    ]}
-                  >
-                    {tab.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+        {/* ── Periodic Performance & Trend Statistics Matrix Card ── */}
+        {state.reportType !== 'statutory' && (
+          <AnimatedCard style={[styles.breakdownCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <View style={styles.breakdownHeader}>
+              <View>
+                <Text style={[styles.breakdownTitle, { color: colors.text }]}>
+                  Periodic Statistics & Trend Analysis ({state.periodMode.toUpperCase()})
+                </Text>
+                <Text style={[styles.breakdownSubtitle, { color: colors.textMuted }]}>
+                  Comparative volume, approval rates, revenue collections, and CSAT scores across intervals
+                </Text>
+              </View>
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                leftIcon={<Lucide name="bar-chart-2" size={13} color={colors.text} />}
+                onPress={state.exportPeriodicStatsCsv}
+              >
+                Export Matrix CSV
+              </Button>
+            </View>
 
-          {/* Time Range & Category Pills */}
-          <View style={styles.filterControlsRow}>
-            <View style={styles.filterPillsGroup}>
-              <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Range:</Text>
-              {TIME_RANGES.map((t) => {
-                const isActive = state.timeRange === t.id;
+            {/* Visual Distribution Column Chart */}
+            <View style={[styles.periodicChartContainer, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}>
+              {state.periodicStatistics.map((bucket) => {
+                const maxVol = Math.max(...state.periodicStatistics.map((b) => b.totalApplications), 1);
+                const heightPct = Math.round((bucket.totalApplications / maxVol) * 100);
                 return (
-                  <Pressable
-                    key={t.id}
-                    style={[
-                      styles.smallPill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                      Platform.select({ web: { cursor: 'pointer' } }),
-                    ]}
-                    onPress={() => {
-                      state.setTimeRange(t.id);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.smallPillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                        isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
-                      ]}
-                    >
-                      {t.label}
+                  <View key={bucket.id} style={styles.periodicBarCol}>
+                    <Text style={[styles.periodicBarVal, { color: colors.textMuted }]}>
+                      {bucket.totalApplications > 0 ? bucket.totalApplications : ''}
                     </Text>
-                  </Pressable>
+                    <View style={[styles.periodicBarTrack, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200] }]}>
+                      <View
+                        style={[
+                          styles.periodicBarFill,
+                          {
+                            height: `${Math.max(6, heightPct)}%`,
+                            backgroundColor: bucket.totalApplications > 0 ? (isDark ? colors.brand[500] : colors.brand.primary) : 'transparent',
+                          },
+                        ]}
+                      />
+                    </View>
+                    <Text style={[styles.periodicBarLabel, { color: colors.text }]} numberOfLines={1}>
+                      {bucket.shortLabel}
+                    </Text>
+                  </View>
                 );
               })}
             </View>
 
-            {(state.reportType === 'applications' || state.reportType === 'compliance') && (
-              <View style={styles.filterPillsGroup}>
-                <Text style={[styles.filterGroupLabel, { color: colors.textMuted }]}>Category:</Text>
-                {CATEGORIES.map((c) => {
-                  const isActive = state.categoryFilter === c.id;
-                  return (
-                    <Pressable
-                      key={c.id}
-                      style={[
-                        styles.smallPill,
-                        { borderColor: colors.border },
-                        isActive && {
-                          backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                          borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                        },
-                        Platform.select({ web: { cursor: 'pointer' } }),
-                      ]}
-                      onPress={() => {
-                        state.setCategoryFilter(c.id);
-                        state.setCurrentPage(1);
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.smallPillText,
-                          { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                          isActive && { fontWeight: TYPOGRAPHY.weights.semibold },
-                        ]}
-                      >
-                        {c.label}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
+            {/* Periodic Matrix Table */}
+            <View style={[styles.periodicTableContainer, { borderColor: colors.border }]}>
+              <View style={[styles.periodicTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderBottomColor: colors.border }]}>
+                <Text style={[styles.periodicThCell, { flex: 1.5, color: colors.textMuted }]}>INTERVAL / PERIOD</Text>
+                <Text style={[styles.periodicThCell, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>APPLICATIONS</Text>
+                <Text style={[styles.periodicThCell, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>APPROVED</Text>
+                <Text style={[styles.periodicThCell, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>IN REVIEW</Text>
+                <Text style={[styles.periodicThCell, { flex: 1, textAlign: 'center', color: colors.textMuted }]}>RETURNED</Text>
+                <Text style={[styles.periodicThCell, { flex: 1.2, textAlign: 'center', color: colors.textMuted }]}>SLA COMPLIANCE</Text>
+                <Text style={[styles.periodicThCell, { flex: 1.5, textAlign: 'right', color: colors.textMuted }]}>REVENUE (₱)</Text>
+                <Text style={[styles.periodicThCell, { flex: 1, textAlign: 'right', color: colors.textMuted }]}>CSAT</Text>
               </View>
-            )}
-          </View>
 
-          {/* Search Bar */}
-          <View style={styles.searchContainer}>
-            <SearchBar
-              value={state.searchQuery}
-              onChangeText={(text) => {
-                state.setSearchQuery(text);
-                state.setCurrentPage(1);
-              }}
-              placeholder="Search by Reference #, Applicant Name, Service Category, or Keyword..."
-            />
-          </View>
-        </AnimatedCard>
+              {state.periodicStatistics.map((b, idx) => (
+                <View
+                  key={b.id}
+                  style={[
+                    styles.periodicTableRow,
+                    { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                    idx === state.periodicStatistics.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  <Text style={[styles.periodicTdCell, { flex: 1.5, color: colors.text, fontWeight: TYPOGRAPHY.weights.semibold }]}>
+                    {b.label}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1, textAlign: 'center', color: colors.text }]}>
+                    {b.totalApplications}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1, textAlign: 'center', color: COLORS.semantic.success }]}>
+                    {b.approvedCount}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1, textAlign: 'center', color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                    {b.evaluatingCount}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1, textAlign: 'center', color: b.returnedCount > 0 ? COLORS.semantic.error : colors.textMuted }]}>
+                    {b.returnedCount}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1.2, textAlign: 'center', color: COLORS.semantic.success, fontWeight: TYPOGRAPHY.weights.bold }]}>
+                    {b.approvalRate}%
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1.5, textAlign: 'right', color: colors.text, fontWeight: TYPOGRAPHY.weights.bold }]}>
+                    {formatCurrency(b.totalRevenue)}
+                  </Text>
+                  <Text style={[styles.periodicTdCell, { flex: 1, textAlign: 'right', color: COLORS.semantic.warning }]}>
+                    {b.avgCsat} ★
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </AnimatedCard>
+        )}
 
         {/* ── Content Table Area ── */}
         {state.isLoading && (
@@ -669,10 +1087,122 @@ export function ReportsScreen() {
             })}
           </AnimatedCard>
         )}
+
+        {/* Tab 5: National Government Statutory Submissions */}
+        {!state.isLoading && state.reportType === 'statutory' && (
+          <View style={styles.statutoryContainer}>
+            {/* Regional Tenant Context Banner */}
+            <AnimatedCard style={[styles.tenantBannerCard, { backgroundColor: isDark ? colors.neutral[900] : '#F0FDF4', borderColor: isDark ? colors.neutral[700] : '#BBF7D0' }]}>
+              <View style={styles.tenantBannerHeader}>
+                <View style={[styles.tenantFlagBox, { backgroundColor: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                  <Lucide name="award" size={18} color="#FFFFFF" />
+                </View>
+                <View style={styles.tenantBannerTextColumn}>
+                  <Text style={[styles.tenantBannerTitle, { color: colors.text }]}>
+                    {state.tenantDisplayName} • Statutory Submissions
+                  </Text>
+                  <Text style={[styles.tenantBannerSubtitle, { color: colors.textMuted }]}>
+                    Official regulatory forms and physical/financial accomplishment filings submitted to DBM, COA, BTr, ARTA, and Central Office.
+                  </Text>
+                </View>
+              </View>
+            </AnimatedCard>
+
+            {/* Grid of 6 Statutory Reports */}
+            <View style={styles.statutoryGrid}>
+              {state.statutoryReports.map((rep: StatutoryReportSummary, index: number) => {
+                const meta = rep.metadata;
+                return (
+                  <AnimatedCard
+                    key={meta.code}
+                    delay={index * 30}
+                    style={[styles.statutoryCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+                  >
+                    {/* Top Agency & Code Row */}
+                    <View style={styles.statutoryTopRow}>
+                      <View style={[styles.agencyBadge, { backgroundColor: `${meta.badgeColor}18`, borderColor: `${meta.badgeColor}40` }]}>
+                        <Text style={[styles.agencyBadgeText, { color: meta.badgeColor }]}>{meta.agency}</Text>
+                      </View>
+                      <View style={[styles.frequencyPill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Text style={[styles.frequencyPillText, { color: colors.textMuted }]}>{meta.frequency}</Text>
+                      </View>
+                    </View>
+
+                    {/* Code & Title */}
+                    <Text style={[styles.statutoryCodeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                      {meta.code}
+                    </Text>
+                    <Text style={[styles.statutoryCardTitle, { color: colors.text }]}>{meta.title}</Text>
+                    <Text style={[styles.statutoryCardSub, { color: colors.textMuted }]}>{meta.description}</Text>
+
+                    {/* Legal Authority Footnote */}
+                    <View style={[styles.legalFootnoteRow, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
+                      <Lucide name="shield" size={12} color={colors.textMuted} />
+                      <Text style={[styles.legalFootnoteText, { color: colors.textMuted }]} numberOfLines={1}>
+                        {meta.legalBasis}
+                      </Text>
+                    </View>
+
+                    {/* Live Metrics Chips */}
+                    <View style={styles.metricsChipRow}>
+                      <View style={styles.chipItem}>
+                        <Text style={[styles.chipLabel, { color: colors.textMuted }]}>Records</Text>
+                        <Text style={[styles.chipVal, { color: colors.text }]}>{rep.recordCount}</Text>
+                      </View>
+                      <View style={styles.chipItem}>
+                        <Text style={[styles.chipLabel, { color: colors.textMuted }]}>Compliance</Text>
+                        <Text style={[styles.chipVal, { color: COLORS.semantic.success }]}>{rep.complianceRate}%</Text>
+                      </View>
+                      {rep.totalAmount !== undefined && (
+                        <View style={styles.chipItem}>
+                          <Text style={[styles.chipLabel, { color: colors.textMuted }]}>Collections</Text>
+                          <Text style={[styles.chipVal, { color: COLORS.semantic.warning }]}>
+                            ₱{rep.totalAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
+
+                    {/* Card Actions */}
+                    <View style={[styles.statutoryActionsRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        fullWidth={false}
+                        leftIcon={<Lucide name="eye" size={13} color={colors.text} />}
+                        onPress={() => state.handleOpenStatutoryModal(meta)}
+                      >
+                        Preview Form
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        fullWidth={false}
+                        leftIcon={<Lucide name="download" size={13} color={colors.text} />}
+                        onPress={() => state.handleDownloadStatutoryCsv(meta.code)}
+                      >
+                        CSV
+                      </Button>
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        fullWidth={false}
+                        leftIcon={<Lucide name="printer" size={13} color="#FFFFFF" />}
+                        onPress={() => state.handlePrintStatutoryReport(meta)}
+                      >
+                        Print Form
+                      </Button>
+                    </View>
+                  </AnimatedCard>
+                );
+              })}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
-      {/* ── Sticky Floating Glassmorphism Pagination Bar ── */}
-      {state.totalPages > 1 && (
+      {/* ── Sticky Floating Glassmorphism Pagination Bar (when in standard tabular modes) ── */}
+      {state.reportType !== 'statutory' && state.totalPages > 1 && (
         <View style={styles.floatingPaginationOverlay} pointerEvents="box-none">
           <View
             style={[
@@ -724,6 +1254,18 @@ export function ReportsScreen() {
           </View>
         </View>
       )}
+
+      {/* Statutory Report In-App Preview & Export Modal */}
+      <StatutoryReportPreviewModal
+        visible={state.statutoryModal.visible}
+        report={state.statutoryModal.report}
+        tenantName={state.tenantDisplayName}
+        period={state.selectedPeriod}
+        applications={state.filteredApplications}
+        transactions={state.filteredTransactions}
+        feedback={state.filteredFeedback}
+        onClose={state.handleCloseStatutoryModal}
+      />
     </View>
   );
 }
@@ -872,6 +1414,77 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
   },
+  periodicChartContainer: {
+    height: 120,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING[12],
+    paddingBottom: SPACING[8],
+    paddingTop: SPACING[16],
+    gap: SPACING[8],
+  },
+  periodicBarCol: {
+    flex: 1,
+    alignItems: 'center',
+    height: '100%',
+    justifyContent: 'flex-end',
+    gap: 4,
+  },
+  periodicBarVal: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  periodicBarTrack: {
+    width: '100%',
+    maxWidth: 28,
+    flex: 1,
+    borderRadius: 4,
+    justifyContent: 'flex-end',
+    overflow: 'hidden',
+  },
+  periodicBarFill: {
+    width: '100%',
+    borderRadius: 4,
+  },
+  periodicBarLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  periodicTableContainer: {
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    overflow: 'hidden',
+    marginTop: SPACING[4],
+  },
+  periodicTableHeader: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
+  },
+  periodicThCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  periodicTableRow: {
+    flexDirection: 'row',
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
+    alignItems: 'center',
+  },
+  periodicTdCell: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+  },
   toolbarCard: {
     padding: SPACING[16],
     borderRadius: RADIUS.card,
@@ -896,6 +1509,38 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  periodGranularityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    flexWrap: 'wrap',
+  },
+  periodModeBtnGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    flexWrap: 'wrap',
+  },
+  periodModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+  },
+  periodModeBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  granularSubGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    flexWrap: 'wrap',
   },
   filterControlsRow: {
     gap: SPACING[10],
@@ -1033,5 +1678,134 @@ const styles = StyleSheet.create({
   paginationInfo: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
+  },
+  statutoryContainer: {
+    gap: SPACING[16],
+  },
+  tenantBannerCard: {
+    padding: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    ...SHADOWS.card,
+  },
+  tenantBannerHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+  },
+  tenantFlagBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  tenantBannerTextColumn: {
+    flex: 1,
+  },
+  tenantBannerTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  tenantBannerSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  statutoryGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: SPACING[16],
+  },
+  statutoryCard: {
+    flex: 1,
+    minWidth: 380,
+    padding: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    gap: SPACING[10],
+    ...SHADOWS.card,
+  },
+  statutoryTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  agencyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  agencyBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  frequencyPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.sm,
+  },
+  frequencyPillText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  statutoryCodeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  statutoryCardTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    marginTop: -4,
+  },
+  statutoryCardSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  legalFootnoteRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: SPACING[8],
+    borderRadius: RADIUS.sm,
+  },
+  legalFootnoteText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    flex: 1,
+  },
+  metricsChipRow: {
+    flexDirection: 'row',
+    gap: SPACING[12],
+    marginVertical: 2,
+  },
+  chipItem: {
+    gap: 1,
+  },
+  chipLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    textTransform: 'uppercase',
+  },
+  chipVal: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  statutoryActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: SPACING[8],
+    paddingTop: SPACING[12],
+    borderTopWidth: 1,
   },
 });

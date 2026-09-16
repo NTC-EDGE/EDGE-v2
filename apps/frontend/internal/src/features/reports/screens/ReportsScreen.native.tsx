@@ -24,9 +24,12 @@ import {
 import {
   useReportsState,
   ReportType,
+  PeriodMode,
   TimeRangeFilter,
 } from '../hooks/useReportsState';
 import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
+import { StatutoryReportPreviewModal } from '../components/StatutoryReportPreviewModal';
+import { StatutoryReportSummary } from '../types/statutoryReports';
 
 type FeatherIconName = React.ComponentProps<typeof Lucide>['name'];
 
@@ -35,7 +38,24 @@ const REPORT_TABS: Array<{ id: ReportType; label: string; icon: FeatherIconName 
   { id: 'financial', label: 'Finance', icon: 'dollar-sign' },
   { id: 'compliance', label: 'SLA', icon: 'shield' },
   { id: 'satisfaction', label: 'CSAT', icon: 'star' },
+  { id: 'statutory', label: 'Govt Forms', icon: 'book' },
 ];
+
+const PERIOD_MODES: Array<{ id: PeriodMode; label: string; icon: FeatherIconName }> = [
+  { id: 'monthly', label: 'Monthly', icon: 'calendar' },
+  { id: 'quarterly', label: 'Quarterly', icon: 'pie-chart' },
+  { id: 'yearly', label: 'Yearly', icon: 'bar-chart-2' },
+  { id: 'rolling', label: 'Rolling', icon: 'clock' },
+];
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const QUARTERS = [
+  { q: 1, label: 'Q1' },
+  { q: 2, label: 'Q2' },
+  { q: 3, label: 'Q3' },
+  { q: 4, label: 'Q4' },
+];
+const YEARS = [2024, 2025, 2026];
 
 const TIME_RANGES: Array<{ id: TimeRangeFilter; label: string }> = [
   { id: '7d', label: '7D' },
@@ -138,39 +158,6 @@ export function ReportsScreen() {
           }
         />
 
-        {/* KPI Mini Grid */}
-        <View style={styles.statsGrid}>
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: colors.textMuted }]}>Volume</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.totalApps}</Text>
-            <Text style={[styles.statSub, { color: COLORS.semantic.success }]}>
-              {state.stats.approvedCount} Approved
-            </Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: COLORS.semantic.success }]}>Compliance</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.approvalRate}%</Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>SLA Rate</Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: COLORS.semantic.warningText }]}>Revenue</Text>
-            <Text style={[styles.statValue, { color: colors.text, fontSize: 16 }]}>
-              {formatCurrency(state.stats.totalCollected)}
-            </Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>Collected</Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: colors.textMuted }]}>CSAT</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.avgCsat} ★</Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>
-              {state.stats.csatTotal} Feedbacks
-            </Text>
-          </AnimatedCard>
-        </View>
-
         {/* Controls Card */}
         <AnimatedCard style={[styles.controlsCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
           {/* Main Tab Switcher */}
@@ -211,38 +198,177 @@ export function ReportsScreen() {
             })}
           </View>
 
-          {/* Time Range Pills */}
-          <View style={styles.rangeRow}>
-            {TIME_RANGES.map((t) => {
-              const isActive = state.timeRange === t.id;
-              return (
-                <Pressable
-                  key={t.id}
-                  style={[
-                    styles.pill,
-                    { borderColor: colors.border },
-                    isActive && {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                      borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                    },
-                  ]}
-                  onPress={() => {
-                    state.setTimeRange(t.id);
-                    state.setCurrentPage(1);
-                  }}
-                >
-                  <Text
+          {/* Period Mode Switcher (When not in statutory tab) */}
+          {state.reportType !== 'statutory' && (
+            <View style={styles.rangeRow}>
+              {PERIOD_MODES.map((pm) => {
+                const isActive = state.periodMode === pm.id;
+                return (
+                  <Pressable
+                    key={pm.id}
                     style={[
-                      styles.pillText,
-                      { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      styles.pill,
+                      { borderColor: colors.border },
+                      isActive && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
                     ]}
+                    onPress={() => {
+                      state.setPeriodMode(pm.id);
+                      state.setCurrentPage(1);
+                    }}
                   >
-                    {t.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+                    <Text
+                      style={[
+                        styles.pillText,
+                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      ]}
+                    >
+                      {pm.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {/* Granular Sub-Filters */}
+          {state.reportType !== 'statutory' && state.periodMode === 'monthly' && (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subFilterScroll}>
+              {MONTHS.map((m, idx) => {
+                const isActive = state.selectedMonth === idx;
+                return (
+                  <Pressable
+                    key={m}
+                    style={[
+                      styles.miniPill,
+                      { borderColor: colors.border },
+                      isActive && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      state.setSelectedMonth(idx);
+                      state.setCurrentPage(1);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.miniPillText,
+                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      ]}
+                    >
+                      {m}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          )}
+
+          {state.reportType !== 'statutory' && state.periodMode === 'quarterly' && (
+            <View style={styles.rangeRow}>
+              {QUARTERS.map((qObj) => {
+                const isActive = state.selectedQuarter === qObj.q;
+                return (
+                  <Pressable
+                    key={qObj.q}
+                    style={[
+                      styles.pill,
+                      { borderColor: colors.border },
+                      isActive && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      state.setSelectedQuarter(qObj.q);
+                      state.setCurrentPage(1);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      ]}
+                    >
+                      {qObj.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {state.reportType !== 'statutory' && state.periodMode === 'yearly' && (
+            <View style={styles.rangeRow}>
+              {YEARS.map((yr) => {
+                const isActive = state.selectedYear === yr;
+                return (
+                  <Pressable
+                    key={yr}
+                    style={[
+                      styles.pill,
+                      { borderColor: colors.border },
+                      isActive && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      state.setSelectedYear(yr);
+                      state.setCurrentPage(1);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      ]}
+                    >
+                      {yr}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
+
+          {state.reportType !== 'statutory' && state.periodMode === 'rolling' && (
+            <View style={styles.rangeRow}>
+              {TIME_RANGES.map((t) => {
+                const isActive = state.timeRange === t.id;
+                return (
+                  <Pressable
+                    key={t.id}
+                    style={[
+                      styles.pill,
+                      { borderColor: colors.border },
+                      isActive && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                      },
+                    ]}
+                    onPress={() => {
+                      state.setTimeRange(t.id);
+                      state.setCurrentPage(1);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.pillText,
+                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                      ]}
+                    >
+                      {t.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
           {/* Search Bar */}
           <SearchBar
@@ -254,6 +380,39 @@ export function ReportsScreen() {
             placeholder="Search records..."
           />
         </AnimatedCard>
+
+        {/* KPI Mini Grid */}
+        <View style={styles.statsGrid}>
+          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <Text style={[styles.statTag, { color: colors.textMuted }]}>Volume</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.totalApps}</Text>
+            <Text style={[styles.statSub, { color: COLORS.semantic.success }]}>
+              {state.stats.approvedCount} Approved
+            </Text>
+          </AnimatedCard>
+
+          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <Text style={[styles.statTag, { color: COLORS.semantic.success }]}>Compliance</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.approvalRate}%</Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>SLA Rate</Text>
+          </AnimatedCard>
+
+          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <Text style={[styles.statTag, { color: COLORS.semantic.warningText }]}>Revenue</Text>
+            <Text style={[styles.statValue, { color: colors.text, fontSize: 16 }]}>
+              {formatCurrency(state.stats.totalCollected)}
+            </Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>Collected</Text>
+          </AnimatedCard>
+
+          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+            <Text style={[styles.statTag, { color: colors.textMuted }]}>CSAT</Text>
+            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.avgCsat} ★</Text>
+            <Text style={[styles.statSub, { color: colors.textMuted }]}>
+              {state.stats.csatTotal} Feedbacks
+            </Text>
+          </AnimatedCard>
+        </View>
 
         {/* Content Area */}
         {state.isLoading && (
@@ -377,8 +536,73 @@ export function ReportsScreen() {
             );
           })}
 
+        {/* Statutory Government Submissions List */}
+        {!state.isLoading && state.reportType === 'statutory' &&
+          state.statutoryReports.map((rep: StatutoryReportSummary, index: number) => {
+            const meta = rep.metadata;
+            return (
+              <AnimatedCard
+                key={meta.code}
+                delay={index * 25}
+                style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+              >
+                <View style={styles.cardTopRow}>
+                  <Text style={[styles.itemRef, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                    {meta.code}
+                  </Text>
+                  <View
+                    style={[
+                      styles.badge,
+                      { backgroundColor: `${meta.badgeColor}18`, borderColor: `${meta.badgeColor}40` },
+                    ]}
+                  >
+                    <Text style={[styles.badgeText, { color: meta.badgeColor }]}>
+                      {meta.frequency}
+                    </Text>
+                  </View>
+                </View>
+
+                <Text style={[styles.itemTitle, { color: colors.text }]}>{meta.title}</Text>
+                <Text style={[styles.itemSub, { color: colors.textMuted }]}>{meta.agency}</Text>
+                <Text style={[styles.itemSub, { color: COLORS.semantic.success, marginTop: 2 }]}>
+                  {rep.recordCount} Records • {rep.complianceRate}% Compliance
+                </Text>
+
+                <View style={styles.cardBottomRow}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    fullWidth={false}
+                    leftIcon={<Lucide name="eye" size={11} color={colors.text} />}
+                    onPress={() => state.handleOpenStatutoryModal(meta)}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    fullWidth={false}
+                    leftIcon={<Lucide name="download" size={11} color={colors.text} />}
+                    onPress={() => state.handleDownloadStatutoryCsv(meta.code)}
+                  >
+                    CSV
+                  </Button>
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    fullWidth={false}
+                    leftIcon={<Lucide name="printer" size={11} color="#FFFFFF" />}
+                    onPress={() => state.handlePrintStatutoryReport(meta)}
+                  >
+                    Print
+                  </Button>
+                </View>
+              </AnimatedCard>
+            );
+          })}
+
         {/* Native Pagination Controls */}
-        {state.totalPages > 1 && (
+        {state.reportType !== 'statutory' && state.totalPages > 1 && (
           <View style={styles.paginationRow}>
             <Button
               variant="outline"
@@ -402,6 +626,18 @@ export function ReportsScreen() {
           </View>
         )}
       </ScrollView>
+
+      {/* Statutory Report In-App Preview & Export Modal */}
+      <StatutoryReportPreviewModal
+        visible={state.statutoryModal.visible}
+        report={state.statutoryModal.report}
+        tenantName={state.tenantDisplayName}
+        period={state.selectedPeriod}
+        applications={state.filteredApplications}
+        transactions={state.filteredTransactions}
+        feedback={state.filteredFeedback}
+        onClose={state.handleCloseStatutoryModal}
+      />
     </SafeAreaView>
   );
 }
@@ -477,6 +713,21 @@ const styles = StyleSheet.create({
   },
   pillText: {
     fontSize: 11,
+    fontWeight: '500',
+  },
+  subFilterScroll: {
+    flexDirection: 'row',
+    gap: 6,
+    paddingVertical: 2,
+  },
+  miniPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+  },
+  miniPillText: {
+    fontSize: 10,
     fontWeight: '500',
   },
   loadingStack: {
