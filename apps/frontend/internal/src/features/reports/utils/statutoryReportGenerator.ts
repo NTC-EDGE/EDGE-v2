@@ -1,4 +1,3 @@
-import { Platform } from 'react-native';
 import {
   StatutoryReportCode,
   StatutoryReportMetadata,
@@ -205,7 +204,7 @@ export function generateStatutoryCsv(
 }
 
 export function downloadCsvFile(content: string, filename: string): void {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -480,7 +479,7 @@ export function generateStatutoryPrintableHtml(
 }
 
 export function openPrintableReportWindow(htmlContent: string): void {
-  if (Platform.OS === 'web' && typeof window !== 'undefined') {
+  if (typeof window !== 'undefined') {
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.open();

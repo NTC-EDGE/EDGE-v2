@@ -58,5 +58,6 @@ public static class EndpointConfiguration
         apiV2Group.MapSystemErrorLogEndpoints();
         apiV2Group.MapDocumentTypeEndpoints();
         apiV2Group.MapServiceInformationEndpoints();
+        apiV2Group.MapReportEndpoints();
     }
 }
