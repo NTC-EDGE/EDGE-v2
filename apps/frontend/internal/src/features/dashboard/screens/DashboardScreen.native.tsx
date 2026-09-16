@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import {
   StyleSheet,
   View,
@@ -8,18 +8,97 @@ import {
   TouchableOpacity,
   Pressable,
 } from "react-native";
-import { TYPOGRAPHY, useTheme, Icon as Lucide, AnimatedCard } from "@edge/ui";
+import { TYPOGRAPHY, useTheme, Icon as Lucide, AnimatedCard, SkeletonLoader } from "@edge/ui";
 import { useRole } from "../../shell/context/RoleContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
 import { MetricCard } from "../components/MetricCard";
+import { useAdminApplications } from "@edge/api";
+import { openQueueApplication } from "../../queue/data/internalApplicationNavigationHelper";
+import { useAppNavigation } from "../../../navigation/types";
 
 export type TimeRangeOption = "7days" | "30days" | "year";
 
+function formatRelativeTime(dateStr?: string | null): string {
+  if (dateStr === null || dateStr === undefined || dateStr.trim().length === 0) {
+    return 'Just now';
+  }
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'Recently';
+  }
+}
+
 export function DashboardScreen(): React.ReactElement {
   const { currentRole } = useRole();
+  const { user } = useAuthContext();
+  const navigation = useAppNavigation();
   const { colors, isDark } = useTheme();
 
   const [timeRange, setTimeRange] = useState<TimeRangeOption>("7days");
   const timeRangeOptions: readonly TimeRangeOption[] = ["7days", "30days", "year"];
+
+  // Live applications and statistics
+  const { applications, statistics, isLoading, isError } = useAdminApplications({
+    scope: 'queue',
+    pageSize: 10,
+  });
+
+  const pendingCount = statistics?.evaluatingCount !== undefined
+    ? statistics.evaluatingCount
+    : applications.filter((a) => a.status === 'Submitted' || a.status === 'Evaluating').length;
+
+  const approvedCount = statistics?.approvedCount !== undefined
+    ? statistics.approvedCount
+    : applications.filter((a) => a.status === 'Approved').length;
+
+  const returnedCount = statistics?.returnedCount !== undefined
+    ? statistics.returnedCount
+    : applications.filter((a) => a.status === 'Returned').length;
+
+  const completedCount = statistics?.completedCount !== undefined
+    ? statistics.completedCount
+    : applications.filter((a) => a.status === 'Completed').length;
+
+  const chartBars = useMemo(() => {
+    const counts = [0, 0, 0, 0, 0];
+    for (let i = 0; i < applications.length; i++) {
+      const idx = i % 5;
+      counts[idx] = counts[idx] + 1;
+    }
+    const max = Math.max(...counts, 1);
+    return counts.map((count, i) => ({
+      count,
+      h: Math.max(24, Math.min(110, Math.round((count / max) * 90) + 20)),
+      color: i % 2 === 0 ? colors.brand[600] : colors.semantic.success,
+    }));
+  }, [applications, colors]);
+
+  const handleInspect = (appId: string) => {
+    openQueueApplication(appId);
+    try {
+      navigation.navigate('Activities');
+    } catch {
+      // Fallback
+    }
+  };
+
+  const handleReviewNext = () => {
+    const nextPending = applications.find(
+      (a) => a.status === 'Submitted' || a.status === 'Evaluating'
+    ) ?? applications[0];
+
+    if (nextPending !== undefined && nextPending !== null) {
+      handleInspect(nextPending.id);
+    } else {
+      try {
+        navigation.navigate('Activities');
+      } catch {
+        // Fallback
+      }
+    }
+  };
 
   return (
     <SafeAreaView style={[styles.nativeSafeArea, { backgroundColor: colors.bg }]}>
@@ -39,55 +118,69 @@ export function DashboardScreen(): React.ReactElement {
             MOBILE DASHBOARD • COCKPIT
           </Text>
           <Text style={[styles.mobileTitle, { color: colors.text }]}>
-            {currentRole} Workspace
+            {user?.name ?? currentRole} Workspace
           </Text>
           <Text style={[styles.mobileSubtitle, { color: colors.textMuted }]}>
-            Queue summary, analytics velocity & system telemetry
+            {user?.tenantName ? `${user.tenantName} Office • ` : ''}Queue summary, analytics velocity & system telemetry
           </Text>
         </View>
 
         {/* 4 KPI Metric Cards Stack */}
         <View style={styles.kpiGrid}>
-          <MetricCard
-            title="Pending Evaluation"
-            value={124}
-            iconName="file-text"
-            iconColor={colors.semantic.warning}
-            iconBgColor={colors.semantic.warningBg}
-            trendText="+8%"
-            trendType="warning"
-            delay={0}
-          />
-          <MetricCard
-            title="Approved Licenses"
-            value={852}
-            iconName="check-circle"
-            iconColor={colors.semantic.success}
-            iconBgColor={colors.semantic.successBg}
-            trendText="+14%"
-            trendType="success"
-            delay={80}
-          />
-          <MetricCard
-            title="Rejected Compliance"
-            value={42}
-            iconName="alert-triangle"
-            iconColor={colors.semantic.error}
-            iconBgColor={colors.semantic.errorBg}
-            trendText="-3%"
-            trendType="error"
-            delay={160}
-          />
-          <MetricCard
-            title="Total Completed"
-            value={710}
-            iconName="grid"
-            iconColor={isDark ? colors.brand.primary : colors.brand.secondary}
-            iconBgColor={isDark ? colors.neutral[800] : colors.brand.light}
-            trendText="+18%"
-            trendType="info"
-            delay={240}
-          />
+          {isLoading && applications.length === 0 ? (
+            [0, 1, 2, 3].map((i) => (
+              <AnimatedCard key={i} padding={16} style={styles.sectionCard}>
+                <SkeletonLoader height={20} width={40} borderRadius={4} />
+                <View style={{ height: 6 }} />
+                <SkeletonLoader height={24} width={70} borderRadius={4} />
+                <View style={{ height: 4 }} />
+                <SkeletonLoader height={12} width={110} borderRadius={4} />
+              </AnimatedCard>
+            ))
+          ) : (
+            <>
+              <MetricCard
+                title="Pending Evaluation"
+                value={pendingCount}
+                iconName="file-text"
+                iconColor={colors.semantic.warning}
+                iconBgColor={colors.semantic.warningBg}
+                trendText="Live"
+                trendType="warning"
+                delay={0}
+              />
+              <MetricCard
+                title="Approved Licenses"
+                value={approvedCount}
+                iconName="check-circle"
+                iconColor={colors.semantic.success}
+                iconBgColor={colors.semantic.successBg}
+                trendText="Live"
+                trendType="success"
+                delay={80}
+              />
+              <MetricCard
+                title="Rejected / Returned"
+                value={returnedCount}
+                iconName="alert-triangle"
+                iconColor={colors.semantic.error}
+                iconBgColor={colors.semantic.errorBg}
+                trendText="Sync"
+                trendType="error"
+                delay={160}
+              />
+              <MetricCard
+                title="Total Completed"
+                value={completedCount}
+                iconName="grid"
+                iconColor={isDark ? colors.brand.primary : colors.brand.secondary}
+                iconBgColor={isDark ? colors.neutral[800] : colors.brand.light}
+                trendText="Live"
+                trendType="info"
+                delay={240}
+              />
+            </>
+          )}
         </View>
 
         {/* Velocity Chart Card */}
@@ -148,14 +241,21 @@ export function DashboardScreen(): React.ReactElement {
             ]}
           >
             <View style={styles.chartBarRow}>
-              <View style={[styles.chartBar, { height: 70, backgroundColor: colors.brand[600] }]} />
-              <View style={[styles.chartBar, { height: 100, backgroundColor: colors.semantic.success }]} />
-              <View style={[styles.chartBar, { height: 50, backgroundColor: colors.semantic.warning }]} />
-              <View style={[styles.chartBar, { height: 110, backgroundColor: colors.brand[600] }]} />
-              <View style={[styles.chartBar, { height: 85, backgroundColor: colors.semantic.success }]} />
+              {chartBars.map((b, i) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.chartBar,
+                    {
+                      height: b.h,
+                      backgroundColor: b.color,
+                    },
+                  ]}
+                />
+              ))}
             </View>
             <Text style={[styles.chartCaption, { color: colors.textMuted }]}>
-              Mobile Command Velocity Stream • NCR Head Office
+              {user?.tenantName ?? 'Regional'} Command Velocity Stream
             </Text>
           </View>
         </AnimatedCard>
@@ -164,46 +264,40 @@ export function DashboardScreen(): React.ReactElement {
         <AnimatedCard delay={400} padding={16} style={styles.sectionCard}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Live Activity Stream</Text>
           <View style={styles.activityList}>
-            <View style={styles.activityItem}>
-              <View style={[styles.activityDot, { backgroundColor: colors.semantic.success }]} />
-              <View style={styles.activityText}>
-                <Text style={[styles.activityTitle, { color: colors.text }]}>
-                  Application #APP-2026-0521 Approved
-                </Text>
-                <Text style={[styles.activityTime, { color: colors.textMuted }]}>
-                  10:24 AM by Juan Dela Cruz
-                </Text>
-              </View>
-            </View>
+            {applications.length === 0 && !isLoading ? (
+              <Text style={[styles.sectionSubtitle, { color: colors.textMuted, marginTop: 4 }]}>
+                No recent activity records.
+              </Text>
+            ) : (
+              applications.slice(0, 3).map((app) => {
+                const statusDot = app.status === 'Approved'
+                  ? colors.semantic.success
+                  : app.status === 'Returned'
+                  ? colors.semantic.error
+                  : colors.semantic.warning;
 
-            <View style={styles.activityItem}>
-              <View style={[styles.activityDot, { backgroundColor: colors.semantic.warning }]} />
-              <View style={styles.activityText}>
-                <Text style={[styles.activityTitle, { color: colors.text }]}>
-                  New Accreditation Submitted
-                </Text>
-                <Text style={[styles.activityTime, { color: colors.textMuted }]}>
-                  09:45 AM by RuralNet ISP
-                </Text>
-              </View>
-            </View>
+                const applicantName = app.filingUser?.name ?? app.filingUser?.company?.name ?? 'Applicant';
+                const appNumber = app.applicationNumber ?? app.referenceNumber ?? app.id.slice(0, 8);
 
-            <View style={styles.activityItem}>
-              <View
-                style={[
-                  styles.activityDot,
-                  { backgroundColor: isDark ? colors.brand.primary : colors.brand.secondary },
-                ]}
-              />
-              <View style={styles.activityText}>
-                <Text style={[styles.activityTitle, { color: colors.text }]}>
-                  Role Policy Updated
-                </Text>
-                <Text style={[styles.activityTime, { color: colors.textMuted }]}>
-                  08:15 AM by System Admin
-                </Text>
-              </View>
-            </View>
+                return (
+                  <TouchableOpacity
+                    key={app.id}
+                    onPress={() => handleInspect(app.id)}
+                    style={styles.activityItem}
+                  >
+                    <View style={[styles.activityDot, { backgroundColor: statusDot }]} />
+                    <View style={styles.activityText}>
+                      <Text style={[styles.activityTitle, { color: colors.text }]}>
+                        {appNumber} — {app.status}
+                      </Text>
+                      <Text style={[styles.activityTime, { color: colors.textMuted }]}>
+                        {formatRelativeTime(app.createdAt)} by {applicantName}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                );
+              })
+            )}
           </View>
         </AnimatedCard>
 
@@ -212,6 +306,7 @@ export function DashboardScreen(): React.ReactElement {
           <View style={styles.actionsInner}>
             <Text style={[styles.actionsTitle, { color: colors.textMuted }]}>QUICK ACTIONS</Text>
             <TouchableOpacity
+              onPress={handleReviewNext}
               style={[
                 styles.actionBtn,
                 {
@@ -232,6 +327,7 @@ export function DashboardScreen(): React.ReactElement {
             </TouchableOpacity>
 
             <TouchableOpacity
+              onPress={() => navigation.navigate('Activities')}
               style={[
                 styles.actionBtn,
                 {
@@ -243,7 +339,7 @@ export function DashboardScreen(): React.ReactElement {
             >
               <Lucide name="download" size={18} color={colors.semantic.success} />
               <Text style={[styles.actionBtnText, { color: colors.text }]}>
-                Export Daily Evaluation Summary
+                Open Full Activities Queue
               </Text>
             </TouchableOpacity>
           </View>
@@ -251,16 +347,16 @@ export function DashboardScreen(): React.ReactElement {
 
         {/* Telemetry & Spectrum Status Card */}
         <AnimatedCard delay={560} padding={16} style={styles.sectionCard}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Telemetry & Spectrum Status</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Tenant Status</Text>
           <View style={styles.telemetryList}>
             <View style={styles.telemetryRow}>
-              <Lucide name="wifi" size={18} color={colors.semantic.success} />
+              <Lucide name="wifi" size={18} color={isError ? colors.semantic.error : colors.semantic.success} />
               <View style={styles.telemetryText}>
                 <Text style={[styles.telemetryTitle, { color: colors.text }]}>
-                  Regional Frequency Band 3.5 GHz
+                  {user?.tenantName ?? 'Regional Office'}
                 </Text>
                 <Text style={[styles.telemetrySub, { color: colors.textMuted }]}>
-                  Spectrum Load: 42% Capacity
+                  {isError ? 'Connection Issue' : 'Live Sync Active (100%)'}
                 </Text>
               </View>
             </View>
@@ -276,7 +372,7 @@ export function DashboardScreen(): React.ReactElement {
                   RBAC Tenant Compliance Policy
                 </Text>
                 <Text style={[styles.telemetrySub, { color: colors.textMuted }]}>
-                  All Regional Offices Synced (100%)
+                  Role: {currentRole}
                 </Text>
               </View>
             </View>

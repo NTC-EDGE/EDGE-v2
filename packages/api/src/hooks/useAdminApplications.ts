@@ -18,6 +18,7 @@ export function useAdminApplications(
     pageSize?: number;
     searchTerm?: string;
     mode?: string;
+    tenantId?: string;
   },
   options?: UseAdminApplicationsOptions
 ) {
@@ -29,6 +30,7 @@ export function useAdminApplications(
   if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
   if (params?.searchTerm) searchParams.set('searchTerm', params.searchTerm);
   if (params?.mode) searchParams.set('mode', params.mode);
+  if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
 
   const queryString = searchParams.toString();
   const key = `/api/v2/applications${queryString ? `?${queryString}` : ''}`;

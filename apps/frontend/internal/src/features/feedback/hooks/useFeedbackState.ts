@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useAdminFeedback, apiClient } from '@edge/api';
 
-export type RatingFilterType = 'all' | '5' | '4' | 'anon';
+export type RatingFilterType = 'all' | '5' | '4' | 'critical' | 'anon';
 
 export interface DeleteModalState {
   visible: boolean;
@@ -32,6 +32,7 @@ export function useFeedbackState() {
       // Rating / Anonymous filter
       if (ratingFilter === '5' && item.rating !== 5) return false;
       if (ratingFilter === '4' && item.rating < 4) return false;
+      if (ratingFilter === 'critical' && item.rating > 2) return false;
       if (ratingFilter === 'anon' && !item.isAnonymous) return false;
 
       // Search filter
@@ -56,13 +57,14 @@ export function useFeedbackState() {
   const stats = useMemo(() => {
     const total = feedback.length;
     const anonCount = feedback.filter((f) => f.isAnonymous).length;
+    const criticalCount = feedback.filter((f) => f.rating <= 2).length;
     const avgRating =
       total > 0
         ? (feedback.reduce((sum, f) => sum + f.rating, 0) / total).toFixed(1)
         : '5.0';
     const pendingCount = feedback.filter((f) => f.status === 'Pending').length;
 
-    return { total, anonCount, avgRating, pendingCount };
+    return { total, anonCount, criticalCount, avgRating, pendingCount };
   }, [feedback]);
 
   const toggleExpand = (id: string) => {

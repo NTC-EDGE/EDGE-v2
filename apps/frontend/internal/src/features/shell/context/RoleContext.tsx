@@ -77,6 +77,8 @@ export const ROLE_NAVIGATION_LINKS = {
   'Chief of EOD': [
     { name: 'Dashboard',  screen: 'Dashboard',  icon: 'grid',           group: 'Workspace' },
     { name: 'Activities', screen: 'Activities', icon: 'activity',       group: 'Operations' },
+    { name: 'Reports',    screen: 'Reports',    icon: 'file-text',      group: 'Compliance' },
+    { name: 'Feedback',   screen: 'Feedback',   icon: 'message-circle', group: 'Communication' },
     { name: 'Chat',       screen: 'Chat',       icon: 'message-square', group: 'Communication' },
     { name: 'Meet',       screen: 'Meet',       icon: 'video',          group: 'Communication' },
   ],
@@ -84,6 +86,7 @@ export const ROLE_NAVIGATION_LINKS = {
     { name: 'Dashboard',  screen: 'Dashboard',  icon: 'grid',           group: 'Workspace' },
     { name: 'Activities', screen: 'Activities', icon: 'activity',       group: 'Operations' },
     { name: 'Reports',    screen: 'Reports',    icon: 'file-text',      group: 'Compliance' },
+    { name: 'Feedback',   screen: 'Feedback',   icon: 'message-circle', group: 'Communication' },
     { name: 'Chat',       screen: 'Chat',       icon: 'message-square', group: 'Communication' },
     { name: 'Meet',       screen: 'Meet',       icon: 'video',          group: 'Communication' },
   ],
@@ -97,6 +100,7 @@ export const ROLE_NAVIGATION_LINKS = {
   Accountant: [
     { name: 'Dashboard',          screen: 'Dashboard',        icon: 'grid',           group: 'Workspace' },
     { name: 'Activities',         screen: 'Activities',       icon: 'activity',       group: 'Operations' },
+    { name: 'Reports',            screen: 'Reports',          icon: 'file-text',      group: 'Compliance' },
     { name: 'Receipt Management', screen: 'ReceiptManagement',icon: 'file',           group: 'Operations' },
     { name: 'Chat',               screen: 'Chat',             icon: 'message-square', group: 'Communication' },
     { name: 'Meet',               screen: 'Meet',             icon: 'video',          group: 'Communication' },

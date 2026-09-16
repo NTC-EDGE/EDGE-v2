@@ -340,11 +340,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
         int pageSize = 10,
         string? searchTerm = null,
         string? mode = null,
+        Guid? tenantId = null,
+        List<Guid>? tenantIds = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Applications
             .AsNoTracking()
             .Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            baseQuery = baseQuery.Where(a => a.TenantId == tenantId.Value);
+        }
+        else if (tenantIds != null && tenantIds.Count > 0)
+        {
+            baseQuery = baseQuery.Where(a => tenantIds.Contains(a.TenantId));
+        }
 
         if (userId.HasValue || !string.IsNullOrEmpty(userEmail))
         {

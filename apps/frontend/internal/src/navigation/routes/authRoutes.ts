@@ -11,6 +11,7 @@ import { AnnouncementsScreen } from "../../features/announcements/screens/Announ
 import { AuditLogsScreen } from "../../features/audit-logs/screens/AuditLogsScreen";
 import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
 import { ScheduleScreen } from "../../features/schedule/screens/ScheduleScreen";
+import { ReportsScreen } from "../../features/reports/screens/ReportsScreen";
 import { PlaceholderScreen } from "../stacks/PlaceholderScreen";
 
 // We keep these direct references for the route config.
@@ -58,7 +59,7 @@ export const authRoutes = {
     options: { title: "Meet" },
   },
   Reports: {
-    screen: PlaceholderScreen,
+    screen: ReportsScreen,
     path: "reports",
     options: { title: "Reports" },
   },
