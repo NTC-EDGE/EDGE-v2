@@ -352,10 +352,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const res = await signUp.password({
-        emailAddress: email,
-        password,
-      });
+      const emailPrefix = (email.split("@")[0] || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase() || "staff";
+      const randomSuffix = Math.random().toString(36).substring(2, 8);
+      const safeUsername = `${emailPrefix}_${randomSuffix}`;
+
+      let res;
+      try {
+        res = await signUp.password({
+          emailAddress: email,
+          password,
+          username: safeUsername,
+        });
+      } catch {
+        res = await signUp.password({
+          emailAddress: email,
+          password,
+        });
+      }
 
       if (res.error !== null && res.error !== undefined) {
         throw res.error;

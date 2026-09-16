@@ -17,6 +17,35 @@ import { useAppNavigation } from '../../navigation';
 import { isClerkAPIResponseError } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
 
+function generateSafeUsername(firstName: string, lastName: string, email: string): string {
+  const cleanFirst = (firstName || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+  const cleanLast = (lastName || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+
+  let base = "";
+  if (cleanFirst && cleanLast) {
+    base = `${cleanFirst}_${cleanLast}`;
+  } else if (cleanFirst) {
+    base = cleanFirst;
+  } else {
+    const emailPrefix = (email.split("@")[0] || "").replace(/[^a-zA-Z0-9]/g, "").toLowerCase();
+    base = emailPrefix || "user";
+  }
+
+  if (base.length < 3) {
+    base = `${base}user`;
+  }
+
+  const randomSuffix = Math.random().toString(36).substring(2, 8);
+  let username = `${base}_${randomSuffix}`;
+  if (username.length < 4) {
+    username = `user_${randomSuffix}`;
+  }
+  if (username.length > 64) {
+    username = username.substring(0, 64);
+  }
+  return username;
+}
+
 export function SignUpScreen() {
   const navigation = useAppNavigation();
   const { signUp, setActive, isLoaded } = useSignUp();
@@ -134,20 +163,54 @@ export function SignUpScreen() {
       const parts = name.trim().split(" ");
       const firstName = parts[0] || "";
       const lastName = parts.slice(1).join(" ") || "";
+      const safeUsername = generateSafeUsername(firstName, lastName, email.trim());
 
-      await signUp.create({
-        emailAddress: email,
-        password,
-        firstName,
-        lastName,
-      });
+      let created = false;
+      try {
+        // Attempt signup with safe username (satisfies instances requiring username)
+        await signUp.create({
+          emailAddress: email.trim(),
+          password,
+          firstName,
+          lastName,
+          username: safeUsername,
+        });
+        created = true;
+      } catch (firstErr: unknown) {
+        // Fallback: If Clerk instance does not allow/recognize username, retry without username
+        if (isClerkAPIResponseError(firstErr)) {
+          const firstErrCode = firstErr.errors[0]?.code || "";
+          const firstErrMsg = (firstErr.errors[0]?.message || "").toLowerCase();
+          if (
+            firstErrCode === "form_param_unknown" ||
+            firstErrMsg.includes("unrecognized") ||
+            firstErrMsg.includes("not allowed") ||
+            firstErrMsg.includes("unknown parameter") ||
+            firstErrMsg.includes("unexpected parameter")
+          ) {
+            await signUp.create({
+              emailAddress: email.trim(),
+              password,
+              firstName,
+              lastName,
+            });
+            created = true;
+          } else {
+            throw firstErr;
+          }
+        } else {
+          throw firstErr;
+        }
+      }
 
-      if (signUp.status === 'complete') {
-        await setActive({ session: signUp.createdSessionId });
-        setSuccess(true);
-      } else {
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-        setPendingVerification(true);
+      if (created) {
+        if (signUp.status === 'complete') {
+          await setActive({ session: signUp.createdSessionId });
+          setSuccess(true);
+        } else {
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+          setPendingVerification(true);
+        }
       }
     } catch (err: unknown) {
       let errMsg = "Sign up failed. Please check your inputs.";

@@ -37,10 +37,14 @@ public class ClerkUserService : IClerkUserService
 
     public async Task<ClerkUserResponse> CreateUserAsync(CreateClerkUserPayload payload)
     {
+        var effectiveUsername = !string.IsNullOrWhiteSpace(payload.Username)
+            ? payload.Username.Trim()
+            : GenerateSafeFallbackUsername(payload.FirstName, payload.LastName, payload.EmailAddress);
+
         var requestObject = new
         {
             email_address = new[] { payload.EmailAddress },
-            username = !string.IsNullOrWhiteSpace(payload.Username) ? payload.Username : null,
+            username = effectiveUsername,
             password = payload.Password,
             first_name = payload.FirstName,
             last_name = payload.LastName,
@@ -58,10 +62,46 @@ public class ClerkUserService : IClerkUserService
         if (!response.IsSuccessStatusCode)
         {
             string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
-            _logger.LogError("Clerk create user failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
-                payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
 
-            throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+            // If Clerk rejected username (e.g. username is disabled on this Clerk instance), retry without username
+            if (errorDetails.Contains("username", StringComparison.OrdinalIgnoreCase) &&
+                (errorDetails.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) ||
+                 errorDetails.Contains("unknown", StringComparison.OrdinalIgnoreCase) ||
+                 errorDetails.Contains("not allowed", StringComparison.OrdinalIgnoreCase) ||
+                 errorDetails.Contains("form_param_unknown", StringComparison.OrdinalIgnoreCase)))
+            {
+                var fallbackRequestObject = new
+                {
+                    email_address = new[] { payload.EmailAddress },
+                    password = payload.Password,
+                    first_name = payload.FirstName,
+                    last_name = payload.LastName,
+                    public_metadata = payload.PublicMetadata,
+                    private_metadata = payload.PrivateMetadata,
+                    skip_password_checks = true
+                };
+
+                string fallbackJson = JsonSerializer.Serialize(fallbackRequestObject, RequestSerializerOptions);
+                var fallbackContent = new StringContent(fallbackJson, Encoding.UTF8, "application/json");
+                response = await _httpClient.PostAsync("users", fallbackContent);
+                responseBody = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+                    _logger.LogError("Clerk create user retry failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
+                        payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
+
+                    throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+                }
+            }
+            else
+            {
+                _logger.LogError("Clerk create user failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
+                    payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
+
+                throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+            }
         }
 
         var userResponse = JsonSerializer.Deserialize<ClerkUserResponse>(responseBody, ResponseSerializerOptions);
@@ -73,6 +113,46 @@ public class ClerkUserService : IClerkUserService
 
         _logger.LogInformation("Clerk user creation successful for user Id: {UserId}", userResponse.Id);
         return userResponse;
+    }
+
+    private static string GenerateSafeFallbackUsername(string? firstName, string? lastName, string? email)
+    {
+        var cleanFirst = new string((firstName ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        var cleanLast = new string((lastName ?? "").Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+
+        string baseName;
+        if (!string.IsNullOrWhiteSpace(cleanFirst) && !string.IsNullOrWhiteSpace(cleanLast))
+        {
+            baseName = $"{cleanFirst}_{cleanLast}";
+        }
+        else if (!string.IsNullOrWhiteSpace(cleanFirst))
+        {
+            baseName = cleanFirst;
+        }
+        else if (!string.IsNullOrWhiteSpace(email))
+        {
+            var emailPrefix = email.Split('@')[0];
+            baseName = new string(emailPrefix.Where(char.IsLetterOrDigit).ToArray()).ToLowerInvariant();
+        }
+        else
+        {
+            baseName = "user";
+        }
+
+        if (string.IsNullOrWhiteSpace(baseName) || baseName.Length < 3)
+        {
+            baseName = "user";
+        }
+
+        var randomSuffix = Guid.NewGuid().ToString("N")[..6];
+        var username = $"{baseName}_{randomSuffix}";
+
+        if (username.Length > 64)
+        {
+            username = username[..64];
+        }
+
+        return username;
     }
 
     public async Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email)
