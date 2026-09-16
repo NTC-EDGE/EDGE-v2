@@ -64,11 +64,7 @@ public class ClerkUserService : IClerkUserService
             string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
 
             // If Clerk rejected username (e.g. username is disabled on this Clerk instance), retry without username
-            if (errorDetails.Contains("username", StringComparison.OrdinalIgnoreCase) &&
-                (errorDetails.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) ||
-                 errorDetails.Contains("unknown", StringComparison.OrdinalIgnoreCase) ||
-                 errorDetails.Contains("not allowed", StringComparison.OrdinalIgnoreCase) ||
-                 errorDetails.Contains("form_param_unknown", StringComparison.OrdinalIgnoreCase)))
+            if (IsClerkUnknownParameterError(errorDetails, responseBody))
             {
                 var fallbackRequestObject = new
                 {
@@ -115,6 +111,44 @@ public class ClerkUserService : IClerkUserService
         return userResponse;
     }
 
+    /// <summary>
+    /// Evaluates whether a Clerk API error indicates that an optional parameter (such as username)
+    /// was rejected because it is not configured, unknown, or not allowed on the target Clerk instance.
+    /// Inspects both standardized Clerk error codes (e.g. form_param_unknown) and descriptive substrings.
+    /// </summary>
+    private static bool IsClerkUnknownParameterError(string errorDetails, string responseBody)
+    {
+        var combined = $"{errorDetails} {responseBody}";
+        if (string.IsNullOrWhiteSpace(combined))
+        {
+            return false;
+        }
+
+        var hasCode = combined.Contains("form_param_unknown", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("form_param_not_allowed", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("param_unknown", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("param_not_allowed", StringComparison.OrdinalIgnoreCase);
+
+        var hasMessagePattern = combined.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unknown parameter", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unexpected parameter", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("not allowed", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unknown attribute", StringComparison.OrdinalIgnoreCase);
+
+        var mentionsUsername = combined.Contains("username", StringComparison.OrdinalIgnoreCase);
+
+        return hasCode || (mentionsUsername && hasMessagePattern);
+    }
+
+    /// <summary>
+    /// Generates a safe, Clerk-compliant, collision-resistant username derived from user names or email.
+    /// Ensures username length is between 4 and 64 characters, containing only alphanumeric characters and underscores.
+    /// <para>
+    /// <strong>Parity Requirement:</strong> Any modifications to this logic (sanitization, boundary constraints,
+    /// suffix format) MUST be mirrored in the TypeScript implementation at:
+    /// <c>packages/api/src/utils/usernameUtils.ts</c> (<c>generateSafeUsername</c>).
+    /// </para>
+    /// </summary>
     public static string GenerateSafeFallbackUsername(string? firstName, string? lastName, string? email)
     {
         var cleanFirst = new string((firstName ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();

@@ -16,7 +16,7 @@ import { Logo } from '../../shared/components/Logo';
 import { useAppNavigation } from '../../navigation';
 import { isClerkAPIResponseError } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
-import { generateSafeUsername } from '@edge/api';
+import { generateSafeUsername, isClerkUnknownParamError } from '@edge/api';
 
 export function SignUpScreen() {
   const navigation = useAppNavigation();
@@ -150,26 +150,14 @@ export function SignUpScreen() {
         created = true;
       } catch (firstErr: unknown) {
         // Fallback: If Clerk instance does not allow/recognize username, retry without username
-        if (isClerkAPIResponseError(firstErr)) {
-          const firstErrCode = firstErr.errors[0]?.code || "";
-          const firstErrMsg = (firstErr.errors[0]?.message || "").toLowerCase();
-          if (
-            firstErrCode === "form_param_unknown" ||
-            firstErrMsg.includes("unrecognized") ||
-            firstErrMsg.includes("not allowed") ||
-            firstErrMsg.includes("unknown parameter") ||
-            firstErrMsg.includes("unexpected parameter")
-          ) {
-            await signUp.create({
-              emailAddress: email.trim(),
-              password,
-              firstName,
-              lastName,
-            });
-            created = true;
-          } else {
-            throw firstErr;
-          }
+        if (isClerkUnknownParamError(firstErr)) {
+          await signUp.create({
+            emailAddress: email.trim(),
+            password,
+            firstName,
+            lastName,
+          });
+          created = true;
         } else {
           throw firstErr;
         }

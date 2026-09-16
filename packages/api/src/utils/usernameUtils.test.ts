@@ -1,5 +1,5 @@
 import { describe, it, expect } from "bun:test";
-import { generateSafeUsername } from "./usernameUtils";
+import { generateSafeUsername, isClerkUnknownParamError } from "./usernameUtils";
 
 describe("generateSafeUsername", () => {
   it("should generate a valid username when first and last name are provided", () => {
@@ -65,5 +65,39 @@ describe("generateSafeUsername", () => {
   it("should only contain lowercase alphanumeric characters and underscores", () => {
     const username = generateSafeUsername("Élizabeth 123!", "D'Souza-Smith #456", "test@domain.com");
     expect(username).toMatch(/^[a-z0-9_]+$/);
+  });
+});
+
+describe("isClerkUnknownParamError", () => {
+  it("should return true for Clerk API error object with form_param_unknown code", () => {
+    const error = {
+      errors: [{ code: "form_param_unknown", message: "Parameter is not recognized" }],
+    };
+    expect(isClerkUnknownParamError(error)).toBe(true);
+  });
+
+  it("should return true for Clerk API error object with unrecognized message", () => {
+    const error = {
+      errors: [{ code: "custom_code", message: "unrecognized parameter: username" }],
+    };
+    expect(isClerkUnknownParamError(error)).toBe(true);
+  });
+
+  it("should return true for standard Error instance with not allowed message", () => {
+    const error = new Error("Parameter username is not allowed for this instance");
+    expect(isClerkUnknownParamError(error)).toBe(true);
+  });
+
+  it("should return false for unrelated errors like incorrect password", () => {
+    const error = {
+      errors: [{ code: "form_password_incorrect", message: "Incorrect password" }],
+    };
+    expect(isClerkUnknownParamError(error)).toBe(false);
+  });
+
+  it("should return false for non-error primitives or null", () => {
+    expect(isClerkUnknownParamError(null)).toBe(false);
+    expect(isClerkUnknownParamError(undefined)).toBe(false);
+    expect(isClerkUnknownParamError("error string")).toBe(false);
   });
 });

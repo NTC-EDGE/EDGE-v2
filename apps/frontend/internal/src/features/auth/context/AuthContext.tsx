@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect } from "react
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useAuth, useUser, useSignIn, useSignUp, isClerkAPIResponseError } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId, generateSafeUsername } from "@edge/api";
+import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId, generateSafeUsername, isClerkUnknownParamError } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -362,33 +362,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           username: safeUsername,
         });
       } catch (firstErr: unknown) {
-        let isUnknownParam = false;
-        if (isClerkAPIResponseError(firstErr)) {
-          const firstErrCode = firstErr.errors[0]?.code ?? "";
-          const firstErrMsg = (firstErr.errors[0]?.message ?? "").toLowerCase();
-          if (
-            firstErrCode === "form_param_unknown" ||
-            firstErrMsg.includes("unrecognized") ||
-            firstErrMsg.includes("not allowed") ||
-            firstErrMsg.includes("unknown parameter") ||
-            firstErrMsg.includes("unexpected parameter")
-          ) {
-            isUnknownParam = true;
-          }
-        } else if (firstErr instanceof Error) {
-          const msg = firstErr.message.toLowerCase();
-          if (
-            msg.includes("form_param_unknown") ||
-            msg.includes("unrecognized") ||
-            msg.includes("not allowed") ||
-            msg.includes("unknown parameter") ||
-            msg.includes("unexpected parameter")
-          ) {
-            isUnknownParam = true;
-          }
-        }
-
-        if (isUnknownParam) {
+        if (isClerkUnknownParamError(firstErr)) {
           res = await signUp.password({
             emailAddress: email,
             password,
