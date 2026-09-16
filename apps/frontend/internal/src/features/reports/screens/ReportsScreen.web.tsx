@@ -142,6 +142,8 @@ export function ReportsScreen() {
             <View style={styles.headerActions}>
               <Button
                 variant="outline"
+                size="sm"
+                fullWidth={false}
                 leftIcon={<Lucide name="download" size={14} color={colors.text} />}
                 onPress={state.exportCsv}
               >
@@ -149,6 +151,8 @@ export function ReportsScreen() {
               </Button>
               <Button
                 variant="primary"
+                size="sm"
+                fullWidth={false}
                 leftIcon={<Lucide name="refresh-cw" size={14} color="#FFFFFF" />}
                 onPress={() => {
                   void state.handleRefreshAll();
@@ -742,6 +746,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
+    flexShrink: 0,
   },
   statsGrid: {
     flexDirection: 'row',

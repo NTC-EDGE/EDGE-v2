@@ -127,6 +127,7 @@ export function ReportsScreen() {
             <Button
               variant="outline"
               size="sm"
+              fullWidth={false}
               leftIcon={<Lucide name="refresh-cw" size={12} color={colors.text} />}
               onPress={() => {
                 void state.handleRefreshAll();
