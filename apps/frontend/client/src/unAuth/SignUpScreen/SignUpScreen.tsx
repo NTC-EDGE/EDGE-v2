@@ -16,6 +16,7 @@ import { Logo } from '../../shared/components/Logo';
 import { useAppNavigation } from '../../navigation';
 import { isClerkAPIResponseError } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
+import { generateSafeUsername, isClerkUnknownParamError } from '@edge/api';
 
 export function SignUpScreen() {
   const navigation = useAppNavigation();
@@ -134,20 +135,42 @@ export function SignUpScreen() {
       const parts = name.trim().split(" ");
       const firstName = parts[0] || "";
       const lastName = parts.slice(1).join(" ") || "";
+      const safeUsername = generateSafeUsername(firstName, lastName, email.trim());
 
-      await signUp.create({
-        emailAddress: email,
-        password,
-        firstName,
-        lastName,
-      });
+      let created = false;
+      try {
+        // Attempt signup with safe username (satisfies instances requiring username)
+        await signUp.create({
+          emailAddress: email.trim(),
+          password,
+          firstName,
+          lastName,
+          username: safeUsername,
+        });
+        created = true;
+      } catch (firstErr: unknown) {
+        // Fallback: If Clerk instance does not allow/recognize username, retry without username
+        if (isClerkUnknownParamError(firstErr)) {
+          await signUp.create({
+            emailAddress: email.trim(),
+            password,
+            firstName,
+            lastName,
+          });
+          created = true;
+        } else {
+          throw firstErr;
+        }
+      }
 
-      if (signUp.status === 'complete') {
-        await setActive({ session: signUp.createdSessionId });
-        setSuccess(true);
-      } else {
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-        setPendingVerification(true);
+      if (created) {
+        if (signUp.status === 'complete') {
+          await setActive({ session: signUp.createdSessionId });
+          setSuccess(true);
+        } else {
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+          setPendingVerification(true);
+        }
       }
     } catch (err: unknown) {
       let errMsg = "Sign up failed. Please check your inputs.";

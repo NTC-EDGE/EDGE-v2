@@ -1,8 +1,8 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId } from "@edge/api";
+import { useAuth, useUser, useSignIn, useSignUp, isClerkAPIResponseError } from "@clerk/expo";
+import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId, generateSafeUsername, isClerkUnknownParamError } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -352,10 +352,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const res = await signUp.password({
-        emailAddress: email,
-        password,
-      });
+      const safeUsername = generateSafeUsername(undefined, undefined, email);
+
+      let res;
+      try {
+        res = await signUp.password({
+          emailAddress: email,
+          password,
+          username: safeUsername,
+        });
+      } catch (firstErr: unknown) {
+        if (isClerkUnknownParamError(firstErr)) {
+          res = await signUp.password({
+            emailAddress: email,
+            password,
+          });
+        } else {
+          throw firstErr;
+        }
+      }
 
       if (res.error !== null && res.error !== undefined) {
         throw res.error;
