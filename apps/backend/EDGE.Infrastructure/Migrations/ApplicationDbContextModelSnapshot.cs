@@ -309,6 +309,10 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "Status");
+
                     b.ToTable("Applications", "public");
                 });
 
@@ -907,6 +911,10 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
+
                     b.ToTable("Feedbacks", "public");
                 });
 
@@ -1418,9 +1426,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicationId");
+                    b.HasIndex("ApplicationId", "CreatedAt");
 
-                    b.HasIndex("StatementOfAccountId");
+                    b.HasIndex("StatementOfAccountId", "CreatedAt");
 
                     b.ToTable("OrdersOfPayment", "public");
                 });
@@ -2389,9 +2397,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("ApplicantId");
 
-                    b.HasIndex("ApplicationId");
-
                     b.HasIndex("SoaNoteId");
+
+                    b.HasIndex("ApplicationId", "CreatedAt");
 
                     b.ToTable("StatementsOfAccount", "public");
                 });
