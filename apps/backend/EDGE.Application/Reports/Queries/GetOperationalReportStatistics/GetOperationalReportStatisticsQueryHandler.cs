@@ -8,6 +8,7 @@ using MediatR;
 using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
+using EDGE.Application.Reports.Constants;
 using EDGE.Application.Reports.DTOs;
 using EDGE.Application.Tenants.DTOs;
 using EDGE.Domain.Authorization;
@@ -200,8 +201,7 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         );
 
         // 2. Category Breakdown
-        var categories = new[] { "Permits", "Licenses", "Accreditations", "Certificates", "Exams" };
-        var categoryBreakdown = categories.Select(cat =>
+        var categoryBreakdown = ReportConstants.StandardCategories.Select(cat =>
         {
             var count = filteredApps.Count(a =>
                 (!string.IsNullOrEmpty(a.ServiceCategory) && a.ServiceCategory.Contains(cat, StringComparison.OrdinalIgnoreCase)) ||
@@ -214,9 +214,6 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         var periodicStats = new List<PeriodicStatBucketDto>();
         if (periodMode == "monthly")
         {
-            var monthNames = new[] { "January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December" };
-            var monthShorts = new[] { "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec" };
-
             for (int m = 0; m < 12; m++)
             {
                 var mApps = tenantApps.Where(a => a.CreatedAt.Year == activeYear && a.CreatedAt.Month - 1 == m).ToList();
@@ -233,8 +230,8 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
 
                 periodicStats.Add(new PeriodicStatBucketDto(
                     Id: $"m-{m}",
-                    Label: $"{monthNames[m]} {activeYear}",
-                    ShortLabel: monthShorts[m],
+                    Label: $"{ReportConstants.MonthNames[m]} {activeYear}",
+                    ShortLabel: ReportConstants.MonthShortNames[m],
                     TotalApplications: mTotal,
                     ApprovedCount: mAppr,
                     EvaluatingCount: mEval,
@@ -248,9 +245,7 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         }
         else if (periodMode == "quarterly")
         {
-            var quarters = new[] { ("Q1", "Quarter 1 (Jan - Mar)", 0, 2), ("Q2", "Quarter 2 (Apr - Jun)", 3, 5), ("Q3", "Quarter 3 (Jul - Sep)", 6, 8), ("Q4", "Quarter 4 (Oct - Dec)", 9, 11) };
-
-            foreach (var (qCode, qLabel, startM, endM) in quarters)
+            foreach (var (qCode, qLabel, startM, endM) in ReportConstants.QuarterDefinitions)
             {
                 var qApps = tenantApps.Where(a => a.CreatedAt.Year == activeYear && a.CreatedAt.Month - 1 >= startM && a.CreatedAt.Month - 1 <= endM).ToList();
                 var qTx = transactions.Where(t => t.Date.Year == activeYear && t.Date.Month - 1 >= startM && t.Date.Month - 1 <= endM).ToList();
@@ -313,8 +308,7 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         }
         else
         {
-            var rollingBuckets = new[] { ("w1", "Last 7 Days", "7D"), ("w2", "8-14 Days Ago", "14D"), ("w3", "15-30 Days Ago", "30D"), ("w4", "31-90 Days Ago", "90D") };
-            foreach (var (bId, bLabel, bShort) in rollingBuckets)
+            foreach (var (bId, bLabel, bShort) in ReportConstants.RollingBuckets)
             {
                 periodicStats.Add(new PeriodicStatBucketDto(
                     Id: bId,
@@ -336,67 +330,67 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         var statutorySummaries = new List<StatutoryReportSummaryDto>
         {
             new(
-                Code: "NTC-BAR-1",
-                Title: "Quarterly Physical Report of Operations",
-                Agency: "Department of Budget and Management (DBM)",
-                Frequency: "Quarterly",
-                LegalBasis: "DBM-COA Joint Circular No. 2014-1",
-                BadgeColor: "#2563EB",
+                Code: ReportConstants.BarNo1.Code,
+                Title: ReportConstants.BarNo1.Title,
+                Agency: ReportConstants.BarNo1.Agency,
+                Frequency: ReportConstants.BarNo1.Frequency,
+                LegalBasis: ReportConstants.BarNo1.LegalBasis,
+                BadgeColor: ReportConstants.BarNo1.BadgeColor,
                 RecordCount: totalApps,
                 ComplianceRate: approvalRate,
                 TotalAmount: null
             ),
             new(
-                Code: "NTC-BTr-COA-01",
-                Title: "Monthly Report of Collections and Deposits",
-                Agency: "Commission on Audit (COA) / BTr",
-                Frequency: "Monthly",
-                LegalBasis: "COA Circular No. 2021-014 & NGAS Manual",
-                BadgeColor: "#059669",
+                Code: ReportConstants.BTrCoa01.Code,
+                Title: ReportConstants.BTrCoa01.Title,
+                Agency: ReportConstants.BTrCoa01.Agency,
+                Frequency: ReportConstants.BTrCoa01.Frequency,
+                LegalBasis: ReportConstants.BTrCoa01.LegalBasis,
+                BadgeColor: ReportConstants.BTrCoa01.BadgeColor,
                 RecordCount: filteredTx.Count,
                 ComplianceRate: 100,
                 TotalAmount: totalCollected
             ),
             new(
-                Code: "ARTA-RA-11032",
-                Title: "Citizen's Charter SLA Compliance Report",
-                Agency: "Anti-Red Tape Authority (ARTA)",
-                Frequency: "Semi-Annual",
-                LegalBasis: "Republic Act No. 11032 / Ease of Doing Business Act",
-                BadgeColor: "#D97706",
+                Code: ReportConstants.ArtaRa11032.Code,
+                Title: ReportConstants.ArtaRa11032.Title,
+                Agency: ReportConstants.ArtaRa11032.Agency,
+                Frequency: ReportConstants.ArtaRa11032.Frequency,
+                LegalBasis: ReportConstants.ArtaRa11032.LegalBasis,
+                BadgeColor: ReportConstants.ArtaRa11032.BadgeColor,
                 RecordCount: totalApps,
                 ComplianceRate: approvalRate,
                 TotalAmount: null
             ),
             new(
-                Code: "NTC-SPECTRUM-INV",
-                Title: "Annual Radio Station & Spectrum Inventory",
-                Agency: "NTC Central Office Spectrum Branch",
-                Frequency: "Annual",
-                LegalBasis: "Radio Control Act (Act No. 3846 as amended)",
-                BadgeColor: "#7C3AED",
+                Code: ReportConstants.SpectrumInventory.Code,
+                Title: ReportConstants.SpectrumInventory.Title,
+                Agency: ReportConstants.SpectrumInventory.Agency,
+                Frequency: ReportConstants.SpectrumInventory.Frequency,
+                LegalBasis: ReportConstants.SpectrumInventory.LegalBasis,
+                BadgeColor: ReportConstants.SpectrumInventory.BadgeColor,
                 RecordCount: filteredApps.Count(a => a.ServiceCategory != null && (a.ServiceCategory.Contains("Radio", StringComparison.OrdinalIgnoreCase) || a.ServiceCategory.Contains("Permit", StringComparison.OrdinalIgnoreCase))),
                 ComplianceRate: 98,
                 TotalAmount: null
             ),
             new(
-                Code: "NTC-CSMR-8888",
-                Title: "Citizen Satisfaction & 8888 Resolution Matrix",
-                Agency: "Office of the President - 8888 Citizens' Center",
-                Frequency: "Quarterly",
-                LegalBasis: "Executive Order No. 6, s. 2016",
-                BadgeColor: "#DC2626",
+                Code: ReportConstants.Csmr8888.Code,
+                Title: ReportConstants.Csmr8888.Title,
+                Agency: ReportConstants.Csmr8888.Agency,
+                Frequency: ReportConstants.Csmr8888.Frequency,
+                LegalBasis: ReportConstants.Csmr8888.LegalBasis,
+                BadgeColor: ReportConstants.Csmr8888.BadgeColor,
                 RecordCount: csatTotal,
                 ComplianceRate: (int)Math.Round((double)filteredFeedback.Count(f => f.Rating >= 4) / Math.Max(csatTotal, 1) * 100),
                 TotalAmount: null
             ),
             new(
-                Code: "NTC-NOV-ENF",
-                Title: "Enforcement & Notice of Violation Summary",
-                Agency: "NTC Legal & Enforcement Branch",
-                Frequency: "Quarterly",
-                LegalBasis: "NTC Rules of Practice and Procedure (MC 09-05-2007)",
-                BadgeColor: "#4B5563",
+                Code: ReportConstants.NovEnforcement.Code,
+                Title: ReportConstants.NovEnforcement.Title,
+                Agency: ReportConstants.NovEnforcement.Agency,
+                Frequency: ReportConstants.NovEnforcement.Frequency,
+                LegalBasis: ReportConstants.NovEnforcement.LegalBasis,
+                BadgeColor: ReportConstants.NovEnforcement.BadgeColor,
                 RecordCount: returnedCount,
                 ComplianceRate: 95,
                 TotalAmount: null

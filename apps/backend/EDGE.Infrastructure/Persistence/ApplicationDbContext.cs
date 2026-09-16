@@ -406,6 +406,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.ScheduleId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ReferenceNumber);
+            entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
@@ -652,6 +654,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.IssuedToType).HasConversion<string>();
+            entity.HasIndex(e => new { e.ApplicationId, e.CreatedAt });
 
             entity.HasOne(e => e.SoaNote)
                   .WithMany(n => n.StatementsOfAccount)
@@ -678,6 +681,14 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.AmountReceived).HasColumnType("decimal(18,2)");
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.PaymentMethod).HasConversion<string>();
+            entity.HasIndex(e => new { e.ApplicationId, e.CreatedAt });
+            entity.HasIndex(e => new { e.StatementOfAccountId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<Feedback>(entity =>
+        {
+            entity.HasIndex(e => e.CreatedAt);
+            entity.HasIndex(e => e.Status);
         });
 
         modelBuilder.Entity<ApplicationHistory>(entity =>
