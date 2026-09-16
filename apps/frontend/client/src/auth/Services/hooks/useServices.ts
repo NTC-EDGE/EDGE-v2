@@ -18,6 +18,7 @@ import {
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
 import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
+import { CurrentUserProfile } from "@edge/api";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -55,6 +56,21 @@ export function useServices() {
   // Clerk Contexts
   const { user: clerkUser } = useUser();
   const { signOut, getToken } = useAuth();
+
+  // Current User Auth Profile Query
+  const { data: currentUserProfile } = api.useQuery<CurrentUserProfile>("/api/v2/users/me");
+  const isSubmissionRestricted = Boolean(
+    currentUserProfile?.isInternalUser && currentUserProfile?.canSubmitApplication === false
+  );
+  const [requestAccessModalVisible, setRequestAccessModalVisible] = useState(false);
+
+  const handleRequestAccess = () => {
+    setRequestAccessModalVisible(false);
+    toast.success(
+      "Access Request Submitted",
+      "Your request for application submission access has been sent to your administrator for review."
+    );
+  };
 
   // Search & Navigation States
   const [searchQuery, setSearchQuery] = useState("");
@@ -414,6 +430,15 @@ export function useServices() {
   const saveActiveAsDraft = async (): Promise<boolean> => {
     if (!activeWizardService) return true;
     setDraftErrorMessage(null);
+
+    if (isSubmissionRestricted) {
+      const errMsg = "Your internal staff account does not have permission to submit service applications. Please request application submission access from your administrator.";
+      setDraftErrorMessage(errMsg);
+      toast.error("Submission Restricted", errMsg);
+      setRequestAccessModalVisible(true);
+      return false;
+    }
+
     setIsSavingDraft(true);
 
     const isGuid = (val?: string): boolean =>
@@ -1155,6 +1180,11 @@ export function useServices() {
     handleBackToCategories,
     handleBackToServices,
     handleClearSearch,
+    isSubmissionRestricted,
+    requestAccessModalVisible,
+    setRequestAccessModalVisible,
+    handleRequestAccess,
+    currentUserProfile,
     confirmSwitchService,
     handleFormSubmit,
   };

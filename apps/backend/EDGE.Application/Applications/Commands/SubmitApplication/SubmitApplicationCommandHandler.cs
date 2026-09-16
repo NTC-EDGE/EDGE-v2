@@ -24,6 +24,7 @@ public class SubmitApplicationCommandHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<SubmitApplicationCommandHandler> _logger;
 
     public SubmitApplicationCommandHandler(
@@ -38,6 +39,7 @@ public class SubmitApplicationCommandHandler
         ICurrentUserService currentUserService,
         IServiceVariantElementRepository elementRepository,
         IUserRepository userRepository,
+        IUserAuthorizationService userAuthorizationService,
         ILogger<SubmitApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
@@ -51,12 +53,20 @@ public class SubmitApplicationCommandHandler
         _currentUserService = currentUserService;
         _elementRepository = elementRepository;
         _userRepository = userRepository;
+        _userAuthorizationService = userAuthorizationService;
         _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
         SubmitApplicationCommand request, CancellationToken cancellationToken)
     {
+        // 0. Verify Application Submission Permissions
+        if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
+        {
+            return ApiResponse<Guid>.Fail(
+                "403 Forbidden: Your internal staff account does not have permission to submit service applications. Please request application submission access from your administrator.");
+        }
+
         bool isBulk = request.SubmissionMode.Equals("Bulk", StringComparison.OrdinalIgnoreCase);
 
         // 1. Resolve current user

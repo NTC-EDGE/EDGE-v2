@@ -521,6 +521,18 @@ export interface AddSupportNoteRequest {
   actionTaken?: string | null;
 }
 
+export interface CurrentUserProfile {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+  isInternalUser?: boolean;
+  canSubmitApplication?: boolean;
+  permissions?: string[];
+}
+
 export interface Role {
   id: string;
   tenantId?: string | null;

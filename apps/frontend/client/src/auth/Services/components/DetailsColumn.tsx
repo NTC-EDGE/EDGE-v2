@@ -218,8 +218,16 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
+              if (servicesState.isSubmissionRestricted) {
+                servicesState.setRequestAccessModalVisible(true);
+                return;
+              }
               setActiveWizardService("general-service");
             }}
+            onRequestAccessPress={() => {
+              servicesState.setRequestAccessModalVisible(true);
+            }}
+            isSubmissionRestricted={servicesState.isSubmissionRestricted}
             isMobile={isMobile}
           />
         ) : searchQuery.trim() !== "" ? (

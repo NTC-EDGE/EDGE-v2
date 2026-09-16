@@ -26,6 +26,7 @@ public class SubmitApplicationCommandHandlerTests
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Mock<IServiceVariantElementRepository> _mockElementRepo;
     private readonly Mock<IUserRepository> _mockUserRepo;
+    private readonly Mock<IUserAuthorizationService> _mockUserAuthService;
     private readonly Mock<ILogger<SubmitApplicationCommandHandler>> _mockLogger;
     private readonly SubmitApplicationCommandHandler _handler;
 
@@ -42,7 +43,11 @@ public class SubmitApplicationCommandHandlerTests
         _mockCurrentUserService = new Mock<ICurrentUserService>();
         _mockElementRepo = new Mock<IServiceVariantElementRepository>();
         _mockUserRepo = new Mock<IUserRepository>();
+        _mockUserAuthService = new Mock<IUserAuthorizationService>();
         _mockLogger = new Mock<ILogger<SubmitApplicationCommandHandler>>();
+
+        _mockUserAuthService.Setup(a => a.CanSubmitApplicationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
 
         _handler = new SubmitApplicationCommandHandler(
             _mockApplicationRepo.Object,
@@ -56,6 +61,7 @@ public class SubmitApplicationCommandHandlerTests
             _mockCurrentUserService.Object,
             _mockElementRepo.Object,
             _mockUserRepo.Object,
+            _mockUserAuthService.Object,
             _mockLogger.Object
         );
     }
@@ -250,5 +256,40 @@ public class SubmitApplicationCommandHandlerTests
         result.Succeeded.Should().BeFalse();
         result.Message.Should().Contain("This service does not allow bulk submission.");
         _mockApplicationRepo.Verify(a => a.AddAsync(It.IsAny<Domain.Entities.Application>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenUserLacksSubmitPermission_ReturnsForbiddenError()
+    {
+        // Arrange
+        _mockUserAuthService.Setup(a => a.CanSubmitApplicationAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var command = new SubmitApplicationCommand
+        {
+            TenantId = Guid.NewGuid(),
+            ServiceId = Guid.NewGuid(),
+            SubmissionMode = "Single",
+            IsDraft = false,
+            Applicants = new List<ApplicantSubmissionDto>
+            {
+                new ApplicantSubmissionDto
+                {
+                    FirstName = "Internal",
+                    LastName = "Staff",
+                    Email = "staff@example.com"
+                }
+            }
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().Contain("403 Forbidden");
+        result.Message.Should().Contain("internal staff account does not have permission to submit service applications");
+        _mockApplicationRepo.Verify(a => a.AddAsync(It.IsAny<Domain.Entities.Application>(), It.IsAny<CancellationToken>()), Times.Never);
+        _mockUnitOfWork.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 }
