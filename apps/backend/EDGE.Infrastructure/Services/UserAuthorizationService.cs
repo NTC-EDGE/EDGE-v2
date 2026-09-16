@@ -128,6 +128,53 @@ public class UserAuthorizationService : IUserAuthorizationService
         return member?.Role?.Key?.Equals(role, StringComparison.OrdinalIgnoreCase) == true;
     }
 
+    public async Task<bool> IsInternalUserAsync(CancellationToken cancellationToken = default)
+    {
+        var user = await GetCurrentUserAsync(cancellationToken);
+        if (user == null)
+        {
+            return false;
+        }
+
+        if (user.IsSuperAdmin)
+        {
+            return true;
+        }
+
+        return await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+    }
+
+    public async Task<bool> CanSubmitApplicationAsync(CancellationToken cancellationToken = default)
+    {
+        var authUserId = _currentUserService.UserId;
+        if (string.IsNullOrEmpty(authUserId))
+        {
+            return false;
+        }
+
+        var user = await GetCurrentUserAsync(cancellationToken);
+        if (user == null)
+        {
+            // Unregistered / new authenticated user acting as client applicant
+            return true;
+        }
+
+        if (user.IsSuperAdmin)
+        {
+            return true;
+        }
+
+        var isInternal = await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+        if (!isInternal)
+        {
+            // Public client applicant
+            return true;
+        }
+
+        // Internal staff account: strictly require Permissions.SubmitApplication
+        return await HasPermissionAsync(Permissions.SubmitApplication, cancellationToken);
+    }
+
     public async Task<List<string>> GetUserPermissionsAsync(CancellationToken cancellationToken = default)
     {
         if (_cachedPermissions != null)
@@ -171,6 +218,26 @@ public class UserAuthorizationService : IUserAuthorizationService
 
         try
         {
+            var isInternal = await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+            if (!isInternal)
+            {
+                // Public client applicant permissions
+                _cachedPermissions = new List<string>
+                {
+                    Permissions.ReadTenants,
+                    Permissions.ReadRoles,
+                    Permissions.ReadServices,
+                    Permissions.ReadRequirements,
+                    Permissions.SubmitApplication,
+                    Permissions.ViewOwnApplications,
+                    Permissions.ReadApplication,
+                    Permissions.UploadStorage,
+                    Permissions.ReadStorage,
+                    Permissions.DownloadStorage
+                };
+                return _cachedPermissions;
+            }
+
             var tenantId = _tenantContextService.TenantId;
             List<string> dbPermissions = new();
             if (tenantId.HasValue)
@@ -192,41 +259,21 @@ public class UserAuthorizationService : IUserAuthorizationService
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
 
-            if (dbPermissions.Count == 0)
+            // Ensure foundational read permissions are always available to active staff members
+            var basePermissions = new[]
             {
-                // Assign default client/applicant permissions for authenticated users who have no tenant membership yet
-                dbPermissions = new List<string>
-                {
-                    Permissions.ReadTenants,
-                    Permissions.ReadRoles,
-                    Permissions.ReadServices,
-                    Permissions.ReadRequirements,
-                    Permissions.SubmitApplication,
-                    Permissions.ViewOwnApplications,
-                    Permissions.ReadApplication,
-                    Permissions.UploadStorage,
-                    Permissions.ReadStorage,
-                    Permissions.DownloadStorage
-                };
-            }
-            else
-            {
-                // Ensure foundational read permissions are always available to active staff members
-                var basePermissions = new[]
-                {
-                    Permissions.ReadTenants,
-                    Permissions.ReadRoles,
-                    Permissions.ReadServices,
-                    Permissions.ReadRequirements,
-                    Permissions.ReadSchedules
-                };
+                Permissions.ReadTenants,
+                Permissions.ReadRoles,
+                Permissions.ReadServices,
+                Permissions.ReadRequirements,
+                Permissions.ReadSchedules
+            };
 
-                foreach (var basePerm in basePermissions)
+            foreach (var basePerm in basePermissions)
+            {
+                if (!dbPermissions.Contains(basePerm))
                 {
-                    if (!dbPermissions.Contains(basePerm))
-                    {
-                        dbPermissions.Add(basePerm);
-                    }
+                    dbPermissions.Add(basePerm);
                 }
             }
 

@@ -52,6 +52,12 @@ public class UpdateScheduleCommandValidator : AbstractValidator<UpdateScheduleCo
                 .GreaterThan(0).WithMessage("MaximumSlots must be greater than 0 if specified.");
         });
 
+        RuleFor(x => x.StartTime)
+            .MaximumLength(50).WithMessage("StartTime must not exceed 50 characters.");
+
+        RuleFor(x => x.EndTime)
+            .MaximumLength(50).WithMessage("EndTime must not exceed 50 characters.");
+
         RuleFor(x => x.Remarks)
             .MaximumLength(500).WithMessage("Remarks must not exceed 500 characters.");
     }

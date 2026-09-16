@@ -234,6 +234,27 @@ export function ScheduleForm({ formState, isEditing = false, onCancel }: Schedul
           </View>
         </View>
 
+        {/* Examination Session Time Window */}
+        <View style={styles.gridRow}>
+          <View style={styles.gridCol}>
+            <FormFieldInput
+              control={form.control}
+              name="startTime"
+              label="Session Start Time"
+              placeholder="e.g. 08:00 AM"
+            />
+          </View>
+
+          <View style={styles.gridCol}>
+            <FormFieldInput
+              control={form.control}
+              name="endTime"
+              label="Session End Time"
+              placeholder="e.g. 05:00 PM"
+            />
+          </View>
+        </View>
+
         {/* Application Filing Window */}
         <View style={styles.gridRow}>
           <View style={styles.gridCol}>

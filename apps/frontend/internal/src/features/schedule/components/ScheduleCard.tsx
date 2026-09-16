@@ -347,6 +347,17 @@ export function ScheduleCard({
           </Text>
         </View>
 
+        {/* Time Window */}
+        {(schedule.startTime || schedule.endTime) && (
+          <View style={styles.metaRow}>
+            <Lucide name="clock" size={14} color={colors.textMuted} style={styles.metaIcon} />
+            <Text style={[styles.metaText, { color: colors.text }]}>
+              <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>Time:</Text>{' '}
+              {[schedule.startTime, schedule.endTime].filter(Boolean).join(' – ')}
+            </Text>
+          </View>
+        )}
+
         {/* Application Filing Deadline */}
         {schedule.endApplication && (
           <View style={styles.metaRow}>

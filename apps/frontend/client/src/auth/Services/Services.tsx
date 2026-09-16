@@ -39,6 +39,9 @@ export function Services() {
     hideCategories,
     confirmSwitchService,
     handleFormSubmit,
+    requestAccessModalVisible,
+    setRequestAccessModalVisible,
+    handleRequestAccess,
   } = servicesState;
 
   return (
@@ -71,6 +74,29 @@ export function Services() {
           isSubmitting={submitting}
         />
       )}
+
+      {/* Internal Account Request Access Modal */}
+      <ConfirmationDialog
+        visible={requestAccessModalVisible}
+        title="Request Application Access"
+        message="Your internal staff account currently does not have permission to create or submit citizen service applications. Would you like to submit an access request to your tenant administrator for application submission privileges (applications.submit)?"
+        hint="Once your administrator grants submission permission to your internal role, you will be able to apply and file applications."
+        iconName="alert-circle"
+        onClose={() => setRequestAccessModalVisible(false)}
+        actions={[
+          {
+            text: "Submit Access Request",
+            style: "default",
+            iconName: "send",
+            onPress: handleRequestAccess,
+          },
+          {
+            text: "Cancel",
+            style: "cancel",
+            onPress: () => setRequestAccessModalVisible(false),
+          },
+        ]}
+      />
 
       {/* Navigation Confirm Modal */}
       <ConfirmationDialog

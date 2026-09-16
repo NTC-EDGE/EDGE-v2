@@ -137,6 +137,7 @@ public static class UserEndpoints
         EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService,
         EDGE.Application.Common.Interfaces.IClerkUserService clerkUserService,
         EDGE.Application.Common.Interfaces.IUserRepository userRepository,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService,
         EDGE.Application.Common.Interfaces.IUnitOfWork unitOfWork)
     {
         var authUserId = currentUserService.UserId;
@@ -201,6 +202,10 @@ public static class UserEndpoints
         if (user is null)
             return Results.NotFound(new { message = "User record not found." });
 
+        var isInternal = await userAuthorizationService.IsInternalUserAsync();
+        var canSubmit = await userAuthorizationService.CanSubmitApplicationAsync();
+        var permissions = await userAuthorizationService.GetUserPermissionsAsync();
+
         return Results.Ok(new
         {
             id = user.Id,
@@ -209,12 +214,16 @@ public static class UserEndpoints
             firstName = user.FirstName,
             lastName = user.LastName,
             isSuperAdmin = user.IsSuperAdmin,
+            isInternalUser = isInternal,
+            canSubmitApplication = canSubmit,
+            permissions = permissions,
         });
     }
 
     public static async Task<IResult> GetCurrentUserProfile(
         IMediator mediator,
-        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService)
+        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService)
     {
         var authUserId = currentUserService.UserId;
         if (string.IsNullOrEmpty(authUserId))
@@ -225,6 +234,9 @@ public static class UserEndpoints
 
         if (user is null)
             return Results.NotFound(new { message = "User profile not found." });
+
+        var isInternal = await userAuthorizationService.IsInternalUserAsync();
+        var canSubmit = await userAuthorizationService.CanSubmitApplicationAsync();
 
         return Results.Ok(new
         {
@@ -246,6 +258,8 @@ public static class UserEndpoints
             profilePicture = user.ProfilePicture,
             eSignature = user.ESignature,
             isSuperAdmin = user.IsSuperAdmin,
+            isInternalUser = isInternal,
+            canSubmitApplication = canSubmit,
             address = new
             {
                 street = user.Street,

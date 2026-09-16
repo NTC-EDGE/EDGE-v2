@@ -175,6 +175,8 @@ export interface ScheduleItemDto {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   isPublished: boolean;
@@ -189,6 +191,8 @@ export interface CreateSchedulePayload {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   isPublished?: boolean;
@@ -200,6 +204,8 @@ export interface UpdateSchedulePayload {
   venue: string;
   startDate: string;
   endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
   maximumSlots?: number | null;
@@ -513,6 +519,18 @@ export interface AddSupportNoteRequest {
   userId: string;
   note: string;
   actionTaken?: string | null;
+}
+
+export interface CurrentUserProfile {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+  isInternalUser?: boolean;
+  canSubmitApplication?: boolean;
+  permissions?: string[];
 }
 
 export interface Role {

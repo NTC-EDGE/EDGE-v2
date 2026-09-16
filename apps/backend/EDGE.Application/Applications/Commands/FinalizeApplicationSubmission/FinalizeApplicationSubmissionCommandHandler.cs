@@ -13,17 +13,26 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
 {
     private readonly IApplicationFullRepository _applicationRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IUserAuthorizationService _userAuthorizationService;
 
     public FinalizeApplicationSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        IUserAuthorizationService userAuthorizationService)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
+        _userAuthorizationService = userAuthorizationService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(FinalizeApplicationSubmissionCommand request, CancellationToken cancellationToken)
     {
+        if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
+        {
+            return ApiResponse<Guid>.Fail(
+                "403 Forbidden: Your internal staff account does not have permission to submit service applications. Please request application submission access from your administrator.");
+        }
+
         var app = await _applicationRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
         if (app == null)
         {

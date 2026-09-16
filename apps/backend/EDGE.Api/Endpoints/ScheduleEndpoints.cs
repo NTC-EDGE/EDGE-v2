@@ -179,7 +179,9 @@ public static class ScheduleEndpoints
             request.StartApplication,
             request.EndApplication,
             request.MaximumSlots,
-            request.Remarks
+            request.Remarks,
+            request.StartTime,
+            request.EndTime
         );
 
         var validationResult = await validator.ValidateAsync(command);
