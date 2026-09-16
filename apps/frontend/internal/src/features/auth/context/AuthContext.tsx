@@ -2,7 +2,7 @@ import { createContext, useContext, ReactNode, useState, useEffect } from "react
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
 import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken } from "@edge/api";
+import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -154,6 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const verifiedClaims = await verifyStaffMembership(token, storedRegion);
           if (isMounted) {
+            setTenantId(verifiedClaims.tenantId ?? null);
             setBackendStaffClaims({
               tenantId: verifiedClaims.tenantId,
               tenantName: verifiedClaims.tenantName,
@@ -164,6 +165,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // If background check fails (e.g. invalid membership), clear region and prompt modal
           if (isMounted) {
+            setTenantId(null);
             await removeStoredRegionCode();
             setIsMembershipVerified(false);
             setSelectedRegionState(undefined);
@@ -321,6 +323,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
       const verifiedClaims = await verifyStaffMembership(token, selectedRegionCode);
 
+      setTenantId(verifiedClaims.tenantId ?? null);
       setBackendStaffClaims({
         tenantId: verifiedClaims.tenantId,
         tenantName: verifiedClaims.tenantName,
@@ -332,6 +335,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSelectedRegionState(selectedRegionCode);
       setIsMembershipVerified(true);
     } catch (err: unknown) {
+      setTenantId(null);
       setIsMembershipVerified(false);
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
@@ -394,6 +398,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setTenantId(null);
     await removeStoredRegionCode();
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);

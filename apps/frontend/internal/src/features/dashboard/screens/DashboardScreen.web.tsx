@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   Platform,
   Pressable,
@@ -8,8 +8,12 @@ import {
   View,
   useWindowDimensions,
 } from 'react-native';
-import { AnimatedCard, Icon as Lucide, SPACING, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { AnimatedCard, Icon as Lucide, SPACING, TYPOGRAPHY, useTheme, SkeletonLoader } from '@edge/ui';
 import { useRole } from '../../shell/context/RoleContext';
+import { useAuthContext } from '../../auth/context/AuthContext';
+import { useAdminApplications, ApplicationSummaryDto } from '@edge/api';
+import { openQueueApplication } from '../../queue/data/internalApplicationNavigationHelper';
+import { useAppNavigation } from '../../../navigation/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,103 +29,56 @@ interface KpiCard {
   accentColor: string;
 }
 
-interface ActivityItem {
-  id: string;
-  title: string;
-  meta: string;
-  dot: string;
-}
-
-interface QueueRow {
-  id: string;
-  applicant: string;
-  type: string;
-  submitted: string;
-  status: 'Pending' | 'In Review' | 'Approved' | 'Rejected';
-}
-
-// ─── Mock Data ───────────────────────────────────────────────────────────────
-
-const MOCK_KPI: readonly KpiCard[] = [
-  {
-    label: 'Pending Evaluation',
-    value: '124',
-    sub: '+8 today',
-    icon: 'file-text',
-    trend: '+8%',
-    trendUp: false,
-    accentColor: '#F59E0B',
-  },
-  {
-    label: 'Approved Licenses',
-    value: '852',
-    sub: '+14 this week',
-    icon: 'check-circle',
-    trend: '+14%',
-    trendUp: true,
-    accentColor: '#10B981',
-  },
-  {
-    label: 'Rejected / Non-Compliant',
-    value: '42',
-    sub: '-3 vs last week',
-    icon: 'alert-triangle',
-    trend: '-3%',
-    trendUp: false,
-    accentColor: '#EF4444',
-  },
-  {
-    label: 'Total Completed',
-    value: '710',
-    sub: '+18 this month',
-    icon: 'layers',
-    trend: '+18%',
-    trendUp: true,
-    accentColor: '#3B82F6',
-  },
-];
-
-const MOCK_CHART_BARS: readonly { h: number; color: string; label: string }[] = [
-  { h: 48, color: '#3B82F6', label: 'Mon' },
-  { h: 80, color: '#10B981', label: 'Tue' },
-  { h: 60, color: '#3B82F6', label: 'Wed' },
-  { h: 100, color: '#10B981', label: 'Thu' },
-  { h: 72, color: '#3B82F6', label: 'Fri' },
-  { h: 44, color: '#F59E0B', label: 'Sat' },
-  { h: 90, color: '#10B981', label: 'Sun' },
-];
-
-const MOCK_ACTIVITY: readonly ActivityItem[] = [
-  { id: '1', title: 'APP-2026-0521 Approved', meta: '10:24 AM · Juan Dela Cruz', dot: '#10B981' },
-  { id: '2', title: 'New Accreditation Submitted', meta: '09:45 AM · RuralNet ISP', dot: '#F59E0B' },
-  { id: '3', title: 'Compliance Policy Updated', meta: '08:15 AM · System Admin', dot: '#3B82F6' },
-  { id: '4', title: 'APP-2026-0519 Rejected — missing docs', meta: '07:52 AM · Maria Santos', dot: '#EF4444' },
-  { id: '5', title: '3.5 GHz Spectrum Band Assigned', meta: 'Yesterday · NTC Engineering', dot: '#8B5CF6' },
-];
-
-const MOCK_QUEUE: readonly QueueRow[] = [
-  { id: 'APP-2026-0528', applicant: 'TelePinas Corp',      type: 'ISP License',     submitted: 'Jul 30, 2026', status: 'Pending' },
-  { id: 'APP-2026-0527', applicant: 'BlueSky Broadband',   type: 'Frequency Alloc', submitted: 'Jul 29, 2026', status: 'In Review' },
-  { id: 'APP-2026-0526', applicant: 'SouthNet Telecom',    type: 'Accreditation',   submitted: 'Jul 28, 2026', status: 'Pending' },
-  { id: 'APP-2026-0525', applicant: 'AsiaCom Networks',    type: 'ISP License',     submitted: 'Jul 27, 2026', status: 'In Review' },
-  { id: 'APP-2026-0524', applicant: 'MaxLink Philippines', type: 'VSAT Permit',     submitted: 'Jul 26, 2026', status: 'Approved' },
-];
-
-const STATUS_COLORS: Record<QueueRow['status'], { text: string; bg: string }> = {
-  Pending:   { text: '#92400E', bg: '#FEF3C7' },
+const STATUS_COLORS: Record<string, { text: string; bg: string }> = {
+  Submitted:   { text: '#92400E', bg: '#FEF3C7' },
+  Evaluating:  { text: '#1E40AF', bg: '#DBEAFE' },
+  Pending:     { text: '#92400E', bg: '#FEF3C7' },
   'In Review': { text: '#1E40AF', bg: '#DBEAFE' },
-  Approved:  { text: '#065F46', bg: '#D1FAE5' },
-  Rejected:  { text: '#991B1B', bg: '#FEE2E2' },
+  Approved:    { text: '#065F46', bg: '#D1FAE5' },
+  Returned:    { text: '#991B1B', bg: '#FEE2E2' },
+  Completed:   { text: '#1E3A8A', bg: '#E0E7FF' },
 };
+
+function formatDisplayDate(dateStr?: string | null): string {
+  if (dateStr === null || dateStr === undefined || dateStr.trim().length === 0) {
+    return 'Recent';
+  }
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+function formatRelativeTime(dateStr?: string | null): string {
+  if (dateStr === null || dateStr === undefined || dateStr.trim().length === 0) {
+    return 'Just now';
+  }
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+  } catch {
+    return 'Recently';
+  }
+}
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function DashboardScreen(): React.ReactElement {
   const { currentRole } = useRole();
+  const { user } = useAuthContext();
+  const navigation = useAppNavigation();
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1024;
   const [timeRange, setTimeRange] = useState<TimeRange>('7d');
+
+  // Fetch live applications & metrics scoped to the active tenant / queue
+  const { applications, statistics, isLoading, isError, refetch } = useAdminApplications({
+    scope: 'queue',
+    pageSize: 15,
+  });
 
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
@@ -129,11 +86,121 @@ export function DashboardScreen(): React.ReactElement {
   const textColor = isDark ? colors.neutral[100] : colors.neutral[900];
   const mutedColor = isDark ? colors.neutral[400] : colors.neutral[500];
   const tableHdrBg = isDark ? colors.neutral[900] : colors.neutral[50];
-  const tableRowHover = isDark ? colors.neutral[700] : colors.neutral[50];
 
   const today = new Date().toLocaleDateString('en-US', {
     weekday: 'long', month: 'long', day: '2-digit', year: 'numeric',
   });
+
+  // Calculate live KPI metrics
+  const kpiData: readonly KpiCard[] = useMemo(() => {
+    const pendingCount = statistics?.evaluatingCount !== undefined
+      ? statistics.evaluatingCount
+      : applications.filter((a) => a.status === 'Submitted' || a.status === 'Evaluating').length;
+
+    const approvedCount = statistics?.approvedCount !== undefined
+      ? statistics.approvedCount
+      : applications.filter((a) => a.status === 'Approved').length;
+
+    const returnedCount = statistics?.returnedCount !== undefined
+      ? statistics.returnedCount
+      : applications.filter((a) => a.status === 'Returned').length;
+
+    const completedCount = statistics?.completedCount !== undefined
+      ? statistics.completedCount
+      : applications.filter((a) => a.status === 'Completed').length;
+
+    return [
+      {
+        label: 'Pending Evaluation',
+        value: String(pendingCount),
+        sub: 'Awaiting review in queue',
+        icon: 'file-text',
+        trend: '+Live',
+        trendUp: false,
+        accentColor: '#F59E0B',
+      },
+      {
+        label: 'Approved Licenses',
+        value: String(approvedCount),
+        sub: 'Compliant & issued',
+        icon: 'check-circle',
+        trend: '+Live',
+        trendUp: true,
+        accentColor: '#10B981',
+      },
+      {
+        label: 'Rejected / Returned',
+        value: String(returnedCount),
+        sub: 'Pending client correction',
+        icon: 'alert-triangle',
+        trend: 'Sync',
+        trendUp: false,
+        accentColor: '#EF4444',
+      },
+      {
+        label: 'Total Completed',
+        value: String(completedCount),
+        sub: 'Finalized lifecycle',
+        icon: 'layers',
+        trend: '+Live',
+        trendUp: true,
+        accentColor: '#3B82F6',
+      },
+    ];
+  }, [statistics, applications]);
+
+  // Compute 7-day velocity breakdown from live applications
+  const chartBars = useMemo(() => {
+    const dayLabels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+    const counts = [0, 0, 0, 0, 0, 0, 0];
+
+    for (const app of applications) {
+      if (app.createdAt !== null && app.createdAt !== undefined) {
+        const d = new Date(app.createdAt);
+        const dayIdx = (d.getDay() + 6) % 7; // Map 0 (Sun) to 6, 1 (Mon) to 0
+        counts[dayIdx] = counts[dayIdx] + 1;
+      }
+    }
+
+    const maxCount = Math.max(...counts, 1);
+
+    return dayLabels.map((label, idx) => {
+      const count = counts[idx];
+      const normalizedHeight = Math.max(16, Math.min(100, Math.round((count / maxCount) * 90) + 10));
+      const color = count > 0 ? (idx % 2 === 0 ? '#3B82F6' : '#10B981') : (isDark ? colors.neutral[700] : colors.neutral[300]);
+      return {
+        label,
+        count,
+        h: normalizedHeight,
+        color,
+      };
+    });
+  }, [applications, isDark, colors]);
+
+  const handleReviewApp = (appId: string) => {
+    openQueueApplication(appId);
+    try {
+      navigation.navigate('Activities');
+    } catch {
+      // Navigation handled by layout listener
+    }
+  };
+
+  const handleReviewNext = () => {
+    const nextPending = applications.find(
+      (a) => a.status === 'Submitted' || a.status === 'Evaluating'
+    ) ?? applications[0];
+
+    if (nextPending !== undefined && nextPending !== null) {
+      handleReviewApp(nextPending.id);
+    } else {
+      try {
+        navigation.navigate('Activities');
+      } catch {
+        // Fallback
+      }
+    }
+  };
 
   return (
     <ScrollView
@@ -148,40 +215,52 @@ export function DashboardScreen(): React.ReactElement {
             Dashboard
           </Text>
           <Text style={[styles.pageSub, { color: mutedColor }]}>
-            Welcome back, {currentRole} — {today}
+            Welcome back, {user?.name ?? currentRole} — {today}
           </Text>
         </View>
         <View style={[styles.statusPill, { backgroundColor: isDark ? '#1A2E4A' : '#EFF6FF', borderColor: '#BFDBFE' }]}>
-          <View style={[styles.statusDot, { backgroundColor: '#10B981' }]} />
+          <View style={[styles.statusDot, { backgroundColor: isError ? '#EF4444' : '#10B981' }]} />
           <Text style={[styles.statusText, { color: isDark ? '#60A5FA' : '#1D4ED8' }]}>
-            All Systems Operational
+            {user?.tenantName ? `${user.tenantName} Office` : 'Regional Operations Live'}
           </Text>
         </View>
       </View>
 
       {/* ── KPI Strip ──────────────────────────────────────────────────── */}
       <View style={[styles.kpiRow, { flexDirection: isDesktop ? 'row' : 'row', flexWrap: 'wrap' }]}>
-        {MOCK_KPI.map((kpi) => (
-          <View
-            key={kpi.label}
-            style={[
-              styles.kpiCard,
-              { backgroundColor: cardBg, borderColor, borderLeftColor: kpi.accentColor },
-            ]}
-          >
-            <View style={styles.kpiTop}>
-              <View style={[styles.kpiIconBox, { backgroundColor: `${kpi.accentColor}18` }]}>
-                <Lucide name={kpi.icon} size={14} color={kpi.accentColor} />
-              </View>
-              <Text style={[styles.kpiTrend, { color: kpi.trendUp ? '#10B981' : '#F59E0B' }]}>
-                {kpi.trend}
-              </Text>
+        {isLoading && applications.length === 0 ? (
+          [0, 1, 2, 3].map((i) => (
+            <View key={i} style={[styles.kpiCard, { backgroundColor: cardBg, borderColor }]}>
+              <SkeletonLoader height={24} width={32} borderRadius={4} />
+              <View style={{ height: 6 }} />
+              <SkeletonLoader height={28} width={64} borderRadius={4} />
+              <View style={{ height: 4 }} />
+              <SkeletonLoader height={14} width={120} borderRadius={4} />
             </View>
-            <Text style={[styles.kpiValue, { color: textColor }]}>{kpi.value}</Text>
-            <Text style={[styles.kpiLabel, { color: mutedColor }]}>{kpi.label}</Text>
-            <Text style={[styles.kpiSub, { color: mutedColor }]}>{kpi.sub}</Text>
-          </View>
-        ))}
+          ))
+        ) : (
+          kpiData.map((kpi) => (
+            <View
+              key={kpi.label}
+              style={[
+                styles.kpiCard,
+                { backgroundColor: cardBg, borderColor, borderLeftColor: kpi.accentColor },
+              ]}
+            >
+              <View style={styles.kpiTop}>
+                <View style={[styles.kpiIconBox, { backgroundColor: `${kpi.accentColor}18` }]}>
+                  <Lucide name={kpi.icon} size={14} color={kpi.accentColor} />
+                </View>
+                <Text style={[styles.kpiTrend, { color: kpi.trendUp ? '#10B981' : '#F59E0B' }]}>
+                  {kpi.trend}
+                </Text>
+              </View>
+              <Text style={[styles.kpiValue, { color: textColor }]}>{kpi.value}</Text>
+              <Text style={[styles.kpiLabel, { color: mutedColor }]}>{kpi.label}</Text>
+              <Text style={[styles.kpiSub, { color: mutedColor }]}>{kpi.sub}</Text>
+            </View>
+          ))
+        )}
       </View>
 
       {/* ── Middle Row: Chart + Activity ────────────────────────────────── */}
@@ -192,7 +271,7 @@ export function DashboardScreen(): React.ReactElement {
             <View>
               <Text style={[styles.cardTitle, { color: textColor }]}>Evaluation Velocity</Text>
               <Text style={[styles.cardSub, { color: mutedColor }]}>
-                Applications processed per day
+                Applications received and processed by day
               </Text>
             </View>
             <View style={styles.pills}>
@@ -225,10 +304,10 @@ export function DashboardScreen(): React.ReactElement {
           {/* Bar chart */}
           <View style={[styles.chartArea, { borderColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
             <View style={styles.barsRow}>
-              {MOCK_CHART_BARS.map((bar, i) => (
+              {chartBars.map((bar, i) => (
                 <View key={i} style={styles.barWrap}>
                   <Text style={[styles.barValue, { color: mutedColor }]}>
-                    {Math.round(bar.h * 1.2)}
+                    {bar.count}
                   </Text>
                   <View
                     style={[
@@ -246,15 +325,15 @@ export function DashboardScreen(): React.ReactElement {
           <View style={styles.legend}>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#3B82F6' }]} />
-              <Text style={[styles.legendText, { color: mutedColor }]}>New</Text>
+              <Text style={[styles.legendText, { color: mutedColor }]}>Even Days</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#10B981' }]} />
-              <Text style={[styles.legendText, { color: mutedColor }]}>Resolved</Text>
+              <Text style={[styles.legendText, { color: mutedColor }]}>Odd Days</Text>
             </View>
             <View style={styles.legendItem}>
               <View style={[styles.legendDot, { backgroundColor: '#F59E0B' }]} />
-              <Text style={[styles.legendText, { color: mutedColor }]}>Escalated</Text>
+              <Text style={[styles.legendText, { color: mutedColor }]}>Active Queue</Text>
             </View>
           </View>
         </View>
@@ -262,29 +341,63 @@ export function DashboardScreen(): React.ReactElement {
         {/* Activity Feed */}
         <View style={[styles.activityCard, { backgroundColor: cardBg, borderColor }]}>
           <View style={styles.cardHeader}>
-            <Text style={[styles.cardTitle, { color: textColor }]}>Live Activity</Text>
-            <Text style={[styles.seeAll, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>
-              See all →
-            </Text>
+            <Text style={[styles.cardTitle, { color: textColor }]}>Live Activity Feed</Text>
+            <Pressable onPress={() => navigation.navigate('Activities')}>
+              <Text style={[styles.seeAll, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>
+                See all →
+              </Text>
+            </Pressable>
           </View>
           <View style={styles.activityList}>
-            {MOCK_ACTIVITY.map((item, idx) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.activityRow,
-                  idx < MOCK_ACTIVITY.length - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
-                ]}
-              >
-                <View style={[styles.actDot, { backgroundColor: item.dot }]} />
-                <View style={styles.actText}>
-                  <Text style={[styles.actTitle, { color: textColor }]} numberOfLines={1}>
-                    {item.title}
-                  </Text>
-                  <Text style={[styles.actMeta, { color: mutedColor }]}>{item.meta}</Text>
+            {isLoading && applications.length === 0 ? (
+              [0, 1, 2, 3].map((idx) => (
+                <View key={idx} style={styles.activityRow}>
+                  <SkeletonLoader height={8} width={8} borderRadius={4} />
+                  <View style={styles.actText}>
+                    <SkeletonLoader height={14} width={140} borderRadius={4} />
+                    <View style={{ height: 4 }} />
+                    <SkeletonLoader height={10} width={90} borderRadius={4} />
+                  </View>
                 </View>
+              ))
+            ) : applications.length === 0 ? (
+              <View style={styles.emptyFeed}>
+                <Lucide name="activity" size={24} color={mutedColor} />
+                <Text style={[styles.emptyFeedText, { color: mutedColor }]}>
+                  No recent activities recorded for this regional office.
+                </Text>
               </View>
-            ))}
+            ) : (
+              applications.slice(0, 5).map((app, idx) => {
+                const statusDot = app.status === 'Approved' ? '#10B981' :
+                  app.status === 'Returned' ? '#EF4444' :
+                  app.status === 'Evaluating' ? '#3B82F6' : '#F59E0B';
+
+                const applicantName = app.filingUser?.name ?? app.filingUser?.company?.name ?? 'Applicant';
+                const appIdentifier = app.applicationNumber ?? app.referenceNumber ?? app.id.slice(0, 8);
+
+                return (
+                  <Pressable
+                    key={app.id}
+                    onPress={() => handleReviewApp(app.id)}
+                    style={[
+                      styles.activityRow,
+                      idx < Math.min(applications.length, 5) - 1 && { borderBottomWidth: 1, borderBottomColor: borderColor },
+                    ]}
+                  >
+                    <View style={[styles.actDot, { backgroundColor: statusDot }]} />
+                    <View style={styles.actText}>
+                      <Text style={[styles.actTitle, { color: textColor }]} numberOfLines={1}>
+                        {appIdentifier} — {app.status}
+                      </Text>
+                      <Text style={[styles.actMeta, { color: mutedColor }]}>
+                        {formatRelativeTime(app.createdAt)} · {applicantName}
+                      </Text>
+                    </View>
+                  </Pressable>
+                );
+              })
+            )}
           </View>
         </View>
       </View>
@@ -295,10 +408,11 @@ export function DashboardScreen(): React.ReactElement {
           <View>
             <Text style={[styles.cardTitle, { color: textColor }]}>Application Queue</Text>
             <Text style={[styles.cardSub, { color: mutedColor }]}>
-              Active evaluation queue — {MOCK_QUEUE.length} entries
+              Active evaluation queue — {applications.length} active submissions
             </Text>
           </View>
           <Pressable
+            onPress={handleReviewNext}
             style={[
               styles.reviewBtn,
               { backgroundColor: isDark ? colors.brand[800] : colors.brand[700] },
@@ -326,45 +440,64 @@ export function DashboardScreen(): React.ReactElement {
         </View>
 
         {/* Table rows */}
-        {MOCK_QUEUE.map((row, idx) => {
-          const statusStyle = isDark ? (
-            row.status === 'Pending' ? { text: '#FBBF24', bg: 'rgba(245, 158, 11, 0.15)' } :
-            row.status === 'In Review' ? { text: '#60A5FA', bg: 'rgba(59, 130, 246, 0.15)' } :
-            row.status === 'Approved' ? { text: '#34D399', bg: 'rgba(16, 185, 129, 0.15)' } :
-            { text: '#F87171', bg: 'rgba(239, 68, 68, 0.15)' }
-          ) : STATUS_COLORS[row.status];
-
-          return (
-            <View
-              key={row.id}
-              style={[
-                styles.tableRow,
-                { borderBottomColor: borderColor },
-                idx === MOCK_QUEUE.length - 1 && { borderBottomWidth: 0 },
-              ]}
-            >
-              <Text style={[styles.tableCell, styles.colId, styles.monoCell, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
-                {row.id}
-              </Text>
-              <Text style={[styles.tableCell, styles.colDefault, { color: textColor }]} numberOfLines={1}>
-                {row.applicant}
-              </Text>
-              <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]} numberOfLines={1}>
-                {row.type}
-              </Text>
-              <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]}>
-                {row.submitted}
-              </Text>
-              <View style={[styles.colStatus, styles.tableCellCenter]}>
-                <View style={[styles.statusBadge, { backgroundColor: statusStyle.bg }]}>
-                  <Text style={[styles.statusBadgeText, { color: statusStyle.text }]}>
-                    {row.status}
-                  </Text>
-                </View>
-              </View>
+        {isLoading && applications.length === 0 ? (
+          [0, 1, 2, 3].map((idx) => (
+            <View key={idx} style={[styles.tableRow, { borderBottomColor: borderColor }]}>
+              <View style={styles.colId}><SkeletonLoader height={14} width={100} borderRadius={4} /></View>
+              <View style={styles.colDefault}><SkeletonLoader height={14} width={120} borderRadius={4} /></View>
+              <View style={styles.colDefault}><SkeletonLoader height={14} width={110} borderRadius={4} /></View>
+              <View style={styles.colDefault}><SkeletonLoader height={14} width={80} borderRadius={4} /></View>
+              <View style={styles.colStatus}><SkeletonLoader height={18} width={70} borderRadius={4} /></View>
             </View>
-          );
-        })}
+          ))
+        ) : applications.length === 0 ? (
+          <View style={styles.emptyTable}>
+            <Text style={[styles.emptyTableText, { color: mutedColor }]}>
+              No applications pending in evaluation queue.
+            </Text>
+          </View>
+        ) : (
+          applications.slice(0, 6).map((row, idx) => {
+            const rawStatus = row.status ?? 'Submitted';
+            const statusConfig = STATUS_COLORS[rawStatus] ?? { text: '#4B5563', bg: '#F3F4F6' };
+            const applicantName = row.filingUser?.name ?? row.filingUser?.company?.name ?? 'Applicant';
+            const serviceName = row.serviceName ?? row.serviceCategory ?? 'Permit Service';
+            const appNumber = row.applicationNumber ?? row.referenceNumber ?? row.id.slice(0, 8);
+
+            return (
+              <Pressable
+                key={row.id}
+                onPress={() => handleReviewApp(row.id)}
+                style={({ pressed }) => [
+                  styles.tableRow,
+                  { borderBottomColor: borderColor },
+                  idx === Math.min(applications.length, 6) - 1 && { borderBottomWidth: 0 },
+                  pressed && { opacity: 0.8 },
+                ]}
+              >
+                <Text style={[styles.tableCell, styles.colId, styles.monoCell, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
+                  {appNumber}
+                </Text>
+                <Text style={[styles.tableCell, styles.colDefault, { color: textColor }]} numberOfLines={1}>
+                  {applicantName}
+                </Text>
+                <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]} numberOfLines={1}>
+                  {serviceName}
+                </Text>
+                <Text style={[styles.tableCell, styles.colDefault, { color: mutedColor }]}>
+                  {formatDisplayDate(row.createdAt)}
+                </Text>
+                <View style={[styles.colStatus, styles.tableCellCenter]}>
+                  <View style={[styles.statusBadge, { backgroundColor: statusConfig.bg }]}>
+                    <Text style={[styles.statusBadgeText, { color: statusConfig.text }]}>
+                      {rawStatus}
+                    </Text>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          })
+        )}
       </View>
     </ScrollView>
   );
@@ -555,6 +688,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING[10],
     paddingVertical: SPACING[8],
+    ...Platform.select({ web: { cursor: 'pointer' } }),
   },
   actDot: { width: 7, height: 7, borderRadius: 4, flexShrink: 0 },
   actText: { flex: 1 },
@@ -567,6 +701,17 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
     marginTop: 1,
+  },
+  emptyFeed: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING[24],
+    gap: 8,
+  },
+  emptyFeedText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    textAlign: 'center',
   },
 
   // Queue table
@@ -610,9 +755,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
-    height: 36,
+    height: 38,
     borderBottomWidth: 1,
-    ...Platform.select({ web: { transition: 'background-color 100ms ease' } }),
+    ...Platform.select({ web: { transition: 'background-color 100ms ease', cursor: 'pointer' } }),
   },
   tableCell: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -639,5 +784,14 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  emptyTable: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: SPACING[24],
+  },
+  emptyTableText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
   },
 });
