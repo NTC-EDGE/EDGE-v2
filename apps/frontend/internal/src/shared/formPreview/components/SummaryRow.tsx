@@ -191,6 +191,9 @@ export function SummaryRow({ label, value, onPreviewFile }: SummaryRowProps) {
           fontSize: 13,
           fontWeight: '600',
           color: '#0F172A',
+          flexWrap: 'wrap',
+          flexShrink: 1,
+          lineHeight: 19,
         }}
       >
         {value}

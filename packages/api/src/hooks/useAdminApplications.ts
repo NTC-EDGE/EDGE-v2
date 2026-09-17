@@ -1,6 +1,27 @@
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 import { apiClient } from '../apiClient';
 import { ApiResponse, ApplicationSummaryDto, PagedApplicationListDto } from '../types';
+
+/**
+ * Revalidates all SWR caches matching the applications API (/api/v2/applications),
+ * ensuring the queue list, activity feed, dashboard metrics, and detail views
+ * immediately update when application status or review evaluation data changes.
+ */
+export async function mutateApplications(applicationId?: string): Promise<void> {
+  await globalMutate(
+    (key: unknown) => {
+      if (typeof key !== 'string') return false;
+      if (key.startsWith('/api/v2/applications')) return true;
+      return false;
+    },
+    undefined,
+    { revalidate: true }
+  );
+
+  if (applicationId) {
+    await globalMutate(`/api/v2/applications/${applicationId}`, undefined, { revalidate: true });
+  }
+}
 
 export interface UseAdminApplicationsOptions {
   refreshInterval?: number;
