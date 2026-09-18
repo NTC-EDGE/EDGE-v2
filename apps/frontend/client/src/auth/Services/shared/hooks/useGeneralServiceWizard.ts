@@ -1012,7 +1012,7 @@ export function useGeneralServiceWizard(
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
       serviceVariantElementIds: [],
       scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
-      isDraft: isDraft,
+      isDraft: true,
       applicants: mappedApplicants,
     };
 
@@ -1028,15 +1028,25 @@ export function useGeneralServiceWizard(
           ? resObj.id
           : null;
 
-      if (applicationId) {
-        const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
-        await uploadRequirementsAfterSubmit({
-          api,
-          applicationId,
-          tenantId: selectedRegionId,
-          applicants: allApplicantsForUpload,
-          getToken,
-        });
+      if (!applicationId) {
+        throw new Error("Application creation returned no identifier.");
+      }
+
+      const allApplicantsForUpload = appMode === "BULK" || mappedApplicants.length > 1 ? applicants : [activeApplicant];
+      await uploadRequirementsAfterSubmit({
+        api,
+        applicationId,
+        tenantId: selectedRegionId,
+        applicants: allApplicantsForUpload,
+        getToken,
+      });
+
+      if (!isDraft) {
+        const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
+        const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
+        if (finObj.succeeded === false) {
+          throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize application submission.");
+        }
       }
     } catch (err: unknown) {
       throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting application.");

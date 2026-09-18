@@ -206,6 +206,7 @@ export function CPEAccreditationWizard({
         csvRows={csvRows}
         handleConfirmCSVImport={handleConfirmCSVImport}
         isSubmitting={isSubmitting}
+        onSaveDraft={onSaveDraft}
       />
     </View>
   );

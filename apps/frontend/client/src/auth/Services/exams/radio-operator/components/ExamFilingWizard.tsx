@@ -2,7 +2,6 @@ import React, { useRef } from "react";
 import * as DocumentPicker from "expo-document-picker";
 import { ScrollView, View, Text, Alert, TouchableOpacity } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
-import { useToast } from "../../../../../shared/components/Toast";
 import { useExamFilingWizard } from "../hooks/useExamFilingWizard";
 import { ExamSteps1To2 } from "./wizard/ExamSteps1To2";
 import { ExamStep3TypeSelection } from "./wizard/ExamStep3TypeSelection";
@@ -43,7 +42,7 @@ interface ExamFilingWizardProps {
   setIsBulkSubmitOpen: (val: boolean) => void;
   serviceId?: string | null;
   serviceName?: string | null;
-  onSaveDraft?: () => void;
+  onSaveDraft?: () => Promise<boolean | void> | void;
   isSavingDraft?: boolean;
 }
 
@@ -243,47 +242,6 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.setStep(3);
   };
 
-  const toast = useToast();
-
-  const handleFinalSubmit = async () => {
-    wizard.setIsSubmitting(true);
-    try {
-      await wizard.submitApplicationPayload();
-      toast.success(
-        "Application Submitted",
-        "Your radio operator exam application has been submitted successfully."
-      );
-      wizard.setIsConfirmModalOpen(false);
-      props.onSuccess();
-    } catch (err: unknown) {
-      console.error(err);
-      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Failed to submit application.";
-      toast.error("Submission Failed", msg);
-    } finally {
-      wizard.setIsSubmitting(false);
-    }
-  };
-
-  const handleBulkFinalSubmit = async () => {
-    if (!wizard.validateBulkSubmit()) return;
-    wizard.setIsSubmitting(true);
-    try {
-      await wizard.submitApplicationPayload();
-      toast.success(
-        "Applications Submitted",
-        "Your bulk radio operator exam applications have been submitted successfully."
-      );
-      props.setIsBulkSubmitOpen(false);
-      props.onSuccess();
-    } catch (err: unknown) {
-      console.error(err);
-      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Failed to submit applications.";
-      toast.error("Submission Failed", msg);
-    } finally {
-      wizard.setIsSubmitting(false);
-    }
-  };
-
   const TOTAL_STEPS = props.appMode === "BULK" ? 7 : 6;
   const stepLabels: Record<number, string> = {
     1: "Region, Office & Schedule",
@@ -369,9 +327,10 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         {...wizard}
         applicantsCount={props.applicants.length}
         handleConfirmCSVImport={handleConfirmCSVImport}
-        handleFinalSubmit={handleFinalSubmit}
         handleConfirmApplicantInBulk={handleConfirmApplicantInBulk}
-        handleBulkFinalSubmit={handleBulkFinalSubmit}
+        submitApplicationPayload={wizard.submitApplicationPayload}
+        onSuccess={props.onSuccess}
+        onSaveDraft={props.onSaveDraft}
       />
     </View>
   );

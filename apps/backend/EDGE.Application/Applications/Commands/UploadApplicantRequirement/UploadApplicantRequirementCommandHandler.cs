@@ -19,6 +19,8 @@ public class UploadApplicantRequirementCommandHandler
     private readonly IRequirementRepository _requirementRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly ITenantContextService _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UploadApplicantRequirementCommandHandler(
@@ -26,12 +28,16 @@ public class UploadApplicantRequirementCommandHandler
         IRequirementRepository requirementRepository,
         IServiceRepository serviceRepository,
         ITenantContextService tenantContext,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
         _serviceRepository = serviceRepository;
         _tenantContext = tenantContext;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -46,13 +52,36 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Application '{request.ApplicationId}' was not found.");
 
-        // 2. Verify the current user is an active member of this application's tenant.
-        //    We derive tenant from app.TenantId (the authoritative source) rather than
-        //    from a route parameter, so this works on both:
-        //      - /applications/{id}/applicants/{applicantId}/requirements
-        //      - /tenants/{tenantId}/applications/{appId}/applicants/{applicantId}/requirements
+        // 2. Verify authorization: Current user must be:
+        //    - An active member/staff of this application's tenant, OR
+        //    - A super admin, OR
+        //    - The owner/applicant who created the application (app.UserId or app.CreatedBy).
         var isMember = await _tenantContext.IsUserActiveMemberAsync(app.TenantId, cancellationToken);
-        if (!isMember)
+        var isSuperAdmin = await _tenantContext.IsCurrentUserSuperAdminAsync(cancellationToken);
+        var currentUserIdStr = _currentUserService.UserId;
+        var isOwner = false;
+
+        if (!string.IsNullOrWhiteSpace(currentUserIdStr))
+        {
+            if (string.Equals(app.CreatedBy, currentUserIdStr, StringComparison.OrdinalIgnoreCase))
+            {
+                isOwner = true;
+            }
+            else if (Guid.TryParse(currentUserIdStr, out var parsedGuid) && app.UserId.HasValue && app.UserId.Value == parsedGuid)
+            {
+                isOwner = true;
+            }
+            else
+            {
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                if (dbUser != null && app.UserId.HasValue && app.UserId.Value == dbUser.Id)
+                {
+                    isOwner = true;
+                }
+            }
+        }
+
+        if (!isMember && !isSuperAdmin && !isOwner)
             return ApiResponse<Guid>.Fail(
                 "You do not have permission to upload requirements for this application.");
 

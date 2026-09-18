@@ -92,7 +92,14 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
         List<Guid>? filterTenantIds = null;
 
         var isSuperAdmin = await _tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
-        if (!isSuperAdmin)
+        if (shouldFilterByMine)
+        {
+            if (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
+            {
+                filterTenantId = request.TenantId.Value;
+            }
+        }
+        else if (!isSuperAdmin)
         {
             if (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
             {

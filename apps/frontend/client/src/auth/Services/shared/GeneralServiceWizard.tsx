@@ -259,6 +259,7 @@ export function GeneralServiceWizard({
           setIsSubmitting={setIsSubmitting}
           onSuccess={onSuccess}
           onApplyMore={onApplyMore || onClose}
+          onSaveDraft={onSaveDraft}
         />
       </View>
     );
@@ -350,6 +351,7 @@ export function GeneralServiceWizard({
         setIsSubmitting={setIsSubmitting}
         onSuccess={onSuccess}
         onApplyMore={onApplyMore || onClose}
+        onSaveDraft={onSaveDraft}
       />
     </View>
   );

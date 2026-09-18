@@ -401,7 +401,7 @@ export function useCPEAccreditationWizard({
           fieldOfficeId: selectedOfficeId || null,
           serviceVariantId: null,
           serviceVariantElementIds: [],
-          isDraft: isDraft,
+          isDraft: true,
           applicants: mappedApplicants,
         };
 
@@ -419,16 +419,26 @@ export function useCPEAccreditationWizard({
             ? submitRes
             : null;
 
-        // Upload and link requirement attachments (non-blocking on partial failure)
-        if (applicationId !== null && applicationId !== "") {
-          const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
-          await uploadRequirementsAfterSubmit({
-            api,
-            applicationId,
-            tenantId: selectedRegionId,
-            applicants: allApplicantsForUpload,
-            getToken,
-          });
+        if (!applicationId) {
+          throw new Error("Application creation returned no identifier.");
+        }
+
+        // Upload and link requirement attachments
+        const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+
+        if (!isDraft) {
+          const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
+          const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
+          if (finObj.succeeded === false) {
+            throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize CPE application submission.");
+          }
         }
 
         return;
