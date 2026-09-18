@@ -228,14 +228,13 @@ export function ReceiptManagementScreen() {
       </View>
 
       {/* Modals */}
-      {state.tenantId && (
-        <>
-          <BundleEntryModal
-            visible={state.isBundleModalOpen}
-            tenantId={state.tenantId}
-            onClose={() => state.setIsBundleModalOpen(false)}
-            onSuccess={state.refreshAll}
-          />
+      <>
+        <BundleEntryModal
+          visible={state.isBundleModalOpen}
+          tenantId={state.tenantId}
+          onClose={() => state.setIsBundleModalOpen(false)}
+          onSuccess={state.refreshAll}
+        />
 
           <EditBookletModal
             visible={state.editingBooklet !== null}
@@ -301,10 +300,9 @@ export function ReceiptManagementScreen() {
             onClose={() => state.setViewingReceipt(null)}
           />
         </>
-      )}
-    </View>
-  );
-}
+      </View>
+    );
+  }
 
 const styles = StyleSheet.create({
   root: {

@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
-  Pressable,
+  Platform,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { OrBookletDto } from '@edge/api';
@@ -62,14 +62,6 @@ export function OrBookletsTab({
 
   return (
     <View style={styles.container}>
-      {/* Click-away backdrop for 3-dots popup */}
-      {activeMenuId !== null && (
-        <Pressable
-          style={styles.popoverBackdrop}
-          onPress={() => setActiveMenuId(null)}
-        />
-      )}
-
       {/* Top Banner Stats */}
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
@@ -126,10 +118,10 @@ export function OrBookletsTab({
                   styles.bookletCard,
                   { backgroundColor: colors.cardBg, borderColor: colors.border },
                   !isActive && styles.bookletCardInactive,
-                  isMenuOpen && { zIndex: 50 },
+                  isMenuOpen && { zIndex: 999, elevation: 30 },
                 ]}
               >
-                <View style={styles.bookletHeader}>
+                <View style={[styles.bookletHeader, isMenuOpen && { zIndex: 1000 }]}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.bookletNum, { color: colors.text }]}>{b.bookletNumber}</Text>
                     <Text style={[styles.seriesRange, { color: colors.neutral[600] }]}>
@@ -146,46 +138,66 @@ export function OrBookletsTab({
 
                     {/* 3-dots Kebab Action Button */}
                     <TouchableOpacity
-                      onPress={() => setActiveMenuId(isMenuOpen ? null : b.id)}
-                      style={[styles.kebabBtn, { backgroundColor: isMenuOpen ? colors.neutral[200] : colors.neutral[100] }]}
+                      activeOpacity={0.7}
+                      onPress={() => setActiveMenuId((prev) => (prev === b.id ? null : b.id))}
+                      style={[
+                        styles.kebabBtn,
+                        { backgroundColor: isMenuOpen ? colors.brand.indigoLight : colors.neutral[100] },
+                      ]}
                     >
-                      <Lucide name="more-vertical" size={16} color={colors.neutral[700]} />
+                      <Lucide
+                        name="more-vertical"
+                        size={16}
+                        color={isMenuOpen ? colors.brand.primary : colors.neutral[700]}
+                      />
                     </TouchableOpacity>
                   </View>
 
                   {/* 3-dots Popover Menu */}
                   {isMenuOpen && (
-                    <View style={[styles.popoverMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                    <View
+                      style={[
+                        styles.popoverMenu,
+                        {
+                          backgroundColor: '#FFFFFF',
+                          borderColor: colors.neutral[300],
+                        },
+                      ]}
+                    >
                       {isEditable ? (
                         <TouchableOpacity
+                          activeOpacity={0.7}
                           onPress={() => {
                             setActiveMenuId(null);
                             onEditBooklet?.(b);
                           }}
                           style={styles.popoverItem}
                         >
-                          <Lucide name="edit-3" size={14} color={colors.neutral[700]} />
-                          <Text style={[styles.popoverText, { color: colors.text }]}>Edit Series</Text>
+                          <Lucide name="edit-3" size={15} color={colors.neutral[700]} />
+                          <Text style={[styles.popoverText, { color: colors.neutral[900] }]}>Edit Series</Text>
                         </TouchableOpacity>
                       ) : (
-                        <View style={[styles.popoverItem, { opacity: 0.5 }]}>
-                          <Lucide name="lock" size={14} color={colors.neutral[400]} />
+                        <View style={[styles.popoverItem, { opacity: 0.55 }]}>
+                          <Lucide name="lock" size={15} color={colors.neutral[400]} />
                           <View>
-                            <Text style={[styles.popoverText, { color: colors.textMuted }]}>Edit Series</Text>
-                            <Text style={{ fontSize: 9, color: colors.textMuted }}>Locked ({b.issuedCount} issued)</Text>
+                            <Text style={[styles.popoverText, { color: colors.neutral[500] }]}>Edit Series</Text>
+                            <Text style={{ fontSize: 9, color: colors.neutral[400], fontWeight: '500' }}>
+                              Locked ({b.issuedCount} issued)
+                            </Text>
                           </View>
                         </View>
                       )}
 
                       <TouchableOpacity
+                        activeOpacity={0.7}
                         onPress={() => {
                           setActiveMenuId(null);
                           onTransferBooklet?.(b);
                         }}
-                        style={[styles.popoverItem, { borderTopWidth: 1, borderTopColor: colors.neutral[100] }]}
+                        style={[styles.popoverItem, { borderTopWidth: 1, borderTopColor: colors.neutral[200] }]}
                       >
-                        <Lucide name="repeat" size={14} color={colors.brand.primary} />
-                        <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '600' }]}>
+                        <Lucide name="repeat" size={15} color={colors.brand.primary} />
+                        <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '700' }]}>
                           Transfer Custody
                         </Text>
                       </TouchableOpacity>
@@ -235,14 +247,6 @@ export function OrBookletsTab({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  popoverBackdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 40,
   },
   centerBox: {
     padding: 32,
@@ -333,8 +337,8 @@ const styles = StyleSheet.create({
     padding: 14,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
     position: 'relative',
@@ -386,37 +390,39 @@ const styles = StyleSheet.create({
     color: '#64748B',
   },
   kebabBtn: {
-    width: 28,
-    height: 28,
+    width: 30,
+    height: 30,
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
+    cursor: 'pointer' as any,
   },
   popoverMenu: {
     position: 'absolute',
-    top: 32,
+    top: 36,
     right: 0,
-    width: 170,
+    width: 190,
     borderRadius: 8,
     borderWidth: 1,
     shadowColor: '#000',
-    shadowOpacity: 0.12,
-    shadowRadius: 10,
-    shadowOffset: { width: 0, height: 4 },
-    elevation: 10,
-    zIndex: 100,
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 99,
+    zIndex: 9999,
     paddingVertical: 4,
   },
   popoverItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    cursor: 'pointer' as any,
   },
   popoverText: {
-    fontSize: 12,
-    fontWeight: '500',
+    fontSize: 13,
+    fontWeight: '600',
   },
   progressContainer: {
     marginVertical: 10,
