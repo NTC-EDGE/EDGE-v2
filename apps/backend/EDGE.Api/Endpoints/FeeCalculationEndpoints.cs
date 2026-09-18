@@ -21,13 +21,7 @@ public static class FeeCalculationEndpoints
             .WithSummary("Calculate statutory NTC fees")
             .WithDescription("Calculates official NTC statutory fees, Documentary Stamp Tax (DST), and renewal late penalty surcharges based on activity, application type, element, duration, and units.")
             .Produces<ApiResponse<FeeCalculationResultDto>>(StatusCodes.Status200OK)
-            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
-            .WithOpenApi(operation =>
-            {
-                operation.Summary = "Calculate statutory NTC fees";
-                operation.Description = "Calculates official NTC fees, DST tax, and late surcharges given activity, type, element, and parameters.";
-                return operation;
-            });
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
 
         var apps = group.MapGroup("applications").WithTags("Fee Calculations");
 
@@ -37,13 +31,7 @@ public static class FeeCalculationEndpoints
             .WithDescription("Calculates official fees and breakdown based on an existing application's service catalog linkages, elements, validity duration, and late renewal status.")
             .Produces<ApiResponse<FeeCalculationResultDto>>(StatusCodes.Status200OK)
             .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
-            .Produces(StatusCodes.Status404NotFound)
-            .WithOpenApi(operation =>
-            {
-                operation.Summary = "Calculate statutory fees for an existing application";
-                operation.Description = "Fetches application details, joins primary or specified applicant services/elements, and evaluates the corresponding statutory calculation strategy.";
-                return operation;
-            });
+            .Produces(StatusCodes.Status404NotFound);
 
         return group;
     }
