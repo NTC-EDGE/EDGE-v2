@@ -38,6 +38,7 @@ public record FeeCalculationRequest(
     DateTime? ExpirationDate = null,
     int AdditionalServicesCount = 0,
     int NoOfCopies = 1,
+    int NoOfChannels = 1,
     DateTime? AsOfDate = null,
     ServiceCategoryType? Category = null
 );

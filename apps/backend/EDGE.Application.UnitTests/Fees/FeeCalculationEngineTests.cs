@@ -4,6 +4,7 @@ using FluentAssertions;
 using Xunit;
 using EDGE.Application.Fees.Calculations;
 using EDGE.Application.Fees.Calculations.Strategies;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.UnitTests.Fees;
@@ -688,6 +689,313 @@ public class FeeCalculationEngineTests
         result.Element.Should().Be("1rtg");
     }
 
+    #endregion
+
+    #region Licenses Category Tests (Spreadsheet Coverage)
+
+    [Theory]
+    [InlineData("Class A", 1, 120.00, 180.00, 210.00, FeeConstants.Formulas.LicenseAmateurNew)]
+    [InlineData("Class B", 1, 132.00, 192.00, 222.00, FeeConstants.Formulas.LicenseAmateurNew)]
+    [InlineData("Class C", 1, 144.00, 204.00, 234.00, FeeConstants.Formulas.LicenseAmateurNew)]
+    [InlineData("Class D", 2, 144.00, 348.00, 378.00, FeeConstants.Formulas.LicenseAmateurNew)]
+    public void Calculate_AmateurLicense_New_ShouldComputeCorrectAmounts(string element, int years, decimal expectedLf, decimal expectedSubtotal, decimal expectedTotal, string expectedFormula)
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Radio Station License (New)",
+            Element: element,
+            ValidityYears: years,
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(expectedSubtotal);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(expectedTotal);
+        result.FormulaApplied.Should().Be(expectedFormula);
+        result.LineItems.Should().Contain(li => li.ItemCode == FeeConstants.Codes.LicenseFee && li.FeeRate == expectedLf);
+    }
+
+    [Fact]
+    public void Calculate_AmateurLicense_RenewalWithSurcharge_ShouldApplyTierMultiplier()
+    {
+        var expiration = new DateTime(2025, 1, 1);
+        var asOfDate = new DateTime(2025, 4, 1); // 90 days delay (Tier 1: 50%)
+
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Radio Station License (RENEWAL)",
+            Element: "Class A",
+            ValidityYears: 1,
+            ExpirationDate: expiration,
+            AsOfDate: asOfDate,
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(120.00m); // LF = 120
+        result.SurchargeAmount.Should().Be(60.00m); // 50% of 120
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(210.00m);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseAmateurRenewal);
+    }
+
+    [Fact]
+    public void Calculate_AmateurLicense_Modification_ShouldComputeCorrectAmounts()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Radio Station License (MODIFICATION)",
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(110.00m); // FF=60, MOD=50
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(140.00m);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseAmateurModification);
+    }
+
+    [Fact]
+    public void Calculate_AmateurLifetimeLicense_ShouldComputeCorrectAmounts()
+    {
+        var newReq = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Lifetime Amateur Radio Station License for Class A (NEW)",
+            Category: ServiceCategoryType.License
+        );
+
+        var newResult = _engine.Calculate(newReq);
+        newResult.SubTotal.Should().Be(50.00m);
+        newResult.TotalAmount.Should().Be(80.00m);
+
+        var modReq = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Lifetime Amateur Radio Station License for Class A (MODIFICATION)",
+            Category: ServiceCategoryType.License
+        );
+
+        var modResult = _engine.Calculate(modReq);
+        modResult.SubTotal.Should().Be(110.00m);
+        modResult.TotalAmount.Should().Be(140.00m);
+    }
+
+    [Fact]
+    public void Calculate_AmateurClubLicense_ShouldComputeSimplexAndDuplex()
+    {
+        var simplexReq = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Club Radio Station License (NEW)",
+            Element: "Simplex",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var simplexResult = _engine.Calculate(simplexReq);
+        simplexResult.SubTotal.Should().Be(1480.00m); // FF=180 + CPF=600 + LF=700
+        simplexResult.TotalAmount.Should().Be(1510.00m);
+
+        var duplexReq = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Club Radio Station License (NEW)",
+            Element: "Duplex",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var duplexResult = _engine.Calculate(duplexReq);
+        duplexResult.SubTotal.Should().Be(2100.00m); // FF=180 + CPF=600 + LF=1320
+        duplexResult.TotalAmount.Should().Be(2130.00m);
+
+        var modReq = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AMATEUR SERVICE",
+            ApplicationType: "Amateur Club Radio Station License (MODIFICATION)",
+            Category: ServiceCategoryType.License
+        );
+
+        var modResult = _engine.Calculate(modReq);
+        modResult.SubTotal.Should().Be(290.00m); // FF=180 + CPF=60 + MOD=50
+        modResult.TotalAmount.Should().Be(320.00m);
+    }
+
+    [Theory]
+    [InlineData("High Powered (>100W)", 120.00, 1080.00, 720.00, 1920.00, 1950.00)]
+    [InlineData("Medium Powered (25W-100W)", 120.00, 960.00, 720.00, 1800.00, 1830.00)]
+    [InlineData("Low Powered (<=25W)", 120.00, 840.00, 720.00, 1680.00, 1710.00)]
+    public void Calculate_AeronauticalFixedLicense_New_ShouldComputePowerTiers(string element, decimal expectedCpf, decimal expectedLf, decimal expectedIf, decimal expectedSubtotal, decimal expectedTotal)
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AERONAUTICAL SERVICE",
+            ApplicationType: "Fixed Aeronautical Station License (NEW)",
+            Element: element,
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(expectedSubtotal);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(expectedTotal);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseAeroFixedNew);
+        result.LineItems.Should().Contain(li => li.ItemCode == FeeConstants.Codes.ConstructionPermit && li.FeeRate == expectedCpf);
+        result.LineItems.Should().Contain(li => li.ItemCode == FeeConstants.Codes.LicenseFee && li.FeeRate == expectedLf);
+        result.LineItems.Should().Contain(li => li.ItemCode == FeeConstants.Codes.InspectionFee && li.FeeRate == expectedIf);
+    }
+
+    [Fact]
+    public void Calculate_AeronauticalAircraftLicense_Modification_ShouldComputeAmounts()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE AERONAUTICAL SERVICE",
+            ApplicationType: "Aircraft Station License (MODIFICATION)",
+            Element: "High Powered (>100W)",
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(1320.00m); // FF=180 + CPF=960 + MOD=180
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(1350.00m);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseAeroAircraftModification);
+    }
+
+    [Fact]
+    public void Calculate_MaritimeDomesticShipStation_WithOriginalEquip_ShouldComputeCorrectAmounts()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE MARITIME SERVICE",
+            ApplicationType: "Ship Station License Domestic trade (With Originally0installed equipment) NEW",
+            Element: "High Powered (>100W)",
+            ValidityYears: 1,
+            NoOfUnits: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FF=180, PUR=240, POS=120, CPF=720, LF=840, IF=720 -> SubTotal = 2820.00
+        result.SubTotal.Should().Be(2820.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(2850.00m);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseMaritimeDomesticWithEquipNew);
+    }
+
+    [Fact]
+    public void Calculate_MaritimeCoastalStation_RadiotelephonyVhf_ShouldComputeCorrectAmounts()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "LICENSE IN THE MARITIME SERVICE",
+            ApplicationType: "Private Coastal Station License (NEW)",
+            Element: "Radiotelephony Very High Frequency (VHF)",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var result = _engine.Calculate(request);
+
+        // CPF=480, LF=480, IF=480 -> SubTotal = 1440.00
+        result.SubTotal.Should().Be(1440.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(1470.00m);
+        result.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseMaritimePrivateCoastalNew);
+    }
+
+    [Fact]
+    public void Calculate_FlmLicense_Portable_ShouldNotChargeConstructionPermit()
+    {
+        var newReq = new FeeCalculationRequest(
+            Activity: "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE",
+            ApplicationType: "Radio Station License (NEW)",
+            Element: "Simplex Portable (P) Low Powered",
+            ValidityYears: 1,
+            NoOfUnits: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var newResult = _engine.Calculate(newReq);
+        // CPF=0, LF=240, IF=240 -> SubTotal = 480.00
+        newResult.SubTotal.Should().Be(480.00m);
+        newResult.TotalAmount.Should().Be(510.00m);
+
+        var modReq = new FeeCalculationRequest(
+            Activity: "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE",
+            ApplicationType: "Radio Station License (MODIFICATION)",
+            Element: "Portable (P)",
+            NoOfUnits: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var modResult = _engine.Calculate(modReq);
+        // MOD=180, DST=30
+        modResult.SubTotal.Should().Be(180.00m);
+        modResult.TotalAmount.Should().Be(210.00m);
+        modResult.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseFlmPortableModification);
+    }
+
+    [Fact]
+    public void Calculate_TvroAndCatvLicense_ShouldComputeCorrectAmounts()
+    {
+        var tvroReq = new FeeCalculationRequest(
+            Activity: "TVRO/CATV STATION LICENSE",
+            ApplicationType: "TVRO Station License (NEW)",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var tvroResult = _engine.Calculate(tvroReq);
+        tvroResult.SubTotal.Should().Be(2600.00m);
+        tvroResult.TotalAmount.Should().Be(2630.00m);
+        tvroResult.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseTvroNew);
+
+        var catvReq = new FeeCalculationRequest(
+            Activity: "TVRO/CATV STATION LICENSE",
+            ApplicationType: "CATV Station License (NEW)",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.License
+        );
+
+        var catvResult = _engine.Calculate(catvReq);
+        // FF=400 + CPF=1140 + LF=3600 + IF=720 = 5860.00
+        catvResult.SubTotal.Should().Be(5860.00m);
+        catvResult.TotalAmount.Should().Be(5890.00m);
+        catvResult.FormulaApplied.Should().Be(FeeConstants.Formulas.LicenseCatvNew);
+    }
+
+    [Fact]
+    public void Calculate_LicenseCopies_ShouldComputeCorrectAmounts()
+    {
+        var ctcReq = new FeeCalculationRequest(
+            Activity: "COPY OF LICENSES",
+            ApplicationType: "Certified True Copy",
+            NoOfCopies: 3,
+            Category: ServiceCategoryType.License
+        );
+
+        var ctcResult = _engine.Calculate(ctcReq);
+        // 1st copy = 24 + 2 * 6 = 36.00 + 30 DST = 66.00
+        ctcResult.SubTotal.Should().Be(36.00m);
+        ctcResult.TaxAmount.Should().Be(30.00m);
+        ctcResult.TotalAmount.Should().Be(66.00m);
+
+        var dupReq = new FeeCalculationRequest(
+            Activity: "COPY OF LICENSES",
+            ApplicationType: "Duplicate Copy",
+            Category: ServiceCategoryType.License
+        );
+
+        var dupResult = _engine.Calculate(dupReq);
+        dupResult.SubTotal.Should().Be(120.00m);
+        dupResult.TaxAmount.Should().Be(30.00m);
+        dupResult.TotalAmount.Should().Be(150.00m);
+    }
+
+    #endregion
+
     [Fact]
     public void StrategyRegistry_ShouldHaveDedicatedStrategyForEveryServiceCategoryEnum()
     {
@@ -709,8 +1017,6 @@ public class FeeCalculationEngineTests
             result.FormulaApplied.Should().NotBe("FEE = (RATE)(YR)(UNIT) + DST", $"Category {category} should have a dedicated statutory formula, not default fallback");
         }
     }
-
-    #endregion
 }
 
 

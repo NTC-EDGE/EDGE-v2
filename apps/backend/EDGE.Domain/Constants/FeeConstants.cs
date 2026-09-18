@@ -145,6 +145,112 @@ public static class FeeConstants
         public const decimal PermitCertifiedTrueCopyFirstPage = 24.00m;
         public const decimal PermitCertifiedTrueCopySucceedingPage = 6.00m;
 
+        // Licenses: Amateur Service Rates
+        public const decimal AmateurLicenseFilingFee = 60.00m;
+        public const decimal AmateurLicenseClassARate = 120.00m;
+        public const decimal AmateurLicenseClassBRate = 132.00m;
+        public const decimal AmateurLicenseClassCRate = 144.00m;
+        public const decimal AmateurLicenseClassDRate = 144.00m;
+        public const decimal AmateurLicenseModificationFee = 50.00m;
+        public const decimal AmateurLifetimeLicenseFee = 50.00m;
+        public const decimal AmateurClubFilingFee = 180.00m;
+        public const decimal AmateurClubConstructionPermitFee = 600.00m;
+        public const decimal AmateurClubSimplexLicenseFee = 700.00m;
+        public const decimal AmateurClubDuplexLicenseFee = 1320.00m;
+        public const decimal AmateurClubModificationFee = 50.00m;
+        public const decimal AmateurClubModificationCpf = 60.00m;
+
+        // Licenses: Aeronautical Service Rates
+        public const decimal AeroInspectionFee = 720.00m;
+        public const decimal AeroFilingFee = 180.00m;
+        public const decimal AeroModificationFee = 180.00m;
+        public const decimal AeroFixedHighCpf = 120.00m;
+        public const decimal AeroFixedHighLf = 1080.00m;
+        public const decimal AeroFixedHighModCpf = 1080.00m;
+        public const decimal AeroFixedMedCpf = 120.00m;
+        public const decimal AeroFixedMedLf = 960.00m;
+        public const decimal AeroFixedMedModCpf = 840.00m;
+        public const decimal AeroFixedLowCpf = 120.00m;
+        public const decimal AeroFixedLowLf = 840.00m;
+        public const decimal AeroFixedLowModCpf = 600.00m;
+        public const decimal AeroAircraftHighCpf = 960.00m;
+        public const decimal AeroAircraftHighLf = 1320.00m;
+        public const decimal AeroAircraftMedCpf = 840.00m;
+        public const decimal AeroAircraftMedLf = 1080.00m;
+        public const decimal AeroAircraftLowCpf = 720.00m;
+        public const decimal AeroAircraftLowLf = 840.00m;
+
+        // Licenses: Maritime Service Rates
+        public const decimal MaritimeFilingFee = 180.00m;
+        public const decimal MaritimeModificationFee = 180.00m;
+        public const decimal MaritimeInspectionFee = 720.00m;
+        public const decimal MaritimeDomHighCpf = 720.00m;
+        public const decimal MaritimeDomHighLf = 840.00m;
+        public const decimal MaritimeDomMedCpf = 600.00m;
+        public const decimal MaritimeDomMedLf = 720.00m;
+        public const decimal MaritimeDomLowCpf = 480.00m;
+        public const decimal MaritimeDomLowLf = 600.00m;
+        public const decimal MaritimeIntlLf = 180.00m;
+        public const decimal MaritimeIntlIf = 1200.00m;
+        public const decimal MaritimeIntlModCpf = 1200.00m;
+        public const decimal MarPrivCoastHighCpf = 1320.00m;
+        public const decimal MarPrivCoastHighLf = 1440.00m;
+        public const decimal MarPrivCoastMedCpf = 960.00m;
+        public const decimal MarPrivCoastMedLf = 1200.00m;
+        public const decimal MarPrivCoastLowCpf = 600.00m;
+        public const decimal MarPrivCoastLowLf = 1080.00m;
+        public const decimal MarPrivCoastHfCpf = 480.00m;
+        public const decimal MarPrivCoastHfLf = 720.00m;
+        public const decimal MarPrivCoastHfIf = 720.00m;
+        public const decimal MarPrivCoastVhfCpf = 480.00m;
+        public const decimal MarPrivCoastVhfLf = 480.00m;
+        public const decimal MarPrivCoastVhfIf = 480.00m;
+        public const decimal MarPubCoastHighCpf = 1200.00m;
+        public const decimal MarPubCoastHighLf = 2160.00m;
+        public const decimal MarPubCoastMedCpf = 840.00m;
+        public const decimal MarPubCoastMedLf = 1680.00m;
+        public const decimal MarPubCoastLowCpf = 480.00m;
+        public const decimal MarPubCoastLowLf = 1200.00m;
+        public const decimal MarPubCoastIf = 840.00m;
+        public const decimal MarPubCoastHfHighLf = 1560.00m;
+        public const decimal MarPubCoastHfMedLf = 1080.00m;
+        public const decimal MarPubCoastHfLowLf = 480.00m;
+        public const decimal MarPubCoastHfCpf = 480.00m;
+        public const decimal MarPubCoastHfIf = 720.00m;
+        public const decimal MarPubCoastVhfCpf = 480.00m;
+        public const decimal MarPubCoastVhfLf = 1200.00m;
+        public const decimal MarPubCoastVhfIf = 480.00m;
+
+        // Licenses: Fixed & Land Mobile (FLM) Rates
+        public const decimal FlmFilingFee = 180.00m;
+        public const decimal FlmModificationFee = 180.00m;
+        public const decimal FlmCpfStandard = 240.00m;
+        public const decimal FlmCpfRepeater = 600.00m;
+
+        // Licenses: Other Services Rates
+        public const decimal OtherMicrowaveLf = 480.00m;
+        public const decimal OtherMicrowaveIf = 480.00m;
+        public const decimal OtherVsatLf = 360.00m;
+        public const decimal OtherVsatIf = 420.00m;
+        public const decimal OtherTrunkedLf = 1680.00m;
+        public const decimal OtherTrunkedIf = 360.00m;
+        public const decimal OtherBwaLf = 480.00m;
+        public const decimal OtherBwaIf = 480.00m;
+        public const decimal OtherWdnLf = 480.00m;
+        public const decimal OtherWdnIf = 480.00m;
+        public const decimal OtherBtsLf = 480.00m;
+        public const decimal OtherBtsIf = 480.00m;
+        public const decimal OtherBtsCpf = 360.00m;
+
+        // Licenses: TVRO & CATV Rates
+        public const decimal TvroLicenseFee = 2600.00m;
+        public const decimal TvroModificationFee = 180.00m;
+        public const decimal CatvFilingFee = 400.00m;
+        public const decimal CatvConstructionPermitFee = 1140.00m;
+        public const decimal CatvLicenseFee = 3600.00m;
+        public const decimal CatvInspectionFee = 720.00m;
+        public const decimal CatvModificationFee = 180.00m;
+
         // Other Categories (Licenses, Permits, Exams, Accreditations, Requests)
         public const decimal LicenseFilingFee = 180.00m;
         public const decimal DefaultLicenseRate = 500.00m;
@@ -219,7 +325,55 @@ public static class FeeConstants
         public const string PermitCertifiedTrueCopy = "TOTAL = FC + (SC)(COPY) + DST";
         public const string PermitDuplicateCopy = "TOTAL = DUP + DST";
 
-        // License & Others
+        // Licenses Formulas
+        public const string LicenseAmateurNew = "FEEAT-RSL = FF + (LF)(YR) + DST";
+        public const string LicenseAmateurRenewal = "FEEAT-RSL = (LF)(YR) + DST + SUR";
+        public const string LicenseAmateurModification = "FEEAT-RSL = FF + MOD + DST";
+        public const string LicenseAmateurLifetimeNew = "FEEAT-LIFETIME = LF + DST";
+        public const string LicenseAmateurLifetimeModification = "FEEAT-LIFETIME = FF + MOD + DST";
+        public const string LicenseAmateurClubNew = "FEEAT-RSL-CLUB = FF + CPF + (LF)(YR) + DST";
+        public const string LicenseAmateurClubRenewal = "FEEAT-RSL-CLUB = (LF)(YR) + DST + SUR";
+        public const string LicenseAmateurClubModification = "FEEAT-RSL-CLUB = FF + CPF + MOD + DST";
+
+        public const string LicenseAeroFixedNew = "FEERSL = CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseAeroFixedRenewal = "FEERSL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseAeroFixedModification = "FEERSL = FF + CPF + MOD + DST";
+        public const string LicenseAeroAircraftNew = "FEEASL = CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseAeroAircraftRenewal = "FEEASL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseAeroAircraftModification = "FEEASL = FF + CPF + MOD + DST";
+
+        public const string LicenseMaritimeDomesticWithoutEquipNew = "FEESSL = CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseMaritimeDomesticWithEquipNew = "FEESSL = (FF)(UNIT) + (PUR)(UNIT) + (POS)(UNIT) + CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseMaritimeDomesticRenewal = "FEESSL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseMaritimeDomesticModification = "FEESSL = FF + CPF + MOD + DST";
+        public const string LicenseMaritimeIntlRenewal = "FEESSL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseMaritimeIntlModification = "FEESSL = (FF)(UNIT) + (PUR)(UNIT) + (POS)(UNIT) + CPF + MOD + DST";
+        public const string LicenseMaritimePrivateCoastalNew = "FEEPRI-COASTAL = CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseMaritimePrivateCoastalRenewal = "FEEPRI-COASTAL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseMaritimePrivateCoastalModification = "FEEPRI-COASTAL = FF + CPF + MOD + DST";
+        public const string LicenseMaritimePublicCoastalNew = "FEEPUB-COASTAL = CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseMaritimePublicCoastalRenewal = "FEEPUB-COASTAL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseMaritimePublicCoastalModification = "FEEPUB-COASTAL = FF + CPF + MOD + DST";
+
+        public const string LicenseFlmNew = "FEERSL = (CPF)(UNIT) + (LF)(CH_UNIT)(YR) + (IF)(UNIT)(YR) + (SUF)(CH_UNIT)(YR) + DST";
+        public const string LicenseFlmRenewal = "FEERSL = (LF)(CH_UNIT)(YR) + (IF)(UNIT)(YR) + (SUF)(CH_UNIT)(YR) + DST + SUR";
+        public const string LicenseFlmModification = "FEERSL = (FF)(UNIT) + (CPF)(UNIT) + (MOD)(UNIT) + DST";
+        public const string LicenseFlmPortableModification = "FEERSL = MOD + DST";
+
+        public const string LicenseOtherRenewal = "FEERSL = (LF)(CH_UNIT)(YR) + (IF)(CH_UNIT)(YR) + (SUF)(YR) + DST + SUR";
+        public const string LicenseOtherBtsModification = "FEERSL = FF + (CPF)(CH_UNIT) + MOD + DST";
+
+        public const string LicenseTvroNew = "FEETVRORSL = (LF)(YR) + DST";
+        public const string LicenseTvroRenewal = "FEETVRORSL = (LF)(YR) + DST + SUR";
+        public const string LicenseTvroModification = "FEEMOD = MOD + DST";
+        public const string LicenseCatvNew = "FEECATVRSL = FF + CPF + (LF)(YR) + (IF)(YR) + DST";
+        public const string LicenseCatvRenewal = "FEECATVRSL = (LF)(YR) + (IF)(YR) + DST + SUR";
+        public const string LicenseCatvModification = "FEEMOD = MOD + DST";
+
+        public const string LicenseCertifiedTrueCopy = "TOTAL = FC + (SC)(COPY) + DST";
+        public const string LicenseDuplicateCopy = "TOTAL = DUP + DST";
+
+        // General / Fallback Formulas
         public const string LicenseNew = "FEELIC = FF + (LIC)(YR)(UNIT) + DST";
         public const string LicenseRenewal = "FEELIC = FF + (LIC)(YR)(UNIT) + DST + SUR";
         public const string LicenseModification = "FEELIC = FF + MOD + DST";
