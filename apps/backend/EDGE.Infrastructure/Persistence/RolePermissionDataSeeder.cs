@@ -182,6 +182,10 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.ReadRequirements),
             (actualAccountantRoleId, Permissions.ReadStorage),
             (actualAccountantRoleId, Permissions.DownloadStorage),
+            (actualAccountantRoleId, Permissions.ReceiptsRead),
+            (actualAccountantRoleId, Permissions.BankAccountsManage),
+            (actualAccountantRoleId, Permissions.ReceiptsDeposit),
+            (actualAccountantRoleId, Permissions.CashierReports),
 
             // Cashier
             (actualCashierRoleId, Permissions.ReadTenants),
@@ -201,7 +205,6 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.ReceiptsEdit),
             (actualCashierRoleId, Permissions.ReceiptsCancel),
             (actualCashierRoleId, Permissions.ReceiptsDeposit),
-            (actualCashierRoleId, Permissions.BankAccountsManage),
             (actualCashierRoleId, Permissions.CashierReports),
         };
 

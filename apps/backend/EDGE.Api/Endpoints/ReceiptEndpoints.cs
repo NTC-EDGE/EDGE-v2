@@ -292,7 +292,7 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.BankAccountsManage)]
+    [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetAgencyBankAccounts(
         [FromQuery] Guid tenantId,
         [FromQuery] bool? activeOnly,
