@@ -240,5 +240,8 @@ public static class FastTrackCatalogSeeder
             }
         }
         await context.SaveChangesAsync();
+
+        // 5. Seed ServiceVariantFees and ServiceVariantElementFees
+        await FastTrackFeeSeeder.SeedFeesAndVariantFeesAsync(context, logger);
     }
 }

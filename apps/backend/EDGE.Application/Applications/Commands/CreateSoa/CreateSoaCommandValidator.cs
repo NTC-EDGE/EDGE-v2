@@ -9,6 +9,5 @@ public class CreateSoaCommandValidator : AbstractValidator<CreateSoaCommand>
     {
         RuleFor(x => x.ApplicationId).NotEmpty().WithMessage("ApplicationId is required.");
         RuleFor(x => x.IssuedToName).NotEmpty().WithMessage("IssuedToName is required.");
-        RuleFor(x => x.LineItems).NotEmpty().WithMessage("LineItems must have at least 1 item.");
     }
 }

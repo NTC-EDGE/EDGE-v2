@@ -34,6 +34,7 @@ import {
   ApplicantRequirementItemDto,
   useApplicationFormWithSubmission,
   useAdminApplicationDetails,
+  mutateApplications,
 } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -248,6 +249,8 @@ const infoStyles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.medium,
     flex: 1,
+    flexWrap: 'wrap',
+    flexShrink: 1,
   },
   editLink: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1262,7 +1265,7 @@ function ApplicantRecordTab({
     setLocalRemarks(activeApplicant?.evaluationRemarks ?? '');
   }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
 
-  const handleSetStatus = (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
+  const handleSetStatus = async (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
     if (!isEditable) return;
     const updated = [...localApplicants];
     const target = updated[idx];
@@ -1270,12 +1273,13 @@ function ApplicantRecordTab({
       updated[idx] = { ...target, status: newStatus };
       setLocalApplicants(updated);
       if (updateApplication) {
-        updateApplication(app.id, { applicantsList: updated });
+        await updateApplication(app.id, { applicantsList: updated });
+        notifySuccess("Status Updated", `Applicant evaluation status set to ${newStatus}.`);
       }
     }
   };
 
-  const handleSetRemarks = (idx: number, text: string) => {
+  const handleSetRemarks = async (idx: number, text: string) => {
     if (!isEditable) return;
     const updated = [...localApplicants];
     const target = updated[idx];
@@ -1283,7 +1287,7 @@ function ApplicantRecordTab({
       updated[idx] = { ...target, evaluationRemarks: text };
       setLocalApplicants(updated);
       if (updateApplication) {
-        updateApplication(app.id, { applicantsList: updated });
+        await updateApplication(app.id, { applicantsList: updated });
       }
     }
   };
@@ -2420,15 +2424,47 @@ export function ApplicationReviewScreenContent({
   }, [applicationDto]);
 
   const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
-    if (patch.status) {
-      await applicationService.updateStatus(id, {
-        status: patch.status,
-        remarks: patch.note,
-      });
-    } else {
-      await applicationService.adminUpdateApplication(id, patch as Record<string, unknown>);
+    try {
+      if (typeof patch.status === 'string' && patch.status.length > 0) {
+        const [res, err] = await applicationService.updateStatus(id, {
+          status: patch.status,
+          remarks: typeof patch.note === 'string' ? patch.note : undefined,
+        });
+        if (err !== null) {
+          const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+            ? String(Reflect.get(err, 'message'))
+            : 'Please try again.';
+          toast.error(`Status update failed: ${errMsg}`);
+          return;
+        }
+      } else {
+        const payload: Record<string, unknown> = {};
+        if (patch.referenceNumber !== undefined) payload.referenceNumber = patch.referenceNumber;
+        if (patch.applicationNumber !== undefined) payload.permitNumber = patch.applicationNumber;
+        if (patch.office !== undefined) payload.office = patch.office;
+        if (patch.applicant !== undefined) payload.applicant = patch.applicant;
+        if (patch.applicantType !== undefined) payload.applicantType = patch.applicantType;
+        if (patch.note !== undefined) payload.note = patch.note;
+        if (patch.contactDetails !== undefined) payload.contactDetails = patch.contactDetails;
+        if (patch.address !== undefined) payload.address = patch.address;
+        if (patch.companyDetails !== undefined) payload.companyDetails = patch.companyDetails;
+        if (patch.basicInfo !== undefined) payload.basicInfo = patch.basicInfo;
+        if (patch.applicantsList !== undefined) payload.applicantsList = patch.applicantsList;
+
+        const [res, err] = await applicationService.adminUpdateApplication(id, payload);
+        if (err !== null) {
+          const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+            ? String(Reflect.get(err, 'message'))
+            : 'Please try again.';
+          toast.error(`Update failed: ${errMsg}`);
+          return;
+        }
+      }
+      await mutateApplications(id);
+      await refetch();
+    } catch {
+      toast.error("Failed to update application data.");
     }
-    refetch();
   }, [refetch]);
 
   const setSelectedId = useCallback((_id: string | null) => {
@@ -2522,7 +2558,7 @@ export function ApplicationReviewScreenContent({
     currentRole === "Cashier" ||
     (canVerifyCashier && innerTab === "soa");
 
-  const handleApprove = () => {
+  const handleApprove = async () => {
     setShowApprove(false);
     const dateStr = new Date().toLocaleString("en-US", {
       month: "short",
@@ -2532,7 +2568,7 @@ export function ApplicationReviewScreenContent({
       minute: "2-digit",
       hour12: true,
     });
-    updateApplication(app.id, {
+    await updateApplication(app.id, {
       status: "Approved",
       queueTab: "history",
       history: [
@@ -2545,10 +2581,11 @@ export function ApplicationReviewScreenContent({
         },
       ],
     });
+    toast.success("Application has been approved successfully.");
     setSelectedId(null);
   };
 
-  const handleDecline = (notice: string) => {
+  const handleDecline = async (notice: string) => {
     setShowDecline(false);
     const dateStr = new Date().toLocaleString("en-US", {
       month: "short",
@@ -2558,7 +2595,7 @@ export function ApplicationReviewScreenContent({
       minute: "2-digit",
       hour12: true,
     });
-    updateApplication(app.id, {
+    await updateApplication(app.id, {
       status: "Returned",
       queueTab: "history",
       note: notice,
@@ -2572,10 +2609,11 @@ export function ApplicationReviewScreenContent({
         },
       ],
     });
+    toast.success("Application returned with notice.");
     setSelectedId(null);
   };
 
-  const handleEndorse = (targetRole: UserRole) => {
+  const handleEndorse = async (targetRole: UserRole) => {
     setShowEndorse(false);
     const dateStr = new Date().toLocaleString("en-US", {
       month: "short",
@@ -2586,7 +2624,7 @@ export function ApplicationReviewScreenContent({
       hour12: true,
     });
 
-    updateApplication(app.id, {
+    await updateApplication(app.id, {
       assignedTo: `${targetRole.toUpperCase()} EDGE`,
       queueTab: "history",
       history: [
@@ -2600,6 +2638,7 @@ export function ApplicationReviewScreenContent({
       ],
     });
 
+    toast.success(`Application endorsed to ${targetRole}.`);
     setSelectedId(null);
     Alert.alert("Success", `Application endorsed to ${targetRole}`);
   };
@@ -2618,7 +2657,7 @@ export function ApplicationReviewScreenContent({
     }
   };
 
-  const handleCashierVerify = (data: {
+  const handleCashierVerify = async (data: {
     orNumber: string;
     checkNumber: string;
     checkName: string;
@@ -2632,7 +2671,7 @@ export function ApplicationReviewScreenContent({
       minute: "2-digit",
       hour12: true,
     });
-    updateApplication(app.id, {
+    await updateApplication(app.id, {
       payment: { ...app.payment, ...data },
       status: "Approved",
       queueTab: "history",
@@ -2648,6 +2687,7 @@ export function ApplicationReviewScreenContent({
       ],
     });
 
+    toast.success("Payment verified. Application moved for approval.");
     setSelectedId(null);
     Alert.alert("Success", "Payment verified. Application moved for approval.");
   };

@@ -18,6 +18,7 @@ import {
   Icon as Lucide,
   SkeletonLoader,
   useTheme,
+  toast,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -25,7 +26,7 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useAdminApplications, applicationService } from "@edge/api";
+import { useAdminApplications, applicationService, mutateApplications } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import {
   usePermissions,
@@ -149,20 +150,36 @@ export function ActivitiesFeedPane({
 
   const togglePinApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    await applicationService.togglePin(id, !app?.isPinned);
-    refetch();
+    const [res, err] = await applicationService.togglePin(id, app?.isPinned !== true);
+    if (err !== null) {
+      toast.error("Failed to pin/unpin application.");
+      return;
+    }
+    await mutateApplications(id);
+    await refetch();
   }, [applications, refetch]);
 
   const toggleArchiveApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    await applicationService.toggleArchive(id, !app?.isArchived);
+    const [res, err] = await applicationService.toggleArchive(id, app?.isArchived !== true);
+    if (err !== null) {
+      toast.error("Failed to archive/unarchive application.");
+      return;
+    }
     if (selectedId === id) setSelectedId?.(null);
-    refetch();
+    await mutateApplications(id);
+    await refetch();
   }, [applications, selectedId, setSelectedId, refetch]);
 
   const evaluateApplication = useCallback(async (id: string) => {
-    await applicationService.updateStatus(id, { status: "Evaluating" });
-    refetch();
+    const [res, err] = await applicationService.updateStatus(id, { status: "Evaluating" });
+    if (err !== null) {
+      toast.error("Failed to start evaluation.");
+      return;
+    }
+    toast.success("Application moved to technical evaluation.");
+    await mutateApplications(id);
+    await refetch();
   }, [refetch]);
 
   const resetStore = useCallback(() => {
