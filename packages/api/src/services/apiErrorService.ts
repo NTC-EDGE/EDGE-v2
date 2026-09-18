@@ -167,6 +167,16 @@ function parseClerkErrorPayload(errObj: object): string | null {
   const message = getProperty(targetErr, "message");
   const longMessage = getProperty(targetErr, "long_message");
 
+  if (
+    code === "external_account_not_found" ||
+    code === "account_not_found" ||
+    code === "user_not_found" ||
+    code === "not_allowed_to_sign_up" ||
+    code === "identifier_not_found"
+  ) {
+    return "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+  }
+
   if (code === "strategy_for_user_invalid") {
     return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
   }
@@ -176,11 +186,7 @@ function parseClerkErrorPayload(errObj: object): string | null {
       : "Too many requests. Please try again in a bit.";
   }
   if (code === "form_identifier_not_found") {
-    return typeof longMessage === "string" && longMessage.trim().length > 0
-      ? longMessage.trim()
-      : typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Couldn't find your account. Please check your email or username.";
+    return "The selected account is not yet registered. Please make sure to sign in with a registered account.";
   }
   if (code === "form_password_incorrect") {
     return typeof longMessage === "string" && longMessage.trim().length > 0

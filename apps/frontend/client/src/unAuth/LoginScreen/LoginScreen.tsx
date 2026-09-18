@@ -338,14 +338,39 @@ export function LoginScreen() {
       if (res !== null && res !== undefined && res.createdSessionId && typeof res.setActive === "function") {
         await res.setActive({ session: res.createdSessionId });
         setSuccess(true);
+      } else {
+        setGeneralError("The selected Google account is not yet registered. Please make sure to sign in with a registered account.");
       }
     } catch (err: unknown) {
       console.error("Google sign-in error:", err);
       let errMsg = "Google sign-in failed. Please try again.";
       if (isClerkAPIResponseError(err)) {
-        errMsg = err.errors[0]?.message ?? errMsg;
+        const firstErr = err.errors[0];
+        const code = firstErr?.code;
+        if (
+          code === "external_account_not_found" ||
+          code === "account_not_found" ||
+          code === "user_not_found" ||
+          code === "form_identifier_not_found" ||
+          code === "not_allowed_to_sign_up" ||
+          code === "identifier_not_found"
+        ) {
+          errMsg = "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+        } else {
+          errMsg = firstErr?.message ?? errMsg;
+        }
       } else if (err instanceof Error) {
-        errMsg = err.message;
+        const msg = err.message.toLowerCase();
+        if (
+          msg.includes("not found") ||
+          msg.includes("not yet registered") ||
+          msg.includes("no user") ||
+          msg.includes("external account")
+        ) {
+          errMsg = "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+        } else {
+          errMsg = err.message;
+        }
       }
       setGeneralError(errMsg);
     } finally {
