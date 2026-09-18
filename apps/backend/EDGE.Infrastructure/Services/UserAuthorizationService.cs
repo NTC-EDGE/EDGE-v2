@@ -244,7 +244,14 @@ public class UserAuthorizationService : IUserAuthorizationService
                 .Select(tm => tm.Role!.Key.ToLower())
                 .ToListAsync(cancellationToken);
 
-            if (memberRoleKeys.Any(k => k == "admin" || k == "administrator" || k == "superadmin" || k == "super_admin" || k == "system_admin" || k == "tenant_admin"))
+            if (memberRoleKeys.Any(k =>
+                k == "admin" ||
+                k == "administrator" ||
+                k == "superadmin" ||
+                k == "super_admin" ||
+                k == "system_admin" ||
+                k == "tenant_admin" ||
+                k.Contains("admin")))
             {
                 _cachedPermissions = Permissions.AllKeys.ToList();
                 return _cachedPermissions;
