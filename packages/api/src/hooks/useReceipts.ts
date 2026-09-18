@@ -2,6 +2,7 @@ import useSWR from 'swr';
 import { apiClient } from '../apiClient';
 import {
   PendingPaymentDto,
+  ReceiptFeeItemDto,
   OrBookletDto,
   OfficialReceiptDto,
   AgencyBankAccountDto,
@@ -17,6 +18,28 @@ import {
 
 const fetcher = <T>(url: string, params?: Record<string, unknown>): Promise<T> =>
   apiClient.get<{ data: T }>(url, { params }).then((res) => res.data.data);
+
+export function useReceiptFeeCatalog(search?: string, enabled = true) {
+  const key = enabled ? ['/api/v2/receipts/fee-catalog', search ?? ''] : null;
+
+  const { data, error, isLoading, mutate } = useSWR<ReceiptFeeItemDto[]>(
+    key,
+    () => {
+      const params: Record<string, string> = {};
+      if (search) params.search = search;
+      return fetcher<ReceiptFeeItemDto[]>('/api/v2/receipts/fee-catalog', params);
+    },
+    { revalidateOnFocus: false }
+  );
+
+  return {
+    feeCatalog: data ?? [],
+    isLoading,
+    isError: error !== undefined && error !== null,
+    error,
+    mutate,
+  };
+}
 
 export function usePendingPayments(tenantId?: string | null, search?: string) {
   const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;

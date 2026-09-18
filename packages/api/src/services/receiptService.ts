@@ -42,6 +42,18 @@ export interface PendingPaymentLineItemDto {
   amount: number;
 }
 
+export interface ReceiptFeeItemDto {
+  id: string;
+  feeCode: string;
+  name: string;
+  description: string;
+  amount: number;
+  sourceType: string;
+  serviceName?: string | null;
+  variantName?: string | null;
+  elementName?: string | null;
+}
+
 export interface PendingPaymentDto {
   orderOfPaymentId: string;
   applicationId: string;
@@ -261,6 +273,13 @@ export interface CreateBankDepositPayload {
 }
 
 export const receiptService = {
+  getFeeCatalog: async (params?: { search?: string }) => {
+    return safeAsync(async () => {
+      const res = await apiClient.get<{ data: ReceiptFeeItemDto[] }>('/api/v2/receipts/fee-catalog', { params });
+      return res.data.data;
+    });
+  },
+
   getPendingPayments: async (params: { tenantId: string; search?: string }) => {
     return safeAsync(async () => {
       const res = await apiClient.get<{ data: PendingPaymentDto[] }>('/api/v2/receipts/pending-payments', { params });

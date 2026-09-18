@@ -28,6 +28,7 @@ using EDGE.Application.Receipts.Queries.Deposits.GetBankDepositById;
 using EDGE.Application.Receipts.Queries.Reports.GetCashierRcdReport;
 using EDGE.Application.Receipts.Queries.Reports.GetCancelledOrReport;
 using EDGE.Application.Receipts.Queries.PendingPayments;
+using EDGE.Application.Receipts.Queries.Fees.GetReceiptFeeCatalog;
 
 namespace EDGE.Api.Endpoints;
 
@@ -36,6 +37,12 @@ public static class ReceiptEndpoints
     public static IEndpointRouteBuilder MapReceiptEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/receipts").WithTags("Receipts & Cashiering");
+
+        // Fee Catalog for Cashier Line Items
+        group.MapGet("/fee-catalog", GetReceiptFeeCatalog)
+            .WithName("GetReceiptFeeCatalog")
+            .WithSummary("Get Receipt Fee Catalog")
+            .WithDescription("Retrieves all standard fees from ServiceFees, ServiceVariantFees, ServiceVariantElementFees and Master Fees for cashier fee selection.");
 
         // Pending Collections / For Payment
         group.MapGet("/pending-payments", GetPendingPayments)
@@ -337,6 +344,15 @@ public static class ReceiptEndpoints
         IMediator mediator)
     {
         var result = await mediator.Send(new GetCancelledOrReportQuery(tenantId, fromDate, toDate));
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReceiptsRead)]
+    public static async Task<IResult> GetReceiptFeeCatalog(
+        [FromQuery] string? search,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetReceiptFeeCatalogQuery(search));
         return Results.Ok(result);
     }
 }

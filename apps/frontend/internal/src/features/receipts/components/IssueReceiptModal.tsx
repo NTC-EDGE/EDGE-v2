@@ -10,7 +10,17 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { receiptService, NextAvailableOrDto, PendingPaymentDto, PaymentMethod, IssueReceiptLineItemInput } from '@edge/api';
+import {
+  receiptService,
+  useReceiptFeeCatalog,
+  NextAvailableOrDto,
+  PendingPaymentDto,
+  PaymentMethod,
+  IssueReceiptLineItemInput,
+  ReceiptFeeItemDto,
+} from '@edge/api';
+import { FeeSuggestionsDropdown } from './FeeSuggestionsDropdown';
+import { FeeCatalogPickerModal } from './FeeCatalogPickerModal';
 
 interface IssueReceiptModalProps {
   visible: boolean;
@@ -30,6 +40,8 @@ export function IssueReceiptModal({
   onSuccess,
 }: IssueReceiptModalProps) {
   const { colors } = useTheme();
+  const { feeCatalog, isLoading: isLoadingFeeCatalog } = useReceiptFeeCatalog(undefined, visible);
+
   const [payorName, setPayorName] = useState('');
   const [payorAddress, setPayorAddress] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
@@ -40,9 +52,15 @@ export function IssueReceiptModal({
   const [manualOrNumber, setManualOrNumber] = useState('');
   const [useManualOr, setUseManualOr] = useState(false);
 
+  // Fee Catalog & Suggestions States
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
+  const [isCatalogPickerOpen, setIsCatalogPickerOpen] = useState(false);
+
   const [lineItems, setLineItems] = useState<IssueReceiptLineItemInput[]>([
     { feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 },
   ]);
+
+  const isFromPendingPayment = pendingPayment !== undefined && pendingPayment !== null;
 
   useEffect(() => {
     if (visible && pendingPayment !== undefined && pendingPayment !== null) {
@@ -51,7 +69,7 @@ export function IssueReceiptModal({
       if (pendingPayment.lineItems.length > 0) {
         setLineItems(
           pendingPayment.lineItems.map((li) => ({
-            feeCode: li.feeCode,
+            feeCode: li.feeCode || 'FEE',
             description: li.description,
             amount: li.amount,
           }))
@@ -65,6 +83,7 @@ export function IssueReceiptModal({
           },
         ]);
       }
+      setActiveSuggestionIndex(null);
     } else if (visible && (pendingPayment === undefined || pendingPayment === null)) {
       setPayorName('');
       setPayorAddress('');
@@ -73,6 +92,7 @@ export function IssueReceiptModal({
       setCheckBank('');
       setCheckDate('');
       setLineItems([{ feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 }]);
+      setActiveSuggestionIndex(null);
     }
   }, [visible, pendingPayment]);
 
@@ -82,27 +102,66 @@ export function IssueReceiptModal({
   const totalAmount = lineItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
 
   const handleAddLineItem = () => {
-    setLineItems([...lineItems, { feeCode: '', description: '', amount: 0 }]);
+    setLineItems([...lineItems, { feeCode: 'FEE', description: '', amount: 0 }]);
+    setActiveSuggestionIndex(lineItems.length);
   };
 
   const handleRemoveLineItem = (index: number) => {
     if (lineItems.length > 1) {
       setLineItems(lineItems.filter((_, i) => i !== index));
+      if (activeSuggestionIndex === index) {
+        setActiveSuggestionIndex(null);
+      }
     }
   };
 
   const handleUpdateLineItem = (index: number, field: keyof IssueReceiptLineItemInput, value: string | number) => {
     const updated = [...lineItems];
-    if (field === 'amount') {
-      updated[index] = { ...updated[index], amount: Number(value) || 0 };
-    } else {
-      updated[index] = { ...updated[index], [field]: value };
+    const target = updated[index];
+    if (target !== undefined) {
+      if (field === 'amount') {
+        updated[index] = { ...target, amount: Number(value) || 0 };
+      } else if (field === 'description') {
+        updated[index] = { ...target, description: String(value) };
+      } else if (field === 'feeCode') {
+        updated[index] = { ...target, feeCode: String(value) };
+      }
+      setLineItems(updated);
     }
+  };
+
+  const handleSelectFee = (index: number, fee: ReceiptFeeItemDto) => {
+    const updated = [...lineItems];
+    updated[index] = {
+      feeCode: fee.feeCode,
+      description: fee.description,
+      amount: fee.amount,
+    };
     setLineItems(updated);
+    setActiveSuggestionIndex(null);
+  };
+
+  const handleAddFeeFromCatalog = (fee: ReceiptFeeItemDto) => {
+    const first = lineItems[0];
+    if (
+      lineItems.length === 1 &&
+      first !== undefined &&
+      (!first.description || first.description === 'Radio Station License / Permit Fee') &&
+      (!first.amount || first.amount === 0)
+    ) {
+      setLineItems([{ feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
+    } else {
+      setLineItems([...lineItems, { feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
+    }
+    setIsCatalogPickerOpen(false);
   };
 
   const handleSubmit = async () => {
-    if (!payorName.trim()) {
+    const effectivePayorName = isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined
+      ? pendingPayment.applicantName
+      : payorName.trim();
+
+    if (!effectivePayorName) {
       setErrorMsg('Payor name is required.');
       return;
     }
@@ -122,12 +181,20 @@ export function IssueReceiptModal({
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    const validLineItems = lineItems
+      .filter((l) => l.description.trim().length > 0 && l.amount > 0)
+      .map((l) => ({
+        feeCode: l.feeCode.trim().length > 0 ? l.feeCode.trim() : 'FEE',
+        description: l.description.trim(),
+        amount: l.amount,
+      }));
+
     const [res, err] = await receiptService.issueOfficialReceipt({
       tenantId,
       orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
       bookletId: useManualOr ? null : (nextOr?.bookletId ?? null),
       manualOrNumber: useManualOr && manualOrNumber.trim().length > 0 ? manualOrNumber.trim() : null,
-      payorName: payorName.trim(),
+      payorName: effectivePayorName,
       payorAddress: payorAddress.trim().length > 0 ? payorAddress.trim() : null,
       amount: totalAmount,
       paymentMethod,
@@ -135,7 +202,7 @@ export function IssueReceiptModal({
       checkBank: paymentMethod === 'Check' && checkBank.trim().length > 0 ? checkBank.trim() : null,
       checkDate: paymentMethod === 'Check' && checkDate.trim().length > 0 ? checkDate.trim() : null,
       remarks: remarks.trim().length > 0 ? remarks.trim() : null,
-      lineItems: lineItems.filter((l) => l.feeCode.trim().length > 0 && l.amount > 0),
+      lineItems: validLineItems,
     });
 
     setIsSubmitting(false);
@@ -157,10 +224,11 @@ export function IssueReceiptModal({
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: colors.cardBg }]}>
+          {/* Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View style={styles.titleRow}>
               <View style={[styles.iconBox, { backgroundColor: colors.brand.indigoLight }]}>
-                <Lucide name="printer" size={20} color={colors.brand.primary} />
+                <Lucide name="printer" size={18} color={colors.brand.primary} />
               </View>
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>Issue Official Receipt (Form 51)</Text>
@@ -168,211 +236,286 @@ export function IssueReceiptModal({
                   {useManualOr
                     ? 'Manual OR Number Override'
                     : nextOr?.hasActiveBooklet
-                    ? `Active Series: ${nextOr.formattedOrNumber ?? ''} (${nextOr.remainingCount} left in ${nextOr.bookletNumber ?? ''})`
-                    : 'No active OR booklet bundle active'}
+                    ? `Booklet ${nextOr.bookletNumber ?? ''} (${nextOr.remainingCount} remaining)`
+                    : 'No active booklet'}
                 </Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Lucide name="x" size={20} color={colors.neutral[700]} />
+              <Lucide name="x" size={18} color={colors.neutral[500]} />
             </TouchableOpacity>
           </View>
 
-          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+          <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {errorMsg !== null && (
               <View style={styles.errorBox}>
-                <Lucide name="alert-circle" size={16} color={colors.semantic.error} />
+                <Lucide name="alert-circle" size={15} color={colors.semantic.error} />
                 <Text style={[styles.errorText, { color: colors.semantic.error }]}>{errorMsg}</Text>
               </View>
             )}
 
-            {/* Serial Number & Series Card */}
-            <View style={[styles.seriesCard, { borderColor: colors.border }]}>
-              <View style={{ flex: 1 }}>
-                <Text style={[styles.seriesLabel, { color: colors.textMuted }]}>RECEIPT SERIAL NUMBER</Text>
-                <Text style={[styles.seriesValue, { color: colors.brand.primary }]}>
-                  {useManualOr ? (manualOrNumber || 'Enter number') : (nextOr?.formattedOrNumber ?? 'NO ACTIVE BOOKLET')}
-                </Text>
+            {/* UNIFIED RECEIPT CARD */}
+            <View style={[styles.mainCard, { borderColor: colors.border, backgroundColor: colors.neutral[50] }]}>
+              {/* Card Header: OR Serial Badge & Payment Method */}
+              <View style={styles.summaryTopRow}>
+                <View style={styles.orBadgeContainer}>
+                  <Text style={[styles.orBadgeLabel, { color: colors.textMuted }]}>OR NUMBER</Text>
+                  <Text style={[styles.orBadgeValue, { color: colors.brand.primary }]}>
+                    {useManualOr
+                      ? (manualOrNumber.trim() || 'Enter OR #')
+                      : (nextOr?.formattedOrNumber ?? 'NO BOOKLET')}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={() => setUseManualOr(!useManualOr)}
+                    style={styles.overrideLink}
+                  >
+                    <Text style={[styles.overrideLinkText, { color: colors.brand.primary }]}>
+                      {useManualOr ? 'Use Booklet Series' : 'Manual Override'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Payment Method Selector */}
+                <View style={styles.methodSelector}>
+                  <Text style={[styles.methodSelectorLabel, { color: colors.textMuted }]}>PAYMENT METHOD</Text>
+                  <View style={styles.methodPillGroup}>
+                    {(['Cash', 'Check', 'Online'] as PaymentMethod[]).map((method) => {
+                      const isSelected = paymentMethod === method;
+                      return (
+                        <TouchableOpacity
+                          key={method}
+                          onPress={() => setPaymentMethod(method)}
+                          style={[
+                            styles.methodPill,
+                            { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] },
+                            isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
+                          ]}
+                        >
+                          <Lucide
+                            name={method === 'Cash' ? 'dollar-sign' : method === 'Check' ? 'credit-card' : 'globe'}
+                            size={13}
+                            color={isSelected ? '#fff' : colors.neutral[700]}
+                          />
+                          <Text
+                            style={[
+                              styles.methodPillText,
+                              { color: colors.neutral[700] },
+                              isSelected && { color: '#fff' },
+                            ]}
+                          >
+                            {method}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                </View>
               </View>
-              <TouchableOpacity
-                onPress={() => setUseManualOr(!useManualOr)}
-                style={[styles.overrideBtn, { backgroundColor: colors.neutral[200] }]}
-              >
-                <Text style={[styles.overrideBtnText, { color: colors.neutral[700] }]}>
-                  {useManualOr ? 'Use Booklet' : 'Manual Override'}
-                </Text>
-              </TouchableOpacity>
-            </View>
 
-            {useManualOr && (
-              <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.neutral[700] }]}>Custom OR Number *</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                  placeholder="e.g. NTC-1002049"
-                  placeholderTextColor={colors.neutral[400]}
-                  value={manualOrNumber}
-                  onChangeText={setManualOrNumber}
-                />
-              </View>
-            )}
+              {/* Manual OR Input if enabled */}
+              {useManualOr && (
+                <View style={styles.inlineManualOrBox}>
+                  <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Custom OR Number *</Text>
+                  <TextInput
+                    style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                    placeholder="e.g. 1002049"
+                    placeholderTextColor={colors.neutral[400]}
+                    value={manualOrNumber}
+                    onChangeText={setManualOrNumber}
+                  />
+                </View>
+              )}
 
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Payor Name / Company *</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                placeholder="e.g. Juan Dela Cruz / Globe Telecom Inc."
-                placeholderTextColor={colors.neutral[400]}
-                value={payorName}
-                onChangeText={setPayorName}
-              />
-            </View>
-
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Payor Address</Text>
-              <TextInput
-                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                placeholder="City / Municipality, Province"
-                placeholderTextColor={colors.neutral[400]}
-                value={payorAddress}
-                onChangeText={setPayorAddress}
-              />
-            </View>
-
-            {/* Payment Method Selector */}
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Payment Method *</Text>
-              <View style={styles.methodRow}>
-                {(['Cash', 'Check', 'Online'] as PaymentMethod[]).map((method) => {
-                  const isSelected = paymentMethod === method;
-                  return (
-                    <TouchableOpacity
-                      key={method}
-                      onPress={() => setPaymentMethod(method)}
-                      style={[
-                        styles.methodBtn,
-                        { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] },
-                        isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
-                      ]}
-                    >
-                      <Lucide
-                        name={method === 'Cash' ? 'dollar-sign' : method === 'Check' ? 'credit-card' : 'globe'}
-                        size={16}
-                        color={isSelected ? '#fff' : colors.neutral[700]}
+              {/* Check Details Row (Only when Check is selected) */}
+              {paymentMethod === 'Check' && (
+                <View style={[styles.checkInlineBox, { borderTopColor: colors.neutral[200] }]}>
+                  <View style={styles.checkFieldsRow}>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Check # *</Text>
+                      <TextInput
+                        style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                        placeholder="e.g. 00012389"
+                        placeholderTextColor={colors.neutral[400]}
+                        value={checkNumber}
+                        onChangeText={setCheckNumber}
                       />
-                      <Text
-                        style={[
-                          styles.methodBtnText,
-                          { color: colors.neutral[700] },
-                          isSelected && { color: '#fff' },
-                        ]}
-                      >
-                        {method}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </View>
+                    </View>
+                    <View style={{ flex: 1, marginRight: 8 }}>
+                      <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Drawee Bank *</Text>
+                      <TextInput
+                        style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                        placeholder="e.g. Land Bank / BDO"
+                        placeholderTextColor={colors.neutral[400]}
+                        value={checkBank}
+                        onChangeText={setCheckBank}
+                      />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Check Date</Text>
+                      <TextInput
+                        style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                        placeholder="YYYY-MM-DD"
+                        placeholderTextColor={colors.neutral[400]}
+                        value={checkDate}
+                        onChangeText={setCheckDate}
+                      />
+                    </View>
+                  </View>
+                </View>
+              )}
+
+              {/* Readonly Payor & Reference Chips (If from Pending Payment) */}
+              {isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined ? (
+                <View style={[styles.readOnlyPayorCard, { backgroundColor: '#fff', borderColor: colors.border }]}>
+                  <View style={styles.readOnlyField}>
+                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>PAYOR NAME</Text>
+                    <Text style={[styles.readOnlyValue, { color: colors.text }]}>{pendingPayment.applicantName}</Text>
+                  </View>
+                  <View style={styles.readOnlyField}>
+                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>ORDER OF PAYMENT</Text>
+                    <Text style={[styles.readOnlyValue, { color: colors.text }]}>
+                      OP #{pendingPayment.opNumber} ({pendingPayment.applicationNumber || pendingPayment.referenceNumber || 'N/A'})
+                    </Text>
+                  </View>
+                  <View style={styles.readOnlyField}>
+                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>SERVICE</Text>
+                    <Text style={[styles.readOnlyValue, { color: colors.text }]} numberOfLines={1}>
+                      {pendingPayment.serviceName}
+                    </Text>
+                  </View>
+                </View>
+              ) : (
+                /* Editable Payor Fields for Walk-in / Manual Receipt */
+                <View style={styles.payorFieldsRow}>
+                  <View style={{ flex: 1.5, marginRight: 8 }}>
+                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Payor Name / Company *</Text>
+                    <TextInput
+                      style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                      placeholder="e.g. Juan Dela Cruz / Company Inc."
+                      placeholderTextColor={colors.neutral[400]}
+                      value={payorName}
+                      onChangeText={setPayorName}
+                    />
+                  </View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Address (Optional)</Text>
+                    <TextInput
+                      style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                      placeholder="City / Municipality"
+                      placeholderTextColor={colors.neutral[400]}
+                      value={payorAddress}
+                      onChangeText={setPayorAddress}
+                    />
+                  </View>
+                </View>
+              )}
             </View>
 
-            {/* Check Details if Check selected */}
-            {paymentMethod === 'Check' && (
-              <View style={[styles.checkCard, { borderColor: colors.border }]}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Check Details</Text>
-                <View style={styles.row}>
-                  <View style={[styles.formGroup, { flex: 1, marginRight: 8 }]}>
-                    <Text style={[styles.label, { color: colors.neutral[700] }]}>Check Number *</Text>
-                    <TextInput
-                      style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                      placeholder="e.g. 00012389"
-                      placeholderTextColor={colors.neutral[400]}
-                      value={checkNumber}
-                      onChangeText={setCheckNumber}
-                    />
-                  </View>
-                  <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                    <Text style={[styles.label, { color: colors.neutral[700] }]}>Drawee Bank *</Text>
-                    <TextInput
-                      style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                      placeholder="e.g. Land Bank / BDO"
-                      placeholderTextColor={colors.neutral[400]}
-                      value={checkBank}
-                      onChangeText={setCheckBank}
-                    />
-                  </View>
+            {/* PARTICULARS & AMOUNT BREAKDOWN (Only 2 Inputs: Particulars & Amount) */}
+            <View style={styles.breakdownSection}>
+              <View style={styles.breakdownHeader}>
+                <View>
+                  <Text style={[styles.sectionHeading, { color: colors.text }]}>Particulars & Amount</Text>
+                  <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
+                    Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars
+                  </Text>
                 </View>
-                <View style={styles.formGroup}>
-                  <Text style={[styles.label, { color: colors.neutral[700] }]}>Check Date</Text>
-                  <TextInput
-                    style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
-                    placeholder="YYYY-MM-DD"
-                    placeholderTextColor={colors.neutral[400]}
-                    value={checkDate}
-                    onChangeText={setCheckDate}
-                  />
+                <View style={styles.breakdownActions}>
+                  <TouchableOpacity
+                    onPress={() => setIsCatalogPickerOpen(true)}
+                    style={[styles.catalogBtn, { backgroundColor: colors.brand.indigoLight, borderColor: colors.brand.primary }]}
+                  >
+                    <Lucide name="search" size={13} color={colors.brand.primary} />
+                    <Text style={[styles.catalogBtnText, { color: colors.brand.primary }]}>Fee Schedule</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleAddLineItem}
+                    style={[styles.addItemBtn, { backgroundColor: colors.neutral[200] }]}
+                  >
+                    <Lucide name="plus" size={13} color={colors.neutral[800]} />
+                    <Text style={[styles.addItemBtnText, { color: colors.neutral[800] }]}>Add Item</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-            )}
 
-            {/* Line Items Breakdown */}
-            <View style={[styles.itemsSection, { borderTopColor: colors.border }]}>
-              <View style={styles.itemsHeader}>
-                <Text style={[styles.sectionTitle, { color: colors.text }]}>Particulars & Fee Breakdown</Text>
-                <TouchableOpacity onPress={handleAddLineItem} style={[styles.addItemBtn, { backgroundColor: colors.brand.indigoLight }]}>
-                  <Lucide name="plus" size={14} color={colors.brand.primary} />
-                  <Text style={[styles.addItemBtnText, { color: colors.brand.primary }]}>Add Item</Text>
-                </TouchableOpacity>
-              </View>
-
+              {/* Line Items List */}
               {lineItems.map((item, idx) => (
-                <View key={idx} style={styles.itemRow}>
-                  <TextInput
-                    style={[styles.input, { flex: 1, marginRight: 6, borderColor: colors.neutral[300], color: colors.text }]}
-                    placeholder="Fee Code"
-                    placeholderTextColor={colors.neutral[400]}
-                    value={item.feeCode}
-                    onChangeText={(val) => handleUpdateLineItem(idx, 'feeCode', val)}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 2, marginRight: 6, borderColor: colors.neutral[300], color: colors.text }]}
-                    placeholder="Description"
-                    placeholderTextColor={colors.neutral[400]}
-                    value={item.description}
-                    onChangeText={(val) => handleUpdateLineItem(idx, 'description', val)}
-                  />
-                  <TextInput
-                    style={[styles.input, { flex: 1, marginRight: 6, borderColor: colors.neutral[300], color: colors.text }]}
-                    keyboardType="numeric"
-                    placeholder="Amount (₱)"
-                    placeholderTextColor={colors.neutral[400]}
-                    value={item.amount > 0 ? item.amount.toString() : ''}
-                    onChangeText={(val) => handleUpdateLineItem(idx, 'amount', val)}
-                  />
-                  {lineItems.length > 1 && (
-                    <TouchableOpacity
-                      onPress={() => handleRemoveLineItem(idx)}
-                      style={styles.removeItemBtn}
-                    >
-                      <Lucide name="trash-2" size={16} color={colors.semantic.error} />
-                    </TouchableOpacity>
+                <View key={idx} style={styles.lineItemWrapper}>
+                  <View style={styles.lineItemRow}>
+                    {/* Description / Particulars Search Input (Searchable by Fee Code or Description) */}
+                    <View style={{ flex: 3, marginRight: 8, position: 'relative' }}>
+                      <View style={[styles.searchInputWrapper, { borderColor: colors.neutral[300] }]}>
+                        <Lucide name="search" size={14} color={colors.neutral[400]} style={{ marginRight: 6 }} />
+                        <TextInput
+                          style={[styles.descInput, { color: colors.text }]}
+                          placeholder="Search fee code (e.g. REG-FEE) or type particulars..."
+                          placeholderTextColor={colors.neutral[400]}
+                          value={item.description}
+                          onFocus={() => setActiveSuggestionIndex(idx)}
+                          onChangeText={(val) => {
+                            handleUpdateLineItem(idx, 'description', val);
+                            setActiveSuggestionIndex(idx);
+                          }}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Amount Input */}
+                    <View style={{ width: 140, marginRight: 6 }}>
+                      <View style={[styles.amountInputWrapper, { borderColor: colors.neutral[300] }]}>
+                        <Text style={[styles.currencyPrefix, { color: colors.neutral[500] }]}>₱</Text>
+                        <TextInput
+                          style={[styles.amountInput, { color: colors.text }]}
+                          keyboardType="numeric"
+                          placeholder="0.00"
+                          placeholderTextColor={colors.neutral[400]}
+                          value={item.amount > 0 ? item.amount.toString() : ''}
+                          onChangeText={(val) => handleUpdateLineItem(idx, 'amount', val)}
+                        />
+                      </View>
+                    </View>
+
+                    {/* Remove Row Button */}
+                    {lineItems.length > 1 && (
+                      <TouchableOpacity
+                        onPress={() => handleRemoveLineItem(idx)}
+                        style={styles.removeItemBtn}
+                        accessibilityLabel="Remove Line Item"
+                      >
+                        <Lucide name="trash-2" size={15} color={colors.semantic.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+
+                  {/* Auto-Complete Fee Suggestions Popover */}
+                  {activeSuggestionIndex === idx && (
+                    <FeeSuggestionsDropdown
+                      feeCatalog={feeCatalog}
+                      isLoading={isLoadingFeeCatalog}
+                      query={item.description || item.feeCode || ''}
+                      onSelect={(fee) => handleSelectFee(idx, fee)}
+                      onClose={() => setActiveSuggestionIndex(null)}
+                    />
                   )}
                 </View>
               ))}
 
-              <View style={[styles.totalRow, { backgroundColor: colors.neutral[100] }]}>
-                <Text style={[styles.totalLabel, { color: colors.neutral[700] }]}>TOTAL AMOUNT DUE / RECEIVED:</Text>
-                <Text style={[styles.totalValue, { color: colors.semantic.successText }]}>
+              {/* Total Amount Summary Banner */}
+              <View style={[styles.totalBanner, { backgroundColor: colors.neutral[100], borderColor: colors.border }]}>
+                <Text style={[styles.totalBannerLabel, { color: colors.neutral[700] }]}>TOTAL AMOUNT RECEIVED:</Text>
+                <Text style={[styles.totalBannerValue, { color: colors.semantic.successText }]}>
                   ₱{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Remarks / Order of Payment Reference</Text>
+            {/* Remarks Field */}
+            <View style={styles.remarksBox}>
+              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Remarks / Reference Notes (Optional)</Text>
               <TextInput
-                style={[styles.input, { height: 60, textAlignVertical: 'top', borderColor: colors.neutral[300], color: colors.text }]}
-                multiline
-                placeholder="Optional notes or reference numbers"
+                style={[styles.input, { height: 44, borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                placeholder="Optional notes, transaction numbers or references"
                 placeholderTextColor={colors.neutral[400]}
                 value={remarks}
                 onChangeText={setRemarks}
@@ -380,6 +523,7 @@ export function IssueReceiptModal({
             </View>
           </ScrollView>
 
+          {/* Footer Actions */}
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} style={[styles.cancelBtn, { backgroundColor: colors.neutral[100] }]}>
               <Text style={[styles.cancelBtnText, { color: colors.neutral[700] }]}>Cancel</Text>
@@ -393,7 +537,7 @@ export function IssueReceiptModal({
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Lucide name="check-circle" size={16} color="#fff" />
+                  <Lucide name="check-circle" size={15} color="#fff" />
                   <Text style={styles.submitBtnText}>Issue Official Receipt</Text>
                 </>
               )}
@@ -401,6 +545,15 @@ export function IssueReceiptModal({
           </View>
         </View>
       </View>
+
+      {/* Standalone Fee Schedule Browser Modal */}
+      <FeeCatalogPickerModal
+        visible={isCatalogPickerOpen}
+        feeCatalog={feeCatalog}
+        isLoading={isLoadingFeeCatalog}
+        onSelect={handleAddFeeFromCatalog}
+        onClose={() => setIsCatalogPickerOpen(false)}
+      />
     </Modal>
   );
 }
@@ -416,8 +569,8 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 12,
     width: '100%',
-    maxWidth: 680,
-    maxHeight: '92%',
+    maxWidth: 640,
+    maxHeight: '90%',
     shadowColor: '#000',
     shadowOpacity: 0.15,
     shadowRadius: 16,
@@ -428,28 +581,29 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderBottomWidth: 1,
   },
   titleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    gap: 10,
     flex: 1,
   },
   iconBox: {
-    width: 36,
-    height: 36,
+    width: 32,
+    height: 32,
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
   },
   title: {
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '700',
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 11,
   },
   closeBtn: {
     padding: 4,
@@ -466,162 +620,266 @@ const styles = StyleSheet.create({
     borderColor: '#FCA5A5',
     borderRadius: 8,
     padding: 10,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   errorText: {
     fontSize: 12,
     flex: 1,
   },
-  seriesCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+  mainCard: {
     borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 10,
+    padding: 14,
     marginBottom: 16,
   },
-  seriesLabel: {
+  summaryTopRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 16,
+    flexWrap: 'wrap',
+  },
+  orBadgeContainer: {
+    flex: 1,
+    minWidth: 160,
+  },
+  orBadgeLabel: {
     fontSize: 10,
     fontWeight: '700',
     letterSpacing: 0.5,
   },
-  seriesValue: {
+  orBadgeValue: {
     fontSize: 18,
     fontWeight: '800',
     marginTop: 2,
   },
-  overrideBtn: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 4,
+  overrideLink: {
+    marginTop: 2,
   },
-  overrideBtnText: {
+  overrideLinkText: {
     fontSize: 11,
     fontWeight: '600',
+    textDecorationLine: 'underline',
   },
-  formGroup: {
-    marginBottom: 14,
+  methodSelector: {
+    alignItems: 'flex-end',
   },
-  row: {
+  methodSelectorLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  methodPillGroup: {
     flexDirection: 'row',
+    gap: 6,
   },
-  label: {
+  methodPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  methodPillText: {
     fontSize: 12,
     fontWeight: '600',
-    marginBottom: 6,
   },
-  input: {
-    borderWidth: 1,
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    fontSize: 13,
-    backgroundColor: '#fff',
+  inlineManualOrBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopColor: '#E2E8F0',
   },
-  methodRow: {
+  checkInlineBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
+  checkFieldsRow: {
     flexDirection: 'row',
-    gap: 8,
   },
-  methodBtn: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  methodBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  checkCard: {
-    backgroundColor: '#F8FAFC',
+  readOnlyPayorCard: {
+    marginTop: 12,
     borderWidth: 1,
     borderRadius: 8,
-    padding: 12,
+    padding: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  readOnlyField: {
+    flex: 1,
+    minWidth: 140,
+  },
+  readOnlyLabel: {
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 0.4,
+  },
+  readOnlyValue: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 2,
+  },
+  payorFieldsRow: {
+    flexDirection: 'row',
+    marginTop: 12,
+  },
+  inlineFieldLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  breakdownSection: {
     marginBottom: 16,
   },
-  sectionTitle: {
+  breakdownHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  sectionHeading: {
     fontSize: 13,
     fontWeight: '700',
-    marginBottom: 10,
   },
-  itemsSection: {
-    marginBottom: 16,
-    borderTopWidth: 1,
-    paddingTop: 16,
+  sectionSubtitle: {
+    fontSize: 11,
+    marginTop: 1,
   },
-  itemsHeader: {
+  breakdownActions: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  catalogBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
+    gap: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  catalogBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
   },
   addItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 5,
+    borderRadius: 6,
   },
   addItemBtnText: {
     fontSize: 11,
     fontWeight: '600',
   },
-  itemRow: {
+  lineItemWrapper: {
+    marginBottom: 8,
+  },
+  lineItemRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 8,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    backgroundColor: '#fff',
+    height: 38,
+  },
+  descInput: {
+    flex: 1,
+    fontSize: 12,
+    paddingVertical: 0,
+  },
+  amountInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    backgroundColor: '#fff',
+    height: 38,
+  },
+  currencyPrefix: {
+    fontSize: 12,
+    fontWeight: '700',
+    marginRight: 4,
+  },
+  amountInput: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '600',
+    paddingVertical: 0,
   },
   removeItemBtn: {
     padding: 6,
   },
-  totalRow: {
+  totalBanner: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    padding: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 8,
-    marginTop: 6,
+    borderWidth: 1,
+    marginTop: 4,
   },
-  totalLabel: {
-    fontSize: 12,
+  totalBannerLabel: {
+    fontSize: 11,
     fontWeight: '700',
   },
-  totalValue: {
-    fontSize: 16,
+  totalBannerValue: {
+    fontSize: 15,
     fontWeight: '800',
+  },
+  remarksBox: {
+    marginBottom: 8,
+  },
+  input: {
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    fontSize: 12,
+    backgroundColor: '#fff',
   },
   footer: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: 10,
-    padding: 16,
+    gap: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderTopWidth: 1,
   },
   cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   cancelBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
   },
   submitBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     borderRadius: 6,
   },
   submitBtnText: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     color: '#fff',
   },

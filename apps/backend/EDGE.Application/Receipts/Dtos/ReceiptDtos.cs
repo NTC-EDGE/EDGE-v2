@@ -150,3 +150,15 @@ public record CancelledOrReportDto(
     decimal TotalCancelledAmount,
     List<CancelledOrItemDto> Items
 );
+
+public record ReceiptFeeItemDto(
+    Guid Id,
+    string FeeCode,
+    string Name,
+    string Description,
+    decimal Amount,
+    string SourceType,
+    string? ServiceName = null,
+    string? VariantName = null,
+    string? ElementName = null
+);
