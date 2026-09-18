@@ -17,6 +17,10 @@ function parseForbiddenActionDetails(error: unknown): string {
         if (typeof message === 'string' && message.trim().length > 0) {
           return message.trim();
         }
+        const title = (data as Record<string, unknown>)['title'];
+        if (typeof title === 'string' && title.trim().length > 0 && !title.toLowerCase().includes('forbidden')) {
+          return title.trim();
+        }
       }
     }
 
@@ -25,19 +29,19 @@ function parseForbiddenActionDetails(error: unknown): string {
       const url = (config as Record<string, unknown>)['url'];
       const method = (config as Record<string, unknown>)['method'];
       if (typeof url === 'string' && url.length > 0) {
-        const cleanPath = url.split('?')[0].replace(/^\/api\/v\d+\//, '');
+        const cleanPath = url.split('?')[0].replace(/^\/api\/v\d+\//, '').replace(/^\//, '');
         const actionVerb =
           typeof method === 'string'
-            ? method.toUpperCase() === 'POST' ? 'perform create operation on'
-              : method.toUpperCase() === 'PUT' || method.toUpperCase() === 'PATCH' ? 'perform update operation on'
-              : method.toUpperCase() === 'DELETE' ? 'perform delete operation on'
+            ? method.toUpperCase() === 'POST' ? 'create records in'
+              : method.toUpperCase() === 'PUT' || method.toUpperCase() === 'PATCH' ? 'update'
+              : method.toUpperCase() === 'DELETE' ? 'delete'
               : 'access'
             : 'access';
-        return `You don't have permission to ${actionVerb} resource (${cleanPath}).`;
+        return `Access Denied: You do not have permission to ${actionVerb} '${cleanPath}'. Please contact your administrator to request access.`;
       }
     }
   }
-  return "You don't have permission to perform this action.";
+  return "Access Denied: You do not have permission to perform this action. Please contact your system administrator.";
 }
 
 export function ForbiddenToastProvider({ children }: { readonly children: React.ReactNode }) {

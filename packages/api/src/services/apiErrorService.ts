@@ -92,10 +92,6 @@ function parseBackendApiResponse(errObj: object): string | null {
     ? getProperty(response, "status")
     : getProperty(errObj, "status");
 
-  // 403 Forbidden is handled globally by ForbiddenToastProvider.
-  // Suppress local error toast messages to prevent duplicate toasts.
-  if (status === 403) return null;
-
   if (typeof data === "object" && data !== null) {
     // 1. FluentValidation dictionary format: { errors: { Name: ["Requirement Name must be unique."] } }
     const errors = getProperty(data, "errors");
@@ -144,6 +140,7 @@ function parseBackendApiResponse(errObj: object): string | null {
 
   // HTTP status code fallbacks (even when response body is empty)
   if (typeof status === "number") {
+    if (status === 403) return "Access Denied: You do not have permission to access this resource or perform this action. Please contact your system administrator.";
     if (status === 409) return "A conflict occurred with the resource state (e.g., duplicate code or active references exist).";
     if (status === 401) return "Session Expired: Please log in again to continue.";
     if (status === 404) return "Resource Not Found: The requested record does not exist.";

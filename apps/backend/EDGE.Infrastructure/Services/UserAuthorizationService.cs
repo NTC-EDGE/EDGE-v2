@@ -238,6 +238,18 @@ public class UserAuthorizationService : IUserAuthorizationService
                 return _cachedPermissions;
             }
 
+            // Check if user holds an Admin/Administrator role in any active tenant membership
+            var memberRoleKeys = await _dbContext.TenantMembers
+                .Where(tm => tm.UserId == user.Id && !tm.IsDeleted && tm.Role != null)
+                .Select(tm => tm.Role!.Key.ToLower())
+                .ToListAsync(cancellationToken);
+
+            if (memberRoleKeys.Any(k => k == "admin" || k == "administrator" || k == "superadmin" || k == "super_admin" || k == "system_admin" || k == "tenant_admin"))
+            {
+                _cachedPermissions = Permissions.AllKeys.ToList();
+                return _cachedPermissions;
+            }
+
             var tenantId = _tenantContextService.TenantId;
             List<string> dbPermissions = new();
             if (tenantId.HasValue)
