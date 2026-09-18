@@ -59,9 +59,24 @@ public class UserRepository : IUserRepository
 
     public async Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default)
     {
-        if (!string.IsNullOrEmpty(userIdStr) && Guid.TryParse(userIdStr, out var parsedUserId))
+        if (!string.IsNullOrWhiteSpace(userIdStr))
         {
-            var user = await GetByIdAsync(parsedUserId, cancellationToken);
+            User? user = null;
+            if (Guid.TryParse(userIdStr, out var parsedUserId))
+            {
+                user = await GetByIdAsync(parsedUserId, cancellationToken);
+            }
+
+            if (user == null && userIdStr.Contains('@'))
+            {
+                user = await GetByEmailAsync(userIdStr, cancellationToken);
+            }
+
+            if (user == null)
+            {
+                user = await GetByAuthUserIdAsync(userIdStr, cancellationToken);
+            }
+
             if (user != null)
             {
                 var staffName = $"{user.FirstName} {user.LastName}".Trim();

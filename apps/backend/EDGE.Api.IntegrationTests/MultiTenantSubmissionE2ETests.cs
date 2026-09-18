@@ -8,9 +8,6 @@ using System.Text;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using EDGE.Application.Applications.Commands.CreateApplication;
-using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
-using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Storage.Dtos;
 using EDGE.Domain.Entities;
@@ -60,19 +57,28 @@ public class MultiTenantSubmissionE2ETests : IClassFixture<CustomWebApplicationF
                 RegionId = region.Id
             };
 
+            var serviceCategory = new ServiceCategory
+            {
+                Id = Guid.NewGuid(),
+                Name = "Examination Services",
+                Code = "EXAM",
+                Type = ServiceCategoryType.Exam
+            };
+
             var service = new Service
             {
                 Id = targetServiceId,
                 TenantId = targetRegionalTenantId,
+                ServiceCategoryId = serviceCategory.Id,
+                ServiceCategory = serviceCategory,
                 Name = "Radio Operator Examination",
                 Code = "RO-EXAM-R07",
-                Description = "Examination filing for Radio Operators in Region 7",
-                Category = ServiceCategoryType.Examination,
-                IsActive = true
+                Description = "Examination filing for Radio Operators in Region 7"
             };
 
             db.Regions.Add(region);
             db.Tenants.Add(regionalTenant);
+            db.ServiceCategories.Add(serviceCategory);
             db.Services.Add(service);
             await db.SaveChangesAsync();
         }

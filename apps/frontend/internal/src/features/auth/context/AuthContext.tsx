@@ -55,6 +55,7 @@ async function removeStoredRegionCode(): Promise<void> {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   email: string;
   username?: string;
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [mfaFactors, setMfaFactors] = useState<SupportedFactor[] | null>(null);
 
   const [backendStaffClaims, setBackendStaffClaims] = useState<{
+    userId?: string;
     tenantId?: string;
     tenantName?: string;
     roles?: string[];
@@ -156,6 +158,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (isMounted) {
             setTenantId(verifiedClaims.tenantId ?? null);
             setBackendStaffClaims({
+              userId: verifiedClaims.userId,
               tenantId: verifiedClaims.tenantId,
               tenantName: verifiedClaims.tenantName,
               roles: verifiedClaims.assignedRoles,
@@ -325,6 +328,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       setTenantId(verifiedClaims.tenantId ?? null);
       setBackendStaffClaims({
+        userId: verifiedClaims.userId,
         tenantId: verifiedClaims.tenantId,
         tenantName: verifiedClaims.tenantName,
         roles: verifiedClaims.assignedRoles,
@@ -435,6 +439,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const primaryEmail = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "";
 
     user = {
+      id: backendStaffClaims.userId ?? cu.id,
       name: cu.fullName ?? cu.firstName ?? "User",
       email: primaryEmail,
       username: cu.username ?? undefined,
@@ -449,6 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   } else if (!isClerkEnabled) {
     user = {
+      id: "00000000-0000-0000-0000-000000000001",
       name: "Staff User",
       email: "staff@ntc.gov.ph",
       region: selectedRegionState ?? "NCR",
