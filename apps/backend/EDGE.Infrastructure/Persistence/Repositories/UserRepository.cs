@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 
@@ -7,10 +8,12 @@ namespace EDGE.Infrastructure.Persistence.Repositories;
 public class UserRepository : IUserRepository
 {
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<UserRepository>? _logger;
 
-    public UserRepository(ApplicationDbContext context)
+    public UserRepository(ApplicationDbContext context, ILogger<UserRepository>? logger = null)
     {
         _context = context;
+        _logger = logger;
     }
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
@@ -92,6 +95,61 @@ public class UserRepository : IUserRepository
         }
 
         return new StaffUserContext(null, "System Staff", defaultRole);
+    }
+
+    public async Task<User?> ResolveCurrentUserAsync(ICurrentUserService currentUserService, CancellationToken cancellationToken = default)
+    {
+        var authUserId = currentUserService.UserId;
+        if (string.IsNullOrWhiteSpace(authUserId))
+        {
+            return null;
+        }
+
+        // 1. Direct AuthUserId lookup
+        var user = await GetByAuthUserIdAsync(authUserId, cancellationToken);
+        if (user != null)
+        {
+            return user;
+        }
+
+        // 2. Parsed GUID lookup (system accounts or internal IDs)
+        if (Guid.TryParse(authUserId, out var parsedUserId))
+        {
+            user = await GetByIdAsync(parsedUserId, cancellationToken);
+            if (user != null)
+            {
+                return user;
+            }
+        }
+
+        // 3. Fallback auto-linking via verified email with collision protection
+        if (!string.IsNullOrWhiteSpace(currentUserService.Email) && currentUserService.IsEmailVerified)
+        {
+            var cleanEmail = currentUserService.Email.Trim().ToLowerInvariant();
+            var candidateUser = await GetByEmailAsync(cleanEmail, cancellationToken);
+
+            if (candidateUser != null)
+            {
+                if (candidateUser.TryLinkExternalAuthUserId(authUserId))
+                {
+                    await _context.SaveChangesAsync(cancellationToken);
+                    _logger?.LogInformation("Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, authUserId);
+                    return candidateUser;
+                }
+                else
+                {
+                    _logger?.LogWarning("Account collision safeguard: Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'",
+                        authUserId, cleanEmail, candidateUser.AuthUserId);
+                }
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(currentUserService.Email) && !currentUserService.IsEmailVerified)
+        {
+            _logger?.LogWarning("Skipping auto-linking for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
+                authUserId, currentUserService.Email);
+        }
+
+        return null;
     }
 
     public void Delete(User user)

@@ -69,47 +69,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         User? user = null;
         if (!string.IsNullOrEmpty(rawUserId))
         {
-            user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
-            if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
-            {
-                user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
-            }
-
-            // Fallback: If user logged in via Clerk whose email matches an existing database user, link AuthUserId if email is verified & unlinked/seed
-            if (user == null && !string.IsNullOrWhiteSpace(_currentUserService.Email))
-            {
-                if (_currentUserService.IsEmailVerified)
-                {
-                    var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
-                    var candidateUser = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
-                    if (candidateUser != null)
-                    {
-                        var isUnlinkedOrSeed = string.IsNullOrWhiteSpace(candidateUser.AuthUserId) ||
-                                               candidateUser.AuthUserId.EndsWith("123") ||
-                                               candidateUser.AuthUserId.EndsWith("34") ||
-                                               candidateUser.AuthUserId.StartsWith("seed_") ||
-                                               candidateUser.AuthUserId.StartsWith("temp_");
-
-                        if (isUnlinkedOrSeed)
-                        {
-                            candidateUser.AuthUserId = rawUserId;
-                            await _unitOfWork.SaveChangesAsync(cancellationToken);
-                            user = candidateUser;
-                            _logger?.LogInformation("Auto-linked verified staff account '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, rawUserId);
-                        }
-                        else
-                        {
-                            _logger?.LogWarning("Account collision safeguard: Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'",
-                                rawUserId, cleanEmail, candidateUser.AuthUserId);
-                        }
-                    }
-                }
-                else
-                {
-                    _logger?.LogWarning("Skipping staff auto-linking for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
-                        rawUserId, _currentUserService.Email);
-                }
-            }
+            user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
 
             if (user == null)
             {
