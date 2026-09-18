@@ -1,9 +1,10 @@
+import { Platform } from "react-native";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { apiClient } from "@edge/api";
 
 export interface ApplicantUploadHolder {
   id?: string | number;
-  uploads?: Record<string, { name: string; uri: string } | string | undefined>;
+  uploads?: Record<string, { name: string; uri: string; type?: string } | string | undefined>;
 }
 
 export interface UploadRequirementsParams {
@@ -30,7 +31,7 @@ interface BackendRequirementItem {
  * Resolves a File or Blob from an upload descriptor across Web and Mobile.
  */
 export const resolveFileFromUpload = async (
-  upload: { name: string; uri?: string } | string
+  upload: { name: string; uri?: string; type?: string } | string
 ): Promise<File | Blob | null> => {
   const name = typeof upload === "string" ? upload : upload.name;
   const uri = typeof upload === "string" ? "" : (upload.uri ?? "");
@@ -40,7 +41,18 @@ export const resolveFileFromUpload = async (
   try {
     const res = await fetch(uri);
     const blob = await res.blob();
-    const mimeType = blob.type && blob.type.trim() !== "" ? blob.type : "application/octet-stream";
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    const fallbackMime =
+      ext === "pdf"
+        ? "application/pdf"
+        : ext === "png"
+        ? "image/png"
+        : ext === "jpg" || ext === "jpeg"
+        ? "image/jpeg"
+        : "application/octet-stream";
+
+    const explicitType = typeof upload === "object" ? upload.type : undefined;
+    const mimeType = explicitType || (blob.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
 
     if (typeof File !== "undefined") {
       try {
