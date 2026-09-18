@@ -186,17 +186,18 @@ export function ActivityCard({
                       color: isBulk ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#60A5FA' : '#1D4ED8'),
                     },
                   ]}
+                  numberOfLines={1}
                 >
                   {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
                 </Text>
               </View>
 
               <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
-              <Text style={[styles.entityType, { color: textMuted }]}>{displayAccountType}</Text>
+              <Text style={[styles.entityType, { color: textMuted }]} numberOfLines={1}>{displayAccountType}</Text>
               <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
               <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="hash" size={10} color={brandColor} />
-                <Text style={[styles.appNumText, { color: brandColor }]}>
+                <Text style={[styles.appNumText, { color: brandColor }]} numberOfLines={1}>
                   {application.referenceNumber}
                 </Text>
               </View>
@@ -208,13 +209,13 @@ export function ActivityCard({
         <View style={styles.middleRow}>
           <View style={styles.titleRow}>
             <Lucide name="file-text" size={12} color={textMuted} />
-            <Text style={[styles.permitTitle, { color: textSub }]} numberOfLines={1}>
+            <Text style={[styles.permitTitle, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
               {application.permitTitle}
             </Text>
           </View>
           <View style={styles.rightActions}>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
+              <Text style={[styles.statusPillText, { color: statusStyle.text }]} numberOfLines={1}>
                 {formatStatusDisplay(application.status)}
               </Text>
             </View>
@@ -233,14 +234,14 @@ export function ActivityCard({
         <View style={styles.bottomRow}>
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
             <Lucide name="user-plus" size={10} color={textMuted} />
-            <Text style={[styles.assignText, { color: textSub }]}>
+            <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
               {application.assignedTo || 'Unassigned'}
             </Text>
           </View>
           <View style={styles.badgeRow}>
             {application.isBeingViewed && (
               <View style={[styles.viewingBadge, { backgroundColor: COLORS.semantic.warningBg, borderColor: COLORS.semantic.warningBorder }]}>
-                <Text style={[styles.viewingBadgeText, { color: COLORS.semantic.warningText }]}>Viewing</Text>
+                <Text style={[styles.viewingBadgeText, { color: COLORS.semantic.warningText }]} numberOfLines={1}>Viewing</Text>
               </View>
             )}
             {application.isUrgent && (
@@ -249,47 +250,10 @@ export function ActivityCard({
               </View>
             )}
             {application.isPinned && (
-              <View style={[styles.typePill, { backgroundColor: brandBg }]}>
+              <View style={[styles.pinnedBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="map-pin" size={10} color={brandColor} />
               </View>
             )}
-            <View
-              style={[
-                styles.typePill,
-                isBulk
-                  ? {
-                      backgroundColor: isDark ? 'rgba(180, 83, 9, 0.15)' : '#FFFBEB',
-                      borderColor: isDark ? '#B45309' : '#FDE68A',
-                      borderWidth: 1,
-                    }
-                  : {
-                      backgroundColor: isDark ? 'rgba(29, 78, 216, 0.12)' : '#F0F9FF',
-                      borderColor: isDark ? '#1D4ED8' : '#BAE6FD',
-                      borderWidth: 1,
-                    },
-              ]}
-            >
-              <Lucide
-                name={isBulk ? "layers" : "file-text"}
-                size={10}
-                color={isBulk ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? '#60A5FA' : '#0284C7')}
-              />
-              <Text
-                style={[
-                  styles.typePillText,
-                  {
-                    color: isBulk ? (isDark ? '#FBBF24' : '#B45309') : (isDark ? '#60A5FA' : '#0284C7'),
-                    fontWeight: TYPOGRAPHY.weights.semibold,
-                  },
-                ]}
-              >
-                {isBulk
-                  ? totalApplicants > 1
-                    ? `Bulk • ${totalApplicants} Applicants`
-                    : 'Bulk Application'
-                  : 'Single Application'}
-              </Text>
-            </View>
           </View>
         </View>
       </View>
@@ -354,6 +318,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING[10],
     gap: SPACING[6],
+    minWidth: 0,
   },
   topRow: {
     flexDirection: "row",
@@ -390,22 +355,25 @@ const styles = StyleSheet.create({
   },
   nameBlock: {
     flex: 1,
+    minWidth: 0,
   },
   nameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: SPACING[6],
   },
   applicantName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.bold,
     flex: 1,
+    minWidth: 0,
   },
   timestamp: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    marginLeft: SPACING[6],
+    flexShrink: 0,
   },
   entityType: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -414,6 +382,7 @@ const styles = StyleSheet.create({
   subHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginTop: 2,
   },
@@ -427,6 +396,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: RADIUS.sm,
+    flexShrink: 0,
   },
   appNumText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -437,23 +407,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: SPACING[6],
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     flex: 1,
-    marginRight: SPACING[6],
+    minWidth: 0,
   },
   permitTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
     flex: 1,
+    minWidth: 0,
   },
   rightActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],
+    flexShrink: 0,
   },
   statusPill: {
     paddingHorizontal: 6,
@@ -477,6 +450,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: SPACING[6],
+    flexWrap: "wrap",
   },
   assignPill: {
     flexDirection: "row",
@@ -485,15 +460,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
+    flexShrink: 1,
+    minWidth: 0,
   },
   assignText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
+    flexShrink: 1,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],
+    flexWrap: "wrap",
+    flexShrink: 0,
   },
   viewingBadge: {
     borderWidth: 1,
@@ -513,18 +493,12 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  typePill: {
-    flexDirection: "row",
+  pinnedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
     alignItems: "center",
-    gap: 3,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-  },
-  typePillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    justifyContent: "center",
   },
   modePill: {
     flexDirection: "row",
