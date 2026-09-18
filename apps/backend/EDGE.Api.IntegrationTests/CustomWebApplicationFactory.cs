@@ -87,6 +87,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
             }
             var mockUserService = new Mock<ICurrentUserService>();
             mockUserService.Setup(u => u.UserId).Returns(TestUserId);
+            mockUserService.Setup(u => u.Email).Returns("testuser@ntc.gov.ph");
+            mockUserService.Setup(u => u.IsEmailVerified).Returns(true);
             mockUserService.Setup(u => u.TenantId).Returns(TestTenantId);
             services.AddSingleton<ICurrentUserService>(mockUserService.Object);
 

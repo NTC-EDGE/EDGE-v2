@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Entities;
@@ -21,6 +22,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<VerifyStaffSessionCommandHandler>? _logger;
 
     public VerifyStaffSessionCommandHandler(
         ICurrentUserService currentUserService,
@@ -30,7 +32,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         IGeographicRepository geographicRepository,
         IRoleRepository roleRepository,
         IRolePermissionRepository rolePermissionRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<VerifyStaffSessionCommandHandler>? logger = null)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
@@ -40,6 +43,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<VerifyStaffSessionDto>> Handle(
@@ -71,15 +75,39 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
                 user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
             }
 
-            // Fallback: If user logged in via Clerk (OAuth or credentials) whose email matches an existing database user, link AuthUserId
+            // Fallback: If user logged in via Clerk whose email matches an existing database user, link AuthUserId if email is verified & unlinked/seed
             if (user == null && !string.IsNullOrWhiteSpace(_currentUserService.Email))
             {
-                var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
-                user = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
-                if (user != null && user.AuthUserId != rawUserId)
+                if (_currentUserService.IsEmailVerified)
                 {
-                    user.AuthUserId = rawUserId;
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
+                    var candidateUser = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
+                    if (candidateUser != null)
+                    {
+                        var isUnlinkedOrSeed = string.IsNullOrWhiteSpace(candidateUser.AuthUserId) ||
+                                               candidateUser.AuthUserId.EndsWith("123") ||
+                                               candidateUser.AuthUserId.EndsWith("34") ||
+                                               candidateUser.AuthUserId.StartsWith("seed_") ||
+                                               candidateUser.AuthUserId.StartsWith("temp_");
+
+                        if (isUnlinkedOrSeed)
+                        {
+                            candidateUser.AuthUserId = rawUserId;
+                            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                            user = candidateUser;
+                            _logger?.LogInformation("Auto-linked verified staff account '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, rawUserId);
+                        }
+                        else
+                        {
+                            _logger?.LogWarning("Account collision safeguard: Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'",
+                                rawUserId, cleanEmail, candidateUser.AuthUserId);
+                        }
+                    }
+                }
+                else
+                {
+                    _logger?.LogWarning("Skipping staff auto-linking for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
+                        rawUserId, _currentUserService.Email);
                 }
             }
 

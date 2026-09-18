@@ -22,6 +22,11 @@ public class CurrentUserService : ICurrentUserService
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email")
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_address");
 
+    public bool IsEmailVerified => bool.TryParse(
+        _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verified")
+        ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verification_status"),
+        out var verified) && verified;
+
     public Guid? TenantId
     {
         get

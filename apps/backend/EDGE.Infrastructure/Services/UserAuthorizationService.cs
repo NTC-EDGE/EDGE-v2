@@ -82,12 +82,36 @@ public class UserAuthorizationService : IUserAuthorizationService
             _cachedUser = await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken);
             if (_cachedUser == null && !string.IsNullOrWhiteSpace(_currentUserService.Email))
             {
-                var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
-                _cachedUser = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
-                if (_cachedUser != null && _cachedUser.AuthUserId != authUserId)
+                if (_currentUserService.IsEmailVerified)
                 {
-                    _cachedUser.AuthUserId = authUserId;
-                    await _dbContext.SaveChangesAsync(cancellationToken);
+                    var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
+                    var candidateUser = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
+                    if (candidateUser != null)
+                    {
+                        var isUnlinkedOrSeed = string.IsNullOrWhiteSpace(candidateUser.AuthUserId) ||
+                                               candidateUser.AuthUserId.EndsWith("123") ||
+                                               candidateUser.AuthUserId.EndsWith("34") ||
+                                               candidateUser.AuthUserId.StartsWith("seed_") ||
+                                               candidateUser.AuthUserId.StartsWith("temp_");
+
+                        if (isUnlinkedOrSeed)
+                        {
+                            candidateUser.AuthUserId = authUserId;
+                            await _dbContext.SaveChangesAsync(cancellationToken);
+                            _cachedUser = candidateUser;
+                            _logger.LogInformation("Auto-linked verified account '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, authUserId);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Account collision safeguard: Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from auto-linking to account already bound to '{ExistingAuthUserId}'",
+                                authUserId, cleanEmail, candidateUser.AuthUserId);
+                        }
+                    }
+                }
+                else
+                {
+                    _logger.LogWarning("Skipping user auto-linking for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
+                        authUserId, _currentUserService.Email);
                 }
             }
             return _cachedUser;

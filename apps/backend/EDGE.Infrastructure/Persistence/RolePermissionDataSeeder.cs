@@ -19,7 +19,8 @@ public static class RolePermissionDataSeeder
         ApplicationDbContext context,
         bool forceResetPermissions = true,
         IClerkUserService? clerkUserService = null,
-        ILogger? logger = null)
+        ILogger? logger = null,
+        bool throwOnPartialFailure = false)
     {
         var staticDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -366,52 +367,95 @@ public static class RolePermissionDataSeeder
         if (clerkUserService != null)
         {
             logger?.LogInformation("Syncing seed users to Clerk authentication service...");
+            var syncResults = new List<(string Email, bool Success, string? Error)>();
+
             foreach (var user in defaultUsers)
             {
-                try
-                {
-                    var existingClerkUsers = await clerkUserService.GetUsersByEmailAsync(user.Email);
-                    if (existingClerkUsers != null && existingClerkUsers.Count > 0)
-                    {
-                        var clerkUser = existingClerkUsers[0];
-                        var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
-                        if (dbUser != null && dbUser.AuthUserId != clerkUser.Id)
-                        {
-                            dbUser.AuthUserId = clerkUser.Id;
-                            await context.SaveChangesAsync();
-                            logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", user.Email, clerkUser.Id);
-                        }
-                    }
-                    else
-                    {
-                        var payload = new CreateClerkUserPayload
-                        {
-                            EmailAddress = user.Email,
-                            Password = "Password123!",
-                            FirstName = user.FirstName,
-                            LastName = user.LastName,
-                            Username = ClerkUserService.GenerateSafeFallbackUsername(user.FirstName, user.LastName, user.Email),
-                            PublicMetadata = new Dictionary<string, object>
-                            {
-                                { "is_super_admin", user.IsSuperAdmin },
-                                { "seeded", true }
-                            }
-                        };
+                var succeeded = false;
+                string? lastError = null;
 
-                        var created = await clerkUserService.CreateUserAsync(payload);
-                        var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
-                        if (dbUser != null && created != null)
+                for (var attempt = 1; attempt <= 3; attempt++)
+                {
+                    try
+                    {
+                        var existingClerkUsers = await clerkUserService.GetUsersByEmailAsync(user.Email);
+                        if (existingClerkUsers != null && existingClerkUsers.Count > 0)
                         {
-                            dbUser.AuthUserId = created.Id;
-                            await context.SaveChangesAsync();
-                            logger?.LogInformation("Successfully provisioned seed user '{Email}' in Clerk with ID: {ClerkId}", user.Email, created.Id);
+                            var clerkUser = existingClerkUsers[0];
+                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                            if (dbUser != null && dbUser.AuthUserId != clerkUser.Id)
+                            {
+                                dbUser.AuthUserId = clerkUser.Id;
+                                await context.SaveChangesAsync();
+                                logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", user.Email, clerkUser.Id);
+                            }
+                        }
+                        else
+                        {
+                            var payload = new CreateClerkUserPayload
+                            {
+                                EmailAddress = user.Email,
+                                Password = "Password123!",
+                                FirstName = user.FirstName,
+                                LastName = user.LastName,
+                                Username = ClerkUserService.GenerateSafeFallbackUsername(user.FirstName, user.LastName, user.Email),
+                                PublicMetadata = new Dictionary<string, object>
+                                {
+                                    { "is_super_admin", user.IsSuperAdmin },
+                                    { "seeded", true }
+                                }
+                            };
+
+                            var created = await clerkUserService.CreateUserAsync(payload);
+                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                            if (dbUser != null && created != null)
+                            {
+                                dbUser.AuthUserId = created.Id;
+                                await context.SaveChangesAsync();
+                                logger?.LogInformation("Successfully provisioned seed user '{Email}' in Clerk with ID: {ClerkId}", user.Email, created.Id);
+                            }
+                        }
+
+                        succeeded = true;
+                        break;
+                    }
+                    catch (Exception ex)
+                    {
+                        lastError = ex.Message;
+                        if (attempt < 3)
+                        {
+                            await Task.Delay(300 * attempt);
                         }
                     }
                 }
-                catch (Exception ex)
+
+                if (succeeded)
                 {
-                    logger?.LogWarning("Clerk sync for seed user '{Email}' skipped: {Error}", user.Email, ex.Message);
+                    syncResults.Add((user.Email, true, null));
                 }
+                else
+                {
+                    syncResults.Add((user.Email, false, lastError));
+                    logger?.LogWarning("Clerk sync for seed user '{Email}' skipped after retries: {Error}", user.Email, lastError);
+                }
+            }
+
+            var failedSyncs = syncResults.Where(r => !r.Success).ToList();
+            if (failedSyncs.Count > 0)
+            {
+                var failedEmails = string.Join(", ", failedSyncs.Select(f => $"{f.Email} ({f.Error})"));
+                logger?.LogError("Seed synchronization finished with {FailedCount}/{TotalCount} failures. Affected accounts: {FailedEmails}",
+                    failedSyncs.Count, syncResults.Count, failedEmails);
+
+                if (throwOnPartialFailure)
+                {
+                    throw new InvalidOperationException(
+                        $"Clerk seed synchronization failed for {failedSyncs.Count} user account(s): {failedEmails}");
+                }
+            }
+            else
+            {
+                logger?.LogInformation("Clerk synchronization successfully verified/provisioned all {Count} seed users.", syncResults.Count);
             }
         }
     }
