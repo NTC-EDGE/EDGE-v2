@@ -27,10 +27,10 @@ public class DefaultFeeCalculationStrategy : IFeeCalculationStrategy
         var appType = request.ApplicationType.SafeTrim();
         var element = request.Element.SafeTrim();
 
-        decimal baseRate = 100.00m;
+        decimal baseRate = FeeConstants.Amounts.DefaultFallbackRate;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Application Fee" : $"Application Fee ({element})",
-            ItemCode: "FEE_BASE",
+            ItemCode: FeeConstants.Codes.DefaultBase,
             Description: "Standard Processing Fee",
             ValidityYears: years,
             NoOfUnits: units,

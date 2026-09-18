@@ -35,7 +35,7 @@ public class PermitFeeCalculationStrategy : IFeeCalculationStrategy
         var element = request.Element.SafeTrim();
 
         // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Permit Filing Fee", 1, 1, 100.00m, 100.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Permit Filing Fee", 1, 1, FeeConstants.Amounts.PermitFilingFee, FeeConstants.Amounts.PermitFilingFee));
 
         // Permit Base Fee
         decimal permitRate = FeeConstants.Amounts.DefaultPermitRate;

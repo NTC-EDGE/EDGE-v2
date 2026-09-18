@@ -33,7 +33,7 @@ public class ExamFeeCalculationStrategy : IFeeCalculationStrategy
         var element = request.Element.SafeTrim();
 
         // Application Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Examination Admission Application Fee", 1, 1, 50.00m, 50.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Examination Admission Application Fee", 1, 1, FeeConstants.Amounts.ExamApplicationFee, FeeConstants.Amounts.ExamApplicationFee));
 
         // Examination Fee
         decimal examRate = FeeConstants.Amounts.DefaultExamRate;

@@ -107,7 +107,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         var isRenewal = appType.SafeContains("RENEWAL");
         var isModification = appType.SafeContains("MODIFICATION");
 
-        // Modification fee (flat ₱120.00)
+        // Modification fee
         if (isModification)
         {
             lineItems.Add(new CalculatedFeeLineItemDto(
@@ -122,7 +122,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             return FeeConstants.Formulas.RocModification;
         }
 
-        // Foreign Pilot (Flat ₱100.00)
+        // Foreign Pilot
         if (appType.SafeContains("Foreign Pilot"))
         {
             lineItems.Add(new CalculatedFeeLineItemDto(
@@ -137,64 +137,64 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             return FeeConstants.Formulas.RocNew;
         }
 
-        // Government ROC (FF=10, AF=20, ROC=60/yr)
+        // Government ROC (FF, AF, ROC/yr)
         if (appType.SafeContains("Government"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Government ROC Fee", years, 1, 60.00m, 60.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, FeeConstants.Amounts.GovFilingFee, FeeConstants.Amounts.GovFilingFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, FeeConstants.Amounts.GovApplicationFee, FeeConstants.Amounts.GovApplicationFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Government ROC Fee", years, 1, FeeConstants.Amounts.GovRocAnnualRate, FeeConstants.Amounts.GovRocAnnualRate * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
-                ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
+                ApplySurcharge(FeeConstants.Amounts.GovRocAnnualRate, expirationDate.Value, asOfDate, lineItems);
                 return FeeConstants.Formulas.GovRocRenewal;
             }
             return FeeConstants.Formulas.GovRocNew;
         }
 
-        // Land Mobile Station (FF=10, AF=20, ROC=30/yr)
+        // Land Mobile Station (FF, AF, ROC/yr)
         if (appType.SafeContains("Land Mobile"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Land Mobile Station Fee", years, 1, 30.00m, 30.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, FeeConstants.Amounts.GovFilingFee, FeeConstants.Amounts.GovFilingFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, FeeConstants.Amounts.GovApplicationFee, FeeConstants.Amounts.GovApplicationFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Land Mobile Station Fee", years, 1, FeeConstants.Amounts.LandMobileRocAnnualRate, FeeConstants.Amounts.LandMobileRocAnnualRate * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
-                ApplySurcharge(30.00m, expirationDate.Value, asOfDate, lineItems);
+                ApplySurcharge(FeeConstants.Amounts.LandMobileRocAnnualRate, expirationDate.Value, asOfDate, lineItems);
                 return FeeConstants.Formulas.LandMobileRocRenewal;
             }
             return FeeConstants.Formulas.LandMobileRocNew;
         }
 
-        // Special Radio Operator (AF=20, SEM=20, ROC=60/yr)
+        // Special Radio Operator (AF, SEM, ROC/yr)
         if (appType.SafeContains("Special"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Seminar Fee", FeeConstants.Codes.Seminar, "Special ROC Seminar Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Special Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, FeeConstants.Amounts.GovApplicationFee, FeeConstants.Amounts.GovApplicationFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Seminar Fee", FeeConstants.Codes.Seminar, "Special ROC Seminar Fee", 1, 1, FeeConstants.Amounts.SpecialRocSeminarFee, FeeConstants.Amounts.SpecialRocSeminarFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Special Radio Operator Certificate Fee", years, 1, FeeConstants.Amounts.SpecialRocAnnualRate, FeeConstants.Amounts.SpecialRocAnnualRate * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
-                ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
+                ApplySurcharge(FeeConstants.Amounts.SpecialRocAnnualRate, expirationDate.Value, asOfDate, lineItems);
                 return FeeConstants.Formulas.SpecialRocRenewal;
             }
             return FeeConstants.Formulas.SpecialRocNew;
         }
 
-        // Aircraft (ROC=100/yr)
+        // Aircraft (ROC/yr)
         if (appType.SafeContains("Aircraft"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Aircraft Certificate Fee", years, 1, 100.00m, 100.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Aircraft Certificate Fee", years, 1, FeeConstants.Amounts.AircraftRocAnnualRate, FeeConstants.Amounts.AircraftRocAnnualRate * years));
             if (isRenewal && expirationDate.HasValue)
             {
-                ApplySurcharge(100.00m, expirationDate.Value, asOfDate, lineItems);
+                ApplySurcharge(FeeConstants.Amounts.AircraftRocAnnualRate, expirationDate.Value, asOfDate, lineItems);
                 return FeeConstants.Formulas.RocRenewal;
             }
             return FeeConstants.Formulas.RocNew;
         }
 
-        // Commercial Radio Operator (1RTG=180, 2RTG=120, 3RTG=60, 1PHN=120, 2PHN=100, 3PHN=60)
+        // Commercial Radio Operator (1RTG, 2RTG, 3RTG, 1PHN, 2PHN, 3PHN)
         var rocRate = ResolveRocRateByElement(element);
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: $"Certificate Fee ({element})",
@@ -225,24 +225,24 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
     {
         if (appType.SafeContains("Lifetime") || element.SafeContains("Lifetime"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Amateur Lifetime Filing Fee", 1, 1, 60.00m, 60.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Lifetime Modification Fee", 1, 1, 50.00m, 50.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Possess Permit Fee", FeeConstants.Codes.PossessPermit, "Possess Permit Fee", 1, 1, 50.00m, 50.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Amateur Lifetime Filing Fee", 1, 1, FeeConstants.Amounts.AmateurLifetimeFilingFee, FeeConstants.Amounts.AmateurLifetimeFilingFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Lifetime Modification Fee", 1, 1, FeeConstants.Amounts.AmateurLifetimeModificationFee, FeeConstants.Amounts.AmateurLifetimeModificationFee));
+            lineItems.Add(new CalculatedFeeLineItemDto("Possess Permit Fee", FeeConstants.Codes.PossessPermit, "Possess Permit Fee", 1, 1, FeeConstants.Amounts.AmateurLifetimePossessPermitFee, FeeConstants.Amounts.AmateurLifetimePossessPermitFee));
             return FeeConstants.Formulas.AmateurLifetime;
         }
 
         if (appType.SafeContains("MODIFICATION"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Certificate Modification Fee", 1, 1, 60.00m, 60.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Certificate Modification Fee", 1, 1, FeeConstants.Amounts.AmateurModificationFee, FeeConstants.Amounts.AmateurModificationFee));
             return FeeConstants.Formulas.AmateurModification;
         }
 
         // Standard Amateur ROC (₱60/yr)
-        lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Amateur Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
+        lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Amateur Radio Operator Certificate Fee", years, 1, FeeConstants.Amounts.AmateurRocAnnualRate, FeeConstants.Amounts.AmateurRocAnnualRate * years));
 
         if (appType.SafeContains("RENEWAL") && expirationDate.HasValue)
         {
-            ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
+            ApplySurcharge(FeeConstants.Amounts.AmateurRocAnnualRate, expirationDate.Value, asOfDate, lineItems);
             return FeeConstants.Formulas.AmateurRocRenewal;
         }
 
@@ -255,26 +255,25 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         int units,
         List<CalculatedFeeLineItemDto> lineItems)
     {
-        // AF = 180.00
-        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Application Evaluation Fee", 1, 1, 180.00m, 180.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Application Evaluation Fee", 1, 1, FeeConstants.Amounts.RfidApplicationFee, FeeConstants.Amounts.RfidApplicationFee));
 
         decimal regRate;
         string desc;
 
         if (element.SafeContains("Low Power"))
         {
-            regRate = 100.00m;
+            regRate = FeeConstants.Amounts.RfidLowPowerUnitRate;
             desc = "RFID Low Power Registration Fee";
         }
         else if (element.SafeContainsAny("SRD", "WDN"))
         {
-            regRate = 50.00m;
+            regRate = FeeConstants.Amounts.SrdWdnUnitRate;
             desc = "SRD/WDN Devices - Indoor Registration Fee";
         }
         else
         {
             // Default: RFID High Power
-            regRate = 300.00m;
+            regRate = FeeConstants.Amounts.RfidHighPowerUnitRate;
             desc = "RFID High Power Registration Fee (per Unit)";
         }
 
@@ -315,10 +314,9 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         DateTime asOfDate,
         List<CalculatedFeeLineItemDto> lineItems)
     {
-        // FF = 300.00
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 300.00m, 300.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, FeeConstants.Amounts.VasFilingFee, FeeConstants.Amounts.VasFilingFee));
 
-        // ARF1 = 6000.00 (first 5 services)
+        // ARF1 (first 5 services)
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: "Annual Registration Fee 1 (ARF1 - Base 5 Services)",
             ItemCode: FeeConstants.Codes.AnnualRegistration1,
@@ -329,7 +327,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             Amount: FeeConstants.Amounts.VasAnnualBaseRate * years
         ));
 
-        // ARF2 = 1000.00 per excess service
+        // ARF2 per excess service
         var nas = Math.Max(0, additionalServicesCount);
         decimal excessAmount = 0;
         if (nas > 0)
@@ -367,7 +365,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             return FeeConstants.Formulas.DuplicateCopy;
         }
 
-        // Certified True Copy: FC = 6, SC = 2.50
+        // Certified True Copy: FC, SC
         var totalCopies = Math.Max(1, copies);
         lineItems.Add(new CalculatedFeeLineItemDto("First Copy Fee", FeeConstants.Codes.FirstCopy, "Certified True Copy - First Copy", 1, 1, FeeConstants.Amounts.CertifiedTrueCopyFirstPage, FeeConstants.Amounts.CertifiedTrueCopyFirstPage));
 
@@ -391,14 +389,14 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
     private static decimal ResolveRocRateByElement(string element)
     {
         var e = element.SafeTrim().ToUpperInvariant();
-        if (e.SafeContains("1RTG")) return 180.00m;
-        if (e.SafeContains("2RTG")) return 120.00m;
-        if (e.SafeContains("3RTG")) return 60.00m;
-        if (e.SafeContains("1PHN")) return 120.00m;
-        if (e.SafeContains("2PH"))  return 100.00m;
-        if (e.SafeContains("3PHN")) return 60.00m;
+        if (e.SafeContains("1RTG")) return FeeConstants.Amounts.Roc1RtgAnnualRate;
+        if (e.SafeContains("2RTG")) return FeeConstants.Amounts.Roc2RtgAnnualRate;
+        if (e.SafeContains("3RTG")) return FeeConstants.Amounts.Roc3RtgAnnualRate;
+        if (e.SafeContains("1PHN")) return FeeConstants.Amounts.Roc1PhnAnnualRate;
+        if (e.SafeContains("2PH"))  return FeeConstants.Amounts.Roc2PhnAnnualRate;
+        if (e.SafeContains("3PHN")) return FeeConstants.Amounts.Roc3PhnAnnualRate;
 
-        return 180.00m; // Default rate
+        return FeeConstants.Amounts.RocDefaultAnnualRate;
     }
 
     private static void ApplySurcharge(

@@ -1,4 +1,5 @@
 using System;
+using EDGE.Domain.Constants;
 
 namespace EDGE.Application.Fees.Calculations;
 
@@ -24,19 +25,19 @@ public static class SurchargeCalculator
             return (0m, "On time (No surcharge)");
         }
 
-        if (daysLate <= 180)
+        if (daysLate <= FeeConstants.Surcharges.Tier1Days)
         {
-            return (0.50m, "1 day to 6 months late (50% surcharge)");
+            return (FeeConstants.Surcharges.Tier1Multiplier, $"1 day to 6 months late ({FeeConstants.Surcharges.Tier1Multiplier:P0} surcharge)");
         }
 
-        if (daysLate <= 365)
+        if (daysLate <= FeeConstants.Surcharges.Tier2Days)
         {
-            return (1.00m, "6 months to 1 year late (100% surcharge)");
+            return (FeeConstants.Surcharges.Tier2Multiplier, $"6 months to 1 year late ({FeeConstants.Surcharges.Tier2Multiplier:P0} surcharge)");
         }
 
-        var excessDays = daysLate - 365;
-        var additionalPeriods = (int)Math.Ceiling(excessDays / 180.0);
-        var totalMultiplier = 1.00m + (additionalPeriods * 0.50m);
+        var excessDays = daysLate - FeeConstants.Surcharges.Tier2Days;
+        var additionalPeriods = (int)Math.Ceiling(excessDays / FeeConstants.Surcharges.ExcessBlockDays);
+        var totalMultiplier = FeeConstants.Surcharges.Tier2Multiplier + (additionalPeriods * FeeConstants.Surcharges.ExcessStepMultiplier);
 
         return (totalMultiplier, $"{daysLate:N0} days late ({totalMultiplier:P0} surcharge)");
     }

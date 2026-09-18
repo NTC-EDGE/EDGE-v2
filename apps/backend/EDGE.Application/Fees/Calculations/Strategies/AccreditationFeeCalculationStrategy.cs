@@ -38,7 +38,7 @@ public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
         var isRenewal = appType.SafeContains("RENEWAL");
 
         // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Accreditation Filing Fee", 1, 1, 300.00m, 300.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Accreditation Filing Fee", 1, 1, FeeConstants.Amounts.AccreditationFilingFee, FeeConstants.Amounts.AccreditationFilingFee));
 
         // Accreditation Fee
         decimal baseRate = FeeConstants.Amounts.DefaultAccreditationRate;

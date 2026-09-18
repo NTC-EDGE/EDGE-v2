@@ -40,7 +40,7 @@ public class LicenseFeeCalculationStrategy : IFeeCalculationStrategy
         var isModification = appType.SafeContains("MODIFICATION");
 
         // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative License Filing Fee", 1, 1, 180.00m, 180.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative License Filing Fee", 1, 1, FeeConstants.Amounts.LicenseFilingFee, FeeConstants.Amounts.LicenseFilingFee));
 
         decimal licenseRate = FeeConstants.Amounts.DefaultLicenseRate;
         if (!string.IsNullOrWhiteSpace(element))
