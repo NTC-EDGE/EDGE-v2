@@ -75,9 +75,13 @@ public class FeeCalculationEngineTests
     }
 
     [Theory]
-    [InlineData(60, 0.50, 90.00, 300.00)]   // 2 months late -> 50%
-    [InlineData(200, 1.00, 180.00, 390.00)] // 6.5 months late -> 100%
-    [InlineData(400, 1.50, 270.00, 480.00)] // 13 months late -> 150%
+    [InlineData(1, 0.50, 90.00, 300.00)]     // 1 day late -> 50%
+    [InlineData(180, 0.50, 90.00, 300.00)]   // Exact 180 days -> 50%
+    [InlineData(181, 1.00, 180.00, 390.00)]  // 181 days (Tier 2 entry) -> 100%
+    [InlineData(365, 1.00, 180.00, 390.00)]  // Exact 365 days -> 100%
+    [InlineData(366, 1.50, 270.00, 480.00)]  // 366 days (Tier 3 entry) -> 150%
+    [InlineData(545, 1.50, 270.00, 480.00)]  // 545 days -> 150%
+    [InlineData(546, 2.00, 360.00, 570.00)]  // 546 days (Tier 4 entry) -> 200%
     public void Calculate_CommercialRocRenewal_WithSurcharge_ShouldCalculateCorrectSurchargeTier(int daysLate, decimal expectedMultiplier, decimal expectedSurcharge, decimal expectedTotal)
     {
         var expiration = new DateTime(2026, 1, 1);
@@ -101,6 +105,30 @@ public class FeeCalculationEngineTests
         result.FormulaApplied.Should().Be("FEEROC = (ROC)(YR) + DST + SUR");
         result.LineItems.First(li => li.IsSurcharge).Description.Should().Contain($"{expectedMultiplier:P0}");
     }
+
+    [Fact]
+    public void Calculate_CommercialRocRenewal_SameDateDifferentTimes_ShouldHaveZeroSurcharge()
+    {
+        var expiration = new DateTime(2026, 6, 15, 08, 00, 00, DateTimeKind.Utc);
+        var asOf = new DateTime(2026, 6, 15, 23, 59, 59, DateTimeKind.Utc);
+
+        var request = new FeeCalculationRequest(
+            Activity: "RADIO OPERATOR CERTIFICATES (ROC) EXCLUDING AMATEUR ROC",
+            ApplicationType: "Commercial Radio Operator Certificate (RENEWAL)",
+            Element: "1RTG",
+            ValidityYears: 1,
+            ExpirationDate: expiration,
+            AsOfDate: asOf,
+            Category: ServiceCategoryType.Certificate
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(180.00m);
+        result.SurchargeAmount.Should().Be(0m);
+        result.TotalAmount.Should().Be(210.00m);
+    }
+
 
     [Fact]
     public void Calculate_CommercialRocModification_ShouldCharge120PlusDst()
