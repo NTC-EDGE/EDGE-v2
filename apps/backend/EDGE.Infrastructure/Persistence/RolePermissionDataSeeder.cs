@@ -62,9 +62,9 @@ public static class RolePermissionDataSeeder
         var defaultRoles = new List<Role>
         {
             new() { Id = superAdminRoleId,       TenantId = null, IsSystemRole = true,  Name = "Super Administrator", Key = "superadmin",        Description = "System-wide administrator with full root access",     CreatedAt = staticDate },
-            new() { Id = adminRoleId,            TenantId = null, IsSystemRole = false, Name = "Tenant Administrator",Key = "admin",             Description = "Tenant administrator with full access to all features in the tenant", CreatedAt = staticDate },
-            new() { Id = regionalDirectorRoleId, TenantId = null, IsSystemRole = false, Name = "Regional Director",   Key = "regional_director", Description = "Regional executive authority and final approver with full tenant administrative access", CreatedAt = staticDate },
-            new() { Id = chiefEodRoleId,         TenantId = null, IsSystemRole = false, Name = "Chief of EOD",        Key = "chief_of_eod",      Description = "Chief of Enforcement and Operations Division (head of all evaluators)", CreatedAt = staticDate },
+            new() { Id = adminRoleId,            TenantId = null, IsSystemRole = false, Name = "Administrator",       Key = "admin",             Description = "Tenant / Regional administrator with full office access", CreatedAt = staticDate },
+            new() { Id = regionalDirectorRoleId, TenantId = null, IsSystemRole = false, Name = "Regional Director",   Key = "regional_director", Description = "Regional executive authority and final approver",     CreatedAt = staticDate },
+            new() { Id = chiefEodRoleId,         TenantId = null, IsSystemRole = false, Name = "Chief of EOD",        Key = "chief_of_eod",      Description = "Chief of Enforcement and Operations Division",        CreatedAt = staticDate },
             new() { Id = legalRoleId,            TenantId = null, IsSystemRole = false, Name = "Legal Officer",       Key = "legal",             Description = "Legal and compliance officer",                        CreatedAt = staticDate },
             new() { Id = accountantRoleId,       TenantId = null, IsSystemRole = false, Name = "Accountant",          Key = "accountant",        Description = "Financial and billing administrator",                 CreatedAt = staticDate },
             new() { Id = cashierRoleId,          TenantId = null, IsSystemRole = false, Name = "Cashier",             Key = "cashier",           Description = "Payment collection and receipt administrator",        CreatedAt = staticDate },
@@ -186,13 +186,8 @@ public static class RolePermissionDataSeeder
             (actualChiefEodRoleId, Permissions.DownloadStorage),
             (actualChiefEodRoleId, Permissions.UploadStorage),
             (actualChiefEodRoleId, Permissions.ReadServiceNotes),
-            (actualChiefEodRoleId, Permissions.CreateServiceNotes),
-            (actualChiefEodRoleId, Permissions.UpdateServiceNotes),
             (actualChiefEodRoleId, Permissions.ReadSoaNotes),
             (actualChiefEodRoleId, Permissions.ReadSchedules),
-            (actualChiefEodRoleId, Permissions.CreateSchedules),
-            (actualChiefEodRoleId, Permissions.UpdateSchedules),
-            (actualChiefEodRoleId, Permissions.PublishSchedules),
 
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
@@ -223,8 +218,6 @@ public static class RolePermissionDataSeeder
             (actualLegalRoleId, Permissions.ReadStorage),
             (actualLegalRoleId, Permissions.DownloadStorage),
             (actualLegalRoleId, Permissions.ReadServiceNotes),
-            (actualLegalRoleId, Permissions.CreateServiceNotes),
-            (actualLegalRoleId, Permissions.UpdateServiceNotes),
 
             // Accountant (Billing & Financial Reviews)
             (actualAccountantRoleId, Permissions.ReadTenants),
@@ -240,9 +233,6 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.ReadStorage),
             (actualAccountantRoleId, Permissions.DownloadStorage),
             (actualAccountantRoleId, Permissions.ReadSoaNotes),
-            (actualAccountantRoleId, Permissions.CreateSoaNotes),
-            (actualAccountantRoleId, Permissions.UpdateSoaNotes),
-            (actualAccountantRoleId, Permissions.ReceiptsRead),
             (actualAccountantRoleId, Permissions.BankAccountsManage),
             (actualAccountantRoleId, Permissions.ReceiptsDeposit),
             (actualAccountantRoleId, Permissions.CashierReports),
@@ -268,12 +258,11 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.CashierReports),
         };
 
-        // Add all permissions to SuperAdmin, Tenant Admin, and Regional Director roles dynamically
+        // Add all permissions to SuperAdmin and Admin roles dynamically
         foreach (var permKey in Permissions.AllKeys)
         {
             targetRolePermissions.Add((actualSuperAdminRoleId, permKey));
             targetRolePermissions.Add((actualAdminRoleId, permKey));
-            targetRolePermissions.Add((actualRegionalDirectorRoleId, permKey));
         }
 
         var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();
@@ -320,7 +309,7 @@ public static class RolePermissionDataSeeder
             new() { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_superadmin123", Email = "superadmin@ntcedge.com", FirstName = "Super", LastName = "Administrator", IsSuperAdmin = true, CreatedAt = staticDate },
             new() { Id = Guid.Parse("77777777-7777-7777-7777-777777777777"), AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("88888888-8888-8888-8888-888888888888"), AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("99999999-9999-9999-9999-999999999999"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Tenant", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("99999999-9999-9999-9999-999999999999"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Regional", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333334"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
         };
 
