@@ -15,6 +15,24 @@ public class UserAuthorizationService : IUserAuthorizationService
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<UserAuthorizationService> _logger;
 
+    private static readonly HashSet<string> AdministrativeRoleKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "admin",
+        "administrator",
+        "superadmin",
+        "super_admin",
+        "super-admin",
+        "system_admin",
+        "system-admin",
+        "systemadmin",
+        "tenant_admin",
+        "tenant-admin",
+        "tenantadmin",
+        "regional_admin",
+        "regional-admin",
+        "regionaladmin"
+    };
+
     private User? _cachedUser;
     private List<string>? _cachedPermissions;
 
@@ -244,14 +262,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 .Select(tm => tm.Role!.Key.ToLower())
                 .ToListAsync(cancellationToken);
 
-            if (memberRoleKeys.Any(k =>
-                k == "admin" ||
-                k == "administrator" ||
-                k == "superadmin" ||
-                k == "super_admin" ||
-                k == "system_admin" ||
-                k == "tenant_admin" ||
-                k.Contains("admin")))
+            if (memberRoleKeys.Any(k => AdministrativeRoleKeys.Contains(k.Trim())))
             {
                 _cachedPermissions = Permissions.AllKeys.ToList();
                 return _cachedPermissions;

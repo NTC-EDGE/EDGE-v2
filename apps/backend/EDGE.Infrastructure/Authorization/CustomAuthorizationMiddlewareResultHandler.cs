@@ -1,22 +1,31 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Authorization;
 
 namespace EDGE.Infrastructure.Authorization;
 
 /// <summary>
 /// Custom ASP.NET Core Authorization Middleware Result Handler.
-/// Formats 403 Forbidden responses with clear, actionable JSON payloads detailing missing permissions or required roles.
+/// Formats 403 Forbidden responses with clear, actionable JSON payloads detailing missing permissions or required roles,
+/// and logs diagnostic warnings for operations monitoring.
 /// </summary>
 public class CustomAuthorizationMiddlewareResultHandler : IAuthorizationMiddlewareResultHandler
 {
     private readonly AuthorizationMiddlewareResultHandler _defaultHandler = new();
+    private readonly ILogger<CustomAuthorizationMiddlewareResultHandler> _logger;
+
+    public CustomAuthorizationMiddlewareResultHandler(ILogger<CustomAuthorizationMiddlewareResultHandler> logger)
+    {
+        _logger = logger;
+    }
 
     public async Task HandleAsync(
         RequestDelegate next,
@@ -38,6 +47,15 @@ public class CustomAuthorizationMiddlewareResultHandler : IAuthorizationMiddlewa
                 .OfType<RoleRequirement>()
                 .Select(r => r.Role)
                 .ToList();
+
+            _logger.LogWarning(
+                "Access Forbidden (403): User '{User}' was denied access to {Method} {Path}. Missing permissions: [{Permissions}], Required roles: [{Roles}].",
+                context.User?.Identity?.Name ?? context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "Anonymous",
+                context.Request.Method,
+                context.Request.Path,
+                string.Join(", ", requiredPermissions),
+                string.Join(", ", requiredRoles)
+            );
 
             string detail;
             if (requiredPermissions.Count > 0)
