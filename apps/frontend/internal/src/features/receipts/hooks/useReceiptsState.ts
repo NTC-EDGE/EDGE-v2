@@ -73,31 +73,42 @@ export function useReceiptsState() {
     return { fromDate: start.toISOString(), toDate: end.toISOString() };
   }, [reportDateRange]);
 
-  // SWR hooks
+  // Conditional tenant IDs to lazily call endpoints only when the tab or modal is active
+  const pendingPaymentsTenantId = activeTab === 'pending_payments' ? tenantId : null;
+  const bookletsTenantId = (activeTab === 'booklets' || isBundleModalOpen || isIssueModalOpen) ? tenantId : null;
+  const nextOrTenantId = (activeTab === 'receipts' || isIssueModalOpen) ? tenantId : null;
+  const receiptsTenantId = activeTab === 'receipts' ? tenantId : null;
+  const depositsTenantId = activeTab === 'deposits' ? tenantId : null;
+  const undepositedTenantId = (activeTab === 'deposits' || isDepositModalOpen) ? tenantId : null;
+  const bankAccountsTenantId = (activeTab === 'accounts' || activeTab === 'deposits' || isDepositModalOpen || isBankAccountModalOpen) ? tenantId : null;
+  const rcdReportTenantId = (activeTab === 'reports' && reportSubTab === 'rcd') ? tenantId : null;
+  const cancelledReportTenantId = (activeTab === 'reports' && reportSubTab === 'cancelled') ? tenantId : null;
+
+  // SWR hooks (Invoked on-demand per tab to prevent backend overload)
   const {
     pendingPayments,
     isLoading: isLoadingPendingPayments,
     mutate: mutatePendingPayments,
-  } = usePendingPayments(tenantId, searchQuery.trim().length > 0 ? searchQuery.trim() : undefined);
+  } = usePendingPayments(pendingPaymentsTenantId, searchQuery.trim().length > 0 ? searchQuery.trim() : undefined);
 
   const {
     booklets,
     isLoading: isLoadingBooklets,
     mutate: mutateBooklets,
-  } = useOrBooklets(tenantId);
+  } = useOrBooklets(bookletsTenantId);
 
   const {
     nextOr,
     isLoading: isLoadingNextOr,
     mutate: mutateNextOr,
-  } = useNextAvailableOrNumber(tenantId, currentUserId);
+  } = useNextAvailableOrNumber(nextOrTenantId, currentUserId);
 
   const {
     receipts,
     isLoading: isLoadingReceipts,
     mutate: mutateReceipts,
   } = useOfficialReceipts({
-    tenantId,
+    tenantId: receiptsTenantId,
     status: statusFilter !== 'all' ? (statusFilter as ReceiptStatus) : undefined,
     paymentMethod: paymentMethodFilter !== 'all' ? (paymentMethodFilter as PaymentMethod) : undefined,
     search: searchQuery.trim().length > 0 ? searchQuery.trim() : undefined,
@@ -107,26 +118,26 @@ export function useReceiptsState() {
     undepositedReceipts,
     isLoading: isLoadingUndeposited,
     mutate: mutateUndeposited,
-  } = useUndepositedReceipts(tenantId);
+  } = useUndepositedReceipts(undepositedTenantId);
 
   const {
     bankAccounts,
     isLoading: isLoadingBankAccounts,
     mutate: mutateBankAccounts,
-  } = useAgencyBankAccounts(tenantId);
+  } = useAgencyBankAccounts(bankAccountsTenantId);
 
   const {
     deposits,
     isLoading: isLoadingDeposits,
     mutate: mutateDeposits,
-  } = useBankDeposits({ tenantId });
+  } = useBankDeposits({ tenantId: depositsTenantId });
 
   const {
     rcdReport,
     isLoading: isLoadingRcd,
     mutate: mutateRcd,
   } = useCashierRcdReport({
-    tenantId,
+    tenantId: rcdReportTenantId,
     fromDate,
     toDate,
   });
@@ -136,7 +147,7 @@ export function useReceiptsState() {
     isLoading: isLoadingCancelled,
     mutate: mutateCancelled,
   } = useCancelledOrReport({
-    tenantId,
+    tenantId: cancelledReportTenantId,
     fromDate,
     toDate,
   });
@@ -156,7 +167,7 @@ export function useReceiptsState() {
     setSelectedPendingPayment(null);
   }, []);
 
-  const refreshAll = () => {
+  const refreshAll = useCallback(() => {
     mutatePendingPayments();
     mutateBooklets();
     mutateNextOr();
@@ -166,7 +177,17 @@ export function useReceiptsState() {
     mutateDeposits();
     mutateRcd();
     mutateCancelled();
-  };
+  }, [
+    mutatePendingPayments,
+    mutateBooklets,
+    mutateNextOr,
+    mutateReceipts,
+    mutateUndeposited,
+    mutateBankAccounts,
+    mutateDeposits,
+    mutateRcd,
+    mutateCancelled,
+  ]);
 
   return {
     tenantId,
