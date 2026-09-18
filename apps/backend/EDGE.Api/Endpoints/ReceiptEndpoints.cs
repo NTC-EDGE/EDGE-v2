@@ -27,6 +27,7 @@ using EDGE.Application.Receipts.Queries.Deposits.GetBankDeposits;
 using EDGE.Application.Receipts.Queries.Deposits.GetBankDepositById;
 using EDGE.Application.Receipts.Queries.Reports.GetCashierRcdReport;
 using EDGE.Application.Receipts.Queries.Reports.GetCancelledOrReport;
+using EDGE.Application.Receipts.Queries.PendingPayments;
 
 namespace EDGE.Api.Endpoints;
 
@@ -35,6 +36,12 @@ public static class ReceiptEndpoints
     public static IEndpointRouteBuilder MapReceiptEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/receipts").WithTags("Receipts & Cashiering");
+
+        // Pending Collections / For Payment
+        group.MapGet("/pending-payments", GetPendingPayments)
+            .WithName("GetPendingPayments")
+            .WithSummary("Get Pending Payments")
+            .WithDescription("Retrieves applications and orders of payment subject for cashier collection.");
 
         // Booklets
         group.MapGet("/booklets", GetOrBooklets)
@@ -309,6 +316,16 @@ public static class ReceiptEndpoints
         IMediator mediator)
     {
         var result = await mediator.Send(new GetCashierRcdReportQuery(tenantId, fromDate, toDate, cashierUserId));
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReceiptsRead)]
+    public static async Task<IResult> GetPendingPayments(
+        [FromQuery] Guid tenantId,
+        [FromQuery] string? search,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId, search));
         return Results.Ok(result);
     }
 

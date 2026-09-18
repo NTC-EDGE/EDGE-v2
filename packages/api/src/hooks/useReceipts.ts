@@ -1,6 +1,7 @@
 import useSWR from 'swr';
 import { apiClient } from '../apiClient';
 import {
+  PendingPaymentDto,
   OrBookletDto,
   OfficialReceiptDto,
   AgencyBankAccountDto,
@@ -16,6 +17,29 @@ import {
 
 const fetcher = <T>(url: string, params?: Record<string, unknown>): Promise<T> =>
   apiClient.get<{ data: T }>(url, { params }).then((res) => res.data.data);
+
+export function usePendingPayments(tenantId?: string | null, search?: string) {
+  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
+  const key = shouldFetch ? ['/api/v2/receipts/pending-payments', tenantId, search ?? ''] : null;
+
+  const { data, error, isLoading, mutate } = useSWR<PendingPaymentDto[]>(
+    key,
+    () => {
+      const params: Record<string, string> = { tenantId: tenantId ?? '' };
+      if (search) params.search = search;
+      return fetcher<PendingPaymentDto[]>('/api/v2/receipts/pending-payments', params);
+    },
+    { revalidateOnFocus: true, refreshInterval: 15000 }
+  );
+
+  return {
+    pendingPayments: data ?? [],
+    isLoading,
+    isError: error !== undefined && error !== null,
+    error,
+    mutate,
+  };
+}
 
 export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) {
   const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;

@@ -1,5 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import {
+  usePendingPayments,
   useOrBooklets,
   useNextAvailableOrNumber,
   useOfficialReceipts,
@@ -9,6 +10,7 @@ import {
   useCashierRcdReport,
   useCancelledOrReport,
   receiptService,
+  PendingPaymentDto,
   OrBookletDto,
   OfficialReceiptDto,
   AgencyBankAccountDto,
@@ -19,14 +21,14 @@ import {
 } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
 
-export type ReceiptTab = 'booklets' | 'receipts' | 'deposits' | 'accounts' | 'reports';
+export type ReceiptTab = 'pending_payments' | 'receipts' | 'booklets' | 'deposits' | 'accounts' | 'reports';
 
 export function useReceiptsState() {
   const { user } = useAuthContext();
   const tenantId = user?.tenantId ?? null;
   const currentUserId = user?.email ?? null;
 
-  const [activeTab, setActiveTab] = useState<ReceiptTab>('receipts');
+  const [activeTab, setActiveTab] = useState<ReceiptTab>('pending_payments');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
@@ -34,6 +36,7 @@ export function useReceiptsState() {
   // Modals
   const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [selectedPendingPayment, setSelectedPendingPayment] = useState<PendingPaymentDto | null>(null);
   const [editingReceipt, setEditingReceipt] = useState<OfficialReceiptDto | null>(null);
   const [cancellingReceipt, setCancellingReceipt] = useState<OfficialReceiptDto | null>(null);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
@@ -71,6 +74,12 @@ export function useReceiptsState() {
   }, [reportDateRange]);
 
   // SWR hooks
+  const {
+    pendingPayments,
+    isLoading: isLoadingPendingPayments,
+    mutate: mutatePendingPayments,
+  } = usePendingPayments(tenantId, searchQuery.trim().length > 0 ? searchQuery.trim() : undefined);
+
   const {
     booklets,
     isLoading: isLoadingBooklets,
@@ -132,7 +141,23 @@ export function useReceiptsState() {
     toDate,
   });
 
+  const handleOpenIssueWithPendingPayment = useCallback((payment: PendingPaymentDto) => {
+    setSelectedPendingPayment(payment);
+    setIsIssueModalOpen(true);
+  }, []);
+
+  const handleOpenIssueNew = useCallback(() => {
+    setSelectedPendingPayment(null);
+    setIsIssueModalOpen(true);
+  }, []);
+
+  const handleCloseIssueModal = useCallback(() => {
+    setIsIssueModalOpen(false);
+    setSelectedPendingPayment(null);
+  }, []);
+
   const refreshAll = () => {
+    mutatePendingPayments();
     mutateBooklets();
     mutateNextOr();
     mutateReceipts();
@@ -160,6 +185,8 @@ export function useReceiptsState() {
     setReportSubTab,
 
     // Data
+    pendingPayments,
+    isLoadingPendingPayments,
     booklets,
     isLoadingBooklets,
     nextOr,
@@ -182,6 +209,11 @@ export function useReceiptsState() {
     setIsBundleModalOpen,
     isIssueModalOpen,
     setIsIssueModalOpen,
+    selectedPendingPayment,
+    setSelectedPendingPayment,
+    handleOpenIssueWithPendingPayment,
+    handleOpenIssueNew,
+    handleCloseIssueModal,
     editingReceipt,
     setEditingReceipt,
     cancellingReceipt,

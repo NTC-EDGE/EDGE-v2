@@ -124,6 +124,51 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.OrdersOfPayment
+            .AsNoTracking()
+            .Include(op => op.StatementOfAccount)
+                .ThenInclude(soa => soa.LineItems)
+            .Include(op => op.Application)
+                .ThenInclude(app => app.User)
+                    .ThenInclude(u => u!.CompanyDetail)
+            .Include(op => op.Application)
+                .ThenInclude(app => app.ApplicationApplicants)
+                    .ThenInclude(aa => aa.Applicant)
+                        .ThenInclude(a => a!.ApplicantDetail)
+            .Include(op => op.Application)
+                .ThenInclude(app => app.ApplicationApplicants)
+                    .ThenInclude(aa => aa.Applicant)
+                        .ThenInclude(a => a!.CompanyDetail)
+            .Include(op => op.Application)
+                .ThenInclude(app => app.ApplicationApplicants)
+                    .ThenInclude(aa => aa.Applicant)
+                        .ThenInclude(a => a!.Service)
+                            .ThenInclude(s => s!.ServiceCategory)
+            .Where(op => op.Status == OpStatus.Billed && op.Application.TenantId == tenantId);
+
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            var term = search.Trim().ToLower();
+            query = query.Where(op =>
+                op.OpNumber.ToLower().Contains(term) ||
+                (op.StatementOfAccount != null && op.StatementOfAccount.SoaNumber.ToLower().Contains(term)) ||
+                (op.Application.ApplicationNumber != null && op.Application.ApplicationNumber.ToLower().Contains(term)) ||
+                (op.Application.ReferenceNumber != null && op.Application.ReferenceNumber.ToLower().Contains(term)) ||
+                op.Application.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null &&
+                    ((aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).ToLower().Contains(term) ||
+                     (aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term)))) ||
+                (op.Application.User != null && (op.Application.User.FirstName + " " + op.Application.User.LastName).ToLower().Contains(term)) ||
+                (op.Application.User != null && op.Application.User.CompanyDetail != null && op.Application.User.CompanyDetail.Name.ToLower().Contains(term))
+            );
+        }
+
+        return await query
+            .OrderByDescending(op => op.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsOrNumberAsync(Guid tenantId, string orNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OfficialReceipts

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,12 +10,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { receiptService, NextAvailableOrDto, PaymentMethod, IssueReceiptLineItemInput } from '@edge/api';
+import { receiptService, NextAvailableOrDto, PendingPaymentDto, PaymentMethod, IssueReceiptLineItemInput } from '@edge/api';
 
 interface IssueReceiptModalProps {
   visible: boolean;
   tenantId: string;
   nextOr?: NextAvailableOrDto;
+  pendingPayment?: PendingPaymentDto | null;
   onClose: () => void;
   onSuccess: () => void;
 }
@@ -24,6 +25,7 @@ export function IssueReceiptModal({
   visible,
   tenantId,
   nextOr,
+  pendingPayment,
   onClose,
   onSuccess,
 }: IssueReceiptModalProps) {
@@ -41,6 +43,38 @@ export function IssueReceiptModal({
   const [lineItems, setLineItems] = useState<IssueReceiptLineItemInput[]>([
     { feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 },
   ]);
+
+  useEffect(() => {
+    if (visible && pendingPayment !== undefined && pendingPayment !== null) {
+      setPayorName(pendingPayment.applicantName);
+      setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
+      if (pendingPayment.lineItems.length > 0) {
+        setLineItems(
+          pendingPayment.lineItems.map((li) => ({
+            feeCode: li.feeCode,
+            description: li.description,
+            amount: li.amount,
+          }))
+        );
+      } else {
+        setLineItems([
+          {
+            feeCode: 'PAYMENT',
+            description: `Payment for ${pendingPayment.serviceName}`,
+            amount: pendingPayment.amountDue,
+          },
+        ]);
+      }
+    } else if (visible && (pendingPayment === undefined || pendingPayment === null)) {
+      setPayorName('');
+      setPayorAddress('');
+      setRemarks('');
+      setCheckNumber('');
+      setCheckBank('');
+      setCheckDate('');
+      setLineItems([{ feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 }]);
+    }
+  }, [visible, pendingPayment]);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -90,6 +124,7 @@ export function IssueReceiptModal({
 
     const [res, err] = await receiptService.issueOfficialReceipt({
       tenantId,
+      orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
       bookletId: useManualOr ? null : (nextOr?.bookletId ?? null),
       manualOrNumber: useManualOr && manualOrNumber.trim().length > 0 ? manualOrNumber.trim() : null,
       payorName: payorName.trim(),

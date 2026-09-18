@@ -42,14 +42,25 @@ function getAvatarInitials(name: string): string {
   return (parts[0]?.[0] ?? "?").toUpperCase();
 }
 
-function formatStatusDisplay(status: string): string {
-  const s = status.toLowerCase();
-  if (s === "submitted") return "FOR EVALUATION";
-  return status.toUpperCase();
+function isSubjectForPayment(app: ApplicationData): boolean {
+  return (
+    app.totalAmountDue > 0 &&
+    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0) &&
+    app.status !== 'Completed' &&
+    app.status !== 'Draft'
+  );
 }
 
-function getStatusStyle(status: string): { bg: string; text: string } {
-  const s = status.toLowerCase();
+function formatStatusDisplay(application: ApplicationData): string {
+  if (isSubjectForPayment(application)) return "FOR PAYMENT";
+  const s = application.status.toLowerCase();
+  if (s === "submitted") return "FOR EVALUATION";
+  return application.status.toUpperCase();
+}
+
+function getStatusStyle(application: ApplicationData): { bg: string; text: string } {
+  if (isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
+  const s = application.status.toLowerCase();
   if (s === "completed" || s === "approved") return { bg: COLORS.brand[800],    text: COLORS.neutral.white };
   if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
   if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
@@ -110,7 +121,7 @@ export function ActivityCard({
     : 1;
 
   const initials    = getAvatarInitials(displayFilingName);
-  const statusStyle = getStatusStyle(application.status);
+  const statusStyle = getStatusStyle(application);
   const timestamp   = formatTimestamp(application.createdAt);
 
   const handleOpenMenu = () => {
@@ -216,7 +227,7 @@ export function ActivityCard({
           <View style={styles.rightActions}>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
               <Text style={[styles.statusPillText, { color: statusStyle.text }]} numberOfLines={1}>
-                {formatStatusDisplay(application.status)}
+                {formatStatusDisplay(application)}
               </Text>
             </View>
             <View ref={kebabRef}>

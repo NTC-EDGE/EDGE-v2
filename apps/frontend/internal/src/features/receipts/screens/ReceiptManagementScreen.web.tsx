@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { useReceiptsState, ReceiptTab } from '../hooks/useReceiptsState';
+import { PendingPaymentsTab } from '../components/PendingPaymentsTab';
 import { OrBookletsTab } from '../components/OrBookletsTab';
 import { OfficialReceiptsTab } from '../components/OfficialReceiptsTab';
 import { BankDepositsTab } from '../components/BankDepositsTab';
@@ -39,6 +40,12 @@ export function ReceiptManagementScreen() {
   const state = useReceiptsState();
 
   const TABS: TabDefinition[] = [
+    {
+      id: 'pending_payments',
+      label: 'Subject for Payment',
+      icon: 'clock',
+      badge: state.pendingPayments.length > 0 ? state.pendingPayments.length : undefined,
+    },
     {
       id: 'receipts',
       label: 'Official Receipts (Collections)',
@@ -154,6 +161,17 @@ export function ReceiptManagementScreen() {
 
       {/* Main Content Area */}
       <View style={[styles.contentArea, { maxWidth: 1320, alignSelf: 'center', width: '100%' }]}>
+        {state.activeTab === 'pending_payments' && (
+          <PendingPaymentsTab
+            pendingPayments={state.pendingPayments}
+            isLoading={state.isLoadingPendingPayments}
+            searchQuery={state.searchQuery}
+            onSearchChange={state.setSearchQuery}
+            onRefresh={state.refreshAll}
+            onIssueReceipt={(payment) => state.handleOpenIssueWithPendingPayment(payment)}
+          />
+        )}
+
         {state.activeTab === 'receipts' && (
           <OfficialReceiptsTab
             receipts={state.receipts}
@@ -165,7 +183,7 @@ export function ReceiptManagementScreen() {
             paymentMethodFilter={state.paymentMethodFilter}
             onPaymentMethodFilterChange={state.setPaymentMethodFilter}
             nextOr={state.nextOr}
-            onOpenIssueModal={() => state.setIsIssueModalOpen(true)}
+            onOpenIssueModal={state.handleOpenIssueNew}
             onViewReceipt={(r) => state.setViewingReceipt(r)}
             onEditReceipt={(r) => state.setEditingReceipt(r)}
             onCancelReceipt={(r) => state.setCancellingReceipt(r)}
@@ -233,7 +251,8 @@ export function ReceiptManagementScreen() {
             visible={state.isIssueModalOpen}
             tenantId={state.tenantId}
             nextOr={state.nextOr}
-            onClose={() => state.setIsIssueModalOpen(false)}
+            pendingPayment={state.selectedPendingPayment}
+            onClose={state.handleCloseIssueModal}
             onSuccess={state.refreshAll}
           />
 

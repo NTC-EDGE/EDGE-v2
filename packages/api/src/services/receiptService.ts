@@ -36,6 +36,30 @@ export interface NextAvailableOrDto {
   hasActiveBooklet: boolean;
 }
 
+export interface PendingPaymentLineItemDto {
+  feeCode: string;
+  description: string;
+  amount: number;
+}
+
+export interface PendingPaymentDto {
+  orderOfPaymentId: string;
+  applicationId: string;
+  statementOfAccountId: string;
+  opNumber: string;
+  soaNumber: string;
+  applicationNumber: string;
+  referenceNumber: string;
+  applicantName: string;
+  applicantType: string;
+  serviceName: string;
+  serviceCategory: string;
+  amountDue: number;
+  billedAt: string;
+  remarks?: string | null;
+  lineItems: PendingPaymentLineItemDto[];
+}
+
 export interface OfficialReceiptLineItemDto {
   id: string;
   feeCode: string;
@@ -237,6 +261,13 @@ export interface CreateBankDepositPayload {
 }
 
 export const receiptService = {
+  getPendingPayments: async (params: { tenantId: string; search?: string }) => {
+    return safeAsync(async () => {
+      const res = await apiClient.get<{ data: PendingPaymentDto[] }>('/api/v2/receipts/pending-payments', { params });
+      return res.data.data;
+    });
+  },
+
   getOrBooklets: async (tenantId: string, status?: BookletStatus) => {
     return safeAsync(async () => {
       const params: Record<string, string> = { tenantId };
