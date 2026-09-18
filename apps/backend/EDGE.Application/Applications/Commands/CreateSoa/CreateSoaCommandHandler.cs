@@ -7,6 +7,7 @@ using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Fees.Calculations;
 
 namespace EDGE.Application.Applications.Commands.CreateSoa;
 
@@ -16,22 +17,25 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly IFeeCalculationEngine _calculationEngine;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        IFeeCalculationEngine calculationEngine)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _calculationEngine = calculationEngine;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
     {
-        var app = await _repository.GetByIdAsync(request.ApplicationId, cancellationToken);
+        var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
 
         if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out var issuedToType))
@@ -55,25 +59,78 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             PreparedByUserId = userContext.UserId
         };
 
-        foreach (var item in request.LineItems)
+        if (request.LineItems != null && request.LineItems.Count > 0)
         {
-            // Server-side calculation: Recalculate line item amount rather than trusting client-provided values
-            var calculatedAmount = item.NoOfUnits * item.FeeRate;
-
-            soa.LineItems.Add(new SoaLineItem
+            foreach (var item in request.LineItems)
             {
-                Id = Guid.NewGuid(),
-                StatementOfAccountId = soa.Id,
-                Particular = item.Particular,
-                ItemCode = item.ItemCode,
-                Description = item.Description,
-                PeriodOfCoverageStart = item.PeriodOfCoverageStart,
-                PeriodOfCoverageEnd = item.PeriodOfCoverageEnd,
-                ValidityYears = item.ValidityYears,
-                NoOfUnits = item.NoOfUnits,
-                FeeRate = item.FeeRate,
-                Amount = calculatedAmount
-            });
+                var calculatedAmount = item.NoOfUnits * item.FeeRate;
+
+                soa.LineItems.Add(new SoaLineItem
+                {
+                    Id = Guid.NewGuid(),
+                    StatementOfAccountId = soa.Id,
+                    Particular = item.Particular,
+                    ItemCode = item.ItemCode,
+                    Description = item.Description,
+                    PeriodOfCoverageStart = item.PeriodOfCoverageStart,
+                    PeriodOfCoverageEnd = item.PeriodOfCoverageEnd,
+                    ValidityYears = item.ValidityYears,
+                    NoOfUnits = item.NoOfUnits,
+                    FeeRate = item.FeeRate,
+                    Amount = calculatedAmount
+                });
+            }
+        }
+        else
+        {
+            var targetApplicant = request.ApplicantId.HasValue
+                ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
+                : null;
+
+            var primaryService = targetApplicant?.Service
+                ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
+            var primaryVariant = targetApplicant?.ServiceVariant
+                ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+
+            var activity = primaryService?.ServiceCategory?.Name ?? primaryService?.Name ?? "Radio Operator Certificates";
+            var appType = primaryVariant?.Description ?? primaryVariant?.Type.ToString() ?? "New";
+            var element = primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Code
+                ?? primaryVariant?.ServiceVariantElements?.FirstOrDefault()?.Description;
+
+            var applicantsCount = app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1;
+            var units = request.NoOfUnits ?? applicantsCount;
+            var years = request.ValidityYears ?? 1;
+
+            var calculationResult = _calculationEngine.Calculate(new FeeCalculationRequest(
+                Activity: activity,
+                ApplicationType: appType,
+                Element: element,
+                ValidityYears: years,
+                NoOfUnits: units,
+                ExpirationDate: request.ExpirationDate,
+                AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
+                NoOfCopies: request.NoOfCopies ?? 1,
+                AsOfDate: DateTime.UtcNow,
+                Category: primaryService?.ServiceCategory?.Type
+            ));
+
+            foreach (var calculatedItem in calculationResult.LineItems)
+            {
+                soa.LineItems.Add(new SoaLineItem
+                {
+                    Id = Guid.NewGuid(),
+                    StatementOfAccountId = soa.Id,
+                    Particular = calculatedItem.Particular,
+                    ItemCode = calculatedItem.ItemCode,
+                    Description = calculatedItem.Description,
+                    PeriodOfCoverageStart = DateTime.UtcNow,
+                    PeriodOfCoverageEnd = DateTime.UtcNow.AddYears(calculatedItem.ValidityYears),
+                    ValidityYears = calculatedItem.ValidityYears,
+                    NoOfUnits = calculatedItem.NoOfUnits,
+                    FeeRate = calculatedItem.FeeRate,
+                    Amount = calculatedItem.Amount
+                });
+            }
         }
 
         // Calculate total SOA amount on the server from validated line items

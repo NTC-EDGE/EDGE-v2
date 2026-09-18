@@ -24,5 +24,10 @@ public record CreateSoaCommand(
     string IssuedToName,
     string? IssuedToAddress,
     DateTime DueDate,
-    List<CreateSoaLineItemRequest> LineItems
+    List<CreateSoaLineItemRequest>? LineItems = null,
+    int? ValidityYears = null,
+    int? NoOfUnits = null,
+    DateTime? ExpirationDate = null,
+    int? AdditionalServicesCount = null,
+    int? NoOfCopies = null
 ) : IRequest<ApiResponse<Guid>>;

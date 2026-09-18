@@ -22,6 +22,16 @@ public static class DependencyInjection
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<ContractFormValidator>();
 
+        // Service Category Fee Calculation Strategies
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.CertificateFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.LicenseFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.PermitFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.ExamFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.AccreditationFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.RequestsAndComplaintsFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.DefaultFeeCalculationStrategy>();
+        services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationEngine, EDGE.Application.Fees.Calculations.FeeCalculationEngine>();
+
         return services;
     }
 }

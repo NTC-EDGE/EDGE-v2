@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
@@ -7,6 +8,8 @@ using Moq;
 using Xunit;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Fees.Calculations;
+using EDGE.Application.Fees.Calculations.Strategies;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 
@@ -18,6 +21,16 @@ public class CreateSoaCommandHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly FeeCalculationEngine _calculationEngine = new(new IFeeCalculationStrategy[]
+    {
+        new CertificateFeeCalculationStrategy(),
+        new LicenseFeeCalculationStrategy(),
+        new PermitFeeCalculationStrategy(),
+        new ExamFeeCalculationStrategy(),
+        new AccreditationFeeCalculationStrategy(),
+        new RequestsAndComplaintsFeeCalculationStrategy(),
+        new DefaultFeeCalculationStrategy()
+    });
     private readonly CreateSoaCommandHandler _handler;
 
     public CreateSoaCommandHandlerTests()
@@ -30,7 +43,8 @@ public class CreateSoaCommandHandlerTests
             _repositoryMock.Object,
             _unitOfWorkMock.Object,
             _currentUserServiceMock.Object,
-            _userRepositoryMock.Object);
+            _userRepositoryMock.Object,
+            _calculationEngine);
     }
 
     [Fact]
@@ -47,7 +61,7 @@ public class CreateSoaCommandHandlerTests
             new List<CreateSoaLineItemRequest>());
 
         _repositoryMock
-            .Setup(r => r.GetByIdAsync(command.ApplicationId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByIdWithDetailsAsync(command.ApplicationId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((Domain.Entities.Application?)null);
 
         // Act
@@ -73,7 +87,7 @@ public class CreateSoaCommandHandlerTests
             new List<CreateSoaLineItemRequest>());
 
         _repositoryMock
-            .Setup(r => r.GetByIdAsync(app.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
 
         // Act
@@ -85,7 +99,7 @@ public class CreateSoaCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldCreateSoa_AndRecalculateAmountsServerSide_WhenValidRequest()
+    public async Task Handle_ShouldCreateSoa_AndRecalculateAmountsServerSide_WhenValidExplicitLineItemsProvided()
     {
         // Arrange
         var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
@@ -102,7 +116,7 @@ public class CreateSoaCommandHandlerTests
             new List<CreateSoaLineItemRequest> { lineItem1, lineItem2 });
 
         _repositoryMock
-            .Setup(r => r.GetByIdAsync(app.Id, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
 
         StatementOfAccount? savedSoa = null;
@@ -130,5 +144,52 @@ public class CreateSoaCommandHandlerTests
         savedSoa.Histories.First().ToStatus.Should().Be(SoaStatus.Pending);
 
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldAutoCalculateStatutorySoa_WhenLineItemsAreOmitted()
+    {
+        // Arrange
+        var serviceCategory = new ServiceCategory { Name = "Certificates", Code = "CERT", Type = ServiceCategoryType.Certificate };
+        var service = new Service { Name = "RADIO OPERATOR CERTIFICATES (ROC) EXCLUDING AMATEUR ROC", ServiceCategory = serviceCategory };
+        var serviceVariant = new ServiceVariant { Description = "Commercial Radio Operator Certificate (NEW)", Type = ServiceVariantType.New };
+        serviceVariant.ServiceVariantElements.Add(new ServiceVariantElement { Code = "1RTG", Description = "1RTG Element" });
+
+        var applicant = new Applicant { Service = service, ServiceVariant = serviceVariant };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
+        app.ApplicationApplicants.Add(new ApplicationApplicant { Applicant = applicant });
+
+        var command = new CreateSoaCommand(
+            ApplicationId: app.Id,
+            ApplicantId: null,
+            IssuedToType: "Individual",
+            IssuedToName: "John Doe",
+            IssuedToAddress: "123 Main St",
+            DueDate: DateTime.UtcNow.AddDays(30),
+            LineItems: null,
+            ValidityYears: 2
+        );
+
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        StatementOfAccount? savedSoa = null;
+        _repositoryMock
+            .Setup(r => r.AddSoaAsync(It.IsAny<StatementOfAccount>(), It.IsAny<CancellationToken>()))
+            .Callback<StatementOfAccount, CancellationToken>((s, _) => savedSoa = s)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        savedSoa.Should().NotBeNull();
+        // 1RTG 2 years: (180 * 2) = 360 + DST (30) = 390
+        savedSoa!.TotalAmount.Should().Be(390.00m);
+        savedSoa.LineItems.Should().HaveCount(2);
+        savedSoa.LineItems.Any(li => li.ItemCode == "ROC" && li.Amount == 360.00m).Should().BeTrue();
+        savedSoa.LineItems.Any(li => li.ItemCode == "DST" && li.Amount == 30.00m).Should().BeTrue();
     }
 }
