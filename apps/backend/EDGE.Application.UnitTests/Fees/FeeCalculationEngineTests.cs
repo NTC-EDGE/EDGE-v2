@@ -317,6 +317,260 @@ public class FeeCalculationEngineTests
 
     #endregion
 
+    #region Permits Category Tests (Spreadsheet Coverage)
+
+    [Theory]
+    [InlineData("Amateur Radio Station Permit to Purchase", 2, 100.00, 130.00, "TOTAL = (PUR)(UNIT) + DST")]
+    [InlineData("Amateur Radio Station Permit to Possess for Storage", 3, 150.00, 180.00, "TOTAL = (POS)(UNIT) + DST")]
+    [InlineData("Amateur Radio Station Permit to Purchase/Possess", 2, 200.00, 230.00, "FEEPUR/POS = (PUR)(UNIT) + (POS)(UNIT) + DST")]
+    [InlineData("Amateur Radio Station Permit to Sell/Transfer", 1, 50.00, 80.00, "FEESTF = (STF)(UNIT) + DST")]
+    public void Calculate_AmateurPermits_ShouldComputeCorrectAmounts(string appType, int units, decimal expectedSubtotal, decimal expectedTotal, string expectedFormula)
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS IN THE AMATEUR SERVICE",
+            ApplicationType: appType,
+            NoOfUnits: units,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(expectedSubtotal);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(expectedTotal);
+        result.FormulaApplied.Should().Be(expectedFormula);
+    }
+
+    [Theory]
+    [InlineData("Class A", 120.00, 240.00, 270.00)]
+    [InlineData("Class B", 132.00, 252.00, 282.00)]
+    [InlineData("Class C", 144.00, 264.00, 294.00)]
+    public void Calculate_AmateurForeignVisitorPermit_ShouldCalculateClassRates(string element, decimal expectedLf, decimal expectedSubtotal, decimal expectedTotal)
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS IN THE AMATEUR SERVICE",
+            ApplicationType: "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor",
+            Element: element,
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(expectedSubtotal); // FF (60) + ROC (60) + LF
+        result.TotalAmount.Should().Be(expectedTotal);
+        result.LineItems.Any(li => li.ItemCode == "LF" && li.FeeRate == expectedLf).Should().BeTrue();
+    }
+
+    [Fact]
+    public void Calculate_AmateurVanityCallSign_ShouldMultiplyByYears()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS IN THE AMATEUR SERVICE",
+            ApplicationType: "Special Permit for Use of Vanity Call Sign",
+            ValidityYears: 3,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(3000.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(3030.00m);
+        result.FormulaApplied.Should().Be("FEEVANITY-AT = (SP)(YR) + DST");
+    }
+
+    [Fact]
+    public void Calculate_AmateurSpecialEventCallSign_ShouldChargeFlat120PlusDst()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS IN THE AMATEUR SERVICE",
+            ApplicationType: "Special Permit for the Use of Special Event Call Sign",
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(120.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(150.00m);
+        result.FormulaApplied.Should().Be("FEESPECIAL EVENT-AT = SP + DST");
+    }
+
+    [Theory]
+    [InlineData("High Powered (> 100W)", 2, 1080.00, 1110.00)] // (180*2=360) + (240*2=480) + (120*2=240) = 1080
+    [InlineData("Medium Powered (25W-100W)", 1, 396.00, 426.00)] // 180 + 120 + 96 = 396
+    [InlineData("Low Powered (<= 25W)", 1, 336.00, 366.00)] // 180 + 96 + 60 = 336
+    public void Calculate_PowerRatedStationPurchasePossess_ShouldComputePowerTiers(string element, int units, decimal expectedSubtotal, decimal expectedTotal)
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS IN THE AERONAUTICAL SERVICE",
+            ApplicationType: "Aeronautical Station Permit to Purchase/Possess",
+            Element: element,
+            NoOfUnits: units,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(expectedSubtotal);
+        result.TotalAmount.Should().Be(expectedTotal);
+        result.FormulaApplied.Should().Be("FEEPUR/POS = (FF)(UNIT) + (PUR)(UNIT) + (POS)(UNIT) + DST");
+    }
+
+    [Fact]
+    public void Calculate_DemoAndPropagate_ShouldComputeChannelsAndStations()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS TO GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE",
+            ApplicationType: "Temporary Permit to Demonstrate and Propagate",
+            NoOfUnits: 2,
+            AdditionalServicesCount: 4, // 4 channels
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FF = 180 * 2 = 360, DEMO = 85 * 4 = 340, Total = 700 + 30 = 730
+        result.SubTotal.Should().Be(700.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(730.00m);
+    }
+
+    [Fact]
+    public void Calculate_PermitToTransport_ShouldMultiplyUnitsBy85()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT",
+            ApplicationType: "Permit to Transport",
+            NoOfUnits: 5,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // PTR = 85 * 5 = 425 + 30 = 455
+        result.SubTotal.Should().Be(425.00m);
+        result.TotalAmount.Should().Be(455.00m);
+        result.FormulaApplied.Should().Be("FEEPTR = (PTR)(UNIT) + DST");
+    }
+
+    [Fact]
+    public void Calculate_RadioEquipmentDealerNew_ShouldComputeFilingPermitInspection()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT",
+            ApplicationType: "Dealer Permit (NEW)",
+            ValidityYears: 2,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FF = 180, PF = 1200 * 2 = 2400, IF = 720 * 2 = 1440, Total = 4020 + 30 = 4050
+        result.SubTotal.Should().Be(4020.00m);
+        result.TotalAmount.Should().Be(4050.00m);
+        result.FormulaApplied.Should().Be("FEEDP = FF + (PF)(YR) + (IF)(YR) + DST");
+    }
+
+    [Fact]
+    public void Calculate_RadioEquipmentDealerRenewal_WithSurcharge_ShouldApplySurchargeOnPermitFee()
+    {
+        var expiration = new DateTime(2026, 1, 1);
+        var asOf = expiration.AddDays(60); // 50% surcharge on PF (1200) -> 600
+
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT",
+            ApplicationType: "Dealer Permit (RENEWAL)",
+            ValidityYears: 1,
+            ExpirationDate: expiration,
+            AsOfDate: asOf,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // PF = 1200, IF = 720, SubTotal = 1920, SUR = 600, Total = 2520 + 30 = 2550
+        result.SubTotal.Should().Be(1920.00m);
+        result.SurchargeAmount.Should().Be(600.00m);
+        result.TotalAmount.Should().Be(2550.00m);
+    }
+
+    [Fact]
+    public void Calculate_MobilePhoneDealerMainNew_ShouldCompute500FfAnd2500Pf()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS FOR MOBILE PHONE",
+            ApplicationType: "Dealer Permit (NEW)",
+            Element: "MAIN",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FF = 500, PF = 2500, IF = 1500, Total = 4500 + 30 = 4530
+        result.SubTotal.Should().Be(4500.00m);
+        result.TotalAmount.Should().Be(4530.00m);
+        result.FormulaApplied.Should().Be("FEEMPDP = FF + (PF)(YR) + (IF)(YR) + DST");
+    }
+
+    [Fact]
+    public void Calculate_MobilePhoneDealerBranchNew_ShouldCompute500FfAnd1500Pf()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "PERMITS FOR MOBILE PHONE",
+            ApplicationType: "Dealer Permit (NEW)",
+            Element: "BRANCH",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FF = 500, PF = 1500, IF = 1500, Total = 3500 + 30 = 3530
+        result.SubTotal.Should().Be(3500.00m);
+        result.TotalAmount.Should().Be(3530.00m);
+    }
+
+    [Fact]
+    public void Calculate_PermitCertifiedTrueCopy_ShouldCharge24FirstAnd6Succeeding()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "COPY OF PERMITS",
+            ApplicationType: "Certified True Copy",
+            NoOfCopies: 3,
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        // FC = 24, SC = 6 * 2 = 12, SubTotal = 36, Total = 36 + 30 = 66
+        result.SubTotal.Should().Be(36.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(66.00m);
+        result.FormulaApplied.Should().Be("TOTAL = FC + (SC)(COPY) + DST");
+    }
+
+    [Fact]
+    public void Calculate_PermitDuplicateCopy_ShouldCharge120PlusDst()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "COPY OF PERMITS",
+            ApplicationType: "Duplicate Copy",
+            Category: ServiceCategoryType.Permit
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(120.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(150.00m);
+        result.FormulaApplied.Should().Be("TOTAL = DUP + DST");
+    }
+
+    #endregion
+
     #region Category Strategy Isolation Tests
 
     [Fact]
@@ -339,24 +593,6 @@ public class FeeCalculationEngineTests
         result.TotalAmount.Should().Be(3210.00m);
     }
 
-    [Fact]
-    public void Calculate_PermitCategory_ShouldRouteToPermitStrategy()
-    {
-        var request = new FeeCalculationRequest(
-            Activity: "PERMIT TO PURCHASE AND POSSESS",
-            ApplicationType: "Purchase Permit",
-            NoOfUnits: 2,
-            Category: ServiceCategoryType.Permit
-        );
-
-        var result = _engine.Calculate(request);
-
-        result.Category.Should().Be(ServiceCategoryType.Permit);
-        result.FormulaApplied.Should().Be("FEEPERMIT = FF + (PERMIT)(UNIT) + DST");
-        // FF = 100, PERMIT = 300 * 2 = 600, SubTotal = 700, Total = 730
-        result.SubTotal.Should().Be(700.00m);
-        result.TotalAmount.Should().Be(730.00m);
-    }
 
     [Fact]
     public void Calculate_ExamCategory_ShouldRouteToExamStrategy()

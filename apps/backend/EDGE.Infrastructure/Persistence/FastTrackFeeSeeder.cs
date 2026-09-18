@@ -36,7 +36,16 @@ public static class FastTrackFeeSeeder
                 (FeeConstants.Codes.Permit, "Permit Fee", "Permit to Purchase / Possess / Import Fee"),
                 (FeeConstants.Codes.Exam, "Examination Fee", "Radio Operator Examination Admission Fee"),
                 (FeeConstants.Codes.Accreditation, "Accreditation Fee", "Service Center / Testing Center Annual Accreditation Fee"),
-                (FeeConstants.Codes.Request, "Request / Administrative Processing Fee", "Special request and administrative filing fee")
+                (FeeConstants.Codes.Request, "Request / Administrative Processing Fee", "Special request and administrative filing fee"),
+                (FeeConstants.Codes.Purchase, "Purchase Permit Fee", "Statutory permit to purchase fee"),
+                (FeeConstants.Codes.Possess, "Possess Permit Fee", "Statutory permit to possess fee"),
+                (FeeConstants.Codes.SellTransfer, "Sell/Transfer Permit Fee", "Statutory permit to sell or transfer fee"),
+                (FeeConstants.Codes.PermitFee, "Permit Fee", "Statutory operational permit fee"),
+                (FeeConstants.Codes.InspectionFee, "Inspection Fee", "Statutory station/equipment inspection fee"),
+                (FeeConstants.Codes.Demo, "Demo/Propagate Fee", "Temporary demonstration and propagation fee"),
+                (FeeConstants.Codes.PermitToTransport, "Permit to Transport Fee", "Radio communications equipment transport fee"),
+                (FeeConstants.Codes.SpecialPermit, "Special Permit Fee", "Amateur vanity or special event permit fee"),
+                (FeeConstants.Codes.LicenseFee, "License Fee", "Statutory station license fee")
             };
 
             var existingFees = await context.Fees.IgnoreQueryFilters().ToListAsync();
@@ -85,9 +94,10 @@ public static class FastTrackFeeSeeder
                 }
             }
 
-            // 2. Map ServiceVariantFees
+            // 2. Map ServiceVariantFees (Certificates + Permits)
             var variantFeesToSeed = new List<(Guid VariantId, string FeeCode, decimal Amount)>
             {
+                #region Certificates
                 // Commercial ROC Mod
                 (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
                 (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
@@ -179,7 +189,99 @@ public static class FastTrackFeeSeeder
                 (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Codes.SucceedingCopies, FeeConstants.Amounts.CertifiedTrueCopySucceedingPage),
                 (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
                 (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Codes.Duplicate, FeeConstants.Amounts.DuplicateCopyRate),
-                (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax)
+                (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                #endregion
+
+                #region Permits
+                // 1. Amateur Service Permits
+                (PermitsCategorySeederData.VarAmPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.AmateurPermitUnitRate),
+                (PermitsCategorySeederData.VarAmPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmStorage, FeeConstants.Codes.Possess, FeeConstants.Amounts.AmateurPermitUnitRate),
+                (PermitsCategorySeederData.VarAmStorage, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmPurPoss, FeeConstants.Codes.Purchase, FeeConstants.Amounts.AmateurPermitUnitRate),
+                (PermitsCategorySeederData.VarAmPurPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.AmateurPermitUnitRate),
+                (PermitsCategorySeederData.VarAmPurPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.AmateurPermitUnitRate),
+                (PermitsCategorySeederData.VarAmSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmForeign, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.AmateurForeignVisitorFilingFee),
+                (PermitsCategorySeederData.VarAmForeign, FeeConstants.Codes.Roc, FeeConstants.Amounts.AmateurForeignVisitorRocRate),
+                (PermitsCategorySeederData.VarAmForeign, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmVanityNew, FeeConstants.Codes.SpecialPermit, FeeConstants.Amounts.AmateurVanityCallSignRate),
+                (PermitsCategorySeederData.VarAmVanityNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmVanityRen, FeeConstants.Codes.SpecialPermit, FeeConstants.Amounts.AmateurVanityCallSignRate),
+                (PermitsCategorySeederData.VarAmVanityRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAmSpecialEvent, FeeConstants.Codes.SpecialPermit, FeeConstants.Amounts.AmateurSpecialEventCallSignRate),
+                (PermitsCategorySeederData.VarAmSpecialEvent, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // 2. Demo and Operational
+                (PermitsCategorySeederData.VarFlmDemo, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarFlmDemo, FeeConstants.Codes.Demo, FeeConstants.Amounts.PermitDemoFee),
+                (PermitsCategorySeederData.VarFlmDemo, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipTransport, FeeConstants.Codes.PermitToTransport, FeeConstants.Amounts.PermitToTransportRate),
+                (PermitsCategorySeederData.VarEquipTransport, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // 3. Radio Equipment Dealer / Manufacturer / Service Center
+                (PermitsCategorySeederData.VarEquipDealerNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.RadioEquipmentFilingFee),
+                (PermitsCategorySeederData.VarEquipDealerNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentDealerPermitRate),
+                (PermitsCategorySeederData.VarEquipDealerNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentDealerInspectionRate),
+                (PermitsCategorySeederData.VarEquipDealerNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipDealerRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentDealerPermitRate),
+                (PermitsCategorySeederData.VarEquipDealerRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentDealerInspectionRate),
+                (PermitsCategorySeederData.VarEquipDealerRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipDealerMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarEquipDealerMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (PermitsCategorySeederData.VarEquipMfgNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.RadioEquipmentFilingFee),
+                (PermitsCategorySeederData.VarEquipMfgNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentManufacturerPermitRate),
+                (PermitsCategorySeederData.VarEquipMfgNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentManufacturerInspectionRate),
+                (PermitsCategorySeederData.VarEquipMfgNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipMfgRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentManufacturerPermitRate),
+                (PermitsCategorySeederData.VarEquipMfgRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentManufacturerInspectionRate),
+                (PermitsCategorySeederData.VarEquipMfgRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipMfgMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarEquipMfgMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (PermitsCategorySeederData.VarEquipSvcNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.RadioEquipmentFilingFee),
+                (PermitsCategorySeederData.VarEquipSvcNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentServiceCenterPermitRate),
+                (PermitsCategorySeederData.VarEquipSvcNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentServiceCenterInspectionRate),
+                (PermitsCategorySeederData.VarEquipSvcNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipSvcRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.RadioEquipmentServiceCenterPermitRate),
+                (PermitsCategorySeederData.VarEquipSvcRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.RadioEquipmentServiceCenterInspectionRate),
+                (PermitsCategorySeederData.VarEquipSvcRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarEquipSvcMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarEquipSvcMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // 4. Mobile Phone Permits
+                (PermitsCategorySeederData.VarMpRetailerNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.MobilePhoneFilingFee),
+                (PermitsCategorySeederData.VarMpRetailerNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneRetailerPermitRate),
+                (PermitsCategorySeederData.VarMpRetailerNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneRetailerInspectionRate),
+                (PermitsCategorySeederData.VarMpRetailerNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMpRetailerRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneRetailerPermitRate),
+                (PermitsCategorySeederData.VarMpRetailerRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneRetailerInspectionRate),
+                (PermitsCategorySeederData.VarMpRetailerRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMpRetailerMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarMpRetailerMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (PermitsCategorySeederData.VarMpSvcNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.MobilePhoneServiceCenterFilingFee),
+                (PermitsCategorySeederData.VarMpSvcNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneServiceCenterPermitRate),
+                (PermitsCategorySeederData.VarMpSvcNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneServiceCenterInspectionRate),
+                (PermitsCategorySeederData.VarMpSvcNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMpSvcRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneServiceCenterPermitRate),
+                (PermitsCategorySeederData.VarMpSvcRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneServiceCenterInspectionRate),
+                (PermitsCategorySeederData.VarMpSvcRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMpSvcMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarMpSvcMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (PermitsCategorySeederData.VarMpDealerMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
+                (PermitsCategorySeederData.VarMpDealerMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // 5. Permit Copies
+                (PermitsCategorySeederData.VarPermitTrueCopy, FeeConstants.Codes.FirstCopy, FeeConstants.Amounts.PermitCertifiedTrueCopyFirstPage),
+                (PermitsCategorySeederData.VarPermitTrueCopy, FeeConstants.Codes.SucceedingCopies, FeeConstants.Amounts.PermitCertifiedTrueCopySucceedingPage),
+                (PermitsCategorySeederData.VarPermitTrueCopy, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarPermitDuplicate, FeeConstants.Codes.Duplicate, FeeConstants.Amounts.DuplicateCopyRate),
+                (PermitsCategorySeederData.VarPermitDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax)
+                #endregion
             };
 
             var allVariantsInDb = (await context.ServiceVariants.IgnoreQueryFilters().Select(v => v.Id).ToListAsync()).ToHashSet();
@@ -221,12 +323,13 @@ public static class FastTrackFeeSeeder
                 logger?.LogWarning(ex, "Concurrent update detected while seeding ServiceVariantFees.");
             }
 
-            // 3. Map ServiceVariantElementFees (ROC Commercial Elements & RFID Elements)
+            // 3. Map ServiceVariantElementFees (ROC Commercial Elements, RFID Elements, Foreign Visitor Elements, Mobile Phone Dealer Elements)
             var allDbElements = await context.Elements.IgnoreQueryFilters().ToListAsync();
             var existingElementFees = await context.ServiceVariantElementFees.IgnoreQueryFilters().ToListAsync();
 
             var elementFeesToSeed = new List<(Guid VariantId, string ElementCode, string FeeCode, decimal Amount)>
             {
+                #region Certificates Elements
                 // Commercial ROC New
                 (CertificatesCategorySeederData.VarRocCommNew, "1RTG", FeeConstants.Codes.Roc, FeeConstants.Amounts.Roc1RtgAnnualRate),
                 (CertificatesCategorySeederData.VarRocCommNew, "2RTG", FeeConstants.Codes.Roc, FeeConstants.Amounts.Roc2RtgAnnualRate),
@@ -249,7 +352,21 @@ public static class FastTrackFeeSeeder
                 (CertificatesCategorySeederData.VarRfidDealers, "SRD/WDN", FeeConstants.Codes.Registration, FeeConstants.Amounts.SrdWdnUnitRate),
                 (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", FeeConstants.Codes.Registration, FeeConstants.Amounts.RfidHighPowerUnitRate),
                 (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", FeeConstants.Codes.Registration, FeeConstants.Amounts.RfidLowPowerUnitRate),
-                (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Codes.Registration, FeeConstants.Amounts.SrdWdnUnitRate)
+                (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Codes.Registration, FeeConstants.Amounts.SrdWdnUnitRate),
+                #endregion
+
+                #region Permits Elements
+                // Foreign Visitor Amateur License
+                (PermitsCategorySeederData.VarAmForeign, "Class A", FeeConstants.Codes.LicenseFee, FeeConstants.Amounts.AmateurForeignVisitorClassALicense),
+                (PermitsCategorySeederData.VarAmForeign, "Class B", FeeConstants.Codes.LicenseFee, FeeConstants.Amounts.AmateurForeignVisitorClassBLicense),
+                (PermitsCategorySeederData.VarAmForeign, "Class C", FeeConstants.Codes.LicenseFee, FeeConstants.Amounts.AmateurForeignVisitorClassCLicense),
+
+                // Mobile Phone Dealer Main / Branch
+                (PermitsCategorySeederData.VarMpDealerNew, "MAIN", FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneDealerMainPermitRate),
+                (PermitsCategorySeederData.VarMpDealerNew, "BRANCH", FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneDealerBranchPermitRate),
+                (PermitsCategorySeederData.VarMpDealerRen, "MAIN", FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneDealerMainPermitRate),
+                (PermitsCategorySeederData.VarMpDealerRen, "BRANCH", FeeConstants.Codes.PermitFee, FeeConstants.Amounts.MobilePhoneDealerBranchPermitRate)
+                #endregion
             };
 
             foreach (var (variantId, elementCode, feeCode, amount) in elementFeesToSeed)
