@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { receiptService } from '@edge/api';
+import { receiptService, useTenantMembers } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 
 interface BundleEntryModalProps {
   visible: boolean;
@@ -21,13 +22,24 @@ interface BundleEntryModalProps {
 
 export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: BundleEntryModalProps) {
   const { colors } = useTheme();
+  const { user } = useAuthContext();
+  const { members, isLoading: isLoadingMembers } = useTenantMembers(tenantId);
+
   const [bookletNumber, setBookletNumber] = useState('');
   const [prefix, setPrefix] = useState('NTC-');
   const [startNumber, setStartNumber] = useState('');
   const [totalCount, setTotalCount] = useState('50');
+  const [assignedUserId, setAssignedUserId] = useState<string>('');
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  // Initialize assignedUserId with current user when opening or when user changes
+  useEffect(() => {
+    if (visible && user?.id) {
+      setAssignedUserId(user.id);
+    }
+  }, [visible, user?.id]);
 
   const parsedStart = parseInt(startNumber, 10);
   const parsedCount = parseInt(totalCount, 10) || 50;
@@ -46,6 +58,8 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
     setIsSubmitting(true);
     setErrorMsg(null);
 
+    const effectiveAssignedId = assignedUserId.trim().length > 0 ? assignedUserId.trim() : (user?.id ?? null);
+
     const [res, err] = await receiptService.createOrBooklet({
       tenantId,
       bookletNumber: bookletNumber.trim(),
@@ -53,6 +67,7 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       startNumber: parsedStart,
       endNumber: calculatedEnd,
       totalCount: parsedCount,
+      assignedUserId: effectiveAssignedId,
       remarks: remarks.trim().length > 0 ? remarks.trim() : null,
     });
 
@@ -68,6 +83,13 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       onClose();
     }
   };
+
+  const selectedMember = members.find((m) => m.userId === assignedUserId);
+  const assignedDisplay = selectedMember
+    ? `${selectedMember.userFirstName} ${selectedMember.userLastName} (${selectedMember.position || selectedMember.roleName})`
+    : user?.name
+    ? `${user.name} (You - Current User)`
+    : 'Assigned to Current Cashier';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -174,10 +196,59 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
               </View>
             )}
 
+            {/* Assigned Custodian / Cashier */}
+            <View style={styles.formGroup}>
+              <Text style={[styles.label, { color: colors.neutral[700] }]}>Assigned Custodian / Cashier *</Text>
+              <View style={[styles.assignedBox, { borderColor: colors.neutral[300], backgroundColor: colors.neutral[50] }]}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                  <Lucide name="user-check" size={16} color={colors.brand.primary} />
+                  <Text style={[styles.assignedText, { color: colors.text }]}>
+                    {assignedDisplay}
+                  </Text>
+                </View>
+                {user?.name && (
+                  <View style={[styles.autoBadge, { backgroundColor: colors.brand.indigoLight }]}>
+                    <Text style={[styles.autoBadgeText, { color: colors.brand.primary }]}>Creator Auto-Assigned</Text>
+                  </View>
+                )}
+              </View>
+              {members.length > 1 && (
+                <View style={styles.memberSelector}>
+                  <Text style={[styles.selectorHelp, { color: colors.textMuted }]}>Assign to another staff member:</Text>
+                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberChips}>
+                    {members.map((m) => {
+                      const isSelected = assignedUserId === m.userId;
+                      return (
+                        <TouchableOpacity
+                          key={m.id}
+                          onPress={() => setAssignedUserId(m.userId)}
+                          style={[
+                            styles.chip,
+                            { borderColor: colors.neutral[300], backgroundColor: '#fff' },
+                            isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.chipText,
+                              { color: colors.neutral[700] },
+                              isSelected && { color: '#fff', fontWeight: '700' },
+                            ]}
+                          >
+                            {m.userFirstName} {m.userLastName} {m.userId === user?.id ? '(You)' : ''}
+                          </Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </ScrollView>
+                </View>
+              )}
+            </View>
+
             <View style={styles.formGroup}>
               <Text style={[styles.label, { color: colors.neutral[700] }]}>Remarks / Receiving Custodian</Text>
               <TextInput
-                style={[styles.input, { height: 70, textAlignVertical: 'top', borderColor: colors.neutral[300], color: colors.text }]}
+                style={[styles.input, { height: 64, textAlignVertical: 'top', borderColor: colors.neutral[300], color: colors.text }]}
                 multiline
                 placeholder="Received from National Printing Office / General Services"
                 placeholderTextColor={colors.neutral[400]}
@@ -223,7 +294,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 12,
     width: '100%',
-    maxWidth: 540,
+    maxWidth: 560,
     maxHeight: '90%',
     shadowColor: '#000',
     shadowOpacity: 0.15,
@@ -314,6 +385,50 @@ const styles = StyleSheet.create({
   previewText: {
     fontSize: 12,
     flex: 1,
+  },
+  assignedBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  assignedText: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  autoBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  autoBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  memberSelector: {
+    marginTop: 8,
+  },
+  selectorHelp: {
+    fontSize: 11,
+    marginBottom: 6,
+  },
+  memberChips: {
+    flexDirection: 'row',
+    paddingVertical: 2,
+  },
+  chip: {
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    marginRight: 6,
+  },
+  chipText: {
+    fontSize: 12,
   },
   footer: {
     flexDirection: 'row',

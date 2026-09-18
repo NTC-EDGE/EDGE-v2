@@ -247,18 +247,42 @@ export function IssueReceiptModal({
               {/* Card Header: OR Serial Badge & Payment Method */}
               <View style={styles.summaryTopRow}>
                 <View style={styles.orBadgeContainer}>
-                  <Text style={[styles.orBadgeLabel, { color: colors.textMuted }]}>OR NUMBER</Text>
+                  <Text style={[styles.orBadgeLabel, { color: colors.textMuted }]}>OFFICIAL RECEIPT SERIAL NUMBER</Text>
                   <Text style={[styles.orBadgeValue, { color: colors.brand.primary }]}>
                     {useManualOr
-                      ? (manualOrNumber.trim() || 'Enter OR #')
-                      : (nextOr?.formattedOrNumber ?? 'NO BOOKLET')}
+                      ? (manualOrNumber.trim() ? `#${manualOrNumber.trim()}` : 'Enter Custom OR #')
+                      : (nextOr?.formattedOrNumber ? `#${nextOr.formattedOrNumber}` : 'NO ACTIVE BOOKLET')}
                   </Text>
+                  
+                  {!useManualOr && nextOr?.hasActiveBooklet && (
+                    <View style={styles.seriesInfoPillRow}>
+                      <View style={[styles.seriesPill, { backgroundColor: colors.brand.indigoLight }]}>
+                        <Lucide name="layers" size={11} color={colors.brand.primary} />
+                        <Text style={[styles.seriesPillText, { color: colors.brand.primary }]}>
+                          Booklet {nextOr.bookletNumber ?? ''}
+                        </Text>
+                      </View>
+                      {nextOr.formattedStartNumber && nextOr.formattedEndNumber && (
+                        <View style={[styles.seriesPill, { backgroundColor: colors.neutral[200] }]}>
+                          <Text style={[styles.seriesPillText, { color: colors.neutral[700] }]}>
+                            Series: {nextOr.formattedStartNumber} – {nextOr.formattedEndNumber}
+                          </Text>
+                        </View>
+                      )}
+                      <View style={[styles.seriesPill, { backgroundColor: colors.neutral[200] }]}>
+                        <Text style={[styles.seriesPillText, { color: colors.neutral[700] }]}>
+                          {nextOr.remainingCount} remaining
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+
                   <TouchableOpacity
                     onPress={() => setUseManualOr(!useManualOr)}
                     style={styles.overrideLink}
                   >
                     <Text style={[styles.overrideLinkText, { color: colors.brand.primary }]}>
-                      {useManualOr ? 'Use Booklet Series' : 'Manual Override'}
+                      {useManualOr ? '← Use Active Booklet Series' : 'Switch to Manual OR Override'}
                     </Text>
                   </TouchableOpacity>
                 </View>
@@ -631,12 +655,31 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   overrideLink: {
-    marginTop: 2,
+    marginTop: 6,
   },
   overrideLinkText: {
     fontSize: 11,
     fontWeight: '600',
     textDecorationLine: 'underline',
+  },
+  seriesInfoPillRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 4,
+  },
+  seriesPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 4,
+  },
+  seriesPillText: {
+    fontSize: 10,
+    fontWeight: '600',
   },
   methodSelector: {
     alignItems: 'flex-end',

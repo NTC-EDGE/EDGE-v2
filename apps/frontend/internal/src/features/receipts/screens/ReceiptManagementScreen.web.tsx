@@ -9,13 +9,14 @@ import {
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { useReceiptsState, ReceiptTab } from '../hooks/useReceiptsState';
-import { PendingPaymentsTab } from '../components/PendingPaymentsTab';
 import { OrBookletsTab } from '../components/OrBookletsTab';
 import { OfficialReceiptsTab } from '../components/OfficialReceiptsTab';
 import { BankDepositsTab } from '../components/BankDepositsTab';
 import { BankAccountsTab } from '../components/BankAccountsTab';
 import { CashierReportsTab } from '../components/CashierReportsTab';
 import { BundleEntryModal } from '../components/BundleEntryModal';
+import { EditBookletModal } from '../components/EditBookletModal';
+import { TransferBookletModal } from '../components/TransferBookletModal';
 import { IssueReceiptModal } from '../components/IssueReceiptModal';
 import { EditReceiptModal } from '../components/EditReceiptModal';
 import { CancelReceiptModal } from '../components/CancelReceiptModal';
@@ -41,22 +42,16 @@ export function ReceiptManagementScreen() {
 
   const TABS: TabDefinition[] = [
     {
-      id: 'pending_payments',
-      label: 'Subject for Payment',
-      icon: 'clock',
-      badge: state.pendingPayments.length > 0 ? state.pendingPayments.length : undefined,
-    },
-    {
       id: 'receipts',
-      label: 'Official Receipts (Collections)',
+      label: 'Official Receipts & Collections',
       icon: 'printer',
-      badge: state.receipts.length,
+      badge: state.pendingPayments.length > 0 ? state.pendingPayments.length : undefined,
     },
     {
       id: 'booklets',
       label: 'OR Booklets (Bundles)',
       icon: 'book',
-      badge: state.booklets.filter((b) => b.status === 'Active').length,
+      badge: state.booklets.filter((b) => b.status === 'Active' || (b.status as unknown) === 0).length,
     },
     {
       id: 'deposits',
@@ -161,21 +156,12 @@ export function ReceiptManagementScreen() {
 
       {/* Main Content Area */}
       <View style={[styles.contentArea, { maxWidth: 1320, alignSelf: 'center', width: '100%' }]}>
-        {state.activeTab === 'pending_payments' && (
-          <PendingPaymentsTab
-            pendingPayments={state.pendingPayments}
-            isLoading={state.isLoadingPendingPayments}
-            searchQuery={state.searchQuery}
-            onSearchChange={state.setSearchQuery}
-            onRefresh={state.refreshAll}
-            onIssueReceipt={(payment) => state.handleOpenIssueWithPendingPayment(payment)}
-          />
-        )}
-
         {state.activeTab === 'receipts' && (
           <OfficialReceiptsTab
             receipts={state.receipts}
-            isLoading={state.isLoadingReceipts}
+            isLoadingReceipts={state.isLoadingReceipts}
+            pendingPayments={state.pendingPayments}
+            isLoadingPendingPayments={state.isLoadingPendingPayments}
             searchQuery={state.searchQuery}
             onSearchChange={state.setSearchQuery}
             statusFilter={state.statusFilter}
@@ -184,9 +170,11 @@ export function ReceiptManagementScreen() {
             onPaymentMethodFilterChange={state.setPaymentMethodFilter}
             nextOr={state.nextOr}
             onOpenIssueModal={state.handleOpenIssueNew}
+            onIssueReceiptForPendingPayment={(p) => state.handleOpenIssueWithPendingPayment(p)}
             onViewReceipt={(r) => state.setViewingReceipt(r)}
             onEditReceipt={(r) => state.setEditingReceipt(r)}
             onCancelReceipt={(r) => state.setCancellingReceipt(r)}
+            onRefresh={state.refreshAll}
           />
         )}
 
@@ -195,6 +183,8 @@ export function ReceiptManagementScreen() {
             booklets={state.booklets}
             isLoading={state.isLoadingBooklets}
             onOpenBundleModal={() => state.setIsBundleModalOpen(true)}
+            onEditBooklet={(b) => state.setEditingBooklet(b)}
+            onTransferBooklet={(b) => state.setTransferringBooklet(b)}
           />
         )}
 
@@ -244,6 +234,21 @@ export function ReceiptManagementScreen() {
             visible={state.isBundleModalOpen}
             tenantId={state.tenantId}
             onClose={() => state.setIsBundleModalOpen(false)}
+            onSuccess={state.refreshAll}
+          />
+
+          <EditBookletModal
+            visible={state.editingBooklet !== null}
+            booklet={state.editingBooklet}
+            onClose={() => state.setEditingBooklet(null)}
+            onSuccess={state.refreshAll}
+          />
+
+          <TransferBookletModal
+            visible={state.transferringBooklet !== null}
+            tenantId={state.tenantId}
+            booklet={state.transferringBooklet}
+            onClose={() => state.setTransferringBooklet(null)}
             onSuccess={state.refreshAll}
           />
 

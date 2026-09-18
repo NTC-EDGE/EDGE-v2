@@ -9,12 +9,13 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { PendingPaymentDto } from '@edge/api';
+import { PendingPaymentDto, NextAvailableOrDto } from '@edge/api';
 
 interface PendingPaymentsTabProps {
   pendingPayments: PendingPaymentDto[];
   isLoading: boolean;
   searchQuery: string;
+  nextOr?: NextAvailableOrDto;
   onSearchChange: (text: string) => void;
   onRefresh: () => void;
   onIssueReceipt: (payment: PendingPaymentDto) => void;
@@ -24,6 +25,7 @@ export function PendingPaymentsTab({
   pendingPayments,
   isLoading,
   searchQuery,
+  nextOr,
   onSearchChange,
   onRefresh,
   onIssueReceipt,
@@ -57,6 +59,40 @@ export function PendingPaymentsTab({
           </TouchableOpacity>
         </View>
       </View>
+
+      {/* Active Booklet Series Status Banner */}
+      {nextOr && nextOr.hasActiveBooklet ? (
+        <View style={[styles.bookletBanner, { backgroundColor: '#EEF2FF', borderColor: '#C7D2FE' }]}>
+          <Lucide name="layers" size={18} color={colors.brand.primary} />
+          <View style={{ flex: 1 }}>
+            <View style={styles.bookletBannerTitleRow}>
+              <Text style={[styles.bookletBannerTitle, { color: colors.brand.primary }]}>
+                Next OR Number to Issue: #{nextOr.formattedOrNumber}
+              </Text>
+              <View style={[styles.bookletBadge, { backgroundColor: colors.brand.indigoLight }]}>
+                <Text style={[styles.bookletBadgeText, { color: colors.brand.primary }]}>
+                  Booklet #{nextOr.bookletNumber}
+                </Text>
+              </View>
+            </View>
+            <Text style={[styles.bookletBannerSubtitle, { color: colors.neutral[600] }]}>
+              Active Series: {nextOr.formattedStartNumber} – {nextOr.formattedEndNumber} • {nextOr.remainingCount} forms remaining in booklet
+            </Text>
+          </View>
+        </View>
+      ) : (
+        <View style={[styles.bookletBanner, { backgroundColor: '#FEF2F2', borderColor: '#FECACA' }]}>
+          <Lucide name="alert-triangle" size={18} color={colors.semantic.error} />
+          <View style={{ flex: 1 }}>
+            <Text style={[styles.bookletBannerTitle, { color: colors.semantic.error }]}>
+              No Active OR Booklet Registered
+            </Text>
+            <Text style={[styles.bookletBannerSubtitle, { color: colors.neutral[600] }]}>
+              Please register a new OR Booklet bundle in the &quot;OR Booklets&quot; tab before collecting payments.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Info Banner */}
       <View style={[styles.infoBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
@@ -254,6 +290,37 @@ const styles = StyleSheet.create({
   infoSubtitle: {
     fontSize: 11,
     marginTop: 2,
+  },
+  bookletBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  bookletBannerTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  bookletBannerTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  bookletBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  bookletBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  bookletBannerSubtitle: {
+    fontSize: 11,
+    marginTop: 3,
   },
   scrollList: {
     flex: 1,

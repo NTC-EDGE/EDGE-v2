@@ -11,6 +11,8 @@ using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Receipts.Dtos;
 using EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet;
+using EDGE.Application.Receipts.Commands.Booklets.UpdateOrBooklet;
+using EDGE.Application.Receipts.Commands.Booklets.TransferOrBooklet;
 using EDGE.Application.Receipts.Commands.Receipts.IssueOfficialReceipt;
 using EDGE.Application.Receipts.Commands.Receipts.EditOfficialReceipt;
 using EDGE.Application.Receipts.Commands.Receipts.CancelOfficialReceipt;
@@ -60,6 +62,16 @@ public static class ReceiptEndpoints
             .WithName("CreateOrBooklet")
             .WithSummary("Register OR Booklet")
             .WithDescription("Registers a new accountable form OR booklet.");
+
+        group.MapPut("/booklets/{id:guid}", UpdateOrBooklet)
+            .WithName("UpdateOrBooklet")
+            .WithSummary("Update OR Booklet")
+            .WithDescription("Updates an accountable form OR booklet series if no receipts have been issued yet.");
+
+        group.MapPost("/booklets/{id:guid}/transfer", TransferOrBooklet)
+            .WithName("TransferOrBooklet")
+            .WithSummary("Transfer OR Booklet")
+            .WithDescription("Transfers or reassigns an OR booklet to another cashier / staff member.");
 
         group.MapGet("/booklets/next-available", GetNextAvailableOrNumber)
             .WithName("GetNextAvailableOrNumber")
@@ -159,6 +171,40 @@ public static class ReceiptEndpoints
         IMediator mediator)
     {
         var result = await mediator.Send(command);
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReceiptsBundleEntry)]
+    public static async Task<IResult> UpdateOrBooklet(
+        [FromRoute] Guid id,
+        [FromBody] UpdateOrBookletRequest request,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new UpdateOrBookletCommand(
+            id,
+            request.TenantId,
+            request.BookletNumber,
+            request.Prefix,
+            request.StartNumber,
+            request.EndNumber,
+            request.TotalCount,
+            request.Remarks));
+        if (!result.Succeeded) return Results.BadRequest(result);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.ReceiptsBundleEntry)]
+    public static async Task<IResult> TransferOrBooklet(
+        [FromRoute] Guid id,
+        [FromBody] TransferOrBookletRequest request,
+        IMediator mediator)
+    {
+        var result = await mediator.Send(new TransferOrBookletCommand(
+            id,
+            request.TenantId,
+            request.NewAssignedUserId,
+            request.TransferReason));
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
@@ -356,3 +402,20 @@ public static class ReceiptEndpoints
         return Results.Ok(result);
     }
 }
+
+public record UpdateOrBookletRequest(
+    Guid TenantId,
+    string BookletNumber,
+    string? Prefix,
+    long StartNumber,
+    long? EndNumber = null,
+    int TotalCount = 50,
+    string? Remarks = null
+);
+
+public record TransferOrBookletRequest(
+    Guid TenantId,
+    Guid NewAssignedUserId,
+    string? TransferReason = null
+);
+

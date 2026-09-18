@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
 import { OrBookletDto } from '@edge/api';
@@ -14,14 +15,35 @@ interface OrBookletsTabProps {
   booklets: OrBookletDto[];
   isLoading: boolean;
   onOpenBundleModal: () => void;
+  onEditBooklet?: (b: OrBookletDto) => void;
+  onTransferBooklet?: (b: OrBookletDto) => void;
 }
+
+const isBookletActive = (status: unknown): boolean => {
+  return status === 'Active' || status === 0;
+};
+
+const isBookletExhausted = (status: unknown): boolean => {
+  return status === 'Exhausted' || status === 1;
+};
+
+const getBookletStatusLabel = (status: unknown): string => {
+  if (isBookletActive(status)) return 'ACTIVE';
+  if (isBookletExhausted(status)) return 'EXHAUSTED';
+  if (status === 'Cancelled' || status === 2) return 'CANCELLED';
+  if (status === 'Archived' || status === 3) return 'ARCHIVED';
+  return String(status ?? '').toUpperCase();
+};
 
 export function OrBookletsTab({
   booklets,
   isLoading,
   onOpenBundleModal,
+  onEditBooklet,
+  onTransferBooklet,
 }: OrBookletsTabProps) {
   const { colors } = useTheme();
+  const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -32,14 +54,22 @@ export function OrBookletsTab({
     );
   }
 
-  const activeCount = booklets.filter((b) => b.status === 'Active').length;
-  const exhaustedCount = booklets.filter((b) => b.status === 'Exhausted').length;
+  const activeCount = booklets.filter((b) => isBookletActive(b.status)).length;
+  const exhaustedCount = booklets.filter((b) => isBookletExhausted(b.status)).length;
   const totalRemaining = booklets
-    .filter((b) => b.status === 'Active')
-    .reduce((sum, b) => sum + b.remainingCount, 0);
+    .filter((b) => isBookletActive(b.status))
+    .reduce((sum, b) => sum + (b.remainingCount || 0), 0);
 
   return (
     <View style={styles.container}>
+      {/* Click-away backdrop for 3-dots popup */}
+      {activeMenuId !== null && (
+        <Pressable
+          style={styles.popoverBackdrop}
+          onPress={() => setActiveMenuId(null)}
+        />
+      )}
+
       {/* Top Banner Stats */}
       <View style={styles.statsRow}>
         <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
@@ -85,7 +115,9 @@ export function OrBookletsTab({
         <ScrollView contentContainerStyle={styles.bookletGrid} showsVerticalScrollIndicator={false}>
           {booklets.map((b) => {
             const percentUsed = b.totalCount > 0 ? Math.round((b.issuedCount / b.totalCount) * 100) : 0;
-            const isActive = b.status === 'Active';
+            const isActive = isBookletActive(b.status);
+            const isEditable = b.issuedCount === 0;
+            const isMenuOpen = activeMenuId === b.id;
 
             return (
               <View
@@ -94,20 +126,71 @@ export function OrBookletsTab({
                   styles.bookletCard,
                   { backgroundColor: colors.cardBg, borderColor: colors.border },
                   !isActive && styles.bookletCardInactive,
+                  isMenuOpen && { zIndex: 50 },
                 ]}
               >
                 <View style={styles.bookletHeader}>
-                  <View>
+                  <View style={{ flex: 1 }}>
                     <Text style={[styles.bookletNum, { color: colors.text }]}>{b.bookletNumber}</Text>
                     <Text style={[styles.seriesRange, { color: colors.neutral[600] }]}>
                       {b.formattedStartNumber} → {b.formattedEndNumber}
                     </Text>
                   </View>
-                  <View style={[styles.statusBadge, isActive ? styles.statusActive : styles.statusExhausted]}>
-                    <Text style={[styles.statusText, isActive ? styles.statusTextActive : styles.statusTextExhausted]}>
-                      {b.status.toUpperCase()}
-                    </Text>
+
+                  <View style={styles.headerRight}>
+                    <View style={[styles.statusBadge, isActive ? styles.statusActive : styles.statusExhausted]}>
+                      <Text style={[styles.statusText, isActive ? styles.statusTextActive : styles.statusTextExhausted]}>
+                        {getBookletStatusLabel(b.status)}
+                      </Text>
+                    </View>
+
+                    {/* 3-dots Kebab Action Button */}
+                    <TouchableOpacity
+                      onPress={() => setActiveMenuId(isMenuOpen ? null : b.id)}
+                      style={[styles.kebabBtn, { backgroundColor: isMenuOpen ? colors.neutral[200] : colors.neutral[100] }]}
+                    >
+                      <Lucide name="more-vertical" size={16} color={colors.neutral[700]} />
+                    </TouchableOpacity>
                   </View>
+
+                  {/* 3-dots Popover Menu */}
+                  {isMenuOpen && (
+                    <View style={[styles.popoverMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+                      {isEditable ? (
+                        <TouchableOpacity
+                          onPress={() => {
+                            setActiveMenuId(null);
+                            onEditBooklet?.(b);
+                          }}
+                          style={styles.popoverItem}
+                        >
+                          <Lucide name="edit-3" size={14} color={colors.neutral[700]} />
+                          <Text style={[styles.popoverText, { color: colors.text }]}>Edit Series</Text>
+                        </TouchableOpacity>
+                      ) : (
+                        <View style={[styles.popoverItem, { opacity: 0.5 }]}>
+                          <Lucide name="lock" size={14} color={colors.neutral[400]} />
+                          <View>
+                            <Text style={[styles.popoverText, { color: colors.textMuted }]}>Edit Series</Text>
+                            <Text style={{ fontSize: 9, color: colors.textMuted }}>Locked ({b.issuedCount} issued)</Text>
+                          </View>
+                        </View>
+                      )}
+
+                      <TouchableOpacity
+                        onPress={() => {
+                          setActiveMenuId(null);
+                          onTransferBooklet?.(b);
+                        }}
+                        style={[styles.popoverItem, { borderTopWidth: 1, borderTopColor: colors.neutral[100] }]}
+                      >
+                        <Lucide name="repeat" size={14} color={colors.brand.primary} />
+                        <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '600' }]}>
+                          Transfer Custody
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
                 </View>
 
                 {/* Progress Bar */}
@@ -128,8 +211,8 @@ export function OrBookletsTab({
                 {/* Metadata */}
                 <View style={[styles.bookletFooter, { borderTopColor: colors.border }]}>
                   <View style={styles.metaItem}>
-                    <Lucide name="user" size={14} color={colors.neutral[500]} />
-                    <Text style={[styles.metaText, { color: colors.neutral[600] }]}>
+                    <Lucide name="user" size={14} color={colors.brand.primary} />
+                    <Text style={[styles.metaText, { color: colors.text, fontWeight: '600' }]}>
                       {b.assignedUserName ?? 'All Cashiers (Unassigned)'}
                     </Text>
                   </View>
@@ -152,6 +235,14 @@ export function OrBookletsTab({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  popoverBackdrop: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: 40,
   },
   centerBox: {
     padding: 32,
@@ -246,6 +337,7 @@ const styles = StyleSheet.create({
     shadowRadius: 6,
     shadowOffset: { width: 0, height: 2 },
     elevation: 2,
+    position: 'relative',
   },
   bookletCardInactive: {
     backgroundColor: '#F8FAFC',
@@ -256,6 +348,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-start',
     marginBottom: 8,
+    position: 'relative',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   bookletNum: {
     fontSize: 13,
@@ -286,6 +384,39 @@ const styles = StyleSheet.create({
   },
   statusTextExhausted: {
     color: '#64748B',
+  },
+  kebabBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  popoverMenu: {
+    position: 'absolute',
+    top: 32,
+    right: 0,
+    width: 170,
+    borderRadius: 8,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOpacity: 0.12,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 10,
+    zIndex: 100,
+    paddingVertical: 4,
+  },
+  popoverItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  popoverText: {
+    fontSize: 12,
+    fontWeight: '500',
   },
   progressContainer: {
     marginVertical: 10,

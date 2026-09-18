@@ -28,13 +28,15 @@ export function useReceiptsState() {
   const tenantId = user?.tenantId ?? null;
   const currentUserId = user?.id ?? user?.email ?? null;
 
-  const [activeTab, setActiveTab] = useState<ReceiptTab>('pending_payments');
+  const [activeTab, setActiveTab] = useState<ReceiptTab>('receipts');
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
 
   // Modals
   const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
+  const [editingBooklet, setEditingBooklet] = useState<OrBookletDto | null>(null);
+  const [transferringBooklet, setTransferringBooklet] = useState<OrBookletDto | null>(null);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [selectedPendingPayment, setSelectedPendingPayment] = useState<PendingPaymentDto | null>(null);
   const [editingReceipt, setEditingReceipt] = useState<OfficialReceiptDto | null>(null);
@@ -74,10 +76,11 @@ export function useReceiptsState() {
   }, [reportDateRange]);
 
   // Conditional tenant IDs to lazily call endpoints only when the tab or modal is active
-  const pendingPaymentsTenantId = activeTab === 'pending_payments' ? tenantId : null;
+  const isReceiptsActive = activeTab === 'receipts' || activeTab === 'pending_payments';
+  const pendingPaymentsTenantId = isReceiptsActive ? tenantId : null;
   const bookletsTenantId = (activeTab === 'booklets' || isBundleModalOpen || isIssueModalOpen) ? tenantId : null;
-  const nextOrTenantId = (activeTab === 'receipts' || isIssueModalOpen) ? tenantId : null;
-  const receiptsTenantId = activeTab === 'receipts' ? tenantId : null;
+  const nextOrTenantId = (isReceiptsActive || isIssueModalOpen) ? tenantId : null;
+  const receiptsTenantId = isReceiptsActive ? tenantId : null;
   const depositsTenantId = activeTab === 'deposits' ? tenantId : null;
   const undepositedTenantId = (activeTab === 'deposits' || isDepositModalOpen) ? tenantId : null;
   const bankAccountsTenantId = (activeTab === 'accounts' || activeTab === 'deposits' || isDepositModalOpen || isBankAccountModalOpen) ? tenantId : null;
@@ -228,6 +231,10 @@ export function useReceiptsState() {
     // Modal states
     isBundleModalOpen,
     setIsBundleModalOpen,
+    editingBooklet,
+    setEditingBooklet,
+    transferringBooklet,
+    setTransferringBooklet,
     isIssueModalOpen,
     setIsIssueModalOpen,
     selectedPendingPayment,

@@ -18,6 +18,13 @@ interface BankDepositsTabProps {
   onViewDeposit?: (d: BankDepositDto) => void;
 }
 
+const getDepositStatusLabel = (status: unknown): string => {
+  if (status === 'Pending' || status === 0) return 'PENDING';
+  if (status === 'Deposited' || status === 1) return 'DEPOSITED';
+  if (status === 'Reconciled' || status === 2) return 'RECONCILED';
+  return String(status ?? '').toUpperCase();
+};
+
 export function BankDepositsTab({
   deposits,
   isLoading,
@@ -125,7 +132,7 @@ export function BankDepositsTab({
 
                 <View style={{ flex: 1, alignItems: 'center' }}>
                   <View style={styles.statusBadge}>
-                    <Text style={styles.statusText}>{d.status.toUpperCase()}</Text>
+                    <Text style={styles.statusText}>{getDepositStatusLabel(d.status)}</Text>
                   </View>
                 </View>
               </View>

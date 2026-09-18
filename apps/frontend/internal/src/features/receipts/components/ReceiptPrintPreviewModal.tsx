@@ -32,7 +32,7 @@ export function ReceiptPrintPreviewModal({
     }
   };
 
-  const isCancelled = receipt.status === 'Cancelled';
+  const isCancelled = receipt.status === 'Cancelled' || (receipt.status as unknown) === 2;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

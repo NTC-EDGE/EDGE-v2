@@ -30,8 +30,15 @@ export interface OrBookletDto {
 export interface NextAvailableOrDto {
   bookletId?: string | null;
   bookletNumber?: string | null;
+  prefix?: string | null;
   formattedOrNumber?: string | null;
   rawNumber?: number | null;
+  startNumber?: number | null;
+  endNumber?: number | null;
+  formattedStartNumber?: string | null;
+  formattedEndNumber?: string | null;
+  totalCount?: number;
+  issuedCount?: number;
   remainingCount: number;
   hasActiveBooklet: boolean;
 }
@@ -203,6 +210,24 @@ export interface CreateOrBookletPayload {
   remarks?: string | null;
 }
 
+export interface UpdateOrBookletPayload {
+  id: string;
+  tenantId: string;
+  bookletNumber: string;
+  prefix?: string | null;
+  startNumber: number;
+  endNumber?: number | null;
+  totalCount?: number;
+  remarks?: string | null;
+}
+
+export interface TransferOrBookletPayload {
+  id: string;
+  tenantId: string;
+  newAssignedUserId: string;
+  transferReason?: string | null;
+}
+
 export interface IssueReceiptLineItemInput {
   feeCode: string;
   description: string;
@@ -299,6 +324,22 @@ export const receiptService = {
   createOrBooklet: async (payload: CreateOrBookletPayload) => {
     return safeAsync(async () => {
       const res = await apiClient.post<{ data: OrBookletDto }>('/api/v2/receipts/booklets', payload);
+      return res.data.data;
+    });
+  },
+
+  updateOrBooklet: async (payload: UpdateOrBookletPayload) => {
+    return safeAsync(async () => {
+      const { id, ...data } = payload;
+      const res = await apiClient.put<{ data: OrBookletDto }>(`/api/v2/receipts/booklets/${id}`, data);
+      return res.data.data;
+    });
+  },
+
+  transferOrBooklet: async (payload: TransferOrBookletPayload) => {
+    return safeAsync(async () => {
+      const { id, ...data } = payload;
+      const res = await apiClient.post<{ data: OrBookletDto }>(`/api/v2/receipts/booklets/${id}/transfer`, data);
       return res.data.data;
     });
   },

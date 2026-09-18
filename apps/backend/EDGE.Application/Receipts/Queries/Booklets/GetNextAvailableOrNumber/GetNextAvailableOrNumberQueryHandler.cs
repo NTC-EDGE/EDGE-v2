@@ -11,8 +11,15 @@ namespace EDGE.Application.Receipts.Queries.Booklets.GetNextAvailableOrNumber;
 public record NextAvailableOrDto(
     Guid? BookletId,
     string? BookletNumber,
+    string? Prefix,
     string? FormattedOrNumber,
     long? RawNumber,
+    long? StartNumber,
+    long? EndNumber,
+    string? FormattedStartNumber,
+    string? FormattedEndNumber,
+    int TotalCount,
+    int IssuedCount,
     int RemainingCount,
     bool HasActiveBooklet
 );
@@ -61,6 +68,13 @@ public class GetNextAvailableOrNumberQueryHandler : IRequestHandler<GetNextAvail
                 null,
                 null,
                 null,
+                null,
+                null,
+                null,
+                null,
+                null,
+                0,
+                0,
                 0,
                 false
             ), "No active OR booklet available.");
@@ -69,8 +83,15 @@ public class GetNextAvailableOrNumberQueryHandler : IRequestHandler<GetNextAvail
         return ApiResponse<NextAvailableOrDto>.Success(new NextAvailableOrDto(
             booklet.Id,
             booklet.BookletNumber,
+            booklet.Prefix,
             booklet.CurrentFormattedOrNumber,
             booklet.CurrentNumber,
+            booklet.StartNumber,
+            booklet.EndNumber,
+            booklet.FormatOrNumber(booklet.StartNumber),
+            booklet.FormatOrNumber(booklet.EndNumber),
+            booklet.TotalCount,
+            booklet.IssuedCount,
             booklet.RemainingCount,
             true
         ));
