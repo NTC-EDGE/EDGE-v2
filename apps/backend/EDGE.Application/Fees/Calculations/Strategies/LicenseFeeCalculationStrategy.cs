@@ -1,17 +1,43 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Application.Fees.Calculations.Strategies.Licenses;
 using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations.Strategies;
 
 /// <summary>
-/// Dedicated statutory fee calculation strategy for Licenses (e.g., Radio Station Licenses, Dealer Licenses).
+/// Dedicated statutory fee calculation strategy for Licenses (Radio Station Licenses, Maritime, Aeronautical, FLM, TVRO/CATV, and Copies).
+/// Coordinates specialized sub-category calculators adhering to the Single Responsibility Principle.
 /// </summary>
 public class LicenseFeeCalculationStrategy : IFeeCalculationStrategy
 {
     public const decimal DST_AMOUNT = FeeConstants.Amounts.DocumentaryStampTax;
+
+    private readonly IReadOnlyList<ILicenseSubCategoryCalculator> _subCalculators;
+    private readonly ILicenseSubCategoryCalculator _defaultSubCalculator;
+
+    public LicenseFeeCalculationStrategy()
+    {
+        _subCalculators = new List<ILicenseSubCategoryCalculator>
+        {
+            new LicenseCopySubCalculator(),
+            new TvroCatvLicenseSubCalculator(),
+            new AmateurLicenseSubCalculator(),
+            new AeronauticalLicenseSubCalculator(),
+            new MaritimeLicenseSubCalculator(),
+            new OtherRadioStationLicenseSubCalculator(),
+            new FixedAndLandMobileLicenseSubCalculator()
+        };
+        _defaultSubCalculator = new DefaultLicenseSubCalculator();
+    }
+
+    public LicenseFeeCalculationStrategy(IEnumerable<ILicenseSubCategoryCalculator> subCalculators)
+    {
+        _subCalculators = subCalculators.ToList();
+        _defaultSubCalculator = new DefaultLicenseSubCalculator();
+    }
 
     public ServiceCategoryType Category => ServiceCategoryType.License;
 
@@ -22,7 +48,11 @@ public class LicenseFeeCalculationStrategy : IFeeCalculationStrategy
             return category.Value == ServiceCategoryType.License;
         }
 
-        return activity.SafeContains("LICENSE") || applicationType.SafeContains("License");
+        return activity.SafeContains("LICENSE") ||
+               applicationType.SafeContains("License") ||
+               activity.SafeContains("TVRO") ||
+               activity.SafeContains("CATV") ||
+               activity.SafeContains("COPY OF LICENSES");
     }
 
     public FeeCalculationResultDto Calculate(FeeCalculationRequest request)
@@ -30,48 +60,16 @@ public class LicenseFeeCalculationStrategy : IFeeCalculationStrategy
         var lineItems = new List<CalculatedFeeLineItemDto>();
         var years = Math.Max(1, request.ValidityYears);
         var units = Math.Max(1, request.NoOfUnits);
+        var copies = Math.Max(1, request.NoOfCopies);
+        var channels = Math.Max(1, request.NoOfChannels);
         var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
 
         var activity = request.Activity.SafeTrim();
         var appType = request.ApplicationType.SafeTrim();
         var element = request.Element.SafeTrim();
 
-        var isRenewal = appType.SafeContains("RENEWAL");
-        var isModification = appType.SafeContains("MODIFICATION");
-
-        // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative License Filing Fee", 1, 1, FeeConstants.Amounts.LicenseFilingFee, FeeConstants.Amounts.LicenseFilingFee));
-
-        decimal licenseRate = FeeConstants.Amounts.DefaultLicenseRate;
-        if (!string.IsNullOrWhiteSpace(element))
-        {
-            // Elemental rate if specified
-            lineItems.Add(new CalculatedFeeLineItemDto($"License Fee ({element})", FeeConstants.Codes.License, $"Radio Station / Dealer License Fee ({element})", years, units, licenseRate, licenseRate * years * units));
-        }
-        else
-        {
-            lineItems.Add(new CalculatedFeeLineItemDto("License Fee", FeeConstants.Codes.License, "Radio Station / Dealer License Fee", years, units, licenseRate, licenseRate * years * units));
-        }
-
-        string formulaApplied;
-        if (isRenewal && request.ExpirationDate.HasValue)
-        {
-            var (multiplier, description) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
-            if (multiplier > 0)
-            {
-                var surcharge = (licenseRate * units) * multiplier;
-                lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", FeeConstants.Codes.Surcharge, description, 1, 1, surcharge, surcharge, IsSurcharge: true));
-            }
-            formulaApplied = FeeConstants.Formulas.LicenseRenewal;
-        }
-        else if (isModification)
-        {
-            formulaApplied = FeeConstants.Formulas.LicenseModification;
-        }
-        else
-        {
-            formulaApplied = FeeConstants.Formulas.LicenseNew;
-        }
+        var calculator = _subCalculators.FirstOrDefault(c => c.CanHandle(activity, appType)) ?? _defaultSubCalculator;
+        var formulaApplied = calculator.Calculate(lineItems, request, years, units, copies, channels, asOfDate);
 
         // Add DST
         lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", FeeConstants.Codes.Dst, "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));

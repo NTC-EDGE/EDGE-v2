@@ -1,15 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
 import { useToast } from "../../../../../../shared/components/Toast";
+import { SubmissionFailureModal } from "../../../../shared/components/SubmissionFailureModal";
 
 interface CPEWizardModalsProps {
   isConfirmModalOpen: boolean;
   setIsConfirmModalOpen: (open: boolean) => void;
   isAgreedToTerms: boolean;
   setIsAgreedToTerms: (agreed: boolean | ((p: boolean) => boolean)) => void;
-  submitApplicationPayload: () => Promise<void>;
+  submitApplicationPayload: (isDraft?: boolean) => Promise<void>;
   setIsSubmitting: (submitting: boolean) => void;
   isFeedbackModalOpen: boolean;
   setIsFeedbackModalOpen: (open: boolean) => void;
@@ -29,6 +30,7 @@ interface CPEWizardModalsProps {
   }>;
   handleConfirmCSVImport: () => void;
   isSubmitting: boolean;
+  onSaveDraft?: () => Promise<boolean | void> | void;
 }
 
 export function CPEWizardModals({
@@ -50,8 +52,60 @@ export function CPEWizardModals({
   csvRows,
   handleConfirmCSVImport,
   isSubmitting,
+  onSaveDraft,
 }: CPEWizardModalsProps) {
   const toast = useToast();
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false);
+  const [failureErrorMessage, setFailureErrorMessage] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isSavingDraftState, setIsSavingDraftState] = useState(false);
+
+  const executeSubmission = async () => {
+    setIsSubmitting(true);
+    setIsRetrying(true);
+    try {
+      await submitApplicationPayload(false);
+      setIsFailureModalOpen(false);
+      toast.success(
+        "Application Submitted",
+        "Your CPE accreditation application has been received and is now under review."
+      );
+      setIsFeedbackModalOpen(true);
+    } catch (err: unknown) {
+      console.error("Failed to submit CPE application:", err);
+      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
+      setFailureErrorMessage(msg);
+      setIsFailureModalOpen(true);
+      toast.error("Submission Incomplete", msg);
+    } finally {
+      setIsSubmitting(false);
+      setIsRetrying(false);
+    }
+  };
+
+  const handleSaveDraftAction = async () => {
+    setIsSavingDraftState(true);
+    try {
+      if (onSaveDraft) {
+        await onSaveDraft();
+      } else {
+        await submitApplicationPayload(true);
+      }
+      setIsFailureModalOpen(false);
+      toast.success(
+        "Draft Saved",
+        "Your CPE accreditation application progress has been saved as a draft."
+      );
+    } catch (draftErr: unknown) {
+      const draftMsg =
+        draftErr instanceof Error && draftErr.message.length > 0
+          ? draftErr.message
+          : "Failed to save draft. Please check your connection.";
+      toast.error("Draft Save Failed", draftMsg);
+    } finally {
+      setIsSavingDraftState(false);
+    }
+  };
 
   return (
     <>
@@ -228,21 +282,7 @@ export function CPEWizardModals({
                     return;
                   }
                   setIsConfirmModalOpen(false);
-                  setIsSubmitting(true);
-                  try {
-                    await submitApplicationPayload();
-                    toast.success(
-                      "Application Submitted",
-                      "Your CPE accreditation application has been received and is now under review."
-                    );
-                    setIsFeedbackModalOpen(true);
-                  } catch (err: unknown) {
-                    console.error("Failed to submit CPE application:", err);
-                    const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
-                    toast.error("Submission Failed", msg);
-                  } finally {
-                    setIsSubmitting(false);
-                  }
+                  await executeSubmission();
                 }}
                 style={{
                   backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
@@ -349,8 +389,19 @@ export function CPEWizardModals({
         </View>
       </Modal>
 
+      {/* Submission Failure Modal */}
+      <SubmissionFailureModal
+        visible={isFailureModalOpen}
+        errorMessage={failureErrorMessage}
+        onRetry={executeSubmission}
+        onSaveDraft={handleSaveDraftAction}
+        onClose={() => setIsFailureModalOpen(false)}
+        isRetrying={isRetrying}
+        isSavingDraft={isSavingDraftState}
+      />
+
       {/* Submission Loading Overlay */}
-      {isSubmitting && (
+      {isSubmitting && !isFailureModalOpen && (
         <View style={{
           position: "absolute",
           top: 0,

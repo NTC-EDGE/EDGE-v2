@@ -29,8 +29,7 @@ public static class StorageEndpoints
 
         // Tenant-scoped storage endpoints: /api/v2/tenants/{tenantId}/storage/...
         var tenantStorageGroup = authorizedStorageGroup.MapGroup("tenants/{tenantId:guid}/storage")
-            .WithTags("Tenant Storage")
-            .RequireTenantMembership();
+            .WithTags("Tenant Storage");
 
         tenantStorageGroup.MapPost("/upload", UploadTenantFile)
             .DisableAntiforgery()
@@ -44,6 +43,7 @@ public static class StorageEndpoints
             .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapGet("/files", GetTenantFiles)
+            .RequireTenantMembership()
             .WithName("GetTenantFiles")
             .WithTags("Tenant Storage")
             .WithSummary("Get all stored files metadata for a specific tenant")
