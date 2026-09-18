@@ -195,6 +195,14 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.ReadRequirements),
             (actualCashierRoleId, Permissions.ReadStorage),
             (actualCashierRoleId, Permissions.DownloadStorage),
+            (actualCashierRoleId, Permissions.ReceiptsRead),
+            (actualCashierRoleId, Permissions.ReceiptsBundleEntry),
+            (actualCashierRoleId, Permissions.ReceiptsIssue),
+            (actualCashierRoleId, Permissions.ReceiptsEdit),
+            (actualCashierRoleId, Permissions.ReceiptsCancel),
+            (actualCashierRoleId, Permissions.ReceiptsDeposit),
+            (actualCashierRoleId, Permissions.BankAccountsManage),
+            (actualCashierRoleId, Permissions.CashierReports),
         };
 
         // Add all permissions to SuperAdmin and Admin roles dynamically
