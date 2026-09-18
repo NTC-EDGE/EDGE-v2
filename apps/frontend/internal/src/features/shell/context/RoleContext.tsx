@@ -127,6 +127,12 @@ export const ROLE_HIERARCHY_PRIORITY: readonly UserRole[] = [
 const EXACT_ROLE_MAP: Readonly<Record<string, UserRole>> = {
   admin: 'Admin',
   administrator: 'Admin',
+  tenant_admin: 'Admin',
+  'tenant admin': 'Admin',
+  tenantadmin: 'Admin',
+  regional_admin: 'Admin',
+  'regional admin': 'Admin',
+  regionaladmin: 'Admin',
   system_admin: 'Admin',
   'system admin': 'Admin',
   super_admin: 'Admin',
