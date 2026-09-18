@@ -424,6 +424,29 @@ public class FeeCalculationEngineTests
         result.Element.Should().Be("1rtg");
     }
 
+    [Fact]
+    public void StrategyRegistry_ShouldHaveDedicatedStrategyForEveryServiceCategoryEnum()
+    {
+        // Enforce tight synchronization: every value in ServiceCategoryType must be handled by a dedicated strategy
+        var allCategoryEnumValues = Enum.GetValues<ServiceCategoryType>();
+
+        foreach (var category in allCategoryEnumValues)
+        {
+            var request = new FeeCalculationRequest(
+                Activity: "Generic Activity",
+                ApplicationType: "Generic Type",
+                Category: category
+            );
+
+            var result = _engine.Calculate(request);
+
+            result.Should().NotBeNull();
+            result.Category.Should().Be(category, $"Category {category} must be handled by its dedicated strategy");
+            result.FormulaApplied.Should().NotBe("FEE = (RATE)(YR)(UNIT) + DST", $"Category {category} should have a dedicated statutory formula, not default fallback");
+        }
+    }
+
     #endregion
 }
+
 
