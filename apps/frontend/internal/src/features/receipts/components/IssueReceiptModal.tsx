@@ -20,7 +20,6 @@ import {
   ReceiptFeeItemDto,
 } from '@edge/api';
 import { FeeSuggestionsDropdown } from './FeeSuggestionsDropdown';
-import { FeeCatalogPickerModal } from './FeeCatalogPickerModal';
 
 interface IssueReceiptModalProps {
   visible: boolean;
@@ -52,21 +51,22 @@ export function IssueReceiptModal({
   const [manualOrNumber, setManualOrNumber] = useState('');
   const [useManualOr, setUseManualOr] = useState(false);
 
-  // Fee Catalog & Suggestions States
+  // Fee Suggestions State
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
-  const [isCatalogPickerOpen, setIsCatalogPickerOpen] = useState(false);
 
+  // Initial empty fees state for manual issuance
   const [lineItems, setLineItems] = useState<IssueReceiptLineItemInput[]>([
-    { feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 },
+    { feeCode: 'FEE', description: '', amount: 0 },
   ]);
 
   const isFromPendingPayment = pendingPayment !== undefined && pendingPayment !== null;
 
   useEffect(() => {
     if (visible && pendingPayment !== undefined && pendingPayment !== null) {
+      // Scenario A: Captured automatically from Application / Order of Payment & SOA
       setPayorName(pendingPayment.applicantName);
       setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
-      if (pendingPayment.lineItems.length > 0) {
+      if (pendingPayment.lineItems && pendingPayment.lineItems.length > 0) {
         setLineItems(
           pendingPayment.lineItems.map((li) => ({
             feeCode: li.feeCode || 'FEE',
@@ -85,13 +85,14 @@ export function IssueReceiptModal({
       }
       setActiveSuggestionIndex(null);
     } else if (visible && (pendingPayment === undefined || pendingPayment === null)) {
+      // Scenario B: Manual Issuance - Cashier writes payee details and starts with empty fees
       setPayorName('');
       setPayorAddress('');
       setRemarks('');
       setCheckNumber('');
       setCheckBank('');
       setCheckDate('');
-      setLineItems([{ feeCode: 'REG-FEE', description: 'Radio Station License / Permit Fee', amount: 0 }]);
+      setLineItems([{ feeCode: 'FEE', description: '', amount: 0 }]);
       setActiveSuggestionIndex(null);
     }
   }, [visible, pendingPayment]);
@@ -141,28 +142,13 @@ export function IssueReceiptModal({
     setActiveSuggestionIndex(null);
   };
 
-  const handleAddFeeFromCatalog = (fee: ReceiptFeeItemDto) => {
-    const first = lineItems[0];
-    if (
-      lineItems.length === 1 &&
-      first !== undefined &&
-      (!first.description || first.description === 'Radio Station License / Permit Fee') &&
-      (!first.amount || first.amount === 0)
-    ) {
-      setLineItems([{ feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
-    } else {
-      setLineItems([...lineItems, { feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
-    }
-    setIsCatalogPickerOpen(false);
-  };
-
   const handleSubmit = async () => {
     const effectivePayorName = isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined
       ? pendingPayment.applicantName
       : payorName.trim();
 
     if (!effectivePayorName) {
-      setErrorMsg('Payor name is required.');
+      setErrorMsg('Payee / Payor name is required.');
       return;
     }
     if (totalAmount <= 0) {
@@ -231,7 +217,9 @@ export function IssueReceiptModal({
                 <Lucide name="printer" size={18} color={colors.brand.primary} />
               </View>
               <View>
-                <Text style={[styles.title, { color: colors.text }]}>Issue Official Receipt (Form 51)</Text>
+                <Text style={[styles.title, { color: colors.text }]}>
+                  {isFromPendingPayment ? 'Issue Official Receipt for Order of Payment' : 'Manual Official Receipt Issuance'}
+                </Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
                   {useManualOr
                     ? 'Manual OR Number Override'
@@ -364,15 +352,16 @@ export function IssueReceiptModal({
                 </View>
               )}
 
-              {/* Readonly Payor & Reference Chips (If from Pending Payment) */}
+              {/* Payee Details Section */}
               {isFromPendingPayment && pendingPayment !== null && pendingPayment !== undefined ? (
+                /* Auto-captured Payee & SOA Information from Order of Payment */
                 <View style={[styles.readOnlyPayorCard, { backgroundColor: '#fff', borderColor: colors.border }]}>
                   <View style={styles.readOnlyField}>
-                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>PAYOR NAME</Text>
+                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>PAYEE / APPLICANT NAME (AUTO-CAPTURED)</Text>
                     <Text style={[styles.readOnlyValue, { color: colors.text }]}>{pendingPayment.applicantName}</Text>
                   </View>
                   <View style={styles.readOnlyField}>
-                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>ORDER OF PAYMENT</Text>
+                    <Text style={[styles.readOnlyLabel, { color: colors.textMuted }]}>ORDER OF PAYMENT (SOA)</Text>
                     <Text style={[styles.readOnlyValue, { color: colors.text }]}>
                       OP #{pendingPayment.opNumber} ({pendingPayment.applicationNumber || pendingPayment.referenceNumber || 'N/A'})
                     </Text>
@@ -385,20 +374,21 @@ export function IssueReceiptModal({
                   </View>
                 </View>
               ) : (
-                /* Editable Payor Fields for Walk-in / Manual Receipt */
+                /* Manual Payee Entry for Walk-in Cashier Payments */
                 <View style={styles.payorFieldsRow}>
                   <View style={{ flex: 1.5, marginRight: 8 }}>
-                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Payor Name / Company *</Text>
+                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Payee Name / Company *</Text>
                     <TextInput
                       style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
-                      placeholder="e.g. Juan Dela Cruz / Company Inc."
+                      placeholder="Write payee / payor name manually"
                       placeholderTextColor={colors.neutral[400]}
                       value={payorName}
                       onChangeText={setPayorName}
+                      autoFocus
                     />
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Address (Optional)</Text>
+                    <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Payee Address (Optional)</Text>
                     <TextInput
                       style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
                       placeholder="City / Municipality"
@@ -411,30 +401,26 @@ export function IssueReceiptModal({
               )}
             </View>
 
-            {/* PARTICULARS & AMOUNT BREAKDOWN (Only 2 Inputs: Particulars & Amount) */}
+            {/* PARTICULARS & AMOUNT BREAKDOWN (Auto-filled from SOA if OP payment, or empty fees if manual) */}
             <View style={styles.breakdownSection}>
               <View style={styles.breakdownHeader}>
                 <View>
-                  <Text style={[styles.sectionHeading, { color: colors.text }]}>Particulars & Amount</Text>
+                  <Text style={[styles.sectionHeading, { color: colors.text }]}>
+                    {isFromPendingPayment ? 'Items to be Paid (Loaded from SOA / Order of Payment)' : 'Particulars & Fee Breakdown'}
+                  </Text>
                   <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
-                    Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars
+                    {isFromPendingPayment
+                      ? 'Fees captured from approved assessment. Cashier may adjust or add items if needed.'
+                      : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
                   </Text>
                 </View>
                 <View style={styles.breakdownActions}>
                   <TouchableOpacity
-                    onPress={() => setIsCatalogPickerOpen(true)}
-                    style={[styles.catalogBtn, { backgroundColor: colors.brand.indigoLight, borderColor: colors.brand.primary }]}
-                  >
-                    <Lucide name="search" size={13} color={colors.brand.primary} />
-                    <Text style={[styles.catalogBtnText, { color: colors.brand.primary }]}>Fee Schedule</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
                     onPress={handleAddLineItem}
-                    style={[styles.addItemBtn, { backgroundColor: colors.neutral[200] }]}
+                    style={[styles.addItemBtn, { backgroundColor: colors.brand.primary }]}
                   >
-                    <Lucide name="plus" size={13} color={colors.neutral[800]} />
-                    <Text style={[styles.addItemBtnText, { color: colors.neutral[800] }]}>Add Item</Text>
+                    <Lucide name="plus" size={13} color="#fff" />
+                    <Text style={[styles.addItemBtnText, { color: '#fff' }]}>Add Item</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -545,15 +531,6 @@ export function IssueReceiptModal({
           </View>
         </View>
       </View>
-
-      {/* Standalone Fee Schedule Browser Modal */}
-      <FeeCatalogPickerModal
-        visible={isCatalogPickerOpen}
-        feeCatalog={feeCatalog}
-        isLoading={isLoadingFeeCatalog}
-        onSelect={handleAddFeeFromCatalog}
-        onClose={() => setIsCatalogPickerOpen(false)}
-      />
     </Modal>
   );
 }
@@ -755,30 +732,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
-  catalogBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  catalogBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   addItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
   },
   addItemBtnText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   lineItemWrapper: {
     marginBottom: 8,

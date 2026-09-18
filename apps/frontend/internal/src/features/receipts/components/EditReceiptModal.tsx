@@ -19,7 +19,6 @@ import {
   ReceiptFeeItemDto,
 } from '@edge/api';
 import { FeeSuggestionsDropdown } from './FeeSuggestionsDropdown';
-import { FeeCatalogPickerModal } from './FeeCatalogPickerModal';
 
 interface EditReceiptModalProps {
   visible: boolean;
@@ -48,9 +47,8 @@ export function EditReceiptModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Fee Catalog & Suggestions States
+  // Fee Suggestions State
   const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
-  const [isCatalogPickerOpen, setIsCatalogPickerOpen] = useState(false);
 
   useEffect(() => {
     if (receipt !== null) {
@@ -70,7 +68,7 @@ export function EditReceiptModal({
           }))
         );
       } else {
-        setLineItems([{ feeCode: 'PAYMENT', description: 'Official Payment', amount: receipt.amount }]);
+        setLineItems([{ feeCode: 'FEE', description: '', amount: receipt.amount }]);
       }
       setActiveSuggestionIndex(null);
     }
@@ -118,21 +116,6 @@ export function EditReceiptModal({
     };
     setLineItems(updated);
     setActiveSuggestionIndex(null);
-  };
-
-  const handleAddFeeFromCatalog = (fee: ReceiptFeeItemDto) => {
-    const first = lineItems[0];
-    if (
-      lineItems.length === 1 &&
-      first !== undefined &&
-      (!first.description || first.description === 'Official Payment') &&
-      (!first.amount || first.amount === 0)
-    ) {
-      setLineItems([{ feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
-    } else {
-      setLineItems([...lineItems, { feeCode: fee.feeCode, description: fee.description, amount: fee.amount }]);
-    }
-    setIsCatalogPickerOpen(false);
   };
 
   const handleSubmit = async () => {
@@ -335,19 +318,11 @@ export function EditReceiptModal({
                 </View>
                 <View style={styles.breakdownActions}>
                   <TouchableOpacity
-                    onPress={() => setIsCatalogPickerOpen(true)}
-                    style={[styles.catalogBtn, { backgroundColor: colors.brand.indigoLight, borderColor: colors.brand.primary }]}
-                  >
-                    <Lucide name="search" size={13} color={colors.brand.primary} />
-                    <Text style={[styles.catalogBtnText, { color: colors.brand.primary }]}>Fee Schedule</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
                     onPress={handleAddLineItem}
-                    style={[styles.addItemBtn, { backgroundColor: colors.neutral[200] }]}
+                    style={[styles.addItemBtn, { backgroundColor: colors.brand.primary }]}
                   >
-                    <Lucide name="plus" size={13} color={colors.neutral[800]} />
-                    <Text style={[styles.addItemBtnText, { color: colors.neutral[800] }]}>Add Item</Text>
+                    <Lucide name="plus" size={13} color="#fff" />
+                    <Text style={[styles.addItemBtnText, { color: '#fff' }]}>Add Item</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -458,15 +433,6 @@ export function EditReceiptModal({
           </View>
         </View>
       </View>
-
-      {/* Standalone Fee Schedule Browser Modal */}
-      <FeeCatalogPickerModal
-        visible={isCatalogPickerOpen}
-        feeCatalog={feeCatalog}
-        isLoading={isLoadingFeeCatalog}
-        onSelect={handleAddFeeFromCatalog}
-        onClose={() => setIsCatalogPickerOpen(false)}
-      />
     </Modal>
   );
 }
@@ -632,30 +598,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
   },
-  catalogBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
-    borderRadius: 6,
-    borderWidth: 1,
-  },
-  catalogBtnText: {
-    fontSize: 11,
-    fontWeight: '700',
-  },
   addItemBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    paddingHorizontal: 9,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 6,
   },
   addItemBtnText: {
     fontSize: 11,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   lineItemWrapper: {
     marginBottom: 8,
