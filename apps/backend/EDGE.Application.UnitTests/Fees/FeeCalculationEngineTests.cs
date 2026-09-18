@@ -320,8 +320,8 @@ public class FeeCalculationEngineTests
     #region Permits Category Tests (Spreadsheet Coverage)
 
     [Theory]
-    [InlineData("Amateur Radio Station Permit to Purchase", 2, 100.00, 130.00, "Total = PPur(Unit)=DST")]
-    [InlineData("Amateur Radio Station Permit to Possess for Storage", 3, 150.00, 180.00, "Total = (POS)(Unit)+DST")]
+    [InlineData("Amateur Radio Station Permit to Purchase", 2, 100.00, 130.00, "TOTAL = (PUR)(UNIT) + DST")]
+    [InlineData("Amateur Radio Station Permit to Possess for Storage", 3, 150.00, 180.00, "TOTAL = (POS)(UNIT) + DST")]
     [InlineData("Amateur Radio Station Permit to Purchase/Possess", 2, 200.00, 230.00, "FEEPUR/POS = (PUR)(UNIT) + (POS)(UNIT) + DST")]
     [InlineData("Amateur Radio Station Permit to Sell/Transfer", 1, 50.00, 80.00, "FEESTF = (STF)(UNIT) + DST")]
     public void Calculate_AmateurPermits_ShouldComputeCorrectAmounts(string appType, int units, decimal expectedSubtotal, decimal expectedTotal, string expectedFormula)

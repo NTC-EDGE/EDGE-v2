@@ -191,15 +191,15 @@ public static class FeeConstants
         public const string DuplicateCopy = "FEEDUP = DUP + DST";
 
         // Permits Formulas
-        public const string PermitAmateurPurchase = "Total = PPur(Unit)=DST";
-        public const string PermitAmateurPossess = "Total = (POS)(Unit)+DST";
+        public const string PermitAmateurPurchase = "TOTAL = (PUR)(UNIT) + DST";
+        public const string PermitAmateurPossess = "TOTAL = (POS)(UNIT) + DST";
         public const string PermitAmateurPurchasePossess = "FEEPUR/POS = (PUR)(UNIT) + (POS)(UNIT) + DST";
         public const string PermitAmateurSellTransfer = "FEESTF = (STF)(UNIT) + DST";
         public const string PermitAmateurForeignVisitor = "FEEAT-TEMPORARY = FF + (PUR)(UNIT) + (POS)(UNIT) + (ROC)(YR) + (LF)(YR) + DST";
         public const string PermitAmateurVanity = "FEEVANITY-AT = (SP)(YR) + DST";
         public const string PermitAmateurSpecialEvent = "FEESPECIAL EVENT-AT = SP + DST";
-        public const string PermitStationPurchase = "Total = PPur(Unit)=DST";
-        public const string PermitStationPossess = "Total = (POS)(Unit)+DST";
+        public const string PermitStationPurchase = "TOTAL = (PUR)(UNIT) + DST";
+        public const string PermitStationPossess = "TOTAL = (POS)(UNIT) + DST";
         public const string PermitStationPurchasePossess = "FEEPUR/POS = (FF)(UNIT) + (PUR)(UNIT) + (POS)(UNIT) + DST";
         public const string PermitStationSellTransfer = "FEESTF = (STF)(UNIT) + DST";
         public const string PermitDemoPropagate = "FEEDEMO = (FF)(UNIT) + (DEMO)(CH_UNIT) + DST";
