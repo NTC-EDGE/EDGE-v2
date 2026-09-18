@@ -30,7 +30,11 @@ public class UserAuthorizationService : IUserAuthorizationService
         "tenant-admin",
         "regionaladmin",
         "regional_admin",
-        "regional-admin"
+        "regional-admin",
+        "regionaldirector",
+        "regional_director",
+        "regional-director",
+        "director"
     };
 
     private static bool IsAdministrativeRole(string? roleKey)
@@ -76,6 +80,16 @@ public class UserAuthorizationService : IUserAuthorizationService
         try
         {
             _cachedUser = await _userRepository.GetByAuthUserIdAsync(authUserId, cancellationToken);
+            if (_cachedUser == null && !string.IsNullOrWhiteSpace(_currentUserService.Email))
+            {
+                var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
+                _cachedUser = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
+                if (_cachedUser != null && _cachedUser.AuthUserId != authUserId)
+                {
+                    _cachedUser.AuthUserId = authUserId;
+                    await _dbContext.SaveChangesAsync(cancellationToken);
+                }
+            }
             return _cachedUser;
         }
         catch (Exception ex)

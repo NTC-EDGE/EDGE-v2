@@ -2,17 +2,24 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Npgsql;
+using EDGE.Infrastructure.Services;
 
 namespace EDGE.Infrastructure.Persistence;
 
 public static class RolePermissionDataSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context, bool forceResetPermissions = true)
+    public static async Task SeedAsync(
+        ApplicationDbContext context,
+        bool forceResetPermissions = true,
+        IClerkUserService? clerkUserService = null,
+        ILogger? logger = null)
     {
         var staticDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
@@ -54,15 +61,15 @@ public static class RolePermissionDataSeeder
 
         var defaultRoles = new List<Role>
         {
-            new() { Id = superAdminRoleId,       TenantId = null, IsSystemRole = true,  Name = "Super Administrator", Key = "superadmin",        Description = "System-wide administrator",                           CreatedAt = staticDate },
-            new() { Id = adminRoleId,            TenantId = null, IsSystemRole = false, Name = "Administrator",       Key = "admin",             Description = "Tenant / Regional administrator",                     CreatedAt = staticDate },
-            new() { Id = regionalDirectorRoleId, TenantId = null, IsSystemRole = false, Name = "Regional Director",   Key = "regional_director", Description = "Regional executive authority and final approver",     CreatedAt = staticDate },
-            new() { Id = chiefEodRoleId,         TenantId = null, IsSystemRole = false, Name = "Chief of EOD",        Key = "chief_of_eod",      Description = "Chief of Enforcement and Operations Division",        CreatedAt = staticDate },
+            new() { Id = superAdminRoleId,       TenantId = null, IsSystemRole = true,  Name = "Super Administrator", Key = "superadmin",        Description = "System-wide administrator with full root access",     CreatedAt = staticDate },
+            new() { Id = adminRoleId,            TenantId = null, IsSystemRole = false, Name = "Tenant Administrator",Key = "admin",             Description = "Tenant administrator with full access to all features in the tenant", CreatedAt = staticDate },
+            new() { Id = regionalDirectorRoleId, TenantId = null, IsSystemRole = false, Name = "Regional Director",   Key = "regional_director", Description = "Regional executive authority and final approver with full tenant administrative access", CreatedAt = staticDate },
+            new() { Id = chiefEodRoleId,         TenantId = null, IsSystemRole = false, Name = "Chief of EOD",        Key = "chief_of_eod",      Description = "Chief of Enforcement and Operations Division (head of all evaluators)", CreatedAt = staticDate },
             new() { Id = legalRoleId,            TenantId = null, IsSystemRole = false, Name = "Legal Officer",       Key = "legal",             Description = "Legal and compliance officer",                        CreatedAt = staticDate },
-            new() { Id = accountantRoleId,       TenantId = null, IsSystemRole = false, Name = "Accountant",          Key = "accountant",        Description = "Financial admin",                                     CreatedAt = staticDate },
-            new() { Id = cashierRoleId,          TenantId = null, IsSystemRole = false, Name = "Cashier",             Key = "cashier",           Description = "Payment admin",                                       CreatedAt = staticDate },
-            new() { Id = evaluatorRoleId,        TenantId = null, IsSystemRole = false, Name = "Evaluator",           Key = "evaluator",         Description = "Staff reviewer and evaluator",                        CreatedAt = staticDate },
-            new() { Id = clientRoleId,           TenantId = null, IsSystemRole = false, Name = "Client",              Key = "client",            Description = "External portal user",                                CreatedAt = staticDate },
+            new() { Id = accountantRoleId,       TenantId = null, IsSystemRole = false, Name = "Accountant",          Key = "accountant",        Description = "Financial and billing administrator",                 CreatedAt = staticDate },
+            new() { Id = cashierRoleId,          TenantId = null, IsSystemRole = false, Name = "Cashier",             Key = "cashier",           Description = "Payment collection and receipt administrator",        CreatedAt = staticDate },
+            new() { Id = evaluatorRoleId,        TenantId = null, IsSystemRole = false, Name = "Evaluator",           Key = "evaluator",         Description = "Staff reviewer and application evaluator",            CreatedAt = staticDate },
+            new() { Id = clientRoleId,           TenantId = null, IsSystemRole = false, Name = "Client",              Key = "client",            Description = "External portal user and public applicant",           CreatedAt = staticDate },
         };
 
         foreach (var role in defaultRoles)
@@ -131,7 +138,7 @@ public static class RolePermissionDataSeeder
         // ── 3. Seed RolePermissions ───────────────────────────────────────────────
         var targetRolePermissions = new List<(Guid RoleId, string PermissionKey)>
         {
-            // Client
+            // Client (Public Applicant)
             (actualClientRoleId, Permissions.ReadTenants),
             (actualClientRoleId, Permissions.ReadRoles),
             (actualClientRoleId, Permissions.SubmitApplication),
@@ -142,8 +149,9 @@ public static class RolePermissionDataSeeder
             (actualClientRoleId, Permissions.UploadStorage),
             (actualClientRoleId, Permissions.ReadStorage),
             (actualClientRoleId, Permissions.DownloadStorage),
+            (actualClientRoleId, Permissions.ReadSchedules),
 
-            // Evaluator
+            // Evaluator (Frontline Staff Evaluator)
             (actualEvaluatorRoleId, Permissions.ReadTenants),
             (actualEvaluatorRoleId, Permissions.ReadRoles),
             (actualEvaluatorRoleId, Permissions.ViewAllApplications),
@@ -162,24 +170,31 @@ public static class RolePermissionDataSeeder
             (actualEvaluatorRoleId, Permissions.ReadSoaNotes),
             (actualEvaluatorRoleId, Permissions.CreateSoaNotes),
             (actualEvaluatorRoleId, Permissions.UpdateSoaNotes),
+            (actualEvaluatorRoleId, Permissions.ReadSchedules),
 
-            // Chief of EOD
+            // Chief of EOD (Enforcement & Operations Division Head)
             (actualChiefEodRoleId, Permissions.ReadTenants),
             (actualChiefEodRoleId, Permissions.ReadRoles),
             (actualChiefEodRoleId, Permissions.ViewAllApplications),
             (actualChiefEodRoleId, Permissions.ViewOwnApplications),
             (actualChiefEodRoleId, Permissions.ReadApplication),
+            (actualChiefEodRoleId, Permissions.EvaluateApplication),
             (actualChiefEodRoleId, Permissions.ApproveApplication),
             (actualChiefEodRoleId, Permissions.ReadServices),
             (actualChiefEodRoleId, Permissions.ReadRequirements),
             (actualChiefEodRoleId, Permissions.ReadStorage),
             (actualChiefEodRoleId, Permissions.DownloadStorage),
+            (actualChiefEodRoleId, Permissions.UploadStorage),
             (actualChiefEodRoleId, Permissions.ReadServiceNotes),
             (actualChiefEodRoleId, Permissions.CreateServiceNotes),
             (actualChiefEodRoleId, Permissions.UpdateServiceNotes),
             (actualChiefEodRoleId, Permissions.ReadSoaNotes),
+            (actualChiefEodRoleId, Permissions.ReadSchedules),
+            (actualChiefEodRoleId, Permissions.CreateSchedules),
+            (actualChiefEodRoleId, Permissions.UpdateSchedules),
+            (actualChiefEodRoleId, Permissions.PublishSchedules),
 
-            // Regional Director
+            // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
             (actualRegionalDirectorRoleId, Permissions.ReadRoles),
             (actualRegionalDirectorRoleId, Permissions.ViewAllApplications),
@@ -192,8 +207,12 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.DownloadStorage),
             (actualRegionalDirectorRoleId, Permissions.ReadServiceNotes),
             (actualRegionalDirectorRoleId, Permissions.ReadSoaNotes),
+            (actualRegionalDirectorRoleId, Permissions.ReadSchedules),
+            (actualRegionalDirectorRoleId, Permissions.PublishSchedules),
+            (actualRegionalDirectorRoleId, Permissions.ReceiptsRead),
+            (actualRegionalDirectorRoleId, Permissions.CashierReports),
 
-            // Legal
+            // Legal Officer (Compliance & Legal Reviews)
             (actualLegalRoleId, Permissions.ReadTenants),
             (actualLegalRoleId, Permissions.ReadRoles),
             (actualLegalRoleId, Permissions.ViewAllApplications),
@@ -204,8 +223,10 @@ public static class RolePermissionDataSeeder
             (actualLegalRoleId, Permissions.ReadStorage),
             (actualLegalRoleId, Permissions.DownloadStorage),
             (actualLegalRoleId, Permissions.ReadServiceNotes),
+            (actualLegalRoleId, Permissions.CreateServiceNotes),
+            (actualLegalRoleId, Permissions.UpdateServiceNotes),
 
-            // Accountant
+            // Accountant (Billing & Financial Reviews)
             (actualAccountantRoleId, Permissions.ReadTenants),
             (actualAccountantRoleId, Permissions.ReadRoles),
             (actualAccountantRoleId, Permissions.ViewAllApplications),
@@ -218,12 +239,15 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.ReadRequirements),
             (actualAccountantRoleId, Permissions.ReadStorage),
             (actualAccountantRoleId, Permissions.DownloadStorage),
+            (actualAccountantRoleId, Permissions.ReadSoaNotes),
+            (actualAccountantRoleId, Permissions.CreateSoaNotes),
+            (actualAccountantRoleId, Permissions.UpdateSoaNotes),
             (actualAccountantRoleId, Permissions.ReceiptsRead),
             (actualAccountantRoleId, Permissions.BankAccountsManage),
             (actualAccountantRoleId, Permissions.ReceiptsDeposit),
             (actualAccountantRoleId, Permissions.CashierReports),
 
-            // Cashier
+            // Cashier (Payments & Official Receipts)
             (actualCashierRoleId, Permissions.ReadTenants),
             (actualCashierRoleId, Permissions.ReadRoles),
             (actualCashierRoleId, Permissions.ViewAllApplications),
@@ -244,11 +268,12 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.CashierReports),
         };
 
-        // Add all permissions to SuperAdmin and Admin roles dynamically
+        // Add all permissions to SuperAdmin, Tenant Admin, and Regional Director roles dynamically
         foreach (var permKey in Permissions.AllKeys)
         {
             targetRolePermissions.Add((actualSuperAdminRoleId, permKey));
             targetRolePermissions.Add((actualAdminRoleId, permKey));
+            targetRolePermissions.Add((actualRegionalDirectorRoleId, permKey));
         }
 
         var uniqueTargetRolePermissions = targetRolePermissions.Distinct().ToList();
@@ -289,16 +314,20 @@ public static class RolePermissionDataSeeder
             new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("11111111-1111-1111-1111-222222222222"), AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), AuthUserId = "user_chiefeod123", Email = "chiefeod@ntcedge.com", FirstName = "Engr. Roberto", LastName = "Chief (EOD)", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },
             new() { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Super", LastName = "Admin", IsSuperAdmin = true, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_superadmin123", Email = "superadmin@ntcedge.com", FirstName = "Super", LastName = "Administrator", IsSuperAdmin = true, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("77777777-7777-7777-7777-777777777777"), AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("88888888-8888-8888-8888-888888888888"), AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("99999999-9999-9999-9999-999999999999"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Tenant", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333334"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
         };
 
         foreach (var user in defaultUsers)
         {
-            var exists = await context.Users.AnyAsync(u => u.Id == user.Id || u.Email == user.Email);
-            if (!exists)
+            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Id == user.Id || u.Email == user.Email);
+            if (dbUser == null)
             {
                 try
                 {
@@ -320,7 +349,11 @@ public static class RolePermissionDataSeeder
             new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
             new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"), RoleId = actualAccountantRoleId, CreatedAt = staticDate },
             new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = Guid.Parse("55555555-5555-5555-5555-555555555555"), RoleId = actualCashierRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = Guid.Parse("66666666-6666-6666-6666-666666666666"), RoleId = actualAdminRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = Guid.Parse("66666666-6666-6666-6666-666666666666"), RoleId = actualSuperAdminRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000007"), TenantId = defaultTenantId, UserId = Guid.Parse("77777777-7777-7777-7777-777777777777"), RoleId = actualRegionalDirectorRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000008"), TenantId = defaultTenantId, UserId = Guid.Parse("88888888-8888-8888-8888-888888888888"), RoleId = actualLegalRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000009"), TenantId = defaultTenantId, UserId = Guid.Parse("99999999-9999-9999-9999-999999999999"), RoleId = actualAdminRoleId, CreatedAt = staticDate },
+            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000034"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333334"), RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
         };
 
         foreach (var member in defaultTenantMembers)
@@ -336,6 +369,59 @@ public static class RolePermissionDataSeeder
                 catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
                 {
                     context.Entry(member).State = EntityState.Detached;
+                }
+            }
+        }
+
+        // ── 6. Sync/Provision Default Seed Users to Clerk (if Clerk service available) ──
+        if (clerkUserService != null)
+        {
+            logger?.LogInformation("Syncing seed users to Clerk authentication service...");
+            foreach (var user in defaultUsers)
+            {
+                try
+                {
+                    var existingClerkUsers = await clerkUserService.GetUsersByEmailAsync(user.Email);
+                    if (existingClerkUsers != null && existingClerkUsers.Count > 0)
+                    {
+                        var clerkUser = existingClerkUsers[0];
+                        var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                        if (dbUser != null && dbUser.AuthUserId != clerkUser.Id)
+                        {
+                            dbUser.AuthUserId = clerkUser.Id;
+                            await context.SaveChangesAsync();
+                            logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", user.Email, clerkUser.Id);
+                        }
+                    }
+                    else
+                    {
+                        var payload = new CreateClerkUserPayload
+                        {
+                            EmailAddress = user.Email,
+                            Password = "Password123!",
+                            FirstName = user.FirstName,
+                            LastName = user.LastName,
+                            Username = ClerkUserService.GenerateSafeFallbackUsername(user.FirstName, user.LastName, user.Email),
+                            PublicMetadata = new Dictionary<string, object>
+                            {
+                                { "is_super_admin", user.IsSuperAdmin },
+                                { "seeded", true }
+                            }
+                        };
+
+                        var created = await clerkUserService.CreateUserAsync(payload);
+                        var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                        if (dbUser != null && created != null)
+                        {
+                            dbUser.AuthUserId = created.Id;
+                            await context.SaveChangesAsync();
+                            logger?.LogInformation("Successfully provisioned seed user '{Email}' in Clerk with ID: {ClerkId}", user.Email, created.Id);
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    logger?.LogWarning("Clerk sync for seed user '{Email}' skipped: {Error}", user.Email, ex.Message);
                 }
             }
         }

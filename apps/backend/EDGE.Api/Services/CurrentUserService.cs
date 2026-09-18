@@ -14,7 +14,13 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+    public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("sub")
+                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("user_id");
+
+    public string? Email => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email)
+                         ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email")
+                         ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_address");
 
     public Guid? TenantId
     {

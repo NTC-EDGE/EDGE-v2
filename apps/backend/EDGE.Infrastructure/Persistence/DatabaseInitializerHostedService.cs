@@ -129,7 +129,8 @@ public class DatabaseInitializerHostedService : IHostedService
         try
         {
             _logger.LogInformation("Seeding database IAM reference data...");
-            await RolePermissionDataSeeder.SeedAsync(context);
+            var clerkUserService = scope.ServiceProvider.GetService<EDGE.Application.Common.Interfaces.IClerkUserService>();
+            await RolePermissionDataSeeder.SeedAsync(context, forceResetPermissions: true, clerkUserService: clerkUserService, logger: _logger);
             _logger.LogInformation("IAM seed data completed.");
         }
         catch (Exception ex)

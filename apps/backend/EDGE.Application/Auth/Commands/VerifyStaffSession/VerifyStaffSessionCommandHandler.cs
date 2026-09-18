@@ -20,6 +20,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
     private readonly IGeographicRepository _geographicRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
+    private readonly IUnitOfWork _unitOfWork;
 
     public VerifyStaffSessionCommandHandler(
         ICurrentUserService currentUserService,
@@ -28,7 +29,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         ITenantRepository tenantRepository,
         IGeographicRepository geographicRepository,
         IRoleRepository roleRepository,
-        IRolePermissionRepository rolePermissionRepository)
+        IRolePermissionRepository rolePermissionRepository,
+        IUnitOfWork unitOfWork)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
@@ -37,6 +39,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         _geographicRepository = geographicRepository;
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
+        _unitOfWork = unitOfWork;
     }
 
     public async Task<ApiResponse<VerifyStaffSessionDto>> Handle(
@@ -66,6 +69,18 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
             {
                 user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
+            }
+
+            // Fallback: If user logged in via Clerk (OAuth or credentials) whose email matches an existing database user, link AuthUserId
+            if (user == null && !string.IsNullOrWhiteSpace(_currentUserService.Email))
+            {
+                var cleanEmail = _currentUserService.Email.Trim().ToLowerInvariant();
+                user = await _userRepository.GetByEmailAsync(cleanEmail, cancellationToken);
+                if (user != null && user.AuthUserId != rawUserId)
+                {
+                    user.AuthUserId = rawUserId;
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
             }
 
             if (user == null)
@@ -156,7 +171,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
         if (resolvedRole == null && user != null && user.IsSuperAdmin)
         {
-            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "super_admin" || r.Name == "Super Administrator" || r.Key == "admin");
+            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "superadmin" || r.Key == "super_admin" || r.Name == "Super Administrator" || r.Key == "admin");
         }
 
         if (resolvedRole == null)
