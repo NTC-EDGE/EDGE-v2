@@ -386,4 +386,44 @@ public class FeeCalculationEngineTests
     }
 
     #endregion
+
+    #region Null Safety & Edge Case Tests
+
+    [Fact]
+    public void Calculate_WithNullActivityAndAppType_ShouldFallbackSafelyWithoutThrowing()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: null!,
+            ApplicationType: null!,
+            Element: null,
+            Category: null
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.Should().NotBeNull();
+        result.TotalAmount.Should().BeGreaterThan(0);
+        result.LineItems.Should().NotBeEmpty();
+    }
+
+    [Fact]
+    public void Calculate_WithUntrimmedAndMixedCaseInput_ShouldMatchCorrectly()
+    {
+        var request = new FeeCalculationRequest(
+            Activity: "  radio operator certificates (roc) excluding amateur roc  ",
+            ApplicationType: "  commercial radio operator certificate (new)  ",
+            Element: "  1rtg  ",
+            ValidityYears: 2,
+            Category: ServiceCategoryType.Certificate
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.SubTotal.Should().Be(360.00m);
+        result.TotalAmount.Should().Be(390.00m);
+        result.Element.Should().Be("1rtg");
+    }
+
+    #endregion
 }
+

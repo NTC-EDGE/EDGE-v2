@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations.Strategies;
@@ -10,7 +11,7 @@ namespace EDGE.Application.Fees.Calculations.Strategies;
 /// </summary>
 public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
 {
-    public const decimal DST_AMOUNT = 30.00m;
+    public const decimal DST_AMOUNT = FeeConstants.Amounts.DocumentaryStampTax;
 
     public ServiceCategoryType Category => ServiceCategoryType.Accreditation;
 
@@ -21,11 +22,7 @@ public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
             return category.Value == ServiceCategoryType.Accreditation;
         }
 
-        var act = activity ?? string.Empty;
-        var app = applicationType ?? string.Empty;
-
-        return act.Contains("ACCREDITATION", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Accreditation", StringComparison.OrdinalIgnoreCase);
+        return activity.SafeContains("ACCREDITATION") || applicationType.SafeContains("Accreditation");
     }
 
     public FeeCalculationResultDto Calculate(FeeCalculationRequest request)
@@ -34,20 +31,20 @@ public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
         var years = Math.Max(1, request.ValidityYears);
         var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
 
-        var activity = (request.Activity ?? string.Empty).Trim();
-        var appType = (request.ApplicationType ?? string.Empty).Trim();
-        var element = (request.Element ?? string.Empty).Trim();
+        var activity = request.Activity.SafeTrim();
+        var appType = request.ApplicationType.SafeTrim();
+        var element = request.Element.SafeTrim();
 
-        var isRenewal = appType.Contains("RENEWAL", StringComparison.OrdinalIgnoreCase);
+        var isRenewal = appType.SafeContains("RENEWAL");
 
         // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", "FF", "Accreditation Filing Fee", 1, 1, 300.00m, 300.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Accreditation Filing Fee", 1, 1, 300.00m, 300.00m));
 
         // Accreditation Fee
-        decimal baseRate = 1200.00m;
+        decimal baseRate = FeeConstants.Amounts.DefaultAccreditationRate;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Accreditation Fee" : $"Accreditation Fee ({element})",
-            ItemCode: "ACCRED",
+            ItemCode: FeeConstants.Codes.Accreditation,
             Description: "Annual Accreditation Assessment Fee",
             ValidityYears: years,
             NoOfUnits: 1,
@@ -62,17 +59,17 @@ public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
             if (multiplier > 0)
             {
                 var surcharge = baseRate * multiplier;
-                lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", "SUR", description, 1, 1, surcharge, surcharge, IsSurcharge: true));
+                lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", FeeConstants.Codes.Surcharge, description, 1, 1, surcharge, surcharge, IsSurcharge: true));
             }
-            formulaApplied = "FEEACCRED = FF + (ACCRED)(YR) + DST + SUR";
+            formulaApplied = FeeConstants.Formulas.AccreditationRenewal;
         }
         else
         {
-            formulaApplied = "FEEACCRED = FF + (ACCRED)(YR) + DST";
+            formulaApplied = FeeConstants.Formulas.AccreditationNew;
         }
 
         // DST
-        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", "DST", "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
+        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", FeeConstants.Codes.Dst, "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
 
         var subTotal = lineItems.Where(li => !li.IsSurcharge && !li.IsTax).Sum(li => li.Amount);
         var surchargeAmount = lineItems.Where(li => li.IsSurcharge).Sum(li => li.Amount);

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 using EDGE.Infrastructure.Persistence.SeederData;
 using Microsoft.EntityFrameworkCore;
@@ -16,23 +17,24 @@ public static class FastTrackFeeSeeder
         // 1. Seed or update Master Fees
         var masterFees = new List<(string Code, string Name, string Description)>
         {
-            ("ROC", "Radio Operator Certificate Fee", "Statutory base certificate annual fee"),
-            ("DST", "Documentary Stamp Tax", "Statutory documentary stamp tax (fixed ₱30.00)"),
-            ("MOD", "Modification Fee", "Certificate modification and amendment fee"),
-            ("FF", "Filing Fee", "Application administrative filing fee"),
-            ("AF", "Application Fee", "Application evaluation and processing fee"),
-            ("SEM", "Seminar Fee", "Special Radio Operator Seminar Fee"),
-            ("REG", "Registration Fee", "Equipment and station registration fee"),
-            ("ARF1", "Annual Registration Fee 1", "VAS Annual Registration Fee for the first 5 services"),
-            ("ARF2", "Annual Registration Fee 2", "VAS Annual Registration Fee per additional service in excess of 5"),
-            ("FC", "First Copy Fee", "Certified True Copy - First Copy authentication fee"),
-            ("SC", "Succeeding Copies Fee", "Certified True Copy - Succeeding page/copy fee"),
-            ("DUP", "Duplicate Copy Fee", "Duplicate copy re-issuance fee"),
-            ("POSS_PERMIT", "Possess Permit Fee", "Amateur Lifetime Possess Permit Fee"),
-            ("LIC", "License Fee", "Radio Station / Dealer License Annual Fee"),
-            ("PERMIT", "Permit Fee", "Permit to Purchase / Possess / Import Fee"),
-            ("EXAM", "Examination Fee", "Radio Operator Examination Admission Fee"),
-            ("ACCRED", "Accreditation Fee", "Service Center / Testing Center Annual Accreditation Fee")
+            (FeeConstants.Codes.Roc, "Radio Operator Certificate Fee", "Statutory base certificate annual fee"),
+            (FeeConstants.Codes.Dst, "Documentary Stamp Tax", "Statutory documentary stamp tax (fixed ₱30.00)"),
+            (FeeConstants.Codes.Modification, "Modification Fee", "Certificate modification and amendment fee"),
+            (FeeConstants.Codes.FilingFee, "Filing Fee", "Application administrative filing fee"),
+            (FeeConstants.Codes.ApplicationFee, "Application Fee", "Application evaluation and processing fee"),
+            (FeeConstants.Codes.Seminar, "Seminar Fee", "Special Radio Operator Seminar Fee"),
+            (FeeConstants.Codes.Registration, "Registration Fee", "Equipment and station registration fee"),
+            (FeeConstants.Codes.AnnualRegistration1, "Annual Registration Fee 1", "VAS Annual Registration Fee for the first 5 services"),
+            (FeeConstants.Codes.AnnualRegistration2, "Annual Registration Fee 2", "VAS Annual Registration Fee per additional service in excess of 5"),
+            (FeeConstants.Codes.FirstCopy, "First Copy Fee", "Certified True Copy - First Copy authentication fee"),
+            (FeeConstants.Codes.SucceedingCopies, "Succeeding Copies Fee", "Certified True Copy - Succeeding page/copy fee"),
+            (FeeConstants.Codes.Duplicate, "Duplicate Copy Fee", "Duplicate copy re-issuance fee"),
+            (FeeConstants.Codes.PossessPermit, "Possess Permit Fee", "Amateur Lifetime Possess Permit Fee"),
+            (FeeConstants.Codes.License, "License Fee", "Radio Station / Dealer License Annual Fee"),
+            (FeeConstants.Codes.Permit, "Permit Fee", "Permit to Purchase / Possess / Import Fee"),
+            (FeeConstants.Codes.Exam, "Examination Fee", "Radio Operator Examination Admission Fee"),
+            (FeeConstants.Codes.Accreditation, "Accreditation Fee", "Service Center / Testing Center Annual Accreditation Fee"),
+            (FeeConstants.Codes.Request, "Request / Administrative Processing Fee", "Special request and administrative filing fee")
         };
 
         var existingFees = await context.Fees.IgnoreQueryFilters().ToListAsync();
@@ -72,97 +74,97 @@ public static class FastTrackFeeSeeder
         var variantFeesToSeed = new List<(Guid VariantId, string FeeCode, decimal Amount)>
         {
             // Commercial ROC Mod
-            (CertificatesCategorySeederData.VarRocCommMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocCommMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Aircraft ROC
-            (CertificatesCategorySeederData.VarRocAirNew, "ROC", 100.00m),
-            (CertificatesCategorySeederData.VarRocAirNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocAirRen, "ROC", 100.00m),
-            (CertificatesCategorySeederData.VarRocAirRen, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocAirMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocAirMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocAirNew, FeeConstants.Codes.Roc, 100.00m),
+            (CertificatesCategorySeederData.VarRocAirNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocAirRen, FeeConstants.Codes.Roc, 100.00m),
+            (CertificatesCategorySeederData.VarRocAirRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocAirMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocAirMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Foreign Pilot
-            (CertificatesCategorySeederData.VarRocPilotNew, "ROC", 100.00m),
-            (CertificatesCategorySeederData.VarRocPilotNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocPilotMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocPilotMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocPilotNew, FeeConstants.Codes.Roc, FeeConstants.Amounts.ForeignPilotTemporary),
+            (CertificatesCategorySeederData.VarRocPilotNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocPilotMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocPilotMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Government ROC
-            (CertificatesCategorySeederData.VarRocGovNew, "FF", 10.00m),
-            (CertificatesCategorySeederData.VarRocGovNew, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocGovNew, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocGovNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocGovRen, "FF", 10.00m),
-            (CertificatesCategorySeederData.VarRocGovRen, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocGovRen, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocGovRen, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocGovMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocGovMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Codes.FilingFee, 10.00m),
+            (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Codes.FilingFee, 10.00m),
+            (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocGovMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocGovMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Land Mobile ROC
-            (CertificatesCategorySeederData.VarRocLandNew, "FF", 10.00m),
-            (CertificatesCategorySeederData.VarRocLandNew, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocLandNew, "ROC", 30.00m),
-            (CertificatesCategorySeederData.VarRocLandNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocLandRen, "FF", 10.00m),
-            (CertificatesCategorySeederData.VarRocLandRen, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocLandRen, "ROC", 30.00m),
-            (CertificatesCategorySeederData.VarRocLandRen, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocLandMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocLandMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Codes.FilingFee, 10.00m),
+            (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Codes.Roc, 30.00m),
+            (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Codes.FilingFee, 10.00m),
+            (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Codes.Roc, 30.00m),
+            (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocLandMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocLandMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Special Radio Operator
-            (CertificatesCategorySeederData.VarRocSpecNew, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocSpecNew, "SEM", 20.00m),
-            (CertificatesCategorySeederData.VarRocSpecNew, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocSpecNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocSpecRen, "AF", 20.00m),
-            (CertificatesCategorySeederData.VarRocSpecRen, "SEM", 20.00m),
-            (CertificatesCategorySeederData.VarRocSpecRen, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocSpecRen, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRocSpecMod, "MOD", 120.00m),
-            (CertificatesCategorySeederData.VarRocSpecMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Codes.Seminar, 20.00m),
+            (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Codes.ApplicationFee, 20.00m),
+            (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Codes.Seminar, 20.00m),
+            (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRocSpecMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CertificateModification),
+            (CertificatesCategorySeederData.VarRocSpecMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Amateur Radio Operator
-            (CertificatesCategorySeederData.VarAmaRocNew, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarAmaRocNew, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarAmaRocRen, "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarAmaRocRen, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarAmaRocMod, "MOD", 60.00m),
-            (CertificatesCategorySeederData.VarAmaRocMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarAmaRocNew, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarAmaRocNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarAmaRocRen, FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarAmaRocRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarAmaRocMod, FeeConstants.Codes.Modification, 60.00m),
+            (CertificatesCategorySeederData.VarAmaRocMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Amateur Lifetime
-            (CertificatesCategorySeederData.VarAmaLifetimeMod, "FF", 60.00m),
-            (CertificatesCategorySeederData.VarAmaLifetimeMod, "MOD", 50.00m),
-            (CertificatesCategorySeederData.VarAmaLifetimeMod, "POSS_PERMIT", 50.00m),
-            (CertificatesCategorySeederData.VarAmaLifetimeMod, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Codes.FilingFee, 60.00m),
+            (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Codes.Modification, 50.00m),
+            (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Codes.PossessPermit, 50.00m),
+            (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // RFID / SRD / WDN Devices
-            (CertificatesCategorySeederData.VarRfidDealers, "AF", 180.00m),
-            (CertificatesCategorySeederData.VarRfidDealers, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarRfidNonDealers, "AF", 180.00m),
-            (CertificatesCategorySeederData.VarRfidNonDealers, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarRfidDealers, FeeConstants.Codes.ApplicationFee, 180.00m),
+            (CertificatesCategorySeederData.VarRfidDealers, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarRfidNonDealers, FeeConstants.Codes.ApplicationFee, 180.00m),
+            (CertificatesCategorySeederData.VarRfidNonDealers, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // TVRO Registration
-            (CertificatesCategorySeederData.VarTvroComm, "REG", 6500.00m),
-            (CertificatesCategorySeederData.VarTvroComm, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarTvroNonComm, "REG", 6500.00m),
-            (CertificatesCategorySeederData.VarTvroNonComm, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarTvroComm, FeeConstants.Codes.Registration, FeeConstants.Amounts.TvroRegistrationRate),
+            (CertificatesCategorySeederData.VarTvroComm, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarTvroNonComm, FeeConstants.Codes.Registration, FeeConstants.Amounts.TvroRegistrationRate),
+            (CertificatesCategorySeederData.VarTvroNonComm, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // VAS Provider
-            (CertificatesCategorySeederData.VarVasRenewal, "FF", 300.00m),
-            (CertificatesCategorySeederData.VarVasRenewal, "ARF1", 6000.00m),
-            (CertificatesCategorySeederData.VarVasRenewal, "ARF2", 1000.00m),
-            (CertificatesCategorySeederData.VarVasRenewal, "DST", 30.00m),
+            (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Codes.FilingFee, 300.00m),
+            (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Codes.AnnualRegistration1, FeeConstants.Amounts.VasAnnualBaseRate),
+            (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Codes.AnnualRegistration2, FeeConstants.Amounts.VasAnnualExcessRate),
+            (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
             // Copy of Certificates
-            (CertificatesCategorySeederData.VarCertTrueCopy, "FC", 6.00m),
-            (CertificatesCategorySeederData.VarCertTrueCopy, "SC", 2.50m),
-            (CertificatesCategorySeederData.VarCertTrueCopy, "DST", 30.00m),
-            (CertificatesCategorySeederData.VarCertDuplicate, "DUP", 120.00m),
-            (CertificatesCategorySeederData.VarCertDuplicate, "DST", 30.00m)
+            (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Codes.FirstCopy, FeeConstants.Amounts.CertifiedTrueCopyFirstPage),
+            (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Codes.SucceedingCopies, FeeConstants.Amounts.CertifiedTrueCopySucceedingPage),
+            (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+            (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Codes.Duplicate, FeeConstants.Amounts.DuplicateCopyRate),
+            (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax)
         };
 
         var allVariantsInDb = (await context.ServiceVariants.IgnoreQueryFilters().Select(v => v.Id).ToListAsync()).ToHashSet();
@@ -203,28 +205,28 @@ public static class FastTrackFeeSeeder
         var elementFeesToSeed = new List<(Guid VariantId, string ElementCode, string FeeCode, decimal Amount)>
         {
             // Commercial ROC New
-            (CertificatesCategorySeederData.VarRocCommNew, "1RTG", "ROC", 180.00m),
-            (CertificatesCategorySeederData.VarRocCommNew, "2RTG", "ROC", 120.00m),
-            (CertificatesCategorySeederData.VarRocCommNew, "3RTG", "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocCommNew, "1PHN", "ROC", 120.00m),
-            (CertificatesCategorySeederData.VarRocCommNew, "2PHN", "ROC", 100.00m),
-            (CertificatesCategorySeederData.VarRocCommNew, "3PHN", "ROC", 60.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "1RTG", FeeConstants.Codes.Roc, 180.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "2RTG", FeeConstants.Codes.Roc, 120.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "3RTG", FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "1PHN", FeeConstants.Codes.Roc, 120.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "2PHN", FeeConstants.Codes.Roc, 100.00m),
+            (CertificatesCategorySeederData.VarRocCommNew, "3PHN", FeeConstants.Codes.Roc, 60.00m),
 
             // Commercial ROC Renewal
-            (CertificatesCategorySeederData.VarRocCommRen, "1RTG", "ROC", 180.00m),
-            (CertificatesCategorySeederData.VarRocCommRen, "2RTG", "ROC", 120.00m),
-            (CertificatesCategorySeederData.VarRocCommRen, "3RTG", "ROC", 60.00m),
-            (CertificatesCategorySeederData.VarRocCommRen, "1PHN", "ROC", 120.00m),
-            (CertificatesCategorySeederData.VarRocCommRen, "2PHN", "ROC", 100.00m),
-            (CertificatesCategorySeederData.VarRocCommRen, "3PHN", "ROC", 60.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "1RTG", FeeConstants.Codes.Roc, 180.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "2RTG", FeeConstants.Codes.Roc, 120.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "3RTG", FeeConstants.Codes.Roc, 60.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "1PHN", FeeConstants.Codes.Roc, 120.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "2PHN", FeeConstants.Codes.Roc, 100.00m),
+            (CertificatesCategorySeederData.VarRocCommRen, "3PHN", FeeConstants.Codes.Roc, 60.00m),
 
             // RFID Devices
-            (CertificatesCategorySeederData.VarRfidDealers, "RFID HIGH POWER", "REG", 300.00m),
-            (CertificatesCategorySeederData.VarRfidDealers, "RFID LOW POWER", "REG", 100.00m),
-            (CertificatesCategorySeederData.VarRfidDealers, "SRD/WDN", "REG", 50.00m),
-            (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", "REG", 300.00m),
-            (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", "REG", 100.00m),
-            (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", "REG", 50.00m)
+            (CertificatesCategorySeederData.VarRfidDealers, "RFID HIGH POWER", FeeConstants.Codes.Registration, 300.00m),
+            (CertificatesCategorySeederData.VarRfidDealers, "RFID LOW POWER", FeeConstants.Codes.Registration, 100.00m),
+            (CertificatesCategorySeederData.VarRfidDealers, "SRD/WDN", FeeConstants.Codes.Registration, 50.00m),
+            (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", FeeConstants.Codes.Registration, 300.00m),
+            (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", FeeConstants.Codes.Registration, 100.00m),
+            (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Codes.Registration, 50.00m)
         };
 
         foreach (var (variantId, elementCode, feeCode, amount) in elementFeesToSeed)

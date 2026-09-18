@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations.Strategies;
@@ -10,7 +11,7 @@ namespace EDGE.Application.Fees.Calculations.Strategies;
 /// </summary>
 public class RequestsAndComplaintsFeeCalculationStrategy : IFeeCalculationStrategy
 {
-    public const decimal DST_AMOUNT = 30.00m;
+    public const decimal DST_AMOUNT = FeeConstants.Amounts.DocumentaryStampTax;
 
     public ServiceCategoryType Category => ServiceCategoryType.RequestsAndComplaints;
 
@@ -21,27 +22,22 @@ public class RequestsAndComplaintsFeeCalculationStrategy : IFeeCalculationStrate
             return category.Value == ServiceCategoryType.RequestsAndComplaints;
         }
 
-        var act = activity ?? string.Empty;
-        var app = applicationType ?? string.Empty;
-
-        return act.Contains("REQUEST", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("COMPLAINT", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Request", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Complaint", StringComparison.OrdinalIgnoreCase);
+        return activity.SafeContainsAny("REQUEST", "COMPLAINT")
+            || applicationType.SafeContainsAny("Request", "Complaint");
     }
 
     public FeeCalculationResultDto Calculate(FeeCalculationRequest request)
     {
         var lineItems = new List<CalculatedFeeLineItemDto>();
-        var activity = (request.Activity ?? string.Empty).Trim();
-        var appType = (request.ApplicationType ?? string.Empty).Trim();
-        var element = (request.Element ?? string.Empty).Trim();
+        var activity = request.Activity.SafeTrim();
+        var appType = request.ApplicationType.SafeTrim();
+        var element = request.Element.SafeTrim();
 
         // Filing / Processing Fee
-        decimal feeRate = 150.00m;
+        decimal feeRate = FeeConstants.Amounts.DefaultRequestRate;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Processing Fee" : $"Processing Fee ({element})",
-            ItemCode: "REQ_FEE",
+            ItemCode: FeeConstants.Codes.Request,
             Description: "Special Request / Administrative Processing Fee",
             ValidityYears: 1,
             NoOfUnits: 1,
@@ -50,7 +46,7 @@ public class RequestsAndComplaintsFeeCalculationStrategy : IFeeCalculationStrate
         ));
 
         // DST
-        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", "DST", "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
+        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", FeeConstants.Codes.Dst, "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
 
         var subTotal = lineItems.Where(li => !li.IsSurcharge && !li.IsTax).Sum(li => li.Amount);
         var taxAmount = lineItems.Where(li => li.IsTax).Sum(li => li.Amount);
@@ -60,7 +56,7 @@ public class RequestsAndComplaintsFeeCalculationStrategy : IFeeCalculationStrate
             Activity: activity,
             ApplicationType: appType,
             Element: string.IsNullOrWhiteSpace(element) ? null : element,
-            FormulaApplied: "FEEREQ = REQ_FEE + DST",
+            FormulaApplied: FeeConstants.Formulas.RequestStandard,
             SubTotal: subTotal,
             SurchargeAmount: 0m,
             TaxAmount: taxAmount,

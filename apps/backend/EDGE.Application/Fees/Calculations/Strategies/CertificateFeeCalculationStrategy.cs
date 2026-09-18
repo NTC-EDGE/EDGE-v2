@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations.Strategies;
@@ -10,7 +11,7 @@ namespace EDGE.Application.Fees.Calculations.Strategies;
 /// </summary>
 public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
 {
-    public const decimal DST_AMOUNT = 30.00m;
+    public const decimal DST_AMOUNT = FeeConstants.Amounts.DocumentaryStampTax;
 
     public ServiceCategoryType Category => ServiceCategoryType.Certificate;
 
@@ -21,20 +22,8 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             return category.Value == ServiceCategoryType.Certificate;
         }
 
-        var act = activity ?? string.Empty;
-        var app = applicationType ?? string.Empty;
-
-        return act.Contains("CERTIFICATE", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("RADIO OPERATOR", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("AMATEUR", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("RFID", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("SRD", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("WDN", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("TVRO", StringComparison.OrdinalIgnoreCase)
-            || act.Contains("VAS", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Certificate", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Certified True Copy", StringComparison.OrdinalIgnoreCase)
-            || app.Contains("Duplicate Copy", StringComparison.OrdinalIgnoreCase);
+        return activity.SafeContainsAny("CERTIFICATE", "RADIO OPERATOR", "AMATEUR", "RFID", "SRD", "WDN", "TVRO", "VAS")
+            || applicationType.SafeContainsAny("Certificate", "Certified True Copy", "Duplicate Copy");
     }
 
     public FeeCalculationResultDto Calculate(FeeCalculationRequest request)
@@ -44,29 +33,29 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         var units = Math.Max(1, request.NoOfUnits);
         var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
 
-        var activity = (request.Activity ?? string.Empty).Trim();
-        var appType = (request.ApplicationType ?? string.Empty).Trim();
-        var element = (request.Element ?? string.Empty).Trim();
+        var activity = request.Activity.SafeTrim();
+        var appType = request.ApplicationType.SafeTrim();
+        var element = request.Element.SafeTrim();
 
         string formulaApplied;
 
-        if (IsActivity(activity, "COPY OF CERTIFICATES") || IsAppType(appType, "Certified True Copy", "Duplicate Copy"))
+        if (activity.SafeContains("COPY OF CERTIFICATES") || appType.SafeContainsAny("Certified True Copy", "Duplicate Copy"))
         {
             formulaApplied = CalculateCopyOfCertificates(appType, request.NoOfCopies, lineItems);
         }
-        else if (IsActivity(activity, "TVRO REGISTRATION") || IsAppType(appType, "TVRO"))
+        else if (activity.SafeContains("TVRO REGISTRATION") || appType.SafeContains("TVRO"))
         {
             formulaApplied = CalculateTvroRegistration(appType, lineItems);
         }
-        else if (IsActivity(activity, "RFID", "SRD", "WDN", "DEVICES") || IsAppType(appType, "For Dealers", "For Non-Dealers"))
+        else if (activity.SafeContainsAny("RFID", "SRD", "WDN", "DEVICES") || appType.SafeContainsAny("For Dealers", "For Non-Dealers"))
         {
             formulaApplied = CalculateRfidSrdWdn(appType, element, units, lineItems);
         }
-        else if (IsActivity(activity, "VALUE-ADDED SERVICE", "VAS") || IsAppType(appType, "VAS"))
+        else if (activity.SafeContainsAny("VALUE-ADDED SERVICE", "VAS") || appType.SafeContains("VAS"))
         {
             formulaApplied = CalculateVasRenewal(request.AdditionalServicesCount, years, request.ExpirationDate, asOfDate, lineItems);
         }
-        else if (IsActivity(activity, "AMATEUR SERVICE") || IsAppType(appType, "Amateur"))
+        else if (activity.SafeContains("AMATEUR SERVICE") || appType.SafeContains("Amateur"))
         {
             formulaApplied = CalculateAmateurCertificates(appType, element, years, request.ExpirationDate, asOfDate, lineItems);
         }
@@ -79,7 +68,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         // Add mandatory Documentary Stamp Tax (DST)
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: "Documentary Stamp Tax (DST)",
-            ItemCode: "DST",
+            ItemCode: FeeConstants.Codes.Dst,
             Description: "Statutory Documentary Stamp Tax",
             ValidityYears: 1,
             NoOfUnits: 1,
@@ -115,101 +104,101 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         DateTime asOfDate,
         List<CalculatedFeeLineItemDto> lineItems)
     {
-        var isRenewal = appType.Contains("RENEWAL", StringComparison.OrdinalIgnoreCase);
-        var isModification = appType.Contains("MODIFICATION", StringComparison.OrdinalIgnoreCase);
+        var isRenewal = appType.SafeContains("RENEWAL");
+        var isModification = appType.SafeContains("MODIFICATION");
 
         // Modification fee (flat ₱120.00)
         if (isModification)
         {
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: "Modification Fee",
-                ItemCode: "MOD",
+                ItemCode: FeeConstants.Codes.Modification,
                 Description: "Certificate Modification Fee",
                 ValidityYears: 1,
                 NoOfUnits: 1,
-                FeeRate: 120.00m,
-                Amount: 120.00m
+                FeeRate: FeeConstants.Amounts.CertificateModification,
+                Amount: FeeConstants.Amounts.CertificateModification
             ));
-            return "FEEROC = MOD + DST";
+            return FeeConstants.Formulas.RocModification;
         }
 
         // Foreign Pilot (Flat ₱100.00)
-        if (appType.Contains("Foreign Pilot", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Foreign Pilot"))
         {
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: "Temporary Radio Operator Certificate Fee",
-                ItemCode: "ROC",
+                ItemCode: FeeConstants.Codes.Roc,
                 Description: "Foreign Pilot Temporary Certificate",
                 ValidityYears: 1,
                 NoOfUnits: 1,
-                FeeRate: 100.00m,
-                Amount: 100.00m
+                FeeRate: FeeConstants.Amounts.ForeignPilotTemporary,
+                Amount: FeeConstants.Amounts.ForeignPilotTemporary
             ));
-            return "FEEROC = ROC + DST";
+            return FeeConstants.Formulas.RocNew;
         }
 
         // Government ROC (FF=10, AF=20, ROC=60/yr)
-        if (appType.Contains("Government", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Government"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", "FF", "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", "AF", "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", "ROC", "Government ROC Fee", years, 1, 60.00m, 60.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Government ROC Fee", years, 1, 60.00m, 60.00m * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
                 ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
-                return "FEEROC = FF + AF + (ROC)(YR) + DST + SUR";
+                return FeeConstants.Formulas.GovRocRenewal;
             }
-            return "FEEROC = FF + AF + (ROC)(YR) + DST";
+            return FeeConstants.Formulas.GovRocNew;
         }
 
         // Land Mobile Station (FF=10, AF=20, ROC=30/yr)
-        if (appType.Contains("Land Mobile", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Land Mobile"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", "FF", "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", "AF", "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", "ROC", "RROC Land Mobile Station Fee", years, 1, 30.00m, 30.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 10.00m, 10.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Land Mobile Station Fee", years, 1, 30.00m, 30.00m * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
                 ApplySurcharge(30.00m, expirationDate.Value, asOfDate, lineItems);
-                return "FEEROC = FF + AF + (ROC)(YR) + DST + SUR";
+                return FeeConstants.Formulas.LandMobileRocRenewal;
             }
-            return "FEEROC = FF + AF + (ROC)(YR) + DST";
+            return FeeConstants.Formulas.LandMobileRocNew;
         }
 
         // Special Radio Operator (AF=20, SEM=20, ROC=60/yr)
-        if (appType.Contains("Special", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Special"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", "AF", "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Seminar Fee", "SEM", "Special ROC Seminar Fee", 1, 1, 20.00m, 20.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", "ROC", "Special Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Administrative Application Fee", 1, 1, 20.00m, 20.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Seminar Fee", FeeConstants.Codes.Seminar, "Special ROC Seminar Fee", 1, 1, 20.00m, 20.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Special Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
 
             if (isRenewal && expirationDate.HasValue)
             {
                 ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
-                return "FEEROC = AF + SEM + (ROC)(YR) + DST + SUR";
+                return FeeConstants.Formulas.SpecialRocRenewal;
             }
-            return "FEEROC = AF + SEM + (ROC)(YR) + DST";
+            return FeeConstants.Formulas.SpecialRocNew;
         }
 
         // Aircraft (ROC=100/yr)
-        if (appType.Contains("Aircraft", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Aircraft"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", "ROC", "RROC Aircraft Certificate Fee", years, 1, 100.00m, 100.00m * years));
+            lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "RROC Aircraft Certificate Fee", years, 1, 100.00m, 100.00m * years));
             if (isRenewal && expirationDate.HasValue)
             {
                 ApplySurcharge(100.00m, expirationDate.Value, asOfDate, lineItems);
-                return "FEEROC = (ROC)(YR) + DST + SUR";
+                return FeeConstants.Formulas.RocRenewal;
             }
-            return "FEEROC = (ROC)(YR) + DST";
+            return FeeConstants.Formulas.RocNew;
         }
 
-        // Commercial Radio Operator (1RTG=180, 2RTG=120, 3RTG=60, 1PHN=120, 2PH=100, 3PHN=60)
+        // Commercial Radio Operator (1RTG=180, 2RTG=120, 3RTG=60, 1PHN=120, 2PHN=100, 3PHN=60)
         var rocRate = ResolveRocRateByElement(element);
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: $"Certificate Fee ({element})",
-            ItemCode: "ROC",
+            ItemCode: FeeConstants.Codes.Roc,
             Description: $"Commercial Radio Operator Certificate Fee ({element})",
             ValidityYears: years,
             NoOfUnits: 1,
@@ -220,10 +209,10 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         if (isRenewal && expirationDate.HasValue)
         {
             ApplySurcharge(rocRate, expirationDate.Value, asOfDate, lineItems);
-            return "FEEROC = (ROC)(YR) + DST + SUR";
+            return FeeConstants.Formulas.RocRenewal;
         }
 
-        return "FEEROC = (ROC)(YR) + DST";
+        return FeeConstants.Formulas.RocNew;
     }
 
     private static string CalculateAmateurCertificates(
@@ -234,30 +223,30 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         DateTime asOfDate,
         List<CalculatedFeeLineItemDto> lineItems)
     {
-        if (appType.Contains("Lifetime", StringComparison.OrdinalIgnoreCase) || element.Contains("Lifetime", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Lifetime") || element.SafeContains("Lifetime"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", "FF", "Amateur Lifetime Filing Fee", 1, 1, 60.00m, 60.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", "MOD", "Amateur Lifetime Modification Fee", 1, 1, 50.00m, 50.00m));
-            lineItems.Add(new CalculatedFeeLineItemDto("Possess Permit Fee", "POSS_PERMIT", "Possess Permit Fee", 1, 1, 50.00m, 50.00m));
-            return "FEEAT-LIFETIME = FF + MOD + POSS_PERMIT + DST";
+            lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Amateur Lifetime Filing Fee", 1, 1, 60.00m, 60.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Lifetime Modification Fee", 1, 1, 50.00m, 50.00m));
+            lineItems.Add(new CalculatedFeeLineItemDto("Possess Permit Fee", FeeConstants.Codes.PossessPermit, "Possess Permit Fee", 1, 1, 50.00m, 50.00m));
+            return FeeConstants.Formulas.AmateurLifetime;
         }
 
-        if (appType.Contains("MODIFICATION", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("MODIFICATION"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", "MOD", "Amateur Certificate Modification Fee", 1, 1, 60.00m, 60.00m));
-            return "FEEAT-ROC = MOD + DST";
+            lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Amateur Certificate Modification Fee", 1, 1, 60.00m, 60.00m));
+            return FeeConstants.Formulas.AmateurModification;
         }
 
         // Standard Amateur ROC (₱60/yr)
-        lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", "ROC", "Amateur Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
+        lineItems.Add(new CalculatedFeeLineItemDto("Certificate Fee", FeeConstants.Codes.Roc, "Amateur Radio Operator Certificate Fee", years, 1, 60.00m, 60.00m * years));
 
-        if (appType.Contains("RENEWAL", StringComparison.OrdinalIgnoreCase) && expirationDate.HasValue)
+        if (appType.SafeContains("RENEWAL") && expirationDate.HasValue)
         {
             ApplySurcharge(60.00m, expirationDate.Value, asOfDate, lineItems);
-            return "FEEAT-ROC = (ROC)(YR) + DST + SUR";
+            return FeeConstants.Formulas.AmateurRocRenewal;
         }
 
-        return "FEEAT-ROC = (ROC)(YR) + DST";
+        return FeeConstants.Formulas.AmateurRocNew;
     }
 
     private static string CalculateRfidSrdWdn(
@@ -267,17 +256,17 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         List<CalculatedFeeLineItemDto> lineItems)
     {
         // AF = 180.00
-        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", "AF", "Application Evaluation Fee", 1, 1, 180.00m, 180.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Application Evaluation Fee", 1, 1, 180.00m, 180.00m));
 
         decimal regRate;
         string desc;
 
-        if (element.Contains("Low Power", StringComparison.OrdinalIgnoreCase))
+        if (element.SafeContains("Low Power"))
         {
             regRate = 100.00m;
             desc = "RFID Low Power Registration Fee";
         }
-        else if (element.Contains("SRD", StringComparison.OrdinalIgnoreCase) || element.Contains("WDN", StringComparison.OrdinalIgnoreCase))
+        else if (element.SafeContainsAny("SRD", "WDN"))
         {
             regRate = 50.00m;
             desc = "SRD/WDN Devices - Indoor Registration Fee";
@@ -291,7 +280,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
 
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: desc,
-            ItemCode: "REG",
+            ItemCode: FeeConstants.Codes.Registration,
             Description: $"{desc} ({units} unit(s))",
             ValidityYears: 1,
             NoOfUnits: units,
@@ -299,7 +288,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             Amount: regRate * units
         ));
 
-        return "FEEREG = AF + (REG)(UNIT) + DST";
+        return FeeConstants.Formulas.RfidRegistration;
     }
 
     private static string CalculateTvroRegistration(
@@ -308,15 +297,15 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
     {
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: "TVRO Registration Fee",
-            ItemCode: "REG",
+            ItemCode: FeeConstants.Codes.Registration,
             Description: "TVRO Registration Certificate Fee (Per Service Area)",
             ValidityYears: 1,
             NoOfUnits: 1,
-            FeeRate: 6500.00m,
-            Amount: 6500.00m
+            FeeRate: FeeConstants.Amounts.TvroRegistrationRate,
+            Amount: FeeConstants.Amounts.TvroRegistrationRate
         ));
 
-        return "FEETVROREG = REG + DST";
+        return FeeConstants.Formulas.TvroRegistration;
     }
 
     private static string CalculateVasRenewal(
@@ -327,17 +316,17 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         List<CalculatedFeeLineItemDto> lineItems)
     {
         // FF = 300.00
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", "FF", "Administrative Filing Fee", 1, 1, 300.00m, 300.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Administrative Filing Fee", 1, 1, 300.00m, 300.00m));
 
         // ARF1 = 6000.00 (first 5 services)
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: "Annual Registration Fee 1 (ARF1 - Base 5 Services)",
-            ItemCode: "ARF1",
+            ItemCode: FeeConstants.Codes.AnnualRegistration1,
             Description: "Annual Registration Fee for the first 5 services",
             ValidityYears: years,
             NoOfUnits: 1,
-            FeeRate: 6000.00m,
-            Amount: 6000.00m * years
+            FeeRate: FeeConstants.Amounts.VasAnnualBaseRate,
+            Amount: FeeConstants.Amounts.VasAnnualBaseRate * years
         ));
 
         // ARF2 = 1000.00 per excess service
@@ -345,26 +334,26 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         decimal excessAmount = 0;
         if (nas > 0)
         {
-            excessAmount = 1000.00m * nas * years;
+            excessAmount = FeeConstants.Amounts.VasAnnualExcessRate * nas * years;
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: "Annual Registration Fee 2 (ARF2 - Additional Services)",
-                ItemCode: "ARF2",
+                ItemCode: FeeConstants.Codes.AnnualRegistration2,
                 Description: $"Annual Registration Fee for {nas} additional service(s)",
                 ValidityYears: years,
                 NoOfUnits: nas,
-                FeeRate: 1000.00m,
+                FeeRate: FeeConstants.Amounts.VasAnnualExcessRate,
                 Amount: excessAmount
             ));
         }
 
         if (expirationDate.HasValue)
         {
-            var baseArfAnnual = 6000.00m + (1000.00m * nas);
+            var baseArfAnnual = FeeConstants.Amounts.VasAnnualBaseRate + (FeeConstants.Amounts.VasAnnualExcessRate * nas);
             ApplySurcharge(baseArfAnnual, expirationDate.Value, asOfDate, lineItems);
-            return "FEECERT = FF + (ARF1 + (ARF2)(NAS))(YR) + DST + SUR";
+            return FeeConstants.Formulas.VasRenewalWithSurcharge;
         }
 
-        return "FEECERT = FF + (ARF1 + (ARF2)(NAS))(YR) + DST";
+        return FeeConstants.Formulas.VasRenewal;
     }
 
     private static string CalculateCopyOfCertificates(
@@ -372,42 +361,42 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
         int copies,
         List<CalculatedFeeLineItemDto> lineItems)
     {
-        if (appType.Contains("Duplicate", StringComparison.OrdinalIgnoreCase))
+        if (appType.SafeContains("Duplicate"))
         {
-            lineItems.Add(new CalculatedFeeLineItemDto("Duplicate Fee", "DUP", "Duplicate Copy Certificate Fee", 1, 1, 120.00m, 120.00m));
-            return "FEEDUP = DUP + DST";
+            lineItems.Add(new CalculatedFeeLineItemDto("Duplicate Fee", FeeConstants.Codes.Duplicate, "Duplicate Copy Certificate Fee", 1, 1, FeeConstants.Amounts.DuplicateCopyRate, FeeConstants.Amounts.DuplicateCopyRate));
+            return FeeConstants.Formulas.DuplicateCopy;
         }
 
         // Certified True Copy: FC = 6, SC = 2.50
         var totalCopies = Math.Max(1, copies);
-        lineItems.Add(new CalculatedFeeLineItemDto("First Copy Fee", "FC", "Certified True Copy - First Copy", 1, 1, 6.00m, 6.00m));
+        lineItems.Add(new CalculatedFeeLineItemDto("First Copy Fee", FeeConstants.Codes.FirstCopy, "Certified True Copy - First Copy", 1, 1, FeeConstants.Amounts.CertifiedTrueCopyFirstPage, FeeConstants.Amounts.CertifiedTrueCopyFirstPage));
 
         if (totalCopies > 1)
         {
             var succeeding = totalCopies - 1;
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: "Succeeding Copies Fee",
-                ItemCode: "SC",
+                ItemCode: FeeConstants.Codes.SucceedingCopies,
                 Description: $"Certified True Copy - {succeeding} succeeding page(s)/copy",
                 ValidityYears: 1,
                 NoOfUnits: succeeding,
-                FeeRate: 2.50m,
-                Amount: 2.50m * succeeding
+                FeeRate: FeeConstants.Amounts.CertifiedTrueCopySucceedingPage,
+                Amount: FeeConstants.Amounts.CertifiedTrueCopySucceedingPage * succeeding
             ));
         }
 
-        return "FEECTC = FC + (SC)(COPY) + DST";
+        return FeeConstants.Formulas.CertifiedTrueCopy;
     }
 
     private static decimal ResolveRocRateByElement(string element)
     {
-        var e = (element ?? string.Empty).ToUpperInvariant().Trim();
-        if (e.Contains("1RTG")) return 180.00m;
-        if (e.Contains("2RTG")) return 120.00m;
-        if (e.Contains("3RTG")) return 60.00m;
-        if (e.Contains("1PHN")) return 120.00m;
-        if (e.Contains("2PH"))  return 100.00m;
-        if (e.Contains("3PHN")) return 60.00m;
+        var e = element.SafeTrim().ToUpperInvariant();
+        if (e.SafeContains("1RTG")) return 180.00m;
+        if (e.SafeContains("2RTG")) return 120.00m;
+        if (e.SafeContains("3RTG")) return 60.00m;
+        if (e.SafeContains("1PHN")) return 120.00m;
+        if (e.SafeContains("2PH"))  return 100.00m;
+        if (e.SafeContains("3PHN")) return 60.00m;
 
         return 180.00m; // Default rate
     }
@@ -424,7 +413,7 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
             var surchargeAmount = baseAnnualRate * multiplier;
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: "Surcharge (Late Renewal Penalty)",
-                ItemCode: "SUR",
+                ItemCode: FeeConstants.Codes.Surcharge,
                 Description: description,
                 ValidityYears: 1,
                 NoOfUnits: 1,
@@ -433,15 +422,5 @@ public class CertificateFeeCalculationStrategy : IFeeCalculationStrategy
                 IsSurcharge: true
             ));
         }
-    }
-
-    private static bool IsActivity(string activity, params string[] terms)
-    {
-        return terms.Any(t => activity.Contains(t, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static bool IsAppType(string appType, params string[] terms)
-    {
-        return terms.Any(t => appType.Contains(t, StringComparison.OrdinalIgnoreCase));
     }
 }

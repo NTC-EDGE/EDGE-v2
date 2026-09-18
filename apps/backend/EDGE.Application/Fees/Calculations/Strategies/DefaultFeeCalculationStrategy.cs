@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations.Strategies;
@@ -10,7 +11,7 @@ namespace EDGE.Application.Fees.Calculations.Strategies;
 /// </summary>
 public class DefaultFeeCalculationStrategy : IFeeCalculationStrategy
 {
-    public const decimal DST_AMOUNT = 30.00m;
+    public const decimal DST_AMOUNT = FeeConstants.Amounts.DocumentaryStampTax;
 
     public ServiceCategoryType Category => ServiceCategoryType.Certificate;
 
@@ -22,9 +23,9 @@ public class DefaultFeeCalculationStrategy : IFeeCalculationStrategy
         var years = Math.Max(1, request.ValidityYears);
         var units = Math.Max(1, request.NoOfUnits);
 
-        var activity = (request.Activity ?? string.Empty).Trim();
-        var appType = (request.ApplicationType ?? string.Empty).Trim();
-        var element = (request.Element ?? string.Empty).Trim();
+        var activity = request.Activity.SafeTrim();
+        var appType = request.ApplicationType.SafeTrim();
+        var element = request.Element.SafeTrim();
 
         decimal baseRate = 100.00m;
         lineItems.Add(new CalculatedFeeLineItemDto(
@@ -38,7 +39,7 @@ public class DefaultFeeCalculationStrategy : IFeeCalculationStrategy
         ));
 
         // DST
-        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", "DST", "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
+        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", FeeConstants.Codes.Dst, "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
 
         var subTotal = lineItems.Where(li => !li.IsSurcharge && !li.IsTax).Sum(li => li.Amount);
         var taxAmount = lineItems.Where(li => li.IsTax).Sum(li => li.Amount);
@@ -48,7 +49,7 @@ public class DefaultFeeCalculationStrategy : IFeeCalculationStrategy
             Activity: activity,
             ApplicationType: appType,
             Element: string.IsNullOrWhiteSpace(element) ? null : element,
-            FormulaApplied: "FEE = (RATE)(YR)(UNIT) + DST",
+            FormulaApplied: FeeConstants.Formulas.DefaultStandard,
             SubTotal: subTotal,
             SurchargeAmount: 0m,
             TaxAmount: taxAmount,
