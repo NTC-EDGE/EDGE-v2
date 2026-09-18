@@ -67,6 +67,13 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             {
                 user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
             }
+
+            if (user == null)
+            {
+                return ApiResponse<VerifyStaffSessionDto>.Fail(
+                    "The selected account is not yet registered. Please make sure to sign in with a registered account."
+                );
+            }
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken) ?? new List<Tenant>();
@@ -76,6 +83,13 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         if (user != null)
         {
             var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
+            if (userMemberships.Count == 0 && !user.IsSuperAdmin)
+            {
+                return ApiResponse<VerifyStaffSessionDto>.Fail(
+                    "The selected account is not yet assigned to any Regional Office. Please make sure to sign in with an authorized account or contact your administrator."
+                );
+            }
+
             if (userMemberships.Count > 0)
             {
                 // Find membership matching the selected region or tenant code/name

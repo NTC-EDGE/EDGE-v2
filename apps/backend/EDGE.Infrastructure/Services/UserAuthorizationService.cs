@@ -15,6 +15,33 @@ public class UserAuthorizationService : IUserAuthorizationService
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<UserAuthorizationService> _logger;
 
+    private static readonly HashSet<string> AdministrativeRoleKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "admin",
+        "administrator",
+        "superadmin",
+        "super_admin",
+        "super-admin",
+        "systemadmin",
+        "system_admin",
+        "system-admin",
+        "tenantadmin",
+        "tenant_admin",
+        "tenant-admin",
+        "regionaladmin",
+        "regional_admin",
+        "regional-admin"
+    };
+
+    private static bool IsAdministrativeRole(string? roleKey)
+    {
+        if (string.IsNullOrWhiteSpace(roleKey)) return false;
+        var trimmed = roleKey.Trim();
+        if (AdministrativeRoleKeys.Contains(trimmed)) return true;
+        var normalized = trimmed.Replace("-", "").Replace("_", "").Replace(" ", "");
+        return AdministrativeRoleKeys.Contains(normalized);
+    }
+
     private User? _cachedUser;
     private List<string>? _cachedPermissions;
 
@@ -103,8 +130,7 @@ public class UserAuthorizationService : IUserAuthorizationService
 
         if (user.IsSuperAdmin)
         {
-            var normalizedRole = role.Replace("_", "").Replace("-", "").Trim();
-            if (normalizedRole.Equals("superadmin", StringComparison.OrdinalIgnoreCase))
+            if (IsAdministrativeRole(role))
             {
                 return true;
             }
@@ -118,14 +144,14 @@ public class UserAuthorizationService : IUserAuthorizationService
                 .Where(m => m.UserId == user.Id && !m.IsDeleted)
                 .ToListAsync(cancellationToken);
 
-            return memberships.Any(m => m.Role != null && m.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase));
+            return memberships.Any(m => m.Role != null && (m.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(m.Role.Key))));
         }
 
         var member = await _dbContext.TenantMembers
             .Include(m => m.Role)
             .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value && !m.IsDeleted, cancellationToken);
 
-        return member?.Role?.Key?.Equals(role, StringComparison.OrdinalIgnoreCase) == true;
+        return member?.Role != null && (member.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(member.Role.Key)));
     }
 
     public async Task<bool> IsInternalUserAsync(CancellationToken cancellationToken = default)
@@ -235,6 +261,18 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadStorage,
                     Permissions.DownloadStorage
                 };
+                return _cachedPermissions;
+            }
+
+            // Check if user holds an Admin/Administrator role in any active tenant membership
+            var memberRoleKeys = await _dbContext.TenantMembers
+                .Where(tm => tm.UserId == user.Id && !tm.IsDeleted && tm.Role != null)
+                .Select(tm => tm.Role!.Key)
+                .ToListAsync(cancellationToken);
+
+            if (memberRoleKeys.Any(IsAdministrativeRole))
+            {
+                _cachedPermissions = Permissions.AllKeys.ToList();
                 return _cachedPermissions;
             }
 
