@@ -100,6 +100,16 @@ public static class Permissions
     public const string CollectPayment = "billing.collect";
     public const string ReturnOp = "billing.op_return";
 
+    // Receipt Management & Cashiering
+    public const string ReceiptsRead = "receipts.read";
+    public const string ReceiptsBundleEntry = "receipts.bundle_entry";
+    public const string ReceiptsIssue = "receipts.issue";
+    public const string ReceiptsEdit = "receipts.edit";
+    public const string ReceiptsCancel = "receipts.cancel";
+    public const string ReceiptsDeposit = "receipts.deposit";
+    public const string BankAccountsManage = "bank_accounts.manage";
+    public const string CashierReports = "reports.cashier";
+
     // Schedules
     public const string ReadSchedules = "schedules.read";
     public const string CreateSchedules = "schedules.create";
@@ -187,6 +197,16 @@ public static class Permissions
         new(ReturnSoa, "Billing & Fees", "Return SOA", PermissionScope.Internal, "Allows returning Statements of Account to evaluator"),
         new(CollectPayment, "Billing & Fees", "Collect Payment", PermissionScope.Internal, "Allows processing fee payments"),
         new(ReturnOp, "Billing & Fees", "Return OP", PermissionScope.Internal, "Allows returning Orders of Payment"),
+
+        // Receipt Management & Cashiering
+        new(ReceiptsRead, "Receipt Management", "Read Receipts & Booklets", PermissionScope.Internal, "Allows viewing official receipts, booklets, and cashier records"),
+        new(ReceiptsBundleEntry, "Receipt Management", "Entry OR Bundles", PermissionScope.Internal, "Allows registering and configuring new 50-pcs Official Receipt booklets and series"),
+        new(ReceiptsIssue, "Receipt Management", "Issue Official Receipts", PermissionScope.Internal, "Allows collecting payments and issuing Official Receipts from active series"),
+        new(ReceiptsEdit, "Receipt Management", "Edit Receipts", PermissionScope.Internal, "Allows editing receipt line items and payor details during cashier transactions"),
+        new(ReceiptsCancel, "Receipt Management", "Cancel Official Receipts", PermissionScope.Internal, "Allows voiding/canceling issued Official Receipts with mandatory audit reasons"),
+        new(ReceiptsDeposit, "Receipt Management", "Manage Bank Deposits", PermissionScope.Internal, "Allows creating and managing remittance deposit batches for bank accounts"),
+        new(BankAccountsManage, "Receipt Management", "Manage Bank Accounts", PermissionScope.Internal, "Allows creating and managing government depositary bank accounts"),
+        new(CashierReports, "Receipt Management", "View Cashier Reports", PermissionScope.Internal, "Allows generating Report of Collections and Deposits (RCD) and cancellation summaries"),
 
         // Schedules
         new(ReadSchedules, "Schedules", "Read Schedules", PermissionScope.Internal, "Allows viewing examination and appointment schedules for the regional tenant"),

@@ -1,0 +1,202 @@
+import { useState, useMemo } from 'react';
+import {
+  useOrBooklets,
+  useNextAvailableOrNumber,
+  useOfficialReceipts,
+  useUndepositedReceipts,
+  useAgencyBankAccounts,
+  useBankDeposits,
+  useCashierRcdReport,
+  useCancelledOrReport,
+  receiptService,
+  OrBookletDto,
+  OfficialReceiptDto,
+  AgencyBankAccountDto,
+  BankDepositDto,
+  BookletStatus,
+  ReceiptStatus,
+  PaymentMethod,
+} from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
+
+export type ReceiptTab = 'booklets' | 'receipts' | 'deposits' | 'accounts' | 'reports';
+
+export function useReceiptsState() {
+  const { user } = useAuthContext();
+  const tenantId = user?.tenantId ?? null;
+  const currentUserId = user?.email ?? null;
+
+  const [activeTab, setActiveTab] = useState<ReceiptTab>('receipts');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [paymentMethodFilter, setPaymentMethodFilter] = useState<string>('all');
+
+  // Modals
+  const [isBundleModalOpen, setIsBundleModalOpen] = useState(false);
+  const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
+  const [editingReceipt, setEditingReceipt] = useState<OfficialReceiptDto | null>(null);
+  const [cancellingReceipt, setCancellingReceipt] = useState<OfficialReceiptDto | null>(null);
+  const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
+  const [editingBankAccount, setEditingBankAccount] = useState<AgencyBankAccountDto | null>(null);
+  const [isBankAccountModalOpen, setIsBankAccountModalOpen] = useState(false);
+  const [viewingReceipt, setViewingReceipt] = useState<OfficialReceiptDto | null>(null);
+  const [viewingDeposit, setViewingDeposit] = useState<BankDepositDto | null>(null);
+
+  // Report Date Filters
+  const [reportDateRange, setReportDateRange] = useState<'today' | 'this_week' | 'this_month'>('today');
+  const [reportSubTab, setReportSubTab] = useState<'rcd' | 'cancelled'>('rcd');
+
+  // Compute ISO dates for reports
+  const { fromDate, toDate } = useMemo(() => {
+    const now = new Date();
+    const start = new Date(now);
+    const end = new Date(now);
+
+    if (reportDateRange === 'today') {
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else if (reportDateRange === 'this_week') {
+      const day = start.getDay();
+      const diff = start.getDate() - day + (day === 0 ? -6 : 1);
+      start.setDate(diff);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    } else {
+      start.setDate(1);
+      start.setHours(0, 0, 0, 0);
+      end.setHours(23, 59, 59, 999);
+    }
+
+    return { fromDate: start.toISOString(), toDate: end.toISOString() };
+  }, [reportDateRange]);
+
+  // SWR hooks
+  const {
+    booklets,
+    isLoading: isLoadingBooklets,
+    mutate: mutateBooklets,
+  } = useOrBooklets(tenantId);
+
+  const {
+    nextOr,
+    isLoading: isLoadingNextOr,
+    mutate: mutateNextOr,
+  } = useNextAvailableOrNumber(tenantId, currentUserId);
+
+  const {
+    receipts,
+    isLoading: isLoadingReceipts,
+    mutate: mutateReceipts,
+  } = useOfficialReceipts({
+    tenantId,
+    status: statusFilter !== 'all' ? (statusFilter as ReceiptStatus) : undefined,
+    paymentMethod: paymentMethodFilter !== 'all' ? (paymentMethodFilter as PaymentMethod) : undefined,
+    search: searchQuery.trim().length > 0 ? searchQuery.trim() : undefined,
+  });
+
+  const {
+    undepositedReceipts,
+    isLoading: isLoadingUndeposited,
+    mutate: mutateUndeposited,
+  } = useUndepositedReceipts(tenantId);
+
+  const {
+    bankAccounts,
+    isLoading: isLoadingBankAccounts,
+    mutate: mutateBankAccounts,
+  } = useAgencyBankAccounts(tenantId);
+
+  const {
+    deposits,
+    isLoading: isLoadingDeposits,
+    mutate: mutateDeposits,
+  } = useBankDeposits({ tenantId });
+
+  const {
+    rcdReport,
+    isLoading: isLoadingRcd,
+    mutate: mutateRcd,
+  } = useCashierRcdReport({
+    tenantId,
+    fromDate,
+    toDate,
+  });
+
+  const {
+    cancelledReport,
+    isLoading: isLoadingCancelled,
+    mutate: mutateCancelled,
+  } = useCancelledOrReport({
+    tenantId,
+    fromDate,
+    toDate,
+  });
+
+  const refreshAll = () => {
+    mutateBooklets();
+    mutateNextOr();
+    mutateReceipts();
+    mutateUndeposited();
+    mutateBankAccounts();
+    mutateDeposits();
+    mutateRcd();
+    mutateCancelled();
+  };
+
+  return {
+    tenantId,
+    currentUserId,
+    activeTab,
+    setActiveTab,
+    searchQuery,
+    setSearchQuery,
+    statusFilter,
+    setStatusFilter,
+    paymentMethodFilter,
+    setPaymentMethodFilter,
+    reportDateRange,
+    setReportDateRange,
+    reportSubTab,
+    setReportSubTab,
+
+    // Data
+    booklets,
+    isLoadingBooklets,
+    nextOr,
+    isLoadingNextOr,
+    receipts,
+    isLoadingReceipts,
+    undepositedReceipts,
+    isLoadingUndeposited,
+    bankAccounts,
+    isLoadingBankAccounts,
+    deposits,
+    isLoadingDeposits,
+    rcdReport,
+    isLoadingRcd,
+    cancelledReport,
+    isLoadingCancelled,
+
+    // Modal states
+    isBundleModalOpen,
+    setIsBundleModalOpen,
+    isIssueModalOpen,
+    setIsIssueModalOpen,
+    editingReceipt,
+    setEditingReceipt,
+    cancellingReceipt,
+    setCancellingReceipt,
+    isDepositModalOpen,
+    setIsDepositModalOpen,
+    editingBankAccount,
+    setEditingBankAccount,
+    isBankAccountModalOpen,
+    setIsBankAccountModalOpen,
+    viewingReceipt,
+    setViewingReceipt,
+    viewingDeposit,
+    setViewingDeposit,
+
+    refreshAll,
+  };
+}

@@ -95,6 +95,12 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<OpHistory> OpHistories => Set<OpHistory>();
     public DbSet<CorrectionAuditTrail> CorrectionAuditTrails => Set<CorrectionAuditTrail>();
 
+    public DbSet<OrBooklet> OrBooklets => Set<OrBooklet>();
+    public DbSet<OfficialReceipt> OfficialReceipts => Set<OfficialReceipt>();
+    public DbSet<OfficialReceiptLineItem> OfficialReceiptLineItems => Set<OfficialReceiptLineItem>();
+    public DbSet<AgencyBankAccount> AgencyBankAccounts => Set<AgencyBankAccount>();
+    public DbSet<BankDeposit> BankDeposits => Set<BankDeposit>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -710,6 +716,104 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.FromStatus).HasConversion<string>();
             entity.Property(e => e.ToStatus).HasConversion<string>();
             entity.Property(e => e.PerformedByUserId).IsRequired(false);
+        });
+
+        // Receipt Management & Cashiering Configurations
+        modelBuilder.Entity<OrBooklet>(entity =>
+        {
+            entity.Property(e => e.BookletNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Prefix).HasMaxLength(20);
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasIndex(e => new { e.TenantId, e.BookletNumber });
+            entity.HasIndex(e => new { e.TenantId, e.Status });
+
+            entity.HasOne(e => e.AssignedUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.AssignedUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OfficialReceipt>(entity =>
+        {
+            entity.Property(e => e.OfficialReceiptNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.PayorName).IsRequired().HasMaxLength(300);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.Property(e => e.PaymentMethod).HasConversion<string>();
+            entity.HasIndex(e => new { e.TenantId, e.OfficialReceiptNumber });
+            entity.HasIndex(e => new { e.TenantId, e.Status, e.IssuedAt });
+
+            entity.HasOne(e => e.Booklet)
+                  .WithMany(b => b.Receipts)
+                  .HasForeignKey(e => e.BookletId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.OrderOfPayment)
+                  .WithMany()
+                  .HasForeignKey(e => e.OrderOfPaymentId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.Deposit)
+                  .WithMany(d => d.Receipts)
+                  .HasForeignKey(e => e.DepositId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.IssuedByUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.IssuedByUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.CancelledByUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.CancelledByUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OfficialReceiptLineItem>(entity =>
+        {
+            entity.Property(e => e.FeeCode).HasMaxLength(50);
+            entity.Property(e => e.Description).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+
+            entity.HasOne(e => e.OfficialReceipt)
+                  .WithMany(r => r.LineItems)
+                  .HasForeignKey(e => e.OfficialReceiptId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<AgencyBankAccount>(entity =>
+        {
+            entity.Property(e => e.BankName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.AccountName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.AccountNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Branch).HasMaxLength(200);
+            entity.Property(e => e.FundCluster).HasMaxLength(100);
+            entity.HasIndex(e => new { e.TenantId, e.AccountNumber });
+        });
+
+        modelBuilder.Entity<BankDeposit>(entity =>
+        {
+            entity.Property(e => e.DepositSlipNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.TotalAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CashAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.CheckAmount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasIndex(e => new { e.TenantId, e.DepositDate });
+
+            entity.HasOne(e => e.BankAccount)
+                  .WithMany(b => b.Deposits)
+                  .HasForeignKey(e => e.BankAccountId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.DepositedByUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.DepositedByUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.VerifiedByUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.VerifiedByUserId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

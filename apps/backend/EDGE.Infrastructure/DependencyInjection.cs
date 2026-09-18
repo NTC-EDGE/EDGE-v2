@@ -99,6 +99,10 @@ public static class DependencyInjection
         services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<ISystemErrorLogRepository, SystemErrorLogRepository>();
+        services.AddScoped<IOrBookletRepository, OrBookletRepository>();
+        services.AddScoped<IOfficialReceiptRepository, OfficialReceiptRepository>();
+        services.AddScoped<IAgencyBankAccountRepository, AgencyBankAccountRepository>();
+        services.AddScoped<IBankDepositRepository, BankDepositRepository>();
         services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
         services.AddScoped<IElementRepository, ElementRepository>();
         services.AddScoped<IServiceVariantFeeRepository, ServiceVariantFeeRepository>();

@@ -44,3 +44,5 @@ export * from './hooks/useTenantTransactions';
 export * from './hooks/useTenantClientDetails';
 export * from './services/scheduleService';
 export * from './hooks/useAdminSchedules';
+export * from './services/receiptService';
+export * from './hooks/useReceipts';
