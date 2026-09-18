@@ -55,10 +55,14 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       return;
     }
 
+    const effectiveAssignedId = assignedUserId.trim().length > 0 ? assignedUserId.trim() : (user?.id ?? null);
+    if (!effectiveAssignedId) {
+      setErrorMsg('An assigned custodian / cashier from this regional office is required.');
+      return;
+    }
+
     setIsSubmitting(true);
     setErrorMsg(null);
-
-    const effectiveAssignedId = assignedUserId.trim().length > 0 ? assignedUserId.trim() : (user?.id ?? null);
 
     const [res, err] = await receiptService.createOrBooklet({
       tenantId,

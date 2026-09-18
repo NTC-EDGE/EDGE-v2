@@ -32,15 +32,18 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
 {
     private readonly IOrBookletRepository _bookletRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public TransferOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
         IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
         _userRepository = userRepository;
+        _tenantMemberRepository = tenantMemberRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -56,6 +59,13 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
         if (newUser == null)
         {
             return ApiResponse<OrBookletDto>.Fail("Target cashier / staff user was not found.");
+        }
+
+        // Verify that the new assignee belongs to this tenant
+        var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, request.NewAssignedUserId, cancellationToken);
+        if (membership == null && !newUser.IsSuperAdmin)
+        {
+            return ApiResponse<OrBookletDto>.Fail("The new custodian must belong to this regional office / tenant.");
         }
 
         var newUserName = $"{newUser.FirstName} {newUser.LastName}".Trim();

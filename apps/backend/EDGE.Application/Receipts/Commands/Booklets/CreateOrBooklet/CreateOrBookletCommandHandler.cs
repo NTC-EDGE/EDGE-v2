@@ -30,6 +30,7 @@ public class CreateOrBookletCommandValidator : AbstractValidator<CreateOrBooklet
         RuleFor(x => x.BookletNumber).NotEmpty().MaximumLength(100).WithMessage("Booklet number is required.");
         RuleFor(x => x.StartNumber).GreaterThan(0).WithMessage("Start number must be greater than 0.");
         RuleFor(x => x.TotalCount).GreaterThan(0).WithMessage("Total count must be greater than 0.");
+        RuleFor(x => x.AssignedUserId).NotEmpty().WithMessage("Assigned custodian / cashier is required.");
     }
 }
 
@@ -37,17 +38,20 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
 {
     private readonly IOrBookletRepository _bookletRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
         IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
         _userRepository = userRepository;
+        _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _unitOfWork = unitOfWork;
     }
@@ -58,6 +62,25 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         if (tenant == null)
         {
             return ApiResponse<OrBookletDto>.Fail($"Tenant '{request.TenantId}' was not found.");
+        }
+
+        if (!request.AssignedUserId.HasValue || request.AssignedUserId.Value == Guid.Empty)
+        {
+            return ApiResponse<OrBookletDto>.Fail("An assigned custodian / cashier is required for every OR booklet.");
+        }
+
+        // Verify that the assigned user exists and belongs to this tenant
+        var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, request.AssignedUserId.Value, cancellationToken);
+        var user = await _userRepository.GetByIdAsync(request.AssignedUserId.Value, cancellationToken);
+
+        if (user == null)
+        {
+            return ApiResponse<OrBookletDto>.Fail("The assigned custodian user was not found.");
+        }
+
+        if (membership == null && !user.IsSuperAdmin)
+        {
+            return ApiResponse<OrBookletDto>.Fail("The assigned custodian must belong to this regional office / tenant.");
         }
 
         var exists = await _bookletRepository.ExistsBookletNumberAsync(request.TenantId, request.BookletNumber.Trim(), null, cancellationToken);
@@ -84,7 +107,7 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             CurrentNumber = request.StartNumber,
             TotalCount = totalCount,
             IssuedCount = 0,
-            AssignedUserId = request.AssignedUserId,
+            AssignedUserId = request.AssignedUserId.Value,
             Status = BookletStatus.Active,
             ReceivedDate = DateTime.UtcNow,
             Remarks = request.Remarks?.Trim()
@@ -93,12 +116,7 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         await _bookletRepository.AddAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        string? assignedUserName = null;
-        if (booklet.AssignedUserId.HasValue)
-        {
-            var user = await _userRepository.GetByIdAsync(booklet.AssignedUserId.Value, cancellationToken);
-            assignedUserName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : null;
-        }
+        var assignedUserName = $"{user.FirstName} {user.LastName}".Trim();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -121,6 +139,6 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             booklet.Remarks
         );
 
-        return ApiResponse<OrBookletDto>.Success(dto, "Official Receipt booklet registered successfully.");
+        return ApiResponse<OrBookletDto>.Success(dto, $"Official Receipt booklet registered and assigned to {assignedUserName} successfully.");
     }
 }
