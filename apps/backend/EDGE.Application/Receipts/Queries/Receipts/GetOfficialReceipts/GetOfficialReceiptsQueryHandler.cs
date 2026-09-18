@@ -17,28 +17,39 @@ public record GetOfficialReceiptsQuery(
     PaymentMethod? PaymentMethod = null,
     DateTime? FromDate = null,
     DateTime? ToDate = null,
-    Guid? CashierUserId = null,
+    string? CashierUserId = null,
     string? Search = null
 ) : IRequest<ApiResponse<List<OfficialReceiptDto>>>;
 
 public class GetOfficialReceiptsQueryHandler : IRequestHandler<GetOfficialReceiptsQuery, ApiResponse<List<OfficialReceiptDto>>>
 {
     private readonly IOfficialReceiptRepository _receiptRepository;
+    private readonly IUserRepository _userRepository;
 
-    public GetOfficialReceiptsQueryHandler(IOfficialReceiptRepository receiptRepository)
+    public GetOfficialReceiptsQueryHandler(
+        IOfficialReceiptRepository receiptRepository,
+        IUserRepository userRepository)
     {
         _receiptRepository = receiptRepository;
+        _userRepository = userRepository;
     }
 
     public async Task<ApiResponse<List<OfficialReceiptDto>>> Handle(GetOfficialReceiptsQuery request, CancellationToken cancellationToken)
     {
+        Guid? resolvedCashierId = null;
+        if (!string.IsNullOrWhiteSpace(request.CashierUserId))
+        {
+            var userContext = await _userRepository.GetStaffUserContextAsync(request.CashierUserId, "Cashier", cancellationToken);
+            resolvedCashierId = userContext.UserId;
+        }
+
         var receipts = await _receiptRepository.GetByTenantAsync(
             request.TenantId,
             request.Status,
             request.PaymentMethod,
             request.FromDate,
             request.ToDate,
-            request.CashierUserId,
+            resolvedCashierId,
             request.Search,
             cancellationToken);
 

@@ -159,7 +159,7 @@ public static class ReceiptEndpoints
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetNextAvailableOrNumber(
         [FromQuery] Guid tenantId,
-        [FromQuery] Guid? cashierUserId,
+        [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
         var result = await mediator.Send(new GetNextAvailableOrNumberQuery(tenantId, cashierUserId));
@@ -173,7 +173,7 @@ public static class ReceiptEndpoints
         [FromQuery] PaymentMethod? paymentMethod,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        [FromQuery] Guid? cashierUserId,
+        [FromQuery] string? cashierUserId,
         [FromQuery] string? search,
         IMediator mediator)
     {
@@ -312,7 +312,7 @@ public static class ReceiptEndpoints
         [FromQuery] Guid tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
-        [FromQuery] Guid? cashierUserId,
+        [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
         var result = await mediator.Send(new GetCashierRcdReportQuery(tenantId, fromDate, toDate, cashierUserId));

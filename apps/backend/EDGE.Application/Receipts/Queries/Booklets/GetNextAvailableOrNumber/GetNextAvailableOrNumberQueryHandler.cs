@@ -19,28 +19,39 @@ public record NextAvailableOrDto(
 
 public record GetNextAvailableOrNumberQuery(
     Guid TenantId,
-    Guid? CashierUserId = null
+    string? CashierUserId = null
 ) : IRequest<ApiResponse<NextAvailableOrDto>>;
 
 public class GetNextAvailableOrNumberQueryHandler : IRequestHandler<GetNextAvailableOrNumberQuery, ApiResponse<NextAvailableOrDto>>
 {
     private readonly IOrBookletRepository _bookletRepository;
+    private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
 
     public GetNextAvailableOrNumberQueryHandler(
         IOrBookletRepository bookletRepository,
+        IUserRepository userRepository,
         ICurrentUserService currentUserService)
     {
         _bookletRepository = bookletRepository;
+        _userRepository = userRepository;
         _currentUserService = currentUserService;
     }
 
     public async Task<ApiResponse<NextAvailableOrDto>> Handle(GetNextAvailableOrNumberQuery request, CancellationToken cancellationToken)
     {
-        var currentUserId = Guid.TryParse(_currentUserService.UserId, out var uid) ? uid : (Guid?)null;
-        var targetUserId = request.CashierUserId ?? currentUserId;
+        Guid? targetUserId = null;
+        var userIdToResolve = !string.IsNullOrWhiteSpace(request.CashierUserId)
+            ? request.CashierUserId
+            : _currentUserService.UserId;
 
-        var booklet = await _bookletRepository.GetActiveBookletAsync(request.TenantId, targetUserId, cancellationToken)
+        if (!string.IsNullOrWhiteSpace(userIdToResolve))
+        {
+            var userContext = await _userRepository.GetStaffUserContextAsync(userIdToResolve, "Cashier", cancellationToken);
+            targetUserId = userContext.UserId;
+        }
+
+        var booklet = (targetUserId.HasValue ? await _bookletRepository.GetActiveBookletAsync(request.TenantId, targetUserId.Value, cancellationToken) : null)
                       ?? await _bookletRepository.GetActiveBookletAsync(request.TenantId, null, cancellationToken);
 
         if (booklet == null || booklet.RemainingCount <= 0)

@@ -26,7 +26,7 @@ export type ReceiptTab = 'pending_payments' | 'receipts' | 'booklets' | 'deposit
 export function useReceiptsState() {
   const { user } = useAuthContext();
   const tenantId = user?.tenantId ?? null;
-  const currentUserId = user?.email ?? null;
+  const currentUserId = user?.id ?? user?.email ?? null;
 
   const [activeTab, setActiveTab] = useState<ReceiptTab>('pending_payments');
   const [searchQuery, setSearchQuery] = useState('');

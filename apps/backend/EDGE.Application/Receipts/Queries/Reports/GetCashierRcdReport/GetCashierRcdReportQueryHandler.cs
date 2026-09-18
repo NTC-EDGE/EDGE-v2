@@ -15,7 +15,7 @@ public record GetCashierRcdReportQuery(
     Guid TenantId,
     DateTime? FromDate = null,
     DateTime? ToDate = null,
-    Guid? CashierUserId = null
+    string? CashierUserId = null
 ) : IRequest<ApiResponse<CashierRcdReportDto>>;
 
 public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdReportQuery, ApiResponse<CashierRcdReportDto>>
@@ -48,11 +48,13 @@ public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdRepo
         var fromDate = request.FromDate ?? DateTime.UtcNow.Date;
         var toDate = request.ToDate ?? DateTime.UtcNow.Date.AddDays(1).AddTicks(-1);
 
+        Guid? resolvedCashierId = null;
         string? cashierName = null;
-        if (request.CashierUserId.HasValue)
+        if (!string.IsNullOrWhiteSpace(request.CashierUserId))
         {
-            var user = await _userRepository.GetByIdAsync(request.CashierUserId.Value, cancellationToken);
-            cashierName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : null;
+            var userContext = await _userRepository.GetStaffUserContextAsync(request.CashierUserId, "Cashier", cancellationToken);
+            resolvedCashierId = userContext.UserId;
+            cashierName = userContext.StaffName;
         }
 
         var allReceipts = await _receiptRepository.GetByTenantAsync(
@@ -61,7 +63,7 @@ public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdRepo
             null,
             fromDate,
             toDate,
-            request.CashierUserId,
+            resolvedCashierId,
             null,
             cancellationToken);
 
@@ -137,7 +139,7 @@ public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdRepo
             r.IssuedByUser != null ? $"{r.IssuedByUser.FirstName} {r.IssuedByUser.LastName}".Trim() : null,
             r.CancelledAt,
             r.CancelledByUserId,
-            null,
+            r.CancelledByUser != null ? $"{r.CancelledByUser.FirstName} {r.CancelledByUser.LastName}".Trim() : null,
             r.CancellationReason,
             r.Remarks,
             r.LineItems.Select(l => new OfficialReceiptLineItemDto(l.Id, l.FeeCode, l.Description, l.Amount)).ToList()
@@ -203,7 +205,7 @@ public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdRepo
             tenantName,
             fromDate,
             toDate,
-            request.CashierUserId,
+            resolvedCashierId,
             cashierName,
             summary,
             activeBookletDtos,
