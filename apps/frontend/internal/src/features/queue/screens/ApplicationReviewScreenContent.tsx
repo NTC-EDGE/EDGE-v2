@@ -44,7 +44,6 @@ import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
 import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
-import { QueueActionMenuModal } from "../components/modals/QueueActionMenuModal";
 import {
   generateSoaPrintableHtml,
   generateOpPrintableHtml,
@@ -3058,7 +3057,6 @@ export function ApplicationReviewScreenContent({
   const [showGenerateSoa, setShowGenerateSoa] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [reportPreviewInitialDoc, setReportPreviewInitialDoc] = useState<ReportDocumentType>("soa");
-  const [showActionMenu, setShowActionMenu] = useState(false);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
 
   const handlePreviewFile = useCallback((fileOrUri: DocumentPreviewFile | string, label?: string) => {
@@ -3125,6 +3123,29 @@ export function ApplicationReviewScreenContent({
       useNativeDriver: true,
     }).start();
   }, [selectedApplication?.id, fadeAnim]);
+
+  const handlePrintSoa = useCallback(() => {
+    if (selectedApplication !== null) {
+      const html = generateSoaPrintableHtml(selectedApplication);
+      openPrintableDocumentWindow(html);
+    }
+  }, [selectedApplication]);
+
+  const handlePrintOp = useCallback(() => {
+    if (selectedApplication !== null) {
+      const html = generateOpPrintableHtml(selectedApplication);
+      openPrintableDocumentWindow(html);
+    }
+  }, [selectedApplication]);
+
+  const handlePreviewReport = useCallback((docType: ReportDocumentType = "soa") => {
+    setReportPreviewInitialDoc(docType);
+    setShowReportPreview(true);
+  }, []);
+
+  const handleOpenGenerateSoa = useCallback(() => {
+    setShowGenerateSoa(true);
+  }, []);
 
   const handleCloseAnimated = () => {
     Animated.timing(fadeAnim, {
@@ -3234,25 +3255,6 @@ export function ApplicationReviewScreenContent({
     Alert.alert("Success", `Application endorsed to ${targetRole}`);
   };
 
-  const handlePrintSoa = useCallback(() => {
-    const html = generateSoaPrintableHtml(app);
-    openPrintableDocumentWindow(html);
-  }, [app]);
-
-  const handlePrintOp = useCallback(() => {
-    const html = generateOpPrintableHtml(app);
-    openPrintableDocumentWindow(html);
-  }, [app]);
-
-  const handlePreviewReport = useCallback((docType: ReportDocumentType = "soa") => {
-    setReportPreviewInitialDoc(docType);
-    setShowReportPreview(true);
-  }, []);
-
-  const handleOpenGenerateSoa = useCallback(() => {
-    setShowGenerateSoa(true);
-  }, []);
-
   const handleCashierVerify = async (data: {
     orNumber: string;
     checkNumber: string;
@@ -3336,21 +3338,6 @@ export function ApplicationReviewScreenContent({
 
             <View style={[styles.innerTabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
               <View style={styles.innerTabSpacer} />
-              <Pressable
-                style={[
-                  styles.iconBtn,
-                  { marginRight: SPACING[6] },
-                  Platform.select({ web: { cursor: "pointer" } }),
-                ]}
-                onPress={() => setShowActionMenu(true)}
-                accessibilityLabel="Application quick actions"
-              >
-                <Lucide
-                  name="more-vertical"
-                  size={16}
-                  color={isDark ? colors.neutral[300] : colors.neutral[600]}
-                />
-              </Pressable>
               {onCollapse !== undefined && (
                 <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
                   <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
@@ -3389,22 +3376,6 @@ export function ApplicationReviewScreenContent({
               );
             })}
             <View style={styles.innerTabSpacer} />
-            <Pressable
-              style={[
-                styles.iconBtn,
-                { marginRight: SPACING[6] },
-                Platform.select({ web: { cursor: "pointer" } }),
-              ]}
-              onPress={() => setShowActionMenu(true)}
-              accessibilityLabel="Application quick actions"
-            >
-              <Lucide
-                name="more-vertical"
-                size={16}
-                color={isDark ? colors.neutral[300] : colors.neutral[600]}
-              />
-            </Pressable>
-            <View style={{ width: SPACING[8] }} />
             {onCollapse !== undefined && (
               <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
                 <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
@@ -3671,17 +3642,6 @@ export function ApplicationReviewScreenContent({
         initialDocType={reportPreviewInitialDoc}
         onClose={() => setShowReportPreview(false)}
         onOpenGenerateSoa={handleOpenGenerateSoa}
-      />
-
-      {/* ── 3-Dots Quick Action Menu Modal ── */}
-      <QueueActionMenuModal
-        visible={showActionMenu}
-        app={app}
-        onClose={() => setShowActionMenu(false)}
-        onGenerateSoa={handleOpenGenerateSoa}
-        onPrintSoa={handlePrintSoa}
-        onPrintOp={handlePrintOp}
-        onPreviewReport={handlePreviewReport}
       />
     </Animated.View>
   );
