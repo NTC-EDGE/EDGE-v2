@@ -122,6 +122,9 @@ public class UserRepository : IUserRepository
             }
         }
 
+        var ipAddress = currentUserService.IpAddress ?? "Unknown IP";
+        var tenantScope = currentUserService.TenantId?.ToString() ?? "Global";
+
         // 3. Fallback auto-linking via verified email with collision protection
         if (!string.IsNullOrWhiteSpace(currentUserService.Email) && currentUserService.IsEmailVerified)
         {
@@ -135,12 +138,12 @@ public class UserRepository : IUserRepository
                     try
                     {
                         await _context.SaveChangesAsync(cancellationToken);
-                        _logger?.LogInformation("Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, authUserId);
+                        _logger?.LogInformation("Security Audit: Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}' from IP '{IpAddress}' [Tenant: {TenantScope}]", cleanEmail, authUserId, ipAddress, tenantScope);
                         return candidateUser;
                     }
                     catch (DbUpdateConcurrencyException ex)
                     {
-                        _logger?.LogWarning(ex, "Concurrency conflict during auto-linking for '{Email}'. Verifying updated record...", cleanEmail);
+                        _logger?.LogWarning(ex, "Security/DB Audit: Concurrency conflict during auto-linking for '{Email}' from IP '{IpAddress}' [Tenant: {TenantScope}]. Verifying updated record...", cleanEmail, ipAddress, tenantScope);
                         var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
                         if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
                         {
@@ -150,7 +153,7 @@ public class UserRepository : IUserRepository
                     }
                     catch (DbUpdateException ex)
                     {
-                        _logger?.LogWarning(ex, "Database update exception during auto-linking for '{Email}'.", cleanEmail);
+                        _logger?.LogWarning(ex, "Security/DB Audit: Database update exception during auto-linking for '{Email}' from IP '{IpAddress}' [Tenant: {TenantScope}].", cleanEmail, ipAddress, tenantScope);
                         var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
                         if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
                         {
@@ -161,15 +164,15 @@ public class UserRepository : IUserRepository
                 }
                 else
                 {
-                    _logger?.LogWarning("Account collision safeguard: Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'",
-                        authUserId, cleanEmail, candidateUser.AuthUserId);
+                    _logger?.LogWarning("Security Audit: Account collision safeguard triggered from IP '{IpAddress}' [Tenant: {TenantScope}]. Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'.",
+                        ipAddress, tenantScope, authUserId, cleanEmail, candidateUser.AuthUserId);
                 }
             }
         }
         else if (!string.IsNullOrWhiteSpace(currentUserService.Email) && !currentUserService.IsEmailVerified)
         {
-            _logger?.LogWarning("Skipping auto-linking for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
-                authUserId, currentUserService.Email);
+            _logger?.LogWarning("Security Audit: Skipping auto-linking from IP '{IpAddress}' [Tenant: {TenantScope}] for AuthUserId '{AuthUserId}' because email '{Email}' is unverified.",
+                ipAddress, tenantScope, authUserId, currentUserService.Email);
         }
 
         return null;
