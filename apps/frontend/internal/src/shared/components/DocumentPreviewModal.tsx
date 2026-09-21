@@ -101,8 +101,8 @@ export function DocumentPreviewModal({
           window.open(fileUri, "_blank");
         }
       }
-    } catch (err) {
-      console.warn("Failed to open document URI:", err);
+    } catch {
+      // Fail silently if browser/OS prevents opening external URL
     }
   };
 

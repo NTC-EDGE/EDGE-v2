@@ -125,7 +125,7 @@ export function ConfirmationModal({
                 styles.cancelBtn,
                 { borderColor: isDark ? colors.neutral[700] : COLORS.neutral[300] },
                 isLoading && { opacity: 0.5 },
-                Platform.select({ web: { cursor: isLoading ? 'not-allowed' : 'pointer' } as object }),
+                Platform.select({ web: { cursor: isLoading ? 'auto' : 'pointer' } }),
               ]}
               onPress={onCancel}
             >
@@ -140,7 +140,7 @@ export function ConfirmationModal({
                 styles.confirmBtn,
                 { backgroundColor: accentColor },
                 isLoading && { opacity: 0.7 },
-                Platform.select({ web: { cursor: isLoading ? 'not-allowed' : 'pointer' } as object }),
+                Platform.select({ web: { cursor: isLoading ? 'auto' : 'pointer' } }),
               ]}
               onPress={onConfirm}
             >

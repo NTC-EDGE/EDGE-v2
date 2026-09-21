@@ -1596,7 +1596,6 @@ function ApplicantRecordTab({
           ? String(Reflect.get(storageErr, 'message'))
           : (storageRes?.message ?? 'Failed to upload document to storage.');
         notifyError('Upload Failed', errText);
-        setUploadingReqId(null);
         return;
       }
 
@@ -1612,8 +1611,6 @@ function ApplicantRecordTab({
           storedFileId: storedFileId,
         }
       );
-
-      setUploadingReqId(null);
 
       if (reqErr !== null || !reqRes?.succeeded) {
         const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
@@ -1652,9 +1649,10 @@ function ApplicantRecordTab({
         await mutateApplications(app.id);
       }
     } catch (err: unknown) {
-      setUploadingReqId(null);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
       notifyError('Upload Error', errorMsg);
+    } finally {
+      setUploadingReqId(null);
     }
   };
 
@@ -1686,6 +1684,9 @@ function ApplicantRecordTab({
           }
 
           await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : 'An error occurred during file selection.';
+          notifyError('Upload Error', errorMsg);
         } finally {
           if (typeof document !== 'undefined' && document.body && document.body.contains(input)) {
             document.body.removeChild(input);
