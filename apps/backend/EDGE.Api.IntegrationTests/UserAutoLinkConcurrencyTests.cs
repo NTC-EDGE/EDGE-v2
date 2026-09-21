@@ -198,4 +198,53 @@ public class UserAutoLinkConcurrencyTests
             userInDb!.AuthUserId.Should().Be("seed_unverified_placeholder");
         }
     }
+
+    [Fact]
+    public async Task AutoLinking_WithMixedCaseEmail_MatchesAndLinksCaseInsensitively()
+    {
+        // 1. Arrange - Seed account with lowercase email
+        var dbOptions = CreateInMemoryDbOptions();
+        var targetEmail = "evaluator.mixedcase@ntcedge.com";
+        var liveAuthId = "user_clerk_mixed_case_123";
+
+        using (var seedContext = new ApplicationDbContext(dbOptions))
+        {
+            var seedUser = new User
+            {
+                Id = Guid.NewGuid(),
+                AuthUserId = "user_evaluator123",
+                Email = targetEmail,
+                FirstName = "Case",
+                LastName = "Test",
+                AccountType = ApplicantType.Individual
+            };
+            seedContext.Users.Add(seedUser);
+            await seedContext.SaveChangesAsync();
+        }
+
+        // 2. Act - Resolve with Uppercase/Mixed-case email from incoming authentication provider
+        using (var context = new ApplicationDbContext(dbOptions))
+        {
+            var repo = new UserRepository(context);
+            var mockUserService = new Mock<ICurrentUserService>();
+            mockUserService.Setup(u => u.UserId).Returns(liveAuthId);
+            mockUserService.Setup(u => u.Email).Returns("Evaluator.MixedCase@NTCEdge.com");
+            mockUserService.Setup(u => u.IsEmailVerified).Returns(true);
+
+            var result = await repo.ResolveCurrentUserAsync(mockUserService.Object);
+
+            // 3. Assert - Resolves and links successfully
+            result.Should().NotBeNull();
+            result!.AuthUserId.Should().Be(liveAuthId);
+            result.Email.Should().Be(targetEmail);
+        }
+
+        // Verify database persistence
+        using (var verifyContext = new ApplicationDbContext(dbOptions))
+        {
+            var userInDb = await verifyContext.Users.FirstOrDefaultAsync(u => u.Email == targetEmail);
+            userInDb.Should().NotBeNull();
+            userInDb!.AuthUserId.Should().Be(liveAuthId);
+        }
+    }
 }

@@ -18,10 +18,13 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(email)) return null;
+        var cleanEmail = email.Trim().ToLowerInvariant();
         return await _context.Users
+            .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
-            .FirstOrDefaultAsync(x => x.Email == email, cancellationToken);
+            .FirstOrDefaultAsync(x => x.Email.ToLower() == cleanEmail, cancellationToken);
     }
 
     public async Task<User?> GetByAuthUserIdAsync(string authUserId, CancellationToken cancellationToken = default)

@@ -317,7 +317,8 @@ public static class RolePermissionDataSeeder
 
         foreach (var user in defaultUsers)
         {
-            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Id == user.Id || u.Email == user.Email);
+            user.Email = user.Email.Trim().ToLowerInvariant();
+            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Id == user.Id || u.Email.ToLower() == user.Email);
             if (dbUser == null)
             {
                 try
@@ -372,6 +373,7 @@ public static class RolePermissionDataSeeder
 
             foreach (var user in defaultUsers)
             {
+                var cleanEmail = user.Email.Trim().ToLowerInvariant();
                 var succeeded = false;
                 string? lastError = null;
 
@@ -379,27 +381,27 @@ public static class RolePermissionDataSeeder
                 {
                     try
                     {
-                        var existingClerkUsers = await clerkUserService.GetUsersByEmailAsync(user.Email);
+                        var existingClerkUsers = await clerkUserService.GetUsersByEmailAsync(cleanEmail);
                         if (existingClerkUsers != null && existingClerkUsers.Count > 0)
                         {
                             var clerkUser = existingClerkUsers[0];
-                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == cleanEmail);
                             if (dbUser != null && dbUser.AuthUserId != clerkUser.Id)
                             {
                                 dbUser.AuthUserId = clerkUser.Id;
                                 await context.SaveChangesAsync();
-                                logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", user.Email, clerkUser.Id);
+                                logger?.LogInformation("Linked seed user '{Email}' to existing Clerk ID: {ClerkId}", cleanEmail, clerkUser.Id);
                             }
                         }
                         else
                         {
                             var payload = new CreateClerkUserPayload
                             {
-                                EmailAddress = user.Email,
+                                EmailAddress = cleanEmail,
                                 Password = "Password123!",
                                 FirstName = user.FirstName,
                                 LastName = user.LastName,
-                                Username = ClerkUserService.GenerateSafeFallbackUsername(user.FirstName, user.LastName, user.Email),
+                                Username = ClerkUserService.GenerateSafeFallbackUsername(user.FirstName, user.LastName, cleanEmail),
                                 PublicMetadata = new Dictionary<string, object>
                                 {
                                     { "is_super_admin", user.IsSuperAdmin },
@@ -408,12 +410,12 @@ public static class RolePermissionDataSeeder
                             };
 
                             var created = await clerkUserService.CreateUserAsync(payload);
-                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email == user.Email);
+                            var dbUser = await context.Users.FirstOrDefaultAsync(u => u.Email.ToLower() == cleanEmail);
                             if (dbUser != null && created != null)
                             {
                                 dbUser.AuthUserId = created.Id;
                                 await context.SaveChangesAsync();
-                                logger?.LogInformation("Successfully provisioned seed user '{Email}' in Clerk with ID: {ClerkId}", user.Email, created.Id);
+                                logger?.LogInformation("Successfully provisioned seed user '{Email}' in Clerk with ID: {ClerkId}", cleanEmail, created.Id);
                             }
                         }
 
