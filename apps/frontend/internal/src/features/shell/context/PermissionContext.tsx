@@ -80,7 +80,7 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
     canApproveAsAccountant: false,
     canVerifyCashier: true,
     canApprove: false,
-    canDecline: false,
+    canDecline: true,
     canEndorse: false,
   },
 };

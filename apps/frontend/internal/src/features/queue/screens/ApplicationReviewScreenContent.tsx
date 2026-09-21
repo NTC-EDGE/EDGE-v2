@@ -19,7 +19,7 @@ import {
   Icon as Lucide,
   toast,
 } from "@edge/ui";
-import { ApplicationData } from "../../../types/application";
+import { ApplicationData, ApplicationStatus } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
 import {
@@ -216,29 +216,29 @@ export function ApplicationReviewScreenContent({
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
-  /** Evaluator → forwards to Accountant for SOA review */
+  /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
   const handleForwardToAccountant = async () => {
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'ForAccountant',
-      remarks: 'Evaluation completed. Forwarded to Accountant for SOA review.',
+      remarks: 'Evaluation approved. Advanced to Accountant for SOA review.',
     });
-    if (err !== null) { toast.error('Failed to forward to Accountant.'); return; }
-    toast.success('Application forwarded to Accountant for SOA review.');
+    if (err !== null) { toast.error('Failed to approve application.'); return; }
+    toast.success('Application approved and advanced to Accountant.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
   };
 
-  /** Accountant → approves SOA, forwards to Cashier for payment collection */
+  /** Accountant → Approves SOA, background advances to PendingPayment (visible on client portal) */
   const handleAccountantApprove = async () => {
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'PendingPayment',
-      remarks: 'SOA reviewed and approved by Accountant. Forwarded to Cashier for payment.',
+      remarks: 'SOA and assessment approved by Accountant. Ready for client payment.',
     });
     if (err !== null) { toast.error('Failed to approve SOA.'); return; }
-    toast.success('SOA approved. Application forwarded to Cashier for payment.');
+    toast.success('SOA approved. Application is now ready for payment.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -259,15 +259,38 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Return / decline — available to Evaluators, Accountants, and Admin */
+  /** Return / decline — multi-tier return in background based on workflow stage */
   const handleDecline = async (notice: string) => {
     setShowDecline(false);
+    const trimmedNotice = notice.trim() || 'Application returned with notice.';
+
+    let targetStatus: ApplicationStatus = 'Returned';
+    let successMessage = 'Application returned to applicant with notice.';
+    let auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+
+    if (app.status === 'PendingPayment') {
+      // Cashier returns -> goes back to Accountant (previous touch)
+      targetStatus = 'ForAccountant';
+      successMessage = 'Application returned to Accountant for SOA review.';
+      auditRemarks = `Returned by Cashier to Accountant: ${trimmedNotice}`;
+    } else if (app.status === 'ForAccountant') {
+      // Accountant returns -> goes back to Evaluator (previous touch)
+      targetStatus = 'Evaluating';
+      successMessage = 'Application returned to Evaluator for review.';
+      auditRemarks = `Returned by Accountant to Evaluator: ${trimmedNotice}`;
+    } else {
+      // Evaluator / Chief / Director returns -> goes back to Applicant
+      targetStatus = 'Returned';
+      successMessage = 'Application returned to applicant with notice.';
+      auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+    }
+
     const [, err] = await applicationService.updateStatus(app.id, {
-      status: 'Returned',
-      remarks: notice.trim() || 'Application returned with notice.',
+      status: targetStatus,
+      remarks: auditRemarks,
     });
     if (err !== null) { toast.error('Failed to return application.'); return; }
-    toast.success('Application returned with notice.');
+    toast.success(successMessage);
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -429,18 +452,16 @@ export function ApplicationReviewScreenContent({
         hasIncompleteApplicants={hasIncompleteApplicants}
         canDecline={canDecline}
         canEndorse={canEndorse}
-        onForwardToAccountant={() => setShowApprove(true)}
-        onAccountantApprove={() => setShowApprove(true)}
+        onApprove={() => setShowApprove(true)}
         onCashierVerify={() => setShowCashier(true)}
         onDecline={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
-        onAdminDirectApprove={() => setShowApprove(true)}
       />
 
       {/* ── Modals ── */}
       <CustomDocPreviewModal previewCustomDoc={previewCustomDoc} onClose={handleClosePreviewDoc} />
 
-      {/* ApproveModal is reused for multi-step primary actions — handler selected by workflow stage */}
+      {/* ApproveModal is reused for evaluation and accountant approval */}
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
@@ -453,7 +474,34 @@ export function ApplicationReviewScreenContent({
         }
         onCancel={() => setShowApprove(false)}
       />
-      <DeclineModal visible={showDecline} applicantName={app.applicant} onConfirm={handleDecline} onCancel={() => setShowDecline(false)} />
+      <DeclineModal
+        visible={showDecline}
+        applicantName={app.applicant}
+        title={
+          app.status === 'PendingPayment'
+            ? 'Return to Accountant'
+            : app.status === 'ForAccountant'
+              ? 'Return to Evaluator'
+              : 'Return Application'
+        }
+        confirmText="Confirm Return"
+        reasonLabel={
+          app.status === 'PendingPayment'
+            ? 'Return Reason for Accountant'
+            : app.status === 'ForAccountant'
+              ? 'Return Reason for Evaluator'
+              : 'Reason / Notice of Discrepancy'
+        }
+        placeholder={
+          app.status === 'PendingPayment'
+            ? 'Describe fee adjustments or discrepancy for the Accountant...'
+            : app.status === 'ForAccountant'
+              ? 'Describe findings or missing details for the Evaluator...'
+              : 'Describe the discrepancy or reason for returning this application...'
+        }
+        onConfirm={handleDecline}
+        onCancel={() => setShowDecline(false)}
+      />
       <EndorseModal visible={showEndorse} applicantName={app.applicant} currentRole={currentRole} onConfirm={handleEndorse} onCancel={() => setShowEndorse(false)} />
       <CashierVerificationModal visible={showCashier} applicantName={app.applicant} initialOrNumber={app.payment.orNumber} onConfirm={handleCashierVerify} onCancel={() => setShowCashier(false)} />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
@@ -476,24 +524,21 @@ interface WorkflowActionBarProps {
   hasIncompleteApplicants: boolean;
   canDecline: boolean;
   canEndorse: boolean;
-  onForwardToAccountant: () => void;
-  onAccountantApprove: () => void;
+  onApprove: () => void;
   onCashierVerify: () => void;
   onDecline: () => void;
   onEndorse: () => void;
-  onAdminDirectApprove: () => void;
 }
 
 function WorkflowActionBar({
   app, isEditable, isDark, colors,
   showCashierBtn, showAccountantBtn, showForwardBtn, isAdmin,
   hasIncompleteApplicants, canDecline, canEndorse,
-  onForwardToAccountant, onAccountantApprove, onCashierVerify,
-  onDecline, onEndorse, onAdminDirectApprove,
+  onApprove, onCashierVerify,
+  onDecline, onEndorse,
 }: WorkflowActionBarProps) {
   const primaryGreen = isDark ? '#166534' : '#15803D';
   const primaryBlue = isDark ? colors.brand[600] : colors.brand[700];
-  const primaryPurple = isDark ? '#6B21A8' : '#7E22CE';
   const disabledBg = isDark ? '#1E293B' : '#E2E8F0';
   const disabledText = isDark ? '#64748B' : '#94A3B8';
   const disabledBorder = isDark ? '#334155' : '#CBD5E1';
@@ -506,6 +551,7 @@ function WorkflowActionBar({
   const cashierEnabled = isEditable && showCashierBtn;
   const declineEnabled = isEditable && canDecline;
   const endorseEnabled = isEditable && canEndorse;
+  const adminDirectEnabled = isEditable && isAdmin && !showCashierBtn && !showAccountantBtn && !showForwardBtn;
 
   return (
     <View style={[sc.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
@@ -518,7 +564,7 @@ function WorkflowActionBar({
           disabled={!cashierEnabled}
         >
           <Lucide name="credit-card" size={15} color={cashierEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: cashierEnabled ? COLORS.neutral.white : disabledText }]}>Verify Payment & Complete</Text>
+          <Text style={[sc.actionBtnPrimaryText, { color: cashierEnabled ? COLORS.neutral.white : disabledText }]}>Verify Payment</Text>
         </Pressable>
       )}
 
@@ -526,15 +572,15 @@ function WorkflowActionBar({
       {showAccountantBtn && (
         <Pressable
           style={[sc.actionBtnPrimary, { backgroundColor: accountantEnabled ? primaryGreen : disabledBg, borderColor: accountantEnabled ? 'transparent' : disabledBorder, borderWidth: 1 }, !accountantEnabled && sc.actionBtnDisabled, Platform.select({ web: { cursor: accountantEnabled ? 'pointer' : 'not-allowed' } as object })]}
-          onPress={() => accountantEnabled && onAccountantApprove()}
+          onPress={() => accountantEnabled && onApprove()}
           disabled={!accountantEnabled}
         >
-          <Lucide name="check-square" size={15} color={accountantEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: accountantEnabled ? COLORS.neutral.white : disabledText }]}>Approve SOA & Forward to Cashier</Text>
+          <Lucide name="check-circle" size={15} color={accountantEnabled ? COLORS.neutral.white : disabledText} />
+          <Text style={[sc.actionBtnPrimaryText, { color: accountantEnabled ? COLORS.neutral.white : disabledText }]}>Approve</Text>
         </Pressable>
       )}
 
-      {/* ── Stage: Evaluating → Forward to Accountant ── */}
+      {/* ── Stage: Evaluating / Submitted → Evaluator / Chief / Director Approve ── */}
       {showForwardBtn && (
         <Pressable
           style={[sc.actionBtnPrimary, { backgroundColor: forwardEnabled ? primaryGreen : disabledBg, borderColor: forwardEnabled ? 'transparent' : disabledBorder, borderWidth: 1 }, !forwardEnabled && sc.actionBtnDisabled, Platform.select({ web: { cursor: forwardEnabled ? 'pointer' : 'not-allowed' } as object })]}
@@ -545,20 +591,20 @@ function WorkflowActionBar({
               Alert.alert('Endorsement Required', `${endorseList.length} applicant(s) are marked For Endorsement. Please use the Endorse action first.`, [{ text: 'OK' }]);
               return;
             }
-            onForwardToAccountant();
+            onApprove();
           }}
           disabled={!forwardEnabled}
         >
-          <Lucide name="send" size={15} color={forwardEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: forwardEnabled ? COLORS.neutral.white : disabledText }]}>Forward to Accountant</Text>
+          <Lucide name="check-circle" size={15} color={forwardEnabled ? COLORS.neutral.white : disabledText} />
+          <Text style={[sc.actionBtnPrimaryText, { color: forwardEnabled ? COLORS.neutral.white : disabledText }]}>Approve</Text>
         </Pressable>
       )}
 
       {/* ── Admin: Bypass — Direct Approve (only when not in a specific stage) ── */}
-      {isAdmin && !showCashierBtn && !showAccountantBtn && !showForwardBtn && isEditable && (
+      {adminDirectEnabled && (
         <Pressable
           style={[sc.actionBtnPrimary, { backgroundColor: primaryGreen, borderWidth: 1, borderColor: 'transparent' }, Platform.select({ web: { cursor: 'pointer' } as object })]}
-          onPress={onAdminDirectApprove}
+          onPress={onApprove}
         >
           <Lucide name="check-circle" size={15} color={COLORS.neutral.white} />
           <Text style={[sc.actionBtnPrimaryText, { color: COLORS.neutral.white }]}>Approve</Text>
@@ -568,29 +614,18 @@ function WorkflowActionBar({
       {/* ── Spacer ── */}
       <View style={{ flex: 1 }} />
 
-      {/* ── Return (Decline) — available when canDecline ── */}
+      {/* ── Return — available to all active reviewer levels ── */}
       {declineEnabled && (
         <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: outlineBorder, borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onDecline}>
+          <Lucide name="rotate-ccw" size={14} color={outlineText} />
           <Text style={[sc.actionBtnOutlineText, { color: outlineText }]}>Return</Text>
         </Pressable>
       )}
 
-      {/* ── Endorse → ── */}
+      {/* ── Endorse → (Evaluation stage) ── */}
       {endorseEnabled && !showAccountantBtn && !showCashierBtn && (
         <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: isDark ? colors.brand[400] : colors.brand[600], borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onEndorse}>
           <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.brand[400] : colors.brand[600] }]}>Endorse →</Text>
-        </Pressable>
-      )}
-
-      {/* ── Admin: Stage-shortcut buttons for pending stages ── */}
-      {isAdmin && showForwardBtn && (
-        <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: isDark ? colors.neutral[600] : colors.neutral[400], borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onAccountantApprove}>
-          <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>Skip to Cashier</Text>
-        </Pressable>
-      )}
-      {isAdmin && showAccountantBtn && (
-        <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: primaryPurple, borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onCashierVerify}>
-          <Text style={[sc.actionBtnOutlineText, { color: primaryPurple }]}>Skip to Cashier</Text>
         </Pressable>
       )}
     </View>
