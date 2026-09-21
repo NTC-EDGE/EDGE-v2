@@ -136,17 +136,24 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
 
         // 2. Transition status to Submitted & generate ApplicationNumber
-        app.Status = ApplicationStatus.Submitted;
-        app.ApplicationNumber = $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+        var targetAppNumber = $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
+        var trackedApp = await _applicationRepository.GetByIdAsync(app.Id, cancellationToken);
+        if (trackedApp == null)
+        {
+            return ApiResponse<Guid>.Fail($"Application with ID '{request.Id}' was not found.");
+        }
+
+        trackedApp.Status = ApplicationStatus.Submitted;
+        trackedApp.ApplicationNumber = targetAppNumber;
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            await _applicationRepository.UpdateAsync(app, cancellationToken);
+            await _applicationRepository.UpdateAsync(trackedApp, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-            return ApiResponse<Guid>.Success(app.Id, "Application finalized and submitted successfully.");
+            return ApiResponse<Guid>.Success(trackedApp.Id, "Application finalized and submitted successfully.");
         }
         catch (Exception ex)
         {

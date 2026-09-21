@@ -35,112 +35,147 @@ public class AuditableEntitySaveChangesInterceptor : SaveChangesInterceptor
     {
         if (context == null) return;
 
-        var userId = _currentUserService.UserId ?? "System";
-        var auditLogs = new List<AuditLog>();
-
-        context.ChangeTracker.DetectChanges();
-
-        var entries = context.ChangeTracker.Entries().ToList();
-
-        foreach (var entry in entries)
+        try
         {
-            if (entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
-                continue;
+            var userId = _currentUserService.UserId ?? "System";
+            var auditLogs = new List<AuditLog>();
 
-            // 1. Populate Auditable Fields
-            if (entry.Entity is AuditableEntity auditable)
-            {
-                if (entry.State == EntityState.Added)
-                {
-                    auditable.CreatedAt = DateTime.UtcNow;
-                    auditable.CreatedBy = userId;
-                }
-                else if (entry.State == EntityState.Modified)
-                {
-                    auditable.LastModifiedAt = DateTime.UtcNow;
-                    auditable.LastModifiedBy = userId;
-                }
-                else if (entry.State == EntityState.Deleted)
-                {
-                    entry.State = EntityState.Modified;
-                    auditable.IsDeleted = true;
-                    auditable.IsDeletedBy = userId;
-                    auditable.LastModifiedAt = DateTime.UtcNow;
-                    auditable.LastModifiedBy = userId;
-                }
-            }
-
-            // 2. Extract TenantId if present
-            Guid? tenantId = null;
             try
             {
-                var tenantProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "TenantId");
-                if (tenantProp != null && tenantProp.CurrentValue is Guid gVal)
-                {
-                    tenantId = gVal;
-                }
+                context.ChangeTracker.DetectChanges();
             }
             catch
             {
-                // Ignore property evaluation failures for detached/special properties
+                // Ignore change detection exceptions
             }
 
-            // 3. Generate Audit Logs
-            var auditEntry = new AuditEntry(entry)
+            var entries = context.ChangeTracker.Entries().ToList();
+
+            foreach (var entry in entries)
             {
-                EntityName = entry.Entity.GetType().Name,
-                ChangedBy = userId,
-                TenantId = tenantId
-            };
-
-            foreach (var property in entry.Properties)
-            {
-                if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
-                    break;
-
-                string propertyName = property.Metadata.Name;
-                if (property.Metadata.IsPrimaryKey())
-                {
-                    try { auditEntry.KeyValues[propertyName] = property.CurrentValue; } catch { }
-                    continue;
-                }
-
                 try
                 {
-                    switch (entry.State)
+                    if (entry == null || entry.Entity is AuditLog || entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                        continue;
+
+                    var originalState = entry.State;
+
+                    // 1. Populate Auditable Fields
+                    if (entry.Entity is AuditableEntity auditable)
                     {
-                        case EntityState.Added:
-                            auditEntry.Action = "Insert";
-                            auditEntry.NewValues[propertyName] = property.CurrentValue;
-                            break;
+                        if (originalState == EntityState.Added)
+                        {
+                            auditable.CreatedAt = DateTime.UtcNow;
+                            auditable.CreatedBy = userId;
+                        }
+                        else if (originalState == EntityState.Modified)
+                        {
+                            auditable.LastModifiedAt = DateTime.UtcNow;
+                            auditable.LastModifiedBy = userId;
+                        }
+                        else if (originalState == EntityState.Deleted)
+                        {
+                            entry.State = EntityState.Modified;
+                            auditable.IsDeleted = true;
+                            auditable.IsDeletedBy = userId;
+                            auditable.LastModifiedAt = DateTime.UtcNow;
+                            auditable.LastModifiedBy = userId;
+                        }
+                    }
 
-                        case EntityState.Deleted:
-                            auditEntry.Action = "Delete";
-                            auditEntry.OldValues[propertyName] = property.OriginalValue;
-                            break;
+                    // 2. Extract TenantId if present
+                    Guid? tenantId = null;
+                    try
+                    {
+                        var tenantProp = entry.Properties.FirstOrDefault(p => p.Metadata.Name == "TenantId");
+                        if (tenantProp != null && tenantProp.CurrentValue is Guid gVal)
+                        {
+                            tenantId = gVal;
+                        }
+                    }
+                    catch
+                    {
+                        // Ignore property evaluation failures for detached/special properties
+                    }
 
-                        case EntityState.Modified:
-                            if (property.IsModified)
+                    // 3. Generate Audit Logs
+                    var auditEntry = new AuditEntry(entry)
+                    {
+                        EntityName = entry.Entity.GetType().Name,
+                        ChangedBy = userId,
+                        TenantId = tenantId
+                    };
+
+                    foreach (var property in entry.Properties)
+                    {
+                        try
+                        {
+                            if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                                break;
+
+                            string propertyName = property.Metadata.Name;
+                            if (property.Metadata.IsPrimaryKey())
                             {
-                                auditEntry.Action = "Update";
-                                auditEntry.OldValues[propertyName] = property.OriginalValue;
-                                auditEntry.NewValues[propertyName] = property.CurrentValue;
+                                try { auditEntry.KeyValues[propertyName] = property.CurrentValue; } catch { }
+                                continue;
                             }
-                            break;
+
+                            switch (originalState)
+                            {
+                                case EntityState.Added:
+                                    auditEntry.Action = "Insert";
+                                    try { auditEntry.NewValues[propertyName] = property.CurrentValue; } catch { }
+                                    break;
+
+                                case EntityState.Deleted:
+                                    auditEntry.Action = "Delete";
+                                    try { auditEntry.OldValues[propertyName] = property.OriginalValue; } catch { }
+                                    break;
+
+                                case EntityState.Modified:
+                                    bool isModified = false;
+                                    try { isModified = property.IsModified; } catch { }
+                                    if (isModified)
+                                    {
+                                        auditEntry.Action = "Update";
+                                        try { auditEntry.OldValues[propertyName] = property.OriginalValue; } catch { }
+                                        try { auditEntry.NewValues[propertyName] = property.CurrentValue; } catch { }
+                                    }
+                                    break;
+                            }
+                        }
+                        catch
+                        {
+                            // Ignore property original value read errors for detached/shadow properties
+                        }
+                    }
+
+                    if (!string.IsNullOrEmpty(auditEntry.Action))
+                    {
+                        auditLogs.Add(auditEntry.ToAuditLog());
                     }
                 }
                 catch
                 {
-                    // Ignore property original value read errors for detached/shadow properties
+                    // Ignore per-entry audit logging failures
                 }
             }
 
-            auditLogs.Add(auditEntry.ToAuditLog());
+            if (auditLogs.Any())
+            {
+                try
+                {
+                    context.Set<AuditLog>().AddRange(auditLogs);
+                }
+                catch
+                {
+                    // Ignore failure adding audit log records
+                }
+            }
         }
-
-        if (auditLogs.Any())
+        catch
         {
-            context.Set<AuditLog>().AddRange(auditLogs);
+            // Interceptor must not prevent primary SaveChanges transaction from succeeding
         }
     }
 }

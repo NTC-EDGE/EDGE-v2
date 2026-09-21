@@ -126,6 +126,8 @@ public class FinalizeApplicationSubmissionCommandHandlerTests
 
         _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
+        _mockAppRepo.Setup(r => r.GetByIdAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
         _mockTenantContextService.Setup(t => t.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
         _mockTenantContextService.Setup(t => t.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>()))
