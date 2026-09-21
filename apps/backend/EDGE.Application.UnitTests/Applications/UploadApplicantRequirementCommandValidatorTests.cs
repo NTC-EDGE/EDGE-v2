@@ -15,13 +15,18 @@ public class UploadApplicantRequirementCommandValidatorTests
 {
     private readonly Mock<IStoredFileRepository> _mockFileRepo;
     private readonly Mock<IStorageService> _mockStorageService;
+    private readonly Mock<IFileEncryptionService> _mockEncryptionService;
     private readonly UploadApplicantRequirementCommandValidator _validator;
 
     public UploadApplicantRequirementCommandValidatorTests()
     {
         _mockFileRepo = new Mock<IStoredFileRepository>();
         _mockStorageService = new Mock<IStorageService>();
-        _validator = new UploadApplicantRequirementCommandValidator(_mockFileRepo.Object, _mockStorageService.Object);
+        _mockEncryptionService = new Mock<IFileEncryptionService>();
+        _validator = new UploadApplicantRequirementCommandValidator(
+            _mockFileRepo.Object,
+            _mockStorageService.Object,
+            _mockEncryptionService.Object);
     }
 
     [Fact]
@@ -64,6 +69,36 @@ public class UploadApplicantRequirementCommandValidatorTests
             Id = fileId,
             FileName = "document.pdf",
             ContentType = "application/pdf"
+        };
+
+        _mockFileRepo.Setup(r => r.GetByIdAsync(fileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedFile);
+
+        var command = new UploadApplicantRequirementCommand
+        {
+            ApplicationId = Guid.NewGuid(),
+            ApplicantId = Guid.NewGuid(),
+            RequirementId = Guid.NewGuid(),
+            StoredFileId = fileId
+        };
+
+        // Act
+        var result = await _validator.ValidateAsync(command);
+
+        // Assert
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Validate_OctetStreamContentType_WithValidExtension_PassesValidation()
+    {
+        // Arrange
+        var fileId = Guid.NewGuid();
+        var storedFile = new StoredFile
+        {
+            Id = fileId,
+            FileName = "id_scan.png",
+            ContentType = "application/octet-stream"
         };
 
         _mockFileRepo.Setup(r => r.GetByIdAsync(fileId, It.IsAny<CancellationToken>()))
@@ -146,9 +181,103 @@ public class UploadApplicantRequirementCommandValidatorTests
     }
 
     [Fact]
-    public async Task Validate_WithStorageServiceStreamHeader_VerifiesMagicHeaderInPipeline()
+    public async Task Validate_WithEncryptedStorageStream_DecryptsAndValidatesMagicHeader()
     {
-        // Arrange: valid pdf extension/mime, but binary stream contains executable magic bytes (MZ)
+        // Arrange: Encrypted PDF in storage
+        var fileId = Guid.NewGuid();
+        var storageKey = "tenants/tenant123/requirements/file123";
+        var ivBytes = new byte[12];
+        var tagBytes = new byte[16];
+        var storedFile = new StoredFile
+        {
+            Id = fileId,
+            FileName = "clearance.pdf",
+            ContentType = "application/pdf",
+            StorageKey = storageKey,
+            EncryptionIv = Convert.ToBase64String(ivBytes),
+            EncryptionTag = Convert.ToBase64String(tagBytes)
+        };
+
+        var cipherStream = new MemoryStream(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD, 0xEE, 0xFF });
+        var pdfHeaderBytes = new byte[] { 0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34 }; // %PDF-1.4
+        var decryptedPlainStream = new MemoryStream(pdfHeaderBytes);
+
+        _mockFileRepo.Setup(r => r.GetByIdAsync(fileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedFile);
+
+        _mockStorageService.Setup(s => s.DownloadFileAsync(storageKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cipherStream);
+
+        _mockEncryptionService.Setup(e => e.DecryptStreamAsync(
+                It.IsAny<Stream>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<byte[]>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(decryptedPlainStream);
+
+        var command = new UploadApplicantRequirementCommand
+        {
+            ApplicationId = Guid.NewGuid(),
+            ApplicantId = Guid.NewGuid(),
+            RequirementId = Guid.NewGuid(),
+            StoredFileId = fileId
+        };
+
+        // Act
+        var result = await _validator.ValidateAsync(command);
+
+        // Assert: Valid decrypted PDF stream passes
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Validate_WithEncryptedStorageStream_WhenDecryptionUnavailable_FallsBackSafely()
+    {
+        // Arrange: Validator without encryption service configured
+        var validatorWithoutEncryption = new UploadApplicantRequirementCommandValidator(
+            _mockFileRepo.Object,
+            _mockStorageService.Object,
+            null);
+
+        var fileId = Guid.NewGuid();
+        var storageKey = "tenants/tenant123/requirements/file123";
+        var storedFile = new StoredFile
+        {
+            Id = fileId,
+            FileName = "valid_photo.jpg",
+            ContentType = "image/jpeg",
+            StorageKey = storageKey,
+            EncryptionIv = Convert.ToBase64String(new byte[12]),
+            EncryptionTag = Convert.ToBase64String(new byte[16])
+        };
+
+        var cipherStream = new MemoryStream(new byte[] { 0xAA, 0xBB, 0xCC, 0xDD });
+
+        _mockFileRepo.Setup(r => r.GetByIdAsync(fileId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(storedFile);
+
+        _mockStorageService.Setup(s => s.DownloadFileAsync(storageKey, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(cipherStream);
+
+        var command = new UploadApplicantRequirementCommand
+        {
+            ApplicationId = Guid.NewGuid(),
+            ApplicantId = Guid.NewGuid(),
+            RequirementId = Guid.NewGuid(),
+            StoredFileId = fileId
+        };
+
+        // Act
+        var result = await validatorWithoutEncryption.ValidateAsync(command);
+
+        // Assert: Valid extension and MIME passes safely without ciphertext false rejection
+        result.IsValid.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Validate_WithPlaintextStorageStream_ExecutableMagicBytes_FailsValidation()
+    {
+        // Arrange: Unencrypted file in storage with spoofed PDF name but MZ executable bytes
         var fileId = Guid.NewGuid();
         var storageKey = "storage/key/fake.pdf";
         var storedFile = new StoredFile
