@@ -6,6 +6,7 @@ import { useApi } from '../../../../shared/hooks/useApi';
 import { SectionCard } from '../../../../shared/formPreview';
 
 interface BulkApplicantDocListProps {
+  app?: import('../../data/applicationsData').Application;
   selectedApplicantDocs: ApplicationDocument[];
   onPreviewDoc: (doc: ApplicationDocument) => void;
   onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
@@ -45,6 +46,7 @@ function formatDocDate(isoDate?: string | null): string {
 }
 
 export function BulkApplicantDocList({
+  app,
   selectedApplicantDocs,
   onPreviewDoc,
   onPreviewCustomDoc,
@@ -146,7 +148,11 @@ export function BulkApplicantDocList({
               {hasFile ? (
                 <TouchableOpacity
                   onPress={async () => {
-                    const rawFileUrl = doc.url || (doc.storedFileId ? `/api/v2/tenants/aa0cd342-7265-4d9e-9242-948fc7e3d0a8/storage/files/${doc.storedFileId}` : undefined);
+                    const tenantId =
+                      app?.tenantId ||
+                      (typeof process !== 'undefined' ? (process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID) : undefined) ||
+                      'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+                    const rawFileUrl = doc.url || (doc.storedFileId ? `/api/v2/tenants/${tenantId}/storage/files/${doc.storedFileId}` : undefined);
                     if (rawFileUrl) {
                       try {
                         const baseUrl =

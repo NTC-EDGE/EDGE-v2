@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { Icon as Lucide, useTheme } from '@edge/ui';
+import { Icon as Lucide, useTheme, DatePickerInput } from '@edge/ui';
 import {
   receiptService,
   useReceiptFeeCatalog,
@@ -363,11 +363,9 @@ export function IssueReceiptModal({
                       />
                     </View>
                     <View style={{ flex: 1 }}>
-                      <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Check Date</Text>
-                      <TextInput
-                        style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                      <DatePickerInput
+                        label="Check Date"
                         placeholder="YYYY-MM-DD"
-                        placeholderTextColor={colors.neutral[400]}
                         value={checkDate}
                         onChangeText={setCheckDate}
                       />

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Select } from '../../../../shared/components/Select';
 import { ValidatedInput } from '../../../../shared/components/ValidatedInput';
+import { DatePickerInput } from '../../../../shared/components/DatePickerInput';
 import { VASProviderData } from '../types/certificateTypes';
 import { certStyles } from './CertificateFormStyles';
 
@@ -28,18 +29,22 @@ const AVAILABLE_VAS_SERVICES = [
   'Others',
 ];
 
+const isVasEntityType = (val: string): val is VASProviderData['serviceType'] => {
+  return ['Single Proprietorship', 'Corporation', 'Partnership', 'Others'].includes(val);
+};
+
 export function VASProviderForm({
   data,
   onChange,
   errors = {},
   touched = {},
 }: VASProviderFormProps) {
-  const toggleVasService = (serviceName: string) => {
-    const exists = data.valueAddedServices.includes(serviceName);
-    if (exists) {
-      onChange({ valueAddedServices: data.valueAddedServices.filter((s) => s !== serviceName) });
+  const toggleVasService = (service: string) => {
+    const current = data.valueAddedServices || [];
+    if (current.includes(service)) {
+      onChange({ valueAddedServices: current.filter((s) => s !== service) });
     } else {
-      onChange({ valueAddedServices: [...data.valueAddedServices, serviceName] });
+      onChange({ valueAddedServices: [...current, service] });
     }
   };
 
@@ -69,13 +74,13 @@ export function VASProviderForm({
             />
           </View>
           <View style={certStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="Certificate no. Date of Expiry"
               placeholder="MM/DD/YYYY"
               value={data.expiryDate}
               onChangeText={(val) => onChange({ expiryDate: val })}
-              error={errors.expiryDate}
-              touched={touched.expiryDate}
+              error={errors?.expiryDate}
+              touched={touched?.expiryDate}
               required
             />
           </View>
@@ -90,7 +95,11 @@ export function VASProviderForm({
             <Text style={certStyles.selectLabel}>Type of Entity*</Text>
             <Select
               value={data.serviceType || 'Corporation'}
-              onValueChange={(val) => onChange({ serviceType: val as any })}
+              onValueChange={(val) => {
+                if (isVasEntityType(val)) {
+                  onChange({ serviceType: val });
+                }
+              }}
               options={[
                 { label: 'Corporation', value: 'Corporation' },
                 { label: 'Single Proprietorship', value: 'Single Proprietorship' },
@@ -105,19 +114,19 @@ export function VASProviderForm({
               placeholder="e.g. CPCN No. 2020-0012"
               value={data.serviceNo}
               onChangeText={(val) => onChange({ serviceNo: val })}
-              error={errors.serviceNo}
-              touched={touched.serviceNo}
+              error={errors?.serviceNo}
+              touched={touched?.serviceNo}
               required
             />
           </View>
           <View style={certStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="CPCN / PA / CA No. Date of Expiry"
               placeholder="MM/DD/YYYY"
               value={data.cpcnPaCaDateOfExpiry}
               onChangeText={(val) => onChange({ cpcnPaCaDateOfExpiry: val })}
-              error={errors.cpcnPaCaDateOfExpiry}
-              touched={touched.cpcnPaCaDateOfExpiry}
+              error={errors?.cpcnPaCaDateOfExpiry}
+              touched={touched?.cpcnPaCaDateOfExpiry}
               required
             />
           </View>
@@ -127,19 +136,19 @@ export function VASProviderForm({
               placeholder="e.g. COR-VAS-2022-0045"
               value={data.certificateNumber}
               onChangeText={(val) => onChange({ certificateNumber: val })}
-              error={errors.certificateNumber}
-              touched={touched.certificateNumber}
+              error={errors?.certificateNumber}
+              touched={touched?.certificateNumber}
               required
             />
           </View>
           <View style={certStyles.formCol6}>
-            <ValidatedInput
+            <DatePickerInput
               label="COR / VAS No. Date of Expiry"
               placeholder="MM/DD/YYYY"
               value={data.expiryDate}
               onChangeText={(val) => onChange({ expiryDate: val })}
-              error={errors.expiryDate}
-              touched={touched.expiryDate}
+              error={errors?.expiryDate}
+              touched={touched?.expiryDate}
               required
             />
           </View>

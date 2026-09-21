@@ -24,46 +24,88 @@ export function useApplicationDetailsData(initialApp: Application) {
 
               const rawPayload = payload as { applicants?: Array<{ id?: string; applicantId?: string; requirements?: RawRequirement[] }> };
               const payloadApplicants = Array.isArray(rawPayload.applicants) ? rawPayload.applicants : [];
+              const applicantList = mapped.applicants || [];
 
-              if ((!mapped.requirements || mapped.requirements.length === 0) && payloadApplicants.length > 0) {
-                const fetchedReqs: RawRequirement[] = [];
-                for (const pa of payloadApplicants) {
-                  const aid = pa.id || pa.applicantId;
-                  if (aid) {
-                    try {
-                      const reqRes = await api.get<unknown>(`/api/v2/applications/${initialApp.id}/applicants/${aid}/requirements`);
-                      if (reqRes !== null && typeof reqRes === 'object') {
-                        const rObj = reqRes as { succeeded?: boolean; data?: unknown };
-                        const rData = rObj.succeeded && rObj.data !== undefined ? rObj.data : reqRes;
-                        if (Array.isArray(rData)) {
-                          rData.forEach((item: unknown) => {
-                            if (item !== null && typeof item === 'object') {
-                              const io = item as Record<string, unknown>;
-                              fetchedReqs.push({
-                                id: typeof io.id === 'string' ? io.id : typeof io.requirementId === 'string' ? io.requirementId : undefined,
-                                requirementId: typeof io.requirementId === 'string' ? io.requirementId : undefined,
-                                serviceVariantRequirementId: typeof io.serviceVariantRequirementId === 'string' ? io.serviceVariantRequirementId : undefined,
-                                name: typeof io.name === 'string' ? io.name : typeof io.requirementName === 'string' ? io.requirementName : typeof io.fileName === 'string' ? io.fileName : undefined,
-                                fileName: typeof io.fileName === 'string' ? io.fileName : typeof io.name === 'string' ? io.name : undefined,
-                                storedFileId: typeof io.storedFileId === 'string' ? io.storedFileId : undefined,
-                                url: typeof io.url === 'string' ? io.url : undefined,
-                                category: typeof io.category === 'string' ? io.category : 'ATTACHMENT',
-                                isApproved: typeof io.isApproved === 'boolean' ? io.isApproved : undefined,
-                                applicantId: aid,
-                              });
-                            }
-                          });
+              // Collect all applicant IDs from payload and mapped applicants
+              const applicantIdSet = new Set<string>();
+              for (const pa of payloadApplicants) {
+                const aid = pa.id || pa.applicantId;
+                if (typeof aid === 'string' && aid.trim() !== '') {
+                  applicantIdSet.add(aid.trim());
+                }
+              }
+              for (const ap of applicantList) {
+                if (typeof ap.id === 'string' && ap.id.trim() !== '') {
+                  applicantIdSet.add(ap.id.trim());
+                }
+              }
+
+              const fetchedReqs: RawRequirement[] = [];
+              for (const aid of applicantIdSet) {
+                try {
+                  const reqRes = await api.get<unknown>(`/api/v2/applications/${initialApp.id}/applicants/${aid}/requirements`);
+                  if (reqRes !== null && typeof reqRes === 'object') {
+                    const rObj = reqRes as { succeeded?: boolean; data?: unknown };
+                    const rData = rObj.succeeded && rObj.data !== undefined ? rObj.data : reqRes;
+                    if (Array.isArray(rData)) {
+                      const currentApplicantReqs: RawRequirement[] = [];
+                      rData.forEach((item: unknown) => {
+                        if (item !== null && typeof item === 'object') {
+                          const io = item as Record<string, unknown>;
+                          const reqItem: RawRequirement = {
+                            id: typeof io.submittedRequirementId === 'string' && io.submittedRequirementId.trim() !== ''
+                              ? io.submittedRequirementId
+                              : typeof io.id === 'string'
+                                ? io.id
+                                : typeof io.requirementId === 'string'
+                                  ? io.requirementId
+                                  : undefined,
+                            requirementId: typeof io.requirementId === 'string' ? io.requirementId : undefined,
+                            serviceVariantRequirementId: typeof io.serviceVariantRequirementId === 'string' ? io.serviceVariantRequirementId : undefined,
+                            name: typeof io.requirementName === 'string' && io.requirementName.trim() !== ''
+                              ? io.requirementName
+                              : typeof io.name === 'string'
+                                ? io.name
+                                : typeof io.fileName === 'string'
+                                  ? io.fileName
+                                  : undefined,
+                            fileName: typeof io.fileName === 'string' && io.fileName.trim() !== ''
+                              ? io.fileName
+                              : typeof io.requirementName === 'string'
+                                ? io.requirementName
+                                : typeof io.name === 'string'
+                                  ? io.name
+                                  : undefined,
+                            storedFileId: typeof io.storedFileId === 'string' ? io.storedFileId : undefined,
+                            url: typeof io.url === 'string' ? io.url : undefined,
+                            fileSizeBytes: typeof io.fileSizeBytes === 'number' ? io.fileSizeBytes : undefined,
+                            contentType: typeof io.contentType === 'string' ? io.contentType : undefined,
+                            category: typeof io.category === 'string' ? io.category : 'ATTACHMENT',
+                            isApproved: typeof io.isApproved === 'boolean' ? io.isApproved : undefined,
+                            uploadedAt: typeof io.uploadedAt === 'string' ? io.uploadedAt : undefined,
+                            applicantId: aid,
+                          };
+                          currentApplicantReqs.push(reqItem);
+                          fetchedReqs.push(reqItem);
                         }
+                      });
+
+                      // Attach fresh applicant-specific requirements to this applicant in mapped.applicants
+                      const matchedApp = mapped.applicants?.find((a) => a.id === aid);
+                      if (matchedApp) {
+                        matchedApp.requirements = currentApplicantReqs;
+                        matchedApp.documents = currentApplicantReqs;
                       }
-                    } catch (rErr) {
-                      console.warn('Could not fetch applicant requirements:', rErr);
                     }
                   }
+                } catch (rErr) {
+                  console.warn(`[useApplicationDetailsData] Could not fetch live requirements for applicant "${aid}" (appId: "${initialApp.id}"):`, rErr);
                 }
-                if (fetchedReqs.length > 0) {
-                  mapped.requirements = fetchedReqs;
-                  mapped.documents = fetchedReqs;
-                }
+              }
+
+              if (fetchedReqs.length > 0) {
+                mapped.requirements = fetchedReqs;
+                mapped.documents = fetchedReqs;
               }
 
               if (isMounted) {
@@ -72,7 +114,7 @@ export function useApplicationDetailsData(initialApp: Application) {
             }
           }
         } catch (err) {
-          console.warn('Could not fetch full application details:', err);
+          console.warn(`[useApplicationDetailsData] Could not fetch full application details (appId: "${initialApp.id}"):`, err);
         }
       };
       loadFullDetails();

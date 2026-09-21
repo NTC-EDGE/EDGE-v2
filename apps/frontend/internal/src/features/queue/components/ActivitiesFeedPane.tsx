@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   Switch,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {
   COLORS,
@@ -19,6 +20,7 @@ import {
   SkeletonLoader,
   useTheme,
   toast,
+  DatePickerInput,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -138,15 +140,42 @@ export function ActivitiesFeedPane({
   const { visibleTabs } = usePermissions();
   const { colors, isDark } = useTheme();
 
-  const { applications: rawDtos, isLoading, refetch } = useAdminApplications({
+  const PAGE_SIZE_STEP = 15;
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
     scope: "queue",
+    pageSize,
+    pageNumber: 1,
   });
 
   const applications = useMemo(() => {
     if (!Array.isArray(rawDtos)) return [];
     return rawDtos.map(mapApplicationDtoToUI);
   }, [rawDtos]);
+
+  useEffect(() => {
+    setPageSize(PAGE_SIZE_STEP);
+  }, [activeQueueTab]);
+
+  useEffect(() => {
+    if (!isLoading && isLoadingMore) {
+      setIsLoadingMore(false);
+    }
+  }, [isLoading, isLoadingMore]);
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoading || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setPageSize((prev) => prev + PAGE_SIZE_STEP);
+  }, [isLoading, isLoadingMore]);
+
+  const totalAvailable = pagination?.totalCount ?? applications.length;
+  const hasMore = pagination
+    ? Boolean(pagination.hasNextPage) || applications.length < totalAvailable
+    : applications.length >= pageSize;
 
   const togglePinApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
@@ -183,6 +212,7 @@ export function ActivitiesFeedPane({
   }, [refetch]);
 
   const resetStore = useCallback(() => {
+    setPageSize(PAGE_SIZE_STEP);
     refetch();
   }, [refetch]);
 
@@ -381,14 +411,11 @@ export function ActivitiesFeedPane({
           <View style={styles.dateRow}>
             {(["From", "To"] as const).map((label, i) => (
               <View key={label} style={styles.dateField}>
-                <Text style={[styles.dateLabel, { color: textMuted }]}>{label.toUpperCase()}</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: text, backgroundColor: inputBg, borderColor: border }]}
+                <DatePickerInput
+                  label={label.toUpperCase()}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textMuted}
                   value={i === 0 ? dateFrom : dateTo}
                   onChangeText={i === 0 ? setDateFrom : setDateTo}
-                  maxLength={10}
                 />
               </View>
             ))}
@@ -584,13 +611,33 @@ export function ActivitiesFeedPane({
         {filteredGroups.length > 0 && (
           <View style={styles.seeMoreRow}>
             <Text style={[styles.seeMoreText, { color: textMuted }]}>
-              Showing{" "}
-              {applications.filter((a) => activeQueueTab === "activity" || a.queueTab === activeQueueTab).length}{" "}
+              Showing {filteredGroups.reduce((acc, g) => acc + g.items.length, 0)}
+              {pagination?.totalCount !== undefined ? ` of ${pagination.totalCount}` : ""}{" "}
               activities
             </Text>
-            <Pressable style={[styles.loadMoreBtn, { backgroundColor: surface, borderColor: border }]}>
-              <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
-            </Pressable>
+            {hasMore ? (
+              <Pressable
+                disabled={isLoading || isLoadingMore}
+                style={[
+                  styles.loadMoreBtn,
+                  { backgroundColor: surface, borderColor: border },
+                  (isLoading || isLoadingMore) && { opacity: 0.6 },
+                  Platform.select({ web: { cursor: isLoading || isLoadingMore ? 'auto' : 'pointer' } }),
+                ]}
+                onPress={handleLoadMore}
+              >
+                {isLoadingMore ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator size="small" color={brandColor} />
+                    <Text style={[styles.loadMoreText, { color: brandColor }]}>Loading...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
+                )}
+              </Pressable>
+            ) : (
+              <Text style={[styles.allLoadedText, { color: textMuted }]}>All activities loaded</Text>
+            )}
           </View>
         )}
 
@@ -841,5 +888,15 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  allLoadedText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontStyle: "italic",
   },
 });
