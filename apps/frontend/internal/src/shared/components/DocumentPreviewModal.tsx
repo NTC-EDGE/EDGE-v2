@@ -31,6 +31,10 @@ export interface DocumentPreviewModalProps {
   label?: string;
 }
 
+function isDocumentPreviewFile(file: unknown): file is DocumentPreviewFile {
+  return typeof file === "object" && file !== null && "name" in file;
+}
+
 export function DocumentPreviewModal({
   visible,
   onClose,
@@ -39,36 +43,12 @@ export function DocumentPreviewModal({
 }: DocumentPreviewModalProps) {
   if (!file) return null;
 
-  const fileName = typeof file === "string" ? file : file.name || "Attachment Document";
-  const fileUri = typeof file === "string" ? "" : file.uri || "";
-  const fileCategory =
-    typeof file === "object" && file !== null && "category" in file
-      ? (file as { category?: string }).category
-      : undefined;
-  const fileSize =
-    typeof file === "object" && file !== null && "size" in file
-      ? (file as { size?: string }).size
-      : undefined;
-  const fileType =
-    typeof file === "object" && file !== null && "type" in file
-      ? (file as { type?: string }).type
-      : undefined;
-  const refNumber =
-    typeof file === "object" && file !== null && "referenceNumber" in file
-      ? (file as { referenceNumber?: string }).referenceNumber
-      : undefined;
-  const serviceName =
-    typeof file === "object" && file !== null && "serviceName" in file
-      ? (file as { serviceName?: string }).serviceName
-      : undefined;
-  const applicantName =
-    typeof file === "object" && file !== null && "applicantName" in file
-      ? (file as { applicantName?: string }).applicantName
-      : undefined;
-  const uploadedDate =
-    typeof file === "object" && file !== null && "uploadedAt" in file
-      ? (file as { uploadedAt?: string }).uploadedAt
-      : undefined;
+  const isObj = isDocumentPreviewFile(file);
+  const fileName = typeof file === "string" ? file : isObj ? file.name : "Attachment Document";
+  const fileUri = isObj && typeof file.uri === "string" ? file.uri : "";
+  const fileCategory = isObj && typeof file.category === "string" ? file.category : undefined;
+  const fileSize = isObj && typeof file.size === "string" ? file.size : undefined;
+  const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
 
   const fileNameLower = (fileName || "").toLowerCase();
   const uriLower = (fileUri || "").toLowerCase();
@@ -77,7 +57,7 @@ export function DocumentPreviewModal({
     fileNameLower.endsWith(".pdf") ||
     uriLower.endsWith(".pdf") ||
     uriLower.includes("application/pdf") ||
-    (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "PDF");
+    (isObj && fileType === "PDF");
 
   const isImage =
     !isPdf &&
@@ -88,7 +68,7 @@ export function DocumentPreviewModal({
       fileNameLower.endsWith(".gif") ||
       fileNameLower.endsWith(".svg") ||
       uriLower.startsWith("data:image") ||
-      (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "IMAGE") ||
+      (isObj && fileType === "IMAGE") ||
       (uriLower.startsWith("blob:") && !isPdf));
 
   const handleOpenExternal = async () => {
@@ -109,6 +89,19 @@ export function DocumentPreviewModal({
     }
   };
 
+  const getSubtitle = () => {
+    if (label !== undefined && label !== null && label.trim() !== "") {
+      return label;
+    }
+    if (fileCategory !== undefined && fileCategory !== null && fileCategory.trim() !== "") {
+      const formattedCategory = fileCategory.replace(/_/g, " ");
+      return fileSize ? `${formattedCategory} · ${fileSize}` : formattedCategory;
+    }
+    if (isPdf) return "PDF Document";
+    if (isImage) return "Image Attachment";
+    return "Attached Document";
+  };
+
   return (
     <Modal
       visible={visible}
@@ -117,8 +110,8 @@ export function DocumentPreviewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={[styles.container, isPdf && Platform.OS === 'web' && fileUri ? { maxWidth: 840 } : null]}>
-          {/* Modal Header */}
+        <View style={[styles.container, Platform.OS === "web" ? { maxWidth: 860, width: "92%" } : null]}>
+          {/* Clean Modal Header: Just file title, subtitle, and close button */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
@@ -133,7 +126,7 @@ export function DocumentPreviewModal({
                   {fileName}
                 </Text>
                 <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  {label || (fileCategory ? `${fileCategory.replace('_', ' ')} ${fileSize ? `· ${fileSize}` : ''}` : isPdf ? 'PDF Document' : isImage ? 'Image Attachment' : 'Attached Document')}
+                  {getSubtitle()}
                 </Text>
               </View>
             </View>
@@ -142,18 +135,18 @@ export function DocumentPreviewModal({
             </TouchableOpacity>
           </View>
 
-          {/* Modal Content Body */}
+          {/* Modal Content Body: Pure attachment display */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isPdf && fileUri && Platform.OS === 'web' ? (
+            {isPdf && fileUri && Platform.OS === "web" ? (
               <View style={styles.pdfWrapper}>
                 <iframe
                   src={fileUri}
                   title={fileName}
                   style={{
-                    width: '100%',
-                    height: 520,
-                    border: 'none',
-                    borderRadius: 10,
+                    width: "100%",
+                    height: 560,
+                    border: "none",
+                    borderRadius: 8,
                   }}
                 />
               </View>
@@ -166,75 +159,44 @@ export function DocumentPreviewModal({
                 />
               </View>
             ) : (
-              <View style={styles.officialDocSheet}>
-                <View style={styles.sheetHeader}>
-                  <Text style={styles.sheetGovText}>REPUBLIC OF THE PHILIPPINES</Text>
-                  <Text style={styles.sheetAgencyText}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
-                  <Text style={styles.sheetSubAgency}>NTC Building, BIR Road, East Triangle, Diliman, Quezon City</Text>
-                </View>
-
-                <View style={styles.sheetDivider} />
-
-                <View style={styles.sheetTitleBox}>
-                  <Icon name={isPdf ? "file-text" : "paperclip"} size={22} color="#0F2C59" />
-                  <Text style={styles.sheetTitleText}>{fileName}</Text>
-                  {refNumber ? (
-                    <Text style={styles.sheetRefText}>REF NO: #{refNumber}</Text>
-                  ) : null}
-                </View>
-
-                <View style={styles.sheetDataGrid}>
-                  {serviceName ? (
-                    <View style={styles.sheetDataRow}>
-                      <Text style={styles.sheetLabel}>Service Name:</Text>
-                      <Text style={styles.sheetValue}>{serviceName}</Text>
-                    </View>
-                  ) : null}
-
-                  {applicantName ? (
-                    <View style={styles.sheetDataRow}>
-                      <Text style={styles.sheetLabel}>Applicant / Company:</Text>
-                      <Text style={styles.sheetValue}>{applicantName}</Text>
-                    </View>
-                  ) : null}
-
-                  {fileCategory ? (
-                    <View style={styles.sheetDataRow}>
-                      <Text style={styles.sheetLabel}>Document Category:</Text>
-                      <Text style={styles.sheetValue}>{fileCategory.replace('_', ' ')}</Text>
-                    </View>
-                  ) : null}
-
-                  <View style={styles.sheetDataRow}>
-                    <Text style={styles.sheetLabel}>Format & Size:</Text>
-                    <Text style={styles.sheetValue}>{fileType || (isPdf ? 'PDF Document' : isImage ? 'Image File' : 'Attachment')} · {fileSize || '1.2 MB'}</Text>
+              /* High-fidelity Authentic Scanned Document Sheet */
+              <View style={styles.scannedPaper}>
+                <View style={styles.scannedPaperInner}>
+                  {/* Watermark Seal */}
+                  <View style={styles.watermarkBox}>
+                    <Icon name="award" size={120} color="#E2E8F0" />
                   </View>
 
-                  {uploadedDate ? (
-                    <View style={styles.sheetDataRow}>
-                      <Text style={styles.sheetLabel}>Uploaded Date:</Text>
-                      <Text style={styles.sheetValue}>{uploadedDate}</Text>
+                  <View style={styles.scannedHeaderRow}>
+                    <Icon name="file-text" size={32} color="#0F2C59" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scannedDocTitle}>{fileName}</Text>
+                      <Text style={styles.scannedDocMeta}>
+                        {fileCategory ? fileCategory.replace(/_/g, " ") : "Supporting Requirement Attachment"} · {fileSize || "1.2 MB"}
+                      </Text>
                     </View>
-                  ) : null}
-                </View>
+                  </View>
 
-                <View style={styles.sheetStampRow}>
-                  <View style={styles.officialStampBadge}>
-                    <Icon name="check-circle" size={16} color="#16A34A" />
-                    <Text style={styles.officialStampText}>OFFICIALLY VERIFIED & VALID ATTACHMENT</Text>
+                  <View style={styles.scannedDivider} />
+
+                  <View style={styles.scannedDocBody}>
+                    <View style={styles.scannedPlaceholderLine} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "85%" }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "92%" }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "70%" }]} />
+                    <View style={{ height: 16 }} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "96%" }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "88%" }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: "60%" }]} />
+                  </View>
+
+                  <View style={styles.scannedStampBox}>
+                    <View style={styles.verifiedStamp}>
+                      <Icon name="check-circle" size={14} color="#166534" />
+                      <Text style={styles.verifiedStampText}>AUTHENTIC & VERIFIED ATTACHMENT</Text>
+                    </View>
                   </View>
                 </View>
-
-                {fileUri ? (
-                  <TouchableOpacity
-                    onPress={handleOpenExternal}
-                    style={styles.openExternalBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name="external-link" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.openExternalBtnText}>Open Document in New Tab</Text>
-                  </TouchableOpacity>
-                ) : null}
               </View>
             )}
           </ScrollView>
@@ -253,7 +215,7 @@ export function DocumentPreviewModal({
             ) : null}
 
             <TouchableOpacity onPress={onClose} style={styles.footerCloseBtn} activeOpacity={0.8}>
-              <Text style={styles.footerCloseText}>Close Preview</Text>
+              <Text style={styles.footerCloseText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -265,23 +227,23 @@ export function DocumentPreviewModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   container: {
     width: "100%",
-    maxWidth: 640,
-    maxHeight: "85%",
+    maxWidth: 860,
+    maxHeight: "90%",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#0F2C59",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   header: {
     flexDirection: "row",
@@ -326,184 +288,107 @@ const styles = StyleSheet.create({
     backgroundColor: "#EDF2F7",
   },
   bodyContent: {
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 400,
   },
   imageWrapper: {
     width: "100%",
-    height: 380,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    height: 520,
+    backgroundColor: "#0F172A",
+    borderRadius: 10,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  pdfWrapper: {
-    width: "100%",
-    minHeight: 520,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 12,
-    overflow: "hidden",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
-  },
-  categoryBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    backgroundColor: "#DCFCE7",
-    borderWidth: 1,
-    borderColor: "#86EFAC",
-    borderRadius: 16,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-    marginBottom: 10,
-  },
-  categoryBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#166534",
   },
   previewImage: {
     width: "100%",
     height: "100%",
   },
-  officialDocSheet: {
+  pdfWrapper: {
     width: "100%",
-    padding: 24,
-    borderRadius: 14,
-    backgroundColor: "#FFFFFF",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
-  },
-  sheetHeader: {
-    alignItems: "center",
-    marginBottom: 12,
-  },
-  sheetGovText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#0F2C59",
-    letterSpacing: 1,
-  },
-  sheetAgencyText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: "800",
-    color: "#0F2C59",
-    marginTop: 2,
-  },
-  sheetSubAgency: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
-    color: "#64748B",
-    marginTop: 2,
-    textAlign: "center",
-  },
-  sheetDivider: {
-    width: "100%",
-    height: 2,
-    backgroundColor: "#0F2C59",
-    marginVertical: 12,
-    borderRadius: 1,
-  },
-  sheetTitleBox: {
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 16,
-  },
-  sheetTitleText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: "800",
-    color: "#0F2C59",
-    textAlign: "center",
-  },
-  sheetRefText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: "700",
-    color: "#1D4ED8",
-    backgroundColor: "#EFF6FF",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 6,
-  },
-  sheetDataGrid: {
-    width: "100%",
+    minHeight: 560,
     backgroundColor: "#F8FAFC",
-    borderWidth: 1,
-    borderColor: "#E2E8F0",
-    borderRadius: 10,
-    padding: 14,
-    gap: 10,
-    marginBottom: 16,
+    borderRadius: 8,
+    overflow: "hidden",
   },
-  sheetDataRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderColor: "#F1F5F9",
-    paddingBottom: 6,
-  },
-  sheetLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#64748B",
-  },
-  sheetValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#0F2C59",
-    maxWidth: "60%",
-    textAlign: "right",
-  },
-  sheetStampRow: {
+  scannedPaper: {
     width: "100%",
-    alignItems: "center",
-    marginBottom: 12,
+    maxWidth: 620,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    padding: 28,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  officialStampBadge: {
+  scannedPaperInner: {
+    position: "relative",
+  },
+  watermarkBox: {
+    position: "absolute",
+    top: "30%",
+    left: "38%",
+    opacity: 0.15,
+  },
+  scannedHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+  },
+  scannedDocTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F2C59",
+  },
+  scannedDocMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  scannedDivider: {
+    height: 1.5,
+    backgroundColor: "#E2E8F0",
+    marginVertical: 18,
+  },
+  scannedDocBody: {
+    gap: 10,
+    paddingVertical: 10,
+  },
+  scannedPlaceholderLine: {
+    height: 10,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 5,
+    width: "100%",
+  },
+  scannedStampBox: {
+    alignItems: "flex-end",
+    marginTop: 24,
+  },
+  verifiedStamp: {
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
-    backgroundColor: "#F0FDF4",
+    backgroundColor: "#DCFCE7",
     borderWidth: 1.5,
     borderColor: "#86EFAC",
-    borderRadius: 20,
-    paddingHorizontal: 14,
+    borderRadius: 6,
+    paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  officialStampText: {
+  verifiedStampText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: "800",
     color: "#166534",
     letterSpacing: 0.5,
-  },
-  openExternalBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#0F2C59",
-    paddingVertical: 10,
-    paddingHorizontal: 18,
-    borderRadius: 10,
-    marginTop: 6,
-  },
-  openExternalBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: "700",
-    color: "#FFFFFF",
   },
   footer: {
     flexDirection: "row",

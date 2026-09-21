@@ -53,6 +53,7 @@ import {
   DigitalSignatureReviewCard,
 } from "../../../shared/formPreview";
 import { CustomDocPreviewModal } from "../../../shared/components/CustomDocPreviewModal";
+import { DocumentPreviewFile } from "../../../shared/components/DocumentPreviewModal";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -302,7 +303,7 @@ function ApplicationDetailsTab({
   selectedApplicantIndex?: number;
   onSelectApplicantIndex?: (index: number) => void;
   onInspectApplicant?: (index: number) => void;
-  onPreviewFile?: (uri: string, name: string) => void;
+  onPreviewFile?: (file: DocumentPreviewFile | string, label?: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const [isEditingSection, setIsEditingSection] = useState(false);
@@ -351,23 +352,6 @@ function ApplicationDetailsTab({
   const activeApplicant = (localApplicants.length > 0)
     ? localApplicants[Math.min(selectedApplicantIndex ?? 0, localApplicants.length - 1)]
     : undefined;
-
-  const { formData } = useApplicationFormWithSubmission(
-    app.id,
-    activeApplicant?.id,
-    activeApplicant?.serviceVariantId
-  );
-
-  const flatFormValues = useMemo(() => {
-    if (!formData || !formData.sections) return [];
-    return formData.sections.flatMap((sec) =>
-      sec.fields.map((f) => ({
-        fieldId: f.fieldId,
-        fieldLabel: f.label,
-        value: f.value ?? '',
-      }))
-    );
-  }, [formData]);
 
   const isExamService = useMemo(() => {
     const cat = (app.category || '').toLowerCase();
@@ -897,52 +881,76 @@ function ApplicationDetailsTab({
         </View>
       )}
 
-      {/* ── Single Applicant Details Particulars & Form Preview ── */}
+      {/* ── Single Applicant Summary & Record Link ── */}
       {app.applicationType !== 'BULK' && (
         <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
-          <ApplicantParticularsCard
-            applicant={{
-              applicantName: app.applicant,
-              name: app.applicant,
-              applicantType: app.applicantType === 'Company' ? 'company' : 'individual',
-              email: app.contactDetails?.email,
-              mobileNumber: app.contactDetails?.contactNumber,
-              streetAddress: app.address?.streetAddress || app.address?.address,
-              barangay: app.address?.barangay,
-              cityMunicipality: app.address?.city,
-              province: app.address?.province,
-              region: app.address?.region,
-              zipCode: app.address?.zipCode,
-              birthDate: app.basicInfo?.dob,
-              sex: app.basicInfo?.sex,
-              civilStatus: app.basicInfo?.civilStatus,
-              nationality: app.basicInfo?.nationality,
-              companyName: app.companyDetails?.name || app.filingUser?.company?.name,
-              registrationNumber: app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber,
-              companyAddress: app.companyDetails?.address || app.filingUser?.company?.address,
-              companyEmail: app.companyDetails?.email || app.filingUser?.company?.email,
-              companyContactNumber: app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber,
-              representativeName: app.filingUser?.name,
-              representativeEmail: app.filingUser?.email,
-              representativeContactNumber: app.filingUser?.company?.contactNumber,
-              notes: app.note,
-            }}
+          <SectionHeader
+            title="PRIMARY APPLICANT SUMMARY"
+            rightAction={
+              <Pressable
+                style={[
+                  styles.inspectBtn,
+                  {
+                    backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
+                    paddingHorizontal: 12,
+                    paddingVertical: 6,
+                    borderRadius: RADIUS.button,
+                  },
+                ]}
+                onPress={() => onInspectApplicant?.(0)}
+              >
+                <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>
+                  View Applicant Record & Content ►
+                </Text>
+              </Pressable>
+            }
           />
-
-          {/* Structured Form Submissions */}
-          {formData && (
-            <BaseApplicationPreview
-              service={{
-                title: app.serviceName || app.permitTitle,
-                category: app.serviceCategory || app.category,
-              }}
-              form={formData}
-              formFieldValues={flatFormValues}
-              showApplicantCard={false}
-              showSignatureCard={true}
-              onPreviewFile={onPreviewFile}
+          <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}>
+            <InfoRow label="Applicant Name:" value={app.applicant || "—"} />
+            <InfoRow label="Applicant Type:" value={app.applicantType || "Individual"} />
+            <InfoRow label="Email Address:" value={app.contactDetails?.email || app.filingUser?.email || "—"} />
+            <InfoRow label="Contact Number:" value={app.contactDetails?.contactNumber || app.companyDetails?.contactNumber || "—"} />
+            <InfoRow
+              label="Primary Address:"
+              value={
+                app.address?.address ||
+                app.address?.streetAddress ||
+                (typeof app.address === 'string' ? app.address : [app.address?.city, app.address?.province].filter(Boolean).join(', ')) ||
+                "—"
+              }
             />
-          )}
+            {app.applicantType === 'Company' && (
+              <>
+                <InfoRow label="Company Name:" value={app.companyDetails?.name || app.filingUser?.company?.name || "—"} />
+                <InfoRow label="Registration Number:" value={app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber || "—"} />
+              </>
+            )}
+
+            <Pressable
+              style={{
+                marginTop: SPACING[8],
+                padding: SPACING[12],
+                borderRadius: RADIUS.card,
+                backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                borderWidth: 1,
+                borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+              onPress={() => onInspectApplicant?.(0)}
+            >
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[900] }}>
+                  Application Form Submissions & Attachments
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 2 }}>
+                  Switch to the Applicant Records tab to view full dynamic form fields, technical specifications, and uploaded requirement documents.
+                </Text>
+              </View>
+              <Lucide name="arrow-right" size={16} color={isDark ? colors.brand[300] : colors.brand[700]} />
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -1035,7 +1043,7 @@ function ApplicantRecordTab({
   onSelectApplicantIndex?: (index: number) => void;
   updateApplication?: (id: string, patch: Partial<ApplicationData>) => void;
   isEditable?: boolean;
-  onPreviewFile?: (uri: string, name: string) => void;
+  onPreviewFile?: (file: DocumentPreviewFile | string, label?: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const effectiveApplicants = useMemo(() => {
@@ -1243,6 +1251,7 @@ function ApplicantRecordTab({
   const [applicantRequirementsState, setApplicantRequirementsState] = useState<ApplicantRequirementItemDto[]>([]);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState<boolean>(false);
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+  const [previewLoadingReqId, setPreviewLoadingReqId] = useState<string | null>(null);
 
   const fetchApplicantRequirements = useCallback(async () => {
     if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
@@ -1433,6 +1442,65 @@ function ApplicantRecordTab({
     }
   };
 
+  const handlePreviewRequirement = async (reqItem: ApplicantRequirementItemDto) => {
+    let fileUrl: string = typeof reqItem.url === 'string' && reqItem.url.trim() !== '' ? reqItem.url.trim() : '';
+    if (fileUrl === '' && typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '') {
+      const tenantId = typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
+        ? app.tenantId
+        : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+      fileUrl = storageService.getFileDownloadUrl(reqItem.storedFileId, tenantId);
+    }
+
+    const fileName = reqItem.fileName || reqItem.requirementName || 'Requirement Document';
+    const isPdf = Boolean(reqItem.contentType?.includes('pdf') || fileName.toLowerCase().endsWith('.pdf'));
+    const fileType = isPdf ? 'PDF' : 'IMAGE';
+    const fileSize = typeof reqItem.fileSizeBytes === 'number' && reqItem.fileSizeBytes > 0
+      ? `${(reqItem.fileSizeBytes / 1024).toFixed(1)} KB`
+      : undefined;
+
+    const docObj: DocumentPreviewFile = {
+      uri: fileUrl,
+      name: fileName,
+      category: reqItem.requirementName,
+      size: fileSize,
+      type: fileType,
+      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
+      serviceName: app.serviceName || app.permitTitle || 'Licensing Service',
+      applicantName: activeApplicant?.name || app.applicant,
+      uploadedAt: reqItem.uploadedAt ?? undefined,
+    };
+
+    if (fileUrl !== '') {
+      if (fileUrl.startsWith('data:') || fileUrl.startsWith('blob:')) {
+        onPreviewFile?.(docObj, reqItem.requirementName);
+        return;
+      }
+
+      setPreviewLoadingReqId(reqItem.requirementId);
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(fileUrl);
+        if (blobErr === null && blobData instanceof Blob) {
+          const objectUrl =
+            typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+              ? URL.createObjectURL(blobData)
+              : fileUrl;
+
+          onPreviewFile?.({ ...docObj, uri: objectUrl }, reqItem.requirementName);
+          setPreviewLoadingReqId(null);
+          return;
+        }
+
+        onPreviewFile?.({ ...docObj, uri: fileUrl }, reqItem.requirementName);
+      } catch {
+        onPreviewFile?.(docObj, reqItem.requirementName);
+      } finally {
+        setPreviewLoadingReqId(null);
+      }
+    } else {
+      onPreviewFile?.(docObj, reqItem.requirementName);
+    }
+  };
+
   return (
     <View style={{ flex: 1 }}>
       {/* ── Fixed Sticky Top Applicant Selector Bar ── */}
@@ -1454,33 +1522,39 @@ function ApplicantRecordTab({
             },
           ]}
         >
-          <Pressable
-            disabled={activeIdx === 0}
-            onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
-            style={[styles.selectorNavBtn, activeIdx === 0 && { opacity: 0.3 }]}
-          >
-            <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
-          </Pressable>
+          {localApplicants.length > 1 && (
+            <Pressable
+              disabled={activeIdx === 0}
+              onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
+              style={[styles.selectorNavBtn, activeIdx === 0 && { opacity: 0.3 }]}
+            >
+              <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+              <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
+            </Pressable>
+          )}
 
           <View style={styles.selectorCenter}>
             <Lucide name="user" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
             <Text style={[styles.selectorTitleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-              Applicant Record {activeIdx + 1} of {localApplicants.length}:
+              {localApplicants.length > 1
+                ? `Applicant Record ${activeIdx + 1} of ${localApplicants.length}:`
+                : `Applicant Record:`}
             </Text>
             <Text style={[styles.selectorNameText, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
               {activeApplicant?.name}
             </Text>
           </View>
 
-          <Pressable
-            disabled={activeIdx >= localApplicants.length - 1}
-            onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
-            style={[styles.selectorNavBtn, activeIdx >= localApplicants.length - 1 && { opacity: 0.3 }]}
-          >
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
-            <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-          </Pressable>
+          {localApplicants.length > 1 && (
+            <Pressable
+              disabled={activeIdx >= localApplicants.length - 1}
+              onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
+              style={[styles.selectorNavBtn, activeIdx >= localApplicants.length - 1 && { opacity: 0.3 }]}
+            >
+              <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
+              <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+            </Pressable>
+          )}
         </View>
       )}
 
@@ -1661,8 +1735,12 @@ function ApplicantRecordTab({
             </View>
           ) : (
             applicantRequirementsState.map((reqItem) => {
-              const isAttached = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+              const hasValidUrl = typeof reqItem.url === 'string' && reqItem.url.trim() !== '' && reqItem.url !== 'null' && reqItem.url !== 'undefined';
+              const hasStoredId = typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null';
+              const hasSubmission = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+              const isAttached = hasSubmission || hasStoredId || hasValidUrl;
               const isUploading = uploadingReqId === reqItem.requirementId;
+              const isPreviewLoading = previewLoadingReqId === reqItem.requirementId;
 
               return (
                 <View key={reqItem.requirementId} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
@@ -1721,9 +1799,30 @@ function ApplicantRecordTab({
                     <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
                       {reqItem.fileName || 'No document file attached'}
                     </Text>
-                    {isAttached && reqItem.url !== undefined && reqItem.url !== null && (
-                      <Pressable onPress={() => onPreviewFile?.(reqItem.url ?? '', reqItem.requirementName)}>
-                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
+                    {isAttached && (
+                      <Pressable
+                        disabled={isPreviewLoading}
+                        onPress={() => handlePreviewRequirement(reqItem)}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 4,
+                          paddingHorizontal: 8,
+                          paddingVertical: 3,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                        }}
+                      >
+                        <Lucide
+                          name={isPreviewLoading ? "loader" : "eye"}
+                          size={12}
+                          color={isDark ? colors.brand[300] : colors.brand[700]}
+                        />
+                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
+                          {isPreviewLoading ? "Loading..." : "View Document"}
+                        </Text>
                       </Pressable>
                     )}
                     {isEditable && (
@@ -2481,8 +2580,19 @@ export function ApplicationReviewScreenContent({
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+  const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
 
-  const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
+  const handlePreviewFile = useCallback((fileOrUri: DocumentPreviewFile | string, label?: string) => {
+    if (typeof fileOrUri === 'string') {
+      setPreviewCustomDoc({
+        uri: fileOrUri,
+        name: label !== undefined && label !== null && label.trim() !== '' ? label : 'Attachment Document',
+        category: label,
+      });
+    } else if (fileOrUri !== null && typeof fileOrUri === 'object') {
+      setPreviewCustomDoc(fileOrUri);
+    }
+  }, []);
 
   useEffect(() => {
     setSelectedApplicantIndex(0);
@@ -2837,7 +2947,7 @@ export function ApplicationReviewScreenContent({
             setSelectedApplicantIndex(idx);
             setInnerTab("applicant-record");
           }}
-          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+          onPreviewFile={handlePreviewFile}
         />
       )}
       {innerTab === "applicant-record" && (
@@ -2848,7 +2958,7 @@ export function ApplicationReviewScreenContent({
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           updateApplication={updateApplication}
           isEditable={isEditable}
-          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+          onPreviewFile={handlePreviewFile}
         />
       )}
       {innerTab === "soa" && (
