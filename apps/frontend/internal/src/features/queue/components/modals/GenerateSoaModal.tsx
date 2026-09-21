@@ -19,6 +19,7 @@ import {
   SHADOWS,
   TYPOGRAPHY,
   toast,
+  DatePickerInput,
 } from '@edge/ui';
 import {
   applicationService,
@@ -218,13 +219,19 @@ export function GenerateSoaModal({
       return;
     }
 
-    toast.success('Statement of Account generated successfully!');
+    const isExistingSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
+    const successMsg = isExistingSoa
+      ? 'Statement of Account recalculated and updated successfully!'
+      : 'Statement of Account generated successfully!';
+    toast.success(successMsg);
     await mutateApplications(app.id);
     if (onSuccess) {
       onSuccess();
     }
     onClose();
   };
+
+  const isExistingSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -253,7 +260,7 @@ export function GenerateSoaModal({
                 ]}
               >
                 <Lucide
-                  name="file-text"
+                  name={isExistingSoa ? "refresh-cw" : "file-text"}
                   size={20}
                   color={isDark ? colors.brand[400] : colors.brand[600]}
                 />
@@ -265,7 +272,7 @@ export function GenerateSoaModal({
                     { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                   ]}
                 >
-                  Generate Statement of Account (SOA)
+                  {isExistingSoa ? 'Recalculate Statement of Account (SOA)' : 'Generate Statement of Account (SOA)'}
                 </Text>
                 <Text
                   style={[
@@ -318,28 +325,63 @@ export function GenerateSoaModal({
                     Automated Statutory Calculation Engine
                   </Text>
                 </View>
-                {calculatedFees?.formulaApplied && (
-                  <View
-                    style={[
-                      styles.formulaBadge,
-                      { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
-                    ]}
-                  >
-                    <Lucide
-                      name="code"
-                      size={11}
-                      color={isDark ? colors.brand[300] : colors.brand[800]}
-                    />
-                    <Text
+
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                  {calculatedFees?.formulaApplied && (
+                    <View
                       style={[
-                        styles.formulaBadgeText,
-                        { color: isDark ? colors.brand[300] : colors.brand[800] },
+                        styles.formulaBadge,
+                        { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
                       ]}
                     >
-                      Formula: {calculatedFees.formulaApplied}
+                      <Lucide
+                        name="code"
+                        size={11}
+                        color={isDark ? colors.brand[300] : colors.brand[800]}
+                      />
+                      <Text
+                        style={[
+                          styles.formulaBadgeText,
+                          { color: isDark ? colors.brand[300] : colors.brand[800] },
+                        ]}
+                      >
+                        Formula: {calculatedFees.formulaApplied}
+                      </Text>
+                    </View>
+                  )}
+
+                  <Pressable
+                    disabled={isCalculating}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      paddingHorizontal: 8,
+                      paddingVertical: 4,
+                      borderRadius: RADIUS.xs,
+                      backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                      borderWidth: 1,
+                      borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                    }}
+                    onPress={fetchBackendCalculatedFees}
+                  >
+                    <Lucide
+                      name="refresh-cw"
+                      size={11}
+                      color={isDark ? colors.brand[400] : colors.brand[700]}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: TYPOGRAPHY.weights.semibold,
+                        color: isDark ? colors.brand[400] : colors.brand[700],
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                      }}
+                    >
+                      {isCalculating ? 'Computing...' : 'Recalculate'}
                     </Text>
-                  </View>
-                )}
+                  </Pressable>
+                </View>
               </View>
 
               <Text
@@ -471,27 +513,12 @@ export function GenerateSoaModal({
                 </View>
 
                 <View style={[styles.formField, { flex: 0.5 }]}>
-                  <Text
-                    style={[
-                      styles.fieldLabel,
-                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
-                    ]}
-                  >
-                    Due Date <Text style={styles.required}>*</Text>
-                  </Text>
-                  <TextInput
-                    style={[
-                      styles.input,
-                      {
-                        backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
-                        color: isDark ? colors.neutral[100] : colors.neutral[900],
-                        borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
-                      },
-                    ]}
+                  <DatePickerInput
+                    label="Due Date"
+                    required
                     value={dueDate}
                     onChangeText={setDueDate}
                     placeholder="YYYY-MM-DD"
-                    placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
                   />
                 </View>
               </View>
@@ -1001,7 +1028,9 @@ export function GenerateSoaModal({
                 <>
                   <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
                   <Text style={styles.submitBtnText}>
-                    {isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account'}
+                    {isExistingSoa
+                      ? (isManualMode ? 'Update Custom SOA' : 'Recalculate & Update SOA')
+                      : (isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account')}
                   </Text>
                 </>
               )}

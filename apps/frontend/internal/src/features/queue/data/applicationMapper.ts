@@ -44,6 +44,8 @@ function mapBEStatusToFE(status: string): ApplicationStatus {
     Returned: 'Returned',
     Approved: 'Approved',
     Completed: 'Completed',
+    ForAccountant: 'ForAccountant',
+    PendingPayment: 'PendingPayment',
   };
   return map[status] ?? 'Submitted';
 }
@@ -58,7 +60,7 @@ function formatDateLabel(isoDate: string): string {
 }
 
 function deriveQueueTab(status: ApplicationStatus): QueueTab {
-  if (status === 'Submitted' || status === 'Evaluating') {
+  if (status === 'Submitted' || status === 'Evaluating' || status === 'ForAccountant' || status === 'PendingPayment') {
     return 'pending';
   }
   if (status === 'Approved' || status === 'Returned' || status === 'Completed') {
@@ -443,25 +445,72 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     },
     requirements: [],
     forms: [],
-    soaItems: dto.statementsOfAccount?.[0]?.lineItems?.map((item) => ({
-      particular: item.particular,
-      validityYears: item.validityYears,
-      percentage: 0,
-      noOfUnits: item.noOfUnits,
-      fees: item.feeRate,
-      amount: item.amount,
-      code: item.itemCode,
-    })) ?? [],
-    totalAmountDue: dto.statementsOfAccount?.[0]?.totalAmount ?? 0,
-    dueDate: dto.statementsOfAccount?.[0]?.dueDate ?? '',
-    payment: {
-      amountReceived: dto.ordersOfPayment?.[0]?.amountReceived ?? 0,
-      method:
-        dto.ordersOfPayment?.[0]?.paymentMethod === 'Check' ? 'check' : 'cash',
-      orNumber: dto.ordersOfPayment?.[0]?.officialReceiptNumber ?? '',
-      checkNumber: dto.ordersOfPayment?.[0]?.checkNumber ?? '',
-      checkName: dto.ordersOfPayment?.[0]?.checkName ?? '',
-    },
+    soaItems: (() => {
+      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
+        ? [...dto.statementsOfAccount].sort((a, b) => {
+            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
+            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
+            return timeB - timeA;
+          })[0]
+        : undefined;
+
+      return activeSoa?.lineItems?.map((item) => ({
+        particular: item.particular,
+        validityYears: item.validityYears,
+        percentage: 0,
+        noOfUnits: item.noOfUnits,
+        fees: item.feeRate,
+        amount: item.amount,
+        code: item.itemCode,
+      })) ?? [];
+    })(),
+    totalAmountDue: (() => {
+      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
+        ? [...dto.statementsOfAccount].sort((a, b) => {
+            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
+            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
+            return timeB - timeA;
+          })[0]
+        : undefined;
+
+      return activeSoa?.totalAmount ?? 0;
+    })(),
+    dueDate: (() => {
+      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
+        ? [...dto.statementsOfAccount].sort((a, b) => {
+            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
+            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
+            return timeB - timeA;
+          })[0]
+        : undefined;
+
+      return activeSoa?.dueDate ?? '';
+    })(),
+    payment: (() => {
+      const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
+        ? [...dto.ordersOfPayment].sort((a, b) => {
+            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+            return timeB - timeA;
+          })[0]
+        : undefined;
+
+      return {
+        amountReceived: activeOp?.amountReceived ?? 0,
+        method: activeOp?.paymentMethod === 'Check' ? 'check' : 'cash',
+        orNumber: activeOp?.officialReceiptNumber ?? '',
+        checkNumber: activeOp?.checkNumber ?? '',
+        checkName: activeOp?.checkName ?? '',
+      };
+    })(),
     correctionAuditTrail: dto.correctionAuditTrails?.map((c) => ({
       id: c.id,
       action: `${c.fieldName}: ${c.oldValue} → ${c.newValue}`,

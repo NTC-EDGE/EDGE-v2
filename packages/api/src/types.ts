@@ -795,7 +795,9 @@ export type ApplicationStatusDto =
   | 'Evaluating'
   | 'Returned'
   | 'Approved'
-  | 'Completed';
+  | 'Completed'
+  | 'ForAccountant'
+  | 'PendingPayment';
 
 export type SoaStatusDto = 'Pending' | 'Approved' | 'Returned';
 export type OpStatusDto = 'Billed' | 'Processing' | 'Returned' | 'Paid';

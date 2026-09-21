@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
 } from 'react-native';
-import { Icon as Lucide, useTheme } from '@edge/ui';
+import { Icon as Lucide, useTheme, DatePickerInput } from '@edge/ui';
 import { receiptService, AgencyBankAccountDto, OfficialReceiptDto } from '@edge/api';
 
 interface CreateDepositModalProps {
@@ -140,11 +140,10 @@ export function CreateDepositModal({
                 />
               </View>
               <View style={[styles.formGroup, { flex: 1, marginLeft: 8 }]}>
-                <Text style={[styles.label, { color: colors.neutral[700] }]}>Deposit Date *</Text>
-                <TextInput
-                  style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
+                <DatePickerInput
+                  label="Deposit Date"
+                  required
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={colors.neutral[400]}
                   value={depositDate}
                   onChangeText={setDepositDate}
                 />

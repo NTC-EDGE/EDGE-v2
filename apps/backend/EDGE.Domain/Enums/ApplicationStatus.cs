@@ -10,5 +10,9 @@ public enum ApplicationStatus
     Evaluating = 2,
     Returned = 3,
     Approved = 4,
-    Completed = 5
+    Completed = 5,
+    /// <summary>Evaluation approved — forwarded to Accountant for SOA review and approval.</summary>
+    ForAccountant = 6,
+    /// <summary>SOA approved by Accountant — awaiting Cashier payment verification.</summary>
+    PendingPayment = 7
 }

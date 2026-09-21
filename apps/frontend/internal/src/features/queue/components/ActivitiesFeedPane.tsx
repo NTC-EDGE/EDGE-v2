@@ -20,6 +20,7 @@ import {
   SkeletonLoader,
   useTheme,
   toast,
+  DatePickerInput,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -410,14 +411,11 @@ export function ActivitiesFeedPane({
           <View style={styles.dateRow}>
             {(["From", "To"] as const).map((label, i) => (
               <View key={label} style={styles.dateField}>
-                <Text style={[styles.dateLabel, { color: textMuted }]}>{label.toUpperCase()}</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: text, backgroundColor: inputBg, borderColor: border }]}
+                <DatePickerInput
+                  label={label.toUpperCase()}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textMuted}
                   value={i === 0 ? dateFrom : dateTo}
                   onChangeText={i === 0 ? setDateFrom : setDateTo}
-                  maxLength={10}
                 />
               </View>
             ))}

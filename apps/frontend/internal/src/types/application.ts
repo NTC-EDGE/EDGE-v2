@@ -4,7 +4,9 @@ export type ApplicationStatus =
   | 'Evaluating'
   | 'Returned'
   | 'Approved'
-  | 'Completed';
+  | 'Completed'
+  | 'ForAccountant'
+  | 'PendingPayment';
 
 export type QueueTab = 'activity' | 'pending' | 'history';
 export type ApplicantType = 'Individual' | 'Company';
