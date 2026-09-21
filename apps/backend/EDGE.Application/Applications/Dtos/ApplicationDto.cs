@@ -26,6 +26,7 @@ public class ApplicationDto
     public Guid? ServiceId { get; set; }
     public string? ServiceName { get; set; }
     public Guid? ServiceCategoryId { get; set; }
+    public string? ServiceCategory { get; set; }
     public string? ServiceCategoryName { get; set; }
     public string? ServiceCategoryCode { get; set; }
     public string? ServiceVariantName { get; set; }
@@ -57,7 +58,10 @@ public class ApplicationServiceDto
     public Guid Id { get; set; }
     public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
     public Guid? SubmissionId { get; set; }
 }
 

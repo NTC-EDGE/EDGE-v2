@@ -379,7 +379,7 @@ function ApplicationDetailsTab({
     if (app.services && app.services.length > 0) {
       const map = new Map<string, { id?: string; name: string; category?: string; variant?: string }>();
       for (const s of app.services) {
-        const name = s.serviceName || app.serviceName || app.permitTitle || 'Permit / Service Application';
+        const name = s.serviceName || app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`;
         const category = s.serviceCategory || app.serviceCategory || app.category || undefined;
         const variant = s.serviceVariantName || app.serviceVariantName || undefined;
         const key = `${s.serviceId ?? ''}-${name}-${variant ?? ''}`;
@@ -391,7 +391,7 @@ function ApplicationDetailsTab({
     }
     return [
       {
-        name: app.serviceName || app.permitTitle || 'Permit / Service Application',
+        name: app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`,
         category: app.serviceCategory || app.category || undefined,
         variant: app.serviceVariantName || undefined,
       },
@@ -593,7 +593,8 @@ function ApplicationDetailsTab({
         {/* ── 1. Hero Review Header: Services, Processing Office, Mode, Variant ── */}
         <HeroReviewHeader
           services={appliedServices}
-          serviceName={app.serviceName || app.permitTitle || 'Permit / Service Application'}
+          serviceName={app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`}
+          category={app.serviceCategory || app.category}
           isExamService={isExamService}
           variantLabel={app.serviceVariantName || 'Standard'}
           scheduleSummaryText={scheduleSummaryText}

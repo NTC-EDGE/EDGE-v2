@@ -6,10 +6,33 @@ import {
   QueueTab,
 } from '../../../types/application';
 
-function parseApplicationCategory(cat?: string): ApplicationCategory {
-  if (!cat) return 'Permits';
+function parseApplicationCategory(cat?: string, serviceName?: string): ApplicationCategory {
   const valid: ApplicationCategory[] = ['Exams', 'Permits', 'Licenses', 'Accreditations', 'Certificates', 'Complaints and Request'];
-  return valid.find((c) => c.toLowerCase() === cat.toLowerCase()) ?? 'Permits';
+  if (cat && typeof cat === 'string') {
+    const trimmed = cat.trim();
+    const exact = valid.find((c) => c.toLowerCase() === trimmed.toLowerCase());
+    if (exact) return exact;
+
+    const lower = trimmed.toLowerCase();
+    if (lower.includes('cert') || lower.includes('roc') || lower.includes('goc')) return 'Certificates';
+    if (lower.includes('licen') || lower.includes('rsl') || lower.includes('amateur')) return 'Licenses';
+    if (lower.includes('exam') || lower.includes('admission') || lower.includes('operator examination')) return 'Exams';
+    if (lower.includes('accredit') || lower.includes('dealer') || lower.includes('manufacturer') || lower.includes('service center')) return 'Accreditations';
+    if (lower.includes('permit') || lower.includes('purchase') || lower.includes('possess') || lower.includes('import')) return 'Permits';
+    if (lower.includes('complaint') || lower.includes('request')) return 'Complaints and Request';
+  }
+
+  if (serviceName && typeof serviceName === 'string') {
+    const s = serviceName.trim().toLowerCase();
+    if (s.includes('cert') || s.includes('roc') || s.includes('goc') || s.includes('radio operator')) return 'Certificates';
+    if (s.includes('license') || s.includes('rsl') || s.includes('amateur radio')) return 'Licenses';
+    if (s.includes('exam') || s.includes('admission') || s.includes('operator examination')) return 'Exams';
+    if (s.includes('accredit') || s.includes('dealer') || s.includes('manufacturer') || s.includes('service center')) return 'Accreditations';
+    if (s.includes('permit') || s.includes('purchase') || s.includes('possess') || s.includes('import')) return 'Permits';
+    if (s.includes('complaint') || s.includes('request')) return 'Complaints and Request';
+  }
+
+  return 'Permits';
 }
 
 function mapBEStatusToFE(status: string): ApplicationStatus {
@@ -117,12 +140,15 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     }
     : undefined;
 
+  const filingAccountType: 'Individual' | 'Company' =
+    rawFilingUser?.accountType === 'Company' ? 'Company' : 'Individual';
+
   const filingUser = rawFilingUser
     ? {
       id: rawFilingUser.id,
       name: formatProperName(rawFilingUser.name ?? ''),
       email: rawFilingUser.email ?? '',
-      accountType: (rawFilingUser.accountType as 'Individual' | 'Company') ?? 'Individual',
+      accountType: filingAccountType,
       company: rawFilingUser.company
         ? {
           name: formatProperName(rawFilingUser.company.name ?? ''),
@@ -232,13 +258,19 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     const natFromFv = findFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship'));
     const civilFromFv = findFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
 
+    const itemApplicantType: 'Individual' | 'Company' =
+      appItem.applicantType === 'Company' ? 'Company' : 'Individual';
+
+    let itemStatus: 'Complete' | 'Incomplete' | 'ForEndorsement' = 'Complete';
+    if (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement') {
+      itemStatus = appItem.status;
+    }
+
     return {
       id: appItem.id || `app-${idx}`,
       name: resolvedName,
-      applicantType: appItem.applicantType === 'Company' ? ('Company' as const) : ('Individual' as const),
-      status: (appItem.status === 'Incomplete' || appItem.status === 'ForEndorsement')
-        ? (appItem.status as 'Incomplete' | 'ForEndorsement')
-        : ('Complete' as const),
+      applicantType: itemApplicantType,
+      status: itemStatus,
       evaluationRemarks: appItem.evaluationRemarks ?? '',
       serviceId: appItem.serviceId,
       serviceVariantId: appItem.serviceVariantId,
@@ -292,8 +324,39 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     (Array.isArray(dto.applicants) && dto.applicants.length > 1) ||
     applicantsList.length > 1;
 
-  const resolvedServiceName = dto.serviceName || 'Permit Evaluation';
-  const resolvedCategory = parseApplicationCategory(dto.serviceCategory);
+  let applicantServiceName: string | undefined;
+  if (dto.applicants) {
+    for (const applicant of dto.applicants) {
+      if (typeof applicant === 'object' && applicant !== null && 'serviceName' in applicant) {
+        const candidate = Reflect.get(applicant, 'serviceName');
+        if (typeof candidate === 'string' && candidate.length > 0) {
+          applicantServiceName = candidate;
+          break;
+        }
+      }
+    }
+  }
+
+  let dtoServiceCategoryName: string | undefined;
+  if (typeof dto === 'object' && dto !== null && 'serviceCategoryName' in dto) {
+    const candidate = Reflect.get(dto, 'serviceCategoryName');
+    if (typeof candidate === 'string' && candidate.length > 0) {
+      dtoServiceCategoryName = candidate;
+    }
+  }
+
+  const rawServiceName =
+    dto.serviceName ||
+    dto.services?.find((s) => s.serviceName)?.serviceName ||
+    applicantServiceName;
+
+  const rawCategoryCandidate =
+    dto.serviceCategory ||
+    dtoServiceCategoryName ||
+    dto.services?.find((s) => s.serviceCategory)?.serviceCategory;
+
+  const resolvedCategory = parseApplicationCategory(rawCategoryCandidate, rawServiceName);
+  const resolvedServiceName = rawServiceName || `${resolvedCategory} Application`;
 
   return {
     id: dto.id,
@@ -309,8 +372,8 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     queueTab: deriveQueueTab(feStatus),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
-    serviceName: dto.serviceName ?? '',
-    serviceCategory: dto.serviceCategory ?? '',
+    serviceName: resolvedServiceName,
+    serviceCategory: resolvedCategory,
     serviceVariantName: dto.serviceVariantName ?? '',
     office: dto.office ?? '',
     applicantsList,
@@ -319,8 +382,8 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
           id: s.id,
           applicantId: s.applicantId,
           serviceId: s.serviceId,
-          serviceName: s.serviceName ?? dto.serviceName,
-          serviceCategory: s.serviceCategory ?? dto.serviceCategory,
+          serviceName: s.serviceName ?? resolvedServiceName,
+          serviceCategory: s.serviceCategory ?? resolvedCategory,
           serviceVariantId: s.serviceVariantId,
           serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
           submissionId: s.submissionId,
@@ -329,8 +392,8 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
           id: a.id,
           applicantId: a.id,
           serviceId: a.serviceId ?? '',
-          serviceName: dto.serviceName ?? '',
-          serviceCategory: dto.serviceCategory ?? '',
+          serviceName: resolvedServiceName,
+          serviceCategory: resolvedCategory,
           serviceVariantId: a.serviceVariantId,
           serviceVariantName: dto.serviceVariantName ?? '',
           submissionId: a.submissionId,
