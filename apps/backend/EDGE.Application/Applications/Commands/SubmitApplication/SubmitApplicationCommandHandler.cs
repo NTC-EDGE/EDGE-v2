@@ -489,6 +489,28 @@ public class SubmitApplicationCommandHandler
                     UserId = submitterUserId
                 }, cancellationToken);
 
+            if (status == ApplicationStatus.Submitted)
+            {
+                var firstApp = request.Applicants.FirstOrDefault();
+                var submitterName = firstApp != null && !string.IsNullOrWhiteSpace($"{firstApp.FirstName} {firstApp.LastName}".Trim())
+                    ? $"{firstApp.FirstName} {firstApp.LastName}".Trim()
+                    : "Applicant";
+                await _applicationRepository.AddApplicationHistoryAsync(
+                    new ApplicationHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = application.Id,
+                        Action = "Application submitted by applicant",
+                        FromStatus = null,
+                        ToStatus = ApplicationStatus.Submitted,
+                        PerformedByUserId = submitterUserId,
+                        StaffName = submitterName,
+                        StaffRole = "Applicant",
+                        Remarks = "Initial application submission",
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 

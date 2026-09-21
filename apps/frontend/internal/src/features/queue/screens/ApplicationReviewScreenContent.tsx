@@ -1075,18 +1075,19 @@ function ApplicationDetailsTab({
       )}
 
       {/* ── Application History section ── */}
-      {app.history && app.history.length > 0 && (
-        <>
-          <SectionHeader title="APPLICATION HISTORY" />
-          <View style={styles.infoBlock}>
+      <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
+        <SectionHeader title="APPLICATION PROCESS & AUDIT HISTORY" />
+        <View style={[styles.infoBlock, { marginHorizontal: 0, backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}>
+          {app.history && app.history.length > 0 ? (
             <View style={styles.historyList}>
               {app.history.map((entry, idx) => (
-                <View key={entry.id} style={styles.historyItem}>
+                <View key={entry.id || idx} style={styles.historyItem}>
                   <View style={styles.historyLeft}>
                     <View
                       style={[
                         styles.historyCircle,
                         idx === 0 && styles.historyCircleActive,
+                        { backgroundColor: idx === 0 ? (isDark ? colors.brand[400] : colors.brand[600]) : (isDark ? colors.neutral[600] : colors.neutral[300]) },
                       ]}
                     />
                     {idx !== app.history.length - 1 && (
@@ -1095,15 +1096,28 @@ function ApplicationDetailsTab({
                   </View>
                   <View style={styles.historyRight}>
                     <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>{entry.action}</Text>
-                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>by {entry.staff}</Text>
-                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>{entry.timestamp}</Text>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                      <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
+                        by <Text style={{ fontWeight: '600' }}>{entry.staff}</Text>
+                      </Text>
+                      {entry.timestamp ? (
+                        <>
+                          <Text style={{ color: isDark ? colors.neutral[600] : colors.neutral[300] }}>•</Text>
+                          <Text style={[styles.historyDate, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>{entry.timestamp}</Text>
+                        </>
+                      ) : null}
+                    </View>
                   </View>
                 </View>
               ))}
             </View>
-          </View>
-        </>
-      )}
+          ) : (
+            <Text style={{ color: isDark ? colors.neutral[400] : colors.neutral[500], fontSize: 12, fontStyle: 'italic', padding: 8 }}>
+              No audit history recorded yet.
+            </Text>
+          )}
+        </View>
+      </View>
 
       {/* ── Note Block ── */}
       <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
@@ -3082,85 +3096,49 @@ export function ApplicationReviewScreenContent({
 
   const handleApprove = async () => {
     setShowApprove(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    await updateApplication(app.id, {
+    const [res, err] = await applicationService.updateStatus(app.id, {
       status: "Approved",
-      queueTab: "history",
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: "Application Approved.",
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
+      remarks: "Application approved by evaluation officer",
     });
+    if (err !== null) {
+      toast.error("Failed to approve application.");
+      return;
+    }
     toast.success("Application has been approved successfully.");
+    await mutateApplications(app.id);
+    await refetch();
     setSelectedId(null);
   };
 
   const handleDecline = async (notice: string) => {
     setShowDecline(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    await updateApplication(app.id, {
+    const [res, err] = await applicationService.updateStatus(app.id, {
       status: "Returned",
-      queueTab: "history",
-      note: notice,
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: `Application Declined. Notice: ${notice}`,
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
+      remarks: notice && notice.trim().length > 0 ? notice.trim() : "Application returned with notice.",
     });
+    if (err !== null) {
+      toast.error("Failed to return application.");
+      return;
+    }
     toast.success("Application returned with notice.");
+    await mutateApplications(app.id);
+    await refetch();
     setSelectedId(null);
   };
 
   const handleEndorse = async (targetRole: UserRole) => {
     setShowEndorse(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+    const [res, err] = await applicationService.updateStatus(app.id, {
+      status: "Evaluating",
+      remarks: `Application endorsed to ${targetRole}.`,
     });
-
-    await updateApplication(app.id, {
-      assignedTo: `${targetRole.toUpperCase()} EDGE`,
-      queueTab: "history",
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: `Application endorsed to ${targetRole}.`,
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
-    });
-
+    if (err !== null) {
+      toast.error("Failed to endorse application.");
+      return;
+    }
     toast.success(`Application endorsed to ${targetRole}.`);
+    await mutateApplications(app.id);
+    await refetch();
     setSelectedId(null);
     Alert.alert("Success", `Application endorsed to ${targetRole}`);
   };

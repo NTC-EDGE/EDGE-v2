@@ -4,6 +4,7 @@ import {
   ApplicationStatus,
   ApplicationCategory,
   QueueTab,
+  AuditTrailEntry,
 } from '../../../types/application';
 
 function parseApplicationCategory(cat?: string, serviceName?: string): ApplicationCategory {
@@ -467,12 +468,58 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       staff: c.correctedByStaff,
       timestamp: c.correctedAt,
     })) ?? [],
-    history: dto.histories?.map((h) => ({
-      id: h.id,
-      action: h.action || `Status: ${h.toStatus}`,
-      staff: h.staffName || 'System',
-      timestamp: h.timestamp ? new Date(h.timestamp).toLocaleString() : '',
-    })) ?? [],
+    history: (() => {
+      const list: AuditTrailEntry[] = [];
+      const hasInitialSubmission = dto.histories?.some(
+        (h) => h.toStatus === 'Submitted' || (h.action !== null && h.action !== undefined && h.action.toLowerCase().includes('submit'))
+      );
+
+      if (hasInitialSubmission !== true && dto.createdAt) {
+        const submitter =
+          filingUser?.name ||
+          applicantName ||
+          'Applicant';
+        const modeText = dto.submissionMode ? ` (${dto.submissionMode})` : '';
+        list.push({
+          id: `init-${dto.id}`,
+          action: `Application Submitted${modeText}`,
+          staff: submitter,
+          timestamp: new Date(dto.createdAt).toLocaleString('en-US', {
+            month: 'short',
+            day: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+          }),
+        });
+      }
+
+      if (dto.histories && dto.histories.length > 0) {
+        for (const h of dto.histories) {
+          const actionText = h.action && h.action.trim().length > 0
+            ? (h.remarks && !h.action.includes(h.remarks) ? `${h.action} — ${h.remarks}` : h.action)
+            : (h.toStatus ? `Status: ${h.toStatus}${h.remarks ? ` — ${h.remarks}` : ''}` : 'Application Event');
+          list.push({
+            id: h.id,
+            action: actionText,
+            staff: h.staffName || h.staffRole || 'System Staff',
+            timestamp: h.timestamp
+              ? new Date(h.timestamp).toLocaleString('en-US', {
+                  month: 'short',
+                  day: '2-digit',
+                  year: 'numeric',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                  hour12: true,
+                })
+              : '',
+          });
+        }
+      }
+
+      return list;
+    })(),
     note: dto.remarks ?? '',
   };
 }

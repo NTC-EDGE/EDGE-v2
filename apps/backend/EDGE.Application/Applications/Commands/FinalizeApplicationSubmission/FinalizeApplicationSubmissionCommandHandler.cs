@@ -5,6 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -150,6 +151,37 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         try
         {
             await _applicationRepository.UpdateAsync(trackedApp, cancellationToken);
+
+            await _applicationRepository.AddApplicationStatusHistoryAsync(
+                new ApplicationStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = trackedApp.Id,
+                    Status = ApplicationStatus.Submitted,
+                    Remarks = "Application finalized and submitted",
+                    Timestamp = DateTime.UtcNow,
+                    UserId = trackedApp.UserId
+                }, cancellationToken);
+
+            var firstApplicant = app.ApplicationApplicants.FirstOrDefault()?.Applicant?.ApplicantDetail;
+            var submitterName = firstApplicant != null && !string.IsNullOrWhiteSpace($"{firstApplicant.FirstName} {firstApplicant.LastName}".Trim())
+                ? $"{firstApplicant.FirstName} {firstApplicant.LastName}".Trim()
+                : "Applicant";
+            await _applicationRepository.AddApplicationHistoryAsync(
+                new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = trackedApp.Id,
+                    Action = "Application submitted by applicant",
+                    FromStatus = ApplicationStatus.Draft,
+                    ToStatus = ApplicationStatus.Submitted,
+                    PerformedByUserId = trackedApp.UserId,
+                    StaffName = submitterName,
+                    StaffRole = "Applicant",
+                    Remarks = "Application submission finalized",
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
