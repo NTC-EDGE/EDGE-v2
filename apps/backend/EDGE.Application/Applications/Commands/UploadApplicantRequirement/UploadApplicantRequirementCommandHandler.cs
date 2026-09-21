@@ -177,10 +177,12 @@ public class UploadApplicantRequirementCommandHandler
             if (existingRequirement != null)
             {
                 existingRequirement.StoredFileId = request.StoredFileId;
+                existingRequirement.StoredFile = null;
                 existingRequirement.ServiceVariantRequirementId = request.ServiceVariantRequirementId ?? existingRequirement.ServiceVariantRequirementId;
                 existingRequirement.RequirementId = resolvedRequirementId;
                 existingRequirement.Url = url;
                 existingRequirement.IsApproved = false;
+                await _applicationRepository.UpdateApplicationRequirementAsync(existingRequirement, cancellationToken);
                 requirementEntityId = existingRequirement.Id;
             }
             else

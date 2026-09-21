@@ -1252,6 +1252,7 @@ function ApplicantRecordTab({
   const [isLoadingRequirements, setIsLoadingRequirements] = useState<boolean>(false);
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
   const [previewLoadingReqId, setPreviewLoadingReqId] = useState<string | null>(null);
+  const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
 
   const fetchApplicantRequirements = useCallback(async () => {
     if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
@@ -1268,6 +1269,32 @@ function ApplicantRecordTab({
   useEffect(() => {
     fetchApplicantRequirements();
   }, [fetchApplicantRequirements]);
+
+  useEffect(() => {
+    setActiveReqMenuId(null);
+  }, [activeApplicant?.id]);
+
+  useEffect(() => {
+    if (activeReqMenuId === null) return;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleDocumentClick = (e: MouseEvent) => {
+        const target = e.target;
+        if (target instanceof HTMLElement && target.closest('[data-req-menu="true"]')) {
+          return;
+        }
+        setActiveReqMenuId(null);
+      };
+
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleDocumentClick);
+      }, 50);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleDocumentClick);
+      };
+    }
+  }, [activeReqMenuId]);
 
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
 
@@ -1344,7 +1371,7 @@ function ApplicantRecordTab({
 
       if (storageErr !== null || !storageRes?.data) {
         const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
-          ? String((storageErr as { message?: unknown }).message)
+          ? String(Reflect.get(storageErr, 'message'))
           : (storageRes?.message ?? 'Failed to upload document to storage.');
         notifyError('Upload Failed', errText);
         setUploadingReqId(null);
@@ -1352,6 +1379,7 @@ function ApplicantRecordTab({
       }
 
       const storedFileId = storageRes.data.id;
+      const uploadedFileUrl = storageService.getFileDownloadUrl(storedFileId, tenantId);
 
       const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
         app.id,
@@ -1367,14 +1395,40 @@ function ApplicantRecordTab({
 
       if (reqErr !== null || !reqRes?.succeeded) {
         const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
-          ? String((reqErr as { message?: unknown }).message)
+          ? String(Reflect.get(reqErr, 'message'))
           : (reqRes?.message ?? 'Failed to save requirement attachment.');
         notifyError('Save Failed', errText);
         return;
       }
 
+      const fileTypeStr = typeof fileData === 'object' && fileData !== null && 'type' in fileData && typeof fileData.type === 'string'
+        ? fileData.type
+        : undefined;
+      const fileSizeNum = typeof fileData === 'object' && fileData !== null && 'size' in fileData && typeof fileData.size === 'number'
+        ? fileData.size
+        : undefined;
+
+      setApplicantRequirementsState((prev) =>
+        prev.map((item) =>
+          item.requirementId === reqItem.requirementId
+            ? {
+                ...item,
+                storedFileId: storedFileId,
+                fileName: fileName,
+                url: uploadedFileUrl,
+                contentType: fileTypeStr,
+                fileSizeBytes: fileSizeNum,
+                uploadedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
       notifySuccess('Success', 'Requirement document attached successfully.');
       await fetchApplicantRequirements();
+      if (typeof app.id === 'string') {
+        await mutateApplications(app.id);
+      }
     } catch (err: unknown) {
       setUploadingReqId(null);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
@@ -1388,27 +1442,38 @@ function ApplicantRecordTab({
     if (Platform.OS === 'web') {
       const input = document.createElement('input');
       input.type = 'file';
+      input.style.display = 'none';
       input.accept = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,application/pdf';
 
       input.onchange = async (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        const files = target.files;
-        if (!files || files.length === 0) return;
+        try {
+          const target = e.target;
+          if (!(target instanceof HTMLInputElement)) return;
+          const files = target.files;
+          if (!files || files.length === 0) return;
 
-        const selectedFile = files[0];
-        if (!selectedFile) return;
+          const selectedFile = files[0];
+          if (!selectedFile) return;
 
-        const fileName = selectedFile.name;
-        const mimeType = selectedFile.type;
+          const fileName = selectedFile.name;
+          const mimeType = selectedFile.type;
 
-        if (!isAllowedRequirementFileType(fileName, mimeType)) {
-          notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
-          return;
+          if (!isAllowedRequirementFileType(fileName, mimeType)) {
+            notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+            return;
+          }
+
+          await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
+        } finally {
+          if (typeof document !== 'undefined' && document.body && document.body.contains(input)) {
+            document.body.removeChild(input);
+          }
         }
-
-        await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
       };
 
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.appendChild(input);
+      }
       input.click();
     } else {
       try {
@@ -1443,12 +1508,15 @@ function ApplicantRecordTab({
   };
 
   const handlePreviewRequirement = async (reqItem: ApplicantRequirementItemDto) => {
-    let fileUrl: string = typeof reqItem.url === 'string' && reqItem.url.trim() !== '' ? reqItem.url.trim() : '';
-    if (fileUrl === '' && typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '') {
-      const tenantId = typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
-        ? app.tenantId
-        : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+    const tenantId = typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
+      ? app.tenantId
+      : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+
+    let fileUrl = '';
+    if (typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null') {
       fileUrl = storageService.getFileDownloadUrl(reqItem.storedFileId, tenantId);
+    } else if (typeof reqItem.url === 'string' && reqItem.url.trim() !== '' && reqItem.url !== 'null' && reqItem.url !== 'undefined') {
+      fileUrl = reqItem.url.trim();
     }
 
     const fileName = reqItem.fileName || reqItem.requirementName || 'Requirement Document';
@@ -1559,7 +1627,11 @@ function ApplicantRecordTab({
       )}
 
       {/* ── Scrollable Content Area ── */}
-      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.tabContent}
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setActiveReqMenuId(null)}
+      >
         {/* Section 1: Personal & Profile Info */}
         <SectionHeader
           title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"}
@@ -1741,9 +1813,19 @@ function ApplicantRecordTab({
               const isAttached = hasSubmission || hasStoredId || hasValidUrl;
               const isUploading = uploadingReqId === reqItem.requirementId;
               const isPreviewLoading = previewLoadingReqId === reqItem.requirementId;
+              const isMenuOpen = activeReqMenuId === reqItem.requirementId;
 
               return (
-                <View key={reqItem.requirementId} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <View
+                  key={reqItem.requirementId}
+                  style={[
+                    styles.reqItem,
+                    {
+                      borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                      zIndex: isMenuOpen ? 100 : 1,
+                    },
+                  ]}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
                       {reqItem.requirementName}
@@ -1790,7 +1872,7 @@ function ApplicantRecordTab({
                     </Text>
                   )}
 
-                  <View style={styles.reqFileRow}>
+                  <View style={[styles.reqFileRow, { position: 'relative', zIndex: isMenuOpen ? 100 : 1 }]}>
                     <Lucide
                       name={reqItem.contentType?.includes('pdf') || reqItem.fileName?.endsWith('.pdf') ? 'file-text' : 'image'}
                       size={14}
@@ -1799,55 +1881,105 @@ function ApplicantRecordTab({
                     <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
                       {reqItem.fileName || 'No document file attached'}
                     </Text>
-                    {isAttached && (
-                      <Pressable
-                        disabled={isPreviewLoading}
-                        onPress={() => handlePreviewRequirement(reqItem)}
-                        style={{
-                          flexDirection: 'row',
-                          alignItems: 'center',
-                          gap: 4,
-                          paddingHorizontal: 8,
-                          paddingVertical: 3,
-                          borderRadius: RADIUS.sm,
-                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
-                          borderWidth: 1,
-                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
-                        }}
+
+                    {(isAttached || isEditable) && (
+                      <View
+                        style={{ position: 'relative', zIndex: isMenuOpen ? 100 : 1 }}
+                        {...Platform.select({ web: { 'data-req-menu': 'true' } as object })}
                       >
-                        <Lucide
-                          name={isPreviewLoading ? "loader" : "eye"}
-                          size={12}
-                          color={isDark ? colors.brand[300] : colors.brand[700]}
-                        />
-                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
-                          {isPreviewLoading ? "Loading..." : "View Document"}
-                        </Text>
-                      </Pressable>
-                    )}
-                    {isEditable && (
-                      <Pressable
-                        disabled={isUploading}
-                        onPress={() => handleUploadOrReplaceRequirement(reqItem)}
-                        style={{
-                          marginLeft: 12,
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
-                          borderRadius: RADIUS.sm,
-                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
-                          borderWidth: 1,
-                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
-                          opacity: isUploading ? 0.6 : 1
-                        }}
-                      >
-                        <Text style={{
-                          fontSize: 11,
-                          fontWeight: '600',
-                          color: isDark ? colors.brand[300] : colors.brand[700]
-                        }}>
-                          {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
-                        </Text>
-                      </Pressable>
+                        <Pressable
+                          disabled={isPreviewLoading || isUploading}
+                          onPress={() => setActiveReqMenuId(isMenuOpen ? null : reqItem.requirementId)}
+                          style={[
+                            styles.reqDotActionBtn,
+                            {
+                              borderColor: isMenuOpen
+                                ? (isDark ? colors.brand[500] : colors.brand[700])
+                                : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                              backgroundColor: isMenuOpen
+                                ? (isDark ? colors.neutral[800] : colors.neutral[100])
+                                : 'transparent',
+                            }
+                          ]}
+                        >
+                          <Lucide
+                            name={isUploading || isPreviewLoading ? "loader" : "more-vertical"}
+                            size={16}
+                            color={isDark ? colors.neutral[300] : colors.neutral[700]}
+                          />
+                        </Pressable>
+
+                        {isMenuOpen && (
+                          <View
+                            style={[
+                              styles.reqActionMenuPopover,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: isDark ? 0.45 : 0.18,
+                                shadowRadius: 10,
+                                elevation: 25,
+                              }
+                            ]}
+                          >
+                            {isAttached && (
+                              <Pressable
+                                disabled={isPreviewLoading}
+                                style={({ pressed }) => [
+                                  styles.reqActionMenuItem,
+                                  pressed && {
+                                    backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setActiveReqMenuId(null);
+                                  handlePreviewRequirement(reqItem);
+                                }}
+                              >
+                                <Lucide
+                                  name={isPreviewLoading ? "loader" : "eye"}
+                                  size={15}
+                                  color={isDark ? colors.brand[400] : colors.brand[700]}
+                                />
+                                <Text style={[styles.reqActionMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                                  {isPreviewLoading ? "Loading..." : "View Document"}
+                                </Text>
+                              </Pressable>
+                            )}
+
+                            {isAttached && isEditable && (
+                              <View style={{ height: 1, backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100], marginVertical: 2 }} />
+                            )}
+
+                            {isEditable && (
+                              <Pressable
+                                disabled={isUploading}
+                                style={({ pressed }) => [
+                                  styles.reqActionMenuItem,
+                                  pressed && {
+                                    backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setActiveReqMenuId(null);
+                                  handleUploadOrReplaceRequirement(reqItem);
+                                }}
+                              >
+                                <Lucide
+                                  name={isUploading ? "loader" : "upload-cloud"}
+                                  size={15}
+                                  color={isDark ? colors.brand[400] : colors.brand[700]}
+                                />
+                                <Text style={[styles.reqActionMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                                  {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
+                                </Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        )}
+                      </View>
                     )}
                   </View>
                 </View>
@@ -3506,6 +3638,38 @@ const styles = StyleSheet.create({
   reqViewLink: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11.5,
+    fontWeight: '600',
+  },
+  reqDotActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reqActionMenuPopover: {
+    position: 'absolute',
+    top: 32,
+    right: 0,
+    minWidth: 165,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    paddingVertical: 4,
+    zIndex: 9999,
+  },
+  reqActionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reqActionMenuItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
     fontWeight: '600',
   },
   emptyReqs: {

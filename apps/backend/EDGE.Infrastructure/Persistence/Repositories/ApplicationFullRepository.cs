@@ -824,6 +824,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
         await _context.ApplicationRequirements.AddAsync(appRequirement, cancellationToken);
     }
 
+    public Task UpdateApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
+    {
+        _context.ApplicationRequirements.Update(appRequirement);
+        return Task.CompletedTask;
+    }
+
     public async Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default)
     {
         return await _context.ApplicationRequirements
