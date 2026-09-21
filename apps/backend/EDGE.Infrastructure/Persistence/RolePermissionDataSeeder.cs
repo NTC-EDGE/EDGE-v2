@@ -151,6 +151,7 @@ public static class RolePermissionDataSeeder
             (actualClientRoleId, Permissions.ReadStorage),
             (actualClientRoleId, Permissions.DownloadStorage),
             (actualClientRoleId, Permissions.ReadSchedules),
+            (actualClientRoleId, Permissions.ReadServiceVariantElements),
 
             // Evaluator (Frontline Staff Evaluator)
             (actualEvaluatorRoleId, Permissions.ReadTenants),
