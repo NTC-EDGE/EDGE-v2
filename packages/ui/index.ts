@@ -26,6 +26,7 @@ export * from './components/ThemeToggle';
 export * from './components/PageHeader';
 export * from './components/EmptyState';
 export * from './components/SearchBar';
+export * from './components/ConfirmationModal';
 
 // Navigation & Integrations
 export { Feather as Icon } from '@expo/vector-icons';

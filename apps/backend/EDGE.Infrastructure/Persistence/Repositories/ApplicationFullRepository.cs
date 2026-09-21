@@ -30,10 +30,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
-    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Applications
-            .AsNoTrackingWithIdentityResolution()
+        return GetByIdWithDetailsAsync(id, false, cancellationToken);
+    }
+
+    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications.AsQueryable();
+        if (asNoTracking)
+        {
+            query = query.AsNoTrackingWithIdentityResolution();
+        }
+
+        return await query
             .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
@@ -822,6 +832,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
     {
         await _context.ApplicationRequirements.AddAsync(appRequirement, cancellationToken);
+    }
+
+    public Task UpdateApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
+    {
+        _context.ApplicationRequirements.Update(appRequirement);
+        return Task.CompletedTask;
     }
 
     public async Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default)

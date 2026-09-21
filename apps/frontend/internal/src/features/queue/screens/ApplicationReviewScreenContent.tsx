@@ -19,6 +19,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
   SkeletonLoader,
+  AlertToast,
   toast,
 } from "@edge/ui";
 import {
@@ -41,6 +42,8 @@ import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
+import { ApplicantVerdictModal, ApplicantVerdictType } from "../components/modals/ApplicantVerdictModal";
+import { BatchConfirmationModal, BatchActionType } from "../components/modals/BatchConfirmationModal";
 import { UserRole } from "../../shell/context/RoleContext";
 import { isAllowedRequirementFileType } from "../../../utils/fileValidation";
 import { HeroReviewHeader } from "../components/HeroReviewHeader";
@@ -53,6 +56,7 @@ import {
   DigitalSignatureReviewCard,
 } from "../../../shared/formPreview";
 import { CustomDocPreviewModal } from "../../../shared/components/CustomDocPreviewModal";
+import { DocumentPreviewFile } from "../../../shared/components/DocumentPreviewModal";
 
 type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -302,7 +306,7 @@ function ApplicationDetailsTab({
   selectedApplicantIndex?: number;
   onSelectApplicantIndex?: (index: number) => void;
   onInspectApplicant?: (index: number) => void;
-  onPreviewFile?: (uri: string, name: string) => void;
+  onPreviewFile?: (file: DocumentPreviewFile | string, label?: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const [isEditingSection, setIsEditingSection] = useState(false);
@@ -348,26 +352,47 @@ function ApplicationDetailsTab({
     }
   }, [app.applicantsList]);
 
+  useEffect(() => {
+    if (!isEditingSection) {
+      setRefDraft(app.referenceNumber);
+      setApplicationDraft(app.applicationNumber);
+      setApplicantDraft(app.applicant);
+      setAccountTypeDraft(app.applicantType);
+      setEmailDraft(app.contactDetails?.email ?? '');
+      setBarangayDraft(app.address?.barangay ?? '');
+      setProvinceDraft(app.address?.province ?? '');
+      setCityDraft(app.address?.city ?? '');
+      setZipCodeDraft(app.address?.zipCode ?? '');
+
+      setCompNameDraft(app.companyDetails?.name ?? app.applicant);
+      setCompRegNoDraft(app.companyDetails?.registrationNumber ?? '');
+      setCompAddrDraft(app.companyDetails?.address ?? '');
+      setCompContactDraft(app.companyDetails?.contactNumber ?? app.contactDetails?.contactNumber ?? '');
+      setCompEmailDraft(app.companyDetails?.email ?? app.contactDetails?.email ?? '');
+
+      setLnDraft(app.basicInfo?.lastName ?? '');
+      setFnDraft(app.basicInfo?.firstName ?? '');
+      setMnDraft(app.basicInfo?.middleName ?? '');
+      setExtDraft(app.basicInfo?.extensionName ?? '');
+      setPobDraft(app.basicInfo?.placeOfBirth ?? '');
+      setDobDraft(app.basicInfo?.dob ?? '');
+      setSexDraft(app.basicInfo?.sex ?? '');
+      setWeightDraft(String(app.basicInfo?.weight ?? ''));
+      setHeightDraft(String(app.basicInfo?.height ?? ''));
+      setNatDraft(app.basicInfo?.nationality ?? '');
+      setEmpStatusDraft(app.basicInfo?.employmentStatus ?? '');
+    }
+  }, [app, isEditingSection]);
+
+  useEffect(() => {
+    if (!editingNote) {
+      setNoteDraft(app.note);
+    }
+  }, [app.note, editingNote]);
+
   const activeApplicant = (localApplicants.length > 0)
     ? localApplicants[Math.min(selectedApplicantIndex ?? 0, localApplicants.length - 1)]
     : undefined;
-
-  const { formData } = useApplicationFormWithSubmission(
-    app.id,
-    activeApplicant?.id,
-    activeApplicant?.serviceVariantId
-  );
-
-  const flatFormValues = useMemo(() => {
-    if (!formData || !formData.sections) return [];
-    return formData.sections.flatMap((sec) =>
-      sec.fields.map((f) => ({
-        fieldId: f.fieldId,
-        fieldLabel: f.label,
-        value: f.value ?? '',
-      }))
-    );
-  }, [formData]);
 
   const isExamService = useMemo(() => {
     const cat = (app.category || '').toLowerCase();
@@ -538,6 +563,60 @@ function ApplicationDetailsTab({
     setLocalApplicants(synchronized);
     updateApplication(app.id, { applicantsList: synchronized });
     setIsEditingRoster(false);
+  };
+
+  const [verdictModalState, setVerdictModalState] = useState<{
+    applicantIndex: number;
+    applicantName: string;
+    targetVerdict: ApplicantVerdictType;
+    initialRemarks: string;
+  } | null>(null);
+
+  const [batchModalAction, setBatchModalAction] = useState<BatchActionType | null>(null);
+
+  const handleConfirmVerdict = async (verdict: ApplicantVerdictType, remarks: string) => {
+    if (verdictModalState === null) return;
+    const idx = verdictModalState.applicantIndex;
+    const updated = [...localApplicants];
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = {
+        ...target,
+        status: verdict,
+        evaluationRemarks: remarks.length > 0 ? remarks : target.evaluationRemarks,
+      };
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`Applicant ${target.name} set to ${verdict}.`);
+    }
+    setVerdictModalState(null);
+  };
+
+  const handleConfirmBatchAction = async (action: BatchActionType) => {
+    if (action === 'MarkAllComplete') {
+      const updated = localApplicants.map((item) => ({
+        ...item,
+        status: 'Complete' as const,
+      }));
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`All ${updated.length} applicants marked as Complete.`);
+    } else if (action === 'MarkAllForEndorsement') {
+      const updated = localApplicants.map((item) => ({
+        ...item,
+        status: 'ForEndorsement' as const,
+      }));
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`All ${updated.length} applicants marked For Endorsement.`);
+    }
+    setBatchModalAction(null);
   };
 
   const statusStyle = getStatusStyle(app.status);
@@ -732,6 +811,20 @@ function ApplicationDetailsTab({
             rightAction={
               isEditable ? (
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? '#166534' : '#15803D', paddingHorizontal: 10 }]}
+                    onPress={() => setBatchModalAction('MarkAllComplete')}
+                  >
+                    <Lucide name="check-circle" size={13} color={COLORS.neutral.white} />
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '600' }]}>Mark All Complete</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? '#6B21A8' : '#7E22CE', paddingHorizontal: 10 }]}
+                    onPress={() => setBatchModalAction('MarkAllForEndorsement')}
+                  >
+                    <Lucide name="send" size={12} color={COLORS.neutral.white} />
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '600' }]}>Mark All Endorse</Text>
+                  </Pressable>
                   {isEditingRoster ? (
                     <>
                       <Pressable
@@ -749,10 +842,11 @@ function ApplicationDetailsTab({
                     </>
                   ) : (
                     <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: isDark ? colors.brand[500] : colors.brand[600], borderWidth: 1, paddingHorizontal: 10 }]}
                       onPress={() => setIsEditingRoster(true)}
                     >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
+                      <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '600' }]}>Edit Roster</Text>
                     </Pressable>
                   )}
                 </View>
@@ -811,19 +905,34 @@ function ApplicationDetailsTab({
                         <View style={{ flexDirection: 'row', gap: 4 }}>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Complete' ? '#DCFCE7' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'Complete')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'Complete',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'Complete' ? '#166534' : colors.neutral[500] }]}>C</Text>
                           </Pressable>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Incomplete' ? '#FEE2E2' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'Incomplete')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'Incomplete',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>INC</Text>
                           </Pressable>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'ForEndorsement' ? '#F3E8FF' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'ForEndorsement')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'ForEndorsement',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>END</Text>
                           </Pressable>
@@ -861,19 +970,34 @@ function ApplicationDetailsTab({
                         {item.applicantType}
                       </Text>
                       <View style={{ flex: 1.2 }}>
-                        {item.status === 'Incomplete' ? (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
-                          </View>
-                        ) : item.status === 'ForEndorsement' ? (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
-                          </View>
-                        )}
+                        <Pressable
+                          disabled={!isEditable}
+                          onPress={() => {
+                            if (!isEditable) return;
+                            const nextVerdict: ApplicantVerdictType =
+                              item.status === 'Complete' ? 'Incomplete' : item.status === 'Incomplete' ? 'ForEndorsement' : 'Complete';
+                            setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: nextVerdict,
+                              initialRemarks: item.evaluationRemarks || '',
+                            });
+                          }}
+                        >
+                          {item.status === 'Incomplete' ? (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
+                            </View>
+                          ) : item.status === 'ForEndorsement' ? (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
+                            </View>
+                          ) : (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
+                            </View>
+                          )}
+                        </Pressable>
                       </View>
                       <Text style={[styles.denseRowRemarks, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[600] }]} numberOfLines={1}>
                         {item.evaluationRemarks || '—'}
@@ -897,52 +1021,56 @@ function ApplicationDetailsTab({
         </View>
       )}
 
-      {/* ── Single Applicant Details Particulars & Form Preview ── */}
+      {/* ── Single Applicant Summary & Record Link ── */}
       {app.applicationType !== 'BULK' && (
         <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
-          <ApplicantParticularsCard
-            applicant={{
-              applicantName: app.applicant,
-              name: app.applicant,
-              applicantType: app.applicantType === 'Company' ? 'company' : 'individual',
-              email: app.contactDetails?.email,
-              mobileNumber: app.contactDetails?.contactNumber,
-              streetAddress: app.address?.streetAddress || app.address?.address,
-              barangay: app.address?.barangay,
-              cityMunicipality: app.address?.city,
-              province: app.address?.province,
-              region: app.address?.region,
-              zipCode: app.address?.zipCode,
-              birthDate: app.basicInfo?.dob,
-              sex: app.basicInfo?.sex,
-              civilStatus: app.basicInfo?.civilStatus,
-              nationality: app.basicInfo?.nationality,
-              companyName: app.companyDetails?.name || app.filingUser?.company?.name,
-              registrationNumber: app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber,
-              companyAddress: app.companyDetails?.address || app.filingUser?.company?.address,
-              companyEmail: app.companyDetails?.email || app.filingUser?.company?.email,
-              companyContactNumber: app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber,
-              representativeName: app.filingUser?.name,
-              representativeEmail: app.filingUser?.email,
-              representativeContactNumber: app.filingUser?.company?.contactNumber,
-              notes: app.note,
-            }}
-          />
-
-          {/* Structured Form Submissions */}
-          {formData && (
-            <BaseApplicationPreview
-              service={{
-                title: app.serviceName || app.permitTitle,
-                category: app.serviceCategory || app.category,
-              }}
-              form={formData}
-              formFieldValues={flatFormValues}
-              showApplicantCard={false}
-              showSignatureCard={true}
-              onPreviewFile={onPreviewFile}
+          <SectionHeader title="PRIMARY APPLICANT SUMMARY" />
+          <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}>
+            <InfoRow label="Applicant Name:" value={app.applicant || "—"} />
+            <InfoRow label="Applicant Type:" value={app.applicantType || "Individual"} />
+            <InfoRow label="Email Address:" value={app.contactDetails?.email || app.filingUser?.email || "—"} />
+            <InfoRow label="Contact Number:" value={app.contactDetails?.contactNumber || app.companyDetails?.contactNumber || "—"} />
+            <InfoRow
+              label="Primary Address:"
+              value={
+                app.address?.address ||
+                app.address?.streetAddress ||
+                (typeof app.address === 'string' ? app.address : [app.address?.city, app.address?.province].filter(Boolean).join(', ')) ||
+                "—"
+              }
             />
-          )}
+            {app.applicantType === 'Company' && (
+              <>
+                <InfoRow label="Company Name:" value={app.companyDetails?.name || app.filingUser?.company?.name || "—"} />
+                <InfoRow label="Registration Number:" value={app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber || "—"} />
+              </>
+            )}
+
+            <Pressable
+              style={{
+                marginTop: SPACING[8],
+                padding: SPACING[12],
+                borderRadius: RADIUS.card,
+                backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                borderWidth: 1,
+                borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                flexDirection: 'row',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+              onPress={() => onInspectApplicant?.(0)}
+            >
+              <View style={{ flex: 1, marginRight: 12 }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[900] }}>
+                  Application Form Submissions & Attachments
+                </Text>
+                <Text style={{ fontSize: 11, color: isDark ? colors.brand[400] : colors.brand[700], marginTop: 2 }}>
+                  Switch to the Applicant Records tab to view full dynamic form fields, technical specifications, and uploaded requirement documents.
+                </Text>
+              </View>
+              <Lucide name="arrow-right" size={16} color={isDark ? colors.brand[300] : colors.brand[700]} />
+            </Pressable>
+          </View>
         </View>
       )}
 
@@ -1017,6 +1145,27 @@ function ApplicationDetailsTab({
         )}
       </View>
 
+      {verdictModalState !== null && (
+        <ApplicantVerdictModal
+          visible={verdictModalState !== null}
+          applicantName={verdictModalState.applicantName}
+          targetVerdict={verdictModalState.targetVerdict}
+          initialRemarks={verdictModalState.initialRemarks}
+          onConfirm={handleConfirmVerdict}
+          onCancel={() => setVerdictModalState(null)}
+        />
+      )}
+
+      {batchModalAction !== null && (
+        <BatchConfirmationModal
+          visible={batchModalAction !== null}
+          actionType={batchModalAction}
+          applicantCount={localApplicants.length}
+          onConfirm={handleConfirmBatchAction}
+          onCancel={() => setBatchModalAction(null)}
+        />
+      )}
+
       <View style={{ height: 80 }} />
     </ScrollView>
   );
@@ -1035,7 +1184,7 @@ function ApplicantRecordTab({
   onSelectApplicantIndex?: (index: number) => void;
   updateApplication?: (id: string, patch: Partial<ApplicationData>) => void;
   isEditable?: boolean;
-  onPreviewFile?: (uri: string, name: string) => void;
+  onPreviewFile?: (file: DocumentPreviewFile | string, label?: string) => void;
 }) {
   const { colors, isDark } = useTheme();
   const effectiveApplicants = useMemo(() => {
@@ -1138,7 +1287,23 @@ function ApplicantRecordTab({
     );
   }, [formData, formDraftValues]);
 
-  const handleSaveProfile = () => {
+  const hasFormValues = useMemo(() => {
+    if (!formData || !formData.sections || formData.sections.length === 0) return false;
+    return flatFormValues.some((fv) => {
+      const val = fv.value;
+      if (!val || typeof val !== 'string') return false;
+      const trimmed = val.trim();
+      return (
+        trimmed.length > 0 &&
+        trimmed !== 'null' &&
+        trimmed !== 'undefined' &&
+        trimmed !== '[]' &&
+        trimmed !== '{}'
+      );
+    });
+  }, [formData, flatFormValues]);
+
+  const handleSaveProfile = async () => {
     const updated = [...localApplicants];
     const target = updated[activeIdx];
     if (target) {
@@ -1184,8 +1349,9 @@ function ApplicantRecordTab({
         },
       };
       setLocalApplicants(updated);
+      setIsEditingProfile(false);
       if (activeApplicant?.id) {
-        applicationService.adminUpdateApplicantProfile(app.id, activeApplicant.id, {
+        const [res, err] = await applicationService.adminUpdateApplicantProfile(app.id, activeApplicant.id, {
           firstName: fnProfileDraft,
           lastName: lnProfileDraft,
           middleName: mnProfileDraft,
@@ -1204,9 +1370,16 @@ function ApplicantRecordTab({
           companyContactNumber: typeDraft === 'Company' ? compContactProfileDraft : undefined,
           companyEmail: typeDraft === 'Company' ? compEmailProfileDraft : undefined,
         });
+        if (err !== null) {
+          toast.error("Failed to update applicant profile.");
+        } else {
+          toast.success("Applicant particulars updated successfully.");
+          await mutateApplications(app.id);
+        }
       }
+    } else {
+      setIsEditingProfile(false);
     }
-    setIsEditingProfile(false);
   };
 
   const handleSaveFormFields = async () => {
@@ -1220,10 +1393,14 @@ function ApplicantRecordTab({
       }))
     );
 
-    const [res] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
-    if (res && res.succeeded) {
+    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
+    if (err !== null || !res?.succeeded) {
+      toast.error("Failed to update form values.");
+    } else {
       setIsEditingForm(false);
-      refetchForm();
+      await refetchForm();
+      await mutateApplications(app.id);
+      toast.success("Form values updated successfully.");
     }
   };
 
@@ -1243,6 +1420,8 @@ function ApplicantRecordTab({
   const [applicantRequirementsState, setApplicantRequirementsState] = useState<ApplicantRequirementItemDto[]>([]);
   const [isLoadingRequirements, setIsLoadingRequirements] = useState<boolean>(false);
   const [uploadingReqId, setUploadingReqId] = useState<string | null>(null);
+  const [previewLoadingReqId, setPreviewLoadingReqId] = useState<string | null>(null);
+  const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
 
   const fetchApplicantRequirements = useCallback(async () => {
     if (app?.id === undefined || app?.id === null || activeApplicant?.id === undefined || activeApplicant?.id === null) {
@@ -1260,11 +1439,76 @@ function ApplicantRecordTab({
     fetchApplicantRequirements();
   }, [fetchApplicantRequirements]);
 
+  useEffect(() => {
+    setActiveReqMenuId(null);
+  }, [activeApplicant?.id]);
+
+  useEffect(() => {
+    if (activeReqMenuId === null) return;
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const handleDocumentClick = (e: MouseEvent) => {
+        const target = e.target;
+        if (target instanceof HTMLElement && target.closest('[data-req-menu="true"]')) {
+          return;
+        }
+        setActiveReqMenuId(null);
+      };
+
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleDocumentClick);
+      }, 50);
+
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleDocumentClick);
+      };
+    }
+  }, [activeReqMenuId]);
+
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
 
   useEffect(() => {
     setLocalRemarks(activeApplicant?.evaluationRemarks ?? '');
   }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
+
+  const [verdictModalState, setVerdictModalState] = useState<{
+    applicantIndex: number;
+    applicantName: string;
+    targetVerdict: ApplicantVerdictType;
+    initialRemarks: string;
+  } | null>(null);
+
+  const handleVerdictClick = (verdict: ApplicantVerdictType) => {
+    if (!isEditable || !activeApplicant) return;
+    setVerdictModalState({
+      applicantIndex: activeIdx,
+      applicantName: activeApplicant.name,
+      targetVerdict: verdict,
+      initialRemarks: localRemarks || activeApplicant.evaluationRemarks || '',
+    });
+  };
+
+  const handleConfirmVerdict = async (verdict: ApplicantVerdictType, remarks: string) => {
+    if (verdictModalState === null) return;
+    const idx = verdictModalState.applicantIndex;
+    const updated = [...localApplicants];
+    const target = updated[idx];
+    if (target) {
+      const finalRemarks = remarks.length > 0 ? remarks : target.evaluationRemarks;
+      updated[idx] = {
+        ...target,
+        status: verdict,
+        evaluationRemarks: finalRemarks,
+      };
+      setLocalApplicants(updated);
+      setLocalRemarks(finalRemarks ?? '');
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+        notifySuccess("Status Updated", `Applicant ${target.name} set to ${verdict}.`);
+      }
+    }
+    setVerdictModalState(null);
+  };
 
   const handleSetStatus = async (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
     if (!isEditable) return;
@@ -1293,13 +1537,27 @@ function ApplicantRecordTab({
     }
   };
 
+  const [toastState, setToastState] = useState<{
+    message: string;
+    variant: 'success' | 'error' | 'warning' | 'info';
+  } | null>(null);
+
+  useEffect(() => {
+    if (toastState !== null) {
+      const timer = setTimeout(() => {
+        setToastState(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastState]);
+
   const notifyError = (title: string, msg: string) => {
     try {
       toast.error(`${title}: ${msg}`);
     } catch {
       // fallback
     }
-    Alert.alert(title, msg);
+    setToastState({ message: `${title}: ${msg}`, variant: 'error' });
   };
 
   const notifySuccess = (title: string, msg: string) => {
@@ -1308,7 +1566,7 @@ function ApplicantRecordTab({
     } catch {
       // fallback
     }
-    Alert.alert(title, msg);
+    setToastState({ message: `${title}: ${msg}`, variant: 'success' });
   };
 
   const uploadAndAttachRequirement = async (
@@ -1335,14 +1593,14 @@ function ApplicantRecordTab({
 
       if (storageErr !== null || !storageRes?.data) {
         const errText = typeof storageErr === 'object' && storageErr !== null && 'message' in storageErr
-          ? String((storageErr as { message?: unknown }).message)
+          ? String(Reflect.get(storageErr, 'message'))
           : (storageRes?.message ?? 'Failed to upload document to storage.');
         notifyError('Upload Failed', errText);
-        setUploadingReqId(null);
         return;
       }
 
       const storedFileId = storageRes.data.id;
+      const uploadedFileUrl = storageService.getFileDownloadUrl(storedFileId, tenantId);
 
       const [reqRes, reqErr] = await applicationService.uploadApplicantRequirement(
         app.id,
@@ -1354,22 +1612,47 @@ function ApplicantRecordTab({
         }
       );
 
-      setUploadingReqId(null);
-
       if (reqErr !== null || !reqRes?.succeeded) {
         const errText = typeof reqErr === 'object' && reqErr !== null && 'message' in reqErr
-          ? String((reqErr as { message?: unknown }).message)
+          ? String(Reflect.get(reqErr, 'message'))
           : (reqRes?.message ?? 'Failed to save requirement attachment.');
         notifyError('Save Failed', errText);
         return;
       }
 
+      const fileTypeStr = typeof fileData === 'object' && fileData !== null && 'type' in fileData && typeof fileData.type === 'string'
+        ? fileData.type
+        : undefined;
+      const fileSizeNum = typeof fileData === 'object' && fileData !== null && 'size' in fileData && typeof fileData.size === 'number'
+        ? fileData.size
+        : undefined;
+
+      setApplicantRequirementsState((prev) =>
+        prev.map((item) =>
+          item.requirementId === reqItem.requirementId
+            ? {
+                ...item,
+                storedFileId: storedFileId,
+                fileName: fileName,
+                url: uploadedFileUrl,
+                contentType: fileTypeStr,
+                fileSizeBytes: fileSizeNum,
+                uploadedAt: new Date().toISOString(),
+              }
+            : item
+        )
+      );
+
       notifySuccess('Success', 'Requirement document attached successfully.');
       await fetchApplicantRequirements();
+      if (typeof app.id === 'string') {
+        await mutateApplications(app.id);
+      }
     } catch (err: unknown) {
-      setUploadingReqId(null);
       const errorMsg = err instanceof Error ? err.message : 'An error occurred during file upload.';
       notifyError('Upload Error', errorMsg);
+    } finally {
+      setUploadingReqId(null);
     }
   };
 
@@ -1379,27 +1662,41 @@ function ApplicantRecordTab({
     if (Platform.OS === 'web') {
       const input = document.createElement('input');
       input.type = 'file';
+      input.style.display = 'none';
       input.accept = 'image/jpeg,image/jpg,image/png,image/webp,image/gif,image/bmp,application/pdf';
 
       input.onchange = async (e: Event) => {
-        const target = e.target as HTMLInputElement;
-        const files = target.files;
-        if (!files || files.length === 0) return;
+        try {
+          const target = e.target;
+          if (!(target instanceof HTMLInputElement)) return;
+          const files = target.files;
+          if (!files || files.length === 0) return;
 
-        const selectedFile = files[0];
-        if (!selectedFile) return;
+          const selectedFile = files[0];
+          if (!selectedFile) return;
 
-        const fileName = selectedFile.name;
-        const mimeType = selectedFile.type;
+          const fileName = selectedFile.name;
+          const mimeType = selectedFile.type;
 
-        if (!isAllowedRequirementFileType(fileName, mimeType)) {
-          notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
-          return;
+          if (!isAllowedRequirementFileType(fileName, mimeType)) {
+            notifyError('Invalid File Type', 'Only image files (JPG, PNG, WEBP, GIF, BMP) and PDF documents are allowed.');
+            return;
+          }
+
+          await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
+        } catch (err: unknown) {
+          const errorMsg = err instanceof Error ? err.message : 'An error occurred during file selection.';
+          notifyError('Upload Error', errorMsg);
+        } finally {
+          if (typeof document !== 'undefined' && document.body && document.body.contains(input)) {
+            document.body.removeChild(input);
+          }
         }
-
-        await uploadAndAttachRequirement(selectedFile, selectedFile.name, reqItem);
       };
 
+      if (typeof document !== 'undefined' && document.body) {
+        document.body.appendChild(input);
+      }
       input.click();
     } else {
       try {
@@ -1433,8 +1730,79 @@ function ApplicantRecordTab({
     }
   };
 
+  const handlePreviewRequirement = async (reqItem: ApplicantRequirementItemDto) => {
+    const tenantId = typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
+      ? app.tenantId
+      : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+
+    let fileUrl = '';
+    if (typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null') {
+      fileUrl = storageService.getFileDownloadUrl(reqItem.storedFileId, tenantId);
+    } else if (typeof reqItem.url === 'string' && reqItem.url.trim() !== '' && reqItem.url !== 'null' && reqItem.url !== 'undefined') {
+      fileUrl = reqItem.url.trim();
+    }
+
+    const fileName = reqItem.fileName || reqItem.requirementName || 'Requirement Document';
+    const isPdf = Boolean(reqItem.contentType?.includes('pdf') || fileName.toLowerCase().endsWith('.pdf'));
+    const fileType = isPdf ? 'PDF' : 'IMAGE';
+    const fileSize = typeof reqItem.fileSizeBytes === 'number' && reqItem.fileSizeBytes > 0
+      ? `${(reqItem.fileSizeBytes / 1024).toFixed(1)} KB`
+      : undefined;
+
+    const docObj: DocumentPreviewFile = {
+      uri: fileUrl,
+      name: fileName,
+      category: reqItem.requirementName,
+      size: fileSize,
+      type: fileType,
+      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
+      serviceName: app.serviceName || app.permitTitle || 'Licensing Service',
+      applicantName: activeApplicant?.name || app.applicant,
+      uploadedAt: reqItem.uploadedAt ?? undefined,
+    };
+
+    if (fileUrl !== '') {
+      if (fileUrl.startsWith('data:') || fileUrl.startsWith('blob:')) {
+        onPreviewFile?.(docObj, reqItem.requirementName);
+        return;
+      }
+
+      setPreviewLoadingReqId(reqItem.requirementId);
+      try {
+        const [blobData, blobErr] = await storageService.downloadFileByUrl(fileUrl);
+        if (blobErr === null && blobData instanceof Blob) {
+          const objectUrl =
+            typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
+              ? URL.createObjectURL(blobData)
+              : fileUrl;
+
+          onPreviewFile?.({ ...docObj, uri: objectUrl }, reqItem.requirementName);
+          setPreviewLoadingReqId(null);
+          return;
+        }
+
+        onPreviewFile?.({ ...docObj, uri: fileUrl }, reqItem.requirementName);
+      } catch {
+        onPreviewFile?.(docObj, reqItem.requirementName);
+      } finally {
+        setPreviewLoadingReqId(null);
+      }
+    } else {
+      onPreviewFile?.(docObj, reqItem.requirementName);
+    }
+  };
+
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, position: 'relative' }}>
+      {toastState !== null && (
+        <View style={styles.floatingToastContainer}>
+          <AlertToast
+            message={toastState.message}
+            variant={toastState.variant}
+            onDismiss={() => setToastState(null)}
+          />
+        </View>
+      )}
       {/* ── Fixed Sticky Top Applicant Selector Bar ── */}
       {localApplicants.length > 0 && (
         <View
@@ -1454,38 +1822,48 @@ function ApplicantRecordTab({
             },
           ]}
         >
-          <Pressable
-            disabled={activeIdx === 0}
-            onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
-            style={[styles.selectorNavBtn, activeIdx === 0 && { opacity: 0.3 }]}
-          >
-            <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
-          </Pressable>
+          {localApplicants.length > 1 && (
+            <Pressable
+              disabled={activeIdx === 0}
+              onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))}
+              style={[styles.selectorNavBtn, activeIdx === 0 && { opacity: 0.3 }]}
+            >
+              <Lucide name="chevron-left" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+              <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Previous</Text>
+            </Pressable>
+          )}
 
           <View style={styles.selectorCenter}>
             <Lucide name="user" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
             <Text style={[styles.selectorTitleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-              Applicant Record {activeIdx + 1} of {localApplicants.length}:
+              {localApplicants.length > 1
+                ? `Applicant Record ${activeIdx + 1} of ${localApplicants.length}:`
+                : `Applicant Record:`}
             </Text>
             <Text style={[styles.selectorNameText, { color: isDark ? colors.brand[300] : colors.brand[900] }]}>
               {activeApplicant?.name}
             </Text>
           </View>
 
-          <Pressable
-            disabled={activeIdx >= localApplicants.length - 1}
-            onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
-            style={[styles.selectorNavBtn, activeIdx >= localApplicants.length - 1 && { opacity: 0.3 }]}
-          >
-            <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
-            <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
-          </Pressable>
+          {localApplicants.length > 1 && (
+            <Pressable
+              disabled={activeIdx >= localApplicants.length - 1}
+              onPress={() => onSelectApplicantIndex?.(Math.min(localApplicants.length - 1, activeIdx + 1))}
+              style={[styles.selectorNavBtn, activeIdx >= localApplicants.length - 1 && { opacity: 0.3 }]}
+            >
+              <Text style={[styles.selectorNavBtnText, { color: isDark ? colors.brand[400] : colors.brand[800] }]}>Next</Text>
+              <Lucide name="chevron-right" size={14} color={isDark ? colors.brand[400] : colors.brand[800]} />
+            </Pressable>
+          )}
         </View>
       )}
 
       {/* ── Scrollable Content Area ── */}
-      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        style={styles.tabContent}
+        showsVerticalScrollIndicator={false}
+        onScrollBeginDrag={() => setActiveReqMenuId(null)}
+      >
         {/* Section 1: Personal & Profile Info */}
         <SectionHeader
           title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"}
@@ -1556,116 +1934,122 @@ function ApplicantRecordTab({
                 applicantName: activeApplicant.name,
                 name: activeApplicant.name,
                 applicantType: activeApplicant.applicantType === 'Company' ? 'company' : 'individual',
-                email: activeApplicant.email,
-                mobileNumber: activeApplicant.contactNumber,
-                streetAddress: activeApplicant.streetAddress || activeApplicant.address,
-                barangay: activeApplicant.barangay,
-                cityMunicipality: activeApplicant.city,
-                province: activeApplicant.province,
-                region: activeApplicant.region,
-                zipCode: activeApplicant.zipCode,
-                birthDate: activeApplicant.basicInfo?.dob,
-                sex: activeApplicant.basicInfo?.sex,
-                civilStatus: activeApplicant.basicInfo?.civilStatus,
-                nationality: activeApplicant.basicInfo?.nationality,
-                companyName: activeApplicant.companyDetails?.name || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.name : undefined),
-                registrationNumber: activeApplicant.companyDetails?.registrationNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.registrationNumber : undefined),
-                companyAddress: activeApplicant.companyDetails?.address || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.address : undefined),
-                companyEmail: activeApplicant.companyDetails?.email || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.email : undefined),
-                companyContactNumber: activeApplicant.companyDetails?.contactNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.contactNumber : undefined),
-                representativeName: activeApplicant.applicantType === 'Company' ? app.filingUser?.name : undefined,
-                representativeEmail: activeApplicant.applicantType === 'Company' ? app.filingUser?.email : undefined,
-                representativeContactNumber: activeApplicant.applicantType === 'Company' ? app.filingUser?.company?.contactNumber : undefined,
+                email: activeApplicant.email || app.contactDetails?.email || app.filingUser?.email,
+                mobileNumber: activeApplicant.contactNumber || app.contactDetails?.contactNumber || app.companyDetails?.contactNumber,
+                streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress || app.address?.address,
+                barangay: activeApplicant.barangay || app.address?.barangay,
+                cityMunicipality: activeApplicant.city || app.address?.city,
+                province: activeApplicant.province || app.address?.province,
+                region: activeApplicant.region || app.address?.region,
+                zipCode: activeApplicant.zipCode || app.address?.zipCode,
+                birthDate: activeApplicant.basicInfo?.dob || app.basicInfo?.dob,
+                sex: activeApplicant.basicInfo?.sex || app.basicInfo?.sex,
+                civilStatus: activeApplicant.basicInfo?.civilStatus || app.basicInfo?.civilStatus,
+                nationality: activeApplicant.basicInfo?.nationality || app.basicInfo?.nationality,
+                companyName: activeApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name,
+                registrationNumber: activeApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber,
+                companyAddress: activeApplicant.companyDetails?.address || app.companyDetails?.address || app.filingUser?.company?.address,
+                companyEmail: activeApplicant.companyDetails?.email || app.companyDetails?.email || app.filingUser?.company?.email,
+                companyContactNumber: activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber,
+                representativeName: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.name : undefined,
+                representativeEmail: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.email : undefined,
+                representativeContactNumber: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.company?.contactNumber : undefined,
                 notes: activeApplicant.evaluationRemarks,
               }}
             />
           )}
         </View>
 
-        {/* Section 2: Completed Service Form Submissions */}
-        <SectionHeader
-          title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
-          rightAction={
-            isEditable && formData && formData.sections.length > 0 ? (
-              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                {isEditingForm ? (
-                  <>
-                    <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
-                      onPress={() => setIsEditingForm(false)}
-                    >
-                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
-                      onPress={handleSaveFormFields}
-                    >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <Pressable
-                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
-                    onPress={() => setIsEditingForm(true)}
-                  >
-                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
-                  </Pressable>
-                )}
-              </View>
-            ) : null
-          }
-        />
-
-        <View style={{ paddingHorizontal: SPACING[16] }}>
-          {isLoadingForm ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
-              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
-            </View>
-          ) : formData && formData.sections.length > 0 ? (
-            <BaseApplicationPreview
-              service={{
-                title: app.serviceName || app.permitTitle,
-                category: app.serviceCategory || app.category,
-              }}
-              form={formData}
-              formFieldValues={flatFormValues}
-              showApplicantCard={false}
-              showSignatureCard={true}
-              onPreviewFile={onPreviewFile}
+        {/* Section 2: Completed Service Form Submissions (Only shown if values exist or currently editing/loading) */}
+        {(hasFormValues || isEditingForm || isLoadingForm) && (
+          <>
+            <SectionHeader
+              title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
+              rightAction={
+                isEditable && formData && formData.sections.length > 0 ? (
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {isEditingForm ? (
+                      <>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
+                          onPress={() => setIsEditingForm(false)}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                          onPress={handleSaveFormFields}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                        onPress={() => setIsEditingForm(true)}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null
+              }
             />
-          ) : (
-            <View style={styles.emptyReqs}>
-              <Lucide name="file-text" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                No service form field submissions recorded
-              </Text>
-            </View>
-          )}
-        </View>
 
-        {/* Section 3: Requirements & Submitted Documents per Applicant */}
-        <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
-        <View style={styles.infoBlock}>
-          {isLoadingRequirements ? (
-            <View style={{ padding: SPACING[4] }}>
-              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
-              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+            <View style={{ paddingHorizontal: SPACING[16] }}>
+              {isLoadingForm ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
+                  <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
+                </View>
+              ) : formData && formData.sections.length > 0 ? (
+                <BaseApplicationPreview
+                  service={{
+                    title: app.serviceName || app.permitTitle,
+                    category: app.serviceCategory || app.category,
+                  }}
+                  form={formData}
+                  formFieldValues={flatFormValues}
+                  showApplicantCard={false}
+                  showSignatureCard={true}
+                  onPreviewFile={onPreviewFile}
+                />
+              ) : null}
             </View>
-          ) : applicantRequirementsState.length === 0 ? (
-            <View style={styles.emptyReqs}>
-              <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                No requirement documents configured or submitted
-              </Text>
-            </View>
-          ) : (
-            applicantRequirementsState.map((reqItem) => {
-              const isAttached = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+          </>
+        )}
+
+        {/* Section 3: Requirements & Submitted Documents per Applicant (Only shown if requirements exist or loading) */}
+        {(applicantRequirementsState.length > 0 || isLoadingRequirements) && (
+          <>
+            <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
+            <View style={styles.infoBlock}>
+              {isLoadingRequirements ? (
+                <View style={{ padding: SPACING[4] }}>
+                  <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+                  <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+                </View>
+              ) : (
+                applicantRequirementsState.map((reqItem) => {
+              const hasValidUrl = typeof reqItem.url === 'string' && reqItem.url.trim() !== '' && reqItem.url !== 'null' && reqItem.url !== 'undefined';
+              const hasStoredId = typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null';
+              const hasSubmission = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
+              const isAttached = hasSubmission || hasStoredId || hasValidUrl;
               const isUploading = uploadingReqId === reqItem.requirementId;
+              const isPreviewLoading = previewLoadingReqId === reqItem.requirementId;
+              const isMenuOpen = activeReqMenuId === reqItem.requirementId;
 
               return (
-                <View key={reqItem.requirementId} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <View
+                  key={reqItem.requirementId}
+                  style={[
+                    styles.reqItem,
+                    {
+                      borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                      zIndex: isMenuOpen ? 100 : 1,
+                    },
+                  ]}
+                >
                   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                     <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
                       {reqItem.requirementName}
@@ -1712,7 +2096,7 @@ function ApplicantRecordTab({
                     </Text>
                   )}
 
-                  <View style={styles.reqFileRow}>
+                  <View style={[styles.reqFileRow, { position: 'relative', zIndex: isMenuOpen ? 100 : 1 }]}>
                     <Lucide
                       name={reqItem.contentType?.includes('pdf') || reqItem.fileName?.endsWith('.pdf') ? 'file-text' : 'image'}
                       size={14}
@@ -1721,34 +2105,105 @@ function ApplicantRecordTab({
                     <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]} numberOfLines={1}>
                       {reqItem.fileName || 'No document file attached'}
                     </Text>
-                    {isAttached && reqItem.url !== undefined && reqItem.url !== null && (
-                      <Pressable onPress={() => onPreviewFile?.(reqItem.url ?? '', reqItem.requirementName)}>
-                        <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>View Document</Text>
-                      </Pressable>
-                    )}
-                    {isEditable && (
-                      <Pressable
-                        disabled={isUploading}
-                        onPress={() => handleUploadOrReplaceRequirement(reqItem)}
-                        style={{
-                          marginLeft: 12,
-                          paddingHorizontal: 10,
-                          paddingVertical: 4,
-                          borderRadius: RADIUS.sm,
-                          backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
-                          borderWidth: 1,
-                          borderColor: isDark ? colors.brand[700] : colors.brand[200],
-                          opacity: isUploading ? 0.6 : 1
-                        }}
+
+                    {(isAttached || isEditable) && (
+                      <View
+                        style={{ position: 'relative', zIndex: isMenuOpen ? 100 : 1 }}
+                        {...Platform.select({ web: { 'data-req-menu': 'true' } as object })}
                       >
-                        <Text style={{
-                          fontSize: 11,
-                          fontWeight: '600',
-                          color: isDark ? colors.brand[300] : colors.brand[700]
-                        }}>
-                          {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
-                        </Text>
-                      </Pressable>
+                        <Pressable
+                          disabled={isPreviewLoading || isUploading}
+                          onPress={() => setActiveReqMenuId(isMenuOpen ? null : reqItem.requirementId)}
+                          style={[
+                            styles.reqDotActionBtn,
+                            {
+                              borderColor: isMenuOpen
+                                ? (isDark ? colors.brand[500] : colors.brand[700])
+                                : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                              backgroundColor: isMenuOpen
+                                ? (isDark ? colors.neutral[800] : colors.neutral[100])
+                                : 'transparent',
+                            }
+                          ]}
+                        >
+                          <Lucide
+                            name={isUploading || isPreviewLoading ? "loader" : "more-vertical"}
+                            size={16}
+                            color={isDark ? colors.neutral[300] : colors.neutral[700]}
+                          />
+                        </Pressable>
+
+                        {isMenuOpen && (
+                          <View
+                            style={[
+                              styles.reqActionMenuPopover,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                shadowColor: '#000',
+                                shadowOffset: { width: 0, height: 6 },
+                                shadowOpacity: isDark ? 0.45 : 0.18,
+                                shadowRadius: 10,
+                                elevation: 25,
+                              }
+                            ]}
+                          >
+                            {isAttached && (
+                              <Pressable
+                                disabled={isPreviewLoading}
+                                style={({ pressed }) => [
+                                  styles.reqActionMenuItem,
+                                  pressed && {
+                                    backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setActiveReqMenuId(null);
+                                  handlePreviewRequirement(reqItem);
+                                }}
+                              >
+                                <Lucide
+                                  name={isPreviewLoading ? "loader" : "eye"}
+                                  size={15}
+                                  color={isDark ? colors.brand[400] : colors.brand[700]}
+                                />
+                                <Text style={[styles.reqActionMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                                  {isPreviewLoading ? "Loading..." : "View Document"}
+                                </Text>
+                              </Pressable>
+                            )}
+
+                            {isAttached && isEditable && (
+                              <View style={{ height: 1, backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100], marginVertical: 2 }} />
+                            )}
+
+                            {isEditable && (
+                              <Pressable
+                                disabled={isUploading}
+                                style={({ pressed }) => [
+                                  styles.reqActionMenuItem,
+                                  pressed && {
+                                    backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                                  },
+                                ]}
+                                onPress={() => {
+                                  setActiveReqMenuId(null);
+                                  handleUploadOrReplaceRequirement(reqItem);
+                                }}
+                              >
+                                <Lucide
+                                  name={isUploading ? "loader" : "upload-cloud"}
+                                  size={15}
+                                  color={isDark ? colors.brand[400] : colors.brand[700]}
+                                />
+                                <Text style={[styles.reqActionMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                                  {isUploading ? 'Uploading...' : isAttached ? 'Replace File' : 'Upload File'}
+                                </Text>
+                              </Pressable>
+                            )}
+                          </View>
+                        )}
+                      </View>
                     )}
                   </View>
                 </View>
@@ -1756,6 +2211,8 @@ function ApplicantRecordTab({
             })
           )}
         </View>
+      </>
+    )}
 
         {/* Accountable Form */}
         {accountableForms.length > 0 && (
@@ -1877,8 +2334,8 @@ function ApplicantRecordTab({
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* ── Fixed Sticky Bottom Dock — Evaluator Panel ── */}
-      {activeApplicant && (
+      {/* ── Fixed Sticky Bottom Dock — Evaluator Panel (Only shown for Bulk / Multi-Applicant applications) ── */}
+      {activeApplicant && localApplicants.length > 1 && (
         <View
           style={[
             styles.evaluatorControlBoxSticky,
@@ -1928,7 +2385,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'Complete')}
+                  onPress={() => handleVerdictClick('Complete')}
                 >
                   <Lucide
                     name="check-circle"
@@ -1958,7 +2415,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
+                  onPress={() => handleVerdictClick('Incomplete')}
                 >
                   <Lucide
                     name="x-circle"
@@ -1988,7 +2445,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
+                  onPress={() => handleVerdictClick('ForEndorsement')}
                 >
                   <Lucide
                     name="send"
@@ -2031,6 +2488,17 @@ function ApplicantRecordTab({
             </View>
           </View>
         </View>
+      )}
+
+      {verdictModalState !== null && (
+        <ApplicantVerdictModal
+          visible={verdictModalState !== null}
+          applicantName={verdictModalState.applicantName}
+          targetVerdict={verdictModalState.targetVerdict}
+          initialRemarks={verdictModalState.initialRemarks}
+          onConfirm={handleConfirmVerdict}
+          onCancel={() => setVerdictModalState(null)}
+        />
       )}
     </View>
   );
@@ -2460,6 +2928,11 @@ export function ApplicationReviewScreenContent({
           toast.error(`Update failed: ${errMsg}`);
           return;
         }
+        if (patch.note !== undefined && Object.keys(payload).length === 1) {
+          toast.success("Evaluation note saved successfully.");
+        } else {
+          toast.success("Application updated successfully.");
+        }
       }
       await mutateApplications(id);
       await refetch();
@@ -2481,8 +2954,56 @@ export function ApplicationReviewScreenContent({
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+  const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
 
-  const [previewCustomDoc, setPreviewCustomDoc] = useState<{ uri: string; name: string } | null>(null);
+  const handlePreviewFile = useCallback((fileOrUri: DocumentPreviewFile | string, label?: string) => {
+    if (typeof fileOrUri === 'string') {
+      setPreviewCustomDoc({
+        uri: fileOrUri,
+        name: label !== undefined && label !== null && label.trim() !== '' ? label : 'Attachment Document',
+        category: label,
+      });
+    } else if (fileOrUri !== null && typeof fileOrUri === 'object') {
+      setPreviewCustomDoc(fileOrUri);
+    }
+  }, []);
+
+  const handleClosePreviewDoc = useCallback(() => {
+    setPreviewCustomDoc((prev) => {
+      if (
+        prev?.uri &&
+        typeof prev.uri === 'string' &&
+        prev.uri.startsWith('blob:') &&
+        typeof URL !== 'undefined' &&
+        typeof URL.revokeObjectURL === 'function'
+      ) {
+        try {
+          URL.revokeObjectURL(prev.uri);
+        } catch {
+          // Ignore revocation error if already released
+        }
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (
+        previewCustomDoc?.uri &&
+        typeof previewCustomDoc.uri === 'string' &&
+        previewCustomDoc.uri.startsWith('blob:') &&
+        typeof URL !== 'undefined' &&
+        typeof URL.revokeObjectURL === 'function'
+      ) {
+        try {
+          URL.revokeObjectURL(previewCustomDoc.uri);
+        } catch {
+          // Cleanup on unmount
+        }
+      }
+    };
+  }, [previewCustomDoc?.uri]);
 
   useEffect(() => {
     setSelectedApplicantIndex(0);
@@ -2837,7 +3358,7 @@ export function ApplicationReviewScreenContent({
             setSelectedApplicantIndex(idx);
             setInnerTab("applicant-record");
           }}
-          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+          onPreviewFile={handlePreviewFile}
         />
       )}
       {innerTab === "applicant-record" && (
@@ -2848,7 +3369,7 @@ export function ApplicationReviewScreenContent({
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           updateApplication={updateApplication}
           isEditable={isEditable}
-          onPreviewFile={(uri, name) => setPreviewCustomDoc({ uri, name })}
+          onPreviewFile={handlePreviewFile}
         />
       )}
       {innerTab === "soa" && (
@@ -3015,7 +3536,7 @@ export function ApplicationReviewScreenContent({
       {/* ── Document Preview Modal ── */}
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}
-        onClose={() => setPreviewCustomDoc(null)}
+        onClose={handleClosePreviewDoc}
       />
 
       {/* ── Evaluation Action Modals ── */}
@@ -3393,9 +3914,54 @@ const styles = StyleSheet.create({
     fontSize: 12,
     flex: 1,
   },
+  floatingToastContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 16,
+    zIndex: 99999,
+    maxWidth: 440,
+    minWidth: 260,
+    elevation: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+  },
   reqViewLink: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11.5,
+    fontWeight: '600',
+  },
+  reqDotActionBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reqActionMenuPopover: {
+    position: 'absolute',
+    top: 32,
+    right: 0,
+    minWidth: 165,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    paddingVertical: 4,
+    zIndex: 9999,
+  },
+  reqActionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    ...Platform.select({ web: { cursor: 'pointer' } }),
+  },
+  reqActionMenuItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
     fontWeight: '600',
   },
   emptyReqs: {
