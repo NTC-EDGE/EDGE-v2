@@ -193,3 +193,39 @@ describe('Document Preview Object URL Revocation', () => {
     globalThis.URL.revokeObjectURL = originalRevoke;
   });
 });
+
+describe('Activities Feed Load More & Pagination Calculations', () => {
+  function computeHasMore(
+    loadedCount: number,
+    pageSize: number,
+    pagination: { hasNextPage?: boolean; totalCount?: number } | null
+  ): boolean {
+    const total = pagination?.totalCount ?? loadedCount;
+    if (pagination !== null) {
+      return Boolean(pagination.hasNextPage) || loadedCount < total;
+    }
+    return loadedCount >= pageSize;
+  }
+
+  function getNextPageSize(currentSize: number, step: number = 15): number {
+    return currentSize + step;
+  }
+
+  it('should indicate hasMore is true when pagination has next page', () => {
+    const hasMore = computeHasMore(15, 15, { hasNextPage: true, totalCount: 35 });
+    expect(hasMore).toBe(true);
+  });
+
+  it('should indicate hasMore is false when all total items have been loaded', () => {
+    const hasMore = computeHasMore(35, 45, { hasNextPage: false, totalCount: 35 });
+    expect(hasMore).toBe(false);
+  });
+
+  it('should increment pageSize by step on load more', () => {
+    const nextSize = getNextPageSize(15, 15);
+    expect(nextSize).toBe(30);
+
+    const thirdSize = getNextPageSize(nextSize, 15);
+    expect(thirdSize).toBe(45);
+  });
+});
