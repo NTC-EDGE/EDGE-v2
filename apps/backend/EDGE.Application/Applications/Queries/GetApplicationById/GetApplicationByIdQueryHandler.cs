@@ -21,7 +21,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
     public async Task<ApiResponse<ApplicationDto>> Handle(GetApplicationByIdQuery request, CancellationToken cancellationToken)
     {
-        var app = await _repository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
+        var app = await _repository.GetByIdWithDetailsAsync(request.Id, asNoTracking: true, cancellationToken);
         if (app == null)
         {
             return ApiResponse<ApplicationDto>.Fail($"Application with ID {request.Id} was not found.");

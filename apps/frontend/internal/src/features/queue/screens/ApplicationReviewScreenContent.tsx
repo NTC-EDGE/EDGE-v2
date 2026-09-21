@@ -19,6 +19,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
   SkeletonLoader,
+  AlertToast,
   toast,
 } from "@edge/ui";
 import {
@@ -41,6 +42,8 @@ import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
+import { ApplicantVerdictModal, ApplicantVerdictType } from "../components/modals/ApplicantVerdictModal";
+import { BatchConfirmationModal, BatchActionType } from "../components/modals/BatchConfirmationModal";
 import { UserRole } from "../../shell/context/RoleContext";
 import { isAllowedRequirementFileType } from "../../../utils/fileValidation";
 import { HeroReviewHeader } from "../components/HeroReviewHeader";
@@ -349,6 +352,44 @@ function ApplicationDetailsTab({
     }
   }, [app.applicantsList]);
 
+  useEffect(() => {
+    if (!isEditingSection) {
+      setRefDraft(app.referenceNumber);
+      setApplicationDraft(app.applicationNumber);
+      setApplicantDraft(app.applicant);
+      setAccountTypeDraft(app.applicantType);
+      setEmailDraft(app.contactDetails?.email ?? '');
+      setBarangayDraft(app.address?.barangay ?? '');
+      setProvinceDraft(app.address?.province ?? '');
+      setCityDraft(app.address?.city ?? '');
+      setZipCodeDraft(app.address?.zipCode ?? '');
+
+      setCompNameDraft(app.companyDetails?.name ?? app.applicant);
+      setCompRegNoDraft(app.companyDetails?.registrationNumber ?? '');
+      setCompAddrDraft(app.companyDetails?.address ?? '');
+      setCompContactDraft(app.companyDetails?.contactNumber ?? app.contactDetails?.contactNumber ?? '');
+      setCompEmailDraft(app.companyDetails?.email ?? app.contactDetails?.email ?? '');
+
+      setLnDraft(app.basicInfo?.lastName ?? '');
+      setFnDraft(app.basicInfo?.firstName ?? '');
+      setMnDraft(app.basicInfo?.middleName ?? '');
+      setExtDraft(app.basicInfo?.extensionName ?? '');
+      setPobDraft(app.basicInfo?.placeOfBirth ?? '');
+      setDobDraft(app.basicInfo?.dob ?? '');
+      setSexDraft(app.basicInfo?.sex ?? '');
+      setWeightDraft(String(app.basicInfo?.weight ?? ''));
+      setHeightDraft(String(app.basicInfo?.height ?? ''));
+      setNatDraft(app.basicInfo?.nationality ?? '');
+      setEmpStatusDraft(app.basicInfo?.employmentStatus ?? '');
+    }
+  }, [app, isEditingSection]);
+
+  useEffect(() => {
+    if (!editingNote) {
+      setNoteDraft(app.note);
+    }
+  }, [app.note, editingNote]);
+
   const activeApplicant = (localApplicants.length > 0)
     ? localApplicants[Math.min(selectedApplicantIndex ?? 0, localApplicants.length - 1)]
     : undefined;
@@ -522,6 +563,60 @@ function ApplicationDetailsTab({
     setLocalApplicants(synchronized);
     updateApplication(app.id, { applicantsList: synchronized });
     setIsEditingRoster(false);
+  };
+
+  const [verdictModalState, setVerdictModalState] = useState<{
+    applicantIndex: number;
+    applicantName: string;
+    targetVerdict: ApplicantVerdictType;
+    initialRemarks: string;
+  } | null>(null);
+
+  const [batchModalAction, setBatchModalAction] = useState<BatchActionType | null>(null);
+
+  const handleConfirmVerdict = async (verdict: ApplicantVerdictType, remarks: string) => {
+    if (verdictModalState === null) return;
+    const idx = verdictModalState.applicantIndex;
+    const updated = [...localApplicants];
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = {
+        ...target,
+        status: verdict,
+        evaluationRemarks: remarks.length > 0 ? remarks : target.evaluationRemarks,
+      };
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`Applicant ${target.name} set to ${verdict}.`);
+    }
+    setVerdictModalState(null);
+  };
+
+  const handleConfirmBatchAction = async (action: BatchActionType) => {
+    if (action === 'MarkAllComplete') {
+      const updated = localApplicants.map((item) => ({
+        ...item,
+        status: 'Complete' as const,
+      }));
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`All ${updated.length} applicants marked as Complete.`);
+    } else if (action === 'MarkAllForEndorsement') {
+      const updated = localApplicants.map((item) => ({
+        ...item,
+        status: 'ForEndorsement' as const,
+      }));
+      setLocalApplicants(updated);
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+      }
+      toast.success(`All ${updated.length} applicants marked For Endorsement.`);
+    }
+    setBatchModalAction(null);
   };
 
   const statusStyle = getStatusStyle(app.status);
@@ -716,6 +811,20 @@ function ApplicationDetailsTab({
             rightAction={
               isEditable ? (
                 <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? '#166534' : '#15803D', paddingHorizontal: 10 }]}
+                    onPress={() => setBatchModalAction('MarkAllComplete')}
+                  >
+                    <Lucide name="check-circle" size={13} color={COLORS.neutral.white} />
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '600' }]}>Mark All Complete</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.inspectBtn, { backgroundColor: isDark ? '#6B21A8' : '#7E22CE', paddingHorizontal: 10 }]}
+                    onPress={() => setBatchModalAction('MarkAllForEndorsement')}
+                  >
+                    <Lucide name="send" size={12} color={COLORS.neutral.white} />
+                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '600' }]}>Mark All Endorse</Text>
+                  </Pressable>
                   {isEditingRoster ? (
                     <>
                       <Pressable
@@ -733,10 +842,11 @@ function ApplicationDetailsTab({
                     </>
                   ) : (
                     <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: isDark ? colors.brand[500] : colors.brand[600], borderWidth: 1, paddingHorizontal: 10 }]}
                       onPress={() => setIsEditingRoster(true)}
                     >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
+                      <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '600' }]}>Edit Roster</Text>
                     </Pressable>
                   )}
                 </View>
@@ -795,19 +905,34 @@ function ApplicationDetailsTab({
                         <View style={{ flexDirection: 'row', gap: 4 }}>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Complete' ? '#DCFCE7' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'Complete')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'Complete',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'Complete' ? '#166534' : colors.neutral[500] }]}>C</Text>
                           </Pressable>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'Incomplete' ? '#FEE2E2' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'Incomplete')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'Incomplete',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'Incomplete' ? '#991B1B' : colors.neutral[500] }]}>INC</Text>
                           </Pressable>
                           <Pressable
                             style={[styles.miniStatusBadge, { backgroundColor: item.status === 'ForEndorsement' ? '#F3E8FF' : (isDark ? colors.neutral[700] : colors.neutral[200]), paddingHorizontal: 6 }]}
-                            onPress={() => handleSetStatus(idx, 'ForEndorsement')}
+                            onPress={() => setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: 'ForEndorsement',
+                              initialRemarks: item.evaluationRemarks || '',
+                            })}
                           >
                             <Text style={[styles.miniStatusText, { color: item.status === 'ForEndorsement' ? '#6B21A8' : colors.neutral[500] }]}>END</Text>
                           </Pressable>
@@ -845,19 +970,34 @@ function ApplicationDetailsTab({
                         {item.applicantType}
                       </Text>
                       <View style={{ flex: 1.2 }}>
-                        {item.status === 'Incomplete' ? (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
-                          </View>
-                        ) : item.status === 'ForEndorsement' ? (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
-                          </View>
-                        ) : (
-                          <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
-                            <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
-                          </View>
-                        )}
+                        <Pressable
+                          disabled={!isEditable}
+                          onPress={() => {
+                            if (!isEditable) return;
+                            const nextVerdict: ApplicantVerdictType =
+                              item.status === 'Complete' ? 'Incomplete' : item.status === 'Incomplete' ? 'ForEndorsement' : 'Complete';
+                            setVerdictModalState({
+                              applicantIndex: idx,
+                              applicantName: item.name,
+                              targetVerdict: nextVerdict,
+                              initialRemarks: item.evaluationRemarks || '',
+                            });
+                          }}
+                        >
+                          {item.status === 'Incomplete' ? (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#FEE2E2', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#991B1B' }]}>INCOMPLETE</Text>
+                            </View>
+                          ) : item.status === 'ForEndorsement' ? (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#F3E8FF', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#6B21A8' }]}>FOR ENDORSEMENT</Text>
+                            </View>
+                          ) : (
+                            <View style={[styles.miniStatusBadge, { backgroundColor: '#DCFCE7', alignSelf: 'flex-start' }]}>
+                              <Text style={[styles.miniStatusText, { color: '#166534' }]}>COMPLETE</Text>
+                            </View>
+                          )}
+                        </Pressable>
                       </View>
                       <Text style={[styles.denseRowRemarks, { flex: 2, color: isDark ? colors.neutral[400] : colors.neutral[600] }]} numberOfLines={1}>
                         {item.evaluationRemarks || '—'}
@@ -884,27 +1024,7 @@ function ApplicationDetailsTab({
       {/* ── Single Applicant Summary & Record Link ── */}
       {app.applicationType !== 'BULK' && (
         <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
-          <SectionHeader
-            title="PRIMARY APPLICANT SUMMARY"
-            rightAction={
-              <Pressable
-                style={[
-                  styles.inspectBtn,
-                  {
-                    backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: RADIUS.button,
-                  },
-                ]}
-                onPress={() => onInspectApplicant?.(0)}
-              >
-                <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>
-                  View Applicant Record & Content ►
-                </Text>
-              </Pressable>
-            }
-          />
+          <SectionHeader title="PRIMARY APPLICANT SUMMARY" />
           <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}>
             <InfoRow label="Applicant Name:" value={app.applicant || "—"} />
             <InfoRow label="Applicant Type:" value={app.applicantType || "Individual"} />
@@ -1024,6 +1144,27 @@ function ApplicationDetailsTab({
           <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>{app.note || 'No evaluation notes recorded.'}</Text>
         )}
       </View>
+
+      {verdictModalState !== null && (
+        <ApplicantVerdictModal
+          visible={verdictModalState !== null}
+          applicantName={verdictModalState.applicantName}
+          targetVerdict={verdictModalState.targetVerdict}
+          initialRemarks={verdictModalState.initialRemarks}
+          onConfirm={handleConfirmVerdict}
+          onCancel={() => setVerdictModalState(null)}
+        />
+      )}
+
+      {batchModalAction !== null && (
+        <BatchConfirmationModal
+          visible={batchModalAction !== null}
+          actionType={batchModalAction}
+          applicantCount={localApplicants.length}
+          onConfirm={handleConfirmBatchAction}
+          onCancel={() => setBatchModalAction(null)}
+        />
+      )}
 
       <View style={{ height: 80 }} />
     </ScrollView>
@@ -1146,7 +1287,23 @@ function ApplicantRecordTab({
     );
   }, [formData, formDraftValues]);
 
-  const handleSaveProfile = () => {
+  const hasFormValues = useMemo(() => {
+    if (!formData || !formData.sections || formData.sections.length === 0) return false;
+    return flatFormValues.some((fv) => {
+      const val = fv.value;
+      if (!val || typeof val !== 'string') return false;
+      const trimmed = val.trim();
+      return (
+        trimmed.length > 0 &&
+        trimmed !== 'null' &&
+        trimmed !== 'undefined' &&
+        trimmed !== '[]' &&
+        trimmed !== '{}'
+      );
+    });
+  }, [formData, flatFormValues]);
+
+  const handleSaveProfile = async () => {
     const updated = [...localApplicants];
     const target = updated[activeIdx];
     if (target) {
@@ -1192,8 +1349,9 @@ function ApplicantRecordTab({
         },
       };
       setLocalApplicants(updated);
+      setIsEditingProfile(false);
       if (activeApplicant?.id) {
-        applicationService.adminUpdateApplicantProfile(app.id, activeApplicant.id, {
+        const [res, err] = await applicationService.adminUpdateApplicantProfile(app.id, activeApplicant.id, {
           firstName: fnProfileDraft,
           lastName: lnProfileDraft,
           middleName: mnProfileDraft,
@@ -1212,9 +1370,16 @@ function ApplicantRecordTab({
           companyContactNumber: typeDraft === 'Company' ? compContactProfileDraft : undefined,
           companyEmail: typeDraft === 'Company' ? compEmailProfileDraft : undefined,
         });
+        if (err !== null) {
+          toast.error("Failed to update applicant profile.");
+        } else {
+          toast.success("Applicant particulars updated successfully.");
+          await mutateApplications(app.id);
+        }
       }
+    } else {
+      setIsEditingProfile(false);
     }
-    setIsEditingProfile(false);
   };
 
   const handleSaveFormFields = async () => {
@@ -1228,10 +1393,14 @@ function ApplicantRecordTab({
       }))
     );
 
-    const [res] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
-    if (res && res.succeeded) {
+    const [res, err] = await applicationService.adminUpdateFormValues(app.id, activeApplicant.id, payload, formData.submissionId ?? undefined);
+    if (err !== null || !res?.succeeded) {
+      toast.error("Failed to update form values.");
+    } else {
       setIsEditingForm(false);
-      refetchForm();
+      await refetchForm();
+      await mutateApplications(app.id);
+      toast.success("Form values updated successfully.");
     }
   };
 
@@ -1302,6 +1471,45 @@ function ApplicantRecordTab({
     setLocalRemarks(activeApplicant?.evaluationRemarks ?? '');
   }, [activeApplicant?.id, activeApplicant?.evaluationRemarks]);
 
+  const [verdictModalState, setVerdictModalState] = useState<{
+    applicantIndex: number;
+    applicantName: string;
+    targetVerdict: ApplicantVerdictType;
+    initialRemarks: string;
+  } | null>(null);
+
+  const handleVerdictClick = (verdict: ApplicantVerdictType) => {
+    if (!isEditable || !activeApplicant) return;
+    setVerdictModalState({
+      applicantIndex: activeIdx,
+      applicantName: activeApplicant.name,
+      targetVerdict: verdict,
+      initialRemarks: localRemarks || activeApplicant.evaluationRemarks || '',
+    });
+  };
+
+  const handleConfirmVerdict = async (verdict: ApplicantVerdictType, remarks: string) => {
+    if (verdictModalState === null) return;
+    const idx = verdictModalState.applicantIndex;
+    const updated = [...localApplicants];
+    const target = updated[idx];
+    if (target) {
+      const finalRemarks = remarks.length > 0 ? remarks : target.evaluationRemarks;
+      updated[idx] = {
+        ...target,
+        status: verdict,
+        evaluationRemarks: finalRemarks,
+      };
+      setLocalApplicants(updated);
+      setLocalRemarks(finalRemarks ?? '');
+      if (updateApplication) {
+        await updateApplication(app.id, { applicantsList: updated });
+        notifySuccess("Status Updated", `Applicant ${target.name} set to ${verdict}.`);
+      }
+    }
+    setVerdictModalState(null);
+  };
+
   const handleSetStatus = async (idx: number, newStatus: 'Complete' | 'Incomplete' | 'ForEndorsement') => {
     if (!isEditable) return;
     const updated = [...localApplicants];
@@ -1329,13 +1537,27 @@ function ApplicantRecordTab({
     }
   };
 
+  const [toastState, setToastState] = useState<{
+    message: string;
+    variant: 'success' | 'error' | 'warning' | 'info';
+  } | null>(null);
+
+  useEffect(() => {
+    if (toastState !== null) {
+      const timer = setTimeout(() => {
+        setToastState(null);
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toastState]);
+
   const notifyError = (title: string, msg: string) => {
     try {
       toast.error(`${title}: ${msg}`);
     } catch {
       // fallback
     }
-    Alert.alert(title, msg);
+    setToastState({ message: `${title}: ${msg}`, variant: 'error' });
   };
 
   const notifySuccess = (title: string, msg: string) => {
@@ -1344,7 +1566,7 @@ function ApplicantRecordTab({
     } catch {
       // fallback
     }
-    Alert.alert(title, msg);
+    setToastState({ message: `${title}: ${msg}`, variant: 'success' });
   };
 
   const uploadAndAttachRequirement = async (
@@ -1570,7 +1792,16 @@ function ApplicantRecordTab({
   };
 
   return (
-    <View style={{ flex: 1 }}>
+    <View style={{ flex: 1, position: 'relative' }}>
+      {toastState !== null && (
+        <View style={styles.floatingToastContainer}>
+          <AlertToast
+            message={toastState.message}
+            variant={toastState.variant}
+            onDismiss={() => setToastState(null)}
+          />
+        </View>
+      )}
       {/* ── Fixed Sticky Top Applicant Selector Bar ── */}
       {localApplicants.length > 0 && (
         <View
@@ -1702,111 +1933,103 @@ function ApplicantRecordTab({
                 applicantName: activeApplicant.name,
                 name: activeApplicant.name,
                 applicantType: activeApplicant.applicantType === 'Company' ? 'company' : 'individual',
-                email: activeApplicant.email,
-                mobileNumber: activeApplicant.contactNumber,
-                streetAddress: activeApplicant.streetAddress || activeApplicant.address,
-                barangay: activeApplicant.barangay,
-                cityMunicipality: activeApplicant.city,
-                province: activeApplicant.province,
-                region: activeApplicant.region,
-                zipCode: activeApplicant.zipCode,
-                birthDate: activeApplicant.basicInfo?.dob,
-                sex: activeApplicant.basicInfo?.sex,
-                civilStatus: activeApplicant.basicInfo?.civilStatus,
-                nationality: activeApplicant.basicInfo?.nationality,
-                companyName: activeApplicant.companyDetails?.name || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.name : undefined),
-                registrationNumber: activeApplicant.companyDetails?.registrationNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.registrationNumber : undefined),
-                companyAddress: activeApplicant.companyDetails?.address || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.address : undefined),
-                companyEmail: activeApplicant.companyDetails?.email || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.email : undefined),
-                companyContactNumber: activeApplicant.companyDetails?.contactNumber || (activeApplicant.applicantType === 'Company' ? app.companyDetails?.contactNumber : undefined),
-                representativeName: activeApplicant.applicantType === 'Company' ? app.filingUser?.name : undefined,
-                representativeEmail: activeApplicant.applicantType === 'Company' ? app.filingUser?.email : undefined,
-                representativeContactNumber: activeApplicant.applicantType === 'Company' ? app.filingUser?.company?.contactNumber : undefined,
+                email: activeApplicant.email || app.contactDetails?.email || app.filingUser?.email,
+                mobileNumber: activeApplicant.contactNumber || app.contactDetails?.contactNumber || app.companyDetails?.contactNumber,
+                streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress || app.address?.address,
+                barangay: activeApplicant.barangay || app.address?.barangay,
+                cityMunicipality: activeApplicant.city || app.address?.city,
+                province: activeApplicant.province || app.address?.province,
+                region: activeApplicant.region || app.address?.region,
+                zipCode: activeApplicant.zipCode || app.address?.zipCode,
+                birthDate: activeApplicant.basicInfo?.dob || app.basicInfo?.dob,
+                sex: activeApplicant.basicInfo?.sex || app.basicInfo?.sex,
+                civilStatus: activeApplicant.basicInfo?.civilStatus || app.basicInfo?.civilStatus,
+                nationality: activeApplicant.basicInfo?.nationality || app.basicInfo?.nationality,
+                companyName: activeApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name,
+                registrationNumber: activeApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber || app.filingUser?.company?.registrationNumber,
+                companyAddress: activeApplicant.companyDetails?.address || app.companyDetails?.address || app.filingUser?.company?.address,
+                companyEmail: activeApplicant.companyDetails?.email || app.companyDetails?.email || app.filingUser?.company?.email,
+                companyContactNumber: activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber || app.filingUser?.company?.contactNumber,
+                representativeName: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.name : undefined,
+                representativeEmail: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.email : undefined,
+                representativeContactNumber: (activeApplicant.applicantType === 'Company' || Boolean(activeApplicant.companyDetails?.name || app.companyDetails?.name)) ? app.filingUser?.company?.contactNumber : undefined,
                 notes: activeApplicant.evaluationRemarks,
               }}
             />
           )}
         </View>
 
-        {/* Section 2: Completed Service Form Submissions */}
-        <SectionHeader
-          title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
-          rightAction={
-            isEditable && formData && formData.sections.length > 0 ? (
-              <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
-                {isEditingForm ? (
-                  <>
-                    <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
-                      onPress={() => setIsEditingForm(false)}
-                    >
-                      <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
-                    </Pressable>
-                    <Pressable
-                      style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
-                      onPress={handleSaveFormFields}
-                    >
-                      <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
-                    </Pressable>
-                  </>
-                ) : (
-                  <Pressable
-                    style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
-                    onPress={() => setIsEditingForm(true)}
-                  >
-                    <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
-                  </Pressable>
-                )}
-              </View>
-            ) : null
-          }
-        />
-
-        <View style={{ paddingHorizontal: SPACING[16] }}>
-          {isLoadingForm ? (
-            <View style={{ padding: 16, alignItems: 'center' }}>
-              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
-              <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
-            </View>
-          ) : formData && formData.sections.length > 0 ? (
-            <BaseApplicationPreview
-              service={{
-                title: app.serviceName || app.permitTitle,
-                category: app.serviceCategory || app.category,
-              }}
-              form={formData}
-              formFieldValues={flatFormValues}
-              showApplicantCard={false}
-              showSignatureCard={true}
-              onPreviewFile={onPreviewFile}
+        {/* Section 2: Completed Service Form Submissions (Only shown if values exist or currently editing/loading) */}
+        {(hasFormValues || isEditingForm || isLoadingForm) && (
+          <>
+            <SectionHeader
+              title="2. COMPLETED SERVICE FORM SUBMISSIONS & TECHNICAL SPECIFICATIONS"
+              rightAction={
+                isEditable && formData && formData.sections.length > 0 ? (
+                  <View style={{ flexDirection: 'row', gap: 6, alignItems: 'center' }}>
+                    {isEditingForm ? (
+                      <>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[300], paddingHorizontal: 10 }]}
+                          onPress={() => setIsEditingForm(false)}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+                        </Pressable>
+                        <Pressable
+                          style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]}
+                          onPress={handleSaveFormFields}
+                        >
+                          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Pressable
+                        style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[600] : colors.brand[700], paddingHorizontal: 10 }]}
+                        onPress={() => setIsEditingForm(true)}
+                      >
+                        <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white }]}>Edit</Text>
+                      </Pressable>
+                    )}
+                  </View>
+                ) : null
+              }
             />
-          ) : (
-            <View style={styles.emptyReqs}>
-              <Lucide name="file-text" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                No service form field submissions recorded
-              </Text>
-            </View>
-          )}
-        </View>
 
-        {/* Section 3: Requirements & Submitted Documents per Applicant */}
-        <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
-        <View style={styles.infoBlock}>
-          {isLoadingRequirements ? (
-            <View style={{ padding: SPACING[4] }}>
-              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
-              <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+            <View style={{ paddingHorizontal: SPACING[16] }}>
+              {isLoadingForm ? (
+                <View style={{ padding: 16, alignItems: 'center' }}>
+                  <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
+                  <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
+                </View>
+              ) : formData && formData.sections.length > 0 ? (
+                <BaseApplicationPreview
+                  service={{
+                    title: app.serviceName || app.permitTitle,
+                    category: app.serviceCategory || app.category,
+                  }}
+                  form={formData}
+                  formFieldValues={flatFormValues}
+                  showApplicantCard={false}
+                  showSignatureCard={true}
+                  onPreviewFile={onPreviewFile}
+                />
+              ) : null}
             </View>
-          ) : applicantRequirementsState.length === 0 ? (
-            <View style={styles.emptyReqs}>
-              <Lucide name="folder" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-              <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                No requirement documents configured or submitted
-              </Text>
-            </View>
-          ) : (
-            applicantRequirementsState.map((reqItem) => {
+          </>
+        )}
+
+        {/* Section 3: Requirements & Submitted Documents per Applicant (Only shown if requirements exist or loading) */}
+        {(applicantRequirementsState.length > 0 || isLoadingRequirements) && (
+          <>
+            <SectionHeader title="3. SUBMITTED REQUIREMENTS & DOCUMENT ATTACHMENTS" />
+            <View style={styles.infoBlock}>
+              {isLoadingRequirements ? (
+                <View style={{ padding: SPACING[4] }}>
+                  <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+                  <SkeletonLoader height={24} style={{ marginBottom: 8 }} />
+                </View>
+              ) : (
+                applicantRequirementsState.map((reqItem) => {
               const hasValidUrl = typeof reqItem.url === 'string' && reqItem.url.trim() !== '' && reqItem.url !== 'null' && reqItem.url !== 'undefined';
               const hasStoredId = typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null';
               const hasSubmission = reqItem.submittedRequirementId !== undefined && reqItem.submittedRequirementId !== null;
@@ -1987,6 +2210,8 @@ function ApplicantRecordTab({
             })
           )}
         </View>
+      </>
+    )}
 
         {/* Accountable Form */}
         {accountableForms.length > 0 && (
@@ -2108,8 +2333,8 @@ function ApplicantRecordTab({
         <View style={{ height: 20 }} />
       </ScrollView>
 
-      {/* ── Fixed Sticky Bottom Dock — Evaluator Panel ── */}
-      {activeApplicant && (
+      {/* ── Fixed Sticky Bottom Dock — Evaluator Panel (Only shown for Bulk / Multi-Applicant applications) ── */}
+      {activeApplicant && localApplicants.length > 1 && (
         <View
           style={[
             styles.evaluatorControlBoxSticky,
@@ -2159,7 +2384,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'Complete')}
+                  onPress={() => handleVerdictClick('Complete')}
                 >
                   <Lucide
                     name="check-circle"
@@ -2189,7 +2414,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'Incomplete')}
+                  onPress={() => handleVerdictClick('Incomplete')}
                 >
                   <Lucide
                     name="x-circle"
@@ -2219,7 +2444,7 @@ function ApplicantRecordTab({
                     !isEditable && { opacity: 0.5 },
                     Platform.select({ web: { cursor: isEditable ? 'pointer' : 'not-allowed' } as object }),
                   ]}
-                  onPress={() => handleSetStatus(activeIdx, 'ForEndorsement')}
+                  onPress={() => handleVerdictClick('ForEndorsement')}
                 >
                   <Lucide
                     name="send"
@@ -2262,6 +2487,17 @@ function ApplicantRecordTab({
             </View>
           </View>
         </View>
+      )}
+
+      {verdictModalState !== null && (
+        <ApplicantVerdictModal
+          visible={verdictModalState !== null}
+          applicantName={verdictModalState.applicantName}
+          targetVerdict={verdictModalState.targetVerdict}
+          initialRemarks={verdictModalState.initialRemarks}
+          onConfirm={handleConfirmVerdict}
+          onCancel={() => setVerdictModalState(null)}
+        />
       )}
     </View>
   );
@@ -2690,6 +2926,11 @@ export function ApplicationReviewScreenContent({
             : 'Please try again.';
           toast.error(`Update failed: ${errMsg}`);
           return;
+        }
+        if (patch.note !== undefined && Object.keys(payload).length === 1) {
+          toast.success("Evaluation note saved successfully.");
+        } else {
+          toast.success("Application updated successfully.");
         }
       }
       await mutateApplications(id);
@@ -3634,6 +3875,19 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     flex: 1,
+  },
+  floatingToastContainer: {
+    position: 'absolute',
+    top: 12,
+    right: 16,
+    zIndex: 99999,
+    maxWidth: 440,
+    minWidth: 260,
+    elevation: 30,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
   },
   reqViewLink: {
     fontFamily: TYPOGRAPHY.fonts.primary,

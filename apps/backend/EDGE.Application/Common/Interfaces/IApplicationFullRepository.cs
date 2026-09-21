@@ -12,6 +12,7 @@ public interface IApplicationFullRepository
     Task AddAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default);
     Task<Domain.Entities.Application?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default);
+    Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(Guid userId, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserDraftsAsync(List<Guid> userIds, CancellationToken cancellationToken = default);
     Task<List<Domain.Entities.Application>> GetUserApplicationsAsync(Guid userId, ApplicationStatus? status = null, CancellationToken cancellationToken = default);

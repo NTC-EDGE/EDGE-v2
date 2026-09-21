@@ -30,10 +30,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
-    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Applications
-            .AsNoTrackingWithIdentityResolution()
+        return GetByIdWithDetailsAsync(id, false, cancellationToken);
+    }
+
+    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications.AsQueryable();
+        if (asNoTracking)
+        {
+            query = query.AsNoTrackingWithIdentityResolution();
+        }
+
+        return await query
             .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
