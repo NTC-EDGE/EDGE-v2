@@ -2967,6 +2967,43 @@ export function ApplicationReviewScreenContent({
     }
   }, []);
 
+  const handleClosePreviewDoc = useCallback(() => {
+    setPreviewCustomDoc((prev) => {
+      if (
+        prev?.uri &&
+        typeof prev.uri === 'string' &&
+        prev.uri.startsWith('blob:') &&
+        typeof URL !== 'undefined' &&
+        typeof URL.revokeObjectURL === 'function'
+      ) {
+        try {
+          URL.revokeObjectURL(prev.uri);
+        } catch {
+          // Ignore revocation error if already released
+        }
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (
+        previewCustomDoc?.uri &&
+        typeof previewCustomDoc.uri === 'string' &&
+        previewCustomDoc.uri.startsWith('blob:') &&
+        typeof URL !== 'undefined' &&
+        typeof URL.revokeObjectURL === 'function'
+      ) {
+        try {
+          URL.revokeObjectURL(previewCustomDoc.uri);
+        } catch {
+          // Cleanup on unmount
+        }
+      }
+    };
+  }, [previewCustomDoc?.uri]);
+
   useEffect(() => {
     setSelectedApplicantIndex(0);
   }, [selectedApplication?.id]);
@@ -3498,7 +3535,7 @@ export function ApplicationReviewScreenContent({
       {/* ── Document Preview Modal ── */}
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}
-        onClose={() => setPreviewCustomDoc(null)}
+        onClose={handleClosePreviewDoc}
       />
 
       {/* ── Evaluation Action Modals ── */}
