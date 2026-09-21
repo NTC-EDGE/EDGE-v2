@@ -441,20 +441,23 @@ export function ApplicationReviewScreenContent({
 
       {/* ── Bottom Action Bar ── */}
       <WorkflowActionBar
-        app={app}
         isEditable={isEditable}
         isDark={isDark}
         colors={colors}
-        showCashierBtn={showCashierBtn}
-        showAccountantBtn={showAccountantBtn}
-        showForwardBtn={showForwardBtn}
-        isAdmin={isAdmin}
-        hasIncompleteApplicants={hasIncompleteApplicants}
+        canApprove={showCashierBtn || showAccountantBtn || showForwardBtn || isAdmin || canApprove}
         canDecline={canDecline}
-        canEndorse={canEndorse}
-        onApprove={() => setShowApprove(true)}
-        onCashierVerify={() => setShowCashier(true)}
-        onDecline={() => setShowDecline(true)}
+        canEndorse={canEndorse && !showCashierBtn}
+        isApproveDisabled={showForwardBtn && hasIncompleteApplicants}
+        approveLabel={showCashierBtn ? "Verify Payment" : "Approve"}
+        approveIcon={showCashierBtn ? "credit-card" : "check-circle"}
+        onApprove={() => {
+          if (showCashierBtn) {
+            setShowCashier(true);
+          } else {
+            setShowApprove(true);
+          }
+        }}
+        onReturn={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
       />
 
@@ -510,35 +513,40 @@ export function ApplicationReviewScreenContent({
   );
 }
 
-// ── WorkflowActionBar sub-component ──────────────────────────────────────────
+// ── Unified WorkflowActionBar sub-component ───────────────────────────────────
 
 interface WorkflowActionBarProps {
-  app: import('../../../types/application').ApplicationData;
   isEditable: boolean;
   isDark: boolean;
   colors: ReturnType<typeof import('@edge/ui').useTheme>['colors'];
-  showCashierBtn: boolean;
-  showAccountantBtn: boolean;
-  showForwardBtn: boolean;
-  isAdmin: boolean;
-  hasIncompleteApplicants: boolean;
+  canApprove: boolean;
   canDecline: boolean;
   canEndorse: boolean;
+  isApproveDisabled: boolean;
+  approveLabel: string;
+  approveIcon: 'check-circle' | 'credit-card';
   onApprove: () => void;
-  onCashierVerify: () => void;
-  onDecline: () => void;
+  onReturn: () => void;
   onEndorse: () => void;
 }
 
 function WorkflowActionBar({
-  app, isEditable, isDark, colors,
-  showCashierBtn, showAccountantBtn, showForwardBtn, isAdmin,
-  hasIncompleteApplicants, canDecline, canEndorse,
-  onApprove, onCashierVerify,
-  onDecline, onEndorse,
+  isEditable,
+  isDark,
+  colors,
+  canApprove,
+  canDecline,
+  canEndorse,
+  isApproveDisabled,
+  approveLabel,
+  approveIcon,
+  onApprove,
+  onReturn,
+  onEndorse,
 }: WorkflowActionBarProps) {
   const primaryGreen = isDark ? '#166534' : '#15803D';
   const primaryBlue = isDark ? colors.brand[600] : colors.brand[700];
+  const primaryColor = approveIcon === 'credit-card' ? primaryBlue : primaryGreen;
   const disabledBg = isDark ? '#1E293B' : '#E2E8F0';
   const disabledText = isDark ? '#64748B' : '#94A3B8';
   const disabledBorder = isDark ? '#334155' : '#CBD5E1';
@@ -546,86 +554,92 @@ function WorkflowActionBar({
   const outlineText = isDark ? colors.neutral[100] : COLORS.neutral[900];
   const outlineBorder = isDark ? colors.neutral[300] : COLORS.neutral[900];
 
-  const forwardEnabled = isEditable && showForwardBtn && !hasIncompleteApplicants;
-  const accountantEnabled = isEditable && showAccountantBtn;
-  const cashierEnabled = isEditable && showCashierBtn;
-  const declineEnabled = isEditable && canDecline;
+  const approveEnabled = isEditable && canApprove && !isApproveDisabled;
+  const returnEnabled = isEditable && canDecline;
   const endorseEnabled = isEditable && canEndorse;
-  const adminDirectEnabled = isEditable && isAdmin && !showCashierBtn && !showAccountantBtn && !showForwardBtn;
 
   return (
-    <View style={[sc.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
-
-      {/* ── Stage: PendingPayment → Cashier Verify ── */}
-      {showCashierBtn && (
+    <View
+      style={[
+        sc.actionBar,
+        {
+          borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        },
+      ]}
+    >
+      {/* ── Return Button ── */}
+      {returnEnabled && (
         <Pressable
-          style={[sc.actionBtnPrimary, { backgroundColor: cashierEnabled ? primaryBlue : disabledBg, borderColor: cashierEnabled ? 'transparent' : disabledBorder, borderWidth: 1 }, !cashierEnabled && sc.actionBtnDisabled, Platform.select({ web: { cursor: cashierEnabled ? 'pointer' : 'not-allowed' } as object })]}
-          onPress={() => cashierEnabled && onCashierVerify()}
-          disabled={!cashierEnabled}
+          style={[
+            sc.actionBtnOutline,
+            { backgroundColor: outlineBg, borderColor: outlineBorder, borderWidth: 1.5 },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onReturn}
         >
-          <Lucide name="credit-card" size={15} color={cashierEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: cashierEnabled ? COLORS.neutral.white : disabledText }]}>Verify Payment</Text>
-        </Pressable>
-      )}
-
-      {/* ── Stage: ForAccountant → Accountant Approve SOA ── */}
-      {showAccountantBtn && (
-        <Pressable
-          style={[sc.actionBtnPrimary, { backgroundColor: accountantEnabled ? primaryGreen : disabledBg, borderColor: accountantEnabled ? 'transparent' : disabledBorder, borderWidth: 1 }, !accountantEnabled && sc.actionBtnDisabled, Platform.select({ web: { cursor: accountantEnabled ? 'pointer' : 'not-allowed' } as object })]}
-          onPress={() => accountantEnabled && onApprove()}
-          disabled={!accountantEnabled}
-        >
-          <Lucide name="check-circle" size={15} color={accountantEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: accountantEnabled ? COLORS.neutral.white : disabledText }]}>Approve</Text>
-        </Pressable>
-      )}
-
-      {/* ── Stage: Evaluating / Submitted → Evaluator / Chief / Director Approve ── */}
-      {showForwardBtn && (
-        <Pressable
-          style={[sc.actionBtnPrimary, { backgroundColor: forwardEnabled ? primaryGreen : disabledBg, borderColor: forwardEnabled ? 'transparent' : disabledBorder, borderWidth: 1 }, !forwardEnabled && sc.actionBtnDisabled, Platform.select({ web: { cursor: forwardEnabled ? 'pointer' : 'not-allowed' } as object })]}
-          onPress={() => {
-            if (!forwardEnabled) return;
-            const endorseList = app.applicantsList?.filter(a => a.status === 'ForEndorsement') ?? [];
-            if (endorseList.length > 0) {
-              Alert.alert('Endorsement Required', `${endorseList.length} applicant(s) are marked For Endorsement. Please use the Endorse action first.`, [{ text: 'OK' }]);
-              return;
-            }
-            onApprove();
-          }}
-          disabled={!forwardEnabled}
-        >
-          <Lucide name="check-circle" size={15} color={forwardEnabled ? COLORS.neutral.white : disabledText} />
-          <Text style={[sc.actionBtnPrimaryText, { color: forwardEnabled ? COLORS.neutral.white : disabledText }]}>Approve</Text>
-        </Pressable>
-      )}
-
-      {/* ── Admin: Bypass — Direct Approve (only when not in a specific stage) ── */}
-      {adminDirectEnabled && (
-        <Pressable
-          style={[sc.actionBtnPrimary, { backgroundColor: primaryGreen, borderWidth: 1, borderColor: 'transparent' }, Platform.select({ web: { cursor: 'pointer' } as object })]}
-          onPress={onApprove}
-        >
-          <Lucide name="check-circle" size={15} color={COLORS.neutral.white} />
-          <Text style={[sc.actionBtnPrimaryText, { color: COLORS.neutral.white }]}>Approve</Text>
-        </Pressable>
-      )}
-
-      {/* ── Spacer ── */}
-      <View style={{ flex: 1 }} />
-
-      {/* ── Return — available to all active reviewer levels ── */}
-      {declineEnabled && (
-        <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: outlineBorder, borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onDecline}>
           <Lucide name="rotate-ccw" size={14} color={outlineText} />
           <Text style={[sc.actionBtnOutlineText, { color: outlineText }]}>Return</Text>
         </Pressable>
       )}
 
-      {/* ── Endorse → (Evaluation stage) ── */}
-      {endorseEnabled && !showAccountantBtn && !showCashierBtn && (
-        <Pressable style={[sc.actionBtnOutline, { backgroundColor: outlineBg, borderColor: isDark ? colors.brand[400] : colors.brand[600], borderWidth: 1.5 }, Platform.select({ web: { cursor: 'pointer' } as object })]} onPress={onEndorse}>
-          <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.brand[400] : colors.brand[600] }]}>Endorse →</Text>
+      {/* ── Endorse Button ── */}
+      {endorseEnabled && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onEndorse}
+        >
+          <Lucide name="share-2" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Endorse
+          </Text>
+        </Pressable>
+      )}
+
+      {/* ── Approve Button (Primary) ── */}
+      {canApprove && (
+        <Pressable
+          style={[
+            sc.actionBtnPrimary,
+            {
+              backgroundColor: approveEnabled ? primaryColor : disabledBg,
+              borderColor: approveEnabled ? 'transparent' : disabledBorder,
+              borderWidth: 1,
+            },
+            !approveEnabled && sc.actionBtnDisabled,
+            Platform.select({
+              web: { cursor: approveEnabled ? 'pointer' : 'not-allowed' } as object,
+            }),
+          ]}
+          onPress={onApprove}
+          disabled={!approveEnabled}
+        >
+          <Lucide
+            name={approveIcon}
+            size={15}
+            color={approveEnabled ? COLORS.neutral.white : disabledText}
+          />
+          <Text
+            style={[
+              sc.actionBtnPrimaryText,
+              { color: approveEnabled ? COLORS.neutral.white : disabledText },
+            ]}
+          >
+            {approveLabel}
+          </Text>
         </Pressable>
       )}
     </View>
