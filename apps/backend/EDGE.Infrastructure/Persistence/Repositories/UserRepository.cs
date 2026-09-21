@@ -132,9 +132,32 @@ public class UserRepository : IUserRepository
             {
                 if (candidateUser.TryLinkExternalAuthUserId(authUserId))
                 {
-                    await _context.SaveChangesAsync(cancellationToken);
-                    _logger?.LogInformation("Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, authUserId);
-                    return candidateUser;
+                    try
+                    {
+                        await _context.SaveChangesAsync(cancellationToken);
+                        _logger?.LogInformation("Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}'", cleanEmail, authUserId);
+                        return candidateUser;
+                    }
+                    catch (DbUpdateConcurrencyException ex)
+                    {
+                        _logger?.LogWarning(ex, "Concurrency conflict during auto-linking for '{Email}'. Verifying updated record...", cleanEmail);
+                        var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
+                        if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
+                        {
+                            return freshUser;
+                        }
+                        return freshUser != null && freshUser.IsEligibleForAutoLink() ? freshUser : null;
+                    }
+                    catch (DbUpdateException ex)
+                    {
+                        _logger?.LogWarning(ex, "Database update exception during auto-linking for '{Email}'.", cleanEmail);
+                        var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
+                        if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
+                        {
+                            return freshUser;
+                        }
+                        return null;
+                    }
                 }
                 else
                 {

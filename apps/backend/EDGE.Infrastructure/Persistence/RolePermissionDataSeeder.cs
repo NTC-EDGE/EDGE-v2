@@ -425,7 +425,8 @@ public static class RolePermissionDataSeeder
                         lastError = ex.Message;
                         if (attempt < 3)
                         {
-                            await Task.Delay(300 * attempt);
+                            var backoffMs = (int)(200 * Math.Pow(2, attempt - 1) + Random.Shared.Next(50, 150));
+                            await Task.Delay(backoffMs);
                         }
                     }
                 }
