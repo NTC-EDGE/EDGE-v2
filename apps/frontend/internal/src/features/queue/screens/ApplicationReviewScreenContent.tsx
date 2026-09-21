@@ -326,7 +326,12 @@ export function ApplicationReviewScreenContent({
   };
 
   // ── Contextual action bar state ─────────────────────────────────────────────
-  const hasIncompleteApplicants = app.applicantsList?.some(a => a.status === 'Incomplete') ?? false;
+  const isBulkApp = (app.mode || '').toUpperCase() === 'BULK' || (app.applicantsList && app.applicantsList.length > 1);
+  const uncompletedApplicantsCount = app.applicantsList?.filter(a => !a.status || a.status === 'Incomplete').length ?? 0;
+  const endorsementApplicantsCount = app.applicantsList?.filter(a => a.status === 'ForEndorsement').length ?? 0;
+  const hasIncompleteApplicants = isBulkApp
+    ? uncompletedApplicantsCount > 0 || endorsementApplicantsCount > 0
+    : (app.applicantsList?.some(a => a.status === 'Incomplete') ?? false);
 
   /** Show Cashier-specific payment verify button */
   const showCashierBtn = (currentRole === 'Cashier' || canVerifyCashier) && app.status === 'PendingPayment';

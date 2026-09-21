@@ -23,7 +23,6 @@ import { ApplicantItem } from "../../../../types/application";
 import { DocumentPreviewFile } from "../../../../shared/components/DocumentPreviewModal";
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
-import { ApplicantVerdictModal, ApplicantVerdictType } from "../modals/ApplicantVerdictModal";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
 import { BaseApplicationPreview } from "../../../../shared/formPreview";
 import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
@@ -69,9 +68,6 @@ export function ApplicantRecordTab({
   const activeApplicant = localApplicants[activeIdx];
 
   const [activeReqMenuId, setActiveReqMenuId] = useState<string | null>(null);
-  const [verdictModalState, setVerdictModalState] = useState<{
-    applicantIndex: number; applicantName: string; targetVerdict: ApplicantVerdictType; initialRemarks: string;
-  } | null>(null);
   const [localRemarks, setLocalRemarks] = useState(activeApplicant?.evaluationRemarks ?? '');
   const [toastState, setToastState] = useState<{ message: string; variant: 'success' | 'error' | 'warning' | 'info' } | null>(null);
 
@@ -102,28 +98,6 @@ export function ApplicantRecordTab({
       return trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '[]' && trimmed !== '{}';
     });
   }, [formData, flatFormValues]);
-
-  const handleConfirmVerdict = async (verdict: ApplicantVerdictType, remarks: string) => {
-    if (verdictModalState === null) return;
-    const idx = verdictModalState.applicantIndex;
-    const updated = [...localApplicants];
-    const target = updated[idx];
-    if (target) {
-      const finalRemarks = remarks.length > 0 ? remarks : (target.evaluationRemarks ?? '');
-      updated[idx] = { ...target, status: verdict, evaluationRemarks: finalRemarks };
-      setLocalApplicants(updated);
-      setLocalRemarks(finalRemarks);
-      await updateApplication(app.id, { applicantsList: updated });
-      toast.success(`Applicant ${target.name} set to ${verdict}.`);
-    }
-    setVerdictModalState(null);
-  };
-
-  const verdictButtons: { label: string; verdict: ApplicantVerdictType; color: string }[] = [
-    { label: 'Complete', verdict: 'Complete', color: '#15803D' },
-    { label: 'Incomplete', verdict: 'Incomplete', color: '#DC2626' },
-    { label: 'For Endorsement', verdict: 'ForEndorsement', color: '#7E22CE' },
-  ];
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -221,47 +195,8 @@ export function ApplicantRecordTab({
           <ApplicantRequirementsSection app={app} activeApplicant={activeApplicant} isEditable={isEditable} onPreviewFile={onPreviewFile} />
         </View>
 
-        {/* 4. Evaluator Verdict Dock */}
-        {isEditable && activeApplicant && (
-          <View style={{ paddingHorizontal: SPACING[16], paddingBottom: SPACING[20] }}>
-            <SectionHeader title="4. EVALUATOR VERDICT" />
-            <View style={[styles.infoBlock, { gap: 10 }]}>
-              <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-                {verdictButtons.map((btn) => (
-                  <Pressable
-                    key={btn.verdict}
-                    style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: RADIUS.button, backgroundColor: activeApplicant.status === btn.verdict ? btn.color : (isDark ? colors.neutral[800] : colors.neutral[100]), borderWidth: 1, borderColor: btn.color, flexDirection: 'row', alignItems: 'center', gap: 6 }}
-                    onPress={() => setVerdictModalState({ applicantIndex: activeIdx, applicantName: activeApplicant.name, targetVerdict: btn.verdict, initialRemarks: localRemarks || activeApplicant.evaluationRemarks || '' })}
-                  >
-                    {activeApplicant.status === btn.verdict && <Lucide name="check-circle" size={13} color={COLORS.neutral.white} />}
-                    <Text style={{ fontSize: 12, fontWeight: TYPOGRAPHY.weights.semibold, color: activeApplicant.status === btn.verdict ? COLORS.neutral.white : (isDark ? colors.neutral[200] : colors.neutral[800]), fontFamily: TYPOGRAPHY.fonts.primary }}>
-                      {btn.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-              {activeApplicant.evaluationRemarks ? (
-                <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600], fontFamily: TYPOGRAPHY.fonts.primary, fontStyle: 'italic' }}>
-                  Remarks: {activeApplicant.evaluationRemarks}
-                </Text>
-              ) : null}
-            </View>
-          </View>
-        )}
-
         <View style={{ height: 80 }} />
       </ScrollView>
-
-      {verdictModalState !== null && (
-        <ApplicantVerdictModal
-          visible={verdictModalState !== null}
-          applicantName={verdictModalState.applicantName}
-          targetVerdict={verdictModalState.targetVerdict}
-          initialRemarks={verdictModalState.initialRemarks}
-          onConfirm={handleConfirmVerdict}
-          onCancel={() => setVerdictModalState(null)}
-        />
-      )}
     </View>
   );
 }
