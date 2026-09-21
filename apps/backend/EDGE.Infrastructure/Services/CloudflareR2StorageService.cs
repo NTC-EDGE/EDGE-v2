@@ -68,7 +68,7 @@ public class CloudflareR2StorageService : IStorageService
         }
         catch (AmazonS3Exception s3Ex)
         {
-            _logger.LogError(s3Ex, "Amazon S3 upload failed for storage key {StorageKey}.", storageKey);
+            _logger.LogError(s3Ex, "Amazon S3 upload failed for storage key {StorageKey} in bucket {BucketName}. ErrorCode: {ErrorCode}, StatusCode: {StatusCode}.", storageKey, _options.BucketName, s3Ex.ErrorCode, s3Ex.StatusCode);
             throw new StorageException("Failed to upload the file to cloud storage.", s3Ex);
         }
         catch (Exception ex)
@@ -96,7 +96,7 @@ public class CloudflareR2StorageService : IStorageService
         }
         catch (AmazonS3Exception s3Ex)
         {
-            _logger.LogError(s3Ex, "Amazon S3 download failed for storage key {StorageKey}.", storageKey);
+            _logger.LogError(s3Ex, "Amazon S3 download failed for storage key {StorageKey} in bucket {BucketName}. ErrorCode: {ErrorCode}, StatusCode: {StatusCode}.", storageKey, _options.BucketName, s3Ex.ErrorCode, s3Ex.StatusCode);
             throw new StorageException("Failed to retrieve the file from cloud storage.", s3Ex);
         }
         catch (Exception ex)
@@ -120,7 +120,7 @@ public class CloudflareR2StorageService : IStorageService
         }
         catch (AmazonS3Exception s3Ex)
         {
-            _logger.LogError(s3Ex, "Amazon S3 delete failed for storage key {StorageKey}.", storageKey);
+            _logger.LogError(s3Ex, "Amazon S3 delete failed for storage key {StorageKey} in bucket {BucketName}. ErrorCode: {ErrorCode}, StatusCode: {StatusCode}.", storageKey, _options.BucketName, s3Ex.ErrorCode, s3Ex.StatusCode);
             throw new StorageException("Failed to delete the file from cloud storage.", s3Ex);
         }
         catch (Exception ex)
