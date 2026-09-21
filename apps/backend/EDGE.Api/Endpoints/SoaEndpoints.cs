@@ -40,16 +40,21 @@ public static class SoaEndpoints
     }
 
     [HasPermission(Permissions.CreateBilling)]
-    public static async Task<IResult> CreateSoa(Guid id, CreateSoaRequest request, IMediator mediator)
+    public static async Task<IResult> CreateSoa(Guid id, CreateSoaRequest? request, IMediator mediator)
     {
         var command = new CreateSoaCommand(
             id,
-            request.ApplicantId,
-            request.IssuedToType,
-            request.IssuedToName,
-            request.IssuedToAddress,
-            request.DueDate,
-            request.LineItems);
+            request?.ApplicantId,
+            request?.IssuedToType ?? "Individual",
+            request?.IssuedToName ?? string.Empty,
+            request?.IssuedToAddress,
+            request?.DueDate ?? DateTime.UtcNow.AddDays(30),
+            request?.LineItems,
+            request?.ValidityYears,
+            request?.NoOfUnits,
+            request?.ExpirationDate,
+            request?.AdditionalServicesCount,
+            request?.NoOfCopies);
 
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);

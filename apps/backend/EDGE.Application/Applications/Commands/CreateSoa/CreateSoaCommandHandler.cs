@@ -38,10 +38,36 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
 
-        if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out var issuedToType))
+        var targetApplicant = request.ApplicantId.HasValue
+            ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
+            : app.ApplicationApplicants.FirstOrDefault()?.Applicant;
+
+        IssuedToType issuedToType;
+        if (!string.IsNullOrWhiteSpace(request.IssuedToType))
         {
-            return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
+            if (!Enum.TryParse<IssuedToType>(request.IssuedToType, true, out issuedToType))
+            {
+                return ApiResponse<Guid>.Fail("Invalid IssuedToType.");
+            }
         }
+        else
+        {
+            issuedToType = targetApplicant?.ApplicantType == ApplicantType.Company ? IssuedToType.Company : IssuedToType.Individual;
+        }
+
+        var resolvedIssuedToName = !string.IsNullOrWhiteSpace(request.IssuedToName)
+            ? request.IssuedToName
+            : (targetApplicant?.ApplicantDetail != null
+                ? $"{targetApplicant.ApplicantDetail.FirstName} {targetApplicant.ApplicantDetail.LastName}".Trim()
+                : (targetApplicant?.CompanyDetail?.Name ?? app.ApplicationNumber ?? "Applicant"));
+
+        var resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(request.IssuedToAddress)
+            ? request.IssuedToAddress
+            : (targetApplicant?.ApplicantDetail?.Address ?? targetApplicant?.CompanyDetail?.Address ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ApplicantDetail?.Address ?? aa.Applicant?.CompanyDetail?.Address).FirstOrDefault(a => !string.IsNullOrEmpty(a)));
+
+        var resolvedDueDate = request.DueDate != default && request.DueDate > DateTime.MinValue
+            ? request.DueDate
+            : DateTime.UtcNow.AddDays(30);
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
 
@@ -53,9 +79,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             SoaNumber = $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Status = SoaStatus.Pending,
             IssuedToType = issuedToType,
-            IssuedToName = request.IssuedToName,
-            IssuedToAddress = request.IssuedToAddress,
-            DueDate = request.DueDate,
+            IssuedToName = resolvedIssuedToName,
+            IssuedToAddress = resolvedIssuedToAddress,
+            DueDate = resolvedDueDate,
             PreparedByUserId = userContext.UserId
         };
 
@@ -83,10 +109,6 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         }
         else
         {
-            var targetApplicant = request.ApplicantId.HasValue
-                ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
-                : null;
-
             var primaryService = targetApplicant?.Service
                 ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
             var primaryVariant = targetApplicant?.ServiceVariant

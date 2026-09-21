@@ -1096,13 +1096,43 @@ export interface CreateSoaLineItemRequest {
   amount: number;
 }
 
+export interface CalculatedFeeLineItemDto {
+  particular: string;
+  itemCode: string;
+  description?: string | null;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+  isSurcharge?: boolean;
+  isTax?: boolean;
+}
+
+export interface FeeCalculationResultDto {
+  activity: string;
+  applicationType: string;
+  element?: string | null;
+  formulaApplied: string;
+  subTotal: number;
+  surchargeAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  lineItems: CalculatedFeeLineItemDto[];
+  category?: string | null;
+}
+
 export interface CreateSoaRequest {
-  applicantId?: string;
-  issuedToType: IssuedToTypeDto;
-  issuedToName: string;
-  issuedToAddress?: string;
-  dueDate: string;
-  lineItems: CreateSoaLineItemRequest[];
+  applicantId?: string | null;
+  issuedToType?: IssuedToTypeDto | null;
+  issuedToName?: string | null;
+  issuedToAddress?: string | null;
+  dueDate?: string | null;
+  lineItems?: CreateSoaLineItemRequest[] | null;
+  validityYears?: number | null;
+  noOfUnits?: number | null;
+  expirationDate?: string | null;
+  additionalServicesCount?: number | null;
+  noOfCopies?: number | null;
 }
 
 export interface VerifyPaymentRequest {

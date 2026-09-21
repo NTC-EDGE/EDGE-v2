@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   StyleSheet,
   View,
@@ -20,7 +20,13 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
-import { applicationService, mutateApplications, CreateSoaLineItemRequest, IssuedToTypeDto } from '@edge/api';
+import {
+  applicationService,
+  mutateApplications,
+  CreateSoaLineItemRequest,
+  IssuedToTypeDto,
+  FeeCalculationResultDto,
+} from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 
 interface GenerateSoaModalProps {
@@ -34,10 +40,13 @@ interface EditableLineItem {
   id: string;
   particular: string;
   itemCode: string;
+  description?: string;
   validityYears: number;
   noOfUnits: number;
   feeRate: number;
   amount: number;
+  isTax?: boolean;
+  isSurcharge?: boolean;
 }
 
 export function GenerateSoaModal({
@@ -63,41 +72,52 @@ export function GenerateSoaModal({
     app.address?.streetAddress || app.address?.address || app.address?.city || ''
   );
   const [dueDate, setDueDate] = useState(defaultDueDate);
-  const [loading, setLoading] = useState(false);
 
-  const initialItems: EditableLineItem[] =
-    app.soaItems.length > 0
-      ? app.soaItems.map((item, idx) => ({
-          id: `item-${idx}-${Date.now()}`,
-          particular: item.particular,
-          itemCode: item.code || `NTC-${idx + 101}`,
-          validityYears: item.validityYears > 0 ? item.validityYears : 1,
-          noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
-          feeRate: item.fees > 0 ? item.fees : item.amount || 300,
-          amount: item.amount > 0 ? item.amount : (item.noOfUnits || 1) * (item.fees || 300),
-        }))
-      : [
-          {
-            id: `item-0-${Date.now()}`,
-            particular: `${app.serviceName || 'Application'} Regulatory & Processing Fee`,
-            itemCode: 'NTC-REG-01',
-            validityYears: 1,
-            noOfUnits: app.applicantsList?.length || 1,
-            feeRate: 300,
-            amount: (app.applicantsList?.length || 1) * 300,
-          },
-          {
-            id: `item-1-${Date.now()}`,
-            particular: 'Filing & Legal Research Fee',
-            itemCode: 'NTC-LRF-02',
-            validityYears: 1,
-            noOfUnits: 1,
-            feeRate: 150,
-            amount: 150,
-          },
-        ];
+  // Calculation state from backend calculation engine
+  const [calculatedFees, setCalculatedFees] = useState<FeeCalculationResultDto | null>(null);
+  const [isCalculating, setIsCalculating] = useState(false);
+  const [calculationError, setCalculationError] = useState<string | null>(null);
 
-  const [lineItems, setLineItems] = useState<EditableLineItem[]>(initialItems);
+  // Mode: automated statutory calculation vs manual customization
+  const [isManualMode, setIsManualMode] = useState(false);
+  const [customLineItems, setCustomLineItems] = useState<EditableLineItem[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Fetch backend calculated fees based on statutory formula & service catalog
+  const fetchBackendCalculatedFees = useCallback(async () => {
+    if (!app.id) return;
+    setIsCalculating(true);
+    setCalculationError(null);
+
+    const [res, err] = await applicationService.calculateApplicationFees(app.id);
+    setIsCalculating(false);
+
+    if (err !== null || !res?.data) {
+      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+        ? String(Reflect.get(err, 'message'))
+        : 'Failed to calculate statutory fees automatically.';
+      setCalculationError(errMsg);
+      return;
+    }
+
+    const calcData = res.data;
+    setCalculatedFees(calcData);
+
+    // Populate default custom line items from calculated result
+    const mappedItems: EditableLineItem[] = calcData.lineItems.map((item, idx) => ({
+      id: `item-${idx}-${Date.now()}`,
+      particular: item.particular,
+      itemCode: item.itemCode,
+      description: item.description ?? undefined,
+      validityYears: item.validityYears > 0 ? item.validityYears : 1,
+      noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
+      feeRate: item.feeRate,
+      amount: item.amount,
+      isTax: item.isTax,
+      isSurcharge: item.isSurcharge,
+    }));
+    setCustomLineItems(mappedItems);
+  }, [app.id]);
 
   useEffect(() => {
     if (visible) {
@@ -105,30 +125,18 @@ export function GenerateSoaModal({
       setIssuedToType(app.applicantType === 'Company' ? 'Company' : 'Individual');
       setIssuedToAddress(app.address?.streetAddress || app.address?.address || app.address?.city || '');
       setDueDate(defaultDueDate);
-      if (app.soaItems.length > 0) {
-        setLineItems(
-          app.soaItems.map((item, idx) => ({
-            id: `item-${idx}-${Date.now()}`,
-            particular: item.particular,
-            itemCode: item.code || `NTC-${idx + 101}`,
-            validityYears: item.validityYears > 0 ? item.validityYears : 1,
-            noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
-            feeRate: item.fees > 0 ? item.fees : item.amount || 300,
-            amount: item.amount > 0 ? item.amount : (item.noOfUnits || 1) * (item.fees || 300),
-          }))
-        );
-      }
+      setIsManualMode(false);
+      fetchBackendCalculatedFees();
     }
-  }, [visible, app]);
+  }, [visible, app, defaultDueDate, fetchBackendCalculatedFees]);
 
-  const totalAmount = lineItems.reduce((sum, item) => sum + item.amount, 0);
-
+  // Handle custom line item updates (manual mode)
   const handleUpdateItem = (
     id: string,
     field: keyof EditableLineItem,
     value: string | number
   ) => {
-    setLineItems((prev) =>
+    setCustomLineItems((prev) =>
       prev.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
@@ -152,36 +160,48 @@ export function GenerateSoaModal({
       feeRate: 100,
       amount: 100,
     };
-    setLineItems((prev) => [...prev, newItem]);
+    setCustomLineItems((prev) => [...prev, newItem]);
   };
 
   const handleRemoveItem = (id: string) => {
-    if (lineItems.length <= 1) {
+    if (customLineItems.length <= 1) {
       toast.error('Statement of Account must have at least one line item.');
       return;
     }
-    setLineItems((prev) => prev.filter((item) => item.id !== id));
+    setCustomLineItems((prev) => prev.filter((item) => item.id !== id));
   };
+
+  // Compute displayed total
+  const displayedTotal = isManualMode
+    ? customLineItems.reduce((sum, item) => sum + item.amount, 0)
+    : (calculatedFees?.totalAmount ?? (app.totalAmountDue > 0 ? app.totalAmountDue : 0));
 
   const handleGenerate = async () => {
     if (issuedToName.trim().length === 0) {
       toast.error('Please provide the Payor / Issued To Name.');
       return;
     }
-    if (lineItems.length === 0) {
+
+    if (isManualMode && customLineItems.length === 0) {
       toast.error('At least one fee line item is required.');
       return;
     }
 
-    setLoading(true);
-    const lineItemRequests: CreateSoaLineItemRequest[] = lineItems.map((item) => ({
-      particular: item.particular.trim(),
-      itemCode: item.itemCode.trim(),
-      validityYears: item.validityYears,
-      noOfUnits: item.noOfUnits,
-      feeRate: item.feeRate,
-      amount: item.amount,
-    }));
+    setSubmitting(true);
+
+    let lineItemRequests: CreateSoaLineItemRequest[] | undefined = undefined;
+
+    if (isManualMode) {
+      lineItemRequests = customLineItems.map((item) => ({
+        particular: item.particular.trim(),
+        itemCode: item.itemCode.trim(),
+        description: item.description,
+        validityYears: item.validityYears,
+        noOfUnits: item.noOfUnits,
+        feeRate: item.feeRate,
+        amount: item.amount,
+      }));
+    }
 
     const [res, err] = await applicationService.createSoa(app.id, {
       issuedToType,
@@ -191,7 +211,7 @@ export function GenerateSoaModal({
       lineItems: lineItemRequests,
     });
 
-    setLoading(false);
+    setSubmitting(false);
 
     if (err !== null) {
       toast.error('Failed to generate Statement of Account. Please try again.');
@@ -218,7 +238,7 @@ export function GenerateSoaModal({
             },
           ]}
         >
-          {/* Header */}
+          {/* ── Modal Header ── */}
           <View
             style={[
               styles.modalHeader,
@@ -233,7 +253,7 @@ export function GenerateSoaModal({
                 ]}
               >
                 <Lucide
-                  name="file-plus"
+                  name="file-text"
                   size={20}
                   color={isDark ? colors.brand[400] : colors.brand[600]}
                 />
@@ -257,11 +277,7 @@ export function GenerateSoaModal({
                 </Text>
               </View>
             </View>
-            <Pressable
-              style={styles.closeBtn}
-              onPress={onClose}
-              hitSlop={8}
-            >
+            <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
               <Lucide
                 name="x"
                 size={20}
@@ -270,13 +286,146 @@ export function GenerateSoaModal({
             </Pressable>
           </View>
 
-          {/* Form Scroll Body */}
+          {/* ── Modal Scroll Body ── */}
           <ScrollView
             style={styles.modalBody}
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* Payor Info Card */}
+            {/* ── Automated Calculation Banner ── */}
+            <View
+              style={[
+                styles.computationBanner,
+                {
+                  backgroundColor: isDark ? colors.brand[900] + '33' : colors.brand[50],
+                  borderColor: isDark ? colors.brand[800] : colors.brand[200],
+                },
+              ]}
+            >
+              <View style={styles.bannerHeaderRow}>
+                <View style={styles.bannerIconRow}>
+                  <Lucide
+                    name="cpu"
+                    size={16}
+                    color={isDark ? colors.brand[400] : colors.brand[700]}
+                  />
+                  <Text
+                    style={[
+                      styles.bannerTitle,
+                      { color: isDark ? colors.brand[300] : colors.brand[800] },
+                    ]}
+                  >
+                    Automated Statutory Calculation Engine
+                  </Text>
+                </View>
+                {calculatedFees?.formulaApplied && (
+                  <View
+                    style={[
+                      styles.formulaBadge,
+                      { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
+                    ]}
+                  >
+                    <Lucide
+                      name="code"
+                      size={11}
+                      color={isDark ? colors.brand[300] : colors.brand[800]}
+                    />
+                    <Text
+                      style={[
+                        styles.formulaBadgeText,
+                        { color: isDark ? colors.brand[300] : colors.brand[800] },
+                      ]}
+                    >
+                      Formula: {calculatedFees.formulaApplied}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <Text
+                style={[
+                  styles.bannerDesc,
+                  { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                ]}
+              >
+                The backend automatically computes all statutory assessment fees, late renewal
+                surcharges, and Documentary Stamp Tax (DST) based on registered service catalog
+                formulas and parameters.
+              </Text>
+
+              {/* Service & Category Metadata Tag */}
+              <View style={styles.metaTagsRow}>
+                <View
+                  style={[
+                    styles.tagPill,
+                    {
+                      backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tagText,
+                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                    ]}
+                  >
+                    Service:{' '}
+                    <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>
+                      {app.serviceCategory || app.serviceName || 'Statutory Regulatory Service'}
+                    </Text>
+                  </Text>
+                </View>
+
+                {calculatedFees?.element && (
+                  <View
+                    style={[
+                      styles.tagPill,
+                      {
+                        backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                        borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.tagText,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                      ]}
+                    >
+                      Element / Class:{' '}
+                      <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>
+                        {calculatedFees.element}
+                      </Text>
+                    </Text>
+                  </View>
+                )}
+
+                <View
+                  style={[
+                    styles.tagPill,
+                    {
+                      backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.tagText,
+                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                    ]}
+                  >
+                    Applicants:{' '}
+                    <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>
+                      {app.applicantsList?.length || 1} unit(s)
+                    </Text>
+                  </Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ── Section 1: Payor Information ── */}
             <View
               style={[
                 styles.sectionCard,
@@ -373,7 +522,7 @@ export function GenerateSoaModal({
               </View>
             </View>
 
-            {/* Line Items Table Card */}
+            {/* ── Section 2: Statutory Fee Breakdown Table ── */}
             <View
               style={[
                 styles.sectionCard,
@@ -384,208 +533,390 @@ export function GenerateSoaModal({
               ]}
             >
               <View style={styles.sectionHeaderRow}>
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: isDark ? colors.brand[400] : colors.brand[700] },
-                  ]}
-                >
-                  2. ASSESSED STATUTORY FEES &amp; PARTICULARS
-                </Text>
+                <View>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: isDark ? colors.brand[400] : colors.brand[700] },
+                    ]}
+                  >
+                    2. STATUTORY PARTICULARS &amp; FEE BREAKDOWN
+                  </Text>
+                  <Text
+                    style={[
+                      styles.sectionSubtitle,
+                      { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                    ]}
+                  >
+                    {isManualMode
+                      ? 'Manual item override active. Custom items will be submitted.'
+                      : 'Computed dynamically by NTC statutory fee schedule.'}
+                  </Text>
+                </View>
+
+                {/* Mode Switcher Button */}
                 <Pressable
                   style={[
-                    styles.addItemBtn,
-                    { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
+                    styles.modeToggleBtn,
+                    {
+                      backgroundColor: isManualMode
+                        ? (isDark ? colors.brand[900] : colors.brand[100])
+                        : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                      borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                    },
                   ]}
-                  onPress={handleAddItem}
+                  onPress={() => setIsManualMode((prev) => !prev)}
                 >
                   <Lucide
-                    name="plus"
-                    size={14}
-                    color={isDark ? colors.brand[300] : colors.brand[700]}
+                    name={isManualMode ? 'check-square' : 'edit-3'}
+                    size={13}
+                    color={isDark ? colors.neutral[200] : colors.neutral[800]}
                   />
                   <Text
                     style={[
-                      styles.addItemBtnText,
-                      { color: isDark ? colors.brand[300] : colors.brand[700] },
+                      styles.modeToggleText,
+                      { color: isDark ? colors.neutral[200] : colors.neutral[800] },
                     ]}
                   >
-                    Add Line Item
+                    {isManualMode ? 'Automated Mode' : 'Custom Override'}
                   </Text>
                 </Pressable>
               </View>
 
-              {/* Items Table */}
-              <View style={styles.itemsList}>
-                {lineItems.map((item, idx) => (
-                  <View
-                    key={item.id}
+              {/* Loading State */}
+              {isCalculating && (
+                <View style={styles.calculatingBox}>
+                  <ActivityIndicator size="small" color={colors.brand[500]} />
+                  <Text
                     style={[
-                      styles.itemRowCard,
-                      {
-                        backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
-                        borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                      },
+                      styles.calculatingText,
+                      { color: isDark ? colors.neutral[300] : colors.neutral[600] },
                     ]}
                   >
-                    <View style={styles.itemHeader}>
-                      <Text
-                        style={[
-                          styles.itemBadge,
-                          {
-                            backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
-                            color: isDark ? colors.neutral[200] : colors.neutral[700],
-                          },
-                        ]}
-                      >
-                        Item #{idx + 1}
-                      </Text>
-                      {lineItems.length > 1 && (
-                        <Pressable
-                          onPress={() => handleRemoveItem(item.id)}
-                          hitSlop={6}
-                        >
-                          <Lucide name="trash-2" size={16} color={COLORS.semantic.error} />
-                        </Pressable>
-                      )}
-                    </View>
+                    Calculating official statutory fees...
+                  </Text>
+                </View>
+              )}
 
-                    <View style={styles.itemGrid}>
-                      <View style={{ flex: 2 }}>
-                        <Text
-                          style={[
-                            styles.miniLabel,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Particulars
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.inputSm,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                              color: isDark ? colors.neutral[100] : colors.neutral[900],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                            },
-                          ]}
-                          value={item.particular}
-                          onChangeText={(v) => handleUpdateItem(item.id, 'particular', v)}
-                          placeholder="e.g. Radio Station Permit Fee"
-                        />
-                      </View>
+              {/* Calculation Error Banner */}
+              {calculationError && (
+                <View
+                  style={[
+                    styles.errorBanner,
+                    {
+                      backgroundColor: isDark ? colors.semantic.error + '22' : '#FEE2E2',
+                      borderColor: COLORS.semantic.error,
+                    },
+                  ]}
+                >
+                  <Lucide name="alert-circle" size={16} color={COLORS.semantic.error} />
+                  <Text style={[styles.errorBannerText, { color: COLORS.semantic.error }]}>
+                    {calculationError}
+                  </Text>
+                  <Pressable onPress={fetchBackendCalculatedFees} style={styles.retryBtn}>
+                    <Text style={styles.retryBtnText}>Retry</Text>
+                  </Pressable>
+                </View>
+              )}
 
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.miniLabel,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Fee Code
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.inputSm,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                              color: isDark ? colors.neutral[100] : colors.neutral[900],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                            },
-                          ]}
-                          value={item.itemCode}
-                          onChangeText={(v) => handleUpdateItem(item.id, 'itemCode', v)}
-                          placeholder="Code"
-                        />
-                      </View>
-
-                      <View style={{ flex: 0.8 }}>
-                        <Text
-                          style={[
-                            styles.miniLabel,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Units
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.inputSm,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                              color: isDark ? colors.neutral[100] : colors.neutral[900],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                              textAlign: 'center',
-                            },
-                          ]}
-                          keyboardType="numeric"
-                          value={String(item.noOfUnits)}
-                          onChangeText={(v) =>
-                            handleUpdateItem(item.id, 'noOfUnits', Number(v) || 1)
-                          }
-                        />
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.miniLabel,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Rate (PHP)
-                        </Text>
-                        <TextInput
-                          style={[
-                            styles.inputSm,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                              color: isDark ? colors.neutral[100] : colors.neutral[900],
-                              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                              textAlign: 'right',
-                            },
-                          ]}
-                          keyboardType="numeric"
-                          value={String(item.feeRate)}
-                          onChangeText={(v) =>
-                            handleUpdateItem(item.id, 'feeRate', Number(v) || 0)
-                          }
-                        />
-                      </View>
-
-                      <View style={{ flex: 1 }}>
-                        <Text
-                          style={[
-                            styles.miniLabel,
-                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                          ]}
-                        >
-                          Amount
-                        </Text>
-                        <View
-                          style={[
-                            styles.amountBox,
-                            {
-                              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
-                            },
-                          ]}
-                        >
+              {/* ── Mode 1: Automated Statutory Table ── */}
+              {!isManualMode && !isCalculating && calculatedFees && (
+                <View style={styles.itemsList}>
+                  {calculatedFees.lineItems.map((item, idx) => (
+                    <View
+                      key={`calc-${idx}-${item.itemCode}`}
+                      style={[
+                        styles.itemRowCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                          borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                        },
+                      ]}
+                    >
+                      <View style={styles.itemHeader}>
+                        <View style={styles.itemHeaderLeft}>
                           <Text
                             style={[
-                              styles.amountText,
+                              styles.itemBadge,
+                              {
+                                backgroundColor: item.isTax
+                                  ? (isDark ? '#065F46' : '#D1FAE5')
+                                  : item.isSurcharge
+                                  ? (isDark ? '#7F1D1D' : '#FEE2E2')
+                                  : (isDark ? colors.neutral[700] : colors.neutral[100]),
+                                color: item.isTax
+                                  ? (isDark ? '#34D399' : '#065F46')
+                                  : item.isSurcharge
+                                  ? (isDark ? '#F87171' : '#991B1B')
+                                  : (isDark ? colors.neutral[200] : colors.neutral[700]),
+                              },
+                            ]}
+                          >
+                            {item.isTax ? 'DST TAX' : item.isSurcharge ? 'PENALTY' : item.itemCode}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.itemParticularTitle,
                               { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                             ]}
                           >
-                            PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            {item.particular}
                           </Text>
+                        </View>
+                        <Text
+                          style={[
+                            styles.itemAmountBadge,
+                            { color: isDark ? colors.brand[400] : colors.brand[700] },
+                          ]}
+                        >
+                          PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                        </Text>
+                      </View>
+
+                      {item.description && (
+                        <Text
+                          style={[
+                            styles.itemDescText,
+                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                          ]}
+                        >
+                          {item.description}
+                        </Text>
+                      )}
+
+                      <View style={styles.itemMetaRow}>
+                        <Text
+                          style={[
+                            styles.itemMetaText,
+                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                          ]}
+                        >
+                          Units: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>{item.noOfUnits}</Text>
+                        </Text>
+                        <Text
+                          style={[
+                            styles.itemMetaText,
+                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                          ]}
+                        >
+                          Validity: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>{item.validityYears} yr(s)</Text>
+                        </Text>
+                        <Text
+                          style={[
+                            styles.itemMetaText,
+                            { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                          ]}
+                        >
+                          Rate: <Text style={{ fontWeight: TYPOGRAPHY.weights.semibold }}>PHP {item.feeRate.toFixed(2)}</Text>
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </View>
+              )}
+
+              {/* ── Mode 2: Manual Custom Line Items ── */}
+              {isManualMode && (
+                <View style={styles.itemsList}>
+                  <View style={styles.manualToolbar}>
+                    <Text
+                      style={[
+                        styles.manualToolbarDesc,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[600] },
+                      ]}
+                    >
+                      Add or modify individual fee lines:
+                    </Text>
+                    <Pressable
+                      style={[
+                        styles.addItemBtn,
+                        { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
+                      ]}
+                      onPress={handleAddItem}
+                    >
+                      <Lucide
+                        name="plus"
+                        size={14}
+                        color={isDark ? colors.brand[300] : colors.brand[700]}
+                      />
+                      <Text
+                        style={[
+                          styles.addItemBtnText,
+                          { color: isDark ? colors.brand[300] : colors.brand[700] },
+                        ]}
+                      >
+                        Add Item
+                      </Text>
+                    </Pressable>
+                  </View>
+
+                  {customLineItems.map((item, idx) => (
+                    <View
+                      key={item.id}
+                      style={[
+                        styles.itemRowCard,
+                        {
+                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                          borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                        },
+                      ]}
+                    >
+                      <View style={styles.itemHeader}>
+                        <Text
+                          style={[
+                            styles.itemBadge,
+                            {
+                              backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                              color: isDark ? colors.neutral[200] : colors.neutral[700],
+                            },
+                          ]}
+                        >
+                          Item #{idx + 1}
+                        </Text>
+                        {customLineItems.length > 1 && (
+                          <Pressable onPress={() => handleRemoveItem(item.id)} hitSlop={6}>
+                            <Lucide name="trash-2" size={16} color={COLORS.semantic.error} />
+                          </Pressable>
+                        )}
+                      </View>
+
+                      <View style={styles.itemGrid}>
+                        <View style={{ flex: 2 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Particulars
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.inputSm,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                              },
+                            ]}
+                            value={item.particular}
+                            onChangeText={(v) => handleUpdateItem(item.id, 'particular', v)}
+                            placeholder="e.g. Radio Station Permit Fee"
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Fee Code
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.inputSm,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                              },
+                            ]}
+                            value={item.itemCode}
+                            onChangeText={(v) => handleUpdateItem(item.id, 'itemCode', v)}
+                            placeholder="Code"
+                          />
+                        </View>
+
+                        <View style={{ flex: 0.8 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Units
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.inputSm,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                textAlign: 'center',
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={String(item.noOfUnits)}
+                            onChangeText={(v) =>
+                              handleUpdateItem(item.id, 'noOfUnits', Number(v) || 1)
+                            }
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Rate (PHP)
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.inputSm,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                textAlign: 'right',
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={String(item.feeRate)}
+                            onChangeText={(v) =>
+                              handleUpdateItem(item.id, 'feeRate', Number(v) || 0)
+                            }
+                          />
+                        </View>
+
+                        <View style={{ flex: 1 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Amount
+                          </Text>
+                          <View
+                            style={[
+                              styles.amountBox,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.amountText,
+                                { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                              ]}
+                            >
+                              PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            </Text>
+                          </View>
                         </View>
                       </View>
                     </View>
-                  </View>
-                ))}
-              </View>
+                  ))}
+                </View>
+              )}
 
-              {/* Total Summary */}
+              {/* ── Total Assessment Summary Card ── */}
               <View
                 style={[
                   styles.totalSummaryCard,
@@ -610,7 +941,9 @@ export function GenerateSoaModal({
                       { color: isDark ? colors.neutral[300] : colors.neutral[600] },
                     ]}
                   >
-                    {lineItems.length} fee item(s) assessed
+                    {isManualMode
+                      ? `${customLineItems.length} custom line item(s)`
+                      : `${calculatedFees?.lineItems.length ?? 0} statutory fee item(s) assessed`}
                   </Text>
                 </View>
                 <Text
@@ -619,13 +952,13 @@ export function GenerateSoaModal({
                     { color: isDark ? colors.brand[400] : colors.brand[700] },
                   ]}
                 >
-                  PHP {totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  PHP {displayedTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>
           </ScrollView>
 
-          {/* Footer Actions */}
+          {/* ── Modal Footer Actions ── */}
           <View
             style={[
               styles.modalFooter,
@@ -641,7 +974,7 @@ export function GenerateSoaModal({
                 },
               ]}
               onPress={onClose}
-              disabled={loading}
+              disabled={submitting}
             >
               <Text
                 style={[
@@ -657,17 +990,19 @@ export function GenerateSoaModal({
               style={[
                 styles.submitBtn,
                 { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
-                loading && styles.btnDisabled,
+                submitting && styles.btnDisabled,
               ]}
               onPress={handleGenerate}
-              disabled={loading}
+              disabled={submitting}
             >
-              {loading ? (
+              {submitting ? (
                 <ActivityIndicator size="small" color={COLORS.neutral.white} />
               ) : (
                 <>
-                  <Lucide name="check" size={16} color={COLORS.neutral.white} />
-                  <Text style={styles.submitBtnText}>Generate Statement of Account</Text>
+                  <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
+                  <Text style={styles.submitBtnText}>
+                    {isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account'}
+                  </Text>
                 </>
               )}
             </Pressable>
@@ -688,7 +1023,7 @@ const styles = StyleSheet.create({
   },
   modalContent: {
     width: '100%',
-    maxWidth: 780,
+    maxWidth: 820,
     maxHeight: '90%',
     borderRadius: RADIUS.dialog,
     borderWidth: 1,
@@ -736,6 +1071,64 @@ const styles = StyleSheet.create({
     padding: SPACING[20],
     gap: SPACING[16],
   },
+  computationBanner: {
+    padding: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    gap: SPACING[8],
+  },
+  bannerHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  bannerIconRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  bannerTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+  },
+  formulaBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: RADIUS.xs,
+  },
+  formulaBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  bannerDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    lineHeight: 17,
+  },
+  metaTagsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 2,
+  },
+  tagPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+  },
+  tagText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+  },
   sectionCard: {
     padding: SPACING[16],
     borderRadius: RADIUS.card,
@@ -746,6 +1139,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   sectionTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -753,18 +1148,60 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.bold,
     letterSpacing: 0.8,
   },
-  addItemBtn: {
+  sectionSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  modeToggleBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 5,
     paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingVertical: 4,
     borderRadius: RADIUS.sm,
+    borderWidth: 1,
   },
-  addItemBtnText: {
+  modeToggleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  calculatingBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingVertical: SPACING[12],
+    justifyContent: 'center',
+  },
+  calculatingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    padding: SPACING[10],
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  errorBannerText: {
+    flex: 1,
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  retryBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    backgroundColor: COLORS.semantic.error,
+    borderRadius: RADIUS.xs,
+  },
+  retryBtnText: {
+    color: COLORS.neutral.white,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   formRow: {
     flexDirection: 'row',
@@ -791,18 +1228,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
   itemsList: {
-    gap: SPACING[10],
+    gap: SPACING[8],
   },
   itemRowCard: {
-    padding: SPACING[12],
+    padding: SPACING[10],
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-    gap: 8,
+    gap: 6,
   },
   itemHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  itemHeaderLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
   },
   itemBadge: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -811,6 +1254,58 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.xs,
+  },
+  itemParticularTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    flex: 1,
+  },
+  itemAmountBadge: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  itemDescText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    marginLeft: SPACING[4],
+  },
+  itemMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[12],
+    marginTop: 2,
+    paddingTop: 4,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: 'rgba(150, 150, 150, 0.2)',
+  },
+  itemMetaText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+  },
+  manualToolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  manualToolbarDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+  },
+  addItemBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.sm,
+  },
+  addItemBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   itemGrid: {
     flexDirection: 'row',

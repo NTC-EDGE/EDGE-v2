@@ -2549,8 +2549,164 @@ function SoaPaymentTab({
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
   const [dueDraft, setDueDraft] = useState(app.dueDate);
 
+  const hasSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
+  const hasPayment = app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0;
   const excess = app.payment.amountReceived - app.totalAmountDue;
   const amountWords = amountToWords(app.totalAmountDue);
+
+  if (!hasSoa) {
+    return (
+      <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+        <View
+          style={[
+            styles.billingContainer,
+            {
+              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+              padding: SPACING[20],
+              alignItems: 'center',
+              gap: SPACING[12],
+            },
+          ]}
+        >
+          <View
+            style={{
+              width: 52,
+              height: 52,
+              borderRadius: 26,
+              backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Lucide
+              name="file-plus"
+              size={26}
+              color={isDark ? colors.brand[400] : colors.brand[600]}
+            />
+          </View>
+
+          <Text
+            style={[
+              styles.billingTitle,
+              {
+                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                fontSize: 17,
+                textAlign: 'center',
+              },
+            ]}
+          >
+            No Statement of Account (SOA) Generated Yet
+          </Text>
+
+          <Text
+            style={[
+              styles.billingSubtitle,
+              {
+                color: isDark ? colors.neutral[400] : colors.neutral[500],
+                textAlign: 'center',
+                maxWidth: 520,
+                lineHeight: 18,
+              },
+            ]}
+          >
+            A Statement of Account has not been issued for this application.
+            Generate the SOA to compute statutory regulatory fees according to NTC fee schedules with zero mock data.
+          </Text>
+
+          <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: RADIUS.xs,
+                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                borderWidth: 1,
+                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              }}
+            >
+              <Text style={{ fontSize: 11, color: isDark ? colors.neutral[300] : colors.neutral[600], fontFamily: TYPOGRAPHY.fonts.primary }}>
+                Service: <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>{app.serviceName || app.category}</Text>
+              </Text>
+            </View>
+
+            <View
+              style={{
+                paddingHorizontal: 10,
+                paddingVertical: 5,
+                borderRadius: RADIUS.xs,
+                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                borderWidth: 1,
+                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              }}
+            >
+              <Text style={{ fontSize: 11, color: isDark ? colors.neutral[300] : colors.neutral[600], fontFamily: TYPOGRAPHY.fonts.primary }}>
+                Applicants: <Text style={{ fontWeight: TYPOGRAPHY.weights.bold }}>{app.applicantsList?.length || 1} unit(s)</Text>
+              </Text>
+            </View>
+          </View>
+
+          {isEditable && (
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? colors.brand[500] : colors.brand[700],
+                  borderColor: isDark ? colors.brand[400] : colors.brand[800],
+                  paddingHorizontal: 18,
+                  paddingVertical: 10,
+                  marginTop: SPACING[8],
+                },
+              ]}
+              onPress={onOpenGenerateSoa}
+            >
+              <Lucide name="file-plus" size={16} color={COLORS.neutral.white} />
+              <Text style={[styles.soaActionBtnText, { color: COLORS.neutral.white, fontSize: 13, fontWeight: TYPOGRAPHY.weights.bold }]}>
+                Generate Statement of Account
+              </Text>
+            </Pressable>
+          )}
+        </View>
+
+        {/* Correction Audit Trail */}
+        <Pressable
+          style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], marginTop: SPACING[16] }]}
+          onPress={() => setAuditOpen((p) => !p)}
+        >
+          <View style={styles.auditHeaderLeft}>
+            <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
+            <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+              CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
+            </Text>
+          </View>
+          <Lucide
+            name={auditOpen ? "chevron-up" : "chevron-down"}
+            size={16}
+            color={isDark ? colors.neutral[500] : colors.neutral[500]}
+          />
+        </Pressable>
+
+        {auditOpen && (
+          <View style={styles.auditList}>
+            {app.correctionAuditTrail.length === 0 ? (
+              <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
+            ) : (
+              app.correctionAuditTrail.map((entry) => (
+                <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                  <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
+                  <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
+                    By {entry.staff} • {entry.timestamp}
+                  </Text>
+                </View>
+              ))
+            )}
+          </View>
+        )}
+
+        <View style={{ height: 80 }} />
+      </ScrollView>
+    );
+  }
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -2578,7 +2734,7 @@ function SoaPaymentTab({
             >
               <Lucide name="file-plus" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
               <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
-                {app.soaItems.length > 0 ? "Edit SOA" : "Generate SOA"}
+                Edit SOA
               </Text>
             </Pressable>
 
@@ -2737,86 +2893,127 @@ function SoaPaymentTab({
       <View style={[styles.paymentSection, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
         <View style={styles.paymentSectionHeader}>
           <View style={[styles.paymentSectionIcon, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-            <Lucide name="circle" size={20} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+            <Lucide name="credit-card" size={20} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
           </View>
           <Text style={[styles.paymentSectionTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Payment Summary</Text>
         </View>
 
-        <View style={styles.paymentRow}>
-          <View style={[styles.amountReceivedCard, { backgroundColor: isDark ? colors.brand[500] : colors.brand[800] }]}>
-            <Text style={styles.amountReceivedLabel}>AMOUNT RECEIVED</Text>
-            <Text style={[styles.amountReceivedValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
-              {app.payment.amountReceived}
-            </Text>
-            {excess > 0 && (
-              <View style={styles.excessBadge}>
-                <Text style={[styles.excessBadgeText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>Excess: ₱{excess}</Text>
+        {hasPayment ? (
+          <View style={styles.paymentRow}>
+            <View style={[styles.amountReceivedCard, { backgroundColor: isDark ? colors.brand[500] : colors.brand[800] }]}>
+              <Text style={styles.amountReceivedLabel}>AMOUNT RECEIVED</Text>
+              <Text style={[styles.amountReceivedValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+                PHP {app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+              </Text>
+              {excess > 0 && (
+                <View style={styles.excessBadge}>
+                  <Text style={[styles.excessBadgeText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+                    Excess: PHP {excess.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              )}
+              <View style={styles.paymentMethodBlock}>
+                <Text style={styles.paymentMethodLabel}>PAYMENT METHOD</Text>
+                <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+                  {app.payment.method.toUpperCase()}
+                </Text>
               </View>
-            )}
-            <View style={styles.paymentMethodBlock}>
-              <Text style={styles.paymentMethodLabel}>PAYMENT METHOD</Text>
-              <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
-                {app.payment.method}
+            </View>
+
+            <View style={styles.orColumn}>
+              <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>OFFICIAL RECEIPT (OR) NUMBER</Text>
+              {editingOrNumber ? (
+                <View style={styles.inlineEditRow}>
+                  <TextInput
+                    style={[styles.inlineEditInput, { flex: 1, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                    value={orDraft}
+                    onChangeText={setOrDraft}
+                    autoFocus
+                    placeholder="Enter OR Number"
+                    placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                  />
+                  <Pressable
+                    onPress={() => {
+                      setEditingOrNumber(false);
+                      updateApplication(app.id, {
+                        payment: { ...app.payment, orNumber: orDraft },
+                      });
+                    }}
+                  >
+                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Save</Text>
+                  </Pressable>
+                </View>
+              ) : (
+                <View style={styles.orValueRow}>
+                  <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
+                    {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
+                  </Text>
+                  {isEditable && (
+                    <Pressable
+                      style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600] }]}
+                      onPress={() => {
+                        setOrDraft(app.payment.orNumber);
+                        setEditingOrNumber(true);
+                      }}
+                    >
+                      <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
+                      <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>EDIT</Text>
+                    </Pressable>
+                  )}
+                </View>
+              )}
+
+              {app.payment.method === "check" && (
+                <View style={{ marginTop: SPACING[16] }}>
+                  <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>CHECK DETAILS</Text>
+                  <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
+                    No: {app.payment.checkNumber || "—"}
+                  </Text>
+                  <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
+                    Bank: {app.payment.checkName || "—"}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        ) : (
+          <View
+            style={{
+              padding: SPACING[16],
+              borderRadius: RADIUS.card,
+              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+              borderWidth: 1,
+              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            }}
+          >
+            <Lucide name="clock" size={20} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 13,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: isDark ? colors.neutral[200] : colors.neutral[800],
+                }}
+              >
+                Payment Settlement Pending
+              </Text>
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 12,
+                  color: isDark ? colors.neutral[400] : colors.neutral[500],
+                  marginTop: 2,
+                }}
+              >
+                Awaiting payment settlement from applicant and Cashier Official Receipt (OR) verification.
               </Text>
             </View>
           </View>
-
-          <View style={styles.orColumn}>
-            <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>OFFICIAL RECEIPT (OR) NUMBER</Text>
-            {editingOrNumber ? (
-              <View style={styles.inlineEditRow}>
-                <TextInput
-                  style={[styles.inlineEditInput, { flex: 1, color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
-                  value={orDraft}
-                  onChangeText={setOrDraft}
-                  autoFocus
-                  placeholder="Enter OR Number"
-                  placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
-                />
-                <Pressable
-                  onPress={() => {
-                    setEditingOrNumber(false);
-                    updateApplication(app.id, {
-                      payment: { ...app.payment, orNumber: orDraft },
-                    });
-                  }}
-                >
-                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Save</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.orValueRow}>
-                <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                  {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
-                </Text>
-                {isEditable && (
-                  <Pressable
-                    style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600] }]}
-                    onPress={() => {
-                      setOrDraft(app.payment.orNumber);
-                      setEditingOrNumber(true);
-                    }}
-                  >
-                    <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>EDIT</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
-
-            {app.payment.method === "check" && (
-              <View style={{ marginTop: SPACING[16] }}>
-                <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>CHECK DETAILS</Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                  No: {app.payment.checkNumber || "—"}
-                </Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                  Bank: {app.payment.checkName || "—"}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
+        )}
       </View>
 
       <Pressable
