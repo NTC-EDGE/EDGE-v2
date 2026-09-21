@@ -99,7 +99,7 @@ export function useApplicationDetailsData(initialApp: Application) {
                     }
                   }
                 } catch (rErr) {
-                  console.warn('Could not fetch live applicant requirements:', rErr);
+                  console.warn(`[useApplicationDetailsData] Could not fetch live requirements for applicant "${aid}" (appId: "${initialApp.id}"):`, rErr);
                 }
               }
 
@@ -114,7 +114,7 @@ export function useApplicationDetailsData(initialApp: Application) {
             }
           }
         } catch (err) {
-          console.warn('Could not fetch full application details:', err);
+          console.warn(`[useApplicationDetailsData] Could not fetch full application details (appId: "${initialApp.id}"):`, err);
         }
       };
       loadFullDetails();
