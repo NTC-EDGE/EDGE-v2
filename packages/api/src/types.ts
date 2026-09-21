@@ -999,6 +999,8 @@ export interface ApplicationDto {
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
+  serviceCategoryName?: string;
+  serviceCategoryCode?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
   filingUser?: FilingUserDto;

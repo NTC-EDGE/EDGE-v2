@@ -49,6 +49,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceId = primaryService?.Id,
             ServiceName = primaryService?.Name,
             ServiceCategoryId = primaryService?.ServiceCategoryId,
+            ServiceCategory = primaryService?.ServiceCategory?.Name,
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
             ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
@@ -59,7 +60,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Id = aa.ApplicantId,
                     ApplicantId = aa.ApplicantId,
                     ServiceId = aa.Applicant?.ServiceId,
-                    ServiceVariantId = aa.Applicant?.ServiceVariantId
+                    ServiceName = aa.Applicant?.Service?.Name,
+                    ServiceCategory = aa.Applicant?.Service?.ServiceCategory?.Name,
+                    ServiceVariantId = aa.Applicant?.ServiceVariantId,
+                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString()
                 }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
             {

@@ -7,7 +7,11 @@ export const RadioCertPreview: PreviewExtension = {
     return (
       (t.includes('radio operator') && t.includes('certificate')) ||
       t.includes('roc') ||
-      (c.includes('certificate') && t.includes('radio'))
+      t.includes('rroc') ||
+      t.includes('goc') ||
+      t.includes('operator certificate') ||
+      (c.includes('certificate') && (t.includes('radio') || t.includes('operator'))) ||
+      c === 'certificates'
     );
   },
 };

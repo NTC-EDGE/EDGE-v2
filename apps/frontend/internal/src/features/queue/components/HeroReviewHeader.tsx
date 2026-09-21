@@ -11,6 +11,7 @@ export interface AppliedServiceDetail {
 
 export interface HeroReviewHeaderProps {
   serviceName?: string;
+  category?: string;
   isExamService?: boolean;
   variantLabel?: string;
   scheduleSummaryText?: string | null;
@@ -22,6 +23,7 @@ export interface HeroReviewHeaderProps {
 
 export function HeroReviewHeader({
   serviceName,
+  category,
   isExamService = false,
   variantLabel,
   scheduleSummaryText,
@@ -42,17 +44,18 @@ export function HeroReviewHeader({
         {
           name: serviceName,
           variant: variantLabel && variantLabel !== 'Standard' ? variantLabel : undefined,
-          category: isExamService ? 'Exams' : 'Permits',
+          category: category || (isExamService ? 'Exams' : undefined),
         },
       ];
     }
     return [
       {
-        name: 'Permit / Service Application',
+        name: 'Service Application',
         variant: variantLabel && variantLabel !== 'Standard' ? variantLabel : undefined,
+        category: category,
       },
     ];
-  }, [services, serviceName, variantLabel, isExamService]);
+  }, [services, serviceName, variantLabel, isExamService, category]);
 
   const isBulk = mode.toLowerCase().includes('bulk') || (totalApplicants !== undefined && totalApplicants > 1);
   const displayModeText = isBulk
