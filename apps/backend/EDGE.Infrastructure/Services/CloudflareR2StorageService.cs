@@ -38,7 +38,8 @@ public class CloudflareR2StorageService : IStorageService
         var s3Config = new AmazonS3Config
         {
             ServiceURL = _options.ServiceUrl,
-            ForcePathStyle = true
+            ForcePathStyle = true,
+            AuthenticationRegion = "auto"
         };
 
         var credentials = new BasicAWSCredentials(_options.AccessKeyId, _options.SecretAccessKey);
@@ -60,7 +61,8 @@ public class CloudflareR2StorageService : IStorageService
                 Key = storageKey,
                 InputStream = contentStream,
                 ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/octet-stream" : contentType,
-                DisablePayloadSigning = true
+                DisablePayloadSigning = true,
+                DisableDefaultChecksumValidation = true
             };
 
             await _s3Client.PutObjectAsync(putRequest, cancellationToken);
