@@ -55,15 +55,27 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             issuedToType = targetApplicant?.ApplicantType == ApplicantType.Company ? IssuedToType.Company : IssuedToType.Individual;
         }
 
+        var applicantFullName = targetApplicant?.ApplicantDetail != null
+            ? $"{targetApplicant.ApplicantDetail.FirstName} {targetApplicant.ApplicantDetail.LastName}".Trim()
+            : null;
+
+        var userFullName = app.User != null
+            ? $"{app.User.FirstName} {app.User.LastName}".Trim()
+            : null;
+
         var resolvedIssuedToName = !string.IsNullOrWhiteSpace(request.IssuedToName)
             ? request.IssuedToName.Trim()
-            : (targetApplicant?.ApplicantDetail != null
-                ? $"{targetApplicant.ApplicantDetail.FirstName} {targetApplicant.ApplicantDetail.LastName}".Trim()
-                : (targetApplicant?.CompanyDetail?.Name ?? app.ApplicationNumber ?? "Applicant"));
+            : (!string.IsNullOrWhiteSpace(applicantFullName)
+                ? applicantFullName
+                : (!string.IsNullOrWhiteSpace(targetApplicant?.CompanyDetail?.Name)
+                    ? targetApplicant.CompanyDetail.Name.Trim()
+                    : (!string.IsNullOrWhiteSpace(userFullName)
+                        ? userFullName
+                        : (app.ReferenceNumber ?? app.ApplicationNumber ?? "Applicant"))));
 
         if (string.IsNullOrWhiteSpace(resolvedIssuedToName))
         {
-            resolvedIssuedToName = targetApplicant?.CompanyDetail?.Name ?? app.ApplicationNumber ?? "Applicant";
+            resolvedIssuedToName = "Applicant";
         }
 
         var resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(request.IssuedToAddress)

@@ -148,7 +148,10 @@ export function BulkApplicantDocList({
               {hasFile ? (
                 <TouchableOpacity
                   onPress={async () => {
-                    const tenantId = app?.tenantId || 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+                    const tenantId =
+                      app?.tenantId ||
+                      (typeof process !== 'undefined' ? (process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID) : undefined) ||
+                      'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
                     const rawFileUrl = doc.url || (doc.storedFileId ? `/api/v2/tenants/${tenantId}/storage/files/${doc.storedFileId}` : undefined);
                     if (rawFileUrl) {
                       try {

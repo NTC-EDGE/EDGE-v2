@@ -113,6 +113,78 @@ describe('SOA and OP Report Generator', () => {
     note: 'Priority commercial application.',
   };
 
+  const bareApplication: ApplicationData = {
+    id: 'app-bare-9999',
+    tenantId: 'tenant-1',
+    referenceNumber: 'REF-BARE-999',
+    applicationNumber: '',
+    applicant: '',
+    applicantType: 'Individual',
+    permitTitle: '',
+    category: 'Permits',
+    status: 'Submitted',
+    queueTab: 'pending',
+    applicationType: 'SINGLE',
+    mode: '',
+    serviceName: '',
+    serviceCategory: '',
+    office: '',
+    assignedTo: '',
+    createdAt: '2026-09-21T08:00:00Z',
+    dateLabel: 'Sep 21, 2026',
+    isBeingViewed: false,
+    isUrgent: false,
+    isPinned: false,
+    isArchived: false,
+    address: {
+      streetAddress: '',
+      address: '',
+      barangay: '',
+      city: '',
+      province: '',
+      zipCode: '',
+    },
+    contactDetails: {
+      contactNumber: '',
+      email: '',
+    },
+    basicInfo: {
+      lastName: '',
+      firstName: '',
+      middleName: '',
+      extensionName: '',
+      dob: '',
+      placeOfBirth: '',
+      sex: 'Male',
+      weight: 0,
+      height: 0,
+      nationality: 'Filipino',
+      employmentStatus: '',
+      occupation: '',
+    },
+    applicationDetails: {
+      noOfYears: 0,
+      permitCategory: '',
+      formType: '',
+      submittedAt: '',
+    },
+    requirements: [],
+    forms: [],
+    soaItems: [],
+    totalAmountDue: 0,
+    dueDate: '',
+    payment: {
+      amountReceived: 0,
+      method: 'cash',
+      orNumber: '',
+      checkNumber: '',
+      checkName: '',
+    },
+    correctionAuditTrail: [],
+    history: [],
+    note: '',
+  };
+
   describe('generateSoaPrintableHtml', () => {
     it('should generate official Statement of Account HTML with correct headers and particulars', () => {
       const html = generateSoaPrintableHtml(mockApplication, 'NTC NCR Office', 'Maria Santos', 'Engr. Roberto Cruz');
@@ -137,6 +209,15 @@ describe('SOA and OP Report Generator', () => {
       const html = generateSoaPrintableHtml(emptySoaApp);
       expect(html).toContain('STATEMENT OF ACCOUNT (SOA)');
       expect(html).toContain('PHP 600.00');
+      expect(html).not.toContain('undefined');
+    });
+
+    it('should not contain undefined strings for bare applications lacking address and contact fields', () => {
+      const html = generateSoaPrintableHtml(bareApplication);
+      expect(html).toContain('STATEMENT OF ACCOUNT (SOA)');
+      expect(html).toContain('SOA-REF-BARE-999');
+      expect(html).toContain('ZERO PESOS ONLY');
+      expect(html).not.toContain('undefined');
     });
   });
 
@@ -150,6 +231,13 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('OR #OR-998822-2026');
       expect(html).toContain('Teresa Gomez');
     });
+
+    it('should not contain undefined strings for bare applications in OP generation', () => {
+      const html = generateOpPrintableHtml(bareApplication);
+      expect(html).toContain('ORDER OF PAYMENT (OP)');
+      expect(html).toContain('Pending Cashier Collection');
+      expect(html).not.toContain('undefined');
+    });
   });
 
   describe('generateFullApplicationSummaryHtml', () => {
@@ -161,6 +249,14 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('Juan Dela Cruz');
       expect(html).toContain('Application Submitted (Single)');
       expect(html).toContain('Status: Evaluating — Assigned to NCR Evaluator');
+    });
+
+    it('should handle bare application without throwing or printing undefined', () => {
+      const html = generateFullApplicationSummaryHtml(bareApplication);
+      expect(html).toContain('Application Dossier &amp; Evaluation Summary');
+      expect(html).toContain('No audit history recorded.');
+      expect(html).toContain('Address:</strong> N/A');
+      expect(html).not.toContain('undefined');
     });
   });
 });

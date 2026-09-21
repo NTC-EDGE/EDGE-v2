@@ -40,7 +40,11 @@ public static class SoaEndpoints
     }
 
     [HasPermission(Permissions.CreateBilling)]
-    public static async Task<IResult> CreateSoa(Guid id, CreateSoaRequest? request, IMediator mediator)
+    public static async Task<IResult> CreateSoa(
+        Guid id,
+        CreateSoaRequest? request,
+        FluentValidation.IValidator<CreateSoaCommand> validator,
+        IMediator mediator)
     {
         var command = new CreateSoaCommand(
             id,
@@ -55,6 +59,12 @@ public static class SoaEndpoints
             request?.ExpirationDate,
             request?.AdditionalServicesCount,
             request?.NoOfCopies);
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
 
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);

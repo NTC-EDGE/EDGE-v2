@@ -1,21 +1,42 @@
 import { ApplicationData } from '../../../types/application';
 
-function formatCurrency(amount: number): string {
-  return `PHP ${amount.toLocaleString('en-US', {
+function safeString(val: unknown, fallback = 'N/A'): string {
+  if (val === null || val === undefined) return fallback;
+  const str = String(val).trim();
+  return str.length > 0 ? str : fallback;
+}
+
+function formatAddress(app: ApplicationData): string {
+  if (!app.address) return 'N/A';
+  const parts = [
+    app.address.streetAddress || app.address.address,
+    app.address.barangay,
+    app.address.city,
+    app.address.province,
+    app.address.region,
+    app.address.zipCode,
+  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== ''));
+  return parts.length > 0 ? parts.join(', ') : 'N/A';
+}
+
+function formatCurrency(amount?: number | null): string {
+  const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+  return `PHP ${safeAmount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 }
 
-function numberToWords(num: number): string {
+function numberToWords(num?: number | null): string {
+  const safeNum = typeof num === 'number' && !isNaN(num) && num >= 0 ? num : 0;
   const a = [
     '', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ',
     'eleven ', 'twelve ', 'thirteen ', 'fourteen ', 'fifteen ', 'sixteen ', 'seventeen ', 'eighteen ', 'nineteen ',
   ];
   const b = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
 
-  const n = Math.floor(num);
-  if (n === 0) return 'zero pesos only';
+  const n = Math.floor(safeNum);
+  if (n === 0) return 'ZERO PESOS ONLY';
 
   function inWords(val: number): string {
     if (val < 20) return a[val] ?? '';
@@ -39,7 +60,7 @@ function numberToWords(num: number): string {
     return `${inWords(mil)}million ${rem > 0 ? inWords(rem) : ''}`;
   }
 
-  const cents = Math.round((num - n) * 100);
+  const cents = Math.round((safeNum - n) * 100);
   const centsText = cents > 0 ? ` and ${cents}/100` : '';
   return `${inWords(n).trim()} pesos${centsText} only`.toUpperCase();
 }
@@ -56,34 +77,52 @@ export function generateSoaPrintableHtml(
     year: 'numeric',
   });
 
-  const soaNumber = `SOA-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
+  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
+  const soaNumber = `SOA-${refNum}`;
   const totalWords = numberToWords(app.totalAmountDue);
-  const officeName = app.assignedTo || app.office || tenantName || 'National Telecommunications Commission';
+  const officeName = safeString(app.assignedTo || app.office || tenantName, 'National Telecommunications Commission');
+  const applicantName = safeString(app.applicant, 'Applicant');
+  const applicantType = safeString(app.applicantType, 'Individual');
+  const contactNum = safeString(app.contactDetails?.contactNumber, 'N/A');
+  const emailAddr = safeString(app.contactDetails?.email, 'N/A');
+  const formattedAddr = formatAddress(app);
+  const serviceName = safeString(app.serviceName, 'Application Services');
+  const categoryName = safeString(app.category, 'General');
+  const filingMode = safeString(app.mode, 'Single');
+  const dueDateStr = safeString(app.dueDate, '30 days from issuance');
 
+  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
   const lineItemsHtml =
-    app.soaItems.length > 0
-      ? app.soaItems
-          .map(
-            (item, index) => `
+    soaItemsList.length > 0
+      ? soaItemsList
+          .map((item, index) => {
+            const itemCode = safeString(item.code, 'NTC-FEE');
+            const itemParticular = safeString(item.particular, 'Statutory Regulatory Fee');
+            const validityYears = typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 1;
+            const noOfUnits = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+            const fees = typeof item.fees === 'number' && !isNaN(item.fees) ? item.fees : 0;
+            const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : fees * noOfUnits;
+
+            return `
         <tr>
           <td style="border: 1px solid #cbd5e1; padding: 10px 8px; font-size: 11px; text-align: center;">${index + 1}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; font-family: monospace; color: #0284c7;">${item.code || 'NTC-FEE'}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; font-family: monospace; color: #0284c7;">${itemCode}</td>
           <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px;">
-            <div style="font-weight: 600; color: #0f172a;">${item.particular}</div>
-            <div style="font-size: 10px; color: #64748b;">Validity: ${item.validityYears} Year(s)</div>
+            <div style="font-weight: 600; color: #0f172a;">${itemParticular}</div>
+            <div style="font-size: 10px; color: #64748b;">Validity: ${validityYears} Year(s)</div>
           </td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${item.validityYears}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${item.noOfUnits}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right;">${formatCurrency(item.fees)}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right; font-weight: 700; color: #0f172a;">${formatCurrency(item.amount)}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${validityYears}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${noOfUnits}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right;">${formatCurrency(fees)}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right; font-weight: 700; color: #0f172a;">${formatCurrency(amount)}</td>
         </tr>
-      `
-          )
+      `;
+          })
           .join('')
       : `
         <tr>
           <td colspan="7" style="border: 1px solid #cbd5e1; padding: 18px; text-align: center; color: #64748b; font-style: italic;">
-            Standard statutory fees assessed for ${app.serviceName || 'Application Services'}. Total: ${formatCurrency(app.totalAmountDue)}
+            Standard statutory fees assessed for ${serviceName}. Total: ${formatCurrency(app.totalAmountDue)}
           </td>
         </tr>
       `;
@@ -178,21 +217,21 @@ export function generateSoaPrintableHtml(
       <td style="width: 50%; vertical-align: top; padding-right: 8px;">
         <div class="info-card">
           <div class="info-title">Billed To (Applicant / Payor)</div>
-          <div class="info-name">${app.applicant}</div>
-          <div class="info-sub"><strong>Type:</strong> ${app.applicantType} • <strong>Contact:</strong> ${app.contactDetails?.contactNumber || 'N/A'}</div>
-          <div class="info-sub"><strong>Email:</strong> ${app.contactDetails?.email || 'N/A'}</div>
-          <div class="info-sub"><strong>Address:</strong> ${app.address?.streetAddress || app.address?.address || app.address?.city || 'N/A'}</div>
+          <div class="info-name">${applicantName}</div>
+          <div class="info-sub"><strong>Type:</strong> ${applicantType} • <strong>Contact:</strong> ${contactNum}</div>
+          <div class="info-sub"><strong>Email:</strong> ${emailAddr}</div>
+          <div class="info-sub"><strong>Address:</strong> ${formattedAddr}</div>
         </div>
       </td>
       <td style="width: 50%; vertical-align: top; padding-left: 8px;">
         <div class="info-card">
           <div class="info-title">Application Reference</div>
-          <div class="info-name" style="font-family: monospace; color: #0284c7;">Ref #${app.referenceNumber}</div>
-          <div class="info-sub"><strong>Service:</strong> ${app.serviceName}</div>
-          <div class="info-sub"><strong>Category:</strong> ${app.category} • <strong>Mode:</strong> ${app.mode}</div>
+          <div class="info-name" style="font-family: monospace; color: #0284c7;">Ref #${refNum}</div>
+          <div class="info-sub"><strong>Service:</strong> ${serviceName}</div>
+          <div class="info-sub"><strong>Category:</strong> ${categoryName} • <strong>Mode:</strong> ${filingMode}</div>
           <div class="info-sub" style="margin-top: 4px;">
             <strong>Payment Due Date:</strong>
-            <span class="due-date-badge">${app.dueDate || '30 days from issuance'}</span>
+            <span class="due-date-badge">${dueDateStr}</span>
           </div>
         </div>
       </td>
@@ -237,11 +276,11 @@ export function generateSoaPrintableHtml(
 
   <div class="signatories">
     <div class="sig-block">
-      <div class="sig-name">${preparerName || 'Assessing Officer / Evaluator'}</div>
+      <div class="sig-name">${safeString(preparerName, 'Assessing Officer / Evaluator')}</div>
       <div class="sig-role">Assessed & Prepared By</div>
     </div>
     <div class="sig-block">
-      <div class="sig-name">${approverName || 'Chief, Enforcement & Operations Division'}</div>
+      <div class="sig-name">${safeString(approverName, 'Chief, Enforcement & Operations Division')}</div>
       <div class="sig-role">Noted & Certified Correct</div>
     </div>
   </div>
@@ -266,9 +305,42 @@ export function generateOpPrintableHtml(
     year: 'numeric',
   });
 
-  const opNumber = `OP-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
+  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
+  const opNumber = `OP-${refNum}`;
   const totalWords = numberToWords(app.totalAmountDue);
-  const officeName = app.assignedTo || app.office || tenantName || 'National Telecommunications Commission';
+  const officeName = safeString(app.assignedTo || app.office || tenantName, 'National Telecommunications Commission');
+  const applicantName = safeString(app.applicant, 'Applicant');
+  const serviceName = safeString(app.serviceName, 'Application Services');
+  const categoryName = safeString(app.category, 'General');
+  const filingMode = safeString(app.mode, 'Single');
+  const orNumber = app.payment?.orNumber;
+
+  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
+  const lineItemsHtml =
+    soaItemsList.length > 0
+      ? soaItemsList
+          .map((item, idx) => {
+            const itemParticular = safeString(item.particular, 'Regulatory Fee Assessment');
+            const itemCode = safeString(item.code, 'NTC-FEE');
+            const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
+            return `
+            <tr>
+              <td class="td-cell" style="text-align: center;">${idx + 1}</td>
+              <td class="td-cell">
+                <strong>${itemParticular}</strong> (${itemCode})
+              </td>
+              <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(amount)}</td>
+            </tr>
+          `;
+          })
+          .join('')
+      : `
+        <tr>
+          <td class="td-cell" style="text-align: center;">1</td>
+          <td class="td-cell"><strong>${serviceName} Processing & Regulatory Fees</strong></td>
+          <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(app.totalAmountDue)}</td>
+        </tr>
+      `;
 
   return `
 <!DOCTYPE html>
@@ -353,19 +425,19 @@ export function generateOpPrintableHtml(
   <div class="info-card">
     <div class="info-row">
       <span class="info-label">Payor / Applicant Name:</span>
-      <span class="info-val">${app.applicant}</span>
+      <span class="info-val">${applicantName}</span>
     </div>
     <div class="info-row">
       <span class="info-label">Application Reference:</span>
-      <span class="info-val" style="font-family: monospace; color: #059669;">Ref #${app.referenceNumber}</span>
+      <span class="info-val" style="font-family: monospace; color: #059669;">Ref #${refNum}</span>
     </div>
     <div class="info-row">
       <span class="info-label">Service & Category:</span>
-      <span class="info-val">${app.serviceName} (${app.category})</span>
+      <span class="info-val">${serviceName} (${categoryName})</span>
     </div>
     <div class="info-row">
       <span class="info-label">Filing Mode:</span>
-      <span class="info-val">${app.mode} Application</span>
+      <span class="info-val">${filingMode} Application</span>
     </div>
   </div>
 
@@ -378,29 +450,7 @@ export function generateOpPrintableHtml(
       </tr>
     </thead>
     <tbody>
-      ${
-        app.soaItems.length > 0
-          ? app.soaItems
-              .map(
-                (item, idx) => `
-            <tr>
-              <td class="td-cell" style="text-align: center;">${idx + 1}</td>
-              <td class="td-cell">
-                <strong>${item.particular}</strong> (${item.code || 'NTC-FEE'})
-              </td>
-              <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(item.amount)}</td>
-            </tr>
-          `
-              )
-              .join('')
-          : `
-            <tr>
-              <td class="td-cell" style="text-align: center;">1</td>
-              <td class="td-cell"><strong>${app.serviceName} Processing & Regulatory Fees</strong></td>
-              <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(app.totalAmountDue)}</td>
-            </tr>
-          `
-      }
+      ${lineItemsHtml}
       <tr style="background: #f8fafc;">
         <td colspan="2" class="td-cell" style="font-weight: 800; text-align: right; text-transform: uppercase;">Total Amount Payable:</td>
         <td class="td-cell" style="text-align: right; font-weight: 800; font-size: 13px; color: #059669;">${formatCurrency(app.totalAmountDue)}</td>
@@ -412,7 +462,7 @@ export function generateOpPrintableHtml(
     <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">AMOUNT IN WORDS:</div>
     <div style="font-size: 11px; font-weight: 600; color: #047857;">${totalWords}</div>
     <div style="margin-top: 8px; font-size: 10.5px; color: #065f46;">
-      <strong>Payment Status:</strong> ${app.payment.orNumber ? `Paid via OR #${app.payment.orNumber}` : 'Pending Cashier Collection'}
+      <strong>Payment Status:</strong> ${orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection'}
     </div>
   </div>
 
@@ -422,7 +472,7 @@ export function generateOpPrintableHtml(
       <div class="sig-role">Authorized Assessment Officer</div>
     </div>
     <div class="sig-block">
-      <div class="sig-name">${cashierName || 'Special Collecting Officer / Cashier'}</div>
+      <div class="sig-name">${safeString(cashierName, 'Special Collecting Officer / Cashier')}</div>
       <div class="sig-role">Collecting Cashier</div>
     </div>
   </div>
@@ -442,28 +492,69 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
     year: 'numeric',
   });
 
+  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
+  const appNum = safeString(app.applicationNumber, 'Pending');
+  const applicantName = safeString(app.applicant, 'Applicant');
+  const applicantType = safeString(app.applicantType, 'Individual');
+  const contactNum = safeString(app.contactDetails?.contactNumber, 'N/A');
+  const emailAddr = safeString(app.contactDetails?.email, 'N/A');
+  const formattedAddr = formatAddress(app);
+  const civilStatus = safeString(app.basicInfo?.civilStatus, 'N/A');
+  const nationality = safeString(app.basicInfo?.nationality, 'Filipino');
+  const serviceName = safeString(app.serviceName, 'NTC Service Application');
+  const categoryName = safeString(app.category, 'General');
+  const filingMode = safeString(app.mode, 'Single');
+  const appStatus = safeString(app.status, 'Submitted');
+  const assignedOffice = safeString(app.assignedTo || app.office || tenantName, 'Main Office');
+  const dueDateStr = safeString(app.dueDate, 'N/A');
+
+  const historyList = Array.isArray(app.history) ? app.history : [];
   const auditHistoryHtml =
-    app.history && app.history.length > 0
-      ? app.history
+    historyList.length > 0
+      ? historyList
           .map(
             (h, i) => `
         <tr>
           <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: center;">${i + 1}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; font-weight: 600;">${h.action}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${h.staff}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; color: #64748b;">${h.timestamp}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; font-weight: 600;">${safeString(h.action, 'Event')}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${safeString(h.staff, 'System')}</td>
+          <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; color: #64748b;">${safeString(h.timestamp, '')}</td>
         </tr>
       `
           )
           .join('')
       : `<tr><td colspan="4" style="padding: 12px; text-align: center; color: #64748b;">No audit history recorded.</td></tr>`;
 
+  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
+  const soaRowsHtml =
+    soaItemsList.length > 0
+      ? soaItemsList
+          .map((item) => {
+            const particular = safeString(item.particular, 'Fee Item');
+            const code = safeString(item.code, 'NTC-FEE');
+            const validityYears = typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 1;
+            const noOfUnits = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+            const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
+
+            return `
+              <tr>
+                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${particular}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${code}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: center;">${validityYears}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: center;">${noOfUnits}</td>
+                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: right; font-weight: 600;">${formatCurrency(amount)}</td>
+              </tr>
+            `;
+          })
+          .join('')
+      : `<tr><td colspan="5" style="padding: 6px; text-align: center; color: #64748b; font-size: 10px;">Standard service fees: ${formatCurrency(app.totalAmountDue)}</td></tr>`;
+
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Application Report - Ref #${app.referenceNumber}</title>
+  <title>Application Report - Ref #${refNum}</title>
   <style>
     @media print {
       @page { margin: 12mm 15mm; size: A4 portrait; }
@@ -496,20 +587,20 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
   </div>
 
   <div class="header-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
-  <div class="sub-header">Application Dossier &amp; Evaluation Summary • ${tenantName || 'Regional Office'}</div>
+  <div class="sub-header">Application Dossier &amp; Evaluation Summary • ${safeString(tenantName, 'Regional Office')}</div>
 
   <div class="card">
     <div class="card-title">1. Application Identification</div>
     <div class="grid-2">
       <div class="grid-col">
-        <div><strong>Reference Number:</strong> ${app.referenceNumber}</div>
-        <div><strong>Application Number:</strong> ${app.applicationNumber || 'Pending'}</div>
-        <div><strong>Service:</strong> ${app.serviceName}</div>
+        <div><strong>Reference Number:</strong> ${refNum}</div>
+        <div><strong>Application Number:</strong> ${appNum}</div>
+        <div><strong>Service:</strong> ${serviceName}</div>
       </div>
       <div class="grid-col">
-        <div><strong>Category / Mode:</strong> ${app.category} • ${app.mode}</div>
-        <div><strong>Status:</strong> ${app.status}</div>
-        <div><strong>Assigned Office:</strong> ${app.assignedTo || app.office || 'Main Office'}</div>
+        <div><strong>Category / Mode:</strong> ${categoryName} • ${filingMode}</div>
+        <div><strong>Status:</strong> ${appStatus}</div>
+        <div><strong>Assigned Office:</strong> ${assignedOffice}</div>
       </div>
     </div>
   </div>
@@ -518,13 +609,13 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
     <div class="card-title">2. Applicant &amp; Entity Profile</div>
     <div class="grid-2">
       <div class="grid-col">
-        <div><strong>Applicant Name:</strong> ${app.applicant}</div>
-        <div><strong>Type:</strong> ${app.applicantType}</div>
-        <div><strong>Contact:</strong> ${app.contactDetails?.contactNumber || 'N/A'} • ${app.contactDetails?.email || 'N/A'}</div>
+        <div><strong>Applicant Name:</strong> ${applicantName}</div>
+        <div><strong>Type:</strong> ${applicantType}</div>
+        <div><strong>Contact:</strong> ${contactNum} • ${emailAddr}</div>
       </div>
       <div class="grid-col">
-        <div><strong>Address:</strong> ${app.address?.streetAddress || app.address?.address || 'N/A'}</div>
-        <div><strong>Civil Status / Nationality:</strong> ${app.basicInfo?.civilStatus || 'N/A'} • ${app.basicInfo?.nationality || 'Filipino'}</div>
+        <div><strong>Address:</strong> ${formattedAddr}</div>
+        <div><strong>Civil Status / Nationality:</strong> ${civilStatus} • ${nationality}</div>
       </div>
     </div>
   </div>
@@ -532,7 +623,7 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
   <div class="card">
     <div class="card-title">3. Statement of Account &amp; Fee Assessment</div>
     <div style="font-size: 11px; margin-bottom: 4px;">
-      <strong>Total Assessed:</strong> ${formatCurrency(app.totalAmountDue)} • <strong>Due Date:</strong> ${app.dueDate || 'N/A'}
+      <strong>Total Assessed:</strong> ${formatCurrency(app.totalAmountDue)} • <strong>Due Date:</strong> ${dueDateStr}
     </div>
     <table class="table">
       <thead>
@@ -545,23 +636,7 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
         </tr>
       </thead>
       <tbody>
-        ${
-          app.soaItems.length > 0
-            ? app.soaItems
-                .map(
-                  (item) => `
-              <tr>
-                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${item.particular}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px;">${item.code}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: center;">${item.validityYears}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: center;">${item.noOfUnits}</td>
-                <td style="border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; text-align: right; font-weight: 600;">${formatCurrency(item.amount)}</td>
-              </tr>
-            `
-                )
-                .join('')
-            : `<tr><td colspan="5" style="padding: 6px; text-align: center; color: #64748b; font-size: 10px;">Standard service fees: ${formatCurrency(app.totalAmountDue)}</td></tr>`
-        }
+        ${soaRowsHtml}
       </tbody>
     </table>
   </div>
