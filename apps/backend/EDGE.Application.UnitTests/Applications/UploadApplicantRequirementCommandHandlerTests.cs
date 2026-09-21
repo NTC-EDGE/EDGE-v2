@@ -142,6 +142,8 @@ public class UploadApplicantRequirementCommandHandlerTests
 
         _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
+        _mockAppRepo.Setup(r => r.GetApplicantRequirementsAsync(appId, applicantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ApplicationRequirement>());
         _mockTenantContext.Setup(t => t.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(false); // not staff member of tenant
         _mockTenantContext.Setup(t => t.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>()))
@@ -219,6 +221,8 @@ public class UploadApplicantRequirementCommandHandlerTests
 
         _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(app);
+        _mockAppRepo.Setup(r => r.GetApplicantRequirementsAsync(appId, applicantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ApplicationRequirement> { existingRequirement });
         _mockTenantContext.Setup(t => t.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
@@ -241,7 +245,6 @@ public class UploadApplicantRequirementCommandHandlerTests
         result.Data.Should().Be(existingRequirementId);
         existingRequirement.StoredFileId.Should().Be(newStoredFileId);
         existingRequirement.Url.Should().Contain(newStoredFileId.ToString());
-        _mockAppRepo.Verify(r => r.UpdateApplicationRequirementAsync(existingRequirement, It.IsAny<CancellationToken>()), Times.Once);
         _mockUnitOfWork.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

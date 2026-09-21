@@ -164,10 +164,12 @@ public class UploadApplicantRequirementCommandHandler
         var url = $"/api/v2/tenants/{app.TenantId}/storage/files/{request.StoredFileId}";
 
         // 9. Check if an existing submission record exists for this requirement and applicant
-        var existingRequirement = app.ApplicationRequirements.FirstOrDefault(ar =>
-            ar.ApplicantId == request.ApplicantId &&
-            ((request.ServiceVariantRequirementId.HasValue && ar.ServiceVariantRequirementId == request.ServiceVariantRequirementId.Value) ||
-             ar.RequirementId == resolvedRequirementId));
+        var applicantRequirements = await _applicationRepository.GetApplicantRequirementsAsync(
+            request.ApplicationId, request.ApplicantId, cancellationToken);
+
+        var existingRequirement = applicantRequirements.FirstOrDefault(ar =>
+            (request.ServiceVariantRequirementId.HasValue && ar.ServiceVariantRequirementId == request.ServiceVariantRequirementId.Value) ||
+             ar.RequirementId == resolvedRequirementId);
 
         Guid requirementEntityId;
 
@@ -182,7 +184,6 @@ public class UploadApplicantRequirementCommandHandler
                 existingRequirement.RequirementId = resolvedRequirementId;
                 existingRequirement.Url = url;
                 existingRequirement.IsApproved = false;
-                await _applicationRepository.UpdateApplicationRequirementAsync(existingRequirement, cancellationToken);
                 requirementEntityId = existingRequirement.Id;
             }
             else
