@@ -49,6 +49,12 @@ export const resolveFileFromUpload = async (
         ? "image/png"
         : ext === "jpg" || ext === "jpeg"
         ? "image/jpeg"
+        : ext === "webp"
+        ? "image/webp"
+        : ext === "gif"
+        ? "image/gif"
+        : ext === "bmp"
+        ? "image/bmp"
         : "application/octet-stream";
 
     const explicitType = typeof upload === "object" ? upload.type : undefined;
