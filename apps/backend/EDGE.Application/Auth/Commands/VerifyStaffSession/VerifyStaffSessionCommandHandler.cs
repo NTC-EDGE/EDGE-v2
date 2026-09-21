@@ -66,17 +66,19 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var regionName = targetRegion?.Name ?? (regionCode.Equals("NCR", StringComparison.OrdinalIgnoreCase) ? "National Capital Region" : $"Region {regionCode}");
 
         // 2. Resolve Authenticated User and Database Record
-        User? user = null;
-        if (!string.IsNullOrEmpty(rawUserId))
+        if (string.IsNullOrWhiteSpace(rawUserId))
         {
-            user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
+            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                "Authentication required. No valid user identity was found in the session."
+            );
+        }
 
-            if (user == null)
-            {
-                return ApiResponse<VerifyStaffSessionDto>.Fail(
-                    "The selected account is not yet registered. Please make sure to sign in with a registered account."
-                );
-            }
+        var user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
+        if (user == null)
+        {
+            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                "The selected account is not yet registered. Please make sure to sign in with a registered account."
+            );
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken) ?? new List<Tenant>();
