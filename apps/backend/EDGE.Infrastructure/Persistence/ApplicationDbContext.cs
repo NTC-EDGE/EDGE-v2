@@ -366,6 +366,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<User>(entity =>
         {
+            entity.Property(e => e.Email).IsRequired().HasMaxLength(256);
+            entity.Property(e => e.AuthUserId).HasMaxLength(256);
+            entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.AuthUserId);
             entity.Property(e => e.AccountType).HasConversion<string>();
             entity.HasOne(u => u.CompanyDetail)
                   .WithMany()

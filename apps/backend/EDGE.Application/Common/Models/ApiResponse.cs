@@ -1,7 +1,9 @@
+using System.Text.Json.Serialization;
 using Errors = System.Collections.Generic.IDictionary<string, string[]>;
 
 namespace EDGE.Application.Common.Models;
 
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ApiErrorCode
 {
     None = 0,

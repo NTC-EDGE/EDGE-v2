@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Entities;
@@ -20,6 +21,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
     private readonly IGeographicRepository _geographicRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<VerifyStaffSessionCommandHandler>? _logger;
 
     public VerifyStaffSessionCommandHandler(
         ICurrentUserService currentUserService,
@@ -28,7 +31,9 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         ITenantRepository tenantRepository,
         IGeographicRepository geographicRepository,
         IRoleRepository roleRepository,
-        IRolePermissionRepository rolePermissionRepository)
+        IRolePermissionRepository rolePermissionRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<VerifyStaffSessionCommandHandler>? logger = null)
     {
         _currentUserService = currentUserService;
         _userRepository = userRepository;
@@ -37,6 +42,8 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         _geographicRepository = geographicRepository;
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<VerifyStaffSessionDto>> Handle(
@@ -59,21 +66,19 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
         var regionName = targetRegion?.Name ?? (regionCode.Equals("NCR", StringComparison.OrdinalIgnoreCase) ? "National Capital Region" : $"Region {regionCode}");
 
         // 2. Resolve Authenticated User and Database Record
-        User? user = null;
-        if (!string.IsNullOrEmpty(rawUserId))
+        if (string.IsNullOrWhiteSpace(rawUserId))
         {
-            user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
-            if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
-            {
-                user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
-            }
+            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                "Authentication required. No valid user identity was found in the session."
+            );
+        }
 
-            if (user == null)
-            {
-                return ApiResponse<VerifyStaffSessionDto>.Fail(
-                    "The selected account is not yet registered. Please make sure to sign in with a registered account."
-                );
-            }
+        var user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
+        if (user == null)
+        {
+            return ApiResponse<VerifyStaffSessionDto>.Fail(
+                "The selected account is not yet registered. Please make sure to sign in with a registered account."
+            );
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken) ?? new List<Tenant>();
@@ -156,7 +161,7 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
         if (resolvedRole == null && user != null && user.IsSuperAdmin)
         {
-            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "super_admin" || r.Name == "Super Administrator" || r.Key == "admin");
+            resolvedRole = systemRoles.FirstOrDefault(r => r.Key == "superadmin" || r.Key == "super_admin" || r.Name == "Super Administrator" || r.Key == "admin");
         }
 
         if (resolvedRole == null)
