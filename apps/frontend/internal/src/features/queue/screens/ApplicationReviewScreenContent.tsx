@@ -42,6 +42,14 @@ import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
+import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
+import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
+import { QueueActionMenuModal } from "../components/modals/QueueActionMenuModal";
+import {
+  generateSoaPrintableHtml,
+  generateOpPrintableHtml,
+  openPrintableDocumentWindow,
+} from "../utils/soaReportGenerator";
 import { ApplicantVerdictModal, ApplicantVerdictType } from "../components/modals/ApplicantVerdictModal";
 import { BatchConfirmationModal, BatchActionType } from "../components/modals/BatchConfirmationModal";
 import { UserRole } from "../../shell/context/RoleContext";
@@ -2522,10 +2530,18 @@ function SoaPaymentTab({
   app,
   isEditable,
   updateApplication,
+  onOpenGenerateSoa,
+  onPrintSoa,
+  onPrintOp,
+  onPreviewReport,
 }: {
   app: ApplicationData;
   isEditable: boolean;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
+  onOpenGenerateSoa: () => void;
+  onPrintSoa: () => void;
+  onPrintOp: () => void;
+  onPreviewReport: (docType: 'soa' | 'op' | 'summary') => void;
 }) {
   const { colors, isDark } = useTheme();
   const [auditOpen, setAuditOpen] = useState(false);
@@ -2540,11 +2556,82 @@ function SoaPaymentTab({
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
-        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
-        <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-        <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-          Review the billing particulars, charges, and due date below.
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
+          <View style={{ flex: 1, minWidth: 220 }}>
+            <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
+            <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
+            <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+              Review the billing particulars, charges, and due date below.
+            </Text>
+          </View>
+
+          {/* Action buttons toolbar for SOA & OP */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                  borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                },
+              ]}
+              onPress={onOpenGenerateSoa}
+            >
+              <Lucide name="file-plus" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
+                {app.soaItems.length > 0 ? "Edit SOA" : "Generate SOA"}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                },
+              ]}
+              onPress={onPrintSoa}
+            >
+              <Lucide name="printer" size={13} color={isDark ? colors.neutral[200] : colors.neutral[800]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+                Print SOA
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+                  borderColor: isDark ? '#059669' : '#10b981',
+                },
+              ]}
+              onPress={onPrintOp}
+            >
+              <Lucide name="credit-card" size={13} color={isDark ? '#34d399' : '#059669'} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? '#34d399' : '#059669' }]}>
+                Print OP
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? '#312e81' : '#eef2ff',
+                  borderColor: isDark ? '#6366f1' : '#818cf8',
+                },
+              ]}
+              onPress={() => onPreviewReport('soa')}
+            >
+              <Lucide name="eye" size={13} color={isDark ? '#a5b4fc' : '#4f46e5'} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? '#a5b4fc' : '#4f46e5' }]}>
+                Preview Report
+              </Text>
+            </Pressable>
+          </View>
+        </View>
 
         <View style={[styles.feeTable, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
           <View style={[styles.feeTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
@@ -2968,6 +3055,10 @@ export function ApplicationReviewScreenContent({
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+  const [showGenerateSoa, setShowGenerateSoa] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+  const [reportPreviewInitialDoc, setReportPreviewInitialDoc] = useState<ReportDocumentType>("soa");
+  const [showActionMenu, setShowActionMenu] = useState(false);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
 
   const handlePreviewFile = useCallback((fileOrUri: DocumentPreviewFile | string, label?: string) => {
@@ -3143,19 +3234,24 @@ export function ApplicationReviewScreenContent({
     Alert.alert("Success", `Application endorsed to ${targetRole}`);
   };
 
-  const handleTopAction = (action: "View" | "Print") => {
-    if (action === "Print") {
-      Alert.alert(
-        "Print Application",
-        `Generating printable form for ${app.referenceNumber}...`,
-      );
-    } else {
-      Alert.alert(
-        "View Application",
-        `Opening full view for ${app.applicant}...`,
-      );
-    }
-  };
+  const handlePrintSoa = useCallback(() => {
+    const html = generateSoaPrintableHtml(app);
+    openPrintableDocumentWindow(html);
+  }, [app]);
+
+  const handlePrintOp = useCallback(() => {
+    const html = generateOpPrintableHtml(app);
+    openPrintableDocumentWindow(html);
+  }, [app]);
+
+  const handlePreviewReport = useCallback((docType: ReportDocumentType = "soa") => {
+    setReportPreviewInitialDoc(docType);
+    setShowReportPreview(true);
+  }, []);
+
+  const handleOpenGenerateSoa = useCallback(() => {
+    setShowGenerateSoa(true);
+  }, []);
 
   const handleCashierVerify = async (data: {
     orNumber: string;
@@ -3239,18 +3335,22 @@ export function ApplicationReviewScreenContent({
             </ScrollView>
 
             <View style={[styles.innerTabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
-              <View style={styles.headerActionRow}>
-                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
-                  <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
-                </Pressable>
-                <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
-                <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
-                  <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                  <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
-                </Pressable>
-              </View>
               <View style={styles.innerTabSpacer} />
+              <Pressable
+                style={[
+                  styles.iconBtn,
+                  { marginRight: SPACING[6] },
+                  Platform.select({ web: { cursor: "pointer" } }),
+                ]}
+                onPress={() => setShowActionMenu(true)}
+                accessibilityLabel="Application quick actions"
+              >
+                <Lucide
+                  name="more-vertical"
+                  size={16}
+                  color={isDark ? colors.neutral[300] : colors.neutral[600]}
+                />
+              </Pressable>
               {onCollapse !== undefined && (
                 <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
                   <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
@@ -3289,18 +3389,22 @@ export function ApplicationReviewScreenContent({
               );
             })}
             <View style={styles.innerTabSpacer} />
-            <View style={styles.headerActionRow}>
-              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("View")}>
-                <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>View</Text>
-              </Pressable>
-              <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]} />
-              <Pressable style={styles.headerActionLink} onPress={() => handleTopAction("Print")}>
-                <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>Print</Text>
-              </Pressable>
-            </View>
-            <View style={{ width: SPACING[16] }} />
+            <Pressable
+              style={[
+                styles.iconBtn,
+                { marginRight: SPACING[6] },
+                Platform.select({ web: { cursor: "pointer" } }),
+              ]}
+              onPress={() => setShowActionMenu(true)}
+              accessibilityLabel="Application quick actions"
+            >
+              <Lucide
+                name="more-vertical"
+                size={16}
+                color={isDark ? colors.neutral[300] : colors.neutral[600]}
+              />
+            </Pressable>
+            <View style={{ width: SPACING[8] }} />
             {onCollapse !== undefined && (
               <Pressable style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]} onPress={onCollapse}>
                 <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
@@ -3356,6 +3460,10 @@ export function ApplicationReviewScreenContent({
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
+          onOpenGenerateSoa={handleOpenGenerateSoa}
+          onPrintSoa={handlePrintSoa}
+          onPrintOp={handlePrintOp}
+          onPreviewReport={handlePreviewReport}
         />
       )}
 
@@ -3543,6 +3651,37 @@ export function ApplicationReviewScreenContent({
         initialOrNumber={app.payment.orNumber}
         onConfirm={handleCashierVerify}
         onCancel={() => setShowCashier(false)}
+      />
+
+      {/* ── Generate SOA Modal ── */}
+      <GenerateSoaModal
+        visible={showGenerateSoa}
+        app={app}
+        onClose={() => setShowGenerateSoa(false)}
+        onSuccess={async () => {
+          await mutateApplications(app.id);
+          await refetch();
+        }}
+      />
+
+      {/* ── SOA / OP Report Preview & Print Modal ── */}
+      <SoaReportPreviewModal
+        visible={showReportPreview}
+        app={app}
+        initialDocType={reportPreviewInitialDoc}
+        onClose={() => setShowReportPreview(false)}
+        onOpenGenerateSoa={handleOpenGenerateSoa}
+      />
+
+      {/* ── 3-Dots Quick Action Menu Modal ── */}
+      <QueueActionMenuModal
+        visible={showActionMenu}
+        app={app}
+        onClose={() => setShowActionMenu(false)}
+        onGenerateSoa={handleOpenGenerateSoa}
+        onPrintSoa={handlePrintSoa}
+        onPrintOp={handlePrintOp}
+        onPreviewReport={handlePreviewReport}
       />
     </Animated.View>
   );
@@ -4508,5 +4647,22 @@ const styles = StyleSheet.create({
   },
   actionBtnDisabled: {
     opacity: 0.5,
+  },
+  soaActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    ...Platform.select({
+      web: { cursor: "pointer" } as object,
+    }),
+  },
+  soaActionBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
 });
