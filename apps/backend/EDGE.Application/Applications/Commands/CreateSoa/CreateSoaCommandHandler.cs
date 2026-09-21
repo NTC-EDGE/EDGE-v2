@@ -56,18 +56,25 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         }
 
         var resolvedIssuedToName = !string.IsNullOrWhiteSpace(request.IssuedToName)
-            ? request.IssuedToName
+            ? request.IssuedToName.Trim()
             : (targetApplicant?.ApplicantDetail != null
                 ? $"{targetApplicant.ApplicantDetail.FirstName} {targetApplicant.ApplicantDetail.LastName}".Trim()
                 : (targetApplicant?.CompanyDetail?.Name ?? app.ApplicationNumber ?? "Applicant"));
 
+        if (string.IsNullOrWhiteSpace(resolvedIssuedToName))
+        {
+            resolvedIssuedToName = targetApplicant?.CompanyDetail?.Name ?? app.ApplicationNumber ?? "Applicant";
+        }
+
         var resolvedIssuedToAddress = !string.IsNullOrWhiteSpace(request.IssuedToAddress)
-            ? request.IssuedToAddress
+            ? request.IssuedToAddress.Trim()
             : (targetApplicant?.ApplicantDetail?.Address ?? targetApplicant?.CompanyDetail?.Address ?? app.ApplicationApplicants.Select(aa => aa.Applicant?.ApplicantDetail?.Address ?? aa.Applicant?.CompanyDetail?.Address).FirstOrDefault(a => !string.IsNullOrEmpty(a)));
 
-        var resolvedDueDate = request.DueDate != default && request.DueDate > DateTime.MinValue
+        var rawDueDate = request.DueDate != default && request.DueDate > DateTime.MinValue
             ? request.DueDate
             : DateTime.UtcNow.AddDays(30);
+
+        var resolvedDueDate = EnsureUtc(rawDueDate);
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
 
@@ -75,7 +82,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         {
             Id = Guid.NewGuid(),
             ApplicationId = request.ApplicationId,
-            ApplicantId = request.ApplicantId,
+            ApplicantId = targetApplicant?.Id ?? (request.ApplicantId.HasValue && app.ApplicationApplicants.Any(aa => aa.ApplicantId == request.ApplicantId.Value) ? request.ApplicantId : null),
             SoaNumber = $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Status = SoaStatus.Pending,
             IssuedToType = issuedToType,
@@ -89,20 +96,22 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         {
             foreach (var item in request.LineItems)
             {
-                var calculatedAmount = item.NoOfUnits * item.FeeRate;
+                var units = item.NoOfUnits > 0 ? item.NoOfUnits : 1;
+                var rate = item.FeeRate >= 0 ? item.FeeRate : 0m;
+                var calculatedAmount = units * rate;
 
                 soa.LineItems.Add(new SoaLineItem
                 {
                     Id = Guid.NewGuid(),
                     StatementOfAccountId = soa.Id,
-                    Particular = item.Particular,
-                    ItemCode = item.ItemCode,
+                    Particular = !string.IsNullOrWhiteSpace(item.Particular) ? item.Particular.Trim() : "Statutory Fee",
+                    ItemCode = !string.IsNullOrWhiteSpace(item.ItemCode) ? item.ItemCode.Trim() : "FEE",
                     Description = item.Description,
-                    PeriodOfCoverageStart = item.PeriodOfCoverageStart,
-                    PeriodOfCoverageEnd = item.PeriodOfCoverageEnd,
-                    ValidityYears = item.ValidityYears,
-                    NoOfUnits = item.NoOfUnits,
-                    FeeRate = item.FeeRate,
+                    PeriodOfCoverageStart = EnsureUtc(item.PeriodOfCoverageStart),
+                    PeriodOfCoverageEnd = EnsureUtc(item.PeriodOfCoverageEnd),
+                    ValidityYears = item.ValidityYears > 0 ? item.ValidityYears : 1,
+                    NoOfUnits = units,
+                    FeeRate = rate,
                     Amount = calculatedAmount
                 });
             }
@@ -122,6 +131,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var applicantsCount = app.ApplicationApplicants.Count > 0 ? app.ApplicationApplicants.Count : 1;
             var units = request.NoOfUnits ?? applicantsCount;
             var years = request.ValidityYears ?? 1;
+            var nowUtc = DateTime.UtcNow;
 
             var calculationResult = _calculationEngine.Calculate(new FeeCalculationRequest(
                 Activity: activity,
@@ -129,26 +139,27 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 Element: element,
                 ValidityYears: years,
                 NoOfUnits: units,
-                ExpirationDate: request.ExpirationDate,
+                ExpirationDate: EnsureUtc(request.ExpirationDate),
                 AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
                 NoOfCopies: request.NoOfCopies ?? 1,
-                AsOfDate: DateTime.UtcNow,
+                AsOfDate: nowUtc,
                 Category: primaryService?.ServiceCategory?.Type
             ));
 
             foreach (var calculatedItem in calculationResult.LineItems)
             {
+                var valYears = calculatedItem.ValidityYears > 0 ? calculatedItem.ValidityYears : 1;
                 soa.LineItems.Add(new SoaLineItem
                 {
                     Id = Guid.NewGuid(),
                     StatementOfAccountId = soa.Id,
-                    Particular = calculatedItem.Particular,
-                    ItemCode = calculatedItem.ItemCode,
+                    Particular = !string.IsNullOrWhiteSpace(calculatedItem.Particular) ? calculatedItem.Particular : "Statutory Fee",
+                    ItemCode = !string.IsNullOrWhiteSpace(calculatedItem.ItemCode) ? calculatedItem.ItemCode : "FEE",
                     Description = calculatedItem.Description,
-                    PeriodOfCoverageStart = DateTime.UtcNow,
-                    PeriodOfCoverageEnd = DateTime.UtcNow.AddYears(calculatedItem.ValidityYears),
-                    ValidityYears = calculatedItem.ValidityYears,
-                    NoOfUnits = calculatedItem.NoOfUnits,
+                    PeriodOfCoverageStart = nowUtc,
+                    PeriodOfCoverageEnd = nowUtc.AddYears(valYears),
+                    ValidityYears = valYears,
+                    NoOfUnits = calculatedItem.NoOfUnits > 0 ? calculatedItem.NoOfUnits : 1,
                     FeeRate = calculatedItem.FeeRate,
                     Amount = calculatedItem.Amount
                 });
@@ -175,4 +186,10 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         return ApiResponse<Guid>.Success(soa.Id);
     }
+
+    private static DateTime EnsureUtc(DateTime dt) =>
+        dt.Kind == DateTimeKind.Utc ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+    private static DateTime? EnsureUtc(DateTime? dt) =>
+        dt.HasValue ? (dt.Value.Kind == DateTimeKind.Utc ? dt.Value : DateTime.SpecifyKind(dt.Value, DateTimeKind.Utc)) : null;
 }
