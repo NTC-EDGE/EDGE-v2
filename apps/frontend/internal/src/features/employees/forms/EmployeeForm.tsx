@@ -103,11 +103,11 @@ export function EmployeeForm({ formState, isMobile, tenantId, isEditing = false 
 
       {/* 5. Signature Section */}
       <SignatureSection
-        signatureDisplay={signatureDisplay}
+        signatureDisplay={signatureDisplay ?? 'beside'}
         onChangeSignatureDisplay={(val) =>
           form.setValue('signatureDisplay', val, { shouldValidate: true })
         }
-        signatureFileName={signatureFileName}
+        signatureFileName={signatureFileName ?? null}
         onOpenUploadDialog={() => setIsUploadDialogOpen(true)}
         onDeleteSignature={() =>
           form.setValue('signatureFileName', null, { shouldValidate: true })

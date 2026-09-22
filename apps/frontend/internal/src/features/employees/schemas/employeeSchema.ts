@@ -10,7 +10,7 @@ export const employeeFormSchema = z.object({
     .string()
     .min(1, 'Email address is required')
     .email('Enter a valid email address'),
-  fieldOffice: z.string(),
+  fieldOffice: z.string().min(1, 'Field Office is required'),
   region: z.string(),
   level: z.string(),
   title: z.string(),

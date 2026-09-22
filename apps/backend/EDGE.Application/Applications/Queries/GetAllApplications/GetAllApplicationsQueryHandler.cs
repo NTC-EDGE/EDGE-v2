@@ -148,6 +148,8 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
             request.Mode,
             filterTenantId,
             filterTenantIds,
+            request.FieldOffice,
+            request.AssignedTo,
             cancellationToken);
 
         return ApiResponse<PagedApplicationListDto>.Success(pagedResult, "User applications retrieved successfully.");

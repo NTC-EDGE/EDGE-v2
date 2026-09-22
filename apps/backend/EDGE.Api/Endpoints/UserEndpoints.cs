@@ -324,7 +324,7 @@ public static class UserEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
-    [HasPermission(Permissions.UpdateUsers)]
+    [HasPermission(Permissions.ManageUsers)]
     public static async Task<IResult> UpdateUser(
         Guid id,
         AdminUpdateUserCommand command,
@@ -384,7 +384,7 @@ public static class UserEndpoints
             }
         }
 
-        var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, request.IsSuperAdmin);
+        var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, IsSuperAdmin: request.IsSuperAdmin);
         var result = await mediator.Send(command);
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }

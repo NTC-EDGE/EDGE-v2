@@ -30,7 +30,7 @@ import {
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
-import { EndorseModal } from "../components/modals/EndorseModal";
+import { EndorseModal, EndorsementSubmission } from "../components/modals/EndorseModal";
 import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
 import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
 import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
@@ -296,19 +296,29 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Endorse to another role for review */
-  const handleEndorse = async (targetRole: UserRole) => {
+  /** Endorse to a specific person/evaluator for review */
+  const handleEndorse = async (submission: EndorsementSubmission) => {
     setShowEndorse(false);
+    const { person, notes } = submission;
+    const notesSuffix = notes && notes.trim().length > 0 ? ` Instructions: ${notes.trim()}` : '';
+    const roleLabel = person.position || person.role || 'Evaluator';
+    const remarks = `Application endorsed to ${person.name} (${roleLabel}).${notesSuffix}`;
+
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'Evaluating',
-      remarks: `Application endorsed to ${targetRole}.`,
+      remarks,
     });
-    if (err !== null) { toast.error('Failed to endorse application.'); return; }
-    toast.success(`Application endorsed to ${targetRole}.`);
+    if (err !== null) {
+      toast.error('Failed to endorse application.');
+      return;
+    }
+    await updateApplication(app.id, {
+      assignedTo: person.name,
+    });
+    toast.success(`Application endorsed to ${person.name}.`);
     await mutateApplications(app.id);
     await refetch();
     onClose();
-    Alert.alert('Success', `Application endorsed to ${targetRole}`);
   };
 
   /** Admin-only direct approve (bypasses normal cycle) */
@@ -510,7 +520,14 @@ export function ApplicationReviewScreenContent({
         onConfirm={handleDecline}
         onCancel={() => setShowDecline(false)}
       />
-      <EndorseModal visible={showEndorse} applicantName={app.applicant} currentRole={currentRole} onConfirm={handleEndorse} onCancel={() => setShowEndorse(false)} />
+      <EndorseModal
+        visible={showEndorse}
+        applicantName={app.applicant}
+        tenantId={app.tenantId}
+        appliedFieldOffice={app.office || app.assignedTo}
+        onConfirm={handleEndorse}
+        onCancel={() => setShowEndorse(false)}
+      />
       <CashierVerificationModal visible={showCashier} applicantName={app.applicant} initialOrNumber={app.payment.orNumber} onConfirm={handleCashierVerify} onCancel={() => setShowCashier(false)} />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
       <SoaReportPreviewModal visible={showReportPreview} app={app} initialDocType={reportPreviewInitialDoc} onClose={() => setShowReportPreview(false)} onOpenGenerateSoa={() => setShowGenerateSoa(true)} />

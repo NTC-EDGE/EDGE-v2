@@ -20,7 +20,7 @@ import { EmployeeCard } from '../components/EmployeeCard';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { EmployeeDetailsScreen } from '../components/EmployeeDetailsScreen';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
-import { userService, useTenantMembers, TenantMemberDto, useAdminRoles } from '@edge/api';
+import { userService, useTenantMembers, TenantMemberDto, useAdminRoles, useAdminFieldOffices } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
 
 type ViewMode = 'cards' | 'table';
@@ -88,7 +88,7 @@ function TableActionCell({
   };
 
   return (
-    <View style={styles.tableActionWrapper}>
+    <View style={[styles.tableActionWrapper, isPopoverOpen && { zIndex: 99999 }]}>
       {isPopoverOpen && (
         <Pressable style={styles.popoverBackdrop} onPress={() => setActivePopoverId(null)} />
       )}
@@ -144,6 +144,7 @@ export function EmployeesScreenContent({
   // Live tenant members dataset from API filtered by tenantId
   const { members, isLoading, refetch } = useTenantMembers(currentTenantId);
   const { roles: liveRoles } = useAdminRoles();
+  const { fieldOffices: liveFieldOffices } = useAdminFieldOffices(currentTenantId);
 
   const employees = useMemo<Employee[]>(() => {
     return members.map(mapTenantMemberToEmployee);
@@ -269,11 +270,58 @@ export function EmployeesScreenContent({
 
   const handleSaveEmployee = async (data: Partial<Employee>) => {
     if (editingEmployee !== null && editingEmployee !== undefined) {
-      // Edit mode
-      showToast(`Updated employee ${data.firstName} ${data.lastName}`, 'success');
+      // Edit mode - update user and tenant membership via backend API
+      const selectedRoleName = (data.role ?? '').trim();
+      const matchedRole = liveRoles.find(
+        (r) =>
+          r.name.toLowerCase() === selectedRoleName.toLowerCase() ||
+          r.key.toLowerCase() === selectedRoleName.toLowerCase()
+      );
+      const roleKey = matchedRole?.key || (selectedRoleName.length > 0 ? selectedRoleName.toLowerCase().replace(/\s+/g, '-') : undefined);
+
+      const matchedFieldOffice = liveFieldOffices.find(
+        (f) => f.name.toLowerCase() === (data.fieldOffice ?? '').trim().toLowerCase()
+      );
+
+      const [res, err] = await userService.updateUser(editingEmployee.id, {
+        id: editingEmployee.id,
+        email: data.email ?? editingEmployee.email,
+        firstName: data.firstName ?? editingEmployee.firstName,
+        lastName: data.lastName ?? editingEmployee.lastName,
+        middleName: data.middleName ?? editingEmployee.middleName,
+        suffix: data.suffix ?? editingEmployee.suffix,
+        contactNumber: data.phone ?? editingEmployee.phone,
+        roleKey,
+        tenantId: currentTenantId,
+        fieldOfficeId: matchedFieldOffice?.id,
+        jobTitle: data.title ?? editingEmployee.title,
+        level: data.level ?? editingEmployee.level,
+        division: data.division ?? editingEmployee.division,
+        position: data.position ?? editingEmployee.position,
+        designation: data.designation ?? editingEmployee.designation,
+        eSignature: data.signatureUri ?? editingEmployee.signatureUri,
+      });
+
+      if (err !== null || res === null || res === undefined) {
+        const errorMsg = typeof err === 'string' ? err : 'Failed to update employee account. No response from server.';
+        throw new Error(errorMsg);
+      }
+
+      await refetch();
+      const updatedName = `${res.firstName || data.firstName || editingEmployee.firstName} ${res.lastName || data.lastName || editingEmployee.lastName}`.trim();
+      showToast(`Successfully updated employee ${updatedName}`, 'success');
+      if (viewingEmployee !== null && viewingEmployee.id === editingEmployee.id) {
+        setViewingEmployee({
+          ...viewingEmployee,
+          ...data,
+          firstName: data.firstName ?? viewingEmployee.firstName,
+          lastName: data.lastName ?? viewingEmployee.lastName,
+          role: data.role ?? viewingEmployee.role,
+          fieldOffice: data.fieldOffice ?? viewingEmployee.fieldOffice,
+        });
+      }
       setIsFormModalOpen(false);
       setEditingEmployee(null);
-      await refetch();
     } else {
       // Create mode - submit to Clerk & Database via live backend API
       const selectedRoleName = (data.role ?? '').trim();
@@ -310,9 +358,8 @@ export function EmployeesScreenContent({
         redirectUrl,
       });
 
-      if (err !== null) {
+      if (err !== null || res === null || res === undefined) {
         const errorMsg = typeof err === 'string' ? err : 'Failed to create employee account.';
-        showToast(errorMsg, 'error');
         throw new Error(errorMsg);
       }
 
@@ -339,8 +386,8 @@ export function EmployeesScreenContent({
     setIsDeleteModalOpen(false);
     setDeletingEmployee(null);
     if (subView === 'details' && viewingEmployee !== null && viewingEmployee.id === emp.id) {
-      setSubView('list');
       setViewingEmployee(null);
+      setSubView('list');
     }
   };
 
@@ -479,6 +526,7 @@ export function EmployeesScreenContent({
           }}
           onSave={handleSaveEmployee}
           initialEmployee={editingEmployee}
+          tenantId={currentTenantId}
         />
 
         <DeleteConfirmModal
@@ -1217,7 +1265,7 @@ const styles = StyleSheet.create({
     marginBottom: SPACING[8],
     flexWrap: 'wrap',
     gap: SPACING[12],
-    zIndex: 50,
+    zIndex: 1,
   },
   paginationText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1347,7 +1395,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     paddingVertical: 4,
-    zIndex: 300,
+    zIndex: 99999,
+    elevation: 99,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+      },
+    }),
   },
   popoverBackdrop: {
     ...StyleSheet.absoluteFill,

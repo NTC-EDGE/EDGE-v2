@@ -130,10 +130,10 @@ export function EmployeeFormModal({
             <Pressable
               style={[
                 modalStyles.submitBtn,
-                (!isFormValid || isSubmitting) && modalStyles.submitBtnDisabled,
+                isSubmitting && modalStyles.submitBtnDisabled,
               ]}
               onPress={onSubmit}
-              disabled={!isFormValid || isSubmitting}
+              disabled={isSubmitting}
             >
               <Lucide
                 name={isSubmitting ? 'loader' : 'check'}

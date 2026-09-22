@@ -43,6 +43,26 @@ export interface CreateUserApiResponse {
   createdAt: string;
 }
 
+export interface UpdateUserApiRequest {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email?: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  roleKey?: string;
+  tenantId?: string;
+  fieldOfficeId?: string;
+  jobTitle?: string;
+  level?: string;
+  division?: string;
+  position?: string;
+  designation?: string;
+  eSignature?: string;
+  isSuperAdmin?: boolean;
+}
+
 export const userService = {
   /**
    * Create a new employee / staff user via Clerk and sync database records
@@ -52,6 +72,16 @@ export const userService = {
       const response = await apiClient.post<CreateUserApiResponse>('/api/v2/users', data);
       return response.data;
     }, 'Failed to create user account');
+  },
+
+  /**
+   * Update an existing user / employee record and tenant membership
+   */
+  async updateUser(id: string, data: UpdateUserApiRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.put<CreateUserApiResponse>(`/api/v2/users/${id}`, data);
+      return response.data;
+    }, 'Failed to update user account');
   },
 
   /**

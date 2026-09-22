@@ -73,6 +73,7 @@ export function useEmployeeForm({
         provisioningMethod: initialEmployee.provisioningMethod ?? 'email',
         password: '',
       });
+      void form.trigger();
     } else {
       form.reset(defaultValues);
     }
@@ -155,6 +156,16 @@ export function useEmployeeForm({
     }
   };
 
+  const handleInvalidSubmit = (errors: Record<string, { message?: string }>) => {
+    const firstKey = Object.keys(errors)[0];
+    const firstErr = firstKey ? errors[firstKey] : undefined;
+    if (firstErr && firstErr.message) {
+      setErrorMessage(firstErr.message);
+    } else {
+      setErrorMessage('Please fill in all required fields marked with *');
+    }
+  };
+
   return {
     form,
     isRoleDropdownOpen,
@@ -169,6 +180,6 @@ export function useEmployeeForm({
     setErrorMessage,
     handleNativeFileUpload,
     handleCaptureSignature,
-    onSubmit: form.handleSubmit(handleFormSubmit),
+    onSubmit: form.handleSubmit(handleFormSubmit, handleInvalidSubmit),
   };
 }
