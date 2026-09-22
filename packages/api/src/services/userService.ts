@@ -85,6 +85,18 @@ export const userService = {
   },
 
   /**
+   * Change a user's primary login email in database and Clerk identity provider
+   */
+  async changeUserEmail(id: string, newEmail: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<CreateUserApiResponse>(`/api/v2/users/${id}/change-email`, {
+        newEmail,
+      });
+      return response.data;
+    }, 'Failed to change login email');
+  },
+
+  /**
    * Fetch all users from database
    */
   async getUsers() {

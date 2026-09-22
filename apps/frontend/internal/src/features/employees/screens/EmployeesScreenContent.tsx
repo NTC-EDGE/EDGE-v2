@@ -20,6 +20,7 @@ import { EmployeeCard } from '../components/EmployeeCard';
 import { EmployeeFormModal } from '../components/EmployeeFormModal';
 import { EmployeeDetailsScreen } from '../components/EmployeeDetailsScreen';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { ChangeEmployeeEmailModal } from '../components/ChangeEmployeeEmailModal';
 import { userService, useTenantMembers, TenantMemberDto, useAdminRoles, useAdminFieldOffices } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
 
@@ -43,16 +44,16 @@ function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
     role,
     fieldOffice: member.fieldOfficeName ?? 'Regional Main Office',
     region: member.tenantName || 'Central Office (Headquarters)',
-    department: member.division || 'Licensing & Registration Division',
-    division: member.division || 'Licensing & Registration Division',
-    level: member.level || 'Level II',
-    title: member.jobTitle || 'Evaluator II',
-    position: member.position || 'Technical Evaluator',
+    department: member.division || member.position || 'Operations',
+    division: member.division || 'Operations',
+    level: member.level || 'Rank & File',
+    title: member.jobTitle || member.position || 'Staff',
+    position: member.position || 'Staff',
     designation: member.designation || '',
     signatureDisplay: 'beside',
     signatureUri: member.userESignature || '',
-    status: 'Active',
-    avatarColor: COLORS.brand.secondary,
+    status: 'Active' as EmployeeStatus,
+    avatarColor: COLORS.brand[700],
     dateJoined: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'Recent',
     location: member.fieldOfficeName || member.tenantName || 'Regional Office',
   };
@@ -65,6 +66,7 @@ function TableActionCell({
   setActivePopoverId,
   onView,
   onEdit,
+  onChangeEmail,
   onDelete,
 }: {
   employee: Employee;
@@ -72,16 +74,19 @@ function TableActionCell({
   setActivePopoverId: (id: string | null) => void;
   onView: (emp: Employee) => void;
   onEdit: (emp: Employee) => void;
+  onChangeEmail?: (emp: Employee) => void;
   onDelete: (emp: Employee) => void;
 }) {
   const isPopoverOpen = activePopoverId === employee.id;
 
-  const handleAction = (action: 'view' | 'edit' | 'delete') => {
+  const handleAction = (action: 'view' | 'edit' | 'change-email' | 'delete') => {
     setActivePopoverId(null);
     if (action === 'view') {
       onView(employee);
     } else if (action === 'edit') {
       onEdit(employee);
+    } else if (action === 'change-email') {
+      onChangeEmail?.(employee);
     } else if (action === 'delete') {
       onDelete(employee);
     }
@@ -110,6 +115,11 @@ function TableActionCell({
           <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
             <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
             <Text style={styles.popoverItemText}>Edit Employee</Text>
+          </Pressable>
+
+          <Pressable style={styles.popoverItem} onPress={() => handleAction('change-email')}>
+            <Lucide name="mail" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+            <Text style={styles.popoverItemText}>Change Email</Text>
           </Pressable>
 
           <View style={styles.popoverDivider} />
@@ -178,6 +188,9 @@ export function EmployeesScreenContent({
 
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingEmployee, setDeletingEmployee] = useState<Employee | null>(null);
+
+  const [isChangeEmailModalOpen, setIsChangeEmailModalOpen] = useState(false);
+  const [changingEmailEmployee, setChangingEmailEmployee] = useState<Employee | null>(null);
 
   // Active popover row id (to close others when one is open)
   const [activePopoverId, setActivePopoverId] = useState<string | null>(null);
@@ -256,6 +269,24 @@ export function EmployeesScreenContent({
   const handleOpenEditModal = (emp: Employee) => {
     setEditingEmployee(emp);
     setIsFormModalOpen(true);
+  };
+
+  const handleOpenChangeEmailModal = (emp: Employee) => {
+    setChangingEmailEmployee(emp);
+    setIsChangeEmailModalOpen(true);
+  };
+
+  const handleChangeEmailSuccess = async (updatedEmp: Employee) => {
+    await refetch();
+    showToast(`Successfully updated login email for ${updatedEmp.firstName} ${updatedEmp.lastName}`, 'success');
+    if (viewingEmployee !== null && viewingEmployee.id === updatedEmp.id) {
+      setViewingEmployee({
+        ...viewingEmployee,
+        email: updatedEmp.email,
+      });
+    }
+    setIsChangeEmailModalOpen(false);
+    setChangingEmailEmployee(null);
   };
 
   const handleOpenDetailsPage = (emp: Employee) => {
@@ -452,6 +483,7 @@ export function EmployeesScreenContent({
               setActivePopoverId={setActivePopoverId}
               onView={handleOpenDetailsPage}
               onEdit={handleOpenEditModal}
+              onChangeEmail={handleOpenChangeEmailModal}
               onDelete={handleOpenDeleteModal}
             />
           );
@@ -527,6 +559,16 @@ export function EmployeesScreenContent({
           onSave={handleSaveEmployee}
           initialEmployee={editingEmployee}
           tenantId={currentTenantId}
+        />
+
+        <ChangeEmployeeEmailModal
+          visible={isChangeEmailModalOpen}
+          employee={changingEmailEmployee}
+          onClose={() => {
+            setIsChangeEmailModalOpen(false);
+            setChangingEmailEmployee(null);
+          }}
+          onSuccess={handleChangeEmailSuccess}
         />
 
         <DeleteConfirmModal
@@ -782,6 +824,7 @@ export function EmployeesScreenContent({
                   employee={employee}
                   onView={handleOpenDetailsPage}
                   onEdit={handleOpenEditModal}
+                  onChangeEmail={handleOpenChangeEmailModal}
                   onDelete={handleOpenDeleteModal}
                 />
               ))
@@ -869,6 +912,16 @@ export function EmployeesScreenContent({
         onSave={handleSaveEmployee}
         initialEmployee={editingEmployee}
         tenantId={currentTenantId}
+      />
+
+      <ChangeEmployeeEmailModal
+        visible={isChangeEmailModalOpen}
+        employee={changingEmailEmployee}
+        onClose={() => {
+          setIsChangeEmailModalOpen(false);
+          setChangingEmailEmployee(null);
+        }}
+        onSuccess={handleChangeEmailSuccess}
       />
 
       <DeleteConfirmModal

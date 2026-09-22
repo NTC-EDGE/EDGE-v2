@@ -7,10 +7,11 @@ interface EmployeeCardProps {
   employee: Employee;
   onView: (employee: Employee) => void;
   onEdit: (employee: Employee) => void;
+  onChangeEmail?: (employee: Employee) => void;
   onDelete: (employee: Employee) => void;
 }
 
-export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCardProps) {
+export function EmployeeCard({ employee, onView, onEdit, onChangeEmail, onDelete }: EmployeeCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showPopover, setShowPopover] = useState(false);
 
@@ -22,12 +23,14 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
 
   const initials = getInitials(employee.firstName, employee.lastName);
 
-  const handleAction = (action: 'view' | 'edit' | 'delete') => {
+  const handleAction = (action: 'view' | 'edit' | 'change-email' | 'delete') => {
     setShowPopover(false);
     if (action === 'view') {
       onView(employee);
     } else if (action === 'edit') {
       onEdit(employee);
+    } else if (action === 'change-email') {
+      onChangeEmail?.(employee);
     } else if (action === 'delete') {
       onDelete(employee);
     }
@@ -119,6 +122,14 @@ export function EmployeeCard({ employee, onView, onEdit, onDelete }: EmployeeCar
               >
                 <Lucide name="edit-2" size={15} color={COLORS.brand[700]} style={styles.popoverIcon} />
                 <Text style={styles.popoverItemText}>Edit Employee</Text>
+              </Pressable>
+
+              <Pressable
+                style={styles.popoverItem}
+                onPress={() => handleAction('change-email')}
+              >
+                <Lucide name="mail" size={15} color={COLORS.brand[700]} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemText}>Change Email</Text>
               </Pressable>
 
               <View style={styles.popoverDivider} />

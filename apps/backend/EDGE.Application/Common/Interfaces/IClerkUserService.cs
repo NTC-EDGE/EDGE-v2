@@ -6,6 +6,7 @@ public interface IClerkUserService
 {
     Task UpdateUserMetadataAsync(string userId, UserMetadataPayload payload);
     Task<ClerkUserResponse?> UpdateUserAsync(string userId, UpdateClerkUserPayload payload);
+    Task UpdateUserPrimaryEmailAsync(string userId, string newEmail);
     Task<ClerkUserResponse> CreateUserAsync(CreateClerkUserPayload payload);
     Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email);
     Task<ClerkUserResponse?> GetUserByIdAsync(string userId);

@@ -13,6 +13,7 @@ using EDGE.Application.Users.Commands.UpdateCurrentProfile;
 using EDGE.Application.Users.Commands.UpdateCurrentSignature;
 using EDGE.Application.Users.Commands.AdminCreateUser;
 using EDGE.Application.Users.Commands.SyncClerkUsers;
+using EDGE.Application.Users.Commands.ChangeUserEmail;
 
 namespace EDGE.Api.Endpoints;
 
@@ -85,7 +86,17 @@ public static class UserEndpoints
         group.MapPut("/{id:guid}", UpdateUser)
             .WithName("UpdateUser")
             .WithSummary("Update user profile")
-            .WithDescription("Updates user name, email, or active state.");
+            .WithDescription("Updates user name, active state, and profile metadata.");
+
+        group.MapPost("/{id:guid}/change-email", ChangeUserEmail)
+            .WithName("ChangeUserEmail")
+            .WithSummary("Change user primary login email")
+            .WithDescription("Updates the user's primary login email across the database and Clerk identity provider.")
+            .Produces<EDGE.Domain.Entities.User>(StatusCodes.Status200OK)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status404NotFound)
+            .Produces(StatusCodes.Status400BadRequest)
+            .RequireAuthorization();
 
         group.MapPatch("/{id:guid}/super-admin", UpdateUserSuperAdmin)
             .WithName("UpdateUserSuperAdmin")
@@ -344,6 +355,33 @@ public static class UserEndpoints
 
         var result = await mediator.Send(command);
         return result is not null ? Results.Ok(result) : Results.NotFound();
+    }
+
+    public record ChangeUserEmailRequest(string NewEmail);
+
+    [HasPermission(Permissions.ManageUsers)]
+    public static async Task<IResult> ChangeUserEmail(
+        Guid id,
+        ChangeUserEmailRequest request,
+        IValidator<AdminChangeUserEmailCommand> validator,
+        IMediator mediator)
+    {
+        var command = new AdminChangeUserEmailCommand(id, request.NewEmail);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        try
+        {
+            var result = await mediator.Send(command);
+            return result is not null ? Results.Ok(result) : Results.NotFound(new { message = $"User with ID '{id}' was not found." });
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
     }
 
     public record UpdateUserSuperAdminRequest(bool IsSuperAdmin);

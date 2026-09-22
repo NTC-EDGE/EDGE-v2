@@ -69,7 +69,7 @@ export function EmployeeForm({ formState, isMobile, tenantId, isEditing = false 
       />
 
       {/* 2. Basic Info Section */}
-      <BasicInfoSection control={form.control} isMobile={isMobile} />
+      <BasicInfoSection control={form.control} isMobile={isMobile} isEditing={isEditing} />
 
       {/* 3. Account Provisioning & Signup Method (Create mode only) */}
       {!isEditing && (
