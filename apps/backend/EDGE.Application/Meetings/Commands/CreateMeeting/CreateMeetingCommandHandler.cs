@@ -37,14 +37,15 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        var fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id ?? allTenants.FirstOrDefault()?.Id ?? Guid.Empty;
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+            ?? allTenants.FirstOrDefault()?.Id;
 
         var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
         var hostTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
             ? request.TenantId
             : userMemberships.FirstOrDefault()?.TenantId 
-              ?? currentUser.TenantMemberships?.FirstOrDefault()?.TenantId
-              ?? (fallbackTenantId != Guid.Empty ? fallbackTenantId : null);
+              ?? currentUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
+              ?? fallbackTenantId;
 
         var meetingCode = $"edg-{Guid.NewGuid().ToString()[..8]}";
 
@@ -65,25 +66,36 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         {
             UserId = currentUser.Id,
             TenantId = hostTenantId ?? fallbackTenantId,
-            Role = ParticipantRole.Owner
+            Role = ParticipantRole.Owner,
+            IsDeleted = false,
+            IsDeletedBy = string.Empty
         });
 
         if (request.ParticipantUserIds != null)
         {
             foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id && id != Guid.Empty))
             {
-                var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(pUserId, cancellationToken);
                 var pUser = await _userRepository.GetByIdAsync(pUserId, cancellationToken);
+                if (pUser == null)
+                {
+                    continue;
+                }
+
+                var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(pUserId, cancellationToken);
                 var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
-                    ?? pUser?.TenantMemberships?.FirstOrDefault()?.TenantId
+                    ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
                     ?? hostTenantId 
                     ?? fallbackTenantId;
+
+                var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
 
                 meeting.Participants.Add(new MeetingParticipant
                 {
                     UserId = pUserId,
-                    TenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId,
-                    Role = ParticipantRole.Member
+                    TenantId = participantTenantId,
+                    Role = ParticipantRole.Member,
+                    IsDeleted = false,
+                    IsDeletedBy = string.Empty
                 });
             }
         }

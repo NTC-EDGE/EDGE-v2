@@ -53,11 +53,12 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        var fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id ?? allTenants.FirstOrDefault()?.Id ?? Guid.Empty;
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+            ?? allTenants.FirstOrDefault()?.Id;
 
         if (!meeting.TenantId.HasValue || meeting.TenantId.Value == Guid.Empty)
         {
-            meeting.TenantId = fallbackTenantId != Guid.Empty ? fallbackTenantId : null;
+            meeting.TenantId = fallbackTenantId;
         }
 
         var allParticipants = await _meetingRepository.GetAllParticipantsAsync(meeting.Id, cancellationToken);
@@ -73,18 +74,18 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
 
             var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
-                ?? pUser.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
                 ?? meeting.TenantId 
                 ?? fallbackTenantId;
 
-            var effectiveTenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId;
+            var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
 
             var existingParticipant = allParticipants.FirstOrDefault(p => p.UserId == userId);
             if (existingParticipant != null)
             {
                 existingParticipant.IsDeleted = false;
                 existingParticipant.IsDeletedBy = string.Empty;
-                existingParticipant.TenantId = effectiveTenantId;
+                existingParticipant.TenantId = participantTenantId;
                 existingParticipant.Role = ParticipantRole.Member;
                 existingParticipant.JoinedAt = null;
                 existingParticipant.LeftAt = null;
@@ -95,7 +96,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
                 {
                     MeetingId = meeting.Id,
                     UserId = userId,
-                    TenantId = effectiveTenantId,
+                    TenantId = participantTenantId,
                     Role = ParticipantRole.Member,
                     IsDeleted = false,
                     IsDeletedBy = string.Empty

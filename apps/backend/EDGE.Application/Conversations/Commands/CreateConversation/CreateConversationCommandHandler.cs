@@ -37,14 +37,15 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        var fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id ?? allTenants.FirstOrDefault()?.Id ?? Guid.Empty;
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+            ?? allTenants.FirstOrDefault()?.Id;
 
         var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
         var defaultTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
             ? request.TenantId
             : userMemberships.FirstOrDefault()?.TenantId 
-              ?? currentUser.TenantMemberships?.FirstOrDefault()?.TenantId
-              ?? (fallbackTenantId != Guid.Empty ? fallbackTenantId : null);
+              ?? currentUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
+              ?? fallbackTenantId;
 
         var allUserIds = new HashSet<Guid>(request.ParticipantUserIds.Where(id => id != Guid.Empty)) { currentUser.Id };
         var conversation = new Conversation
@@ -58,18 +59,27 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
 
         foreach (var userId in allUserIds)
         {
-            var memberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (pUser == null && userId != currentUser.Id)
+            {
+                continue;
+            }
+
+            var memberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var memberTenantId = memberships.FirstOrDefault()?.TenantId 
-                ?? pUser?.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? pUser?.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
                 ?? defaultTenantId 
                 ?? fallbackTenantId;
+
+            var participantTenantId = memberTenantId.HasValue && memberTenantId.Value != Guid.Empty ? memberTenantId : fallbackTenantId;
 
             conversation.Participants.Add(new ConversationParticipant
             {
                 UserId = userId,
-                TenantId = memberTenantId != Guid.Empty ? memberTenantId : fallbackTenantId,
-                Role = userId == currentUser.Id ? ParticipantRole.Owner : ParticipantRole.Member
+                TenantId = participantTenantId,
+                Role = userId == currentUser.Id ? ParticipantRole.Owner : ParticipantRole.Member,
+                IsDeleted = false,
+                IsDeletedBy = string.Empty
             });
         }
 

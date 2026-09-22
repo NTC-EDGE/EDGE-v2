@@ -50,11 +50,12 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
-        var fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id ?? allTenants.FirstOrDefault()?.Id ?? Guid.Empty;
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+            ?? allTenants.FirstOrDefault()?.Id;
 
         if (!conversation.TenantId.HasValue || conversation.TenantId.Value == Guid.Empty)
         {
-            conversation.TenantId = fallbackTenantId != Guid.Empty ? fallbackTenantId : null;
+            conversation.TenantId = fallbackTenantId;
         }
 
         var allParticipants = await _conversationRepository.GetAllParticipantsAsync(conversation.Id, cancellationToken);
@@ -70,11 +71,11 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
 
             var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
-                ?? pUser.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
                 ?? conversation.TenantId
                 ?? fallbackTenantId;
 
-            var effectiveTenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId;
+            var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
 
             var existingLeft = allParticipants.FirstOrDefault(p => p.UserId == userId);
             if (existingLeft != null)
@@ -83,7 +84,7 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
                 existingLeft.LeftAt = null;
                 existingLeft.IsDeleted = false;
                 existingLeft.IsDeletedBy = string.Empty;
-                existingLeft.TenantId = effectiveTenantId;
+                existingLeft.TenantId = participantTenantId;
             }
             else
             {
@@ -91,7 +92,7 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
                 {
                     ConversationId = conversation.Id,
                     UserId = userId,
-                    TenantId = effectiveTenantId,
+                    TenantId = participantTenantId,
                     Role = ParticipantRole.Member,
                     IsDeleted = false,
                     IsDeletedBy = string.Empty
