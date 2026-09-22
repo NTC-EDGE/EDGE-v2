@@ -57,26 +57,33 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
             conversation.TenantId = fallbackTenantId != Guid.Empty ? fallbackTenantId : null;
         }
 
-        var existingUserIds = conversation.Participants.Where(p => !p.HasLeft).Select(p => p.UserId).ToHashSet();
+        var allParticipants = await _conversationRepository.GetAllParticipantsAsync(conversation.Id, cancellationToken);
+        var activeUserIds = allParticipants.Where(p => !p.HasLeft && !p.IsDeleted).Select(p => p.UserId).ToHashSet();
 
-        foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !existingUserIds.Contains(id)))
+        foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !activeUserIds.Contains(id)))
         {
-            var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (pUser == null)
+            {
+                continue;
+            }
+
+            var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
-                ?? pUser?.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? pUser.TenantMemberships?.FirstOrDefault()?.TenantId
                 ?? conversation.TenantId
                 ?? fallbackTenantId;
 
-            var existingLeft = conversation.Participants.FirstOrDefault(p => p.UserId == userId);
+            var effectiveTenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId;
+
+            var existingLeft = allParticipants.FirstOrDefault(p => p.UserId == userId);
             if (existingLeft != null)
             {
                 existingLeft.HasLeft = false;
                 existingLeft.LeftAt = null;
-                if (!existingLeft.TenantId.HasValue || existingLeft.TenantId.Value == Guid.Empty)
-                {
-                    existingLeft.TenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId;
-                }
+                existingLeft.IsDeleted = false;
+                existingLeft.IsDeletedBy = string.Empty;
+                existingLeft.TenantId = effectiveTenantId;
             }
             else
             {
@@ -84,8 +91,10 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
                 {
                     ConversationId = conversation.Id,
                     UserId = userId,
-                    TenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId,
-                    Role = ParticipantRole.Member
+                    TenantId = effectiveTenantId,
+                    Role = ParticipantRole.Member,
+                    IsDeleted = false,
+                    IsDeletedBy = string.Empty
                 });
             }
         }

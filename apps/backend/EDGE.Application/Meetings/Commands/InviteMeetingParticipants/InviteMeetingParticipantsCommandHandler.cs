@@ -60,24 +60,47 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             meeting.TenantId = fallbackTenantId != Guid.Empty ? fallbackTenantId : null;
         }
 
-        var existingUserIds = meeting.Participants.Select(p => p.UserId).ToHashSet();
+        var allParticipants = await _meetingRepository.GetAllParticipantsAsync(meeting.Id, cancellationToken);
+        var activeUserIds = allParticipants.Where(p => !p.IsDeleted).Select(p => p.UserId).ToHashSet();
 
-        foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !existingUserIds.Contains(id)))
+        foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !activeUserIds.Contains(id)))
         {
-            var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (pUser == null)
+            {
+                continue;
+            }
+
+            var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
             var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
-                ?? pUser?.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? pUser.TenantMemberships?.FirstOrDefault()?.TenantId
                 ?? meeting.TenantId 
                 ?? fallbackTenantId;
 
-            meeting.Participants.Add(new MeetingParticipant
+            var effectiveTenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId;
+
+            var existingParticipant = allParticipants.FirstOrDefault(p => p.UserId == userId);
+            if (existingParticipant != null)
             {
-                MeetingId = meeting.Id,
-                UserId = userId,
-                TenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId,
-                Role = ParticipantRole.Member
-            });
+                existingParticipant.IsDeleted = false;
+                existingParticipant.IsDeletedBy = string.Empty;
+                existingParticipant.TenantId = effectiveTenantId;
+                existingParticipant.Role = ParticipantRole.Member;
+                existingParticipant.JoinedAt = null;
+                existingParticipant.LeftAt = null;
+            }
+            else
+            {
+                meeting.Participants.Add(new MeetingParticipant
+                {
+                    MeetingId = meeting.Id,
+                    UserId = userId,
+                    TenantId = effectiveTenantId,
+                    Role = ParticipantRole.Member,
+                    IsDeleted = false,
+                    IsDeletedBy = string.Empty
+                });
+            }
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

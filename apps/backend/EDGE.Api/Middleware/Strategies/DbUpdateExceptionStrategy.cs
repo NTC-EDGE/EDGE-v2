@@ -15,8 +15,19 @@ public class DbUpdateExceptionStrategy : IExceptionStrategy
     {
         var dbEx = (DbUpdateException)exception;
 
-        // Check for PostgreSQL-specific error codes without leaking internal schema/table/column names
-        if (dbEx.InnerException is PostgresException pgEx)
+        Exception? current = dbEx;
+        PostgresException? pgEx = null;
+        while (current != null)
+        {
+            if (current is PostgresException p)
+            {
+                pgEx = p;
+                break;
+            }
+            current = current.InnerException;
+        }
+
+        if (pgEx != null)
         {
             return pgEx.SqlState switch
             {

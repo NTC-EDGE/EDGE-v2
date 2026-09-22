@@ -12,4 +12,5 @@ public interface IMeetingRepository
     Task<MeetingPoll> AddMeetingPollAsync(MeetingPoll poll, CancellationToken cancellationToken = default);
     Task<MeetingPollVote> AddMeetingPollVoteAsync(MeetingPollVote vote, CancellationToken cancellationToken = default);
     Task<int> GetHandRaiseQueueCountAsync(Guid meetingId, CancellationToken cancellationToken = default);
+    Task<List<MeetingParticipant>> GetAllParticipantsAsync(Guid meetingId, CancellationToken cancellationToken = default);
 }

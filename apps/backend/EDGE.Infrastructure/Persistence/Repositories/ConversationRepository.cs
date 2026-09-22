@@ -74,4 +74,12 @@ public class ConversationRepository : IConversationRepository
             participant.LastReadMessageId = lastMessageId;
         }
     }
+
+    public async Task<List<ConversationParticipant>> GetAllParticipantsAsync(Guid conversationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ConversationParticipants
+            .IgnoreQueryFilters()
+            .Where(p => p.ConversationId == conversationId)
+            .ToListAsync(cancellationToken);
+    }
 }
