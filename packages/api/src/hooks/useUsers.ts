@@ -83,6 +83,7 @@ export function useUsers(options?: UseUsersOptions): UseUsersReturn {
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
+      keepPreviousData: true,
     }
   );
 

@@ -48,6 +48,7 @@ export function useTenantMembers(tenantId?: string): UseTenantMembersReturn {
     {
       revalidateOnFocus: false,
       dedupingInterval: 5000,
+      keepPreviousData: true,
     }
   );
 
