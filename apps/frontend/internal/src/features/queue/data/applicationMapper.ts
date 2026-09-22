@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, FormFieldValueDto } from '@edge/api';
 import {
   ApplicationData,
   ApplicationStatus,
@@ -188,7 +188,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
             : formatProperName(companyDetails?.name) || formatProperName(rawFilingUser?.name) || 'Applicant';
 
   const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
-    primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+    primaryFormFields.find((f: FormFieldValueDto) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
 
   const brgyPrimary = findPrimaryFv((lbl) => lbl.includes('barangay')) ?? '';
   const cityPrimary = findPrimaryFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) ?? '';
@@ -229,7 +229,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
       : undefined;
 
     const findFv = (predicate: (lbl: string, id: string) => boolean) =>
-      formFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
+      formFields.find((f: FormFieldValueDto) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
 
     const fvNameCandidate = findFv((lbl) =>
       lbl.includes('full name') ||

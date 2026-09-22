@@ -1081,6 +1081,7 @@ export interface ApplicantDto {
   submissionId?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
+  formFieldValues?: FormFieldValueDto[];
 }
 
 export interface FilingUserDto {

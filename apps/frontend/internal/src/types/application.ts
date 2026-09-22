@@ -169,7 +169,7 @@ export interface ApplicationData {
   applicationNumber: string;
   applicant: string;
   applicantType: ApplicantType;
-  serviceName: string;
+  permitTitle: string;
   category: ApplicationCategory;
   status: ApplicationStatus;
   queueTab: QueueTab;
