@@ -15,9 +15,6 @@ public class CreateConversationCommandValidator : AbstractValidator<CreateConver
             RuleFor(x => x.Title)
                 .NotEmpty().WithMessage("Group chat title is required.")
                 .MaximumLength(200).WithMessage("Group chat title cannot exceed 200 characters.");
-
-            RuleFor(x => x.ParticipantUserIds)
-                .Must(x => x.Count >= 2).WithMessage("A group chat must include at least 2 participants.");
         });
     }
 }

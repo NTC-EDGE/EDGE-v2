@@ -80,6 +80,21 @@ export const chatService = {
     return response.data;
   },
 
+  async addParticipants(conversationId: string, userIds: string[]): Promise<Conversation> {
+    const response = await apiClient.post<Conversation>(
+      `/api/v2/chat/conversations/${conversationId}/participants`,
+      { conversationId, userIds }
+    );
+    return response.data;
+  },
+
+  async removeParticipant(conversationId: string, userId: string): Promise<boolean> {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/participants/${userId}`
+    );
+    return response.data.success;
+  },
+
   async getMessages(conversationId: string, skip = 0, take = 50): Promise<ChatMessage[]> {
     const response = await apiClient.get<ChatMessage[]>(`/api/v2/chat/conversations/${conversationId}/messages`, {
       params: { skip, take },

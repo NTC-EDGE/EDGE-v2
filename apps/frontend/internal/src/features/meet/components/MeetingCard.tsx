@@ -6,9 +6,10 @@ import { Button, Icon, useTheme } from '@edge/ui';
 interface MeetingCardProps {
   meeting: Meeting;
   onJoin: (meeting: Meeting) => void;
+  onInvite?: (meeting: Meeting) => void;
 }
 
-export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin }) => {
+export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInvite }) => {
   const { colors } = useTheme();
   const isInterRegional = meeting.scope === 'InterRegional';
 
@@ -54,9 +55,22 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin }) => 
           </View>
         </View>
 
-        <Button variant="primary" size="sm" onPress={() => onJoin(meeting)}>
-          Join Call
-        </Button>
+        <View style={styles.actionsRow}>
+          {onInvite && (
+            <Button
+              variant="secondary"
+              size="sm"
+              fullWidth={false}
+              leftIcon={<Icon name="user-plus" size={14} color={colors.text} />}
+              onPress={() => onInvite(meeting)}
+            >
+              Invite
+            </Button>
+          )}
+          <Button variant="primary" size="sm" fullWidth={false} onPress={() => onJoin(meeting)}>
+            Join Call
+          </Button>
+        </View>
       </View>
 
       {meeting.description ? (
@@ -95,6 +109,11 @@ const styles = StyleSheet.create({
   titleInfo: {
     flex: 1,
     minWidth: 200,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   title: {
     fontSize: 16,

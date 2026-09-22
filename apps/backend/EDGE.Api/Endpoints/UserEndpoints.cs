@@ -322,9 +322,18 @@ public static class UserEndpoints
     }
 
     [HasPermission(Permissions.ReadUsers)]
-    public static async Task<IResult> GetUsers(IMediator mediator)
+    public static async Task<IResult> GetUsers(
+        IMediator mediator,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageNumber = 1,
+        [Microsoft.AspNetCore.Mvc.FromQuery] int pageSize = 50,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? search = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] string? searchTerm = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] Guid? tenantId = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] Guid? regionId = null,
+        [Microsoft.AspNetCore.Mvc.FromQuery] bool? isActive = null)
     {
-        var result = await mediator.Send(new GetUsersQuery());
+        var term = !string.IsNullOrWhiteSpace(searchTerm) ? searchTerm : search;
+        var result = await mediator.Send(new GetUsersQuery(pageNumber, pageSize, term, tenantId, regionId, isActive));
         return Results.Ok(result);
     }
 
@@ -411,8 +420,8 @@ public static class UserEndpoints
         // Prevent self-revocation/accidental lockout if this is the last SuperAdmin on the system
         if (existingUser.IsSuperAdmin && request.IsSuperAdmin == false)
         {
-            var allUsers = await mediator.Send(new GetUsersQuery());
-            var superAdminCount = allUsers.Count(u => u.IsSuperAdmin);
+            var allUsers = await mediator.Send(new GetUsersQuery(1, 1000));
+            var superAdminCount = allUsers.Data.Count(u => u.IsSuperAdmin);
             if (superAdminCount <= 1)
             {
                 return Results.BadRequest(new
@@ -496,31 +505,10 @@ public static class UserEndpoints
         string? status,
         IMediator mediator)
     {
-        var users = await mediator.Send(new GetUsersQuery());
-
-        Guid? parsedTenantId = null;
-        if (!string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var tid))
-        {
-            parsedTenantId = tid;
-            users = users.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.TenantId == tid)).ToList();
-        }
-
-        Guid? parsedRegionId = null;
-        if (!string.IsNullOrWhiteSpace(regionId) && Guid.TryParse(regionId, out var rid))
-        {
-            parsedRegionId = rid;
-            users = users.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.Tenant != null && tm.Tenant.RegionId == rid)).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(search))
-        {
-            var s = search.Trim().ToLower();
-            users = users.Where(u =>
-                (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(s)) ||
-                (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(s)) ||
-                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(s))
-            ).ToList();
-        }
+        Guid? parsedTenantId = !string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var tid) ? tid : null;
+        Guid? parsedRegionId = !string.IsNullOrWhiteSpace(regionId) && Guid.TryParse(regionId, out var rid) ? rid : null;
+        var paginated = await mediator.Send(new GetUsersQuery(1, 1000, search, parsedTenantId, parsedRegionId));
+        var users = paginated.Data;
 
         var result = users.Select(u =>
         {
@@ -535,11 +523,10 @@ public static class UserEndpoints
                 firstName = u.FirstName,
                 lastName = u.LastName,
                 phoneNumber = u.ContactNumber,
-                contactNumber = u.ContactNumber,
-                regionId = primaryMembership?.Tenant?.RegionId.ToString() ?? "",
-                regionName = primaryMembership?.Tenant?.Region?.Name ?? "",
+                regionId = primaryMembership?.TenantId.ToString() ?? "",
+                regionName = primaryMembership?.TenantName ?? "",
                 tenantId = primaryMembership?.TenantId,
-                tenantName = primaryMembership?.Tenant?.Name,
+                tenantName = primaryMembership?.TenantName,
                 fieldOfficeName = primaryMembership?.FieldOffice?.Name,
                 status = "active",
                 isSuperAdmin = u.IsSuperAdmin,
@@ -550,7 +537,7 @@ public static class UserEndpoints
                 lastOnline = u.LastOnline,
                 failedLoginAttempts = 0,
                 authProvider = "Clerk",
-                assignedRoles = u.TenantMemberships?.Select(tm => tm.Role?.Name ?? tm.Position).Where(r => !string.IsNullOrEmpty(r)).ToList()
+                assignedRoles = u.TenantMemberships?.Select(tm => tm.Role?.Name ?? tm.Position).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).ToList()
                                 ?? (u.IsSuperAdmin ? new List<string> { "SUPER_ADMIN" } : new List<string> { "STANDARD_USER" }),
                 createdAt = u.CreatedAt,
                 openTicketsCount = 0,
