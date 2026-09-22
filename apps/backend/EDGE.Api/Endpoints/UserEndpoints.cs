@@ -537,8 +537,11 @@ public static class UserEndpoints
                 lastOnline = u.LastOnline,
                 failedLoginAttempts = 0,
                 authProvider = "Clerk",
-                assignedRoles = u.TenantMemberships?.Select(tm => tm.Role?.Name ?? tm.Position).Where(r => !string.IsNullOrEmpty(r)).Select(r => r!).ToList()
-                                ?? (u.IsSuperAdmin ? new List<string> { "SUPER_ADMIN" } : new List<string> { "STANDARD_USER" }),
+                assignedRoles = (u.TenantMemberships?
+                    .Select(tm => tm.Role?.Name ?? tm.Position)
+                    .OfType<string>()
+                    .Where(r => !string.IsNullOrWhiteSpace(r))
+                    .ToList() is { Count: > 0 } roles ? roles : (u.IsSuperAdmin ? new List<string> { "SUPER_ADMIN" } : new List<string> { "STANDARD_USER" })),
                 createdAt = u.CreatedAt,
                 openTicketsCount = 0,
                 totalTicketsCount = 0
