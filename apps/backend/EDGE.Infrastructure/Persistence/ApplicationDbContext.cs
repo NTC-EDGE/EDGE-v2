@@ -101,6 +101,18 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<AgencyBankAccount> AgencyBankAccounts => Set<AgencyBankAccount>();
     public DbSet<BankDeposit> BankDeposits => Set<BankDeposit>();
 
+    public DbSet<Conversation> Conversations => Set<Conversation>();
+    public DbSet<ConversationParticipant> ConversationParticipants => Set<ConversationParticipant>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
+    public DbSet<MessageAttachment> MessageAttachments => Set<MessageAttachment>();
+    public DbSet<MessageReadReceipt> MessageReadReceipts => Set<MessageReadReceipt>();
+    public DbSet<Meeting> Meetings => Set<Meeting>();
+    public DbSet<MeetingParticipant> MeetingParticipants => Set<MeetingParticipant>();
+    public DbSet<MeetingAction> MeetingActions => Set<MeetingAction>();
+    public DbSet<MeetingPoll> MeetingPolls => Set<MeetingPoll>();
+    public DbSet<MeetingPollVote> MeetingPollVotes => Set<MeetingPollVote>();
+    public DbSet<UserNotification> UserNotifications => Set<UserNotification>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -818,6 +830,64 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.VerifiedByUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // Communication Configurations
+        modelBuilder.Entity<Conversation>(entity =>
+        {
+            entity.Property(e => e.Title).HasMaxLength(200);
+            entity.Property(e => e.Type).HasConversion<string>();
+            entity.Property(e => e.Scope).HasConversion<string>();
+            entity.HasIndex(e => e.TenantId);
+        });
+
+        modelBuilder.Entity<ConversationParticipant>(entity =>
+        {
+            entity.Property(e => e.Role).HasConversion<string>();
+            entity.HasIndex(e => new { e.ConversationId, e.UserId });
+            entity.HasIndex(e => e.TenantId);
+        });
+
+        modelBuilder.Entity<ChatMessage>(entity =>
+        {
+            entity.Property(e => e.Type).HasConversion<string>();
+            entity.HasIndex(e => new { e.ConversationId, e.CreatedAt });
+            entity.HasIndex(e => e.SenderId);
+        });
+
+        modelBuilder.Entity<Meeting>(entity =>
+        {
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.MeetingCode).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Scope).HasConversion<string>();
+            entity.Property(e => e.Status).HasConversion<string>();
+            entity.HasIndex(e => e.MeetingCode).IsUnique();
+            entity.HasIndex(e => e.TenantId);
+        });
+
+        modelBuilder.Entity<MeetingParticipant>(entity =>
+        {
+            entity.Property(e => e.Role).HasConversion<string>();
+            entity.HasIndex(e => new { e.MeetingId, e.UserId });
+        });
+
+        modelBuilder.Entity<MeetingAction>(entity =>
+        {
+            entity.Property(e => e.ActionType).HasConversion<string>();
+            entity.HasIndex(e => new { e.MeetingId, e.CreatedAt });
+        });
+
+        modelBuilder.Entity<MeetingPoll>(entity =>
+        {
+            entity.Property(e => e.Question).IsRequired().HasMaxLength(500);
+            entity.HasIndex(e => e.MeetingId);
+        });
+
+        modelBuilder.Entity<UserNotification>(entity =>
+        {
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Type).HasConversion<string>();
+            entity.HasIndex(e => new { e.UserId, e.IsRead });
         });
     }
 

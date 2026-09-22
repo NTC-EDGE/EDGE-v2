@@ -81,8 +81,10 @@ try
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
-    // Map SignalR Hub
+    // Map SignalR Hubs
     app.MapHub<NotificationHub>("/hubs/notifications");
+    app.MapHub<ChatHub>("/hubs/chat");
+    app.MapHub<MeetingHub>("/hubs/meet");
 
     app.Run();
 }

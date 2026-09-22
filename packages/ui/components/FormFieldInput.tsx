@@ -49,7 +49,7 @@ export function FormFieldInput<T extends FieldValues>({
           borderColor: hasError
             ? colors.semantic.error
             : isFocused
-            ? colors.brand[800]
+            ? colors.brand.primary
             : colors.border,
           backgroundColor: hasError
             ? colors.semantic.errorBg
@@ -61,7 +61,7 @@ export function FormFieldInput<T extends FieldValues>({
         const iconColor = hasError
           ? colors.semantic.error
           : isFocused
-          ? colors.brand[800]
+          ? colors.brand.primary
           : colors.neutral[400];
 
         return (
@@ -138,6 +138,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 10,
     paddingHorizontal: 14,
+    overflow: "hidden",
   },
   iconLeft: {
     marginRight: 10,
@@ -147,7 +148,15 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     height: "100%",
-    ...Platform.select({ web: { outlineWidth: 0 } }),
+    backgroundColor: "transparent",
+    borderWidth: 0,
+    padding: 0,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+        outlineColor: "transparent",
+      },
+    }),
   },
   eyeToggle: {
     padding: 6,
