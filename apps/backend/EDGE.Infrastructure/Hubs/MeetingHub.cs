@@ -1,6 +1,7 @@
 using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
+using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Hubs;
 
@@ -8,18 +9,49 @@ namespace EDGE.Infrastructure.Hubs;
 public class MeetingHub : Hub<IMeetingClient>
 {
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> ConnectionMeetings = new();
+    private readonly IMeetingRepository _meetingRepository;
+
+    public MeetingHub(IMeetingRepository meetingRepository)
+    {
+        _meetingRepository = meetingRepository;
+    }
 
     public async Task JoinMeeting(string meetingCode)
     {
-        var groupName = $"meet_{meetingCode}";
-        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+        if (string.IsNullOrWhiteSpace(meetingCode))
+        {
+            throw new HubException("Invalid meeting code.");
+        }
 
-        var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
-        meetings.TryAdd(meetingCode, 0);
+        var meeting = await _meetingRepository.GetByCodeAsync(meetingCode);
+        if (meeting == null)
+        {
+            throw new HubException("Meeting not found.");
+        }
 
         if (Guid.TryParse(Context.UserIdentifier, out var userId))
         {
+            var isAuthorized = meeting.HostUserId == userId ||
+                               meeting.Participants.Any(p => p.UserId == userId) ||
+                               meeting.Scope == Domain.Enums.ConversationScope.InterRegional ||
+                               meeting.AllowExternalGuests;
+
+            if (!isAuthorized)
+            {
+                throw new HubException("Access denied: You are not authorized to join this meeting room.");
+            }
+
+            var groupName = $"meet_{meetingCode}";
+            await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+            var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
+            meetings.TryAdd(meetingCode, 0);
+
             await Clients.OthersInGroup(groupName).OnParticipantJoined(new { connectionId = Context.ConnectionId, userId });
+        }
+        else
+        {
+            throw new HubException("User identity not verified.");
         }
     }
 
@@ -57,15 +89,21 @@ public class MeetingHub : Hub<IMeetingClient>
 
     public async Task SendReaction(string meetingCode, string emoji)
     {
-        if (Guid.TryParse(Context.UserIdentifier, out var userId))
+        if (ConnectionMeetings.TryGetValue(Context.ConnectionId, out var meetings) && meetings.ContainsKey(meetingCode))
         {
-            await Clients.Group($"meet_{meetingCode}").OnReactionReceived(userId, emoji);
+            if (Guid.TryParse(Context.UserIdentifier, out var userId))
+            {
+                await Clients.Group($"meet_{meetingCode}").OnReactionReceived(userId, emoji);
+            }
         }
     }
 
     public async Task BroadcastMeetingChatMessage(string meetingCode, object message)
     {
-        await Clients.Group($"meet_{meetingCode}").ReceiveMeetingChatMessage(message);
+        if (ConnectionMeetings.TryGetValue(Context.ConnectionId, out var meetings) && meetings.ContainsKey(meetingCode))
+        {
+            await Clients.Group($"meet_{meetingCode}").ReceiveMeetingChatMessage(message);
+        }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

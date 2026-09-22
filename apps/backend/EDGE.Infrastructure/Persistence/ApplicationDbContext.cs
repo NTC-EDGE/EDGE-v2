@@ -845,6 +845,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.Role).HasConversion<string>();
             entity.HasIndex(e => new { e.ConversationId, e.UserId });
+            entity.HasIndex(e => new { e.UserId, e.HasLeft, e.IsDeleted });
+            entity.HasIndex(e => e.LastReadAt);
             entity.HasIndex(e => e.TenantId);
         });
 
@@ -862,6 +864,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Scope).HasConversion<string>();
             entity.Property(e => e.Status).HasConversion<string>();
             entity.HasIndex(e => e.MeetingCode).IsUnique();
+            entity.HasIndex(e => new { e.HostUserId, e.ScheduledStartTime, e.IsDeleted });
             entity.HasIndex(e => e.TenantId);
         });
 
@@ -869,6 +872,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.Property(e => e.Role).HasConversion<string>();
             entity.HasIndex(e => new { e.MeetingId, e.UserId });
+            entity.HasIndex(e => new { e.UserId, e.MeetingId, e.IsDeleted });
         });
 
         modelBuilder.Entity<MeetingAction>(entity =>
