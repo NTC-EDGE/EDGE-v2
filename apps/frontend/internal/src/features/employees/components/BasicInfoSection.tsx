@@ -8,9 +8,10 @@ import { fieldStyles } from '../styles/employeeFieldStyles';
 interface BasicInfoSectionProps {
   control: Control<EmployeeFormData>;
   isMobile: boolean;
+  isEditing?: boolean;
 }
 
-export function BasicInfoSection({ control, isMobile }: BasicInfoSectionProps) {
+export function BasicInfoSection({ control, isMobile, isEditing = false }: BasicInfoSectionProps) {
   return (
     <View style={fieldStyles.cardSection}>
       <View style={fieldStyles.sectionHeaderRow}>
@@ -113,9 +114,16 @@ export function BasicInfoSection({ control, isMobile }: BasicInfoSectionProps) {
 
       {/* Row 3: Email */}
       <View style={fieldStyles.inputGroup}>
-        <Text style={fieldStyles.label}>
-          Email Address <Text style={fieldStyles.requiredStar}>*</Text>
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+          <Text style={fieldStyles.label}>
+            Email Address <Text style={fieldStyles.requiredStar}>*</Text>
+          </Text>
+          {isEditing && (
+            <Text style={{ fontSize: 11, color: COLORS.neutral[500], fontWeight: '500' }}>
+              Managed via Change Email
+            </Text>
+          )}
+        </View>
         <Controller
           control={control}
           name="email"
@@ -123,7 +131,7 @@ export function BasicInfoSection({ control, isMobile }: BasicInfoSectionProps) {
             <>
               <View style={fieldStyles.inputIconWrapper}>
                 <Lucide
-                  name="mail"
+                  name={isEditing ? 'lock' : 'mail'}
                   size={15}
                   color={COLORS.neutral[400]}
                   style={fieldStyles.inputIcon}
@@ -131,18 +139,25 @@ export function BasicInfoSection({ control, isMobile }: BasicInfoSectionProps) {
                 <TextInput
                   style={[
                     fieldStyles.inputWithIcon,
+                    isEditing && { backgroundColor: COLORS.neutral[100], color: COLORS.neutral[600] },
                     error !== undefined && fieldStyles.inputError,
                   ]}
                   placeholder="official.email@example.com"
                   placeholderTextColor={COLORS.neutral[400]}
                   keyboardType="email-address"
                   autoCapitalize="none"
+                  editable={!isEditing}
                   value={value}
                   onChangeText={onChange}
                 />
               </View>
               {error !== undefined && (
                 <Text style={fieldStyles.errorText}>{error.message}</Text>
+              )}
+              {isEditing && (
+                <Text style={{ fontSize: 11, color: COLORS.neutral[500], marginTop: 4 }}>
+                  To modify this employee&apos;s primary login email in Clerk, use the &quot;Change Login Email&quot; action in the accounts list.
+                </Text>
               )}
             </>
           )}

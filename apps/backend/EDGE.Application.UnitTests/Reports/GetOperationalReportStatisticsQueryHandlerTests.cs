@@ -101,7 +101,7 @@ public class GetOperationalReportStatisticsQueryHandlerTests
 
         _applicationRepositoryMock
             .Setup(a => a.GetPagedApplicationSummaryDtosAsync(
-                null, null, null, null, null, 1, 1000, null, null, tenantId, null, It.IsAny<CancellationToken>()))
+                null, null, null, null, null, 1, 1000, null, null, tenantId, null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PagedApplicationListDto
             {
                 Items = sampleApps,
@@ -283,11 +283,11 @@ public class GetOperationalReportStatisticsQueryHandlerTests
         };
 
         _applicationRepositoryMock
-            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 1, 1000, null, null, tenantId, null, It.IsAny<CancellationToken>()))
+            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 1, 1000, null, null, tenantId, null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(page1Result);
 
         _applicationRepositoryMock
-            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 2, 1000, null, null, tenantId, null, It.IsAny<CancellationToken>()))
+            .Setup(a => a.GetPagedApplicationSummaryDtosAsync(null, null, null, null, null, 2, 1000, null, null, tenantId, null, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(page2Result);
 
         _tenantRepositoryMock

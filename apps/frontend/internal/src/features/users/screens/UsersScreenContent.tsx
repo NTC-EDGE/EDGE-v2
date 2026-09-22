@@ -65,7 +65,7 @@ function TableActionCell({
   };
 
   return (
-    <View style={styles.tableActionWrapper}>
+    <View style={[styles.tableActionWrapper, isPopoverOpen && { zIndex: 99999 }]}>
       {isPopoverOpen && (
         <Pressable style={styles.popoverBackdrop} onPress={() => setActivePopoverId(null)} />
       )}
@@ -963,7 +963,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     paddingVertical: 4,
-    zIndex: 100,
+    zIndex: 99999,
+    elevation: 99,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+      },
+    }),
   },
   popoverItem: {
     flexDirection: 'row',

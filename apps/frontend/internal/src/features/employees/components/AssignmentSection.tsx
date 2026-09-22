@@ -94,7 +94,7 @@ export function AssignmentSection({
           style={{ marginRight: 8 }}
         />
         <Text style={fieldStyles.cardSectionTitle}>
-          Employee Assignment & Details (Optional)
+          Employee Assignment & Field Office Details
         </Text>
       </View>
 
@@ -108,7 +108,9 @@ export function AssignmentSection({
           },
         ]}
       >
-        <Text style={fieldStyles.label}>Assigned Field Office (Optional)</Text>
+        <Text style={fieldStyles.label}>
+          Assigned Field Office <Text style={fieldStyles.requiredStar}>*</Text>
+        </Text>
         <Pressable
           style={[
             fieldStyles.dropdownTrigger,
@@ -117,7 +119,7 @@ export function AssignmentSection({
           onPress={onToggleFieldOfficeDropdown}
         >
           <Text style={fieldStyles.dropdownTriggerText} numberOfLines={1}>
-            {fieldOfficeValue || 'Select Field Office (Optional)'}
+            {fieldOfficeValue || 'Select Field Office'}
           </Text>
           {isLoading ? (
             <ActivityIndicator size="small" color={COLORS.brand[700]} />
