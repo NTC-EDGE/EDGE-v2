@@ -15,6 +15,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -22,12 +23,14 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         ITenantMemberRepository tenantMemberRepository,
+        ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _tenantMemberRepository = tenantMemberRepository;
+        _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
     }
@@ -49,18 +52,30 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             throw new UnauthorizedAccessException("Only the meeting host or administrators can invite new participants.");
         }
 
+        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
+        var fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id ?? allTenants.FirstOrDefault()?.Id ?? Guid.Empty;
+
+        if (!meeting.TenantId.HasValue || meeting.TenantId.Value == Guid.Empty)
+        {
+            meeting.TenantId = fallbackTenantId != Guid.Empty ? fallbackTenantId : null;
+        }
+
         var existingUserIds = meeting.Participants.Select(p => p.UserId).ToHashSet();
 
         foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !existingUserIds.Contains(id)))
         {
             var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
-            var pTenantId = pMemberships.FirstOrDefault()?.TenantId ?? meeting.TenantId;
+            var pUser = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
+                ?? pUser?.TenantMemberships?.FirstOrDefault()?.TenantId
+                ?? meeting.TenantId 
+                ?? fallbackTenantId;
 
             meeting.Participants.Add(new MeetingParticipant
             {
                 MeetingId = meeting.Id,
                 UserId = userId,
-                TenantId = pTenantId,
+                TenantId = pTenantId != Guid.Empty ? pTenantId : fallbackTenantId,
                 Role = ParticipantRole.Member
             });
         }
