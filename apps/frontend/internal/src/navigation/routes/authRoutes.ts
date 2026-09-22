@@ -13,6 +13,8 @@ import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen"
 import { ScheduleScreen } from "../../features/schedule/screens/ScheduleScreen";
 import { ReportsScreen } from "../../features/reports/screens/ReportsScreen";
 import { ReceiptManagementScreen } from "../../features/receipts/screens/ReceiptManagementScreen";
+import { ChatScreen } from "../../features/chat/screens/ChatScreen";
+import { MeetScreen } from "../../features/meet/screens/MeetScreen";
 import { PlaceholderScreen } from "../stacks/PlaceholderScreen";
 
 // We keep these direct references for the route config.
@@ -50,12 +52,12 @@ export const authRoutes = {
     options: { title: "Activities" },
   },
   Chat: {
-    screen: PlaceholderScreen,
+    screen: ChatScreen,
     path: "chat",
     options: { title: "Chat" },
   },
   Meet: {
-    screen: PlaceholderScreen,
+    screen: MeetScreen,
     path: "meet",
     options: { title: "Meet" },
   },

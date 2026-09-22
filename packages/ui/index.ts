@@ -28,6 +28,7 @@ export * from './components/PageHeader';
 export * from './components/EmptyState';
 export * from './components/SearchBar';
 export * from './components/ConfirmationModal';
+export * from './components/ModalDialog';
 
 // Navigation & Integrations
 export { Feather as Icon } from '@expo/vector-icons';
