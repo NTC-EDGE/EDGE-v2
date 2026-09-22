@@ -118,6 +118,13 @@ public class UserRepository : IUserRepository
         return (items, totalCount);
     }
 
+    public async Task<int> CountSuperAdminsAsync(CancellationToken cancellationToken = default)
+    {
+        return await _context.Users
+            .AsNoTracking()
+            .CountAsync(u => u.IsSuperAdmin, cancellationToken);
+    }
+
     public async Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(userIdStr))

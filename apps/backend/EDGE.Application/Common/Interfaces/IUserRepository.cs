@@ -20,6 +20,7 @@ public interface IUserRepository
         CancellationToken cancellationToken = default);
     Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default);
     Task<User?> ResolveCurrentUserAsync(ICurrentUserService currentUserService, CancellationToken cancellationToken = default);
+    Task<int> CountSuperAdminsAsync(CancellationToken cancellationToken = default);
     Task AddAsync(User user, CancellationToken cancellationToken = default);
     void Delete(User user);
 }

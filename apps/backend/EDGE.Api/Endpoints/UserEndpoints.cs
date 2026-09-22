@@ -418,23 +418,16 @@ public static class UserEndpoints
             return Results.NotFound(new { message = $"User with ID '{id}' was not found." });
         }
 
-        // Prevent self-revocation/accidental lockout if this is the last SuperAdmin on the system
-        if (existingUser.IsSuperAdmin && request.IsSuperAdmin == false)
+        try
         {
-            var allUsers = await mediator.Send(new GetUsersQuery(1, 1000));
-            var superAdminCount = allUsers.Data.Count(u => u.IsSuperAdmin);
-            if (superAdminCount <= 1)
-            {
-                return Results.BadRequest(new
-                {
-                    message = "Operation failed: Cannot revoke SuperAdmin privilege from the sole remaining SuperAdmin in the system."
-                });
-            }
+            var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, IsSuperAdmin: request.IsSuperAdmin);
+            var result = await mediator.Send(command);
+            return result is not null ? Results.Ok(result) : Results.NotFound(new { message = $"User with ID '{id}' was not found." });
         }
-
-        var command = new AdminUpdateUserCommand(id, existingUser.FirstName, existingUser.LastName, IsSuperAdmin: request.IsSuperAdmin);
-        var result = await mediator.Send(command);
-        return result is not null ? Results.Ok(result) : Results.NotFound();
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
     }
 
     [HasPermission(Permissions.ManageUsers)]
