@@ -30,10 +30,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
-    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
+    public Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Applications
-            .AsNoTrackingWithIdentityResolution()
+        return GetByIdWithDetailsAsync(id, false, cancellationToken);
+    }
+
+    public async Task<Domain.Entities.Application?> GetByIdWithDetailsAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Applications.AsQueryable();
+        if (asNoTracking)
+        {
+            query = query.AsNoTrackingWithIdentityResolution();
+        }
+
+        return await query
             .AsSplitQuery()
             .Include(a => a.User)
                 .ThenInclude(u => u!.CompanyDetail)
@@ -170,7 +180,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             var tab = queueTab.Trim().ToLowerInvariant();
             if (tab == "pending")
             {
-                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
             }
             else if (tab == "history")
             {
@@ -225,7 +235,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             var tab = queueTab.Trim().ToLowerInvariant();
             if (tab == "pending")
             {
-                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
             }
             else if (tab == "history")
             {
@@ -340,11 +350,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
         int pageSize = 10,
         string? searchTerm = null,
         string? mode = null,
+        Guid? tenantId = null,
+        List<Guid>? tenantIds = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Applications
             .AsNoTracking()
             .Where(a => a.Status != ApplicationStatus.Draft && !a.IsArchived);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            baseQuery = baseQuery.Where(a => a.TenantId == tenantId.Value);
+        }
+        else if (tenantIds != null && tenantIds.Count > 0)
+        {
+            baseQuery = baseQuery.Where(a => tenantIds.Contains(a.TenantId));
+        }
 
         if (userId.HasValue || !string.IsNullOrEmpty(userEmail))
         {
@@ -359,7 +380,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var totalCount = await baseQuery.CountAsync(cancellationToken);
         var singleCount = await baseQuery.CountAsync(a => a.SubmissionMode == SubmissionMode.Single, cancellationToken);
         var bulkCount = await baseQuery.CountAsync(a => a.SubmissionMode == SubmissionMode.Bulk, cancellationToken);
-        var evaluatingCount = await baseQuery.CountAsync(a => a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Submitted, cancellationToken);
+        var evaluatingCount = await baseQuery.CountAsync(a => a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment, cancellationToken);
         var approvedCount = await baseQuery.CountAsync(a => a.Status == ApplicationStatus.Approved, cancellationToken);
         var paymentRequiredCount = await _context.StatementsOfAccount
             .Where(s => baseQuery.Select(a => a.Id).Contains(s.ApplicationId) && s.Status == SoaStatus.Approved)
@@ -402,7 +423,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             var tab = queueTab.Trim().ToLowerInvariant();
             if (tab == "pending")
             {
-                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
             }
             else if (tab == "history")
             {
@@ -672,6 +693,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
     {
         await _context.ApplicationRequirements.AddAsync(appRequirement, cancellationToken);
+    }
+
+    public Task UpdateApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
+    {
+        _context.ApplicationRequirements.Update(appRequirement);
+        return Task.CompletedTask;
     }
 
     public async Task<List<ApplicationRequirement>> GetApplicantRequirementsAsync(Guid applicationId, Guid applicantId, CancellationToken cancellationToken = default)

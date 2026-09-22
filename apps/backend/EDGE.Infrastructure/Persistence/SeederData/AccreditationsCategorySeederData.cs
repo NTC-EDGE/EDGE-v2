@@ -29,7 +29,7 @@ public static class AccreditationsCategorySeederData
         ""categorySpecific"": {
             ""equipmentCategory"": [""Radio Communications Equipment (RCE)"", ""Radio Transmitter/Transceiver"", ""WDN Indoor/SRD/RFID"", ""Mobile Phone""],
             ""permitCategory"": [""Dealer"", ""Manufacturer"", ""Service Center"", ""Dealer (MPDP)"", ""Retailer/Reseller (MPRR)"", ""Service Center (MPSCP)"", ""Customer Premises Equipment (CPE) Supplier Accreditation""],
-            ""entityType"": [""Single Proprietorship"", ""Corporation"", ""Partnership"", ""Others, specify""]
+            ""entityType"": [""Corporation"", ""Single Proprietorship"", ""Partnership"", ""Others""]
         },
         ""entityType"": ""Application""
     }";
@@ -54,54 +54,54 @@ public static class AccreditationsCategorySeederData
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(VarCpeMobileNew, Svc118Id, ServiceVariantType.New, "MOBILE"),
-        new(VarCpeMobileRen, Svc118Id, ServiceVariantType.Renewal, "MOBILE PHONES"),
-        new(VarCpeMobileMod, Svc118Id, ServiceVariantType.Modification, "MOBILE"),
-        new(VarCpeNonMobileNew, Svc118Id, ServiceVariantType.New, "NON-MOBILE PHONES"),
-        new(VarCpeNonMobileRen, Svc118Id, ServiceVariantType.Renewal, "NON-MOBILE PHONES"),
-        new(VarCpeNonMobileMod, Svc118Id, ServiceVariantType.Modification, "NON-MOBILE PHONES")
+        new(VarCpeMobileNew, Svc118Id, ServiceVariantType.New, "MOBILE", false),
+        new(VarCpeMobileRen, Svc118Id, ServiceVariantType.Renewal, "MOBILE PHONES", false),
+        new(VarCpeMobileMod, Svc118Id, ServiceVariantType.Modification, "MOBILE", false),
+        new(VarCpeNonMobileNew, Svc118Id, ServiceVariantType.New, "NON-MOBILE PHONES", false),
+        new(VarCpeNonMobileRen, Svc118Id, ServiceVariantType.Renewal, "NON-MOBILE PHONES", false),
+        new(VarCpeNonMobileMod, Svc118Id, ServiceVariantType.Modification, "NON-MOBILE PHONES", false)
     };
 
     public static Dictionary<string, RequirementDef> GetBackfillRequirements() => new()
     {
         ["REGISTRATION_OR_PERMIT_DOCS"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000082"),
-            "Copy of ANY of the following:\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit",
+            "Copy of ANY of the following:*\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit\n\nNote : The purpose of the company as indicated in its registration document must include information related to the accreditation applied for.",
             "Copy of ANY of the following:*\n• SEC Registration\n• DTI Registration\n• Business/Mayor's Permit\n\nNote : The purpose of the company as indicated in its registration document must include information related to the accreditation applied for."
         ),
         ["PROOF_OF_PAID_UP_CAPITAL"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000301"),
-            "Proof of Paid-Up Capital",
+            "Proof of Paid-Up Capital*\nMinimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship",
             "Proof of Paid-Up Capital*\nMinimum of PHP 250,000.00, duly certified by the Treasurer of the Corporation or by the partners in a partnership or by the owner in a sole proprietorship"
         ),
         ["DISTRIBUTORSHIP_AGREEMENT"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000302"),
-            "Distributorship OR Representation Agreement on products to be sold",
+            "Distributorship OR Representation Agreement on products to be sold*",
             "Distributorship OR Representation Agreement on products to be sold*"
         ),
         ["TYPE_APPROVAL_OR_CONFORMITY"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000303"),
-            "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold",
+            "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold*",
             "Type Approval Certificate OR Copy of Grant of Equipment Conformity for CPE to be sold*"
         ),
         ["TWO_TECHNICIANS_EMPLOYMENT"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000304"),
-            "Copy of the following:\nCertificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians employed on a full-time basis",
+            "Copy of the following:*\nCertificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis",
             "Copy of the following:*\nCertificate of Employment AND copy of valid ROC/license of two (2) qualified radio technicians (i.e. Radio Communications Technician OR Electronics Technician) employed on a full-time basis"
         ),
         ["ECE_PECE_EMPLOYMENT"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000305"),
-            "Copy of the following:\nCertificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)",
+            "Copy of the following:*\nCertificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)",
             "Copy of the following:*\nCertificate of Employment and copy of valid license of supervising Electronics Engineer (ECE) OR Professional Electronics Engineer (PECE)"
         ),
         ["CPE_SUPPLIER_ACCREDITATION"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000306"),
-            "CPE Supplier Accreditation",
+            "CPE Supplier Accreditation*",
             "CPE Supplier Accreditation*"
         ),
         ["BUSINESS_MAYORS_PERMIT"] = new(
             Guid.Parse("70000000-0000-0000-0000-000000000307"),
-            "Business/Mayor's Permit",
+            "Business/Mayor's Permit*",
             "Business/Mayor's Permit*"
         ),
         ["TYPE_APPROVAL_NOT_PREVIOUSLY_INDICATED"] = new(
@@ -156,9 +156,9 @@ public static class AccreditationsCategorySeederData
     {
         new("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "employmentType" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Personnel Required", new() { "personnelDetails" }),
+            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "noOfYears", "employmentType" }),
+            new("applicant", "Applicant Details", new() { "companyName", "entityType", "dtiSecRegistration", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
+            new("personnel", "Technical Personnel", new() { "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" }),
             new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
             new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
         })

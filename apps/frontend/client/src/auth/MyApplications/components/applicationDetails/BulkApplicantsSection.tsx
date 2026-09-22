@@ -18,6 +18,9 @@ import { styles } from './applicationDetailsStyles';
 import { BulkMetricsGrid } from './BulkMetricsGrid';
 import { SingleApplicantSection } from './SingleApplicantSection';
 import { FormFieldValue } from '../../../../shared/formPreview';
+import { extractApplicantFullName } from './applicationDetailsHelpers';
+
+import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
 
 interface BulkApplicantsSectionProps {
   app: Application;
@@ -42,7 +45,9 @@ interface BulkApplicantsSectionProps {
   isDesktop: boolean;
   onPreviewFile: (uri: string, name: string) => void;
   onPreviewDoc: (doc: ApplicationDocument) => void;
-  onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
+  onPreviewCustomDoc: (doc: DocumentPreviewFile) => void;
+  onDownloadDoc?: (doc: ApplicationDocument) => void;
+  previewLoadingId?: string | null;
   setPreviewLoadingId: (id: string | null) => void;
 }
 
@@ -72,6 +77,8 @@ export function BulkApplicantsSection({
   onPreviewFile,
   onPreviewDoc,
   onPreviewCustomDoc,
+  onDownloadDoc,
+  previewLoadingId,
   setPreviewLoadingId,
 }: BulkApplicantsSectionProps) {
   const activeApplicant = selectedApplicant || (appApplicants.length > 0 ? appApplicants[0] : null);
@@ -278,25 +285,25 @@ export function BulkApplicantsSection({
             <SingleApplicantSection
               app={app}
               singleApplicant={{
-                applicantName: activeApplicant.name,
-                sex: activeApplicant.sex || 'Male',
-                nationality: activeApplicant.nationality || 'Filipino',
-                streetAddress: activeApplicant.streetAddress || '',
-                barangay: activeApplicant.barangay || '',
-                cityMunicipality: activeApplicant.cityMunicipality || '',
-                province: activeApplicant.province || '',
-                region: activeApplicant.region || '',
-                zipCode: activeApplicant.zipCode || '',
-                mobileNumber: activeApplicant.mobileNumber || '',
-                email: activeApplicant.email || '',
-                examineeType: activeApplicant.applicationType || '',
-                birthDate: activeApplicant.birthDate || null,
-                civilStatus: activeApplicant.civilStatus || null,
-                companyName: activeApplicant.companyName || null,
-                representativeName: activeApplicant.representativeName || null,
-                notes: activeApplicant.notes || null,
+                applicantName: extractApplicantFullName(app, activeApplicant.details, activeApplicant),
+                sex: activeApplicant.sex || activeApplicant.details?.sex || 'Male',
+                nationality: activeApplicant.nationality || activeApplicant.details?.nationality || 'Filipino',
+                streetAddress: activeApplicant.streetAddress || activeApplicant.details?.streetAddress || activeApplicant.details?.address || 'N/A',
+                barangay: activeApplicant.barangay || activeApplicant.details?.barangay || '',
+                cityMunicipality: activeApplicant.cityMunicipality || activeApplicant.details?.cityMunicipality || 'N/A',
+                province: activeApplicant.province || activeApplicant.details?.province || 'N/A',
+                region: activeApplicant.region || activeApplicant.details?.region || 'N/A',
+                zipCode: activeApplicant.zipCode || activeApplicant.details?.zipCode || '',
+                mobileNumber: activeApplicant.mobileNumber || activeApplicant.details?.mobileNumber || activeApplicant.details?.contactNumber || 'N/A',
+                email: activeApplicant.email || activeApplicant.details?.email || activeApplicant.details?.emailAddress || 'N/A',
+                examineeType: activeApplicant.applicationType || activeApplicant.details?.examineeType || 'New',
+                birthDate: activeApplicant.birthDate || activeApplicant.details?.birthDate || null,
+                civilStatus: activeApplicant.civilStatus || activeApplicant.details?.civilStatus || null,
+                companyName: activeApplicant.companyName || activeApplicant.details?.companyName || null,
+                representativeName: activeApplicant.representativeName || activeApplicant.details?.representativeName || null,
+                notes: activeApplicant.notes || activeApplicant.details?.notes || null,
               }}
-              primaryName={activeApplicant.name}
+              primaryName={extractApplicantFullName(app, activeApplicant.details, activeApplicant)}
               formFieldValues={selectedApplicantFormFields}
               isExamService={isExamService}
               scheduleSummaryText={
@@ -310,6 +317,8 @@ export function BulkApplicantsSection({
               onPreviewFile={onPreviewFile}
               onPreviewDoc={onPreviewDoc}
               onPreviewCustomDoc={onPreviewCustomDoc}
+              onDownloadDoc={onDownloadDoc}
+              previewLoadingId={previewLoadingId}
               setPreviewLoadingId={setPreviewLoadingId}
             />
           ) : (

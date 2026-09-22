@@ -31,8 +31,18 @@ public class AssignPermissionCommandHandler : IRequestHandler<AssignPermissionCo
             throw new InvalidOperationException($"Permission key '{request.PermissionKey}' is not a valid system permission.");
         }
 
-        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionKey, cancellationToken);
-        if (existing != null) return true; // Already assigned
+        var existing = await _rolePermissionRepository.GetAsync(request.RoleId, request.PermissionKey, includeDeleted: true, cancellationToken);
+        if (existing != null)
+        {
+            if (existing.IsDeleted)
+            {
+                existing.IsDeleted = false;
+                existing.IsDeletedBy = string.Empty;
+                existing.LastModifiedAt = DateTime.UtcNow;
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            return true;
+        }
 
         var rp = new RolePermission
         {

@@ -20,6 +20,7 @@ import {
 } from "@edge/ui";
 import { useMyTenantMemberships, parseApiError } from "@edge/api";
 import { useAuth } from "@clerk/expo";
+import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 
 interface RegionSelectionModalProps {
   visible: boolean;
@@ -42,6 +43,20 @@ export function RegionSelectionModal({
   const [showDropdown, setShowDropdown] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [actionError, setActionError] = useState("");
+  const [isSignOutConfirmVisible, setIsSignOutConfirmVisible] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
+
+  const handleSignOutConfirm = async () => {
+    setIsSigningOut(true);
+    try {
+      await onSignOut();
+    } catch (err: unknown) {
+      console.error("Sign out error:", err);
+    } finally {
+      setIsSigningOut(false);
+      setIsSignOutConfirmVisible(false);
+    }
+  };
 
   // Obtain current session token for SWR hook
   useEffect(() => {
@@ -125,7 +140,7 @@ export function RegionSelectionModal({
                   <Text style={styles.signOutButtonText}>Retry Connection</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={[styles.signOutOutlineButton, { borderColor: colors.border }]} onPress={onSignOut}>
+                <TouchableOpacity style={[styles.signOutOutlineButton, { borderColor: colors.border }]} onPress={() => setIsSignOutConfirmVisible(true)}>
                   <Text style={[styles.signOutOutlineText, { color: colors.textMuted }]}>Sign Out</Text>
                 </TouchableOpacity>
               </View>
@@ -136,14 +151,14 @@ export function RegionSelectionModal({
               <View style={[styles.alertIconCircle, { backgroundColor: colors.semantic.errorBg }]}>
                 <Lucide name="alert-triangle" size={28} color={colors.semantic.error} />
               </View>
-              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>Access Denied</Text>
+              <Text style={[styles.noMembershipTitle, { color: colors.semantic.errorText }]}>Account Not Registered</Text>
               <Text style={[styles.noMembershipText, { color: colors.textMuted }]}>
-                You are not an active member yet of any Regional Office. Please contact your system administrator to assign you to a region.
+                The selected account is not yet registered in the system. Please make sure to sign in with a registered account or contact your system administrator.
               </Text>
 
-              <TouchableOpacity style={[styles.signOutButton, { backgroundColor: colors.semantic.error }]} onPress={onSignOut}>
+              <TouchableOpacity style={[styles.signOutButton, { backgroundColor: colors.semantic.error }]} onPress={() => setIsSignOutConfirmVisible(true)}>
                 <Lucide name="log-out" size={16} color={colors.neutral.white} />
-                <Text style={styles.signOutButtonText}>Sign Out</Text>
+                <Text style={styles.signOutButtonText}>Sign Out & Use Registered Account</Text>
               </TouchableOpacity>
             </View>
           ) : (
@@ -207,7 +222,7 @@ export function RegionSelectionModal({
               ) : null}
 
               <View style={styles.actionsRow}>
-                <TouchableOpacity style={styles.cancelBtn} onPress={onSignOut} disabled={isSubmitting}>
+                <TouchableOpacity style={styles.cancelBtn} onPress={() => setIsSignOutConfirmVisible(true)} disabled={isSubmitting}>
                   <Text style={[styles.cancelBtnText, { color: colors.textMuted }]}>Sign Out</Text>
                 </TouchableOpacity>
 
@@ -230,6 +245,18 @@ export function RegionSelectionModal({
           )}
         </View>
       </View>
+
+      {/* Sign Out Confirmation Dialog */}
+      <SignOutConfirmModal
+        visible={isSignOutConfirmVisible}
+        loading={isSigningOut}
+        onClose={() => {
+          if (!isSigningOut) {
+            setIsSignOutConfirmVisible(false);
+          }
+        }}
+        onConfirm={handleSignOutConfirm}
+      />
     </Modal>
   );
 }

@@ -53,6 +53,71 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ActivityLogs", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.AgencyBankAccount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AccountName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("AccountNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("BankName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Branch")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FundCluster")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("TenantId", "AccountNumber");
+
+                    b.ToTable("AgencyBankAccounts", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
                 {
                     b.Property<Guid>("Id")
@@ -309,6 +374,10 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("UserId");
 
+                    b.HasIndex("TenantId", "CreatedAt");
+
+                    b.HasIndex("TenantId", "Status");
+
                     b.ToTable("Applications", "public");
                 });
 
@@ -528,6 +597,85 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("AuditLogs", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.BankDeposit", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("BankAccountId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("CashAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("CheckAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("DepositDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DepositSlipAttachmentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DepositSlipNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("DepositedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("VerifiedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BankAccountId");
+
+                    b.HasIndex("DepositSlipAttachmentId");
+
+                    b.HasIndex("DepositedByUserId");
+
+                    b.HasIndex("VerifiedByUserId");
+
+                    b.HasIndex("TenantId", "DepositDate");
+
+                    b.ToTable("BankDeposits", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Barangay", b =>
@@ -906,6 +1054,10 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CreatedAt");
+
+                    b.HasIndex("Status");
 
                     b.ToTable("Feedbacks", "public");
                 });
@@ -1297,6 +1449,147 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("NotificationTemplates", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.OfficialReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<Guid?>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("BookletId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CancellationReason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CancelledByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CheckBank")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("CheckDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CheckNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("DepositId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("IssuedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("IssuedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("OfficialReceiptNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<Guid?>("OrderOfPaymentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("PaymentMethod")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayorAddress")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PayorName")
+                        .IsRequired()
+                        .HasMaxLength(300)
+                        .HasColumnType("character varying(300)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.HasIndex("BookletId");
+
+                    b.HasIndex("CancelledByUserId");
+
+                    b.HasIndex("DepositId");
+
+                    b.HasIndex("IssuedByUserId");
+
+                    b.HasIndex("OrderOfPaymentId");
+
+                    b.HasIndex("TenantId", "OfficialReceiptNumber");
+
+                    b.HasIndex("TenantId", "Status", "IssuedAt");
+
+                    b.ToTable("OfficialReceipts", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OfficialReceiptLineItem", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Amount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FeeCode")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<Guid>("OfficialReceiptId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OfficialReceiptId");
+
+                    b.ToTable("OfficialReceiptLineItems", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.OpHistory", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1342,6 +1635,82 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("OrderOfPaymentId");
 
                     b.ToTable("OpHistories", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrBooklet", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("BookletNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<long>("CurrentNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<long>("EndNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("IssuedCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Prefix")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
+                    b.Property<DateTime>("ReceivedDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<long>("StartNumber")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TenantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("TotalCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedUserId");
+
+                    b.HasIndex("TenantId", "BookletNumber");
+
+                    b.HasIndex("TenantId", "Status");
+
+                    b.ToTable("OrBooklets", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
@@ -1418,9 +1787,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ApplicationId");
+                    b.HasIndex("ApplicationId", "CreatedAt");
 
-                    b.HasIndex("StatementOfAccountId");
+                    b.HasIndex("StatementOfAccountId", "CreatedAt");
 
                     b.ToTable("OrdersOfPayment", "public");
                 });
@@ -1497,8 +1866,7 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("Description")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
+                        .HasColumnType("text");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -1630,6 +1998,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("EndTime")
+                        .HasColumnType("text");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -1663,6 +2034,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("StartTime")
+                        .HasColumnType("text");
 
                     b.Property<Guid>("TenantId")
                         .HasColumnType("uuid");
@@ -1976,6 +2350,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("IsDeletedBy")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<bool>("IsIndividual")
+                        .HasColumnType("boolean");
 
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2387,9 +2764,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("ApplicantId");
 
-                    b.HasIndex("ApplicationId");
-
                     b.HasIndex("SoaNoteId");
+
+                    b.HasIndex("ApplicationId", "CreatedAt");
 
                     b.ToTable("StatementsOfAccount", "public");
                 });
@@ -2850,6 +3227,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("Users", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.AgencyBankAccount", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Tenant");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.ApplicantDetail", "ApplicantDetail")
@@ -3040,6 +3428,45 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.BankDeposit", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.AgencyBankAccount", "BankAccount")
+                        .WithMany("Deposits")
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.StoredFile", "DepositSlipAttachment")
+                        .WithMany()
+                        .HasForeignKey("DepositSlipAttachmentId");
+
+                    b.HasOne("EDGE.Domain.Entities.User", "DepositedByUser")
+                        .WithMany()
+                        .HasForeignKey("DepositedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.User", "VerifiedByUser")
+                        .WithMany()
+                        .HasForeignKey("VerifiedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("DepositSlipAttachment");
+
+                    b.Navigation("DepositedByUser");
+
+                    b.Navigation("Tenant");
+
+                    b.Navigation("VerifiedByUser");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Barangay", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Municipality", "Municipality")
@@ -3195,6 +3622,69 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Province");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.OfficialReceipt", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany()
+                        .HasForeignKey("ApplicationId");
+
+                    b.HasOne("EDGE.Domain.Entities.OrBooklet", "Booklet")
+                        .WithMany("Receipts")
+                        .HasForeignKey("BookletId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.User", "CancelledByUser")
+                        .WithMany()
+                        .HasForeignKey("CancelledByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.BankDeposit", "Deposit")
+                        .WithMany("Receipts")
+                        .HasForeignKey("DepositId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.User", "IssuedByUser")
+                        .WithMany()
+                        .HasForeignKey("IssuedByUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.OrderOfPayment", "OrderOfPayment")
+                        .WithMany()
+                        .HasForeignKey("OrderOfPaymentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Application");
+
+                    b.Navigation("Booklet");
+
+                    b.Navigation("CancelledByUser");
+
+                    b.Navigation("Deposit");
+
+                    b.Navigation("IssuedByUser");
+
+                    b.Navigation("OrderOfPayment");
+
+                    b.Navigation("Tenant");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OfficialReceiptLineItem", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.OfficialReceipt", "OfficialReceipt")
+                        .WithMany("LineItems")
+                        .HasForeignKey("OfficialReceiptId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("OfficialReceipt");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.OpHistory", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.OrderOfPayment", "OrderOfPayment")
@@ -3204,6 +3694,24 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("OrderOfPayment");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrBooklet", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.User", "AssignedUser")
+                        .WithMany()
+                        .HasForeignKey("AssignedUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedUser");
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
@@ -3581,6 +4089,11 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("CompanyDetail");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.AgencyBankAccount", b =>
+                {
+                    b.Navigation("Deposits");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Applicant", b =>
                 {
                     b.Navigation("FormSubmission");
@@ -3601,6 +4114,11 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("OrdersOfPayment");
 
                     b.Navigation("StatementsOfAccount");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.BankDeposit", b =>
+                {
+                    b.Navigation("Receipts");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.Fee", b =>
@@ -3631,6 +4149,16 @@ namespace EDGE.Infrastructure.Migrations
             modelBuilder.Entity("EDGE.Domain.Entities.Municipality", b =>
                 {
                     b.Navigation("Barangays");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OfficialReceipt", b =>
+                {
+                    b.Navigation("LineItems");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.OrBooklet", b =>
+                {
+                    b.Navigation("Receipts");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>

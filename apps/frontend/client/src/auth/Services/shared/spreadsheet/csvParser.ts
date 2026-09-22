@@ -254,6 +254,35 @@ export function parseSpreadsheetContent(
       appObj.vasData.contactNo = contactNo;
       appObj.vasData.address = address;
       appObj.vasData.years = years;
+      const entityType = getVal("typeofentity", "entitytype", "businessentitytype");
+      if (entityType) {
+        appObj.vasData.serviceType = entityType as "Single Proprietorship" | "Corporation" | "Partnership" | "Others";
+      }
+      const cpcnNo = getVal("cpcnpacano", "cpcnlicenseno", "cpcnno", "cpcn");
+      if (cpcnNo) {
+        appObj.vasData.serviceNo = cpcnNo;
+      }
+      const cpcnExp = getVal("cpcnpacanodateofexpiry", "cpcnpacanoateofexpiry", "cpcnexpirydate", "cpcndateofexpiry", "cpcndate");
+      if (cpcnExp) {
+        appObj.vasData.cpcnPaCaDateOfExpiry = cpcnExp;
+      }
+      const corNo = getVal("corvasno", "existingcorvasno", "corno", "vasno", "certificateno", "certificatenumber");
+      if (corNo) {
+        appObj.vasData.certificateNumber = corNo;
+      }
+      const corExp = getVal("corvasnodateofexpiry", "corvasexpirydate", "corvasdateofexpiry", "vasexpirydate", "expirydate", "dateofexpiry");
+      if (corExp) {
+        appObj.vasData.expiryDate = corExp;
+      }
+      const tradeName = getVal("tradename", "othertradename", "pleasespecify");
+      if (tradeName) {
+        appObj.vasData.isKnownByOtherName = true;
+        appObj.vasData.otherTradeName = tradeName;
+      }
+      const vasSvcs = getVal("valueaddedservices", "valueaddedservice", "services");
+      if (vasSvcs) {
+        appObj.vasData.valueAddedServices = vasSvcs.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+      }
     }
 
     results.push({

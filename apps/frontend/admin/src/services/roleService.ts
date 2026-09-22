@@ -5,8 +5,11 @@ export function useRoleService() {
   const { useQuery, post, put, del } = useApi();
 
   const useRoles = (tenantId?: string | null, includeSystemRoles?: boolean) => {
+    if (tenantId === null) {
+      return useQuery<Role[]>(null);
+    }
     const params = new URLSearchParams();
-    if (tenantId !== undefined && tenantId !== null && tenantId.length > 0) {
+    if (tenantId !== undefined && tenantId.length > 0) {
       params.append('tenantId', tenantId);
     }
     if (includeSystemRoles === true) {

@@ -16,6 +16,7 @@ import { Logo } from '../../shared/components/Logo';
 import { useAppNavigation } from '../../navigation';
 import { isClerkAPIResponseError } from '@clerk/expo';
 import { useSignUp } from '@clerk/expo/legacy';
+import { generateSafeUsername, isClerkUnknownParamError } from '@edge/api';
 
 export function SignUpScreen() {
   const navigation = useAppNavigation();
@@ -134,25 +135,61 @@ export function SignUpScreen() {
       const parts = name.trim().split(" ");
       const firstName = parts[0] || "";
       const lastName = parts.slice(1).join(" ") || "";
+      const safeUsername = generateSafeUsername(firstName, lastName, email.trim());
 
-      await signUp.create({
-        emailAddress: email,
-        password,
-        firstName,
-        lastName,
-      });
+      let created = false;
+      try {
+        // Attempt signup with safe username (satisfies instances requiring username)
+        await signUp.create({
+          emailAddress: email.trim(),
+          password,
+          firstName,
+          lastName,
+          username: safeUsername,
+        });
+        created = true;
+      } catch (firstErr: unknown) {
+        // Fallback: If Clerk instance does not allow/recognize username, retry without username
+        if (isClerkUnknownParamError(firstErr)) {
+          await signUp.create({
+            emailAddress: email.trim(),
+            password,
+            firstName,
+            lastName,
+          });
+          created = true;
+        } else {
+          throw firstErr;
+        }
+      }
 
-      if (signUp.status === 'complete') {
-        await setActive({ session: signUp.createdSessionId });
-        setSuccess(true);
-      } else {
-        await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
-        setPendingVerification(true);
+      if (created) {
+        if (signUp.status === 'complete') {
+          await setActive({ session: signUp.createdSessionId });
+          setSuccess(true);
+        } else {
+          await signUp.prepareEmailAddressVerification({ strategy: 'email_code' });
+          setPendingVerification(true);
+        }
       }
     } catch (err: unknown) {
       let errMsg = "Sign up failed. Please check your inputs.";
       if (isClerkAPIResponseError(err)) {
-        errMsg = err.errors[0]?.message || errMsg;
+        const firstErr = err.errors[0];
+        const errCode = firstErr?.code || "";
+        const rawMsg = firstErr?.message || "";
+        if (
+          errCode === "form_identifier_exists" ||
+          errCode === "form_identifier_not_unique" ||
+          rawMsg.toLowerCase().includes("already exists") ||
+          rawMsg.toLowerCase().includes("taken") ||
+          rawMsg.toLowerCase().includes("in use")
+        ) {
+          errMsg = "An account with this email address already exists. One email address must be associated with only one account.";
+          setEmailError("This email address is already in use by an existing account.");
+        } else {
+          errMsg = rawMsg || errMsg;
+        }
       } else if (err instanceof Error) {
         errMsg = err.message;
       }
@@ -362,7 +399,7 @@ export function SignUpScreen() {
                   value={password}
                   onChangeText={setPassword}
                   error={passwordError}
-                  secureTextEntry={true}
+                  isPassword={true}
                   autoCapitalize="none"
                   iconName="lock"
                 />
@@ -373,7 +410,7 @@ export function SignUpScreen() {
                   value={confirmPassword}
                   onChangeText={setConfirmPassword}
                   error={confirmPasswordError}
-                  secureTextEntry={true}
+                  isPassword={true}
                   autoCapitalize="none"
                   iconName="lock"
                 />

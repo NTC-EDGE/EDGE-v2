@@ -39,6 +39,12 @@ export interface AmateurRadioStationLicenseData {
   email: string;
   location: string;         // Station Location / Site Address
 
+  // Amateur Club Specific
+  clubName?: string;
+  clubRecognitionNo?: string;
+  trusteeName?: string;
+  trusteeCallSign?: string;
+
   // Call Sign
   callSign: string;         // "To be assigned by NTC" for new, or current callsign
 

@@ -22,6 +22,7 @@ interface ApplicantNameFieldProps {
   structuredValue?: Partial<StructuredNameData>;
   allowCompany?: boolean;
   unifiedInput?: boolean;
+  seamless?: boolean;
   onChange: (fullName: string) => void;
   onStructuredChange?: (data: StructuredNameData) => void;
   error?: string;
@@ -44,6 +45,7 @@ export function ApplicantNameField({
   structuredValue,
   allowCompany = false,
   unifiedInput = false,
+  seamless = false,
   onChange,
   onStructuredChange,
   error,
@@ -108,7 +110,7 @@ export function ApplicantNameField({
   const companyName = structuredValue?.companyName ?? (activeType === "company" ? value : "");
   const representativeName = structuredValue?.representativeName ?? "";
 
-  const isCompanyMode = allowCompany && activeType === "company";
+  const isCompanyMode = activeType === "company";
 
   const handleIndividualChange = (
     newFn: string,
@@ -175,18 +177,109 @@ export function ApplicantNameField({
     }
   };
 
+  const isClubLabel = label.toLowerCase().includes("club");
+
+  if (seamless) {
+    return (
+      <View style={{ width: "100%" }}>
+        {isCompanyMode ? (
+          <FormGrid>
+            <FormCol span={6}>
+              <ValidatedInput
+                label="Applicant Name"
+                required={isRequired}
+                placeholder="e.g. Apex Telecom Philippines, Inc. / Philippine Amateur Radio League"
+                value={companyName}
+                error={error && !companyName.trim() ? "Applicant Name is required." : undefined}
+                onChangeText={(val) => {
+                  handleCompanyChange(val, representativeName);
+                }}
+              />
+            </FormCol>
+
+            <FormCol span={6}>
+              <ValidatedInput
+                label="Authorized Representative Name"
+                required={false}
+                placeholder="e.g. Engr. Juan Dela Cruz"
+                value={representativeName}
+                onChangeText={(val) => {
+                  handleCompanyChange(companyName, val);
+                }}
+              />
+            </FormCol>
+          </FormGrid>
+        ) : (
+          <FormGrid>
+            <FormCol span={6}>
+              <ValidatedInput
+                label="First Name"
+                required={isRequired}
+                placeholder="e.g. Juan"
+                value={firstName}
+                error={error && !firstName.trim() ? "First Name is required." : undefined}
+                onChangeText={(val) => {
+                  handleIndividualChange(val, middleName, lastName, suffix);
+                }}
+              />
+            </FormCol>
+
+            <FormCol span={6}>
+              <ValidatedInput
+                label="Middle Name (Optional)"
+                placeholder="e.g. Mercado"
+                value={middleName}
+                onChangeText={(val) => {
+                  handleIndividualChange(firstName, val, lastName, suffix);
+                }}
+              />
+            </FormCol>
+
+            <FormCol span={6}>
+              <ValidatedInput
+                label="Last Name"
+                required={isRequired}
+                placeholder="e.g. Dela Cruz"
+                value={lastName}
+                error={error && !lastName.trim() ? "Last Name is required." : undefined}
+                onChangeText={(val) => {
+                  handleIndividualChange(firstName, middleName, val, suffix);
+                }}
+              />
+            </FormCol>
+
+            <FormCol span={6}>
+              <Select
+                label="Suffix"
+                placeholder="None"
+                value={suffix}
+                options={SUFFIX_OPTIONS}
+                onValueChange={(val) => {
+                  handleIndividualChange(firstName, middleName, lastName, val);
+                }}
+              />
+            </FormCol>
+          </FormGrid>
+        )}
+        {error !== undefined && error.length > 0 && (
+          <Text style={styles.errorText}>{error}</Text>
+        )}
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       {/* Field Label with Red Asterisk */}
       <View style={styles.labelRow}>
         <Text style={styles.mainLabel}>
-          {isCompanyMode ? "Company / Corporation Details" : label}
+          {isCompanyMode ? "Applicant Details" : label}
         </Text>
         {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
       </View>
       <Text style={styles.subLabel}>
         {isCompanyMode
-          ? "Enter the registered corporate / company name and authorized representative."
+          ? "Enter the registered applicant name and authorized representative."
           : "Enter the full legal name of the applicant/licensee as it will appear on the certificate or license."}
       </Text>
 
@@ -235,7 +328,7 @@ export function ApplicantNameField({
                 activeType === "company" && styles.typeTabTextActive,
               ]}
             >
-              Company / Corporation
+              Organization / Entity
             </Text>
           </TouchableOpacity>
         </View>
@@ -247,11 +340,11 @@ export function ApplicantNameField({
           <FormGrid>
             <FormCol span={6}>
               <ValidatedInput
-                label="Company / Corporation Name"
+                label="Applicant Name"
                 required={isRequired}
-                placeholder="e.g. Apex Telecom Philippines, Inc."
+                placeholder="e.g. Apex Telecom Philippines, Inc. / Philippine Amateur Radio League"
                 value={companyName}
-                error={error && !companyName.trim() ? "Company Name is required." : undefined}
+                error={error && !companyName.trim() ? "Applicant Name is required." : undefined}
                 onChangeText={(val) => {
                   handleCompanyChange(val, representativeName);
                 }}
@@ -261,6 +354,7 @@ export function ApplicantNameField({
             <FormCol span={6}>
               <ValidatedInput
                 label="Authorized Representative Name"
+                required={false}
                 placeholder="e.g. Engr. Juan Dela Cruz"
                 value={representativeName}
                 onChangeText={(val) => {

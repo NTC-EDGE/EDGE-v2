@@ -5,10 +5,16 @@ export type QueueTab = 'activity' | 'pending' | 'history';
 
 export interface RolePermissionConfig {
   visibleTabs: QueueTab[];
+  /** Evaluator: forward to Accountant after evaluation is complete */
+  canForwardToAccountant: boolean;
+  /** Accountant: approve the SOA and forward to Cashier for payment */
+  canApproveAsAccountant: boolean;
+  /** Cashier: verify payment and mark as Completed */
+  canVerifyCashier: boolean;
+  /** Legacy / fallback: direct approval (e.g. Admin bypassing the full cycle) */
   canApprove: boolean;
   canDecline: boolean;
   canEndorse: boolean;
-  canVerifyCashier: boolean;
 }
 
 type PermissionMap = Record<UserRole, RolePermissionConfig>;
@@ -16,52 +22,66 @@ type PermissionMap = Record<UserRole, RolePermissionConfig>;
 const DEFAULT_PERMISSIONS: PermissionMap = {
   Admin: {
     visibleTabs: ['activity', 'pending', 'history'],
+    canForwardToAccountant: true,
+    canApproveAsAccountant: true,
+    canVerifyCashier: true,
     canApprove: true,
     canDecline: true,
     canEndorse: true,
-    canVerifyCashier: true,
   },
   Evaluator: {
     visibleTabs: ['activity', 'pending', 'history'],
-    canApprove: true,
+    canForwardToAccountant: true,
+    canApproveAsAccountant: false,
+    canVerifyCashier: false,
+    canApprove: false,
     canDecline: true,
     canEndorse: true,
-    canVerifyCashier: false,
   },
   'Chief of EOD': {
     visibleTabs: ['activity', 'pending', 'history'],
-    canApprove: true,
+    canForwardToAccountant: true,
+    canApproveAsAccountant: false,
+    canVerifyCashier: false,
+    canApprove: false,
     canDecline: true,
     canEndorse: true,
-    canVerifyCashier: false,
   },
   'Regional Director': {
     visibleTabs: ['activity', 'pending', 'history'],
+    canForwardToAccountant: true,
+    canApproveAsAccountant: false,
+    canVerifyCashier: false,
     canApprove: true,
     canDecline: true,
     canEndorse: true,
-    canVerifyCashier: false,
   },
   Legal: {
     visibleTabs: ['activity', 'pending', 'history'],
-    canApprove: true,
+    canForwardToAccountant: false,
+    canApproveAsAccountant: false,
+    canVerifyCashier: false,
+    canApprove: false,
     canDecline: true,
     canEndorse: true,
-    canVerifyCashier: false,
   },
   Accountant: {
     visibleTabs: ['activity', 'pending', 'history'],
-    canApprove: true,
-    canDecline: true,
-    canEndorse: true,
+    canForwardToAccountant: false,
+    canApproveAsAccountant: true,
     canVerifyCashier: false,
+    canApprove: false,
+    canDecline: true,
+    canEndorse: false,
   },
   Cashier: {
     visibleTabs: ['activity', 'pending', 'history'],
+    canForwardToAccountant: false,
+    canApproveAsAccountant: false,
+    canVerifyCashier: true,
     canApprove: false,
     canDecline: false,
     canEndorse: false,
-    canVerifyCashier: true,
   },
 };
 

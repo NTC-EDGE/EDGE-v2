@@ -35,12 +35,12 @@ export function VasReviewCard({
     return '';
   };
 
-  const corVasNo = vasData?.certificateNumber || findFieldValue(['corvasno', 'cor / vas no', 'certificate no']);
-  const dateOfExpiry = findFieldValue(['dateofexpiry', 'date of expiry']);
+  const cpcnNo = vasData?.serviceNo || findFieldValue(['cpcnpacano', 'cpcn / pa / ca no.', 'cpcn / pa / ca no', 'cpcn']);
+  const cpcnExpiry = vasData?.cpcnPaCaDateOfExpiry || findFieldValue(['cpcndateofexpiry', 'cpcn / pa / ca no. date of expiry', 'cpcn / pa / ca date of expiry', 'cpcn date of expiry']);
+  const corVasNo = vasData?.certificateNumber || findFieldValue(['corvasno', 'cor / vas no.', 'cor / vas no', 'certificate no']);
+  const corVasExpiry = vasData?.expiryDate || findFieldValue(['corvasexpirydate', 'corvasnoexpirydate', 'cor / vas no. date of expiry', 'cor / vas no. expiry date', 'cor / vas date of expiry', 'cor/vas expiry date', 'dateofexpiry', 'date of expiry']);
   const serviceClass = vasData?.serviceType || findFieldValue(['serviceclassification', 'service']);
   const entityType = findFieldValue(['entitytype', 'type of entity', 'entity type']);
-  const cpcnNo = vasData?.serviceNo || findFieldValue(['cpcnpacano', 'cpcn / pa / ca no', 'cpcn']);
-  const cpcnExpiry = findFieldValue(['cpcndateofexpiry', 'cpcn / pa / ca date of expiry', 'cpcn date of expiry']);
   const knownOther = findFieldValue(['knownbyanothername', 'known by other name']);
   const otherName = vasData?.otherTradeName || findFieldValue(['othertradename', 'please specify']);
   const vasServices = vasData?.valueAddedServices && vasData.valueAddedServices.length > 0
@@ -51,12 +51,12 @@ export function VasReviewCard({
   const hasData =
     isVasService &&
     Boolean(
-      corVasNo ||
-      dateOfExpiry ||
-      serviceClass ||
-      entityType ||
       cpcnNo ||
       cpcnExpiry ||
+      corVasNo ||
+      corVasExpiry ||
+      serviceClass ||
+      entityType ||
       knownOther ||
       otherName ||
       vasServices ||
@@ -81,19 +81,6 @@ export function VasReviewCard({
           ) : null}
         </View>
 
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {corVasNo ? (
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="COR / VAS No." value={corVasNo} />
-            </View>
-          ) : null}
-          {dateOfExpiry ? (
-            <View style={{ flex: 1 }}>
-              <SummaryRow label="Date of Expiry" value={dateOfExpiry} />
-            </View>
-          ) : null}
-        </View>
-
         {(cpcnNo || cpcnExpiry) ? (
           <View style={{ flexDirection: 'row', gap: 8 }}>
             {cpcnNo ? (
@@ -103,11 +90,24 @@ export function VasReviewCard({
             ) : null}
             {cpcnExpiry ? (
               <View style={{ flex: 1 }}>
-                <SummaryRow label="CPCN Date of Expiry" value={cpcnExpiry} />
+                <SummaryRow label="CPCN / PA / CA No. Date of Expiry" value={cpcnExpiry} />
               </View>
             ) : null}
           </View>
         ) : null}
+
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {corVasNo ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="COR / VAS No." value={corVasNo} />
+            </View>
+          ) : null}
+          {corVasExpiry ? (
+            <View style={{ flex: 1 }}>
+              <SummaryRow label="COR / VAS No. Date of Expiry" value={corVasExpiry} />
+            </View>
+          ) : null}
+        </View>
 
         {knownOther ? (
           <SummaryRow

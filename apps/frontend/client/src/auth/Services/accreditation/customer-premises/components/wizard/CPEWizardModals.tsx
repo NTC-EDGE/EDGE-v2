@@ -1,15 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ApplicantData } from "../../types/cpeTypes";
 import { useToast } from "../../../../../../shared/components/Toast";
+import { SubmissionFailureModal } from "../../../../shared/components/SubmissionFailureModal";
 
 interface CPEWizardModalsProps {
   isConfirmModalOpen: boolean;
   setIsConfirmModalOpen: (open: boolean) => void;
   isAgreedToTerms: boolean;
   setIsAgreedToTerms: (agreed: boolean | ((p: boolean) => boolean)) => void;
-  submitApplicationPayload: () => Promise<void>;
+  submitApplicationPayload: (isDraft?: boolean) => Promise<void>;
   setIsSubmitting: (submitting: boolean) => void;
   isFeedbackModalOpen: boolean;
   setIsFeedbackModalOpen: (open: boolean) => void;
@@ -29,6 +30,7 @@ interface CPEWizardModalsProps {
   }>;
   handleConfirmCSVImport: () => void;
   isSubmitting: boolean;
+  onSaveDraft?: () => Promise<boolean | void> | void;
 }
 
 export function CPEWizardModals({
@@ -50,8 +52,60 @@ export function CPEWizardModals({
   csvRows,
   handleConfirmCSVImport,
   isSubmitting,
+  onSaveDraft,
 }: CPEWizardModalsProps) {
   const toast = useToast();
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false);
+  const [failureErrorMessage, setFailureErrorMessage] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isSavingDraftState, setIsSavingDraftState] = useState(false);
+
+  const executeSubmission = async () => {
+    setIsSubmitting(true);
+    setIsRetrying(true);
+    try {
+      await submitApplicationPayload(false);
+      setIsFailureModalOpen(false);
+      toast.success(
+        "Application Submitted",
+        "Your CPE accreditation application has been received and is now under review."
+      );
+      setIsFeedbackModalOpen(true);
+    } catch (err: unknown) {
+      console.error("Failed to submit CPE application:", err);
+      const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
+      setFailureErrorMessage(msg);
+      setIsFailureModalOpen(true);
+      toast.error("Submission Incomplete", msg);
+    } finally {
+      setIsSubmitting(false);
+      setIsRetrying(false);
+    }
+  };
+
+  const handleSaveDraftAction = async () => {
+    setIsSavingDraftState(true);
+    try {
+      if (onSaveDraft) {
+        await onSaveDraft();
+      } else {
+        await submitApplicationPayload(true);
+      }
+      setIsFailureModalOpen(false);
+      toast.success(
+        "Draft Saved",
+        "Your CPE accreditation application progress has been saved as a draft."
+      );
+    } catch (draftErr: unknown) {
+      const draftMsg =
+        draftErr instanceof Error && draftErr.message.length > 0
+          ? draftErr.message
+          : "Failed to save draft. Please check your connection.";
+      toast.error("Draft Save Failed", draftMsg);
+    } finally {
+      setIsSavingDraftState(false);
+    }
+  };
 
   return (
     <>
@@ -174,9 +228,14 @@ export function CPEWizardModals({
       >
         <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
           <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 540, borderRadius: 16, overflow: "hidden", padding: 24 }}>
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800], marginBottom: 16 }}>
-              Declaration of Intent & Consent
-            </Text>
+            <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800] }}>
+                Declaration of Intent & Consent
+              </Text>
+              <TouchableOpacity onPress={() => setIsConfirmModalOpen(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Icon name="x" size={20} color={COLORS.neutral[500]} />
+              </TouchableOpacity>
+            </View>
 
             <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, padding: 16, backgroundColor: COLORS.neutral[50], marginBottom: 20 }}>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], lineHeight: 20, textAlign: "justify" }}>
@@ -199,42 +258,47 @@ export function CPEWizardModals({
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={async () => {
-                if (!isAgreedToTerms) {
-                  Alert.alert("Warning", "You must agree to the Terms and Conditions to proceed.");
-                  return;
-                }
-                setIsConfirmModalOpen(false);
-                setIsSubmitting(true);
-                try {
-                  await submitApplicationPayload();
-                  toast.success(
-                    "Application Submitted",
-                    "Your CPE accreditation application has been received and is now under review."
-                  );
-                  setIsFeedbackModalOpen(true);
-                } catch (err: unknown) {
-                  console.error("Failed to submit CPE application:", err);
-                  const msg = err instanceof Error && err.message.length > 0 ? err.message : "Filing submission failed. Please try again.";
-                  toast.error("Submission Failed", msg);
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              style={{
-                backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
-                borderRadius: 24,
-                paddingVertical: 12,
-                alignItems: "center",
-                width: "100%",
-              }}
-              disabled={!isAgreedToTerms}
-            >
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
-                Confirm
-              </Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                onPress={() => setIsConfirmModalOpen(false)}
+                style={{
+                  borderWidth: 1,
+                  borderColor: COLORS.neutral[300],
+                  borderRadius: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[700] }}>
+                  Close
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                onPress={async () => {
+                  if (!isAgreedToTerms) {
+                    Alert.alert("Warning", "You must agree to the Terms and Conditions to proceed.");
+                    return;
+                  }
+                  setIsConfirmModalOpen(false);
+                  await executeSubmission();
+                }}
+                style={{
+                  backgroundColor: isAgreedToTerms ? COLORS.brand[700] : COLORS.neutral[300],
+                  borderRadius: 24,
+                  paddingVertical: 12,
+                  paddingHorizontal: 24,
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+                disabled={!isAgreedToTerms}
+              >
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
+                  Confirm
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -325,8 +389,19 @@ export function CPEWizardModals({
         </View>
       </Modal>
 
+      {/* Submission Failure Modal */}
+      <SubmissionFailureModal
+        visible={isFailureModalOpen}
+        errorMessage={failureErrorMessage}
+        onRetry={executeSubmission}
+        onSaveDraft={handleSaveDraftAction}
+        onClose={() => setIsFailureModalOpen(false)}
+        isRetrying={isRetrying}
+        isSavingDraft={isSavingDraftState}
+      />
+
       {/* Submission Loading Overlay */}
-      {isSubmitting && (
+      {isSubmitting && !isFailureModalOpen && (
         <View style={{
           position: "absolute",
           top: 0,

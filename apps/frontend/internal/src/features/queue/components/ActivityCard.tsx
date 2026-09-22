@@ -42,14 +42,25 @@ function getAvatarInitials(name: string): string {
   return (parts[0]?.[0] ?? "?").toUpperCase();
 }
 
-function formatStatusDisplay(status: string): string {
-  const s = status.toLowerCase();
-  if (s === "submitted") return "FOR EVALUATION";
-  return status.toUpperCase();
+function isSubjectForPayment(app: ApplicationData): boolean {
+  return (
+    app.totalAmountDue > 0 &&
+    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0) &&
+    app.status !== 'Completed' &&
+    app.status !== 'Draft'
+  );
 }
 
-function getStatusStyle(status: string): { bg: string; text: string } {
-  const s = status.toLowerCase();
+function formatStatusDisplay(application: ApplicationData): string {
+  if (isSubjectForPayment(application)) return "FOR PAYMENT";
+  const s = application.status.toLowerCase();
+  if (s === "submitted") return "FOR EVALUATION";
+  return application.status.toUpperCase();
+}
+
+function getStatusStyle(application: ApplicationData): { bg: string; text: string } {
+  if (isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
+  const s = application.status.toLowerCase();
   if (s === "completed" || s === "approved") return { bg: COLORS.brand[800],    text: COLORS.neutral.white };
   if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
   if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
@@ -101,8 +112,16 @@ export function ActivityCard({
   const displayAccountType =
     application.filingUser?.accountType || application.applicantType;
 
+  const isBulk =
+    application.applicationType === "BULK" ||
+    (application.applicantsList !== undefined && application.applicantsList.length > 1);
+
+  const totalApplicants = isBulk
+    ? (application.applicantsList && application.applicantsList.length > 0 ? application.applicantsList.length : 1)
+    : 1;
+
   const initials    = getAvatarInitials(displayFilingName);
-  const statusStyle = getStatusStyle(application.status);
+  const statusStyle = getStatusStyle(application);
   const timestamp   = formatTimestamp(application.createdAt);
 
   const handleOpenMenu = () => {
@@ -151,11 +170,45 @@ export function ActivityCard({
               <Text style={[styles.timestamp, { color: textMuted }]}>{timestamp}</Text>
             </View>
             <View style={styles.subHeaderRow}>
-              <Text style={[styles.entityType, { color: textMuted }]}>{displayAccountType}</Text>
+              {/* Single / Bulk Mode Tag */}
+              <View
+                style={[
+                  styles.modePill,
+                  isBulk
+                    ? {
+                        backgroundColor: isDark ? 'rgba(180, 83, 9, 0.2)' : '#FEF3C7',
+                        borderColor: isDark ? '#B45309' : '#FDE68A',
+                      }
+                    : {
+                        backgroundColor: isDark ? 'rgba(29, 78, 216, 0.2)' : '#EFF6FF',
+                        borderColor: isDark ? '#1D4ED8' : '#DBEAFE',
+                      },
+                ]}
+              >
+                <Lucide
+                  name={isBulk ? "users" : "user"}
+                  size={10}
+                  color={isBulk ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#60A5FA' : '#1D4ED8')}
+                />
+                <Text
+                  style={[
+                    styles.modePillText,
+                    {
+                      color: isBulk ? (isDark ? '#FBBF24' : '#D97706') : (isDark ? '#60A5FA' : '#1D4ED8'),
+                    },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
+                </Text>
+              </View>
+
+              <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
+              <Text style={[styles.entityType, { color: textMuted }]} numberOfLines={1}>{displayAccountType}</Text>
               <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
               <View style={[styles.appNumBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="hash" size={10} color={brandColor} />
-                <Text style={[styles.appNumText, { color: brandColor }]}>
+                <Text style={[styles.appNumText, { color: brandColor }]} numberOfLines={1}>
                   {application.referenceNumber}
                 </Text>
               </View>
@@ -167,14 +220,14 @@ export function ActivityCard({
         <View style={styles.middleRow}>
           <View style={styles.titleRow}>
             <Lucide name="file-text" size={12} color={textMuted} />
-            <Text style={[styles.serviceName, { color: textSub }]} numberOfLines={1}>
-              {application.serviceName}
+            <Text style={[styles.permitTitle, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
+              {application.permitTitle}
             </Text>
           </View>
           <View style={styles.rightActions}>
             <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
-              <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
-                {formatStatusDisplay(application.status)}
+              <Text style={[styles.statusPillText, { color: statusStyle.text }]} numberOfLines={1}>
+                {formatStatusDisplay(application)}
               </Text>
             </View>
             <View ref={kebabRef}>
@@ -192,14 +245,14 @@ export function ActivityCard({
         <View style={styles.bottomRow}>
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
             <Lucide name="user-plus" size={10} color={textMuted} />
-            <Text style={[styles.assignText, { color: textSub }]}>
-              {application.assignedTo}
+            <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
+              {application.assignedTo || 'Unassigned'}
             </Text>
           </View>
           <View style={styles.badgeRow}>
             {application.isBeingViewed && (
               <View style={[styles.viewingBadge, { backgroundColor: COLORS.semantic.warningBg, borderColor: COLORS.semantic.warningBorder }]}>
-                <Text style={[styles.viewingBadgeText, { color: COLORS.semantic.warningText }]}>Viewing</Text>
+                <Text style={[styles.viewingBadgeText, { color: COLORS.semantic.warningText }]} numberOfLines={1}>Viewing</Text>
               </View>
             )}
             {application.isUrgent && (
@@ -208,31 +261,10 @@ export function ActivityCard({
               </View>
             )}
             {application.isPinned && (
-              <View style={[styles.typePill, { backgroundColor: brandBg }]}>
+              <View style={[styles.pinnedBadge, { backgroundColor: brandBg }]}>
                 <Lucide name="map-pin" size={10} color={brandColor} />
               </View>
             )}
-            <View
-              style={[
-                styles.typePill,
-                application.applicationType === "BULK"
-                  ? { backgroundColor: brandBg, borderColor: brandColor, borderWidth: 1 }
-                  : { backgroundColor: pillBg },
-              ]}
-            >
-              <Text
-                style={[
-                  styles.typePillText,
-                  application.applicationType === "BULK"
-                    ? { color: brandColor, fontWeight: "700" }
-                    : { color: textSub },
-                ]}
-              >
-                {application.applicationType === "BULK"
-                  ? `BULK (${(application.applicantCount !== undefined && application.applicantCount > 0) ? application.applicantCount : (application.applicantsList ? application.applicantsList.length : 0)})`
-                  : application.applicationType}
-              </Text>
-            </View>
           </View>
         </View>
       </View>
@@ -297,6 +329,7 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING[10],
     gap: SPACING[6],
+    minWidth: 0,
   },
   topRow: {
     flexDirection: "row",
@@ -333,22 +366,25 @@ const styles = StyleSheet.create({
   },
   nameBlock: {
     flex: 1,
+    minWidth: 0,
   },
   nameRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: SPACING[6],
   },
   applicantName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.bold,
     flex: 1,
+    minWidth: 0,
   },
   timestamp: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
-    marginLeft: SPACING[6],
+    flexShrink: 0,
   },
   entityType: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -357,6 +393,7 @@ const styles = StyleSheet.create({
   subHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
+    flexWrap: "wrap",
     gap: 6,
     marginTop: 2,
   },
@@ -370,6 +407,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 5,
     paddingVertical: 1,
     borderRadius: RADIUS.sm,
+    flexShrink: 0,
   },
   appNumText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -380,23 +418,26 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: SPACING[6],
   },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: 4,
     flex: 1,
-    marginRight: SPACING[6],
+    minWidth: 0,
   },
-  serviceName: {
+  permitTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
     flex: 1,
+    minWidth: 0,
   },
   rightActions: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],
+    flexShrink: 0,
   },
   statusPill: {
     paddingHorizontal: 6,
@@ -420,6 +461,8 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
+    gap: SPACING[6],
+    flexWrap: "wrap",
   },
   assignPill: {
     flexDirection: "row",
@@ -428,15 +471,20 @@ const styles = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: RADIUS.sm,
+    flexShrink: 1,
+    minWidth: 0,
   },
   assignText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
+    flexShrink: 1,
   },
   badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],
+    flexWrap: "wrap",
+    flexShrink: 0,
   },
   viewingBadge: {
     borderWidth: 1,
@@ -456,15 +504,27 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
   },
-  typePill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
+  pinnedBadge: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  typePillText: {
+  modePill: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  modePillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.3,
   },
   menuOverlay: {
     flex: 1,

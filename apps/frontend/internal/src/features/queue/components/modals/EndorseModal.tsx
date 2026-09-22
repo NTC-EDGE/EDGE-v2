@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { StyleSheet, View, Text, Pressable, Modal, ScrollView } from 'react-native';
-import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ConfirmationModal, useTheme, Icon as Lucide } from '@edge/ui';
 import { UserRole } from '../../../shell/context/RoleContext';
 
 type EndorseIcon = 'briefcase' | 'award' | 'dollar-sign' | 'shield';
@@ -45,6 +45,7 @@ interface EndorseModalProps {
 }
 
 export function EndorseModal({ visible, applicantName, currentRole, onConfirm, onCancel }: EndorseModalProps) {
+  const { colors, isDark } = useTheme();
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const availableRoles = ENDORSABLE_ROLES.filter((r) => r.role !== currentRole);
   const canSubmit = selectedRole !== null;
@@ -62,131 +63,109 @@ export function EndorseModal({ visible, applicantName, currentRole, onConfirm, o
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={handleCancel}>
-      <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconWrapper}>
-              <Lucide name="send" size={28} color={COLORS.brand[700]} />
-            </View>
-            <View style={styles.headerText}>
-              <Text style={styles.title}>Endorse Application</Text>
-              <Text style={styles.subtitle}>
-                Select the role to endorse{' '}
-                <Text style={styles.highlightName}>{applicantName}</Text>&apos;s application to.
-              </Text>
-            </View>
-          </View>
-
-          {/* Role Selection */}
-          <View style={styles.roleList}>
-            {availableRoles.map((item) => {
-              const isSelected = selectedRole === item.role;
-              const iconName: EndorseIcon = isEndorseIcon(item.icon) ? item.icon : 'briefcase';
-              return (
-                <Pressable
-                  key={item.role}
-                  style={[styles.roleItem, isSelected && styles.roleItemSelected]}
-                  onPress={() => setSelectedRole(item.role)}
-                >
-                  <View style={[styles.roleIcon, isSelected && styles.roleIconSelected]}>
-                    <Lucide
-                      name={iconName}
-                      size={18}
-                      color={isSelected ? COLORS.neutral.white : COLORS.neutral[500]}
-                    />
-                  </View>
-                  <View style={styles.roleInfo}>
-                    <Text style={[styles.roleLabel, isSelected && styles.roleLabelSelected]}>
-                      {item.label}
-                    </Text>
-                    <Text style={styles.roleDesc}>{item.description}</Text>
-                  </View>
-                  {isSelected && (
-                    <Lucide name="check-circle" size={18} color={COLORS.brand[700]} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-
-          {/* Actions */}
-          <View style={styles.actions}>
-            <Pressable style={styles.cancelBtn} onPress={handleCancel}>
-              <Text style={styles.cancelText}>Cancel</Text>
-            </Pressable>
+    <ConfirmationModal
+      visible={visible}
+      title="Endorse Application"
+      variant="purple"
+      confirmText={selectedRole !== null ? `Endorse to ${selectedRole}` : 'Select a Role'}
+      subtitle={
+        <Text
+          style={{
+            fontFamily: TYPOGRAPHY.fonts.primary,
+            fontSize: 14,
+            color: isDark ? colors.neutral[400] : COLORS.neutral[500],
+            textAlign: 'center',
+            lineHeight: 22,
+            marginBottom: 20,
+          }}
+        >
+          Select the designated role to endorse{' '}
+          <Text
+            style={{
+              fontWeight: TYPOGRAPHY.weights.semibold,
+              color: isDark ? colors.neutral[200] : COLORS.neutral[700],
+            }}
+          >
+            {applicantName}
+          </Text>
+          &apos;s application.
+        </Text>
+      }
+      onConfirm={() => {
+        if (canSubmit) {
+          handleConfirm();
+        }
+      }}
+      onCancel={handleCancel}
+    >
+      <View style={styles.roleList}>
+        {availableRoles.map((item) => {
+          const isSelected = selectedRole === item.role;
+          const iconName: EndorseIcon = isEndorseIcon(item.icon) ? item.icon : 'briefcase';
+          return (
             <Pressable
-              style={[styles.confirmBtn, !canSubmit && styles.confirmBtnDisabled]}
-              onPress={handleConfirm}
-              disabled={!canSubmit}
+              key={item.role}
+              style={[
+                styles.roleItem,
+                {
+                  borderColor: isSelected
+                    ? (isDark ? colors.brand[500] : colors.brand[600])
+                    : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                  backgroundColor: isSelected
+                    ? (isDark ? 'rgba(168, 85, 247, 0.15)' : '#F3E8FF')
+                    : (isDark ? colors.neutral[800] : COLORS.neutral.white),
+                },
+              ]}
+              onPress={() => setSelectedRole(item.role)}
             >
-              <Lucide name="send" size={16} color={COLORS.neutral.white} />
-              <Text style={styles.confirmText}>
-                Endorse to {selectedRole ?? 'Select Role'}
-              </Text>
+              <View
+                style={[
+                  styles.roleIcon,
+                  {
+                    backgroundColor: isSelected
+                      ? (isDark ? colors.brand[500] : colors.brand[700])
+                      : (isDark ? colors.neutral[700] : colors.neutral[100]),
+                  },
+                ]}
+              >
+                <Lucide
+                  name={iconName}
+                  size={18}
+                  color={isSelected ? COLORS.neutral.white : (isDark ? colors.neutral[300] : colors.neutral[500])}
+                />
+              </View>
+              <View style={styles.roleInfo}>
+                <Text
+                  style={[
+                    styles.roleLabel,
+                    {
+                      color: isSelected
+                        ? (isDark ? colors.brand[300] : colors.brand[800])
+                        : (isDark ? colors.neutral[100] : colors.neutral[800]),
+                    },
+                  ]}
+                >
+                  {item.label}
+                </Text>
+                <Text style={[styles.roleDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                  {item.description}
+                </Text>
+              </View>
+              {isSelected && (
+                <Lucide name="check-circle" size={18} color={isDark ? colors.brand[400] : colors.brand[700]} />
+              )}
             </Pressable>
-          </View>
-        </View>
+          );
+        })}
       </View>
-    </Modal>
+    </ConfirmationModal>
   );
 }
 
 const styles = StyleSheet.create({
-  overlay: {
-    flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.5)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: SPACING[24],
-  },
-  container: {
-    backgroundColor: COLORS.neutral.white,
-    borderRadius: RADIUS.dialog,
-    padding: SPACING[24],
-    width: '100%',
-    maxWidth: 480,
-    ...SHADOWS.modal,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: SPACING[16],
-    marginBottom: SPACING[20],
-  },
-  iconWrapper: {
-    width: 52,
-    height: 52,
-    borderRadius: 26,
-    backgroundColor: COLORS.brand.light,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  headerText: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: COLORS.neutral[500],
-    lineHeight: 20,
-  },
-  highlightName: {
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[700],
-  },
   roleList: {
     gap: SPACING[8],
-    marginBottom: SPACING[24],
+    width: '100%',
   },
   roleItem: {
     flexDirection: 'row',
@@ -194,24 +173,14 @@ const styles = StyleSheet.create({
     padding: SPACING[12],
     borderRadius: RADIUS.card,
     borderWidth: 1.5,
-    borderColor: COLORS.neutral[200],
     gap: SPACING[12],
-    backgroundColor: COLORS.neutral.white,
-  },
-  roleItemSelected: {
-    borderColor: COLORS.brand[600],
-    backgroundColor: COLORS.brand.light,
   },
   roleIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: COLORS.neutral[100],
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  roleIconSelected: {
-    backgroundColor: COLORS.brand[700],
   },
   roleInfo: {
     flex: 1,
@@ -220,53 +189,10 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[800],
-  },
-  roleLabelSelected: {
-    color: COLORS.brand[800],
   },
   roleDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
-    color: COLORS.neutral[400],
     marginTop: 2,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: SPACING[12],
-  },
-  cancelBtn: {
-    flex: 1,
-    paddingVertical: SPACING[12],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: COLORS.neutral[300],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  cancelText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral[600],
-  },
-  confirmBtn: {
-    flex: 2,
-    paddingVertical: SPACING[12],
-    borderRadius: RADIUS.button,
-    backgroundColor: COLORS.brand[700],
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: SPACING[8],
-  },
-  confirmBtnDisabled: {
-    backgroundColor: COLORS.neutral[300],
-  },
-  confirmText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: COLORS.neutral.white,
   },
 });

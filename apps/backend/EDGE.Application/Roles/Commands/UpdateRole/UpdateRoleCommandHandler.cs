@@ -28,6 +28,7 @@ public class UpdateRoleCommandHandler : IRequestHandler<UpdateRoleCommand, Role?
 
         role.Name = request.Name;
         role.Key = request.Key;
+        role.Description = request.Description;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

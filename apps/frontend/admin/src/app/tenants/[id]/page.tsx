@@ -85,10 +85,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
   const { data: fetchedMembers } = useTenantMembers(
     visitedTabs.includes("members") ? tenantId : null
   );
-  const { data: fetchedFieldOfficesResponse } = useFieldOffices(
-    visitedTabs.includes("field_offices") ? tenantId : null,
-    visitedTabs.includes("field_offices") ? currentTenant.regionId : null
-  );
+  const { data: fetchedFieldOfficesResponse } = useFieldOffices(tenantId);
 
   const { data: tenantClientsResponse } = useTenantClients(tenantId, 1, 1);
   const { data: tenantTransactionsResponse } = useTenantTransactions(tenantId, 1, 1);
@@ -151,7 +148,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
 
           <div className="grid grid-cols-3 gap-2 sm:flex sm:items-center bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800/80 p-3 sm:p-3.5 rounded-xl shrink-0 font-sans">
             <div className="text-center px-2 sm:px-3 border-r border-slate-200 dark:border-slate-800 min-w-0">
-              <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 truncate">Staff</p>
+              <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 truncate">Employees</p>
               <p className="text-base sm:text-lg font-extrabold text-sky-600 dark:text-sky-400">{staffCount}</p>
             </div>
             <div className="text-center px-2 sm:px-3 border-r border-slate-200 dark:border-slate-800 min-w-0">
@@ -168,7 +165,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
 
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-1.5 sm:p-2 flex items-center gap-1.5 sm:gap-2 overflow-x-auto shadow-sm dark:shadow-xl scrollbar-thin transition-colors duration-200">
         <button onClick={() => handleTabChange("members")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "members" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
-          <Users className="w-4 h-4 text-sky-500 dark:text-sky-400" /> Staff ({staffCount})
+          <Users className="w-4 h-4 text-sky-500 dark:text-sky-400" /> Employees ({staffCount})
         </button>
         <button onClick={() => handleTabChange("external_users")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "external_users" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
           <UserCheck className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Clients ({clientCount.toLocaleString()})

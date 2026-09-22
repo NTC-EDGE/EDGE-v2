@@ -18,6 +18,7 @@ import {
   ApplicantRequirementItemDto,
   AdminUpdateApplicantPayload,
   AdminUpdateApplicationPayload,
+  FeeCalculationResultDto,
 } from '../types';
 
 export const applicationService = {
@@ -182,11 +183,31 @@ export const applicationService = {
     });
   },
 
-  async createSoa(applicationId: string, body: CreateSoaRequest) {
+  async calculateApplicationFees(
+    applicationId: string,
+    params?: {
+      applicantId?: string;
+      validityYears?: number;
+      noOfUnits?: number;
+      expirationDate?: string;
+      additionalServicesCount?: number;
+      noOfCopies?: number;
+    }
+  ) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<FeeCalculationResultDto>>(
+        `/api/v2/applications/${applicationId}/calculated-fees`,
+        { params }
+      );
+      return response.data;
+    });
+  },
+
+  async createSoa(applicationId: string, body?: CreateSoaRequest) {
     return safeAsync(async () => {
       const response = await apiClient.post(
         `/api/v2/applications/${applicationId}/soas`,
-        body
+        body ?? {}
       );
       return response.data;
     });

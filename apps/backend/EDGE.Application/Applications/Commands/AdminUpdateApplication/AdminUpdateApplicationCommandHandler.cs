@@ -308,72 +308,79 @@ public class AdminUpdateApplicationCommandHandler : IRequestHandler<AdminUpdateA
                 }
             }
 
-            // Process ApplicantsList from Batch Summary
-            if (request.ApplicantsList != null && request.ApplicantsList.Any())
+            // Process ApplicantsList (Roster status & evaluation remarks)
+            if (request.ApplicantsList != null && request.ApplicantsList.Count > 0)
             {
                 foreach (var rosterItem in request.ApplicantsList)
                 {
-                    if (string.IsNullOrWhiteSpace(rosterItem.Id)) continue;
-
-                    var targetApplicant = app.ApplicationApplicants
-                        .FirstOrDefault(aa => 
-                            (Guid.TryParse(rosterItem.Id, out var parsedId) && aa.ApplicantId == parsedId) ||
-                            rosterItem.Id == aa.ApplicantId.ToString() ||
-                            rosterItem.Id == aa.Applicant?.Id.ToString()
-                        )?.Applicant;
-
-                    if (targetApplicant != null)
+                    ApplicationApplicant? matchedAppApplicant = null;
+                    if (Guid.TryParse(rosterItem.Id, out var parsedAppId))
                     {
-                        // Update ApplicantType
-                        if (!string.IsNullOrWhiteSpace(rosterItem.ApplicantType) &&
-                            Enum.TryParse<ApplicantType>(rosterItem.ApplicantType, true, out var newType) &&
-                            newType != targetApplicant.ApplicantType)
-                        {
-                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
-                            {
-                                ApplicationId = app.Id,
-                                Category = "Applicant Details",
-                                FieldName = $"Applicant_{targetApplicant.Id}_ApplicantType",
-                                OldValue = targetApplicant.ApplicantType.ToString(),
-                                NewValue = newType.ToString(),
-                                CorrectedByStaff = staffName,
-                                CorrectedAt = DateTime.UtcNow
-                            }, cancellationToken);
-                            targetApplicant.ApplicantType = newType;
-                        }
+                        matchedAppApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == parsedAppId);
+                    }
+
+                    if (matchedAppApplicant == null && !string.IsNullOrEmpty(rosterItem.Name))
+                    {
+                        matchedAppApplicant = app.ApplicationApplicants.FirstOrDefault(aa =>
+                            aa.Applicant != null &&
+                            aa.Applicant.ApplicantDetail != null &&
+                            $"{aa.Applicant.ApplicantDetail.FirstName} {aa.Applicant.ApplicantDetail.LastName}".Trim().Equals(rosterItem.Name.Trim(), StringComparison.OrdinalIgnoreCase));
+                    }
+
+                    if (matchedAppApplicant?.Applicant != null)
+                    {
+                        var applicant = matchedAppApplicant.Applicant;
 
                         // Update Status
-                        if (!string.IsNullOrWhiteSpace(rosterItem.Status) &&
-                            Enum.TryParse<ApplicantStatus>(rosterItem.Status, true, out var newStatus) &&
-                            newStatus != targetApplicant.Status)
+                        if (!string.IsNullOrEmpty(rosterItem.Status) && Enum.TryParse<ApplicantStatus>(rosterItem.Status, true, out var parsedStatus))
                         {
-                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            if (applicant.Status != parsedStatus)
                             {
-                                ApplicationId = app.Id,
-                                Category = "Applicant Details",
-                                FieldName = $"Applicant_{targetApplicant.Id}_Status",
-                                OldValue = targetApplicant.Status.ToString(),
-                                NewValue = newStatus.ToString(),
-                                CorrectedByStaff = staffName,
-                                CorrectedAt = DateTime.UtcNow
-                            }, cancellationToken);
-                            targetApplicant.Status = newStatus;
+                                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                                {
+                                    ApplicationId = app.Id,
+                                    Category = "Applicant Evaluation",
+                                    FieldName = $"Applicant_{applicant.Id}_Status",
+                                    OldValue = applicant.Status.ToString(),
+                                    NewValue = parsedStatus.ToString(),
+                                    CorrectedByStaff = staffName,
+                                    CorrectedAt = DateTime.UtcNow
+                                }, cancellationToken);
+                                applicant.Status = parsedStatus;
+                            }
                         }
 
-                        // Update EvaluationRemarks
-                        if (rosterItem.EvaluationRemarks != null && rosterItem.EvaluationRemarks != targetApplicant.EvaluationRemarks)
+                        // Update Evaluation Remarks
+                        if (rosterItem.EvaluationRemarks != null && rosterItem.EvaluationRemarks != applicant.EvaluationRemarks)
                         {
                             await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
                             {
                                 ApplicationId = app.Id,
-                                Category = "Applicant Details",
-                                FieldName = $"Applicant_{targetApplicant.Id}_EvaluationRemarks",
-                                OldValue = targetApplicant.EvaluationRemarks ?? string.Empty,
+                                Category = "Applicant Evaluation",
+                                FieldName = $"Applicant_{applicant.Id}_Remarks",
+                                OldValue = applicant.EvaluationRemarks ?? string.Empty,
                                 NewValue = rosterItem.EvaluationRemarks,
                                 CorrectedByStaff = staffName,
                                 CorrectedAt = DateTime.UtcNow
                             }, cancellationToken);
-                            targetApplicant.EvaluationRemarks = rosterItem.EvaluationRemarks;
+                            applicant.EvaluationRemarks = rosterItem.EvaluationRemarks;
+                        }
+
+                        // Update Applicant Type
+                        if (!string.IsNullOrEmpty(rosterItem.ApplicantType) && Enum.TryParse<ApplicantType>(rosterItem.ApplicantType, true, out var parsedType))
+                        {
+                            applicant.ApplicantType = parsedType;
+                        }
+
+                        // Update Name if provided
+                        if (!string.IsNullOrEmpty(rosterItem.Name) && applicant.ApplicantDetail != null)
+                        {
+                            var parts = rosterItem.Name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+                            if (parts.Length > 0)
+                            {
+                                applicant.ApplicantDetail.FirstName = parts[0];
+                                applicant.ApplicantDetail.LastName = parts.Length > 1 ? string.Join(" ", parts.Skip(1)) : string.Empty;
+                            }
                         }
                     }
                 }

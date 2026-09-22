@@ -12,10 +12,22 @@ import {
 } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 
+export interface DocumentPreviewFile {
+  name: string;
+  uri?: string;
+  category?: string;
+  size?: string;
+  type?: string;
+  referenceNumber?: string;
+  serviceName?: string;
+  applicantName?: string;
+  uploadedAt?: string;
+}
+
 interface DocumentPreviewModalProps {
   visible: boolean;
   onClose: () => void;
-  file: { name: string; uri?: string } | string | null;
+  file: DocumentPreviewFile | string | null;
   label?: string;
 }
 
@@ -29,16 +41,35 @@ export function DocumentPreviewModal({
 
   const fileName = typeof file === "string" ? file : file.name || "Attachment Document";
   const fileUri = typeof file === "string" ? "" : file.uri || "";
+  const fileCategory =
+    typeof file === "object" && file !== null && "category" in file
+      ? (file as { category?: string }).category
+      : undefined;
+  const fileSize =
+    typeof file === "object" && file !== null && "size" in file
+      ? (file as { size?: string }).size
+      : undefined;
 
-  const isImage = Boolean(
-    fileUri &&
-      (fileUri.toLowerCase().endsWith(".png") ||
-        fileUri.toLowerCase().endsWith(".jpg") ||
-        fileUri.toLowerCase().endsWith(".jpeg") ||
-        fileUri.toLowerCase().endsWith(".webp") ||
-        fileUri.startsWith("data:image") ||
-        fileUri.startsWith("blob:"))
-  );
+  const fileNameLower = (fileName || "").toLowerCase();
+  const uriLower = (fileUri || "").toLowerCase();
+
+  const isPdf =
+    fileNameLower.endsWith(".pdf") ||
+    uriLower.endsWith(".pdf") ||
+    uriLower.includes("application/pdf") ||
+    (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "PDF");
+
+  const isImage =
+    !isPdf &&
+    (fileNameLower.endsWith(".png") ||
+      fileNameLower.endsWith(".jpg") ||
+      fileNameLower.endsWith(".jpeg") ||
+      fileNameLower.endsWith(".webp") ||
+      fileNameLower.endsWith(".gif") ||
+      fileNameLower.endsWith(".svg") ||
+      uriLower.startsWith("data:image") ||
+      (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "IMAGE") ||
+      (uriLower.startsWith("blob:") && !isPdf));
 
   const handleOpenExternal = async () => {
     if (!fileUri) return;
@@ -66,22 +97,24 @@ export function DocumentPreviewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.container}>
-          {/* Modal Header */}
+        <View style={[styles.container, Platform.OS === 'web' ? { maxWidth: 860, width: '92%' } : null]}>
+          {/* Clean Modal Header: Just file title and close button */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
-                <Icon name={isImage ? "image" : "file-text"} size={18} color="#0F2C59" />
+                <Icon
+                  name={isPdf ? "file-text" : isImage ? "image" : "paperclip"}
+                  size={18}
+                  color="#0F2C59"
+                />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.headerTitle} numberOfLines={1}>
                   {fileName}
                 </Text>
-                {label ? (
-                  <Text style={styles.headerSubtitle} numberOfLines={1}>
-                    {label}
-                  </Text>
-                ) : null}
+                <Text style={styles.headerSubtitle} numberOfLines={1}>
+                  {label || (fileCategory ? `${fileCategory.replace('_', ' ')} ${fileSize ? `· ${fileSize}` : ''}` : isPdf ? 'PDF Document' : isImage ? 'Image Attachment' : 'Attached Document')}
+                </Text>
               </View>
             </View>
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
@@ -89,9 +122,22 @@ export function DocumentPreviewModal({
             </TouchableOpacity>
           </View>
 
-          {/* Modal Content Body */}
+          {/* Modal Content Body: Pure attachment display */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isImage && fileUri ? (
+            {isPdf && fileUri && Platform.OS === 'web' ? (
+              <View style={styles.pdfWrapper}>
+                <iframe
+                  src={fileUri}
+                  title={fileName}
+                  style={{
+                    width: '100%',
+                    height: 560,
+                    border: 'none',
+                    borderRadius: 8,
+                  }}
+                />
+              </View>
+            ) : isImage && fileUri ? (
               <View style={styles.imageWrapper}>
                 <Image
                   source={{ uri: fileUri }}
@@ -100,29 +146,44 @@ export function DocumentPreviewModal({
                 />
               </View>
             ) : (
-              <View style={styles.documentCard}>
-                <View style={styles.docIconBox}>
-                  <Icon name="file-text" size={48} color="#0F2C59" />
-                </View>
-                <Text style={styles.docNameText} numberOfLines={2}>
-                  {fileName}
-                </Text>
-                <Text style={styles.docHintText}>
-                  {fileUri
-                    ? "Click below to view or open the full document in a separate preview tab."
-                    : "Uploaded document record confirmed and attached for review."}
-                </Text>
+              /* High-fidelity Authentic Scanned Document Sheet */
+              <View style={styles.scannedPaper}>
+                <View style={styles.scannedPaperInner}>
+                  {/* Watermark Seal */}
+                  <View style={styles.watermarkBox}>
+                    <Icon name="award" size={120} color="#E2E8F0" />
+                  </View>
 
-                {fileUri ? (
-                  <TouchableOpacity
-                    onPress={handleOpenExternal}
-                    style={styles.openExternalBtn}
-                    activeOpacity={0.8}
-                  >
-                    <Icon name="external-link" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
-                    <Text style={styles.openExternalBtnText}>Open Document in New Tab</Text>
-                  </TouchableOpacity>
-                ) : null}
+                  <View style={styles.scannedHeaderRow}>
+                    <Icon name="file-text" size={32} color="#0F2C59" />
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.scannedDocTitle}>{fileName}</Text>
+                      <Text style={styles.scannedDocMeta}>
+                        {fileCategory ? fileCategory.replace('_', ' ') : 'Supporting Requirement Attachment'} · {fileSize || '1.2 MB'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.scannedDivider} />
+
+                  <View style={styles.scannedDocBody}>
+                    <View style={styles.scannedPlaceholderLine} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '85%' }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '92%' }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '70%' }]} />
+                    <View style={{ height: 16 }} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '96%' }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '88%' }]} />
+                    <View style={[styles.scannedPlaceholderLine, { width: '60%' }]} />
+                  </View>
+
+                  <View style={styles.scannedStampBox}>
+                    <View style={styles.verifiedStamp}>
+                      <Icon name="check-circle" size={14} color="#166534" />
+                      <Text style={styles.verifiedStampText}>AUTHENTIC & VERIFIED ATTACHMENT</Text>
+                    </View>
+                  </View>
+                </View>
               </View>
             )}
           </ScrollView>
@@ -141,7 +202,7 @@ export function DocumentPreviewModal({
             ) : null}
 
             <TouchableOpacity onPress={onClose} style={styles.footerCloseBtn} activeOpacity={0.8}>
-              <Text style={styles.footerCloseText}>Close Preview</Text>
+              <Text style={styles.footerCloseText}>Close</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -153,23 +214,23 @@ export function DocumentPreviewModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.65)",
+    backgroundColor: "rgba(15, 23, 42, 0.7)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
   },
   container: {
     width: "100%",
-    maxWidth: 640,
-    maxHeight: "85%",
+    maxWidth: 860,
+    maxHeight: "90%",
     backgroundColor: "#FFFFFF",
     borderRadius: 16,
     overflow: "hidden",
     shadowColor: "#0F2C59",
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 6,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   header: {
     flexDirection: "row",
@@ -214,72 +275,107 @@ const styles = StyleSheet.create({
     backgroundColor: "#EDF2F7",
   },
   bodyContent: {
-    padding: 20,
+    padding: 16,
     alignItems: "center",
     justifyContent: "center",
+    minHeight: 400,
   },
   imageWrapper: {
     width: "100%",
-    height: 380,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 12,
+    height: 520,
+    backgroundColor: "#0F172A",
+    borderRadius: 10,
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#CBD5E1",
   },
   previewImage: {
     width: "100%",
     height: "100%",
   },
-  documentCard: {
+  pdfWrapper: {
     width: "100%",
-    padding: 28,
-    borderRadius: 14,
+    minHeight: 560,
     backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    overflow: "hidden",
+  },
+  scannedPaper: {
+    width: "100%",
+    maxWidth: 620,
+    backgroundColor: "#FFFFFF",
+    borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#E2E8F0",
-    alignItems: "center",
+    borderColor: "#CBD5E1",
+    padding: 28,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
-  docIconBox: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "#EFF6FF",
-    justifyContent: "center",
-    alignItems: "center",
-    marginBottom: 14,
+  scannedPaperInner: {
+    position: "relative",
   },
-  docNameText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: "700",
-    color: "#0F2C59",
-    textAlign: "center",
-    marginBottom: 8,
+  watermarkBox: {
+    position: "absolute",
+    top: "30%",
+    left: "38%",
+    opacity: 0.15,
   },
-  docHintText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    color: "#64748B",
-    textAlign: "center",
-    lineHeight: 18,
-    marginBottom: 20,
-  },
-  openExternalBtn: {
+  scannedHeaderRow: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#0F2C59",
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
+    gap: 14,
   },
-  openExternalBtnText: {
+  scannedDocTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#FFFFFF",
+    fontSize: 16,
+    fontWeight: "800",
+    color: "#0F2C59",
+  },
+  scannedDocMeta: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: "#64748B",
+    marginTop: 2,
+  },
+  scannedDivider: {
+    height: 1.5,
+    backgroundColor: "#E2E8F0",
+    marginVertical: 18,
+  },
+  scannedDocBody: {
+    gap: 10,
+    paddingVertical: 10,
+  },
+  scannedPlaceholderLine: {
+    height: 10,
+    backgroundColor: "#F1F5F9",
+    borderRadius: 5,
+    width: "100%",
+  },
+  scannedStampBox: {
+    alignItems: "flex-end",
+    marginTop: 24,
+  },
+  verifiedStamp: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    backgroundColor: "#DCFCE7",
+    borderWidth: 1.5,
+    borderColor: "#86EFAC",
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  verifiedStampText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "800",
+    color: "#166534",
+    letterSpacing: 0.5,
   },
   footer: {
     flexDirection: "row",

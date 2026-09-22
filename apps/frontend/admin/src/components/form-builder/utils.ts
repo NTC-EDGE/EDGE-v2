@@ -243,6 +243,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
           type: 'section-header',
           label: section.title,
           sectionTitle: section.title,
+          sectionKey: section.key,
           required: false,
           cols: 2,
         });
@@ -311,6 +312,8 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
   };
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export function convertSchemaToBackendSections(fields: FormField[]) {
   const sections: Array<{
     key: string;
@@ -328,8 +331,21 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
     }>;
   }> = [];
 
+  const usedSectionKeys = new Set<string>();
+  const getUniqueSectionKey = (baseKey: string): string => {
+    let key = baseKey;
+    let suffix = 1;
+    while (usedSectionKeys.has(key)) {
+      suffix++;
+      key = `${baseKey}-${suffix}`;
+    }
+    usedSectionKeys.add(key);
+    return key;
+  };
+
+  const initialKey = getUniqueSectionKey('general');
   let currentSection = {
-    key: 'general',
+    key: initialKey,
     title: 'General Information',
     required: true,
     orderIndex: 0,
@@ -346,6 +362,7 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
 
   let sectionIndex = 0;
   let fieldIndex = 0;
+  const seenFieldIds = new Set<string>();
 
   for (const field of fields) {
     if (field.type === 'section-header') {
@@ -354,11 +371,15 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
         sectionIndex++;
       }
       const title = field.sectionTitle || field.label || `Section ${sectionIndex + 1}`;
-      const key =
-        title
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, '-')
-          .replace(/(^-|-$)/g, '') || `section-${sectionIndex}`;
+      const baseKey =
+        field.sectionKey && field.sectionKey.trim().length > 0
+          ? field.sectionKey.trim()
+          : title
+              .toLowerCase()
+              .replace(/[^a-z0-9]+/g, '-')
+              .replace(/(^-|-$)/g, '') || `section-${sectionIndex}`;
+      const key = getUniqueSectionKey(baseKey);
+
       currentSection = {
         key,
         title,
@@ -374,8 +395,14 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
       continue;
     }
 
+    let fieldId = field.id;
+    if (!fieldId || !UUID_REGEX.test(fieldId) || seenFieldIds.has(fieldId)) {
+      fieldId = generateId();
+    }
+    seenFieldIds.add(fieldId);
+
     const fieldDto = {
-      fieldId: field.id,
+      fieldId,
       label: field.label || 'Untitled Field',
       type: field.type,
       isRequired: Boolean(field.required),
@@ -406,4 +433,108 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
   }
 
   return sections;
+}
+
+/**
+ * Reorders fields in the schema while keeping section hierarchies intact.
+ * When dragging a section-header, the header AND all fields belonging to that section
+ * move together as a single block to prevent breaking the form layout.
+ */
+export function reorderFieldsWithSections(
+  fields: FormField[],
+  fromIndex: number,
+  toIndex: number
+): FormField[] {
+  if (fromIndex < 0 || fromIndex >= fields.length || toIndex < 0 || toIndex > fields.length) {
+    return fields;
+  }
+  if (fromIndex === toIndex) {
+    return fields;
+  }
+
+  const targetField = fields[fromIndex];
+  const newFields = [...fields];
+
+  // If moving a section-header, move the section header AND all its child fields as a block
+  if (targetField.type === 'section-header') {
+    const blockStart = fromIndex;
+    let blockEnd = fromIndex + 1;
+    while (blockEnd < fields.length && fields[blockEnd].type !== 'section-header') {
+      blockEnd++;
+    }
+
+    // If dropping inside the same section block, no-op
+    if (toIndex >= blockStart && toIndex <= blockEnd) {
+      return fields;
+    }
+
+    const blockSize = blockEnd - blockStart;
+    const sectionBlock = newFields.splice(blockStart, blockSize);
+
+    // Calculate insertion index in the spliced array
+    let insertIndex = toIndex;
+    if (toIndex > blockStart) {
+      insertIndex = toIndex - blockSize;
+    }
+    insertIndex = Math.max(0, Math.min(insertIndex, newFields.length));
+
+    newFields.splice(insertIndex, 0, ...sectionBlock);
+    return newFields;
+  }
+
+  // Regular single field move
+  const [removed] = newFields.splice(fromIndex, 1);
+  if (!removed) return fields;
+
+  const adjustedTo = toIndex > fromIndex ? toIndex - 1 : toIndex;
+  const insertIndex = Math.max(0, Math.min(adjustedTo, newFields.length));
+  newFields.splice(insertIndex, 0, removed);
+
+  return newFields;
+}
+
+/**
+ * Duplicates a field or an entire section with all its child fields.
+ */
+export function duplicateFieldWithSection(fields: FormField[], id: string): FormField[] {
+  const fromIndex = fields.findIndex((f) => f.id === id);
+  if (fromIndex < 0) return fields;
+
+  const targetField = fields[fromIndex];
+  const newFields = [...fields];
+
+  if (targetField.type === 'section-header') {
+    const blockStart = fromIndex;
+    let blockEnd = fromIndex + 1;
+    while (blockEnd < fields.length && fields[blockEnd].type !== 'section-header') {
+      blockEnd++;
+    }
+
+    const duplicatedBlock: FormField[] = fields.slice(blockStart, blockEnd).map((field, idx) => {
+      if (idx === 0) {
+        return {
+          ...field,
+          id: generateId(),
+          sectionTitle: `${field.sectionTitle || field.label} (Copy)`,
+          label: `${field.label} (Copy)`,
+          sectionKey: field.sectionKey ? `${field.sectionKey}-copy` : undefined,
+        };
+      }
+      return {
+        ...field,
+        id: generateId(),
+      };
+    });
+
+    newFields.splice(blockEnd, 0, ...duplicatedBlock);
+    return newFields;
+  }
+
+  const duplicate: FormField = {
+    ...targetField,
+    id: generateId(),
+    label: `${targetField.label} (Copy)`,
+  };
+  newFields.splice(fromIndex + 1, 0, duplicate);
+  return newFields;
 }

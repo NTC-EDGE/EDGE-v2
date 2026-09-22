@@ -13,5 +13,7 @@ public record CreateScheduleCommand(
     DateTime? EndApplication = null,
     bool IsPublished = false,
     int? MaximumSlots = null,
-    string? Remarks = null
+    string? Remarks = null,
+    string? StartTime = null,
+    string? EndTime = null
 ) : IRequest<ScheduleDto>;

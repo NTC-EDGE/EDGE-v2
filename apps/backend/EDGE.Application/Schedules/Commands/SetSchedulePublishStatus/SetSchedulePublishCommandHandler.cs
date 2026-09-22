@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Schedules.DTOs;
 
@@ -8,11 +9,16 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
 {
     private readonly IScheduleRepository _scheduleRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ITenantContextService _tenantContextService;
 
-    public SetSchedulePublishCommandHandler(IScheduleRepository scheduleRepository, IUnitOfWork unitOfWork)
+    public SetSchedulePublishCommandHandler(
+        IScheduleRepository scheduleRepository,
+        IUnitOfWork unitOfWork,
+        ITenantContextService tenantContextService)
     {
         _scheduleRepository = scheduleRepository;
         _unitOfWork = unitOfWork;
+        _tenantContextService = tenantContextService;
     }
 
     public async Task<ScheduleDto?> Handle(SetSchedulePublishStatusCommand request, CancellationToken cancellationToken)
@@ -22,6 +28,11 @@ public class SetSchedulePublishCommandHandler : IRequestHandler<SetSchedulePubli
         {
             return null;
         }
+
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            schedule.TenantId,
+            "You are not authorized to publish schedules for this regional tenant.",
+            cancellationToken);
 
         var newPublishStatus = request.IsPublished ?? !schedule.IsPublished;
         if (newPublishStatus && (schedule.StartApplication == null || schedule.EndApplication == null))

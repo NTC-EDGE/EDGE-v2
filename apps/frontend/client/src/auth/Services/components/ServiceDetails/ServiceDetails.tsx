@@ -15,6 +15,8 @@ interface ServiceDetailsProps {
   selectedService: NTCService;
   onBackToServices: () => void;
   onApplyPress: () => void;
+  onRequestAccessPress?: () => void;
+  isSubmissionRestricted?: boolean;
   isMobile: boolean;
 }
 
@@ -22,7 +24,9 @@ export function ServiceDetails({
   selectedService,
   onBackToServices,
   onApplyPress,
-  isMobile,
+  onRequestAccessPress,
+  isSubmissionRestricted = false,
+  isMobile: _isMobile,
 }: ServiceDetailsProps) {
   const displayInformation = selectedService.description;
   const displayWhoMayAvail = selectedService.whoMayAvail || null;
@@ -55,7 +59,20 @@ export function ServiceDetails({
             </View>
           )}
 
-          {/* 3. Bottom Action Bar: Back to Services & Apply Now side-by-side */}
+          {/* 3. Internal Account Access Restriction Notice */}
+          {isSubmissionRestricted && (
+            <View style={localStyles.restrictedCard}>
+              <View style={localStyles.cardHeader}>
+                <Icon name="alert-circle" size={18} color="#B45309" style={{ marginRight: 8 }} />
+                <Text style={localStyles.restrictedHeaderTitle}>Internal Account Notice</Text>
+              </View>
+              <Text style={localStyles.restrictedBodyText}>
+                Your internal staff account does not currently have permission to file citizen service applications. To submit applications, please request application submission access (applications.submit) from your system administrator.
+              </Text>
+            </View>
+          )}
+
+          {/* 4. Bottom Action Bar: Back to Services & Apply Now / Request Access side-by-side */}
           <View style={localStyles.actionsRow}>
             <TouchableOpacity
               onPress={onBackToServices}
@@ -66,14 +83,25 @@ export function ServiceDetails({
               <Text style={localStyles.backBtnText}>Back to Services</Text>
             </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={onApplyPress}
-              style={localStyles.applyBtn}
-              activeOpacity={0.8}
-            >
-              <Text style={localStyles.applyBtnText}>Apply Now</Text>
-              <Icon name="arrow-right" size={16} color="#FFFFFF" />
-            </TouchableOpacity>
+            {isSubmissionRestricted ? (
+              <TouchableOpacity
+                onPress={onRequestAccessPress || onApplyPress}
+                style={localStyles.requestAccessBtn}
+                activeOpacity={0.8}
+              >
+                <Icon name="lock" size={16} color="#FFFFFF" />
+                <Text style={localStyles.applyBtnText}>Request Access to Apply</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={onApplyPress}
+                style={localStyles.applyBtn}
+                activeOpacity={0.8}
+              >
+                <Text style={localStyles.applyBtnText}>Apply Now</Text>
+                <Icon name="arrow-right" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </ScrollView>
@@ -102,6 +130,16 @@ const localStyles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  restrictedCard: {
+    backgroundColor: "#FFFBEB",
+    borderColor: "#FDE68A",
+    borderWidth: 1,
+    borderLeftWidth: 4,
+    borderLeftColor: "#D97706",
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
   cardHeader: {
     flexDirection: "row",
     alignItems: "center",
@@ -119,6 +157,12 @@ const localStyles = StyleSheet.create({
     fontWeight: "700",
     color: "#065F46",
   },
+  restrictedHeaderTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    color: "#B45309",
+  },
   infoBodyText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
@@ -129,6 +173,12 @@ const localStyles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     color: "#047857",
+    lineHeight: 20,
+  },
+  restrictedBodyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: "#92400E",
     lineHeight: 20,
   },
   actionsRow: {
@@ -179,6 +229,24 @@ const localStyles = StyleSheet.create({
         cursor: "pointer",
         transition: "all 150ms ease",
         boxShadow: "0 2px 6px rgba(3, 26, 110, 0.2)",
+      },
+    }),
+  },
+  requestAccessBtn: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 8,
+    backgroundColor: "#D97706",
+    ...Platform.select({
+      web: {
+        cursor: "pointer",
+        transition: "all 150ms ease",
+        boxShadow: "0 2px 6px rgba(217, 119, 6, 0.2)",
       },
     }),
   },

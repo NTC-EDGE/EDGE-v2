@@ -1,7 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable, Modal } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { User } from '../data/mockUsers';
+import { User } from '../types';
 
 interface DeleteUserConfirmModalProps {
   isOpen: boolean;
@@ -26,9 +26,9 @@ export function DeleteUserConfirmModal({
             <Lucide name="alert-triangle" size={28} color={COLORS.semantic.error} />
           </View>
 
-          <Text style={styles.title}>Delete Client Account</Text>
+          <Text style={styles.title}>Archive Permittee Record</Text>
           <Text style={styles.message}>
-            Are you sure you want to delete <Text style={styles.highlightText}>{user.name}</Text> (Client ID: {user.id})? This action cannot be undone.
+            Are you sure you want to archive regulatory record for <Text style={styles.highlightText}>{user.name}</Text> (Permittee ID: {user.id})? This will deactivate their regional filing records.
           </Text>
 
           <View style={styles.buttonRow}>
@@ -36,7 +36,7 @@ export function DeleteUserConfirmModal({
               <Text style={styles.cancelBtnText}>Cancel</Text>
             </Pressable>
             <Pressable style={styles.deleteBtn} onPress={onConfirm}>
-              <Text style={styles.deleteBtnText}>Delete User</Text>
+              <Text style={styles.deleteBtnText}>Archive Record</Text>
             </Pressable>
           </View>
         </View>

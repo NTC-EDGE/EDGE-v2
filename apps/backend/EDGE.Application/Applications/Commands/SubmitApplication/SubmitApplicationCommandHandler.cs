@@ -24,6 +24,7 @@ public class SubmitApplicationCommandHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUserRepository _userRepository;
+    private readonly IUserAuthorizationService _userAuthorizationService;
     private readonly ILogger<SubmitApplicationCommandHandler> _logger;
 
     public SubmitApplicationCommandHandler(
@@ -38,6 +39,7 @@ public class SubmitApplicationCommandHandler
         ICurrentUserService currentUserService,
         IServiceVariantElementRepository elementRepository,
         IUserRepository userRepository,
+        IUserAuthorizationService userAuthorizationService,
         ILogger<SubmitApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
@@ -51,12 +53,20 @@ public class SubmitApplicationCommandHandler
         _currentUserService = currentUserService;
         _elementRepository = elementRepository;
         _userRepository = userRepository;
+        _userAuthorizationService = userAuthorizationService;
         _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
         SubmitApplicationCommand request, CancellationToken cancellationToken)
     {
+        // 0. Verify Application Submission Permissions
+        if (!await _userAuthorizationService.CanSubmitApplicationAsync(cancellationToken))
+        {
+            return ApiResponse<Guid>.Fail(
+                "403 Forbidden: Your internal staff account does not have permission to submit service applications. Please request application submission access from your administrator.");
+        }
+
         bool isBulk = request.SubmissionMode.Equals("Bulk", StringComparison.OrdinalIgnoreCase);
 
         // 1. Resolve current user
@@ -363,6 +373,29 @@ public class SubmitApplicationCommandHandler
                 };
                 await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
 
+                // Resolve ApplicantType (prefer explicit DTO value, fallback to isBulk ? Company : Individual)
+                ApplicantType resolvedApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual;
+                if (!string.IsNullOrWhiteSpace(dto.ApplicantType) &&
+                    Enum.TryParse<ApplicantType>(dto.ApplicantType, true, out var parsedType))
+                {
+                    resolvedApplicantType = parsedType;
+                }
+
+                Guid? companyDetailId = null;
+                if (resolvedApplicantType == ApplicantType.Company && !string.IsNullOrWhiteSpace(dto.CompanyName))
+                {
+                    var companyDetail = new CompanyDetail
+                    {
+                        Id = Guid.NewGuid(),
+                        Name = dto.CompanyName,
+                        Address = dto.Address ?? "",
+                        ContactNumber = dto.ContactNumber ?? "",
+                        Email = dto.Email
+                    };
+                    await _applicantRepository.AddCompanyDetailAsync(companyDetail, cancellationToken);
+                    companyDetailId = companyDetail.Id;
+                }
+
                 // Create Applicant
                 var applicant = new Applicant
                 {
@@ -370,8 +403,9 @@ public class SubmitApplicationCommandHandler
                     TenantId = request.TenantId,
                     UserId = submitterUserId,
                     IsGuest = isGuest,
-                    ApplicantType = isBulk ? ApplicantType.Company : ApplicantType.Individual,
+                    ApplicantType = resolvedApplicantType,
                     ApplicantDetailId = detail.Id,
+                    CompanyDetailId = companyDetailId,
                     Status = request.IsDraft ? ApplicantStatus.Incomplete : ApplicantStatus.Complete
                 };
                 await _applicantRepository.AddApplicantAsync(applicant, cancellationToken);
@@ -454,6 +488,28 @@ public class SubmitApplicationCommandHandler
                     Timestamp = DateTime.UtcNow,
                     UserId = submitterUserId
                 }, cancellationToken);
+
+            if (status == ApplicationStatus.Submitted)
+            {
+                var firstApp = request.Applicants.FirstOrDefault();
+                var submitterName = firstApp != null && !string.IsNullOrWhiteSpace($"{firstApp.FirstName} {firstApp.LastName}".Trim())
+                    ? $"{firstApp.FirstName} {firstApp.LastName}".Trim()
+                    : "Applicant";
+                await _applicationRepository.AddApplicationHistoryAsync(
+                    new ApplicationHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = application.Id,
+                        Action = "Application submitted by applicant",
+                        FromStatus = null,
+                        ToStatus = ApplicationStatus.Submitted,
+                        PerformedByUserId = submitterUserId,
+                        StaffName = submitterName,
+                        StaffRole = "Applicant",
+                        Remarks = "Initial application submission",
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+            }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);

@@ -1,35 +1,40 @@
-import React from "react";
-import { StyleSheet, View } from "react-native";
-import { useTheme, AnimatedCard } from "@edge/ui";
-import { UsersScreenContent } from "./UsersScreenContent";
+import React from 'react';
+import { ScrollView, StyleSheet, View } from 'react-native';
+import { SPACING, useTheme } from '@edge/ui';
+import { UsersScreenContent } from './UsersScreenContent';
 
 export function UsersScreen() {
-  const { colors } = useTheme();
+  const { colors, isDark } = useTheme();
 
   return (
-    <View style={[styles.webShell, { backgroundColor: colors.bg }]}>
+    <ScrollView
+      style={[styles.webShell, { backgroundColor: isDark ? colors.neutral[900] : colors.bg }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.container}>
-        <AnimatedCard delay={0} padding={0} hoverEffect={false} style={styles.cardWrapper}>
-          <UsersScreenContent isWeb={true} />
-        </AnimatedCard>
+        <UsersScreenContent isWeb={true} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   webShell: {
     flex: 1,
+    width: '100%',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    width: '100%',
+    paddingBottom: SPACING[40],
   },
   container: {
     flex: 1,
-    maxWidth: 1200,
-    alignSelf: 'center',
+    maxWidth: 1280,
     width: '100%',
-  },
-  cardWrapper: {
-    flex: 1,
-    backgroundColor: "transparent",
-    borderWidth: 0,
+    alignSelf: 'center',
+    paddingHorizontal: SPACING[24],
+    paddingTop: SPACING[20],
   },
 });

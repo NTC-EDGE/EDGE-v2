@@ -37,10 +37,14 @@ public class ClerkUserService : IClerkUserService
 
     public async Task<ClerkUserResponse> CreateUserAsync(CreateClerkUserPayload payload)
     {
+        var effectiveUsername = !string.IsNullOrWhiteSpace(payload.Username)
+            ? payload.Username.Trim()
+            : GenerateSafeFallbackUsername(payload.FirstName, payload.LastName, payload.EmailAddress);
+
         var requestObject = new
         {
             email_address = new[] { payload.EmailAddress },
-            username = !string.IsNullOrWhiteSpace(payload.Username) ? payload.Username : null,
+            username = effectiveUsername,
             password = payload.Password,
             first_name = payload.FirstName,
             last_name = payload.LastName,
@@ -58,10 +62,42 @@ public class ClerkUserService : IClerkUserService
         if (!response.IsSuccessStatusCode)
         {
             string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
-            _logger.LogError("Clerk create user failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
-                payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
 
-            throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+            // If Clerk rejected username (e.g. username is disabled on this Clerk instance), retry without username
+            if (IsClerkUnknownParameterError(errorDetails, responseBody))
+            {
+                var fallbackRequestObject = new
+                {
+                    email_address = new[] { payload.EmailAddress },
+                    password = payload.Password,
+                    first_name = payload.FirstName,
+                    last_name = payload.LastName,
+                    public_metadata = payload.PublicMetadata,
+                    private_metadata = payload.PrivateMetadata,
+                    skip_password_checks = true
+                };
+
+                string fallbackJson = JsonSerializer.Serialize(fallbackRequestObject, RequestSerializerOptions);
+                var fallbackContent = new StringContent(fallbackJson, Encoding.UTF8, "application/json");
+                response = await _httpClient.PostAsync("users", fallbackContent);
+                responseBody = await response.Content.ReadAsStringAsync();
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+                    _logger.LogError("Clerk create user retry failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
+                        payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
+
+                    throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+                }
+            }
+            else
+            {
+                _logger.LogError("Clerk create user failed for {Email}. Status: {Status} Error: {Error} RawBody: {Body}",
+                    payload.EmailAddress, response.StatusCode, errorDetails, responseBody);
+
+                throw new InvalidOperationException($"Clerk create user failed: {errorDetails}");
+            }
         }
 
         var userResponse = JsonSerializer.Deserialize<ClerkUserResponse>(responseBody, ResponseSerializerOptions);
@@ -73,6 +109,96 @@ public class ClerkUserService : IClerkUserService
 
         _logger.LogInformation("Clerk user creation successful for user Id: {UserId}", userResponse.Id);
         return userResponse;
+    }
+
+    /// <summary>
+    /// Evaluates whether a Clerk API error indicates that an optional parameter (such as username)
+    /// was rejected because it is not configured, unknown, or not allowed on the target Clerk instance.
+    /// Inspects both standardized Clerk error codes (e.g. form_param_unknown) and descriptive substrings.
+    /// </summary>
+    private static bool IsClerkUnknownParameterError(string errorDetails, string responseBody)
+    {
+        var combined = $"{errorDetails} {responseBody}";
+        if (string.IsNullOrWhiteSpace(combined))
+        {
+            return false;
+        }
+
+        var hasCode = combined.Contains("form_param_unknown", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("form_param_not_allowed", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("param_unknown", StringComparison.OrdinalIgnoreCase) ||
+                      combined.Contains("param_not_allowed", StringComparison.OrdinalIgnoreCase);
+
+        var hasMessagePattern = combined.Contains("unrecognized", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unknown parameter", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unexpected parameter", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("not allowed", StringComparison.OrdinalIgnoreCase) ||
+                                combined.Contains("unknown attribute", StringComparison.OrdinalIgnoreCase);
+
+        var mentionsUsername = combined.Contains("username", StringComparison.OrdinalIgnoreCase);
+
+        return hasCode || (mentionsUsername && hasMessagePattern);
+    }
+
+    /// <summary>
+    /// Generates a safe, Clerk-compliant, collision-resistant username derived from user names or email.
+    /// Ensures username length is between 4 and 64 characters, containing only alphanumeric characters and underscores.
+    /// <para>
+    /// <strong>Parity Requirement:</strong> Any modifications to this logic (sanitization, boundary constraints,
+    /// suffix format) MUST be mirrored in the TypeScript implementation at:
+    /// <c>packages/api/src/utils/usernameUtils.ts</c> (<c>generateSafeUsername</c>).
+    /// </para>
+    /// </summary>
+    public static string GenerateSafeFallbackUsername(string? firstName, string? lastName, string? email)
+    {
+        var cleanFirst = new string((firstName ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
+        var cleanLast = new string((lastName ?? "").Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
+
+        string baseName;
+        if (!string.IsNullOrWhiteSpace(cleanFirst) && !string.IsNullOrWhiteSpace(cleanLast))
+        {
+            baseName = $"{cleanFirst}_{cleanLast}";
+        }
+        else if (!string.IsNullOrWhiteSpace(cleanFirst))
+        {
+            baseName = cleanFirst;
+        }
+        else if (!string.IsNullOrWhiteSpace(cleanLast))
+        {
+            baseName = cleanLast;
+        }
+        else if (!string.IsNullOrWhiteSpace(email))
+        {
+            var emailPrefix = email.Split('@')[0];
+            baseName = new string(emailPrefix.Where(char.IsAsciiLetterOrDigit).ToArray()).ToLowerInvariant();
+        }
+        else
+        {
+            baseName = "user";
+        }
+
+        if (string.IsNullOrWhiteSpace(baseName))
+        {
+            baseName = "user";
+        }
+        else if (baseName.Length < 3)
+        {
+            baseName = $"{baseName}user";
+        }
+
+        var randomSuffix = Guid.NewGuid().ToString("N")[..6];
+        var username = $"{baseName}_{randomSuffix}";
+
+        if (username.Length < 4)
+        {
+            username = $"user_{randomSuffix}";
+        }
+        else if (username.Length > 64)
+        {
+            username = username[..64];
+        }
+
+        return username;
     }
 
     public async Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email)
@@ -236,4 +362,46 @@ public class ClerkUserService : IClerkUserService
         var invitationResponse = JsonSerializer.Deserialize<ClerkInvitationResponse>(responseBody, ResponseSerializerOptions);
         return invitationResponse ?? new ClerkInvitationResponse { EmailAddress = payload.EmailAddress, Status = "pending" };
     }
+
+    public async Task<List<ClerkUserResponse>> GetAllUsersAsync(int pageSize = 500, int? maxTotalUsers = null, CancellationToken cancellationToken = default)
+    {
+        var allUsers = new List<ClerkUserResponse>();
+        var currentOffset = 0;
+        var batchSize = Math.Clamp(pageSize, 1, 500);
+
+        while (!cancellationToken.IsCancellationRequested)
+        {
+            var requestUri = $"users?limit={batchSize}&offset={currentOffset}&order_by=-created_at";
+            HttpResponseMessage response = await _httpClient.GetAsync(requestUri, cancellationToken);
+            string responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+                _logger.LogError("Clerk get all users failed. Status: {Status} Error: {Error} Body: {Body}",
+                    response.StatusCode, errorDetails, responseBody);
+
+                throw new InvalidOperationException($"Clerk get all users failed: {errorDetails}");
+            }
+
+            var batch = JsonSerializer.Deserialize<List<ClerkUserResponse>>(responseBody, ResponseSerializerOptions) ?? new List<ClerkUserResponse>();
+            if (batch.Count == 0)
+            {
+                break;
+            }
+
+            allUsers.AddRange(batch);
+
+            if (batch.Count < batchSize || (maxTotalUsers.HasValue && allUsers.Count >= maxTotalUsers.Value))
+            {
+                break;
+            }
+
+            currentOffset += batch.Count;
+        }
+
+        _logger.LogInformation("Clerk GetAllUsersAsync retrieved {Count} users total.", allUsers.Count);
+        return allUsers;
+    }
 }
+

@@ -17,11 +17,55 @@ export interface CurrentUserProfile {
   isSuperAdmin: boolean;
 }
 
-export function useUserService() {
-  const { useQuery, put, patch, del } = useApi();
+export interface CreateUserRequest {
+  email: string;
+  firstName: string;
+  lastName: string;
+  middleName?: string;
+  suffix?: string;
+  contactNumber?: string;
+  password?: string;
+  roleKey?: string;
+  tenantId?: string;
+  fieldOfficeId?: string;
+  jobTitle?: string;
+  level?: string;
+  division?: string;
+  position?: string;
+  designation?: string;
+  eSignature?: string;
+  isSuperAdmin?: boolean;
+  sendInvitation?: boolean;
+  redirectUrl?: string;
+}
 
-  const useUsers = () => {
-    return useQuery<User[]>('/api/v2/users');
+export interface SyncedUserSummary {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+  tenantId?: string | null;
+  tenantName?: string | null;
+  roleKey?: string | null;
+  action: string;
+}
+
+export interface SyncClerkUsersResultDto {
+  totalClerkUsers: number;
+  createdUsers: number;
+  updatedUsers: number;
+  tenantMembershipsCreated: number;
+  message: string;
+  syncedUsers: SyncedUserSummary[];
+}
+
+export function useUserService() {
+  const { useQuery, post, put, patch, del } = useApi();
+
+  const useUsers = (enabled: boolean = true) => {
+    return useQuery<User[]>(enabled ? '/api/v2/users' : null);
   };
 
   const useUser = (id: string | null) => {
@@ -30,6 +74,23 @@ export function useUserService() {
 
   const useCurrentUserProfile = () => {
     return useQuery<CurrentUserProfile>('/api/v2/users/me');
+  };
+
+  /**
+   * Creates a new user account via Clerk and syncs database & tenant membership.
+   */
+  const createUser = async (data: CreateUserRequest): Promise<User> => {
+    return post<User, CreateUserRequest>('/api/v2/users', data);
+  };
+
+  /**
+   * Synchronizes all registered users from Clerk into the database.
+   */
+  const syncClerkUsers = async (assignDefaultTenant: boolean = true): Promise<SyncClerkUsersResultDto> => {
+    return post<SyncClerkUsersResultDto, { assignDefaultTenantIfMissing: boolean }>(
+      '/api/v2/users/sync-clerk',
+      { assignDefaultTenantIfMissing: assignDefaultTenant }
+    );
   };
 
   /**
@@ -55,6 +116,8 @@ export function useUserService() {
     useUsers,
     useUser,
     useCurrentUserProfile,
+    createUser,
+    syncClerkUsers,
     updateUser,
     updateUserSuperAdmin,
     deleteUser,

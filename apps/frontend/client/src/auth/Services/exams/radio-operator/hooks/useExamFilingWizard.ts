@@ -204,7 +204,7 @@ export function useExamFilingWizard({
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant?.selectedVariantId || null,
       serviceVariantElementIds: activeApplicant?.selectedElementId ? [activeApplicant.selectedElementId] : [],
-      isDraft: isDraft,
+      isDraft: true,
       applicants: mapped,
     };
     try {
@@ -219,15 +219,25 @@ export function useExamFilingWizard({
           ? resObj.id
           : null;
 
-      if (applicationId) {
-        const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
-        await uploadRequirementsAfterSubmit({
-          api,
-          applicationId,
-          tenantId: selectedRegionId,
-          applicants: allApplicantsForUpload,
-          getToken,
-        });
+      if (!applicationId) {
+        throw new Error("Application creation returned no identifier.");
+      }
+
+      const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
+      await uploadRequirementsAfterSubmit({
+        api,
+        applicationId,
+        tenantId: selectedRegionId,
+        applicants: allApplicantsForUpload,
+        getToken,
+      });
+
+      if (!isDraft) {
+        const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
+        const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
+        if (finObj.succeeded === false) {
+          throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize exam application submission.");
+        }
       }
     } catch (err: unknown) {
       throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting exam applications.");

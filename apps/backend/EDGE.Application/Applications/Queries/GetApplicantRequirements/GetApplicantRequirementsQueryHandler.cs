@@ -105,7 +105,7 @@ public class GetApplicantRequirementsQueryHandler
             if (matchingSub != null)
             {
                 matchedSubmissionIds.Add(matchingSub.Id);
-                if (matchingSub.StoredFile != null)
+                if (matchingSub.StoredFile != null && matchingSub.StoredFileId.HasValue && matchingSub.StoredFile.Id == matchingSub.StoredFileId.Value)
                 {
                     storedFile = matchingSub.StoredFile;
                 }
@@ -143,8 +143,12 @@ public class GetApplicantRequirementsQueryHandler
         foreach (var sub in applicantSubmissions.Where(s => !matchedSubmissionIds.Contains(s.Id)))
         {
             var reqMaster = sub.Requirement ?? await _requirementRepository.GetRequirementByIdAsync(sub.RequirementId, cancellationToken);
-            StoredFile? storedFile = sub.StoredFile;
-            if (storedFile == null && sub.StoredFileId.HasValue)
+            StoredFile? storedFile = null;
+            if (sub.StoredFile != null && sub.StoredFileId.HasValue && sub.StoredFile.Id == sub.StoredFileId.Value)
+            {
+                storedFile = sub.StoredFile;
+            }
+            else if (sub.StoredFileId.HasValue)
             {
                 storedFile = await _storedFileRepository.GetByIdAsync(sub.StoredFileId.Value, cancellationToken);
             }

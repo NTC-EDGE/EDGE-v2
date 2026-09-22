@@ -166,6 +166,56 @@ export interface UpdateExamScheduleCommand {
   remarks?: string | null;
 }
 
+export interface ScheduleItemDto {
+  id: string;
+  serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+  createdAt: string;
+}
+
+export interface CreateSchedulePayload {
+  serviceId: string;
+  tenantId: string;
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  isPublished?: boolean;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface UpdateSchedulePayload {
+  venue: string;
+  startDate: string;
+  endDate: string;
+  startTime?: string | null;
+  endTime?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  maximumSlots?: number | null;
+  remarks?: string | null;
+}
+
+export interface PublishSchedulePayload {
+  isPublished?: boolean | null;
+}
+
 // Tenant and Member Management Types
 export interface Tenant {
   id: string;
@@ -365,6 +415,16 @@ export interface TenantClientTransactionDto {
   date: string;
 }
 
+export interface TenantTransactionDto {
+  id: string;
+  refNo: string;
+  applicantName: string;
+  serviceType: string;
+  amount: number;
+  paymentStatus: string;
+  date: string;
+}
+
 export interface TenantClientDetailsDto {
   id: string;
   userId?: string | null;
@@ -459,6 +519,18 @@ export interface AddSupportNoteRequest {
   userId: string;
   note: string;
   actionTaken?: string | null;
+}
+
+export interface CurrentUserProfile {
+  id: string;
+  authUserId: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isSuperAdmin: boolean;
+  isInternalUser?: boolean;
+  canSubmitApplication?: boolean;
+  permissions?: string[];
 }
 
 export interface Role {
@@ -723,7 +795,9 @@ export type ApplicationStatusDto =
   | 'Evaluating'
   | 'Returned'
   | 'Approved'
-  | 'Completed';
+  | 'Completed'
+  | 'ForAccountant'
+  | 'PendingPayment';
 
 export type SoaStatusDto = 'Pending' | 'Approved' | 'Returned';
 export type OpStatusDto = 'Billed' | 'Processing' | 'Returned' | 'Paid';
@@ -838,7 +912,10 @@ export interface ApplicationServiceDto {
   id: string;
   applicantId?: string;
   serviceId: string;
+  serviceName?: string;
+  serviceCategory?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
 }
 
@@ -1053,15 +1130,67 @@ export interface ApplicationDetailDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceCategoryName?: string;
+  serviceCategoryCode?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
   filingUser?: FilingUserDto;
   statementsOfAccount: StatementOfAccountDto[];
   ordersOfPayment: OrderOfPaymentDto[];
   histories: ApplicationHistoryDto[];
   correctionAuditTrails: CorrectionAuditTrailDto[];
 }
+export interface ApplicationDto extends ApplicationDetailDto {
+  services?: ApplicationServiceDto[];
+  applicants: ApplicantDto[];
+  formSubmissions?: FormSubmissionSummaryDto[];
+  requirements?: ApplicantRequirementItemDto[];
+  formFieldValues?: FormFieldValueDto[];
+}
 
-export type ApplicationDto = ApplicationDetailDto;
-export type ApplicationSummaryDto = ApplicationFeedDto;
+export interface ApplicantSummaryDto {
+  id: string;
+  applicantType: string;
+  status?: string;
+  evaluationRemarks?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  submissionId?: string;
+  name: string;
+  company?: CompanyDetailDto;
+  details?: ApplicantDetailDto;
+  formFieldValues?: FormFieldValueDto[];
+}
+
+export interface ApplicationSummaryDto {
+  id: string;
+  tenantId?: string;
+  office?: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  status: ApplicationStatusDto;
+  submissionMode: string;
+  remarks?: string;
+  isGuest?: boolean;
+  isPinned?: boolean;
+  isArchived?: boolean;
+  createdAt: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
+  filingUser?: FilingUserDto;
+  services: ApplicationServiceDto[];
+  applicants: ApplicantSummaryDto[];
+  statementsOfAccount?: StatementOfAccountDto[];
+  ordersOfPayment?: OrderOfPaymentDto[];
+  histories?: ApplicationHistoryDto[];
+  correctionAuditTrails?: CorrectionAuditTrailDto[];
+}
 
 // ─── Paged Applications & Statistics ────────────────────
 
@@ -1105,13 +1234,43 @@ export interface CreateSoaLineItemRequest {
   amount: number;
 }
 
+export interface CalculatedFeeLineItemDto {
+  particular: string;
+  itemCode: string;
+  description?: string | null;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+  isSurcharge?: boolean;
+  isTax?: boolean;
+}
+
+export interface FeeCalculationResultDto {
+  activity: string;
+  applicationType: string;
+  element?: string | null;
+  formulaApplied: string;
+  subTotal: number;
+  surchargeAmount: number;
+  taxAmount: number;
+  totalAmount: number;
+  lineItems: CalculatedFeeLineItemDto[];
+  category?: string | null;
+}
+
 export interface CreateSoaRequest {
-  applicantId?: string;
-  issuedToType: IssuedToTypeDto;
-  issuedToName: string;
-  issuedToAddress?: string;
-  dueDate: string;
-  lineItems: CreateSoaLineItemRequest[];
+  applicantId?: string | null;
+  issuedToType?: IssuedToTypeDto | null;
+  issuedToName?: string | null;
+  issuedToAddress?: string | null;
+  dueDate?: string | null;
+  lineItems?: CreateSoaLineItemRequest[] | null;
+  validityYears?: number | null;
+  noOfUnits?: number | null;
+  expirationDate?: string | null;
+  additionalServicesCount?: number | null;
+  noOfCopies?: number | null;
 }
 
 export interface AddSoaLineItemRequest {

@@ -67,3 +67,30 @@ SignalR Hub client endpoint for broadcasting system notifications:
 ### Background Job Dashboard (Hangfire)
 Monitor background and recurring worker queues:
 *   Dashboard URL: `http://localhost:5038/hangfire`
+
+---
+
+## Seeding & Deployment Configuration
+
+### Clerk Identity Synchronization (`Seeding:StrictClerkSync`)
+The database initializer automatically provisions and links default IAM seed accounts with Clerk.
+
+| Setting | Default | Description |
+| :--- | :--- | :--- |
+| `Seeding:StrictClerkSync` | `false` | When `false`, startup logging captures any skipped or failed seed provisions as warnings without crashing the application. |
+
+#### When to enable Strict Sync (`Seeding:StrictClerkSync=true`):
+* **CI/CD Integration Pipelines**: Ensures test suites fail immediately if required seed test accounts are not strictly provisioned in the test tenant.
+* **Initial Environment Setup & Manual Provisioning**: Enables verifying full IAM synchronization during new environment spin-up.
+
+To override in CI/CD pipeline environments:
+```bash
+# Via environment variable:
+export Seeding__StrictClerkSync="true"
+
+# Or via dotnet CLI launch parameter:
+dotnet run --project EDGE.Api/EDGE.Api.csproj --Seeding:StrictClerkSync=true
+```
+
+#### Production & Container Orchestration:
+* In Production and standard rolling deployments, leave `Seeding:StrictClerkSync` set to `false` (default) to ensure container liveness and readiness health checks are not blocked during temporary external identity provider downtime or rate limiting.

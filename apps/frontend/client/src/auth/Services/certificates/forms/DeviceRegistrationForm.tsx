@@ -24,7 +24,7 @@ export function DeviceRegistrationForm({
   const handleAddParticular = () => {
     const newParticular: EquipmentParticularItem = {
       id: `part-${Date.now()}`,
-      typeOfEquipmentDevice: "Wireless Data Network (WDN) Devices - Indoor",
+      typeOfEquipmentDevice: "Wireless Data Network (WDN) - Indoor",
       nameTypeModel: "",
       equipmentSerials: [{ id: `serial-${Date.now()}`, serialNumber: "" }],
     };
@@ -220,10 +220,11 @@ export function DeviceRegistrationForm({
                   value={item.typeOfEquipmentDevice}
                   onValueChange={(val) => handleParticularChange(index, { typeOfEquipmentDevice: val })}
                   options={[
-                    { label: "Wireless Data Network (WDN) Devices - Indoor", value: "Wireless Data Network (WDN) Devices - Indoor" },
-                    { label: "Radio Frequency Identification (RFID) Devices", value: "Radio Frequency Identification (RFID) Devices" },
+                    { label: "Wireless Data Network (WDN) - Indoor", value: "Wireless Data Network (WDN) - Indoor" },
                     { label: "Short Range Devices (SRD)", value: "Short Range Devices (SRD)" },
-                    { label: "Bluetooth / Wi-Fi Access Points", value: "Bluetooth / Wi-Fi Access Points" },
+                    { label: "Radio Frequency Identification (RFID) Devices", value: "Radio Frequency Identification (RFID) Devices" },
+                    { label: "Short Range Radio Services (SRRS) Devices", value: "Short Range Radio Services (SRRS) Devices" },
+                    { label: "Public Trunked Radio Equipment (Mobile/Portable)", value: "Public Trunked Radio Equipment (Mobile/Portable)" },
                   ]}
                 />
               </View>

@@ -19,7 +19,8 @@ public record ServiceVariantDef(
     Guid Id,
     Guid ServiceId,
     ServiceVariantType Type,
-    string Description
+    string Description,
+    bool IsIndividual = true
 );
 
 public record VariantElementDef(

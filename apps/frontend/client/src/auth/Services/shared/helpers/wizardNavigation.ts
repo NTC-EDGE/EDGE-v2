@@ -120,35 +120,38 @@ export function handleWizardNext({
   }
   if (step === 2) {
     const serviceTitle = (service.title || "").toLowerCase();
-    const serviceCat = (service.category || "").toLowerCase();
     const isCompanyCertService =
-      serviceCat.includes("certificate") &&
-      (serviceTitle.includes("tvro") ||
-       serviceTitle.includes("value-added") ||
-       serviceTitle.includes("vas") ||
-       serviceTitle.includes("rfid") ||
-       serviceTitle.includes("srd") ||
-       serviceTitle.includes("wdn") ||
-       (service.id !== undefined && (
-         service.id.toLowerCase().includes("119") ||
-         service.id.toLowerCase().includes("120") ||
-         service.id.toLowerCase().includes("122") ||
-         service.id.toLowerCase().includes("ntc_1_19") ||
-         service.id.toLowerCase().includes("ntc_1_20") ||
-         service.id.toLowerCase().includes("ntc_1_22")
-       )));
+      serviceTitle.includes("tvro") ||
+      serviceTitle.includes("catv") ||
+      serviceTitle.includes("value-added") ||
+      serviceTitle.includes("vas") ||
+      serviceTitle.includes("rfid") ||
+      serviceTitle.includes("srd") ||
+      serviceTitle.includes("wdn") ||
+      serviceTitle.includes("cpe") ||
+      serviceTitle.includes("accreditation") ||
+      serviceTitle.includes("commercial") ||
+      serviceTitle.includes("club") ||
+      (service.id !== undefined && (
+        service.id.toLowerCase().includes("119") ||
+        service.id.toLowerCase().includes("120") ||
+        service.id.toLowerCase().includes("122") ||
+        service.id.toLowerCase().includes("ntc_1_19") ||
+        service.id.toLowerCase().includes("ntc_1_20") ||
+        service.id.toLowerCase().includes("ntc_1_22")
+      ));
+
+    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const isIndividualVar = matchedVariant?.isIndividual !== undefined ? matchedVariant.isIndividual : !isCompanyCertService;
 
     if (activeApplicant.applicantType === "company") {
-      if (isCompanyCertService) {
-        if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
-          Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
-          return;
-        }
-      } else {
-        if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
-          Alert.alert("Required Field", "Please enter the Company / Corporation Name before proceeding.");
-          return;
-        }
+      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+        Alert.alert("Required Field", "Please enter the Company / Organization Name before proceeding.");
+        return;
+      }
+      if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
+        Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
+        return;
       }
     }
 
@@ -156,8 +159,6 @@ export function handleWizardNext({
       Alert.alert("Required Selection", "Please select an Application Variant / Service Type before proceeding.");
       return;
     }
-
-    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
     const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
     const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
 
@@ -375,6 +376,45 @@ export function handleWizardNext({
           if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
             return;
           }
+        }
+
+        // Skip Source of Equipment fields (optional section)
+        const isSourceOfEquipmentField =
+          idLower === "dealername" ||
+          idLower === "name of dealer" ||
+          idLower === "authorizedsellerbuyer" ||
+          idLower === "authorized seller/buyer" ||
+          idLower === "authorized seller / buyer" ||
+          idLower === "orinvoiceno" ||
+          idLower === "or/invoice no," ||
+          idLower === "or/invoice no." ||
+          idLower === "or/invoice no" ||
+          idLower === "permitrslno" ||
+          idLower === "permit/rsl no." ||
+          idLower === "permit/rsl no" ||
+          idLower === "selleraddress" ||
+          idLower === "seller address" ||
+          idLower === "fd000000-0000-0000-0000-000000000120" ||
+          idLower === "fd000000-0000-0000-0000-000000000121" ||
+          idLower === "fd000000-0000-0000-0000-000000000122" ||
+          idLower === "fd000000-0000-0000-0000-000000000123" ||
+          idLower === "fd000000-0000-0000-0000-000000000124";
+        if (isSourceOfEquipmentField) {
+          return;
+        }
+
+        // Skip Intended Use fields (optional section)
+        const isIntendedUseField =
+          idLower === "intendeduse" ||
+          idLower === "intendedusetype" ||
+          idLower === "intended_use" ||
+          idLower === "intended use" ||
+          idLower === "intended use of equipment" ||
+          idLower.includes("intended use") ||
+          idLower === "fd000000-0000-0000-0000-000000000126" ||
+          idLower === "fd000000-0000-0000-0000-000000000127";
+        if (isIntendedUseField) {
+          return;
         }
 
         let val = filledMap.get(idLower);

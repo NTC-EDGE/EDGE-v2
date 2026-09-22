@@ -141,4 +141,31 @@ export const FIELD_ID_KNOWN_OTHER_NAME   = "fd000000-0000-0000-0000-000000000234
 export const FIELD_ID_OTHER_TRADE_NAME   = "fd000000-0000-0000-0000-000000000235"; // Please specify
 export const FIELD_ID_VAS_REG_NO         = "fd000000-0000-0000-0000-000000000236"; // VAS Registration No. (Assigned by NTC)
 export const FIELD_ID_SVC_CLASSIFICATION = "fd000000-0000-0000-0000-000000000237"; // Service
+export const FIELD_ID_COR_VAS_EXPIRY     = "fd000000-0000-0000-0000-000000000238"; // COR / VAS No. Expiry Date
+
+// --- Copy of Certificate Fields (NTC 1-21) -----------------------------------
+export const FIELD_ID_TARGET_SERVICE     = "fd000000-0000-0000-0000-000000000240"; // Service
+export const FIELD_ID_TARGET_CERT_TYPE   = "fd000000-0000-0000-0000-000000000241"; // Type
+export const FIELD_ID_TARGET_CERT_NUMBER = "fd000000-0000-0000-0000-000000000242"; // Certificate Number
+export const FIELD_ID_NO_OF_COPIES       = "fd000000-0000-0000-0000-000000000243"; // No. of Copies
+
+// --- Amateur Permit Fields (NTC 1-09) ----------------------------------------
+export const FIELD_ID_PREFERRED_CALL_SIGN = "fd000000-0000-0000-0000-000000000261"; // Preferred Call Sign/s
+export const FIELD_ID_BANDWIDTH_UNIT     = "fd000000-0000-0000-0000-000000000260"; // Bandwidth Unit
+export const FIELD_ID_NO_OF_UNITS        = "fd000000-0000-0000-0000-000000000262"; // Number of Units
+export const FIELD_ID_AMATEUR_LIC_PERMIT = "fd000000-0000-0000-0000-000000000266"; // Amateur License no./Permit to Possess No.
+export const FIELD_ID_PROPOSED_EQUIPMENT = "fd000000-0000-0000-0000-000000000267"; // Proposed Equipment Details (repeater)
+export const FIELD_ID_MAKE_TYPE_MODEL    = "fd000000-0000-0000-0000-000000000084"; // Make / Type / Model
+
+// --- Company & Corporate Registration Fields (NTC 1-19 / WDN / SRD) ----------
+export const FIELD_ID_COMPANY_NAME       = "fd000000-0000-0000-0000-000000000081"; // Company / Business Name
+export const FIELD_ID_APPLICANT_NAME     = "fd000000-0000-0000-0000-000000000088"; // Applicant Name
+export const FIELD_ID_REP_NAME           = "fd000000-0000-0000-0000-000000000082"; // Authorized Representative Name
+export const FIELD_ID_REP_POSITION       = "fd000000-0000-0000-0000-000000000083"; // Designation / Position
+export const FIELD_ID_DEVICE_TYPE        = "fd000000-0000-0000-0000-000000000085"; // Device / Equipment Type
+export const FIELD_ID_DTI_SEC_REG        = "fd000000-0000-0000-0000-000000000086"; // SEC/DTI Registration Number
+export const FIELD_ID_SERIAL_NUMBERS     = "fd000000-0000-0000-0000-000000000087"; // Serial Number(s)
+export const FIELD_ID_AERO_PARTICULARS   = "fd000000-0000-0000-0000-000000000131"; // Class of Station (Aeronautical)
+
+
 

@@ -1,9 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, SafeAreaView } from 'react-native';
 import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
 import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
+import {
+  consumePendingQueueApplication,
+  subscribeToQueueApplication,
+} from '../data/internalApplicationNavigationHelper';
 
 export function ActivitiesScreen() {
   const { colors } = useTheme();
@@ -11,6 +15,19 @@ export function ActivitiesScreen() {
   const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
 
   const handleClose = () => setSelectedId(null);
+
+  useEffect(() => {
+    const pending = consumePendingQueueApplication();
+    if (pending !== null && pending !== '') {
+      setSelectedId(pending);
+    }
+
+    const unsubscribe = subscribeToQueueApplication((appId) => {
+      setSelectedId(appId);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]}>

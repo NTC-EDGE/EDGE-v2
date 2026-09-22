@@ -287,6 +287,9 @@ export function EmployeesScreenContent({
         ? window.location.origin
         : 'http://localhost:8081';
 
+      const isEmailInvitation = data.provisioningMethod !== 'manual';
+      const manualPassword = data.password && data.password.trim().length > 0 ? data.password.trim() : undefined;
+
       const [res, err] = await userService.createUser({
         email: data.email ?? '',
         firstName: data.firstName ?? '',
@@ -294,6 +297,8 @@ export function EmployeesScreenContent({
         middleName: data.middleName,
         suffix: data.suffix,
         contactNumber: data.phone,
+        password: !isEmailInvitation ? manualPassword : undefined,
+        sendInvitation: isEmailInvitation,
         roleKey,
         tenantId: currentTenantId,
         jobTitle: data.title,
@@ -306,13 +311,17 @@ export function EmployeesScreenContent({
       });
 
       if (err !== null) {
-        const errorMsg = typeof err === 'string' ? err : 'Failed to create employee via Clerk';
+        const errorMsg = typeof err === 'string' ? err : 'Failed to create employee account.';
         showToast(errorMsg, 'error');
         throw new Error(errorMsg);
       }
 
       await refetch();
-      showToast(`Successfully created employee account for ${res?.firstName ?? data.firstName} ${res?.lastName ?? data.lastName} and sent email invitation.`, 'success');
+      const employeeName = `${res?.firstName ?? data.firstName ?? ''} ${res?.lastName ?? data.lastName ?? ''}`.trim();
+      const successMessage = isEmailInvitation
+        ? `Account created for ${employeeName}. An invitation email was sent to ${data.email ?? 'the employee'}.`
+        : `Account manually created for ${employeeName}.`;
+      showToast(successMessage, 'success');
       setIsFormModalOpen(false);
       setEditingEmployee(null);
     }

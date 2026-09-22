@@ -25,6 +25,16 @@ export function RadioOperatorCertForm({
   const isRenewalOrMod = data.appType === "RENEWAL" || data.appType === "MODIFICATION";
   const isModification = data.appType === "MODIFICATION";
   const isLifetimeSupplementary = (data.classOfStation || "").toLowerCase().includes("lifetime") || (data.typeOfCertificate || "").toLowerCase().includes("lifetime");
+  const certLower = (data.typeOfCertificate || "").toLowerCase();
+  const isExcludedFromYears =
+    isLifetimeSupplementary ||
+    (isModification && (
+      certLower.includes("foreign pilot") ||
+      certLower.includes("pilot") ||
+      certLower.includes("government") ||
+      certLower.includes("land mobile") ||
+      certLower.includes("special")
+    ));
 
   const certTypeDisplay = isAmateurService
     ? (data.classOfStation || "Class A (Advanced)")
@@ -40,7 +50,7 @@ export function RadioOperatorCertForm({
 
         <View style={certStyles.formGrid}>
           {/* Read-only Application Type Badge */}
-          <View style={certStyles.formCol6}>
+          <View style={!isAmateurService && !isLifetimeSupplementary && !isExcludedFromYears ? certStyles.formCol6 : certStyles.formCol12}>
             <Text style={{ fontFamily: "System", fontSize: 13, fontWeight: "600", color: "#334155", marginBottom: 6 }}>
               Application Type
             </Text>
@@ -54,19 +64,21 @@ export function RadioOperatorCertForm({
             </View>
           </View>
 
-          {/* Editable License / Cert Duration */}
-          <View style={certStyles.formCol6}>
-            <Text style={certStyles.selectLabel}>Number of Years*</Text>
-            <Select
-              value={data.years}
-              onValueChange={(val) => onChange({ years: val })}
-              options={[
-                { label: "1 Year", value: "1" },
-                { label: "2 Years", value: "2" },
-                { label: "3 Years", value: "3" },
-              ]}
-            />
-          </View>
+          {/* Editable License / Cert Duration (hidden for Amateur Service, Lifetime Supplementary, and Excluded Modifications) */}
+          {!isAmateurService && !isLifetimeSupplementary && !isExcludedFromYears && (
+            <View style={certStyles.formCol6}>
+              <Text style={certStyles.selectLabel}>Number of Years*</Text>
+              <Select
+                value={data.years}
+                onValueChange={(val) => onChange({ years: val })}
+                options={[
+                  { label: "1 Year", value: "1" },
+                  { label: "2 Years", value: "2" },
+                  { label: "3 Years", value: "3" },
+                ]}
+              />
+            </View>
+          )}
 
           {/* Read-only Class / Element / Certificate Badge (hidden for Lifetime Supplementary) */}
           {!isLifetimeSupplementary && (
@@ -203,55 +215,52 @@ export function RadioOperatorCertForm({
               required
             />
           </View>
+
+          {/* Employment Status & Type - for Commercial ROC */}
+          {!isAmateurService && (
+            <>
+              <View style={certStyles.formCol6}>
+                <Text style={certStyles.selectLabel}>Employment Status*</Text>
+                <Select
+                  value={data.employmentStatus || "Employed"}
+                  onValueChange={(val) => onChange({ employmentStatus: val })}
+                  options={[
+                    { label: "Employed", value: "Employed" },
+                    { label: "Unemployed", value: "Unemployed" },
+                  ]}
+                />
+              </View>
+              <View style={certStyles.formCol6}>
+                <Text style={certStyles.selectLabel}>Type</Text>
+                <Select
+                  value={data.employmentType || "Local"}
+                  onValueChange={(val) => onChange({ employmentType: val })}
+                  options={[
+                    { label: "Local", value: "Local" },
+                    { label: "Foreign", value: "Foreign" },
+                  ]}
+                />
+              </View>
+              <View style={certStyles.formCol6}>
+                <ValidatedInput
+                  label="Weight (kg)"
+                  placeholder="e.g. 65"
+                  value={data.weightKg}
+                  onChangeText={(val) => onChange({ weightKg: val })}
+                />
+              </View>
+              <View style={certStyles.formCol6}>
+                <ValidatedInput
+                  label="Height (cm)"
+                  placeholder="e.g. 170"
+                  value={data.heightCm}
+                  onChangeText={(val) => onChange({ heightCm: val })}
+                />
+              </View>
+            </>
+          )}
         </View>
       </View>
-
-      {/* Employment Status Section (after Address) - Hidden for Amateur Service */}
-      {!isAmateurService && (
-        <View style={certStyles.formSection}>
-          <Text style={certStyles.formSectionHeading}>Employment Status</Text>
-          <View style={certStyles.formGrid}>
-            <View style={certStyles.formCol6}>
-              <Text style={certStyles.selectLabel}>Status*</Text>
-              <Select
-                value={data.employmentStatus}
-                onValueChange={(val) => onChange({ employmentStatus: val })}
-                options={[
-                  { label: "Employed", value: "Employed" },
-                  { label: "Unemployed", value: "Unemployed" },
-                ]}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <Text style={certStyles.selectLabel}>Type*</Text>
-              <Select
-                value={data.employmentType}
-                onValueChange={(val) => onChange({ employmentType: val })}
-                options={[
-                  { label: "Local", value: "Local" },
-                  { label: "Foreign", value: "Foreign" },
-                ]}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Weight (kg)"
-                placeholder="e.g. 65"
-                value={data.weightKg}
-                onChangeText={(val) => onChange({ weightKg: val })}
-              />
-            </View>
-            <View style={certStyles.formCol6}>
-              <ValidatedInput
-                label="Height (cm)"
-                placeholder="e.g. 170"
-                value={data.heightCm}
-                onChangeText={(val) => onChange({ heightCm: val })}
-              />
-            </View>
-          </View>
-        </View>
-      )}
 
       {/* Exam / Seminar Details */}
       <View style={certStyles.formSection}>

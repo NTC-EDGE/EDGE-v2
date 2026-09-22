@@ -67,7 +67,7 @@ public static class FastTrackSeederData
         return list.Select(d => (d.Key, d.Id, d.CategoryId, d.Name, d.Group, d.Code, d.Desc, d.Contract)).ToList();
     }
 
-    public static List<(Guid Id, Guid ServiceId, ServiceVariantType Type, string Description)> GetVariantDefs()
+    public static List<(Guid Id, Guid ServiceId, ServiceVariantType Type, string Description, bool IsIndividual)> GetVariantDefs()
     {
         var list = new List<ServiceVariantDef>();
         list.AddRange(ExamsCategorySeederData.GetVariantDefs());
@@ -77,7 +77,7 @@ public static class FastTrackSeederData
         list.AddRange(AccreditationsCategorySeederData.GetVariantDefs());
         list.AddRange(RequestsAndComplaintsCategorySeederData.GetVariantDefs());
 
-        return list.Select(v => (v.Id, v.ServiceId, v.Type, v.Description)).ToList();
+        return list.Select(v => (v.Id, v.ServiceId, v.Type, v.Description, v.IsIndividual)).ToList();
     }
 
     public static Dictionary<string, Field> GetFieldsPool() => CommonSeederData.GetFieldsPool();

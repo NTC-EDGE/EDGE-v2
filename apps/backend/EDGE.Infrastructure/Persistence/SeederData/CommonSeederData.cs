@@ -95,7 +95,7 @@ public static class CommonSeederData
             ["typeOfCertificate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000014"), FieldType = "dropdown", Label = "Type of Certificate", SyncBackOnSubmit = false, ValidationRules = @"[""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""]" },
             ["weight_kg"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000015"), FieldType = "number", Label = "Weight (kg)", SyncBackOnSubmit = false },
             ["height_cm"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000016"), FieldType = "number", Label = "Height (cm)", SyncBackOnSubmit = false },
-            ["employmentStatus"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000017"), FieldType = "dropdown", Label = "Status", SyncBackOnSubmit = false, ValidationRules = @"[""Employed"",""Unemployed""]" },
+            ["employmentStatus"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000017"), FieldType = "dropdown", Label = "Employment Status", SyncBackOnSubmit = false, ValidationRules = @"[""Employed"",""Unemployed""]" },
             ["employmentType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000018"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false, ValidationRules = @"[""Local"",""Foreign""]" },
             ["employmentLocation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000046"), FieldType = "text", Label = "Employment Location", SyncBackOnSubmit = false },
             ["examSeminarAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000047"), FieldType = "text", Label = "Seminar / Exam Address", SyncBackOnSubmit = false },
@@ -124,12 +124,12 @@ public static class CommonSeederData
             ["tvroDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000038"), FieldType = "repeater", Label = "TVRO / CATV Receiver & Satellite Details", SyncBackOnSubmit = false },
 
             // NTC 1-09 Permit Fields
-            ["stationClass"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000101"), FieldType = "text", Label = "Station Class", SyncBackOnSubmit = false },
-            ["serviceArea"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000102"), FieldType = "text", Label = "Service Area", SyncBackOnSubmit = false },
-            ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000103"), FieldType = "text", Label = "Frequency / Frequencies", SyncBackOnSubmit = false },
+            ["stationClass"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000101"), FieldType = "dropdown", Label = "Station Class", SyncBackOnSubmit = false, ValidationRules = @"[""RT"",""FX"",""FB"",""FX/FB"",""ML"",""P"",""Others""]" },
+            ["serviceArea"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000102"), FieldType = "text", Label = "Points of Comm/Service Area (optional)", SyncBackOnSubmit = false },
+            ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000103"), FieldType = "text", Label = "Frequency: Within Authorized Amateur Band", SyncBackOnSubmit = false },
             ["bandwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000104"), FieldType = "text", Label = "Bandwidth", SyncBackOnSubmit = false },
             ["emission"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000105"), FieldType = "text", Label = "Emission", SyncBackOnSubmit = false },
-            ["powerOutput"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000106"), FieldType = "text", Label = "Power Output", SyncBackOnSubmit = false },
+            ["powerOutput"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000106"), FieldType = "text", Label = "Power Output (watts)", SyncBackOnSubmit = false },
             ["hoursOfOperation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000107"), FieldType = "text", Label = "Hours of Operation", SyncBackOnSubmit = false },
             ["configuration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000108"), FieldType = "text", Label = "Configuration", SyncBackOnSubmit = false },
             ["dataRate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000109"), FieldType = "text", Label = "Data Rate", SyncBackOnSubmit = false },
@@ -143,14 +143,19 @@ public static class CommonSeederData
             ["diameter"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000117"), FieldType = "text", Label = "Antenna Diameter", SyncBackOnSubmit = false },
             ["polarization"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000118"), FieldType = "text", Label = "Antenna Polarization", SyncBackOnSubmit = false },
             ["beamwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000119"), FieldType = "text", Label = "Antenna Beamwidth", SyncBackOnSubmit = false },
-            ["dealerName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000120"), FieldType = "text", Label = "Dealer Name", SyncBackOnSubmit = false },
-            ["authorizedSellerBuyer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000121"), FieldType = "text", Label = "Authorized Seller / Buyer", SyncBackOnSubmit = false },
-            ["orInvoiceNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000122"), FieldType = "text", Label = "OR / Invoice No", SyncBackOnSubmit = false },
-            ["permitRslNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000123"), FieldType = "text", Label = "Permit / RSL No", SyncBackOnSubmit = false },
+            ["antennaRemarks"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000128"), FieldType = "text", Label = "Antenna Remarks", SyncBackOnSubmit = false },
+            ["dealerName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000120"), FieldType = "text", Label = "Name of Dealer", SyncBackOnSubmit = false },
+            ["authorizedSellerBuyer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000121"), FieldType = "text", Label = "Authorized Seller/Buyer", SyncBackOnSubmit = false },
+            ["orInvoiceNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000122"), FieldType = "text", Label = "OR/Invoice No,", SyncBackOnSubmit = false },
+            ["permitRslNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000123"), FieldType = "text", Label = "Permit/RSL No.", SyncBackOnSubmit = false },
             ["sellerAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000124"), FieldType = "text", Label = "Seller Address", SyncBackOnSubmit = false },
             ["amateurLicenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000125"), FieldType = "text", Label = "Amateur License No", SyncBackOnSubmit = false },
-            ["intendedUseType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000126"), FieldType = "text", Label = "Intended Use Type", SyncBackOnSubmit = false },
+            ["intendedUseType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000126"), FieldType = "checkbox_group", Label = "Intended Use of Equipment", SyncBackOnSubmit = false, ValidationRules = @"[""Additional Radio Equipment"",""New Radio Station"",""Change of Equipment"",""Storage at"",""Others""]" },
             ["specifyDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000127"), FieldType = "text", Label = "Specify Details", SyncBackOnSubmit = false },
+            ["natureOfService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000129"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false, ValidationRules = @"[""CV Private"",""CO Government""]" },
+            ["frequencyUnit"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000132"), FieldType = "dropdown", Label = "Frequency Unit", SyncBackOnSubmit = false, ValidationRules = @"[""KHz"",""MHz"",""GHz""]" },
+            ["aeroClassOfStation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000130"), FieldType = "dropdown", Label = "Class of Station", SyncBackOnSubmit = false, ValidationRules = @"[""FA"",""MA""]" },
+            ["aeroStationParticulars"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000131"), FieldType = "repeater", Label = "Class of Station", SyncBackOnSubmit = false, ValidationRules = @"[{""key"":""classOfStation"",""label"":""Class of Station"",""type"":""select"",""options"":[""FA"",""MA""]}]" },
 
             // Amateur Radio Station License (NTC_AMA_LICENSES) specific fields
             ["appType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000200"), FieldType = "dropdown", Label = "Application Type", SyncBackOnSubmit = false, ValidationRules = "[\"NEW\",\"RENEWAL\",\"MODIFICATION\"]" },
@@ -180,22 +185,78 @@ public static class CommonSeederData
 
             // Company & Corporate Applicant Fields (NTC 1-19 and generic company filings)
             ["companyName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000081"), FieldType = "text", Label = "Company / Business Name", SyncBackOnSubmit = true },
+            ["applicantName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000088"), FieldType = "text", Label = "Applicant Name", SyncBackOnSubmit = true },
             ["representativeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000082"), FieldType = "text", Label = "Authorized Representative Name", SyncBackOnSubmit = false },
             ["representativePosition"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000083"), FieldType = "text", Label = "Designation / Position", SyncBackOnSubmit = false },
             ["makeTypeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000084"), FieldType = "text", Label = "Make / Type / Model", SyncBackOnSubmit = false },
-            ["deviceType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000085"), FieldType = "dropdown", Label = "Device / Equipment Type", SyncBackOnSubmit = false, ValidationRules = @"[""Wireless Data Network (WDN) - Indoor"",""Short Range Devices (SRD)"",""Radio Frequency Identification (RFID) Devices"",""Short Range Radio Services""]" },
-            ["dtiSecRegistration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000086"), FieldType = "text", Label = "SEC / DTI Registration Number", SyncBackOnSubmit = false },
+            ["deviceType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000085"), FieldType = "dropdown", Label = "Device / Equipment Type", SyncBackOnSubmit = false, ValidationRules = @"[""Wireless Data Network (WDN) - Indoor"",""Short Range Devices (SRD)"",""Radio Frequency Identification (RFID) Devices"",""Short Range Radio Services (SRRS) Devices"",""Public Trunked Radio Equipment (Mobile/Portable)""]" },
+            ["dtiSecRegistration"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000086"), FieldType = "text", Label = "SEC/DTI Registration Number", SyncBackOnSubmit = false },
             ["serialNumbers"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000087"), FieldType = "text", Label = "Serial Number(s)", SyncBackOnSubmit = false },
 
-            // VAS Registration (NTC 1-20) specific fields
-            ["entityType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000230"), FieldType = "dropdown", Label = "Type of Entity", SyncBackOnSubmit = false, ValidationRules = @"[""Corporation"",""Single Proprietorship"",""Partnership"",""Others""]" },
+            // Entity Type field (Accreditations, VAS Registration, etc.)
+            ["entityType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000230"), FieldType = "dropdown", Label = "Entity Type", SyncBackOnSubmit = false, ValidationRules = @"[""Corporation"",""Single Proprietorship"",""Partnership"",""Others""]" },
             ["cpcnPaCaNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000231"), FieldType = "text", Label = "CPCN / PA / CA No.", SyncBackOnSubmit = false },
-            ["cpcnDateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000232"), FieldType = "date", Label = "CPCN / PA / CA Date of Expiry", SyncBackOnSubmit = false },
+            ["cpcnDateOfExpiry"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000232"), FieldType = "date", Label = "CPCN / PA / CA No. Date of Expiry", SyncBackOnSubmit = false },
             ["corVasNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000233"), FieldType = "text", Label = "COR / VAS No.", SyncBackOnSubmit = false },
+            ["corVasExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000238"), FieldType = "date", Label = "COR / VAS No. Date of Expiry", SyncBackOnSubmit = false },
             ["knownByAnotherName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000234"), FieldType = "dropdown", Label = "Known by other Name", SyncBackOnSubmit = false, ValidationRules = @"[""Yes"",""No""]" },
             ["otherTradeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000235"), FieldType = "text", Label = "Please specify", SyncBackOnSubmit = false },
             ["vasRegistrationNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000236"), FieldType = "text", Label = "VAS Registration No. (Assigned by NTC)", SyncBackOnSubmit = false },
-            ["serviceClassification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000237"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""VALUE-ADDED SERVICE (VAS) PROVIDER"",""PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)"",""RESELLER"",""VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER"",""Others""]" }
+            ["serviceClassification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000237"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""VALUE-ADDED SERVICE (VAS) PROVIDER"",""PUBLIC CALLING STATION/OFFICE/TELECENTER SERVICE PROVIDER (PCSOTSP)"",""RESELLER"",""VOICE OVER INTERNET PROTOCOL (VOIP) PROVIDER"",""Others""]" },
+
+            // Copy of Certificate (NTC 1-21) specific fields
+            ["targetService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000240"), FieldType = "dropdown", Label = "Service", SyncBackOnSubmit = false, ValidationRules = @"[""Radio Operator Certificates (ROC) excluding Amateur ROC"",""Certificates in the Amateur Service"",""Certificate of Registration for RFID, SRD, WDN, Devices- Indoor"",""Certificate of Registration as a Value-Added Service (VAS) Provider"",""TVRO Registration Certificate""]" },
+            ["targetCertificateType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000241"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false },
+            ["targetCertificateNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000242"), FieldType = "text", Label = "Certificate Number", SyncBackOnSubmit = false },
+            ["noOfCopies"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000243"), FieldType = "dropdown", Label = "No. of Copies", SyncBackOnSubmit = false, ValidationRules = @"[""1"",""2"",""3"",""4"",""5"",""10""]" },
+
+            // Accreditations (NTC 1-18) Section 3 Technical Personnel fields
+            ["supervisingEngineer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000252"), FieldType = "text", Label = "Supervising Engineer", SyncBackOnSubmit = false },
+            ["certificateEctNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000250"), FieldType = "text", Label = "Certificate/ECT No.", SyncBackOnSubmit = false },
+            ["certificateEctExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000255"), FieldType = "date", Label = "Certificate/ECT No. Date of Expiry", SyncBackOnSubmit = false },
+            ["technicianName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000253"), FieldType = "text", Label = "Technician Name", SyncBackOnSubmit = false },
+            ["technicianCertNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000254"), FieldType = "text", Label = "Certificate/Number", SyncBackOnSubmit = false },
+            ["technicianExpiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000251"), FieldType = "date", Label = "Certificate/Number Date of Expiry", SyncBackOnSubmit = false },
+
+            // Amateur Permits (NTC 1-09) specific fields
+            ["preferredCallSign"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000261"), FieldType = "text", Label = "Preferred Call Sign/s", SyncBackOnSubmit = false },
+            ["bandwidthUnit"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000260"), FieldType = "dropdown", Label = "Unit", SyncBackOnSubmit = false, ValidationRules = @"[""KHz"",""MHz"",""GHz""]" },
+            ["noOfUnits"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000262"), FieldType = "number", Label = "Number of Units", SyncBackOnSubmit = false },
+            ["amateurLicenseNoPermitNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000266"), FieldType = "text", Label = "Amateur License no./Permit to Possess No.", SyncBackOnSubmit = false },
+            ["proposedEquipments"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000267"), FieldType = "repeater", Label = "Particulars of Proposed Equipment", SyncBackOnSubmit = false },
+
+            // Aliases & Missing Equipment / Station Fields
+            ["makeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000270"), FieldType = "text", Label = "Make / Model", SyncBackOnSubmit = false },
+            ["officerName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000271"), FieldType = "text", Label = "Officer / Technician Name", SyncBackOnSubmit = false },
+            ["certificateNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000272"), FieldType = "text", Label = "Certificate / Registration Number", SyncBackOnSubmit = false },
+            ["expiryDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000273"), FieldType = "date", Label = "Expiry Date", SyncBackOnSubmit = false },
+            ["citizenship"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000274"), FieldType = "text", Label = "Citizenship", SyncBackOnSubmit = false },
+            ["stationLicenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000275"), FieldType = "text", Label = "Station License No.", SyncBackOnSubmit = false },
+
+            // Amateur License Fields
+            ["classOfAmateur"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000280"), FieldType = "dropdown", Label = "Class of Amateur", SyncBackOnSubmit = false, ValidationRules = @"[""Class A"",""Class B"",""Class C"",""Class D""]" },
+            ["handleName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000281"), FieldType = "text", Label = "Handle Name", SyncBackOnSubmit = false },
+            ["clubName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000282"), FieldType = "text", Label = "Club Name", SyncBackOnSubmit = false },
+            ["trusteeName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000283"), FieldType = "text", Label = "Trustee Name", SyncBackOnSubmit = false },
+            ["trusteeCallSign"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000284"), FieldType = "text", Label = "Trustee Call Sign", SyncBackOnSubmit = false },
+            ["trusteeLicenseNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000285"), FieldType = "text", Label = "Trustee License No.", SyncBackOnSubmit = false },
+            ["clubAddress"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000286"), FieldType = "text", Label = "Club Address", SyncBackOnSubmit = false },
+            ["stationType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000287"), FieldType = "dropdown", Label = "Station Type", SyncBackOnSubmit = false, ValidationRules = @"[""Fixed"",""Land Mobile"",""Portable"",""Repeater""]" },
+            ["authorizedPower"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000288"), FieldType = "text", Label = "Authorized Power", SyncBackOnSubmit = false },
+            ["frequencyBands"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000289"), FieldType = "text", Label = "Frequency Bands", SyncBackOnSubmit = false },
+
+            // Aeronautical License Fields
+            ["aircraftRegNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000290"), FieldType = "text", Label = "Aircraft Registration No. (RP-)", SyncBackOnSubmit = false },
+            ["aircraftMakeModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000291"), FieldType = "text", Label = "Aircraft Make / Model", SyncBackOnSubmit = false },
+            ["aircraftSerialNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000292"), FieldType = "text", Label = "Aircraft Serial No.", SyncBackOnSubmit = false },
+            ["registeredOwner"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000293"), FieldType = "text", Label = "Registered Owner", SyncBackOnSubmit = false },
+            ["baseOfOperation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000294"), FieldType = "text", Label = "Base of Operation / Home Airport", SyncBackOnSubmit = false },
+
+            // TVRO / CATV License Fields
+            ["carrierFrequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000295"), FieldType = "text", Label = "Carrier Frequency", SyncBackOnSubmit = false },
+            ["channelCapacity"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000296"), FieldType = "text", Label = "Channel Capacity", SyncBackOnSubmit = false },
+            ["azimuth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000297"), FieldType = "text", Label = "Azimuth Angle", SyncBackOnSubmit = false },
+            ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false }
         };
     }
 }

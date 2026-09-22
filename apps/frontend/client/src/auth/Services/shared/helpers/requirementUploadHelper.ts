@@ -4,7 +4,7 @@ import { apiClient } from "@edge/api";
 
 export interface ApplicantUploadHolder {
   id?: string | number;
-  uploads?: Record<string, { name: string; uri: string } | string | undefined>;
+  uploads?: Record<string, { name: string; uri: string; type?: string } | string | undefined>;
 }
 
 export interface UploadRequirementsParams {
@@ -31,7 +31,7 @@ interface BackendRequirementItem {
  * Resolves a File or Blob from an upload descriptor across Web and Mobile.
  */
 export const resolveFileFromUpload = async (
-  upload: { name: string; uri?: string } | string
+  upload: { name: string; uri?: string; type?: string } | string
 ): Promise<File | Blob | null> => {
   const name = typeof upload === "string" ? upload : upload.name;
   const uri = typeof upload === "string" ? "" : (upload.uri ?? "");
@@ -41,7 +41,24 @@ export const resolveFileFromUpload = async (
   try {
     const res = await fetch(uri);
     const blob = await res.blob();
-    const mimeType = blob.type && blob.type.trim() !== "" ? blob.type : "application/octet-stream";
+    const ext = name.split(".").pop()?.toLowerCase() ?? "";
+    const fallbackMime =
+      ext === "pdf"
+        ? "application/pdf"
+        : ext === "png"
+        ? "image/png"
+        : ext === "jpg" || ext === "jpeg"
+        ? "image/jpeg"
+        : ext === "webp"
+        ? "image/webp"
+        : ext === "gif"
+        ? "image/gif"
+        : ext === "bmp"
+        ? "image/bmp"
+        : "application/octet-stream";
+
+    const explicitType = typeof upload === "object" ? upload.type : undefined;
+    const mimeType = explicitType || (blob.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
 
     if (typeof File !== "undefined") {
       try {
@@ -57,9 +74,14 @@ export const resolveFileFromUpload = async (
   }
 };
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
 /**
  * Helper to upload all picked pictures and document attachments for submitted applicants,
  * then link the resulting StoredFileIds to the corresponding applicant requirements.
+ * Throws an error if any requirement upload or link operation fails.
  */
 export async function uploadRequirementsAfterSubmit({
   api,
@@ -74,36 +96,35 @@ export async function uploadRequirementsAfterSubmit({
   let serverApplicants: ServerApplicantItem[] = [];
   try {
     const res = await api.get<unknown>(`/api/v2/applications/${applicationId}`);
-    const resObj = typeof res === "object" && res !== null ? (res as Record<string, unknown>) : {};
+    const resObj = isRecord(res) ? res : {};
     const appData =
-      resObj.succeeded === true && typeof resObj.data === "object" && resObj.data !== null
-        ? (resObj.data as Record<string, unknown>)
+      resObj.succeeded === true && isRecord(resObj.data)
+        ? resObj.data
         : resObj;
 
     const rawApplicants = Array.isArray(appData.applicationApplicants)
-      ? (appData.applicationApplicants as unknown[])
+      ? appData.applicationApplicants
       : Array.isArray(appData.Applicants)
-      ? (appData.Applicants as unknown[])
+      ? appData.Applicants
       : Array.isArray(appData.applicants)
-      ? (appData.applicants as unknown[])
+      ? appData.applicants
       : [];
 
     serverApplicants = rawApplicants.map((item) => {
-      if (typeof item === "object" && item !== null) {
-        const o = item as Record<string, unknown>;
-        const rawSeq = o.sequenceOrder;
+      if (isRecord(item)) {
+        const rawSeq = item.sequenceOrder;
         const parsedSeq = typeof rawSeq === "number" ? rawSeq : typeof rawSeq === "string" ? parseInt(rawSeq, 10) : undefined;
         return {
-          id: typeof o.id === "string" ? o.id : undefined,
-          applicantId: typeof o.applicantId === "string" ? o.applicantId : undefined,
+          id: typeof item.id === "string" ? item.id : undefined,
+          applicantId: typeof item.applicantId === "string" ? item.applicantId : undefined,
           sequenceOrder: Number.isNaN(parsedSeq) ? undefined : parsedSeq,
         };
       }
       return {};
     });
   } catch (err) {
-    console.warn("[requirementUploadHelper] Could not fetch application details:", err);
-    return;
+    console.error("[requirementUploadHelper] Could not fetch application details for upload:", err);
+    throw new Error("Failed to load application details for document attachment. Please try again.");
   }
 
   let authHeaders: Record<string, string> = {};
@@ -131,8 +152,8 @@ export async function uploadRequirementsAfterSubmit({
 
     const applicantId = serverApplicant?.applicantId ?? serverApplicant?.id ?? null;
     if (!applicantId) {
-      console.warn(`[requirementUploadHelper] No server applicantId found for applicant index ${i}. Skipping.`);
-      continue;
+      console.warn(`[requirementUploadHelper] No server applicantId found for applicant index ${i}.`);
+      throw new Error(`Unable to map applicant record for document upload at applicant #${i + 1}.`);
     }
 
     // 3. Fetch backend requirement definitions for this applicant
@@ -141,28 +162,27 @@ export async function uploadRequirementsAfterSubmit({
       const reqRes = await api.get<unknown>(
         `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`
       );
-      const reqObj = typeof reqRes === "object" && reqRes !== null ? (reqRes as Record<string, unknown>) : {};
+      const reqObj = isRecord(reqRes) ? reqRes : {};
       const reqList =
         reqObj.succeeded === true && Array.isArray(reqObj.data)
-          ? (reqObj.data as unknown[])
+          ? reqObj.data
           : Array.isArray(reqRes)
-          ? (reqRes as unknown[])
+          ? reqRes
           : [];
 
       backendRequirements = reqList.map((r) => {
-        if (typeof r === "object" && r !== null) {
-          const ro = r as Record<string, unknown>;
+        if (isRecord(r)) {
           return {
-            requirementId: typeof ro.requirementId === "string" ? ro.requirementId : "",
+            requirementId: typeof r.requirementId === "string" ? r.requirementId : "",
             serviceVariantRequirementId:
-              typeof ro.serviceVariantRequirementId === "string" ? ro.serviceVariantRequirementId : undefined,
-            requirementName: typeof ro.requirementName === "string" ? ro.requirementName : undefined,
+              typeof r.serviceVariantRequirementId === "string" ? r.serviceVariantRequirementId : undefined,
+            requirementName: typeof r.requirementName === "string" ? r.requirementName : undefined,
           };
         }
         return { requirementId: "" };
       }).filter((r) => r.requirementId !== "");
     } catch (err) {
-      console.warn(`[requirementUploadHelper] Could not fetch requirements for applicant ${applicantId}:`, err);
+      console.warn(`[requirementUploadHelper] Could not fetch requirements catalog for applicant ${applicantId}:`, err);
     }
 
     // 4. Upload and link each picture / file
@@ -180,19 +200,14 @@ export async function uploadRequirementsAfterSubmit({
 
       const resolvedFile = await resolveFileFromUpload(uploadEntry);
       if (!resolvedFile) {
-        console.warn(`[requirementUploadHelper] Could not resolve file for key "${fileKey}". Skipping.`);
-        continue;
+        throw new Error(`Could not read file data for requirement "${fileName}".`);
       }
 
       // Step A: Upload to tenant storage
       let storedFileId: string | null = null;
       try {
         const formData = new FormData();
-        if (typeof File !== "undefined" && resolvedFile instanceof File) {
-          formData.append("file", resolvedFile, fileName);
-        } else {
-          formData.append("file", resolvedFile, fileName);
-        }
+        formData.append("file", resolvedFile, fileName);
         formData.append("category", "requirements");
 
         const uploadRes = await apiClient.post<unknown>(
@@ -207,41 +222,35 @@ export async function uploadRequirementsAfterSubmit({
           }
         );
 
-        const uploadResObj = typeof uploadRes.data === "object" && uploadRes.data !== null
-          ? (uploadRes.data as Record<string, unknown>)
-          : {};
+        const uploadResObj = isRecord(uploadRes.data) ? uploadRes.data : {};
         const uploadData =
-          uploadResObj.succeeded === true && typeof uploadResObj.data === "object" && uploadResObj.data !== null
-            ? (uploadResObj.data as Record<string, unknown>)
+          uploadResObj.succeeded === true && isRecord(uploadResObj.data)
+            ? uploadResObj.data
             : uploadResObj;
 
         if (typeof uploadData.id === "string" && uploadData.id.trim() !== "") {
           storedFileId = uploadData.id;
         }
       } catch (uploadErr) {
-        console.warn(`[requirementUploadHelper] Storage upload failed for file "${fileName}":`, uploadErr);
-        continue;
+        console.error(`[requirementUploadHelper] Storage upload failed for file "${fileName}":`, uploadErr);
+        throw new Error(`Failed to upload supporting document "${fileName}". Please check your connection and try again.`);
       }
 
       if (!storedFileId) {
-        console.warn(`[requirementUploadHelper] Storage upload succeeded but no StoredFileId for "${fileName}".`);
-        continue;
+        throw new Error(`Failed to store attachment "${fileName}". Storage service returned no file identifier.`);
       }
 
       // Step B: Resolve requirement target ID
-      // 1. Key could be "req-<Guid>"
       const rawReqIdInKey = fileKey.startsWith("req-") ? fileKey.slice(4) : fileKey;
       const matchedByExactId = backendRequirements.find(
         (br) => br.requirementId === rawReqIdInKey || br.serviceVariantRequirementId === rawReqIdInKey
       );
 
-      // 2. Key could be numeric index "0", "1", "req-0"
       const parsedKeyIdx = parseInt(rawReqIdInKey, 10);
       const matchedByIndex = !Number.isNaN(parsedKeyIdx) && parsedKeyIdx >= 0 && parsedKeyIdx < backendRequirements.length
         ? backendRequirements[parsedKeyIdx]
         : undefined;
 
-      // 3. Fallback to current loop index
       const matchedReq = matchedByExactId ?? matchedByIndex ?? backendRequirements[keyIdx] ?? backendRequirements[0];
 
       const requirementBody: Record<string, unknown> = { storedFileId };
@@ -265,15 +274,22 @@ export async function uploadRequirementsAfterSubmit({
       }
 
       try {
-        await api.post(
+        const linkRes = await api.post<unknown>(
           `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`,
           requirementBody
         );
+        const linkObj = isRecord(linkRes) ? linkRes : {};
+        if (linkObj.succeeded === false) {
+          const msg = typeof linkObj.message === "string" ? linkObj.message : `Failed to link requirement "${fileName}".`;
+          throw new Error(msg);
+        }
       } catch (linkErr) {
-        console.warn(
+        console.error(
           `[requirementUploadHelper] Failed to link StoredFileId "${storedFileId}" for applicant ${applicantId}:`,
           linkErr
         );
+        const msg = linkErr instanceof Error ? linkErr.message : `Failed to register requirement document "${fileName}" with application.`;
+        throw new Error(msg);
       }
     }
   }

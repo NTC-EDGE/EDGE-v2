@@ -1,16 +1,48 @@
-import useSWR from 'swr';
+import useSWR, { mutate as globalMutate } from 'swr';
 import { apiClient } from '../apiClient';
 import { ApiResponse, ApplicationSummaryDto, PagedApplicationListDto } from '../types';
 
-export function useAdminApplications(params?: {
-  queueTab?: string;
-  scope?: 'queue' | 'region';
-  status?: string;
-  pageNumber?: number;
-  pageSize?: number;
-  searchTerm?: string;
-  mode?: string;
-}) {
+/**
+ * Revalidates all SWR caches matching the applications API (/api/v2/applications),
+ * ensuring the queue list, activity feed, dashboard metrics, and detail views
+ * immediately update when application status or review evaluation data changes.
+ */
+export async function mutateApplications(applicationId?: string): Promise<void> {
+  await globalMutate(
+    (key: unknown) => {
+      if (typeof key !== 'string') return false;
+      if (key.startsWith('/api/v2/applications')) return true;
+      return false;
+    },
+    undefined,
+    { revalidate: true }
+  );
+
+  if (applicationId) {
+    await globalMutate(`/api/v2/applications/${applicationId}`, undefined, { revalidate: true });
+  }
+}
+
+export interface UseAdminApplicationsOptions {
+  refreshInterval?: number;
+  revalidateOnFocus?: boolean;
+  revalidateIfStale?: boolean;
+  dedupingInterval?: number;
+}
+
+export function useAdminApplications(
+  params?: {
+    queueTab?: string;
+    scope?: 'queue' | 'region';
+    status?: string;
+    pageNumber?: number;
+    pageSize?: number;
+    searchTerm?: string;
+    mode?: string;
+    tenantId?: string;
+  },
+  options?: UseAdminApplicationsOptions
+) {
   const searchParams = new URLSearchParams();
   if (params?.queueTab) searchParams.set('queueTab', params.queueTab);
   if (params?.scope) searchParams.set('scope', params.scope);
@@ -19,6 +51,7 @@ export function useAdminApplications(params?: {
   if (params?.pageSize) searchParams.set('pageSize', params.pageSize.toString());
   if (params?.searchTerm) searchParams.set('searchTerm', params.searchTerm);
   if (params?.mode) searchParams.set('mode', params.mode);
+  if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
 
   const queryString = searchParams.toString();
   const key = `/api/v2/applications${queryString ? `?${queryString}` : ''}`;
@@ -31,7 +64,12 @@ export function useAdminApplications(params?: {
       const res = await apiClient.get<ApiResponse<PagedApplicationListDto | ApplicationSummaryDto[]>>(url);
       return res.data;
     },
-    { revalidateOnFocus: false }
+    {
+      revalidateOnFocus: options?.revalidateOnFocus ?? false,
+      revalidateIfStale: options?.revalidateIfStale,
+      refreshInterval: options?.refreshInterval,
+      dedupingInterval: options?.dedupingInterval ?? 5000,
+    }
   );
 
   const payloadData = data?.data;

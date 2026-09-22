@@ -41,6 +41,7 @@ public static class EndpointConfiguration
         apiV2Group.MapMunicipalityEndpoints();
         apiV2Group.MapBarangayEndpoints();
         apiV2Group.MapFeeEndpoints();
+        apiV2Group.MapFeeCalculationEndpoints();
         apiV2Group.MapElementEndpoints();
         apiV2Group.MapServiceVariantFeeEndpoints();
         apiV2Group.MapServiceVariantElementFeeEndpoints();
@@ -58,5 +59,7 @@ public static class EndpointConfiguration
         apiV2Group.MapSystemErrorLogEndpoints();
         apiV2Group.MapDocumentTypeEndpoints();
         apiV2Group.MapServiceInformationEndpoints();
+        apiV2Group.MapReportEndpoints();
+        apiV2Group.MapReceiptEndpoints();
     }
 }

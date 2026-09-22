@@ -10,7 +10,7 @@ using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.Applications.Queries.GetApplicationById;
 
-public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationByIdQuery, ApiResponse<ApplicationDetailDto>>
+public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationByIdQuery, ApiResponse<ApplicationDto>>
 {
     private readonly IApplicationFullRepository _repository;
 
@@ -19,15 +19,18 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         _repository = repository;
     }
 
-    public async Task<ApiResponse<ApplicationDetailDto>> Handle(GetApplicationByIdQuery request, CancellationToken cancellationToken)
+    public async Task<ApiResponse<ApplicationDto>> Handle(GetApplicationByIdQuery request, CancellationToken cancellationToken)
     {
-        var app = await _repository.GetByIdWithDetailsAsync(request.Id, cancellationToken);
+        var app = await _repository.GetByIdWithDetailsAsync(request.Id, asNoTracking: true, cancellationToken);
         if (app == null)
         {
-            return ApiResponse<ApplicationDetailDto>.Fail($"Application with ID {request.Id} was not found.");
+            return ApiResponse<ApplicationDto>.Fail($"Application with ID {request.Id} was not found.");
         }
 
-        var dto = new ApplicationDetailDto
+        var primaryService = app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
+        var primaryVariant = app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+
+        var dto = new ApplicationDto
         {
             Id = app.Id,
             TenantId = app.TenantId,
@@ -45,6 +48,25 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             IsPinned = app.IsPinned,
             IsArchived = app.IsArchived,
             CreatedAt = app.CreatedAt,
+            ServiceId = primaryService?.Id,
+            ServiceName = primaryService?.Name,
+            ServiceCategoryId = primaryService?.ServiceCategoryId,
+            ServiceCategory = primaryService?.ServiceCategory?.Name,
+            ServiceCategoryName = primaryService?.ServiceCategory?.Name,
+            ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
+            ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
+            Services = app.ApplicationApplicants
+                .Where(aa => aa.Applicant?.Service != null)
+                .Select(aa => new ApplicationServiceDto
+                {
+                    Id = aa.ApplicantId,
+                    ApplicantId = aa.ApplicantId,
+                    ServiceId = aa.Applicant?.ServiceId,
+                    ServiceName = aa.Applicant?.Service?.Name,
+                    ServiceCategory = aa.Applicant?.Service?.ServiceCategory?.Name,
+                    ServiceVariantId = aa.Applicant?.ServiceVariantId,
+                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString()
+                }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
             {
                 Id = app.User.Id,
@@ -63,6 +85,108 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EntityType = app.User.CompanyDetail.EntityType?.ToString()
                 } : null
             } : null,
+            FormSubmissions = app.FormSubmissions.Select(fs => new FormSubmissionSummaryDto
+            {
+                Id = fs.Id,
+                FormId = fs.FormId,
+                ApplicantId = fs.ApplicantId,
+                CreatedAt = fs.CreatedAt
+            }).ToList(),
+            Requirements = app.ApplicationRequirements.Select(r => new ApplicationRequirementDto
+            {
+                Id = r.Id,
+                ApplicantId = r.ApplicantId,
+                RequirementId = r.RequirementId,
+                ServiceVariantRequirementId = r.ServiceVariantRequirementId,
+                StoredFileId = r.StoredFileId,
+                FileName = r.StoredFile?.FileName ?? (!string.IsNullOrEmpty(r.Url) ? Path.GetFileName(r.Url) : null),
+                ContentType = r.StoredFile?.ContentType,
+                FileSizeBytes = r.StoredFile?.FileSizeBytes,
+                Url = r.Url,
+                IsApproved = r.IsApproved
+            }).ToList(),
+            Applicants = app.ApplicationApplicants.Select(aa =>
+            {
+                var a = aa.Applicant;
+                var applicantDto = new ApplicantDto
+                {
+                    Id = a?.Id ?? Guid.Empty,
+                    TenantId = a?.TenantId ?? Guid.Empty,
+                    UserId = a?.UserId,
+                    IsGuest = a?.IsGuest ?? true,
+                    ApplicantType = a?.ApplicantType.ToString() ?? "Individual",
+                    Status = a?.Status.ToString() ?? "Incomplete",
+                    EvaluationRemarks = a?.EvaluationRemarks,
+                    ServiceId = a?.ServiceId,
+                    ServiceVariantId = a?.ServiceVariantId,
+                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
+                };
+
+                if (a?.ApplicantDetail != null)
+                {
+                    var ad = a.ApplicantDetail;
+                    applicantDto.Details = new ApplicantDetailDto
+                    {
+                        Id = ad.Id,
+                        BarangayId = ad.BarangayId ?? Guid.Empty,
+                        Address = ad.Address,
+                        FirstName = ad.FirstName,
+                        MiddleName = ad.MiddleName,
+                        LastName = ad.LastName,
+                        Suffix = ad.Suffix,
+                        Nationality = ad.Nationality,
+                        Sex = ad.Sex,
+                        Height = ad.Height,
+                        Weight = ad.Weight,
+                        BirthDate = ad.BirthDate,
+                        ContactNumber = ad.ContactNumber,
+                        EmailAddress = ad.EmailAddress,
+                        ZipCode = ad.ZipCode,
+                        SchoolAttended = ad.SchoolAttended,
+                        CourseTaken = ad.CourseTaken,
+                        YearGraduated = ad.YearGraduated,
+                        ESignature = ad.ESignature
+                    };
+                }
+
+                if (a?.CompanyDetail != null || a?.ApplicantDetail?.CompanyDetail != null)
+                {
+                    var cd = a?.CompanyDetail ?? a?.ApplicantDetail?.CompanyDetail;
+                    if (cd != null)
+                    {
+                        applicantDto.Company = new CompanyDetailDto
+                        {
+                            Id = cd.Id,
+                            BarangayId = cd.BarangayId,
+                            Address = cd.Address,
+                            Name = cd.Name,
+                            RegistrationNumber = cd.RegistrationNumber,
+                            ContactNumber = cd.ContactNumber,
+                            Email = cd.Email,
+                            EntityType = cd.EntityType?.ToString()
+                        };
+                    }
+                }
+
+                if (a != null)
+                {
+                    var formSubmissionsForApplicant = app.FormSubmissions
+                        .Where(fs => fs.ApplicantId == a.Id)
+                        .ToList();
+
+                    applicantDto.FormFieldValues = formSubmissionsForApplicant
+                        .SelectMany(fs => fs.FieldValues)
+                        .Select(fv => new FormFieldValueDto
+                        {
+                            FieldId = fv.FieldId,
+                            FieldLabel = fv.Field?.Label ?? string.Empty,
+                            Value = fv.Value
+                        })
+                        .ToList();
+                }
+
+                return applicantDto;
+            }).ToList(),
             StatementsOfAccount = app.StatementsOfAccount.Select(s => new StatementOfAccountDto
             {
                 Id = s.Id,
@@ -158,6 +282,6 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             }).ToList()
         };
 
-        return ApiResponse<ApplicationDetailDto>.Success(dto, "Application details retrieved successfully.");
+        return ApiResponse<ApplicationDto>.Success(dto, "Application details retrieved successfully.");
     }
 }

@@ -44,6 +44,16 @@ public class TenantMemberRepository : ITenantMemberRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<TenantMember>> GetMembersByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        return await _context.TenantMembers
+            .Include(m => m.Tenant)
+            .Include(m => m.Role)
+            .Include(m => m.FieldOffice)
+            .Where(m => m.UserId == userId && !m.IsDeleted)
+            .ToListAsync(cancellationToken);
+    }
+
     public void Delete(TenantMember member)
     {
         _context.TenantMembers.Remove(member);

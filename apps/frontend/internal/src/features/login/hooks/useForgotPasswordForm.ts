@@ -14,6 +14,14 @@ interface SignInWithCreate {
   create: (opts: { strategy: string; identifier: string }) => Promise<unknown>;
 }
 
+interface SignInWithAttemptFirstFactor {
+  attemptFirstFactor: (opts: {
+    strategy: string;
+    code: string;
+    password: string;
+  }) => Promise<{ status?: string }>;
+}
+
 interface SignInWithReset {
   resetPassword: (opts: { code: string; password: string }) => Promise<unknown>;
 }
@@ -24,6 +32,10 @@ function isObject(val: unknown): val is Record<string, unknown> {
 
 function isSignInWithCreate(obj: unknown): obj is SignInWithCreate {
   return isObject(obj) && typeof obj.create === "function";
+}
+
+function isSignInWithAttemptFirstFactor(obj: unknown): obj is SignInWithAttemptFirstFactor {
+  return isObject(obj) && typeof obj.attemptFirstFactor === "function";
 }
 
 function isSignInWithReset(obj: unknown): obj is SignInWithReset {
@@ -91,11 +103,28 @@ export function useForgotPasswordForm() {
     }
 
     const [, error] = await safeAsync(async () => {
-      if (isSignInWithReset(signIn)) {
+      if (isSignInWithAttemptFirstFactor(signIn)) {
+        const result = await signIn.attemptFirstFactor({
+          strategy: "reset_password_email_code",
+          code: data.code.trim(),
+          password: data.newPassword,
+        });
+        if (
+          result !== null &&
+          typeof result === "object" &&
+          typeof result.status === "string" &&
+          result.status !== "complete" &&
+          result.status !== "needs_second_factor"
+        ) {
+          throw new Error(`Password reset status: ${result.status}`);
+        }
+      } else if (isSignInWithReset(signIn)) {
         await signIn.resetPassword({
           code: data.code.trim(),
           password: data.newPassword,
         });
+      } else {
+        throw new Error("Password reset operation is not supported by authentication provider.");
       }
     });
 

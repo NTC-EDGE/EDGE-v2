@@ -1,13 +1,21 @@
 using FluentValidation;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Schedules.Commands.CreateSchedule;
 
 public class CreateScheduleCommandValidator : AbstractValidator<CreateScheduleCommand>
 {
-    public CreateScheduleCommandValidator()
+    public CreateScheduleCommandValidator(IServiceRepository serviceRepository)
     {
         RuleFor(x => x.ServiceId)
-            .NotEmpty().WithMessage("ServiceId is required.");
+            .NotEmpty().WithMessage("ServiceId is required.")
+            .MustAsync(async (serviceId, cancellationToken) =>
+            {
+                var service = await serviceRepository.GetByIdAsync(serviceId, cancellationToken);
+                return service != null && service.ServiceCategory?.Type == ServiceCategoryType.Exam;
+            })
+            .WithMessage("Schedules can only be created for Examination services.");
 
         RuleFor(x => x.TenantId)
             .NotEmpty().WithMessage("TenantId is required.");
@@ -21,7 +29,7 @@ public class CreateScheduleCommandValidator : AbstractValidator<CreateScheduleCo
 
         RuleFor(x => x.EndDate)
             .NotEmpty().WithMessage("EndDate is required.")
-            .GreaterThan(x => x.StartDate).WithMessage("EndDate must be later than StartDate.");
+            .GreaterThanOrEqualTo(x => x.StartDate).WithMessage("EndDate must be on or later than StartDate.");
 
         RuleFor(x => x.IsPublished)
             .Must((x, isPublished) => !isPublished || (x.StartApplication.HasValue && x.EndApplication.HasValue))
@@ -50,6 +58,12 @@ public class CreateScheduleCommandValidator : AbstractValidator<CreateScheduleCo
             RuleFor(x => x.MaximumSlots!.Value)
                 .GreaterThan(0).WithMessage("MaximumSlots must be greater than 0 if specified.");
         });
+
+        RuleFor(x => x.StartTime)
+            .MaximumLength(50).WithMessage("StartTime must not exceed 50 characters.");
+
+        RuleFor(x => x.EndTime)
+            .MaximumLength(50).WithMessage("EndTime must not exceed 50 characters.");
 
         RuleFor(x => x.Remarks)
             .MaximumLength(500).WithMessage("Remarks must not exceed 500 characters.");

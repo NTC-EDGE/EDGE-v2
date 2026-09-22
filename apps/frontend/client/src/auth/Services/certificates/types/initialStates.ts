@@ -60,7 +60,7 @@ export const initialDeviceRegistrationData = (id: number): DeviceRegistrationDat
   particulars: [
     {
       id: "part-1",
-      typeOfEquipmentDevice: "Wireless Data Network (WDN) Devices - Indoor",
+      typeOfEquipmentDevice: "Wireless Data Network (WDN) - Indoor",
       nameTypeModel: "",
       equipmentSerials: [{ id: "serial-1", serialNumber: "" }],
     },
@@ -151,7 +151,8 @@ export const initialVASProviderData = (id: number): VASProviderData => ({
 export const initialCopyOfCertificateData = (id: number): CopyOfCertificateData => ({
   id,
   copyType: "CERTIFIED_TRUE_COPY",
-  targetService: "Radio Operator Certificate (ROC)",
+  targetService: "Radio Operator Certificates (ROC) excluding Amateur ROC",
+  targetCertificateType: "1RTG",
   certificateNo: "",
   numberOfCopies: "1",
   isBusiness: false,

@@ -51,6 +51,25 @@ public static class DependencyInjection
         services.AddOptions<EDGE.Infrastructure.Options.StorageEncryptionOptions>()
             .BindConfiguration(EDGE.Infrastructure.Options.StorageEncryptionOptions.SectionName);
 
+        // Register Clerk Options
+        services.AddOptions<EDGE.Infrastructure.Options.ClerkOptions>()
+            .BindConfiguration(EDGE.Infrastructure.Options.ClerkOptions.SectionName)
+            .PostConfigure<IConfiguration>((options, configuration) =>
+            {
+                if (string.IsNullOrWhiteSpace(options.SecretKey))
+                {
+                    options.SecretKey = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkSecretKey(configuration);
+                }
+                if (string.IsNullOrWhiteSpace(options.WebhookSecret))
+                {
+                    options.WebhookSecret = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkWebhookSecret(configuration) ?? string.Empty;
+                }
+                if (string.IsNullOrWhiteSpace(options.Authority))
+                {
+                    options.Authority = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkAuthority(configuration) ?? string.Empty;
+                }
+            });
+
         // Register Repositories and Unit of Work
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
@@ -80,6 +99,10 @@ public static class DependencyInjection
         services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<ISystemErrorLogRepository, SystemErrorLogRepository>();
+        services.AddScoped<IOrBookletRepository, OrBookletRepository>();
+        services.AddScoped<IOfficialReceiptRepository, OfficialReceiptRepository>();
+        services.AddScoped<IAgencyBankAccountRepository, AgencyBankAccountRepository>();
+        services.AddScoped<IBankDepositRepository, BankDepositRepository>();
         services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
         services.AddScoped<IElementRepository, ElementRepository>();
         services.AddScoped<IServiceVariantFeeRepository, ServiceVariantFeeRepository>();
@@ -107,10 +130,9 @@ public static class DependencyInjection
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
         {
-            var configuration = sp.GetRequiredService<IConfiguration>();
-            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            var clerkOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EDGE.Infrastructure.Options.ClerkOptions>>().Value;
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkOptions.SecretKey}");
         });
     
         // Configure Hangfire storage (PostgreSQL in Production/Dev, InMemory in Test)

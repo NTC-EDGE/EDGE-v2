@@ -26,6 +26,8 @@ export interface Employee {
   dateJoined: string;
   location: string;
   fieldOffice?: string;
+  provisioningMethod?: 'email' | 'manual';
+  password?: string;
 }
 
 export const FIELD_OFFICES_LIST = [

@@ -14,7 +14,21 @@ public class CurrentUserService : ICurrentUserService
         _httpContextAccessor = httpContextAccessor;
     }
 
-    public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+    public string? UserId => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier)
+                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("sub")
+                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("user_id");
+
+    public string? Email => _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email)
+                         ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email")
+                         ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_address");
+
+    public bool IsEmailVerified => bool.TryParse(
+        _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verified")
+        ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verification_status"),
+        out var verified) && verified;
+
+    public string? IpAddress => _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString()
+                             ?? _httpContextAccessor.HttpContext?.Request?.Headers["X-Forwarded-For"].FirstOrDefault();
 
     public Guid? TenantId
     {

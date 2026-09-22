@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   Switch,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {
   COLORS,
@@ -18,6 +19,8 @@ import {
   Icon as Lucide,
   SkeletonLoader,
   useTheme,
+  toast,
+  DatePickerInput,
 } from "@edge/ui";
 import {
   ApplicationData,
@@ -25,8 +28,8 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useAdminApplications, applicationService } from "@edge/api";
-import { mapToApplicationData } from "../mappers";
+import { useAdminApplications, applicationService, mutateApplications } from "@edge/api";
+import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import {
   usePermissions,
   QueueTab,
@@ -41,7 +44,18 @@ type FilterStatus = Extract<
   "Approved" | "Returned" | "Completed"
 >;
 
+type FilterMode = "SINGLE" | "BULK";
+
 // ─── Static config ───────────────────────────────────────────────────────────
+
+const FILTER_MODES: {
+  label: string;
+  value: FilterMode;
+  icon: "user" | "users";
+}[] = [
+  { label: "Single Application", value: "SINGLE", icon: "user" },
+  { label: "Bulk Application",   value: "BULK",   icon: "users" },
+];
 
 const FILTER_STATUSES: {
   label: string;
@@ -126,35 +140,79 @@ export function ActivitiesFeedPane({
   const { visibleTabs } = usePermissions();
   const { colors, isDark } = useTheme();
 
-  const { applications: rawDtos, isLoading, refetch } = useAdminApplications({
+  const PAGE_SIZE_STEP = 15;
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
     scope: "queue",
+    pageSize,
+    pageNumber: 1,
   });
 
   const applications = useMemo(() => {
     if (!Array.isArray(rawDtos)) return [];
-    return rawDtos.map((dto) => mapToApplicationData(dto));
+    return rawDtos.map(mapApplicationDtoToUI);
   }, [rawDtos]);
+
+  useEffect(() => {
+    setPageSize(PAGE_SIZE_STEP);
+  }, [activeQueueTab]);
+
+  useEffect(() => {
+    if (!isLoading && isLoadingMore) {
+      setIsLoadingMore(false);
+    }
+  }, [isLoading, isLoadingMore]);
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoading || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setPageSize((prev) => prev + PAGE_SIZE_STEP);
+  }, [isLoading, isLoadingMore]);
+
+  const totalAvailable = pagination?.totalCount ?? applications.length;
+  const hasMore = pagination
+    ? Boolean(pagination.hasNextPage) || applications.length < totalAvailable
+    : applications.length >= pageSize;
 
   const togglePinApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    await applicationService.togglePin(id, !app?.isPinned);
-    refetch();
+    const [res, err] = await applicationService.togglePin(id, app?.isPinned !== true);
+    if (err !== null) {
+      toast.error("Failed to pin/unpin application.");
+      return;
+    }
+    await mutateApplications(id);
+    await refetch();
   }, [applications, refetch]);
 
   const toggleArchiveApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    await applicationService.toggleArchive(id, !app?.isArchived);
+    const [res, err] = await applicationService.toggleArchive(id, app?.isArchived !== true);
+    if (err !== null) {
+      toast.error("Failed to archive/unarchive application.");
+      return;
+    }
     if (selectedId === id) setSelectedId?.(null);
-    refetch();
+    await mutateApplications(id);
+    await refetch();
   }, [applications, selectedId, setSelectedId, refetch]);
 
   const evaluateApplication = useCallback(async (id: string) => {
-    await applicationService.updateStatus(id, { status: "Evaluating" });
-    refetch();
+    const [res, err] = await applicationService.updateStatus(id, { status: "Evaluating" });
+    if (err !== null) {
+      toast.error("Failed to start evaluation.");
+      return;
+    }
+    toast.success("Application moved to technical evaluation.");
+    await mutateApplications(id);
+    await refetch();
   }, [refetch]);
 
   const resetStore = useCallback(() => {
+    setPageSize(PAGE_SIZE_STEP);
     refetch();
   }, [refetch]);
 
@@ -162,6 +220,7 @@ export function ActivitiesFeedPane({
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
   const [activeStatuses,    setActiveStatuses]    = useState<Set<string>>(new Set());
   const [activeCategories,  setActiveCategories]  = useState<Set<ApplicationCategory>>(new Set());
+  const [activeModes,       setActiveModes]       = useState<Set<FilterMode>>(new Set());
   const [dateFrom,          setDateFrom]          = useState("");
   const [dateTo,            setDateTo]            = useState("");
   const [showSortDropdown,  setShowSortDropdown]  = useState(false);
@@ -199,6 +258,14 @@ export function ActivitiesFeedPane({
     });
   }, []);
 
+  const toggleMode = useCallback((mode: FilterMode) => {
+    setActiveModes((prev) => {
+      const next = new Set(prev);
+      if (next.has(mode)) next.delete(mode); else next.add(mode);
+      return next;
+    });
+  }, []);
+
   const toggleGroupCollapse = useCallback((dateKey: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
@@ -212,6 +279,7 @@ export function ActivitiesFeedPane({
     setSortOrder("newest");
     setActiveStatuses(new Set());
     setActiveCategories(new Set());
+    setActiveModes(new Set());
     setDateFrom("");
     setDateTo("");
     setShowSortDropdown(false);
@@ -222,16 +290,27 @@ export function ActivitiesFeedPane({
 
   // ── Filtered data ───────────────────────────────────────────────────────────
   const filteredGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filtered = applications.filter((app) => {
       if (app.status === "Draft" || app.isArchived) return false;
       if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) return false;
-      if (
-        searchQuery.trim().length > 0 &&
-        !app.applicant.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !app.serviceName.toLowerCase().includes(searchQuery.toLowerCase())
-      ) return false;
+      if (q.length > 0) {
+        const matchesApplicant = app.applicant.toLowerCase().includes(q);
+        const matchesTitle = app.permitTitle.toLowerCase().includes(q);
+        const matchesRef = app.referenceNumber.toLowerCase().includes(q);
+        const matchesAppNum = app.applicationNumber.toLowerCase().includes(q);
+        const matchesType = app.applicationType.toLowerCase().includes(q);
+        const matchesMode =
+          (app.applicationType === "BULK" && "bulk application".includes(q)) ||
+          (app.applicationType === "SINGLE" && "single application".includes(q));
+
+        if (!matchesApplicant && !matchesTitle && !matchesRef && !matchesAppNum && !matchesType && !matchesMode) {
+          return false;
+        }
+      }
       if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;
+      if (activeModes.size > 0 && !activeModes.has(app.applicationType)) return false;
       if (dateFrom.length === 10) {
         const appDate = new Date(app.createdAt);
         if (appDate < new Date(dateFrom)) return false;
@@ -244,11 +323,12 @@ export function ActivitiesFeedPane({
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, dateFrom, dateTo, sortOrder]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||
     activeCategories.size > 0 ||
+    activeModes.size > 0 ||
     dateFrom.length > 0 ||
     dateTo.length > 0;
 
@@ -331,14 +411,11 @@ export function ActivitiesFeedPane({
           <View style={styles.dateRow}>
             {(["From", "To"] as const).map((label, i) => (
               <View key={label} style={styles.dateField}>
-                <Text style={[styles.dateLabel, { color: textMuted }]}>{label.toUpperCase()}</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: text, backgroundColor: inputBg, borderColor: border }]}
+                <DatePickerInput
+                  label={label.toUpperCase()}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textMuted}
                   value={i === 0 ? dateFrom : dateTo}
                   onChangeText={i === 0 ? setDateFrom : setDateTo}
-                  maxLength={10}
                 />
               </View>
             ))}
@@ -378,6 +455,24 @@ export function ActivitiesFeedPane({
               <Switch
                 value={activeStatuses.has(s.value)}
                 onValueChange={() => toggleStatus(s.value)}
+                trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[200], true: brandColor }}
+                thumbColor={COLORS.neutral.white}
+              />
+            </View>
+          ))}
+
+          <View style={[styles.filterPanelHeader, { marginTop: SPACING[12] }]}>
+            <Text style={[styles.panelSectionTitle, { color: textMuted }]}>Application Mode</Text>
+          </View>
+          {FILTER_MODES.map((m) => (
+            <View key={m.value} style={[styles.filterRow, { borderBottomColor: borderSoft }]}>
+              <View style={styles.filterRowLeft}>
+                <Lucide name={m.icon} size={14} color={textMuted} />
+                <Text style={[styles.filterRowLabel, { color: text }]}>{m.label}</Text>
+              </View>
+              <Switch
+                value={activeModes.has(m.value)}
+                onValueChange={() => toggleMode(m.value)}
                 trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[200], true: brandColor }}
                 thumbColor={COLORS.neutral.white}
               />
@@ -516,13 +611,33 @@ export function ActivitiesFeedPane({
         {filteredGroups.length > 0 && (
           <View style={styles.seeMoreRow}>
             <Text style={[styles.seeMoreText, { color: textMuted }]}>
-              Showing{" "}
-              {applications.filter((a) => activeQueueTab === "activity" || a.queueTab === activeQueueTab).length}{" "}
+              Showing {filteredGroups.reduce((acc, g) => acc + g.items.length, 0)}
+              {pagination?.totalCount !== undefined ? ` of ${pagination.totalCount}` : ""}{" "}
               activities
             </Text>
-            <Pressable style={[styles.loadMoreBtn, { backgroundColor: surface, borderColor: border }]}>
-              <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
-            </Pressable>
+            {hasMore ? (
+              <Pressable
+                disabled={isLoading || isLoadingMore}
+                style={[
+                  styles.loadMoreBtn,
+                  { backgroundColor: surface, borderColor: border },
+                  (isLoading || isLoadingMore) && { opacity: 0.6 },
+                  Platform.select({ web: { cursor: isLoading || isLoadingMore ? 'auto' : 'pointer' } }),
+                ]}
+                onPress={handleLoadMore}
+              >
+                {isLoadingMore ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator size="small" color={brandColor} />
+                    <Text style={[styles.loadMoreText, { color: brandColor }]}>Loading...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
+                )}
+              </Pressable>
+            ) : (
+              <Text style={[styles.allLoadedText, { color: textMuted }]}>All activities loaded</Text>
+            )}
           </View>
         )}
 
@@ -773,5 +888,15 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  allLoadedText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontStyle: "italic",
   },
 });

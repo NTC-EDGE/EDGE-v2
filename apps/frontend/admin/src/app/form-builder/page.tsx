@@ -1,10 +1,10 @@
 "use client";
 
-import React, { useState, useCallback, useRef, Suspense } from "react";
+import React, { useState, useCallback, useEffect, useRef, Suspense } from "react";
 import {
   ArrowLeft,
   Eye,
-  Save,
+  CheckCircle2,
   Globe,
   EyeOff,
   Loader2,
@@ -22,6 +22,8 @@ import {
   generateId,
   convertBackendFormToSchema,
   convertSchemaToBackendSections,
+  reorderFieldsWithSections,
+  duplicateFieldWithSection,
 } from "@/components/form-builder/utils";
 import { useFormBuilderService } from "@/services/formBuilderService";
 import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
@@ -271,11 +273,7 @@ function FormBuilderContent() {
   const handleReorderFields = useCallback(
     (fromIndex: number, toIndex: number) => {
       if (!activeForm) return;
-      const fields = [...activeForm.fields];
-      const [removed] = fields.splice(fromIndex, 1);
-      if (!removed) return;
-      const adjustedTo = toIndex > fromIndex ? toIndex - 1 : toIndex;
-      fields.splice(adjustedTo, 0, removed);
+      const fields = reorderFieldsWithSections(activeForm.fields, fromIndex, toIndex);
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -290,12 +288,7 @@ function FormBuilderContent() {
   const handleDuplicateField = useCallback(
     (id: string) => {
       if (!activeForm) return;
-      const original = activeForm.fields.find((f) => f.id === id);
-      if (!original) return;
-      const duplicate: FormField = { ...original, id: generateId(), label: `${original.label} (Copy)` };
-      const idx = activeForm.fields.findIndex((f) => f.id === id);
-      const fields = [...activeForm.fields];
-      fields.splice(idx + 1, 0, duplicate);
+      const fields = duplicateFieldWithSection(activeForm.fields, id);
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -357,6 +350,22 @@ function FormBuilderContent() {
       });
     }
   };
+
+  // Auto-save on changes/drags (debounced 1200ms)
+  useEffect(() => {
+    if (!isDirty || !activeForm || isSaving) return;
+
+    const timer = setTimeout(() => {
+      persistFormToBackend(activeForm).then((result) => {
+        if (result.success) {
+          originalFormRef.current = JSON.stringify(result.form);
+          setIsDirty(false);
+        }
+      });
+    }, 1200);
+
+    return () => clearTimeout(timer);
+  }, [isDirty, activeForm, isSaving, persistFormToBackend]);
 
   const handleTogglePublish = async () => {
     if (!activeForm) return;
@@ -590,19 +599,22 @@ function FormBuilderContent() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            {/* Unsaved indicator */}
-            {isDirty && (
-              <div className="flex items-center gap-1.5 text-[11px] font-semibold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-2.5 py-1 rounded-full animate-in fade-in">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                <span>Unsaved Changes</span>
+          <div className="flex items-center gap-2.5">
+            {/* Background Saving Load Indicator / Auto-Save Status */}
+            {isSaving ? (
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold animate-pulse">
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
+                <span>Saving in background…</span>
               </div>
-            )}
-
-            {isSaving && (
-              <div className="flex items-center gap-1.5 text-xs text-slate-400">
-                <Loader2 className="w-3 h-3 animate-spin text-indigo-500" />
-                Saving…
+            ) : !isDirty ? (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>All changes saved</span>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
+                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+                <span>Syncing…</span>
               </div>
             )}
 
@@ -613,19 +625,6 @@ function FormBuilderContent() {
             >
               <Eye className="w-3.5 h-3.5" />
               Preview
-            </button>
-            <button
-              type="button"
-              onClick={handleManualSave}
-              disabled={isSaving}
-              className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
-                isDirty
-                  ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/30"
-                  : "border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
-              }`}
-            >
-              <Save className="w-3.5 h-3.5" />
-              <span>{isSaving ? "Saving..." : "Save"}</span>
             </button>
             <button
               type="button"
@@ -649,6 +648,13 @@ function FormBuilderContent() {
               )}
             </button>
           </div>
+        </div>
+
+        {/* Top Background Loading Progress Bar */}
+        <div className="h-0.5 w-full bg-slate-200/30 dark:bg-slate-800/30 overflow-hidden relative z-20">
+          {isSaving && (
+            <div className="h-full bg-gradient-to-r from-indigo-500 via-sky-400 to-indigo-600 animate-pulse w-full shadow-sm shadow-indigo-500/50" />
+          )}
         </div>
 
         {/* Three-panel layout */}

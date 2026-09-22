@@ -4,7 +4,9 @@ export type ApplicationStatus =
   | 'Evaluating'
   | 'Returned'
   | 'Approved'
-  | 'Completed';
+  | 'Completed'
+  | 'ForAccountant'
+  | 'PendingPayment';
 
 export type QueueTab = 'activity' | 'pending' | 'history';
 export type ApplicantType = 'Individual' | 'Company';
@@ -110,9 +112,11 @@ export interface ApplicantItem {
   contactNumber: string;
   email: string;
   address: string;
+  streetAddress?: string;
   barangay: string;
   city: string;
   province: string;
+  region?: string;
   zipCode: string;
   basicInfo?: {
     lastName: string;
@@ -125,6 +129,7 @@ export interface ApplicantItem {
     weight: number;
     height: number;
     nationality: string;
+    civilStatus?: string;
     employmentStatus: string;
     occupation: string;
   };
@@ -150,7 +155,10 @@ export interface ApplicationServiceItem {
   id: string;
   applicantId?: string;
   serviceId?: string;
+  serviceName?: string;
+  serviceCategory?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
   submissionId?: string;
 }
 
@@ -176,11 +184,19 @@ export interface ApplicationData {
   isUrgent: boolean;
   isPinned: boolean;
   isArchived?: boolean;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceVariantName?: string;
+  office?: string;
+  mode?: string;
   filingUser?: FilingUserData;
   address: {
+    streetAddress?: string;
+    address?: string;
     barangay: string;
     province: string;
     city: string;
+    region?: string;
     zipCode: string;
   };
   contactDetails: {
@@ -198,6 +214,7 @@ export interface ApplicationData {
     weight: number;
     height: number;
     nationality: string;
+    civilStatus?: string;
     employmentStatus: string;
     occupation: string;
   };

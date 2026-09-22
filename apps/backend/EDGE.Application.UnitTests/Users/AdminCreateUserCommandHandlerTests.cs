@@ -159,9 +159,16 @@ public class AdminCreateUserCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldThrowUnauthorizedAccessException_WhenNonSuperAdminTriesToCreateSuperAdmin()
+    public async Task Handle_ShouldThrowUnauthorizedAccessException_WhenNonSuperAdminTriesToCreateUserInForeignTenant()
     {
         // Arrange
+        var foreignTenantId = Guid.NewGuid();
+        var foreignTenant = new Tenant { Id = foreignTenantId, Name = "Foreign Regional Office", IsActive = true };
+
+        _tenantRepositoryMock
+            .Setup(t => t.GetByIdAsync(foreignTenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(foreignTenant);
+
         _userAuthorizationServiceMock
             .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
@@ -169,11 +176,15 @@ public class AdminCreateUserCommandHandlerTests
             .Setup(u => u.HasPermissionAsync(Permissions.ManageUsers, It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
 
+        _tenantContextServiceMock
+            .Setup(t => t.EnsureUserActiveMemberAsync(foreignTenantId, It.IsAny<string?>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new UnauthorizedAccessException("You are only authorized to create and assign users for your own regional tenant."));
+
         var command = new AdminCreateUserCommand(
-            Email: "superadmin.wannabe@ntc.gov.ph",
-            FirstName: "Wannabe",
-            LastName: "Admin",
-            IsSuperAdmin: true
+            Email: "evaluator@foreign.ntc.gov.ph",
+            FirstName: "Foreign",
+            LastName: "Evaluator",
+            TenantId: foreignTenantId
         );
 
         // Act
@@ -181,6 +192,108 @@ public class AdminCreateUserCommandHandlerTests
 
         // Assert
         await act.Should().ThrowAsync<UnauthorizedAccessException>()
-            .WithMessage("*Only Super Administrators can create or grant SuperAdmin privileges.*");
+            .WithMessage("*You are only authorized to create and assign users for your own regional tenant.*");
+    }
+
+    [Fact]
+    public async Task Handle_ShouldThrowInvalidOperationException_WhenEmailAlreadyExistsInDatabase()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var tenant = new Tenant { Id = tenantId, Name = "Regional Office 7", IsActive = true };
+        var role = new Role { Id = Guid.NewGuid(), Key = "evaluator", Name = "Evaluator" };
+
+        _tenantRepositoryMock
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tenant);
+
+        _userAuthorizationServiceMock
+            .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        _roleRepositoryMock
+            .Setup(r => r.GetByKeyAsync("evaluator", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(role);
+
+        _userRepositoryMock
+            .Setup(u => u.GetByEmailAsync("existing.officer@ntc.gov.ph", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User
+            {
+                Id = Guid.NewGuid(),
+                Email = "existing.officer@ntc.gov.ph",
+                FirstName = "Existing",
+                LastName = "Officer"
+            });
+
+        var command = new AdminCreateUserCommand(
+            Email: "existing.officer@ntc.gov.ph",
+            FirstName: "Duplicate",
+            LastName: "User",
+            RoleKey: "evaluator",
+            TenantId: tenantId
+        );
+
+        // Act
+        Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*An account with the email address 'existing.officer@ntc.gov.ph' already exists*");
+    }
+
+    [Fact]
+    public async Task Handle_ShouldThrowInvalidOperationException_WhenEmailAlreadyExistsInClerk()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var tenant = new Tenant { Id = tenantId, Name = "Regional Office 10", IsActive = true };
+        var role = new Role { Id = Guid.NewGuid(), Key = "evaluator", Name = "Evaluator" };
+
+        _tenantRepositoryMock
+            .Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(tenant);
+
+        _userAuthorizationServiceMock
+            .Setup(u => u.HasRoleAsync("superadmin", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
+        _roleRepositoryMock
+            .Setup(r => r.GetByKeyAsync("evaluator", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(role);
+
+        _userRepositoryMock
+            .Setup(u => u.GetByEmailAsync("clerk.user@ntc.gov.ph", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((User?)null);
+
+        _clerkUserServiceMock
+            .Setup(c => c.GetUsersByEmailAsync("clerk.user@ntc.gov.ph"))
+            .ReturnsAsync(new List<ClerkUserResponse>
+            {
+                new()
+                {
+                    Id = "user_clerk_existing",
+                    FirstName = "Clerk",
+                    LastName = "User",
+                    EmailAddresses = new List<ClerkEmailAddress>
+                    {
+                        new() { Id = "email_existing", EmailAddress = "clerk.user@ntc.gov.ph" }
+                    }
+                }
+            });
+
+        var command = new AdminCreateUserCommand(
+            Email: "clerk.user@ntc.gov.ph",
+            FirstName: "Clerk",
+            LastName: "User",
+            RoleKey: "evaluator",
+            TenantId: tenantId
+        );
+
+        // Act
+        Func<Task> act = async () => await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        await act.Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*An account with the email address 'clerk.user@ntc.gov.ph' already exists*");
     }
 }

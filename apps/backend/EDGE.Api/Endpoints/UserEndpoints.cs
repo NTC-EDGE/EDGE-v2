@@ -12,6 +12,7 @@ using EDGE.Application.Users.Commands.DeleteUser;
 using EDGE.Application.Users.Commands.UpdateCurrentProfile;
 using EDGE.Application.Users.Commands.UpdateCurrentSignature;
 using EDGE.Application.Users.Commands.AdminCreateUser;
+using EDGE.Application.Users.Commands.SyncClerkUsers;
 
 namespace EDGE.Api.Endpoints;
 
@@ -26,6 +27,16 @@ public static class UserEndpoints
             .WithSummary("Create user account via Clerk")
             .WithDescription("Allows Super Admins and Regional Admins to create new staff accounts via Clerk and sync database records.")
             .Produces<AdminCreateUserResultDto>(StatusCodes.Status201Created)
+            .ProducesValidationProblem()
+            .Produces(StatusCodes.Status401Unauthorized)
+            .Produces(StatusCodes.Status403Forbidden)
+            .RequireAuthorization();
+
+        group.MapPost("/sync-clerk", SyncClerkUsers)
+            .WithName("SyncClerkUsers")
+            .WithSummary("Synchronize users from Clerk into the database")
+            .WithDescription("Pulls all user accounts and metadata from Clerk and provisions or updates local database records and tenant memberships.")
+            .Produces<SyncClerkUsersResultDto>(StatusCodes.Status200OK)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden)
@@ -123,7 +134,11 @@ public static class UserEndpoints
 
     public static async Task<IResult> GetCurrentUser(
         IMediator mediator,
-        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService)
+        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService,
+        EDGE.Application.Common.Interfaces.IClerkUserService clerkUserService,
+        EDGE.Application.Common.Interfaces.IUserRepository userRepository,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService,
+        EDGE.Application.Common.Interfaces.IUnitOfWork unitOfWork)
     {
         var authUserId = currentUserService.UserId;
         if (string.IsNullOrEmpty(authUserId))
@@ -133,7 +148,63 @@ public static class UserEndpoints
             new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
 
         if (user is null)
+        {
+            // Auto-heal / Auto-provision user from Clerk if database was reset
+            var clerkUser = await clerkUserService.GetUserByIdAsync(authUserId);
+            if (clerkUser is not null)
+            {
+                var primaryEmail = clerkUser.EmailAddresses.FirstOrDefault()?.EmailAddress?.Trim().ToLowerInvariant() ?? string.Empty;
+                var existingUser = !string.IsNullOrEmpty(primaryEmail)
+                    ? await userRepository.GetByEmailAsync(primaryEmail)
+                    : null;
+
+                bool isSuperAdmin = false;
+                if (clerkUser.PublicMetadata.HasValue && clerkUser.PublicMetadata.Value.ValueKind == System.Text.Json.JsonValueKind.Object)
+                {
+                    var elem = clerkUser.PublicMetadata.Value;
+                    if (elem.TryGetProperty("is_super_admin", out var isa))
+                    {
+                        if (isa.ValueKind == System.Text.Json.JsonValueKind.True) isSuperAdmin = true;
+                        else if (isa.ValueKind == System.Text.Json.JsonValueKind.String && bool.TryParse(isa.GetString(), out var parsedB)) isSuperAdmin = parsedB;
+                    }
+                    if (elem.TryGetProperty("role", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.String)
+                    {
+                        if (string.Equals(r.GetString(), "superadmin", StringComparison.OrdinalIgnoreCase)) isSuperAdmin = true;
+                    }
+                }
+
+                if (existingUser is not null)
+                {
+                    existingUser.AuthUserId = authUserId;
+                    if (isSuperAdmin) existingUser.IsSuperAdmin = true;
+                    await unitOfWork.SaveChangesAsync();
+                }
+                else
+                {
+                    var newUser = new EDGE.Domain.Entities.User
+                    {
+                        Id = Guid.NewGuid(),
+                        AuthUserId = authUserId,
+                        Email = primaryEmail,
+                        FirstName = !string.IsNullOrWhiteSpace(clerkUser.FirstName) ? clerkUser.FirstName.Trim() : "Clerk",
+                        LastName = !string.IsNullOrWhiteSpace(clerkUser.LastName) ? clerkUser.LastName.Trim() : "User",
+                        IsSuperAdmin = isSuperAdmin
+                    };
+                    await userRepository.AddAsync(newUser);
+                    await unitOfWork.SaveChangesAsync();
+                }
+
+                user = await mediator.Send(
+                    new EDGE.Application.Users.Queries.GetUserByAuthUserId.GetUserByAuthUserIdQuery(authUserId));
+            }
+        }
+
+        if (user is null)
             return Results.NotFound(new { message = "User record not found." });
+
+        var isInternal = await userAuthorizationService.IsInternalUserAsync();
+        var canSubmit = await userAuthorizationService.CanSubmitApplicationAsync();
+        var permissions = await userAuthorizationService.GetUserPermissionsAsync();
 
         return Results.Ok(new
         {
@@ -143,12 +214,16 @@ public static class UserEndpoints
             firstName = user.FirstName,
             lastName = user.LastName,
             isSuperAdmin = user.IsSuperAdmin,
+            isInternalUser = isInternal,
+            canSubmitApplication = canSubmit,
+            permissions = permissions,
         });
     }
 
     public static async Task<IResult> GetCurrentUserProfile(
         IMediator mediator,
-        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService)
+        EDGE.Application.Common.Interfaces.ICurrentUserService currentUserService,
+        EDGE.Application.Common.Interfaces.IUserAuthorizationService userAuthorizationService)
     {
         var authUserId = currentUserService.UserId;
         if (string.IsNullOrEmpty(authUserId))
@@ -159,6 +234,9 @@ public static class UserEndpoints
 
         if (user is null)
             return Results.NotFound(new { message = "User profile not found." });
+
+        var isInternal = await userAuthorizationService.IsInternalUserAsync();
+        var canSubmit = await userAuthorizationService.CanSubmitApplicationAsync();
 
         return Results.Ok(new
         {
@@ -180,6 +258,8 @@ public static class UserEndpoints
             profilePicture = user.ProfilePicture,
             eSignature = user.ESignature,
             isSuperAdmin = user.IsSuperAdmin,
+            isInternalUser = isInternal,
+            canSubmitApplication = canSubmit,
             address = new
             {
                 street = user.Street,
@@ -325,6 +405,33 @@ public static class UserEndpoints
         {
             var result = await mediator.Send(command);
             return Results.Created($"/api/v2/users/{result.Id}", result);
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Results.Json(new { message = ex.Message }, statusCode: StatusCodes.Status403Forbidden);
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Results.BadRequest(new { message = ex.Message });
+        }
+    }
+
+    [HasPermission(Permissions.ManageUsers)]
+    public static async Task<IResult> SyncClerkUsers(
+        SyncClerkUsersCommand command,
+        IValidator<SyncClerkUsersCommand> validator,
+        IMediator mediator)
+    {
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        try
+        {
+            var result = await mediator.Send(command);
+            return Results.Ok(result);
         }
         catch (UnauthorizedAccessException ex)
         {

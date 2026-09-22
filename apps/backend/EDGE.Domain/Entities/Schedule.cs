@@ -10,6 +10,8 @@ public class Schedule : AuditableEntity
     public string Venue { get; set; } = string.Empty;
     public DateTime StartDate { get; set; }
     public DateTime EndDate { get; set; }
+    public string? StartTime { get; set; }
+    public string? EndTime { get; set; }
     public DateTime? StartApplication { get; set; }
     public DateTime? EndApplication { get; set; }
     public bool IsPublished { get; set; } = false;
