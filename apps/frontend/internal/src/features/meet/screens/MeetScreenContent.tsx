@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, StyleSheet, useWindowDimensions } from 'react-native';
-import { Meeting, meetService, safeAsync } from '@edge/api';
+import { Meeting, meetService, safeAsync, useUsers } from '@edge/api';
 import { AlertToast, Button, EmptyState, Icon, SkeletonLoader, useTheme } from '@edge/ui';
 import { useMeetingsList } from '../hooks/useMeetingsList';
 import { MeetingCard } from '../components/MeetingCard';
@@ -14,6 +14,7 @@ export const MeetScreenContent: React.FC = () => {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
+  const { users } = useUsers();
   const { meetings, isLoading, refreshMeetings } = useMeetingsList();
   const [activeMeeting, setActiveMeeting] = useState<Meeting | null>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState<boolean>(false);
@@ -44,12 +45,18 @@ export const MeetScreenContent: React.FC = () => {
 
   const handleCreateDirectMeeting = async (values: CreateDirectMeetingFormValues) => {
     setIsSubmitting(true);
-    const title = values.title?.trim() || `Direct Meet with ${values.colleagueEmailOrId}`;
+    const targetUser = users.find(
+      (u) => u.id === values.colleagueEmailOrId || u.email.toLowerCase() === values.colleagueEmailOrId.trim().toLowerCase()
+    );
+    const targetUserId = targetUser ? targetUser.id : values.colleagueEmailOrId;
+    const targetName = targetUser ? `${targetUser.firstName} ${targetUser.lastName}` : values.colleagueEmailOrId;
+    const title = values.title?.trim() || `Direct Meet with ${targetName}`;
+
     const [newMeet, err] = await safeAsync(meetService.createMeeting({
       title,
       scope: values.scope,
       scheduledStartTime: new Date().toISOString(),
-      participantUserIds: [values.colleagueEmailOrId],
+      participantUserIds: targetUserId ? [targetUserId] : undefined,
     }));
     setIsSubmitting(false);
     if (err !== null) { showToast(err, 'error'); return; }

@@ -33,20 +33,26 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
-        var allUserIds = new HashSet<Guid>(request.ParticipantUserIds) { currentUser.Id };
+        var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
+        var defaultTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
+            ? request.TenantId
+            : userMemberships.FirstOrDefault()?.TenantId 
+              ?? currentUser.TenantMemberships?.FirstOrDefault()?.TenantId;
+
+        var allUserIds = new HashSet<Guid>(request.ParticipantUserIds.Where(id => id != Guid.Empty)) { currentUser.Id };
         var conversation = new Conversation
         {
             Title = request.Title,
             Description = request.Description,
             Type = request.Type,
             Scope = request.Scope,
-            TenantId = request.TenantId
+            TenantId = defaultTenantId
         };
 
         foreach (var userId in allUserIds)
         {
             var memberships = await _tenantMemberRepository.GetMembersByUserAsync(userId, cancellationToken);
-            var memberTenantId = memberships.FirstOrDefault()?.TenantId ?? request.TenantId ?? Guid.Empty;
+            var memberTenantId = memberships.FirstOrDefault()?.TenantId ?? defaultTenantId;
 
             conversation.Participants.Add(new ConversationParticipant
             {

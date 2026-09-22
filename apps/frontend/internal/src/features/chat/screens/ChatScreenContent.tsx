@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
-import { Conversation, chatService, safeAsync } from '@edge/api';
+import { Conversation, chatService, safeAsync, useUsers } from '@edge/api';
 import { AlertToast, useTheme } from '@edge/ui';
 import { useChatConversations } from '../hooks/useChatConversations';
 import { useChatMessages } from '../hooks/useChatMessages';
@@ -15,6 +15,7 @@ export const ChatScreenContent: React.FC = () => {
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
 
+  const { users } = useUsers();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState<boolean>(false);
   const [isDirectModalOpen, setIsDirectModalOpen] = useState<boolean>(false);
@@ -31,11 +32,17 @@ export const ChatScreenContent: React.FC = () => {
 
   const handleCreateDirectChat = async (values: CreateDirectChatFormValues) => {
     setIsSubmitting(true);
+    const targetUser = users.find(
+      (u) => u.id === values.recipientUserId || u.email.toLowerCase() === values.recipientUserId.trim().toLowerCase()
+    );
+    const targetUserId = targetUser ? targetUser.id : values.recipientUserId;
+    const title = targetUser ? `Direct: ${targetUser.firstName} ${targetUser.lastName}` : `Direct: ${values.recipientUserId}`;
+
     const [newConv, err] = await safeAsync(chatService.createConversation({
-      title: `Direct: ${values.recipientUserId}`,
+      title,
       type: 'Direct',
       scope: values.scope,
-      participantUserIds: [values.recipientUserId],
+      participantUserIds: targetUserId ? [targetUserId] : [],
     }));
     setIsSubmitting(false);
     if (err !== null) { showToast(err, 'error'); return; }

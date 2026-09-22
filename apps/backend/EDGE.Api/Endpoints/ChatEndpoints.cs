@@ -31,7 +31,9 @@ public static class ChatEndpoints
             [FromQuery] int take,
             IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetMessagesQuery(conversationId, skip, take == 0 ? 50 : take));
+            var clampedTake = Math.Clamp(take <= 0 ? 50 : take, 1, 100);
+            var clampedSkip = Math.Max(0, skip);
+            var result = await mediator.Send(new GetMessagesQuery(conversationId, clampedSkip, clampedTake));
             return Results.Ok(result);
         }).WithName("GetMessages").RequireAuthorization();
 

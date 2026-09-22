@@ -8,8 +8,8 @@ public class ConversationParticipantDto
     public string FullName { get; set; } = string.Empty;
     public string Email { get; set; } = string.Empty;
     public string? AvatarUrl { get; set; }
-    public Guid TenantId { get; set; }
-    public string TenantName { get; set; } = string.Empty;
+    public Guid? TenantId { get; set; }
+    public string? TenantName { get; set; }
     public ParticipantRole Role { get; set; }
     public bool IsMuted { get; set; }
     public DateTimeOffset? LastReadAt { get; set; }

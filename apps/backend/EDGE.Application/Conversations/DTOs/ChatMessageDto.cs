@@ -19,8 +19,8 @@ public class ChatMessageDto
     public Guid SenderId { get; set; }
     public string SenderName { get; set; } = string.Empty;
     public string? SenderAvatarUrl { get; set; }
-    public Guid SenderTenantId { get; set; }
-    public string SenderTenantName { get; set; } = string.Empty;
+    public Guid? SenderTenantId { get; set; }
+    public string? SenderTenantName { get; set; }
     public string Content { get; set; } = string.Empty;
     public MessageType Type { get; set; }
     public Guid? ReplyToMessageId { get; set; }

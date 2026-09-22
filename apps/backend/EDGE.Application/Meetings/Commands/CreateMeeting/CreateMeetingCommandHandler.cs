@@ -34,7 +34,10 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
         var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
-        var hostTenantId = userMemberships.FirstOrDefault()?.TenantId ?? request.TenantId ?? Guid.Empty;
+        var hostTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
+            ? request.TenantId
+            : userMemberships.FirstOrDefault()?.TenantId 
+              ?? currentUser.TenantMemberships?.FirstOrDefault()?.TenantId;
 
         var meetingCode = $"edg-{Guid.NewGuid().ToString()[..8]}";
 
@@ -44,7 +47,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             Description = request.Description,
             MeetingCode = meetingCode,
             Scope = request.Scope,
-            TenantId = request.TenantId ?? hostTenantId,
+            TenantId = hostTenantId,
             HostUserId = currentUser.Id,
             ScheduledStartTime = request.ScheduledStartTime,
             ScheduledEndTime = request.ScheduledEndTime,
@@ -60,7 +63,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
 
         if (request.ParticipantUserIds != null)
         {
-            foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id))
+            foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id && id != Guid.Empty))
             {
                 var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(pUserId, cancellationToken);
                 var pTenantId = pMemberships.FirstOrDefault()?.TenantId ?? hostTenantId;

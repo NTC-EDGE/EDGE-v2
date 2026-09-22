@@ -11,8 +11,8 @@ public class ChatMessage : AuditableEntity
     public Guid SenderId { get; set; }
     public virtual User Sender { get; set; } = null!;
 
-    public Guid SenderTenantId { get; set; }
-    public virtual Tenant SenderTenant { get; set; } = null!;
+    public Guid? SenderTenantId { get; set; }
+    public virtual Tenant? SenderTenant { get; set; }
 
     public string Content { get; set; } = string.Empty;
     public MessageType Type { get; set; } = MessageType.Text;
