@@ -5,8 +5,8 @@ export interface ChatParticipant {
   fullName: string;
   email: string;
   avatarUrl?: string | null;
-  tenantId: string;
-  tenantName: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
   role: 'Member' | 'Admin' | 'Owner';
   isMuted: boolean;
   lastReadAt?: string | null;
@@ -27,8 +27,8 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string | null;
-  senderTenantId: string;
-  senderTenantName: string;
+  senderTenantId?: string | null;
+  senderTenantName?: string | null;
   content: string;
   type: 'Text' | 'File' | 'SystemEvent' | 'MeetingInvite';
   replyToMessageId?: string | null;
@@ -78,6 +78,21 @@ export const chatService = {
   async createConversation(payload: CreateConversationPayload): Promise<Conversation> {
     const response = await apiClient.post<Conversation>('/api/v2/chat/conversations', payload);
     return response.data;
+  },
+
+  async addParticipants(conversationId: string, userIds: string[]): Promise<Conversation> {
+    const response = await apiClient.post<Conversation>(
+      `/api/v2/chat/conversations/${conversationId}/participants`,
+      { conversationId, userIds }
+    );
+    return response.data;
+  },
+
+  async removeParticipant(conversationId: string, userId: string): Promise<boolean> {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/participants/${userId}`
+    );
+    return response.data.success;
   },
 
   async getMessages(conversationId: string, skip = 0, take = 50): Promise<ChatMessage[]> {

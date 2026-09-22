@@ -84,6 +84,21 @@ export const meetService = {
     return response.data;
   },
 
+  async inviteParticipants(meetingCode: string, userIds: string[]): Promise<Meeting> {
+    const response = await apiClient.post<Meeting>(`/api/v2/meetings/${meetingCode}/participants`, {
+      meetingCode,
+      userIds,
+    });
+    return response.data;
+  },
+
+  async removeParticipant(meetingCode: string, userId: string): Promise<boolean> {
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/v2/meetings/${meetingCode}/participants/${userId}`
+    );
+    return response.data.success;
+  },
+
   async executeAction(payload: ExecuteMeetingActionPayload): Promise<boolean> {
     const response = await apiClient.post<{ success: boolean }>(
       `/api/v2/meetings/${payload.meetingCode}/actions`,

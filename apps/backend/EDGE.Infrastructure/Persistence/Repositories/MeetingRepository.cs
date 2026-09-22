@@ -74,4 +74,12 @@ public class MeetingRepository : IMeetingRepository
         return await _context.MeetingParticipants
             .CountAsync(p => p.MeetingId == meetingId && p.IsHandRaised, cancellationToken);
     }
+
+    public async Task<List<MeetingParticipant>> GetAllParticipantsAsync(Guid meetingId, CancellationToken cancellationToken = default)
+    {
+        return await _context.MeetingParticipants
+            .IgnoreQueryFilters()
+            .Where(p => p.MeetingId == meetingId)
+            .ToListAsync(cancellationToken);
+    }
 }

@@ -46,5 +46,6 @@ export * from './services/scheduleService';
 export * from './hooks/useAdminSchedules';
 export * from './services/receiptService';
 export * from './hooks/useReceipts';
+export * from './hooks/useTenants';
 export * from './services/chatService';
 export * from './services/meetService';

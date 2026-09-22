@@ -11,6 +11,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -18,12 +19,14 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         ITenantMemberRepository tenantMemberRepository,
+        ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _tenantMemberRepository = tenantMemberRepository;
+        _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
     }
@@ -33,11 +36,16 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
+        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
+        Guid? fallbackTenantId = allTenants.FirstOrDefault(t => t.IsActive)?.Id 
+            ?? allTenants.FirstOrDefault()?.Id;
+
         var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(currentUser.Id, cancellationToken);
         var hostTenantId = (request.TenantId.HasValue && request.TenantId != Guid.Empty)
             ? request.TenantId
             : userMemberships.FirstOrDefault()?.TenantId 
-              ?? currentUser.TenantMemberships?.FirstOrDefault()?.TenantId;
+              ?? currentUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
+              ?? fallbackTenantId;
 
         var meetingCode = $"edg-{Guid.NewGuid().ToString()[..8]}";
 
@@ -57,22 +65,37 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         meeting.Participants.Add(new MeetingParticipant
         {
             UserId = currentUser.Id,
-            TenantId = hostTenantId,
-            Role = ParticipantRole.Owner
+            TenantId = hostTenantId ?? fallbackTenantId,
+            Role = ParticipantRole.Owner,
+            IsDeleted = false,
+            IsDeletedBy = string.Empty
         });
 
         if (request.ParticipantUserIds != null)
         {
             foreach (var pUserId in request.ParticipantUserIds.Where(id => id != currentUser.Id && id != Guid.Empty))
             {
+                var pUser = await _userRepository.GetByIdAsync(pUserId, cancellationToken);
+                if (pUser == null)
+                {
+                    continue;
+                }
+
                 var pMemberships = await _tenantMemberRepository.GetMembersByUserAsync(pUserId, cancellationToken);
-                var pTenantId = pMemberships.FirstOrDefault()?.TenantId ?? hostTenantId;
+                var pTenantId = pMemberships.FirstOrDefault()?.TenantId 
+                    ?? pUser.TenantMemberships?.FirstOrDefault(tm => tm.TenantId != Guid.Empty)?.TenantId
+                    ?? hostTenantId 
+                    ?? fallbackTenantId;
+
+                var participantTenantId = pTenantId.HasValue && pTenantId.Value != Guid.Empty ? pTenantId : fallbackTenantId;
 
                 meeting.Participants.Add(new MeetingParticipant
                 {
                     UserId = pUserId,
-                    TenantId = pTenantId,
-                    Role = ParticipantRole.Member
+                    TenantId = participantTenantId,
+                    Role = ParticipantRole.Member,
+                    IsDeleted = false,
+                    IsDeletedBy = string.Empty
                 });
             }
         }

@@ -1,8 +1,10 @@
 import React from 'react';
-import { useForm } from 'react-hook-form';
+import { StyleSheet, View } from 'react-native';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormFieldInput, ModalDialog } from '@edge/ui';
 import { createMeetingSchema, CreateMeetingFormValues } from '../schemas/meetSchemas';
+import { TenantParticipantPicker } from '../../../shared/components';
 
 interface CreateMeetingModalProps {
   visible: boolean;
@@ -17,19 +19,22 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
   onSubmit,
   isSubmitting,
 }) => {
-  const {
-    control,
-    handleSubmit,
-    reset,
-  } = useForm<CreateMeetingFormValues>({
+  const { control, handleSubmit, setValue, reset } = useForm<CreateMeetingFormValues>({
     resolver: zodResolver(createMeetingSchema),
     defaultValues: {
       title: '',
       description: '',
       scope: 'IntraRegional',
       scheduledStartTime: new Date().toISOString(),
+      participantUserIds: [],
     },
   });
+
+  const selectedUserIds = useWatch({ control, name: 'participantUserIds' }) || [];
+
+  const handleSelectedUserIdsChange = (userIds: string[]) => {
+    setValue('participantUserIds', userIds, { shouldValidate: true });
+  };
 
   const handleFormSubmit = async (values: CreateMeetingFormValues) => {
     await onSubmit(values);
@@ -42,28 +47,41 @@ export const CreateMeetingModal: React.FC<CreateMeetingModalProps> = ({
       visible={visible}
       onClose={onClose}
       title="Schedule Regional Meeting"
-      subtitle="Set up a video/audio conference for your region or inter-regional teams."
+      subtitle="Select tenant office and invite members to conference."
       icon="video"
-      iconVariant="accent"
       confirmText="Schedule Meeting"
       cancelText="Cancel"
       onConfirm={handleSubmit(handleFormSubmit)}
       isLoading={isSubmitting}
-      maxWidth={480}
+      maxWidth={540}
     >
-      <FormFieldInput
-        control={control}
-        name="title"
-        label="Meeting Title"
-        placeholder="e.g. Q3 Regional Coordination Meeting"
-      />
+      <View style={styles.formContent}>
+        <FormFieldInput
+          control={control}
+          name="title"
+          label="Meeting Title"
+          placeholder="e.g. Q3 Regional Coordination Meeting"
+        />
+        <FormFieldInput
+          control={control}
+          name="description"
+          label="Agenda / Notes (Optional)"
+          placeholder="Key discussion points..."
+        />
 
-      <FormFieldInput
-        control={control}
-        name="description"
-        label="Agenda / Notes (Optional)"
-        placeholder="Key discussion points and agenda items..."
-      />
+        <TenantParticipantPicker
+          label={`Invite Participants (${selectedUserIds.length} invited)`}
+          selectedUserIds={selectedUserIds}
+          onSelectedUserIdsChange={handleSelectedUserIdsChange}
+          listMaxHeight={180}
+        />
+      </View>
     </ModalDialog>
   );
 };
+
+const styles = StyleSheet.create({
+  formContent: {
+    gap: 12,
+  },
+});

@@ -1,5 +1,6 @@
 import useSWR from 'swr';
 import { apiClient } from '../apiClient';
+import { PaginatedApiResponse } from '../types';
 
 export interface UserMemberRole {
   id: string;
@@ -10,6 +11,7 @@ export interface UserMemberRole {
 export interface UserTenantMembership {
   id: string;
   tenantId: string;
+  tenantName?: string;
   roleId: string;
   role?: UserMemberRole;
   fieldOfficeId?: string;
@@ -30,29 +32,71 @@ export interface ApiUser {
   middleName?: string | null;
   suffix?: string | null;
   contactNumber?: string | null;
+  profilePicture?: string | null;
   eSignature?: string | null;
   isSuperAdmin: boolean;
   createdAt: string;
   tenantMemberships?: UserTenantMembership[];
 }
 
-export interface UseUsersReturn {
-  users: ApiUser[];
-  isLoading: boolean;
-  isError: boolean;
-  refetch: () => Promise<ApiUser[] | undefined>;
+export interface UseUsersOptions {
+  pageNumber?: number;
+  pageSize?: number;
+  searchTerm?: string;
+  tenantId?: string;
+  regionId?: string;
 }
 
-const fetcher = (url: string) => apiClient.get<ApiUser[]>(url).then((res) => res.data);
+export interface UseUsersReturn {
+  users: ApiUser[];
+  totalCount: number;
+  pageNumber: number;
+  pageSize: number;
+  totalPages: number;
+  isLoading: boolean;
+  isError: boolean;
+  refetch: () => Promise<PaginatedApiResponse<ApiUser> | undefined>;
+}
 
-export function useUsers(): UseUsersReturn {
-  const { data, error, isLoading, mutate } = useSWR<ApiUser[]>('/api/v2/users', fetcher, {
-    revalidateOnFocus: false,
-    dedupingInterval: 5000,
-  });
+const fetcher = (url: string): Promise<PaginatedApiResponse<ApiUser>> =>
+  apiClient.get<PaginatedApiResponse<ApiUser>>(url).then((res) => res.data);
+
+export function useUsers(options?: UseUsersOptions): UseUsersReturn {
+  const pageNumber = options?.pageNumber ?? 1;
+  const pageSize = options?.pageSize ?? 100;
+  const search = options?.searchTerm?.trim();
+  const tenantId = options?.tenantId;
+  const regionId = options?.regionId;
+
+  const params = new URLSearchParams();
+  params.append('pageNumber', pageNumber.toString());
+  params.append('pageSize', pageSize.toString());
+  if (search && search.length > 0) params.append('searchTerm', search);
+  if (tenantId && tenantId.length > 0) params.append('tenantId', tenantId);
+  if (regionId && regionId.length > 0) params.append('regionId', regionId);
+
+  const endpoint = `/api/v2/users?${params.toString()}`;
+
+  const { data, error, isLoading, mutate } = useSWR<PaginatedApiResponse<ApiUser>>(
+    endpoint,
+    fetcher,
+    {
+      revalidateOnFocus: false,
+      dedupingInterval: 5000,
+      keepPreviousData: true,
+    }
+  );
+
+  const users: ApiUser[] = Array.isArray(data?.data) ? data.data : [];
+  const totalCount = data?.totalCount ?? users.length;
+  const totalPages = data?.totalPages ?? 1;
 
   return {
-    users: Array.isArray(data) ? data : [],
+    users,
+    totalCount,
+    pageNumber,
+    pageSize,
+    totalPages,
     isLoading,
     isError: Boolean(error),
     refetch: mutate,

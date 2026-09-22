@@ -51,6 +51,14 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         if (request.ESignature != null) user.ESignature = request.ESignature;
         if (request.IsSuperAdmin.HasValue)
         {
+            if (user.IsSuperAdmin && !request.IsSuperAdmin.Value)
+            {
+                var superAdminCount = await _userRepository.CountSuperAdminsAsync(cancellationToken);
+                if (superAdminCount <= 1)
+                {
+                    throw new InvalidOperationException("Operation failed: Cannot revoke SuperAdmin privilege from the sole remaining SuperAdmin in the system.");
+                }
+            }
             user.IsSuperAdmin = request.IsSuperAdmin.Value;
         }
 

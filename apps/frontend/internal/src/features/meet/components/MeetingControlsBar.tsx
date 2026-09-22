@@ -13,6 +13,7 @@ interface MeetingControlsBarProps {
   onToggleScreenShare: () => void;
   onReact: (emoji: string) => void;
   onOpenPoll: () => void;
+  onOpenInvite: () => void;
   onToggleChat: () => void;
   onLeave: () => void;
 }
@@ -28,6 +29,7 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
   onToggleScreenShare,
   onReact,
   onOpenPoll,
+  onOpenInvite,
   onToggleChat,
   onLeave,
 }) => {
@@ -79,6 +81,11 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
             </Pressable>
           ))}
         </View>
+
+        {/* Invite Participants */}
+        <Pressable style={styles.btnActive} onPress={onOpenInvite} accessibilityLabel="Invite Colleagues">
+          <Icon name="user-plus" size={18} color="#FFFFFF" />
+        </Pressable>
 
         {/* Polls */}
         <Pressable style={styles.btnActive} onPress={onOpenPoll} accessibilityLabel="Open Polls">
