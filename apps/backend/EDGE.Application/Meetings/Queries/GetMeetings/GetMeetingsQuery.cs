@@ -9,6 +9,11 @@ public record GetMeetingsQuery(Guid? TenantId = null) : IRequest<List<MeetingDto
 
 public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<MeetingDto>>
 {
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        PropertyNameCaseInsensitive = true
+    };
+
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
@@ -60,7 +65,7 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<Me
             {
                 Id = p.Id,
                 Question = p.Question,
-                Options = JsonSerializer.Deserialize<List<string>>(p.OptionsJson) ?? new(),
+                Options = ParsePollOptions(p.OptionsJson),
                 IsClosed = p.IsClosed,
                 IsAnonymous = p.IsAnonymous,
                 Votes = p.Votes.Select(v => new MeetingPollVoteDto
@@ -70,5 +75,18 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<Me
                 }).ToList()
             }).ToList()
         }).ToList();
+    }
+
+    private static List<string> ParsePollOptions(string? optionsJson)
+    {
+        if (string.IsNullOrWhiteSpace(optionsJson)) return new List<string>();
+        try
+        {
+            return JsonSerializer.Deserialize<List<string>>(optionsJson, JsonOptions) ?? new List<string>();
+        }
+        catch
+        {
+            return new List<string>();
+        }
     }
 }

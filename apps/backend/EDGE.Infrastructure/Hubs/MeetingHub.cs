@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 
@@ -6,10 +7,16 @@ namespace EDGE.Infrastructure.Hubs;
 [Authorize]
 public class MeetingHub : Hub<IMeetingClient>
 {
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> ConnectionMeetings = new();
+
     public async Task JoinMeeting(string meetingCode)
     {
         var groupName = $"meet_{meetingCode}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+        var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
+        meetings.TryAdd(meetingCode, 0);
+
         if (Guid.TryParse(Context.UserIdentifier, out var userId))
         {
             await Clients.OthersInGroup(groupName).OnParticipantJoined(new { connectionId = Context.ConnectionId, userId });
@@ -20,6 +27,12 @@ public class MeetingHub : Hub<IMeetingClient>
     {
         var groupName = $"meet_{meetingCode}";
         await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+
+        if (ConnectionMeetings.TryGetValue(Context.ConnectionId, out var meetings))
+        {
+            meetings.TryRemove(meetingCode, out _);
+        }
+
         if (Guid.TryParse(Context.UserIdentifier, out var userId))
         {
             await Clients.OthersInGroup(groupName).OnParticipantLeft(userId);
@@ -57,10 +70,20 @@ public class MeetingHub : Hub<IMeetingClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        if (Guid.TryParse(Context.UserIdentifier, out var userId))
+        if (ConnectionMeetings.TryRemove(Context.ConnectionId, out var meetings))
         {
-            await Clients.Others.OnParticipantLeft(userId);
+            var hasUserId = Guid.TryParse(Context.UserIdentifier, out var userId);
+            foreach (var meetingCode in meetings.Keys)
+            {
+                var groupName = $"meet_{meetingCode}";
+                if (hasUserId)
+                {
+                    await Clients.OthersInGroup(groupName).OnParticipantLeft(userId);
+                }
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
+            }
         }
+
         await base.OnDisconnectedAsync(exception);
     }
 }
