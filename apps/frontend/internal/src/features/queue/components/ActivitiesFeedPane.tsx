@@ -34,6 +34,8 @@ import {
   usePermissions,
   QueueTab,
 } from "../../shell/context/PermissionContext";
+import { useRole } from "../../shell/context/RoleContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 

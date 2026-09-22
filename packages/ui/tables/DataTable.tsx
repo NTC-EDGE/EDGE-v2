@@ -436,6 +436,7 @@ const styles = StyleSheet.create({
     height: 52,
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
+    overflow: 'visible',
     ...Platform.select({
       web: {
         transition: 'background-color 150ms ease-out',
@@ -445,6 +446,7 @@ const styles = StyleSheet.create({
   },
   tableCell: {
     justifyContent: 'center',
+    overflow: 'visible',
   },
   emptyState: {
     alignItems: 'center',

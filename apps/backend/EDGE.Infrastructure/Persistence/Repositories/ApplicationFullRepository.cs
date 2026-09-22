@@ -352,6 +352,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
         string? mode = null,
         Guid? tenantId = null,
         List<Guid>? tenantIds = null,
+        string? fieldOffice = null,
+        string? assignedTo = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Applications
@@ -442,6 +444,21 @@ public class ApplicationFullRepository : IApplicationFullRepository
             {
                 filteredQuery = filteredQuery.Where(a => !string.IsNullOrEmpty(a.Office));
             }
+        }
+
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLowerInvariant();
+            filteredQuery = filteredQuery.Where(a => a.Office != null && a.Office.ToLower().Contains(fo));
+        }
+
+        if (!string.IsNullOrWhiteSpace(assignedTo))
+        {
+            var at = assignedTo.Trim().ToLowerInvariant();
+            filteredQuery = filteredQuery.Where(a =>
+                a.Remarks == null ||
+                !a.Remarks.ToLower().Contains("endorsed to") ||
+                a.Remarks.ToLower().Contains(at));
         }
 
         var filteredTotal = await filteredQuery.CountAsync(cancellationToken);

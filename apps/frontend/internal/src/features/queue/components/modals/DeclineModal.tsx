@@ -5,14 +5,27 @@ import { COLORS, SPACING, RADIUS, TYPOGRAPHY, ConfirmationModal, useTheme } from
 interface DeclineModalProps {
   visible: boolean;
   applicantName: string;
+  title?: string;
+  confirmText?: string;
+  reasonLabel?: string;
+  placeholder?: string;
   onConfirm: (noticeText: string) => void;
   onCancel: () => void;
 }
 
-export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: DeclineModalProps) {
+export function DeclineModal({
+  visible,
+  applicantName,
+  title = 'Return Application',
+  confirmText = 'Confirm Return',
+  reasonLabel = 'Reason / Notice of Discrepancy',
+  placeholder = 'Describe the reason for returning this application...',
+  onConfirm,
+  onCancel,
+}: DeclineModalProps) {
   const { colors, isDark } = useTheme();
   const [noticeText, setNoticeText] = useState('');
-  const canSubmit = noticeText.trim().length > 10;
+  const canSubmit = noticeText.trim().length > 5;
 
   const handleConfirm = () => {
     if (canSubmit) {
@@ -29,9 +42,9 @@ export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: De
   return (
     <ConfirmationModal
       visible={visible}
-      title="Decline Application"
+      title={title}
       variant="danger"
-      confirmText="Decline Application"
+      confirmText={confirmText}
       subtitle={
         <Text
           style={{
@@ -43,7 +56,7 @@ export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: De
             marginBottom: 20,
           }}
         >
-          Declining the application for{' '}
+          Returning the application for{' '}
           <Text
             style={{
               fontWeight: TYPOGRAPHY.weights.semibold,
@@ -52,7 +65,7 @@ export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: De
           >
             {applicantName}
           </Text>.
-          {'\n'}Please provide a Notice of Discrepancy.
+          {'\n'}Please provide details or remarks.
         </Text>
       }
       onConfirm={handleConfirm}
@@ -60,7 +73,7 @@ export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: De
     >
       <View style={styles.textAreaWrapper}>
         <Text style={[styles.label, { color: isDark ? colors.neutral[300] : COLORS.neutral[700] }]}>
-          Notice of Discrepancy <Text style={styles.required}>*</Text>
+          {reasonLabel} <Text style={styles.required}>*</Text>
         </Text>
         <TextInput
           style={[
@@ -73,15 +86,15 @@ export function DeclineModal({ visible, applicantName, onConfirm, onCancel }: De
           ]}
           multiline
           numberOfLines={4}
-          placeholder="Describe the discrepancy or reason for declining this application..."
+          placeholder={placeholder}
           placeholderTextColor={isDark ? colors.neutral[500] : COLORS.neutral[400]}
           value={noticeText}
           onChangeText={setNoticeText}
           textAlignVertical="top"
         />
         <Text style={[styles.charHint, { color: isDark ? colors.neutral[500] : COLORS.neutral[400] }]}>
-          {noticeText.trim().length < 10
-            ? `${10 - noticeText.trim().length} more characters required`
+          {noticeText.trim().length < 5
+            ? `${5 - noticeText.trim().length} more characters required`
             : `${noticeText.trim().length} characters`}
         </Text>
       </View>

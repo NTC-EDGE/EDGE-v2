@@ -341,6 +341,121 @@ public class ClerkUserService : IClerkUserService
         _logger.LogInformation("Clerk metadata update successful for user {UserId}. Response: {Response}", userId, responseBody);
     }
 
+    public async Task<ClerkUserResponse?> UpdateUserAsync(string userId, UpdateClerkUserPayload payload)
+    {
+        string jsonPayload = JsonSerializer.Serialize(payload, RequestSerializerOptions);
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response = await _httpClient.PatchAsync($"users/{userId}", content);
+        string responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+            _logger.LogWarning("Clerk update user failed for {UserId}. Status: {Status} Error: {Error} Body: {Body}",
+                userId, response.StatusCode, errorDetails, responseBody);
+            return null;
+        }
+
+        _logger.LogInformation("Clerk update user successful for user {UserId}. Response: {Response}", userId, responseBody);
+        var userResponse = JsonSerializer.Deserialize<ClerkUserResponse>(responseBody, ResponseSerializerOptions);
+        return userResponse;
+    }
+
+    public async Task UpdateUserPrimaryEmailAsync(string userId, string newEmail)
+    {
+        var normalizedEmail = newEmail.Trim().ToLowerInvariant();
+
+        // 1. Fetch the user's current Clerk details to get existing email addresses
+        var existingUser = await GetUserByIdAsync(userId);
+        if (existingUser == null)
+        {
+            throw new InvalidOperationException($"Clerk user with ID '{userId}' was not found.");
+        }
+
+        var oldEmailIds = existingUser.EmailAddresses
+            .Where(e => !e.EmailAddress.Trim().Equals(normalizedEmail, StringComparison.OrdinalIgnoreCase))
+            .Select(e => e.Id)
+            .ToList();
+
+        var existingTargetEmail = existingUser.EmailAddresses
+            .FirstOrDefault(e => e.EmailAddress.Trim().Equals(normalizedEmail, StringComparison.OrdinalIgnoreCase));
+
+        string targetEmailId;
+
+        if (existingTargetEmail != null)
+        {
+            targetEmailId = existingTargetEmail.Id;
+        }
+        else
+        {
+            // 2. Create the new email address for the user in Clerk
+            var createEmailPayload = new
+            {
+                user_id = userId,
+                email_address = normalizedEmail,
+                verified = true,
+                primary = true
+            };
+
+            string jsonPayload = JsonSerializer.Serialize(createEmailPayload, RequestSerializerOptions);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            HttpResponseMessage response = await _httpClient.PostAsync("email_addresses", content);
+            string responseBody = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+                _logger.LogError("Clerk create email address failed for {Email}. Status: {Status} Error: {Error} Body: {Body}",
+                    normalizedEmail, response.StatusCode, errorDetails, responseBody);
+
+                throw new InvalidOperationException($"Clerk change email failed: {errorDetails}");
+            }
+
+            var createdEmail = JsonSerializer.Deserialize<ClerkEmailAddress>(responseBody, ResponseSerializerOptions);
+            if (createdEmail == null || string.IsNullOrWhiteSpace(createdEmail.Id))
+            {
+                throw new InvalidOperationException("Failed to parse newly created Clerk email address.");
+            }
+
+            targetEmailId = createdEmail.Id;
+        }
+
+        // 3. Set the new email address as primary
+        var patchUserPayload = new
+        {
+            primary_email_address_id = targetEmailId
+        };
+        string patchJson = JsonSerializer.Serialize(patchUserPayload, RequestSerializerOptions);
+        var patchContent = new StringContent(patchJson, Encoding.UTF8, "application/json");
+        var patchResponse = await _httpClient.PatchAsync($"users/{userId}", patchContent);
+        if (!patchResponse.IsSuccessStatusCode)
+        {
+            string patchError = ExtractErrorDetails(await patchResponse.Content.ReadAsStringAsync(), patchResponse.StatusCode);
+            _logger.LogWarning("Failed to set primary_email_address_id on Clerk user {UserId}: {Error}", userId, patchError);
+        }
+
+        // 4. Delete old email addresses so only the new email remains active
+        foreach (var oldId in oldEmailIds)
+        {
+            try
+            {
+                var delResponse = await _httpClient.DeleteAsync($"email_addresses/{oldId}");
+                if (!delResponse.IsSuccessStatusCode)
+                {
+                    _logger.LogWarning("Could not delete old Clerk email address {OldId} for user {UserId}. Status: {Status}", oldId, userId, delResponse.StatusCode);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Exception deleting old Clerk email address {OldId} for user {UserId}", oldId, userId);
+            }
+        }
+
+        _logger.LogInformation("Clerk primary email successfully updated to {Email} for user {UserId}", normalizedEmail, userId);
+    }
+
     public async Task<ClerkInvitationResponse> CreateInvitationAsync(CreateClerkInvitationPayload payload)
     {
         string jsonPayload = JsonSerializer.Serialize(payload, RequestSerializerOptions);
