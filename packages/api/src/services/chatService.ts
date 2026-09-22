@@ -5,8 +5,8 @@ export interface ChatParticipant {
   fullName: string;
   email: string;
   avatarUrl?: string | null;
-  tenantId: string;
-  tenantName: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
   role: 'Member' | 'Admin' | 'Owner';
   isMuted: boolean;
   lastReadAt?: string | null;
@@ -27,8 +27,8 @@ export interface ChatMessage {
   senderId: string;
   senderName: string;
   senderAvatarUrl?: string | null;
-  senderTenantId: string;
-  senderTenantName: string;
+  senderTenantId?: string | null;
+  senderTenantName?: string | null;
   content: string;
   type: 'Text' | 'File' | 'SystemEvent' | 'MeetingInvite';
   replyToMessageId?: string | null;

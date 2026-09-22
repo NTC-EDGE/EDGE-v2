@@ -63,6 +63,61 @@ public class UserRepository : IUserRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<(List<User> Items, int TotalCount)> GetPaginatedUsersAsync(
+        int pageNumber,
+        int pageSize,
+        string? searchTerm = null,
+        Guid? tenantId = null,
+        Guid? regionId = null,
+        bool? isActive = null,
+        CancellationToken cancellationToken = default)
+    {
+        var query = _context.Users
+            .AsNoTracking()
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Role)
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.Tenant)
+                    .ThenInclude(t => t.Region)
+            .Include(x => x.TenantMemberships)
+                .ThenInclude(tm => tm.FieldOffice)
+            .AsQueryable();
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.TenantId == tenantId.Value));
+        }
+
+        if (regionId.HasValue && regionId.Value != Guid.Empty)
+        {
+            query = query.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.Tenant != null && tm.Tenant.RegionId == regionId.Value));
+        }
+
+        if (!string.IsNullOrWhiteSpace(searchTerm))
+        {
+            var term = searchTerm.Trim().ToLower();
+            query = query.Where(u =>
+                (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLower().Contains(term)) ||
+                (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLower().Contains(term)) ||
+                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLower().Contains(term)) ||
+                (!string.IsNullOrEmpty(u.ContactNumber) && u.ContactNumber.Contains(term))
+            );
+        }
+
+        var totalCount = await query.CountAsync(cancellationToken);
+        var page = Math.Max(1, pageNumber);
+        var size = Math.Clamp(pageSize <= 0 ? 50 : pageSize, 1, 1000);
+
+        var items = await query
+            .OrderBy(u => u.FirstName)
+            .ThenBy(u => u.LastName)
+            .Skip((page - 1) * size)
+            .Take(size)
+            .ToListAsync(cancellationToken);
+
+        return (items, totalCount);
+    }
+
     public async Task<StaffUserContext> GetStaffUserContextAsync(string? userIdStr, string defaultRole, CancellationToken cancellationToken = default)
     {
         if (!string.IsNullOrWhiteSpace(userIdStr))

@@ -21,39 +21,19 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedApiR
 
     public async Task<PaginatedApiResponse<UserDto>> Handle(GetUsersQuery request, CancellationToken cancellationToken)
     {
-        var users = await _userRepository.GetAllAsync(cancellationToken);
-        IEnumerable<EDGE.Domain.Entities.User> filtered = users;
-
-        if (request.TenantId.HasValue && request.TenantId.Value != Guid.Empty)
-        {
-            filtered = filtered.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.TenantId == request.TenantId.Value));
-        }
-
-        if (request.RegionId.HasValue && request.RegionId.Value != Guid.Empty)
-        {
-            filtered = filtered.Where(u => u.TenantMemberships != null && u.TenantMemberships.Any(tm => tm.Tenant != null && tm.Tenant.RegionId == request.RegionId.Value));
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var term = request.SearchTerm.Trim().ToLowerInvariant();
-            filtered = filtered.Where(u =>
-                (!string.IsNullOrEmpty(u.FirstName) && u.FirstName.ToLowerInvariant().Contains(term)) ||
-                (!string.IsNullOrEmpty(u.LastName) && u.LastName.ToLowerInvariant().Contains(term)) ||
-                (!string.IsNullOrEmpty(u.Email) && u.Email.ToLowerInvariant().Contains(term)) ||
-                (!string.IsNullOrEmpty(u.ContactNumber) && u.ContactNumber.Contains(term))
-            );
-        }
-
-        var totalCount = filtered.Count();
         var pageNumber = Math.Max(1, request.PageNumber);
         var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 1000);
 
-        var paginatedUsers = filtered
-            .OrderBy(u => u.FirstName)
-            .ThenBy(u => u.LastName)
-            .Skip((pageNumber - 1) * pageSize)
-            .Take(pageSize)
+        var (items, totalCount) = await _userRepository.GetPaginatedUsersAsync(
+            pageNumber,
+            pageSize,
+            request.SearchTerm,
+            request.TenantId,
+            request.RegionId,
+            request.IsActive,
+            cancellationToken);
+
+        var paginatedUsers = items
             .Select(u => new UserDto
             {
                 Id = u.Id,

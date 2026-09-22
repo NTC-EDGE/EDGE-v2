@@ -7,6 +7,7 @@ using FluentValidation;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Users.Queries;
+using EDGE.Application.Users.Queries.GetGlobalSupportUsers;
 using EDGE.Application.Users.Commands.UpdateUser;
 using EDGE.Application.Users.Commands.DeleteUser;
 using EDGE.Application.Users.Commands.UpdateCurrentProfile;
@@ -505,49 +506,7 @@ public static class UserEndpoints
         string? status,
         IMediator mediator)
     {
-        Guid? parsedTenantId = !string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var tid) ? tid : null;
-        Guid? parsedRegionId = !string.IsNullOrWhiteSpace(regionId) && Guid.TryParse(regionId, out var rid) ? rid : null;
-        var paginated = await mediator.Send(new GetUsersQuery(1, 1000, search, parsedTenantId, parsedRegionId));
-        var users = paginated.Data;
-
-        var result = users.Select(u =>
-        {
-            var primaryMembership = u.TenantMemberships?.FirstOrDefault(tm => !parsedTenantId.HasValue || tm.TenantId == parsedTenantId.Value)
-                                    ?? u.TenantMemberships?.FirstOrDefault();
-
-            return new
-            {
-                id = u.Id,
-                authUserId = u.AuthUserId,
-                email = u.Email,
-                firstName = u.FirstName,
-                lastName = u.LastName,
-                phoneNumber = u.ContactNumber,
-                regionId = primaryMembership?.TenantId.ToString() ?? "",
-                regionName = primaryMembership?.TenantName ?? "",
-                tenantId = primaryMembership?.TenantId,
-                tenantName = primaryMembership?.TenantName,
-                fieldOfficeName = primaryMembership?.FieldOffice?.Name,
-                status = "active",
-                isSuperAdmin = u.IsSuperAdmin,
-                isLockedOut = false,
-                mfaEnabled = false,
-                mfaMethod = (string?)null,
-                lastLoginAt = u.LastOnline ?? u.CreatedAt,
-                lastOnline = u.LastOnline,
-                failedLoginAttempts = 0,
-                authProvider = "Clerk",
-                assignedRoles = (u.TenantMemberships?
-                    .Select(tm => tm.Role?.Name ?? tm.Position)
-                    .OfType<string>()
-                    .Where(r => !string.IsNullOrWhiteSpace(r))
-                    .ToList() is { Count: > 0 } roles ? roles : (u.IsSuperAdmin ? new List<string> { "SUPER_ADMIN" } : new List<string> { "STANDARD_USER" })),
-                createdAt = u.CreatedAt,
-                openTicketsCount = 0,
-                totalTicketsCount = 0
-            };
-        }).ToList();
-
+        var result = await mediator.Send(new GetGlobalSupportUsersQuery(search, tenantId, regionId, status));
         return Results.Ok(result);
     }
 
