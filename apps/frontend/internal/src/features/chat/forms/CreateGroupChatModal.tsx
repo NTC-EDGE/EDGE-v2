@@ -15,7 +15,7 @@ interface CreateGroupChatModalProps {
 
 export const CreateGroupChatModal: React.FC<CreateGroupChatModalProps> = ({ visible, onClose, onSubmit, isSubmitting }) => {
   const { colors, isDark } = useTheme();
-  const { users } = useUsers();
+  const { users } = useUsers({ pageSize: 500 });
   const { tenants } = useTenants();
   const [colleagueQuery, setColleagueQuery] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
@@ -38,15 +38,15 @@ export const CreateGroupChatModal: React.FC<CreateGroupChatModalProps> = ({ visi
         office: m.fieldOfficeName || m.division || 'Main Office',
       }));
     }
-    return users.filter((u) => u.tenantMemberships && u.tenantMemberships.length > 0).map((u) => {
+    return users.map((u) => {
       const m = u.tenantMemberships?.[0];
       const matched = tenants.find((t) => t.id === m?.tenantId);
       return {
         userId: u.id,
         name: `${u.firstName} ${u.lastName}`,
         email: u.email,
-        tenant: matched?.name || matched?.code || 'Regional Office',
-        office: m?.fieldOffice?.name || m?.division || 'Main Office',
+        tenant: matched?.name || matched?.code || m?.tenantName || (u.isSuperAdmin ? 'National Headquarters' : 'Regional Office'),
+        office: m?.fieldOffice?.name || m?.division || (u.isSuperAdmin ? 'Executive Office' : 'Main Office'),
       };
     });
   }, [selectedTenantId, members, users, tenants]);

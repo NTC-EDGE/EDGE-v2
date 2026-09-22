@@ -16,7 +16,7 @@ export const InviteParticipantModal: React.FC<InviteParticipantModalProps> = ({
   visible, meeting, onClose, onInvite, onRemoveParticipant, isSubmitting = false,
 }) => {
   const { colors, isDark } = useTheme();
-  const { users } = useUsers();
+  const { users } = useUsers({ pageSize: 500 });
   const { tenants } = useTenants();
   const [colleagueQuery, setColleagueQuery] = useState('');
   const [selectedTenantId, setSelectedTenantId] = useState<string>('all');
@@ -33,12 +33,13 @@ export const InviteParticipantModal: React.FC<InviteParticipantModalProps> = ({
         tenant: m.tenantName || 'Regional Office', office: m.fieldOfficeName || m.division || 'Main Office',
       }));
     }
-    return users.filter((u) => u.tenantMemberships && u.tenantMemberships.length > 0).map((u) => {
+    return users.map((u) => {
       const m = u.tenantMemberships?.[0];
       const matched = tenants.find((t) => t.id === m?.tenantId);
       return {
         userId: u.id, name: `${u.firstName} ${u.lastName}`, email: u.email,
-        tenant: matched?.name || matched?.code || 'Regional Office', office: m?.fieldOffice?.name || m?.division || 'Main Office',
+        tenant: matched?.name || matched?.code || m?.tenantName || (u.isSuperAdmin ? 'National Headquarters' : 'Regional Office'),
+        office: m?.fieldOffice?.name || m?.division || (u.isSuperAdmin ? 'Executive Office' : 'Main Office'),
       };
     });
   }, [selectedTenantId, members, users, tenants]);
@@ -189,10 +190,6 @@ const styles = StyleSheet.create({
   membersListScroll: { maxHeight: 220 },
   suggestionItem: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, gap: 10 },
   participantRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, paddingVertical: 8, borderBottomWidth: 1, gap: 10 },
-  avatarBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' },
-  avatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
-  itemInfo: { flex: 1, gap: 2 },
-  itemName: { fontSize: 13, fontWeight: '600' },
-  itemEmail: { fontSize: 11, fontWeight: '400' },
-  itemOffice: { fontSize: 10, fontWeight: '500' },
+  avatarBadge: { width: 32, height: 32, borderRadius: 16, justifyContent: 'center', alignItems: 'center' }, avatarText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  itemInfo: { flex: 1, gap: 2 }, itemName: { fontSize: 13, fontWeight: '600' }, itemEmail: { fontSize: 11, fontWeight: '400' }, itemOffice: { fontSize: 10, fontWeight: '500' },
 });

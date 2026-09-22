@@ -47,7 +47,7 @@ public class GetUsersQueryHandler : IRequestHandler<GetUsersQuery, PaginatedApiR
 
         var totalCount = filtered.Count();
         var pageNumber = Math.Max(1, request.PageNumber);
-        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 100);
+        var pageSize = Math.Clamp(request.PageSize <= 0 ? 50 : request.PageSize, 1, 1000);
 
         var paginatedUsers = filtered
             .OrderBy(u => u.FirstName)
