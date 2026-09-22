@@ -751,7 +751,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("SenderId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid>("SenderTenantId")
+                    b.Property<Guid?>("SenderTenantId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Type")
@@ -939,7 +939,7 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("UserId")
@@ -1746,7 +1746,7 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<Guid>("TenantId")
+                    b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
 
                     b.Property<Guid>("UserId")
@@ -4140,9 +4140,7 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "SenderTenant")
                         .WithMany()
-                        .HasForeignKey("SenderTenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("SenderTenantId");
 
                     b.Navigation("Conversation");
 
@@ -4182,9 +4180,7 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
 
                     b.HasOne("EDGE.Domain.Entities.User", "User")
                         .WithMany()
@@ -4380,9 +4376,7 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("TenantId");
 
                     b.HasOne("EDGE.Domain.Entities.User", "User")
                         .WithMany()
