@@ -341,6 +341,27 @@ public class ClerkUserService : IClerkUserService
         _logger.LogInformation("Clerk metadata update successful for user {UserId}. Response: {Response}", userId, responseBody);
     }
 
+    public async Task<ClerkUserResponse?> UpdateUserAsync(string userId, UpdateClerkUserPayload payload)
+    {
+        string jsonPayload = JsonSerializer.Serialize(payload, RequestSerializerOptions);
+        var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+        HttpResponseMessage response = await _httpClient.PatchAsync($"users/{userId}", content);
+        string responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            string errorDetails = ExtractErrorDetails(responseBody, response.StatusCode);
+            _logger.LogWarning("Clerk update user failed for {UserId}. Status: {Status} Error: {Error} Body: {Body}",
+                userId, response.StatusCode, errorDetails, responseBody);
+            return null;
+        }
+
+        _logger.LogInformation("Clerk update user successful for user {UserId}. Response: {Response}", userId, responseBody);
+        var userResponse = JsonSerializer.Deserialize<ClerkUserResponse>(responseBody, ResponseSerializerOptions);
+        return userResponse;
+    }
+
     public async Task<ClerkInvitationResponse> CreateInvitationAsync(CreateClerkInvitationPayload payload)
     {
         string jsonPayload = JsonSerializer.Serialize(payload, RequestSerializerOptions);

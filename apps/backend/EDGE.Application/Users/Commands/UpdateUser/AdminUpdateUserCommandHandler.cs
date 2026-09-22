@@ -15,6 +15,7 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IClerkUserService _clerkUserService;
     private readonly ILogger<AdminUpdateUserCommandHandler> _logger;
 
     public AdminUpdateUserCommandHandler(
@@ -22,12 +23,14 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         ITenantMemberRepository tenantMemberRepository,
         IRoleRepository roleRepository,
         IUnitOfWork unitOfWork,
+        IClerkUserService clerkUserService,
         ILogger<AdminUpdateUserCommandHandler> logger)
     {
         _userRepository = userRepository;
         _tenantMemberRepository = tenantMemberRepository;
         _roleRepository = roleRepository;
         _unitOfWork = unitOfWork;
+        _clerkUserService = clerkUserService;
         _logger = logger;
     }
 
@@ -86,6 +89,24 @@ public class AdminUpdateUserCommandHandler : IRequestHandler<AdminUpdateUserComm
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        // Sync user profile updates to Clerk if user has an external AuthUserId
+        if (!string.IsNullOrWhiteSpace(user.AuthUserId) && user.AuthUserId.StartsWith("user_"))
+        {
+            try
+            {
+                await _clerkUserService.UpdateUserAsync(user.AuthUserId, new UpdateClerkUserPayload
+                {
+                    FirstName = user.FirstName,
+                    LastName = user.LastName
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to synchronize updated user data to Clerk for UserId: {UserId} (AuthUserId: {AuthUserId})", user.Id, user.AuthUserId);
+            }
+        }
+
         return user;
     }
 }

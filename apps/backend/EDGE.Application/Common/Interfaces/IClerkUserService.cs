@@ -5,6 +5,7 @@ namespace EDGE.Application.Common.Interfaces;
 public interface IClerkUserService
 {
     Task UpdateUserMetadataAsync(string userId, UserMetadataPayload payload);
+    Task<ClerkUserResponse?> UpdateUserAsync(string userId, UpdateClerkUserPayload payload);
     Task<ClerkUserResponse> CreateUserAsync(CreateClerkUserPayload payload);
     Task<List<ClerkUserResponse>> GetUsersByEmailAsync(string email);
     Task<ClerkUserResponse?> GetUserByIdAsync(string userId);
@@ -41,6 +42,15 @@ public class CreateClerkUserPayload
     [JsonPropertyName("first_name")] public string? FirstName { get; set; }
     [JsonPropertyName("last_name")] public string? LastName { get; set; }
     [JsonPropertyName("password")] public string? Password { get; set; }
+    [JsonPropertyName("public_metadata")] public object? PublicMetadata { get; set; }
+    [JsonPropertyName("private_metadata")] public object? PrivateMetadata { get; set; }
+}
+
+public class UpdateClerkUserPayload
+{
+    [JsonPropertyName("first_name")] public string? FirstName { get; set; }
+    [JsonPropertyName("last_name")] public string? LastName { get; set; }
+    [JsonPropertyName("username")] public string? Username { get; set; }
     [JsonPropertyName("public_metadata")] public object? PublicMetadata { get; set; }
     [JsonPropertyName("private_metadata")] public object? PrivateMetadata { get; set; }
 }
