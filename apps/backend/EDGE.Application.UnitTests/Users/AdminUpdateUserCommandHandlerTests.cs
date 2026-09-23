@@ -8,6 +8,7 @@ using Xunit;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Users.Commands.UpdateUser;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Authorization;
 
 namespace EDGE.Application.UnitTests.Users;
 
@@ -16,6 +17,7 @@ public class AdminUpdateUserCommandHandlerTests
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<ITenantMemberRepository> _tenantMemberRepositoryMock = new();
     private readonly Mock<IRoleRepository> _roleRepositoryMock = new();
+    private readonly Mock<ITenantContextService> _tenantContextServiceMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<IClerkUserService> _clerkUserServiceMock = new();
     private readonly Mock<ILogger<AdminUpdateUserCommandHandler>> _loggerMock = new();
@@ -24,10 +26,15 @@ public class AdminUpdateUserCommandHandlerTests
 
     public AdminUpdateUserCommandHandlerTests()
     {
+        _tenantContextServiceMock
+            .Setup(t => t.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         _handler = new AdminUpdateUserCommandHandler(
             _userRepositoryMock.Object,
             _tenantMemberRepositoryMock.Object,
             _roleRepositoryMock.Object,
+            _tenantContextServiceMock.Object,
             _unitOfWorkMock.Object,
             _clerkUserServiceMock.Object,
             _loggerMock.Object);

@@ -37,6 +37,8 @@ export function RolesPermissionScreen() {
     hasUnsavedChanges,
     isSubmitting,
     isLoading,
+    isCurrentRoleReadOnly,
+    isSuperAdmin,
     handleTogglePermission,
     handleToggleSelectAll,
     resetChanges,
@@ -203,24 +205,40 @@ export function RolesPermissionScreen() {
                 </View>
               )}
               <Text style={[styles.roleScopeText, { color: mutedColor }]}>
-                {selectedRole.isSystemRole ? 'System Role' : 'Custom Role'}
+                {selectedRole.isSystemRole ? 'Standard Role' : 'Custom Role'}
               </Text>
             </View>
-            <Pressable
-              style={[
-                styles.saveBtn,
-                {
-                  backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  opacity: !hasUnsavedChanges || isSubmitting ? 0.5 : 1,
-                },
-              ]}
-              onPress={handleSave}
-              disabled={!hasUnsavedChanges || isSubmitting}
-            >
-              <Lucide name="save" size={14} color="#FFFFFF" />
-              <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving…' : 'Save'}</Text>
-            </Pressable>
+            {isCurrentRoleReadOnly ? (
+              <View style={[styles.readOnlyIndicator, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+                <Lucide name="lock" size={13} color={mutedColor} />
+                <Text style={[styles.readOnlyIndicatorText, { color: mutedColor }]}>Read-Only</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={[
+                  styles.saveBtn,
+                  {
+                    backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                    opacity: !hasUnsavedChanges || isSubmitting ? 0.5 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={!hasUnsavedChanges || isSubmitting}
+              >
+                <Lucide name="save" size={14} color="#FFFFFF" />
+                <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving…' : 'Save'}</Text>
+              </Pressable>
+            )}
           </View>
+
+          {isCurrentRoleReadOnly && (
+            <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
+              <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+              <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                Standard role: Permissions are read-only.
+              </Text>
+            </View>
+          )}
 
           {/* Permission Search */}
           <View style={[styles.searchRow, { backgroundColor: inputBg, borderColor: inputBorder, marginHorizontal: SPACING[16] }]}>
@@ -242,6 +260,7 @@ export function RolesPermissionScreen() {
                 category={cat}
                 activePermissionIds={activePermissions}
                 onTogglePermission={handleTogglePermission}
+                readOnly={isCurrentRoleReadOnly}
               />
             ))}
           </ScrollView>
@@ -395,6 +414,34 @@ const styles = StyleSheet.create({
   categoriesContent: {
     padding: SPACING[16],
     gap: SPACING[10],
+  },
+  readOnlyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[10],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    marginHorizontal: SPACING[16],
+  },
+  readOnlyBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  readOnlyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+  },
+  readOnlyIndicatorText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   toast: {
     position: 'absolute',

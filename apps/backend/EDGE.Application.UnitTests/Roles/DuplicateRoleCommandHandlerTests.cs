@@ -8,6 +8,7 @@ using Xunit;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Roles.Commands;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Authorization;
 
 namespace EDGE.Application.UnitTests.Roles;
 
@@ -16,15 +17,21 @@ public class DuplicateRoleCommandHandlerTests
     private readonly Mock<IRoleRepository> _roleRepositoryMock = new();
     private readonly Mock<IRolePermissionRepository> _rolePermissionRepositoryMock = new();
     private readonly Mock<ITenantRepository> _tenantRepositoryMock = new();
+    private readonly Mock<ITenantContextService> _tenantContextServiceMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly DuplicateRoleCommandHandler _handler;
 
     public DuplicateRoleCommandHandlerTests()
     {
+        _tenantContextServiceMock
+            .Setup(t => t.IsCurrentUserSuperAdminAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+
         _handler = new DuplicateRoleCommandHandler(
             _roleRepositoryMock.Object,
             _rolePermissionRepositoryMock.Object,
             _tenantRepositoryMock.Object,
+            _tenantContextServiceMock.Object,
             _unitOfWorkMock.Object);
     }
 

@@ -159,6 +159,7 @@ public static class RolePermissionDataSeeder
             // Evaluator (Frontline Staff Evaluator)
             (actualEvaluatorRoleId, Permissions.ReadTenants),
             (actualEvaluatorRoleId, Permissions.ReadRoles),
+            (actualEvaluatorRoleId, Permissions.ReadUsers),
             (actualEvaluatorRoleId, Permissions.ViewAllApplications),
             (actualEvaluatorRoleId, Permissions.ViewOwnApplications),
             (actualEvaluatorRoleId, Permissions.ReadApplication),
@@ -182,6 +183,7 @@ public static class RolePermissionDataSeeder
             // Chief of EOD (Enforcement & Operations Division Head)
             (actualChiefEodRoleId, Permissions.ReadTenants),
             (actualChiefEodRoleId, Permissions.ReadRoles),
+            (actualChiefEodRoleId, Permissions.ReadUsers),
             (actualChiefEodRoleId, Permissions.ViewAllApplications),
             (actualChiefEodRoleId, Permissions.ViewOwnApplications),
             (actualChiefEodRoleId, Permissions.ReadApplication),
@@ -201,6 +203,7 @@ public static class RolePermissionDataSeeder
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
             (actualRegionalDirectorRoleId, Permissions.ReadRoles),
+            (actualRegionalDirectorRoleId, Permissions.ReadUsers),
             (actualRegionalDirectorRoleId, Permissions.ViewAllApplications),
             (actualRegionalDirectorRoleId, Permissions.ViewOwnApplications),
             (actualRegionalDirectorRoleId, Permissions.ReadApplication),
@@ -221,6 +224,7 @@ public static class RolePermissionDataSeeder
             // Legal Officer (Compliance & Legal Reviews)
             (actualLegalRoleId, Permissions.ReadTenants),
             (actualLegalRoleId, Permissions.ReadRoles),
+            (actualLegalRoleId, Permissions.ReadUsers),
             (actualLegalRoleId, Permissions.ViewAllApplications),
             (actualLegalRoleId, Permissions.ViewOwnApplications),
             (actualLegalRoleId, Permissions.ReadApplication),
@@ -235,6 +239,7 @@ public static class RolePermissionDataSeeder
             // Accountant (Billing & Financial Reviews)
             (actualAccountantRoleId, Permissions.ReadTenants),
             (actualAccountantRoleId, Permissions.ReadRoles),
+            (actualAccountantRoleId, Permissions.ReadUsers),
             (actualAccountantRoleId, Permissions.ViewAllApplications),
             (actualAccountantRoleId, Permissions.ViewOwnApplications),
             (actualAccountantRoleId, Permissions.ReadApplication),
@@ -255,6 +260,7 @@ public static class RolePermissionDataSeeder
             // Cashier (Payments & Official Receipts)
             (actualCashierRoleId, Permissions.ReadTenants),
             (actualCashierRoleId, Permissions.ReadRoles),
+            (actualCashierRoleId, Permissions.ReadUsers),
             (actualCashierRoleId, Permissions.ViewAllApplications),
             (actualCashierRoleId, Permissions.ViewOwnApplications),
             (actualCashierRoleId, Permissions.ReadApplication),

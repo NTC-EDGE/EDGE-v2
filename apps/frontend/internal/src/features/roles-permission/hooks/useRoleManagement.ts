@@ -6,12 +6,19 @@ import {
   roleService,
   Role as ApiRole,
 } from '@edge/api';
+import { useAuthContext } from '../../auth/context/AuthContext';
 import { Role as UIFormatRole } from '../types';
 
 export type RoleFilterScope = 'all' | 'system' | 'custom';
 
 export function useRoleManagement() {
-  const { roles: apiRoles, isLoading: isRolesLoading, refetch: refetchRoles } = useAdminRoles();
+  const { user } = useAuthContext();
+  const tenantId = user?.tenantId;
+  const isSuperAdmin = user?.roles !== undefined && user.roles !== null
+    ? user.roles.some((r) => r.toLowerCase().includes('super'))
+    : false;
+
+  const { roles: apiRoles, isLoading: isRolesLoading, refetch: refetchRoles } = useAdminRoles(tenantId);
   const { categories: apiCategories, isLoading: isCatalogLoading } = usePermissionsCatalog();
 
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
@@ -24,31 +31,35 @@ export function useRoleManagement() {
   const [savedRolePermissions, setSavedRolePermissions] = useState<Record<string, string[]>>({});
   const [draftRolePermissions, setDraftRolePermissions] = useState<Record<string, string[]>>({});
 
-  // ── Map API roles to UI format (Exclude System Roles for Internal UI) ──────
+  // ── Map API roles to UI format (Standard Roles vs Tenant Custom Roles) ──────
   const roles: UIFormatRole[] = useMemo(() => {
     if (apiRoles && apiRoles.length > 0) {
       return apiRoles
         .filter(
           (r: ApiRole) =>
-            !r.isSystemRole &&
-            !r.name?.toLowerCase().includes('super admin') &&
-            !r.name?.toLowerCase().includes('system admin'),
+            r.name !== null &&
+            r.name !== undefined &&
+            !r.name.toLowerCase().includes('super admin') &&
+            !r.name.toLowerCase().includes('system admin'),
         )
         .map((r: ApiRole) => {
-          const initials = r.name
-            ? r.name
-                .split(' ')
-                .map((w) => w[0])
-                .join('')
-                .substring(0, 2)
-                .toUpperCase()
-            : 'R';
+          const roleName = r.name !== null && r.name !== undefined ? r.name : 'Role';
+          const initials = roleName
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
+
+          const isStandardRole = r.tenantId === null || r.tenantId === undefined || Boolean(r.isSystemRole);
 
           return {
             id: r.id,
-            name: r.name || 'Role',
-            isSystemRole: false,
-            avatarBgColor: '#E0F2FE',
+            name: roleName,
+            tenantId: r.tenantId,
+            isSystemRole: isStandardRole,
+            description: r.description,
+            avatarBgColor: isStandardRole ? '#FEF3C7' : '#E0F2FE',
             avatarInitials: initials || 'R',
           };
         });
@@ -150,13 +161,15 @@ export function useRoleManagement() {
       .filter((cat) => cat.options.length > 0);
   }, [nonSystemCategories, selectedCategoryFilter, permissionQuery]);
 
+  const isCurrentRoleReadOnly = Boolean(selectedRole?.isSystemRole && !isSuperAdmin);
+
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSelectRole = (role: UIFormatRole) => {
     setSelectedRoleId(role.id);
   };
 
   const handleTogglePermission = (permissionId: string) => {
-    if (selectedRole === null) return;
+    if (selectedRole === null || isCurrentRoleReadOnly) return;
     const roleId = selectedRole.id;
     setDraftRolePermissions((prev) => {
       const currentList = prev[roleId] ?? [];
@@ -169,7 +182,7 @@ export function useRoleManagement() {
   };
 
   const handleToggleSelectAll = () => {
-    if (selectedRole === null) return;
+    if (selectedRole === null || isCurrentRoleReadOnly) return;
     const roleId = selectedRole.id;
     if (isAllSelected) {
       setDraftRolePermissions((prev) => ({ ...prev, [roleId]: [] }));
@@ -188,13 +201,19 @@ export function useRoleManagement() {
   };
 
   const applyPresetTemplate = (templateRoleId: string) => {
-    if (selectedRole === null) return;
+    if (selectedRole === null || isCurrentRoleReadOnly) return;
     const templatePerms = savedRolePermissions[templateRoleId] ?? [];
     setDraftRolePermissions((prev) => ({ ...prev, [selectedRole.id]: [...templatePerms] }));
   };
 
   const savePermissions = async (): Promise<{ ok: boolean; error: string | null }> => {
     if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return { ok: false, error: null };
+    if (isCurrentRoleReadOnly) {
+      return {
+        ok: false,
+        error: 'Standard system roles cannot be modified by tenant administrators. Please create a custom role for your office.',
+      };
+    }
     setIsSubmitting(true);
     const roleId = selectedRole.id;
     const currentDraft = draftRolePermissions[roleId] ?? [];
@@ -212,10 +231,19 @@ export function useRoleManagement() {
   };
 
   const updateRole = async (roleId: string, newName: string): Promise<{ ok: boolean; error: string | null }> => {
+    const role = roles.find((r) => r.id === roleId);
+    if (role?.isSystemRole && !isSuperAdmin) {
+      return { ok: false, error: 'Standard system roles cannot be modified.' };
+    }
     const trimmedName = newName.trim();
     if (!trimmedName) return { ok: false, error: 'Role name cannot be empty.' };
     const key = trimmedName.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    const [res, err] = await roleService.updateRole(roleId, { id: roleId, name: trimmedName, key });
+    const [res, err] = await roleService.updateRole(roleId, {
+      id: roleId,
+      name: trimmedName,
+      key,
+      tenantId: role?.tenantId !== undefined ? role.tenantId : null,
+    });
     const isSuccess = !err && Boolean(res);
     if (isSuccess) {
       refetchRoles();
@@ -229,7 +257,13 @@ export function useRoleManagement() {
     initialPermissionIds?: string[],
   ): Promise<{ ok: boolean; error: string | null }> => {
     const key = name.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '');
-    const [res, err] = await roleService.createRole({ name, key, description });
+    const [res, err] = await roleService.createRole({
+      name,
+      key,
+      description,
+      tenantId: tenantId !== undefined ? tenantId : null,
+      isSystemRole: false,
+    });
     const isSuccess = !err && Boolean(res);
     if (isSuccess && res) {
       if (initialPermissionIds && initialPermissionIds.length > 0) {
@@ -242,6 +276,10 @@ export function useRoleManagement() {
   };
 
   const deleteRole = async (roleId: string): Promise<{ ok: boolean; error: string | null }> => {
+    const role = roles.find((r) => r.id === roleId);
+    if (role?.isSystemRole) {
+      return { ok: false, error: 'Standard system roles cannot be deleted.' };
+    }
     const [ok, err] = await roleService.deleteRole(roleId);
     const isSuccess = !err && Boolean(ok);
     if (isSuccess) {
@@ -259,6 +297,8 @@ export function useRoleManagement() {
     selectedRoleId,
     setSelectedRoleId,
     selectedRole,
+    isCurrentRoleReadOnly,
+    isSuperAdmin,
     roleSearchQuery,
     setRoleSearchQuery,
     roleScopeFilter,

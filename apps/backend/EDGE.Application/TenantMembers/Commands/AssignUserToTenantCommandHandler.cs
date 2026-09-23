@@ -10,17 +10,20 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
 {
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantMemberRepository _memberRepository;
+    private readonly IRoleRepository _roleRepository;
     private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
 
     public AssignUserToTenantCommandHandler(
         ITenantRepository tenantRepository,
         ITenantMemberRepository memberRepository,
+        IRoleRepository roleRepository,
         ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork)
     {
         _tenantRepository = tenantRepository;
         _memberRepository = memberRepository;
+        _roleRepository = roleRepository;
         _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
     }
@@ -40,7 +43,14 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             "You are only authorized to assign members to your own regional tenant.",
             cancellationToken);
 
-        // 2. Verify duplication
+        // 3. Verify Role belongs to target tenant or is a standard role
+        var role = await _roleRepository.GetByIdAsync(request.RoleId, cancellationToken);
+        if (role == null || (role.TenantId != null && role.TenantId != request.TenantId))
+        {
+            throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
+        }
+
+        // 4. Verify duplication
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);
         if (existingAssignment != null)
         {
