@@ -1,6 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { EmployeeDetailsScreen } from './EmployeeDetailsScreen';
 import { EmployeeFormModal } from './EmployeeFormModal';
 import { ChangeEmployeeEmailModal } from './ChangeEmployeeEmailModal';

@@ -10,7 +10,7 @@ import {
   Modal,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 
 interface EmployeeDetailsScreenProps {
   employee: Employee;

@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { View, Text, TextInput, Pressable, ScrollView, ActivityIndicator, StyleSheet } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
 import { useUsers, useTenantMembers, useAdminRoles, useAdminFieldOffices, tenantMemberService } from '@edge/api';
@@ -19,10 +19,15 @@ export function AssignExistingUserSection({
   onCancel,
   onError,
 }: AssignExistingUserSectionProps) {
-  const { users, isLoading: isUsersLoading } = useUsers({ pageSize: 100 });
-  const { members: tenantMembers, isLoading: isMembersLoading } = useTenantMembers(tenantId);
+  const { users, isLoading: isUsersLoading, refetch: refetchUsers } = useUsers({ pageSize: 100 });
+  const { members: tenantMembers, isLoading: isMembersLoading, refetch: refetchMembers } = useTenantMembers(tenantId);
   const { roles, isLoading: isRolesLoading } = useAdminRoles(tenantId);
   const { fieldOffices, isLoading: isOfficesLoading } = useAdminFieldOffices(tenantId);
+
+  useEffect(() => {
+    void refetchUsers();
+    void refetchMembers();
+  }, [refetchUsers, refetchMembers]);
 
   const [selectedUserId, setSelectedUserId] = useState<string>('');
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');

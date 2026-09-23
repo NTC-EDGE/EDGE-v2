@@ -19,6 +19,12 @@ public class RemoveUserFromTenantCommandHandler : IRequestHandler<RemoveUserFrom
         var member = await _memberRepository.GetByIdAsync(request.MemberId, cancellationToken);
         if (member == null || member.TenantId != request.TenantId)
         {
+            // Fallback: Check if request.MemberId is the UserId
+            member = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.MemberId, cancellationToken);
+        }
+
+        if (member == null || member.TenantId != request.TenantId)
+        {
             throw new KeyNotFoundException($"Tenant member with ID '{request.MemberId}' was not found in Tenant '{request.TenantId}'.");
         }
 

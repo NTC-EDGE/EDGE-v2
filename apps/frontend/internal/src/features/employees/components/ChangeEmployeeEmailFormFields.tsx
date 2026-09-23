@@ -3,7 +3,7 @@ import { View, Text, TextInput } from 'react-native';
 import { Control, Controller } from 'react-hook-form';
 import { COLORS, Icon as Lucide } from '@edge/ui';
 import { ChangeEmailFormData } from '../schemas/changeEmailSchema';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { changeEmailModalStyles as styles } from '../styles/changeEmailModalStyles';
 
 interface ChangeEmployeeEmailFormFieldsProps {

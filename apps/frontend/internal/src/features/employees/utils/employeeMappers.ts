@@ -1,6 +1,6 @@
 import { COLORS } from '@edge/ui';
 import { TenantMemberDto } from '@edge/api';
-import { Employee, EmployeeRole, EmployeeStatus, ROLES_LIST } from '../data/mockEmployees';
+import { Employee, EmployeeRole, EmployeeStatus, ROLES_LIST } from '../types/employeeTypes';
 
 export function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
   const roleName = member.roleName || 'Evaluator';
@@ -8,6 +8,8 @@ export function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
 
   return {
     id: member.userId || member.id,
+    memberId: member.id,
+    userId: member.userId,
     firstName: member.userFirstName,
     lastName: member.userLastName,
     middleName: member.userMiddleName ?? '',

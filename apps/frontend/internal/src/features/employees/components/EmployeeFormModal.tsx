@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Modal, useWindowDimensions, StyleSheet } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, Icon as Lucide, AlertToast } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { useEmployeeForm } from '../hooks/useEmployeeForm';
 import { EmployeeForm } from '../forms/EmployeeForm';
 import { AssignExistingUserSection } from './AssignExistingUserSection';

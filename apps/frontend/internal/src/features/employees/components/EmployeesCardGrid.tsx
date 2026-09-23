@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { EmployeeCard } from './EmployeeCard';
 import { employeesScreenStyles as styles } from '../styles/employeesScreenStyles';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { EmployeeFormModal } from './EmployeeFormModal';
 import { ChangeEmployeeEmailModal } from './ChangeEmployeeEmailModal';
 import { DeleteConfirmModal } from './DeleteConfirmModal';

@@ -53,11 +53,55 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
         }
 
-        // 4. Verify duplication
+        // 4. Verify duplication or restore soft-deleted assignment
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);
         if (existingAssignment != null)
         {
-            throw new InvalidOperationException($"User '{request.UserId}' is already assigned to Tenant '{request.TenantId}'.");
+            if (!existingAssignment.IsDeleted)
+            {
+                throw new InvalidOperationException($"User '{request.UserId}' is already assigned to Tenant '{request.TenantId}'.");
+            }
+
+            // Restore and reactivate previously removed tenant member
+            existingAssignment.IsDeleted = false;
+            existingAssignment.IsDeletedBy = string.Empty;
+            existingAssignment.RoleId = request.RoleId;
+            existingAssignment.FieldOfficeId = request.FieldOfficeId;
+            existingAssignment.JobTitle = request.JobTitle;
+            existingAssignment.Level = request.Level;
+            existingAssignment.Division = request.Division;
+            existingAssignment.Position = request.Position;
+            existingAssignment.Designation = request.Designation;
+            existingAssignment.LastModifiedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var reactivatedMember = await _memberRepository.GetByIdAsync(existingAssignment.Id, cancellationToken);
+            var user = await _userRepository.GetByIdAsync(existingAssignment.UserId, cancellationToken);
+
+            return new TenantMemberDto
+            {
+                Id = reactivatedMember?.Id ?? existingAssignment.Id,
+                TenantId = reactivatedMember?.TenantId ?? existingAssignment.TenantId,
+                TenantName = reactivatedMember?.Tenant?.Name ?? string.Empty,
+                UserId = existingAssignment.UserId,
+                UserEmail = user?.Email ?? string.Empty,
+                UserFirstName = user?.FirstName ?? string.Empty,
+                UserLastName = user?.LastName ?? string.Empty,
+                RoleId = existingAssignment.RoleId,
+                FieldOfficeId = existingAssignment.FieldOfficeId,
+                FieldOfficeName = reactivatedMember?.FieldOffice?.Name,
+                JobTitle = existingAssignment.JobTitle,
+                Level = existingAssignment.Level,
+                Division = existingAssignment.Division,
+                Position = existingAssignment.Position,
+                Designation = existingAssignment.Designation,
+                IsDeleted = false,
+                CreatedAt = existingAssignment.CreatedAt,
+                CreatedBy = existingAssignment.CreatedBy,
+                LastModifiedAt = existingAssignment.LastModifiedAt,
+                LastModifiedBy = existingAssignment.LastModifiedBy
+            };
         }
 
         var member = new TenantMember
@@ -65,6 +109,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             TenantId = request.TenantId,
             UserId = request.UserId,
             RoleId = request.RoleId,
+            FieldOfficeId = request.FieldOfficeId,
             JobTitle = request.JobTitle,
             Level = request.Level,
             Division = request.Division,

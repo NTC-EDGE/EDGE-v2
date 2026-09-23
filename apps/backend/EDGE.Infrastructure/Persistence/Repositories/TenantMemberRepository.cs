@@ -29,7 +29,11 @@ public class TenantMemberRepository : ITenantMemberRepository
     public async Task<TenantMember?> GetByTenantAndUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.TenantMembers
+            .IgnoreQueryFilters()
             .Include(m => m.Tenant)
+            .Include(m => m.User)
+            .Include(m => m.Role)
+            .Include(m => m.FieldOffice)
             .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
     }
 
