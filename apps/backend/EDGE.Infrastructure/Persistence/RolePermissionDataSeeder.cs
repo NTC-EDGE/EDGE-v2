@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -25,7 +26,7 @@ public static class RolePermissionDataSeeder
         var staticDate = new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         // ── 1. Seed Default Tenant ────────────────────────────────────────────────
-        var defaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var defaultTenantId = SeedConstants.DefaultTenantId;
         if (!await context.Tenants.AnyAsync(t => t.Id == defaultTenantId))
         {
             var defaultTenant = new Tenant
@@ -35,7 +36,7 @@ public static class RolePermissionDataSeeder
                 Code = "NTC-CENTRAL",
                 Description = "National Telecommunications Commission Main Office",
                 IsActive = true,
-                RegionId = Guid.Parse("1e66819d-583c-4852-83bd-a4195bd126a8"),
+                RegionId = SeedConstants.CentralRegionId,
                 CreatedAt = staticDate
             };
             try
@@ -50,15 +51,15 @@ public static class RolePermissionDataSeeder
         }
 
         // ── 2. Seed Roles (Idempotent per role with duplicate key catch) ──────────
-        var superAdminRoleId       = Guid.Parse("10000000-0000-0000-0000-000000000000");
-        var clientRoleId           = Guid.Parse("10000000-0000-0000-0000-000000000001");
-        var evaluatorRoleId        = Guid.Parse("10000000-0000-0000-0000-000000000002");
-        var chiefEodRoleId         = Guid.Parse("10000000-0000-0000-0000-000000000003");
-        var accountantRoleId       = Guid.Parse("10000000-0000-0000-0000-000000000004");
-        var cashierRoleId          = Guid.Parse("10000000-0000-0000-0000-000000000005");
-        var adminRoleId            = Guid.Parse("10000000-0000-0000-0000-000000000006");
-        var regionalDirectorRoleId = Guid.Parse("10000000-0000-0000-0000-000000000007");
-        var legalRoleId            = Guid.Parse("10000000-0000-0000-0000-000000000008");
+        var superAdminRoleId       = SeedConstants.Roles.SuperAdminRoleId;
+        var clientRoleId           = SeedConstants.Roles.ClientRoleId;
+        var evaluatorRoleId        = SeedConstants.Roles.EvaluatorRoleId;
+        var chiefEodRoleId         = SeedConstants.Roles.ChiefEodRoleId;
+        var accountantRoleId       = SeedConstants.Roles.AccountantRoleId;
+        var cashierRoleId          = SeedConstants.Roles.CashierRoleId;
+        var adminRoleId            = SeedConstants.Roles.AdminRoleId;
+        var regionalDirectorRoleId = SeedConstants.Roles.RegionalDirectorRoleId;
+        var legalRoleId            = SeedConstants.Roles.LegalRoleId;
 
         var defaultRoles = new List<Role>
         {
@@ -316,17 +317,17 @@ public static class RolePermissionDataSeeder
         // ── 4. Seed Users ─────────────────────────────────────────────────────────
         var defaultUsers = new List<User>
         {
-            new() { Id = Guid.Parse("11111111-1111-1111-1111-111111111111"), AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("11111111-1111-1111-1111-222222222222"), AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("22222222-2222-2222-2222-222222222222"), AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333333"), AuthUserId = "user_chiefeod123", Email = "chiefeod@ntcedge.com", FirstName = "Engr. Roberto", LastName = "Chief (EOD)", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("44444444-4444-4444-4444-444444444444"), AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("55555555-5555-5555-5555-555555555555"), AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("66666666-6666-6666-6666-666666666666"), AuthUserId = "user_superadmin123", Email = "superadmin@ntcedge.com", FirstName = "Super", LastName = "Administrator", IsSuperAdmin = true, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("77777777-7777-7777-7777-777777777777"), AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("88888888-8888-8888-8888-888888888888"), AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("99999999-9999-9999-9999-999999999999"), AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Regional", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("33333333-3333-3333-3333-333333333334"), AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.ClientUserId, AuthUserId = "user_client123", Email = "client@ntcedge.com", FirstName = "John", LastName = "Client", AccountType = ApplicantType.Individual, IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.LiaisonUserId, AuthUserId = "user_liaison123", Email = "rdizon@apexconsulting.ph", FirstName = "Engr. Ricardo", LastName = "Dizon (Liaison Representative)", AccountType = ApplicantType.Company, IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.EvaluatorUserId, AuthUserId = "user_evaluator123", Email = "evaluator@ntcedge.com", FirstName = "Jane", LastName = "Evaluator", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.ChiefEodUserId, AuthUserId = "user_chiefeod123", Email = "chiefeod@ntcedge.com", FirstName = "Engr. Roberto", LastName = "Chief (EOD)", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.AccountantUserId, AuthUserId = "user_accountant123", Email = "accountant@ntcedge.com", FirstName = "Alice", LastName = "Accountant", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.CashierUserId, AuthUserId = "user_cashier123", Email = "cashier@ntcedge.com", FirstName = "Bob", LastName = "Cashier", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.SuperAdminUserId, AuthUserId = "user_superadmin123", Email = "superadmin@ntcedge.com", FirstName = "Super", LastName = "Administrator", IsSuperAdmin = true, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.RegionalDirectorUserId, AuthUserId = "user_director123", Email = "director@ntcedge.com", FirstName = "Director", LastName = "Regional", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.LegalUserId, AuthUserId = "user_legal123", Email = "legal@ntcedge.com", FirstName = "Atty. Clara", LastName = "Legal", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.AdminUserId, AuthUserId = "user_admin123", Email = "admin@ntcedge.com", FirstName = "Regional", LastName = "Admin", IsSuperAdmin = false, CreatedAt = staticDate },
+            new() { Id = SeedConstants.Users.LegacyHigherUpsUserId, AuthUserId = "user_higherups123", Email = "higherups@ntcedge.com", FirstName = "Chief", LastName = "Officer (Legacy)", IsSuperAdmin = false, CreatedAt = staticDate },
         };
 
         foreach (var user in defaultUsers)
@@ -350,16 +351,16 @@ public static class RolePermissionDataSeeder
         // ── 5. Seed Tenant Memberships ────────────────────────────────────────────
         var defaultTenantMembers = new List<TenantMember>
         {
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000001"), TenantId = defaultTenantId, UserId = Guid.Parse("11111111-1111-1111-1111-111111111111"), RoleId = actualClientRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000002"), TenantId = defaultTenantId, UserId = Guid.Parse("22222222-2222-2222-2222-222222222222"), RoleId = actualEvaluatorRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000003"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333333"), RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000004"), TenantId = defaultTenantId, UserId = Guid.Parse("44444444-4444-4444-4444-444444444444"), RoleId = actualAccountantRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000005"), TenantId = defaultTenantId, UserId = Guid.Parse("55555555-5555-5555-5555-555555555555"), RoleId = actualCashierRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000006"), TenantId = defaultTenantId, UserId = Guid.Parse("66666666-6666-6666-6666-666666666666"), RoleId = actualSuperAdminRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000007"), TenantId = defaultTenantId, UserId = Guid.Parse("77777777-7777-7777-7777-777777777777"), RoleId = actualRegionalDirectorRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000008"), TenantId = defaultTenantId, UserId = Guid.Parse("88888888-8888-8888-8888-888888888888"), RoleId = actualLegalRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000009"), TenantId = defaultTenantId, UserId = Guid.Parse("99999999-9999-9999-9999-999999999999"), RoleId = actualAdminRoleId, CreatedAt = staticDate },
-            new() { Id = Guid.Parse("40000000-0000-0000-0000-000000000034"), TenantId = defaultTenantId, UserId = Guid.Parse("33333333-3333-3333-3333-333333333334"), RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.ClientMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ClientUserId, RoleId = actualClientRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.EvaluatorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.EvaluatorUserId, RoleId = actualEvaluatorRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.ChiefEodMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.ChiefEodUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.AccountantMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AccountantUserId, RoleId = actualAccountantRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.CashierMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.CashierUserId, RoleId = actualCashierRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.SuperAdminMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.SuperAdminUserId, RoleId = actualSuperAdminRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.RegionalDirectorMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.RegionalDirectorUserId, RoleId = actualRegionalDirectorRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.LegalMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegalUserId, RoleId = actualLegalRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.AdminMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.AdminUserId, RoleId = actualAdminRoleId, CreatedAt = staticDate },
+            new() { Id = SeedConstants.TenantMembers.LegacyHigherUpsMemberId, TenantId = defaultTenantId, UserId = SeedConstants.Users.LegacyHigherUpsUserId, RoleId = actualChiefEodRoleId, CreatedAt = staticDate },
         };
 
         foreach (var member in defaultTenantMembers)
@@ -480,7 +481,7 @@ public static class RolePermissionDataSeeder
         // ── 7. Seed Initial Staff Collaboration Conversations & Meetings ──────────
         var allSeededUserIds = defaultUsers.Select(u => u.Id).Distinct().ToList();
 
-        var generalConversationId = Guid.Parse("cc000000-0000-0000-0000-000000000001");
+        var generalConversationId = SeedConstants.Communication.GeneralConversationId;
         var existingConversation = await context.Conversations
             .Include(c => c.Participants)
             .FirstOrDefaultAsync(c => c.Id == generalConversationId);
@@ -504,7 +505,7 @@ public static class RolePermissionDataSeeder
                     ConversationId = generalConversationId,
                     UserId = uid,
                     TenantId = defaultTenantId,
-                    Role = uid == Guid.Parse("77777777-7777-7777-7777-777777777777") || uid == Guid.Parse("66666666-6666-6666-6666-666666666666")
+                    Role = uid == SeedConstants.Users.RegionalDirectorUserId || uid == SeedConstants.Users.SuperAdminUserId
                         ? ParticipantRole.Owner
                         : ParticipantRole.Member,
                     CreatedAt = staticDate
@@ -513,9 +514,9 @@ public static class RolePermissionDataSeeder
                 {
                     new()
                     {
-                        Id = Guid.Parse("cc000000-0000-0000-0000-000000000002"),
+                        Id = SeedConstants.Communication.WelcomeMessageId,
                         ConversationId = generalConversationId,
-                        SenderId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                        SenderId = SeedConstants.Users.RegionalDirectorUserId,
                         SenderTenantId = defaultTenantId,
                         Content = "Welcome to the NTC-EDGE Regional Collaboration Hub! All internal staff have access to coordinate on permits, licensing, and compliance here.",
                         Type = MessageType.Text,
@@ -558,7 +559,7 @@ public static class RolePermissionDataSeeder
             }
         }
 
-        var defaultMeetingId = Guid.Parse("ee000000-0000-0000-0000-000000000001");
+        var defaultMeetingId = SeedConstants.Communication.DefaultMeetingId;
         var existingMeeting = await context.Meetings
             .Include(m => m.Participants)
             .FirstOrDefaultAsync(m => m.Id == defaultMeetingId);
@@ -573,7 +574,7 @@ public static class RolePermissionDataSeeder
                 MeetingCode = "NTC-OPS-2026",
                 Scope = ConversationScope.IntraRegional,
                 TenantId = defaultTenantId,
-                HostUserId = Guid.Parse("77777777-7777-7777-7777-777777777777"), // Regional Director
+                HostUserId = SeedConstants.Users.RegionalDirectorUserId, // Regional Director
                 ScheduledStartTime = DateTimeOffset.UtcNow.AddHours(2),
                 ScheduledEndTime = DateTimeOffset.UtcNow.AddHours(3),
                 Status = MeetingStatus.Scheduled,
@@ -585,7 +586,7 @@ public static class RolePermissionDataSeeder
                     MeetingId = defaultMeetingId,
                     UserId = uid,
                     TenantId = defaultTenantId,
-                    Role = uid == Guid.Parse("77777777-7777-7777-7777-777777777777")
+                    Role = uid == SeedConstants.Users.RegionalDirectorUserId
                         ? ParticipantRole.Owner
                         : ParticipantRole.Member,
                     CreatedAt = staticDate

@@ -9,6 +9,7 @@ using Xunit;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Users.Commands.AdminCreateUser;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 
 namespace EDGE.Application.UnitTests.Users;
@@ -47,7 +48,7 @@ public class AdminCreateUserCommandHandlerTests
     public async Task Handle_ShouldCreateUserInClerkAndDatabase_WhenCallerIsAuthorized()
     {
         // Arrange
-        var tenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var tenantId = SeedConstants.DefaultTenantId;
         var tenant = new Tenant { Id = tenantId, Name = "Central Office", IsActive = true };
         var role = new Role { Id = Guid.NewGuid(), Key = "evaluator", Name = "Evaluator" };
 
