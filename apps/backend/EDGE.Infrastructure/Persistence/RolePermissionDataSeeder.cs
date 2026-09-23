@@ -480,7 +480,7 @@ public static class RolePermissionDataSeeder
         // ── 7. Seed Initial Staff Collaboration Conversations & Meetings ──────────
         var allSeededUserIds = defaultUsers.Select(u => u.Id).Distinct().ToList();
 
-        var generalConversationId = Guid.Parse("50000000-0000-0000-0000-000000000001");
+        var generalConversationId = Guid.Parse("cc000000-0000-0000-0000-000000000001");
         var existingConversation = await context.Conversations
             .Include(c => c.Participants)
             .FirstOrDefaultAsync(c => c.Id == generalConversationId);
@@ -513,7 +513,7 @@ public static class RolePermissionDataSeeder
                 {
                     new()
                     {
-                        Id = Guid.Parse("51000000-0000-0000-0000-000000000001"),
+                        Id = Guid.Parse("cc000000-0000-0000-0000-000000000002"),
                         ConversationId = generalConversationId,
                         SenderId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
                         SenderTenantId = defaultTenantId,
@@ -558,7 +558,7 @@ public static class RolePermissionDataSeeder
             }
         }
 
-        var defaultMeetingId = Guid.Parse("60000000-0000-0000-0000-000000000001");
+        var defaultMeetingId = Guid.Parse("ee000000-0000-0000-0000-000000000001");
         var existingMeeting = await context.Meetings
             .Include(m => m.Participants)
             .FirstOrDefaultAsync(m => m.Id == defaultMeetingId);

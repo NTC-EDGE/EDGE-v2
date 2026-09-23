@@ -28,12 +28,27 @@ public class CurrentUserService : ICurrentUserService
         {
             var verifiedClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verified")
                              ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verification_status");
-            if (bool.TryParse(verifiedClaim, out var verified))
+
+            if (!string.IsNullOrWhiteSpace(verifiedClaim))
             {
-                return verified;
+                if (bool.TryParse(verifiedClaim, out var verified))
+                {
+                    return verified;
+                }
+                if (string.Equals(verifiedClaim, "verified", StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+                if (string.Equals(verifiedClaim, "unverified", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(verifiedClaim, "failed", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(verifiedClaim, "pending", StringComparison.OrdinalIgnoreCase))
+                {
+                    return false;
+                }
             }
 
-            // If user is authenticated via trusted token provider (e.g. Clerk) and has an email claim, consider verified
+            // Fallback for providers (e.g. default Clerk session tokens) that omit the email_verified claim:
+            // Valid only for cryptographically validated tokens with an authenticated identity and email claim.
             return !string.IsNullOrWhiteSpace(Email) && (_httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false);
         }
     }
