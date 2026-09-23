@@ -4,7 +4,8 @@ import { Employee, EmployeeRole, EmployeeStatus, ROLES_LIST } from '../types/emp
 
 export function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
   const roleName = member.roleName || 'Evaluator';
-  const role = (ROLES_LIST.includes(roleName as EmployeeRole) ? roleName : 'Evaluator') as EmployeeRole;
+  const role: EmployeeRole = ROLES_LIST.includes(roleName) ? roleName : 'Evaluator';
+  const status: EmployeeStatus = 'Active';
 
   return {
     id: member.userId || member.id,
@@ -27,7 +28,7 @@ export function mapTenantMemberToEmployee(member: TenantMemberDto): Employee {
     designation: member.designation || '',
     signatureDisplay: 'beside',
     signatureUri: member.userESignature || '',
-    status: 'Active' as EmployeeStatus,
+    status,
     avatarColor: COLORS.brand[700],
     dateJoined: member.createdAt ? new Date(member.createdAt).toLocaleDateString() : 'Recent',
     location: member.fieldOfficeName || member.tenantName || 'Regional Office',

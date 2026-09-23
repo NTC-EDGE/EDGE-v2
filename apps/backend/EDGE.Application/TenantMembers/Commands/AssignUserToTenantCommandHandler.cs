@@ -139,6 +139,8 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             UserFirstName = assignedUser?.FirstName ?? string.Empty,
             UserLastName = assignedUser?.LastName ?? string.Empty,
             RoleId = savedMember.RoleId,
+            FieldOfficeId = savedMember.FieldOfficeId,
+            FieldOfficeName = savedMember.FieldOffice?.Name,
             JobTitle = savedMember.JobTitle,
             Level = savedMember.Level,
             Division = savedMember.Division,
