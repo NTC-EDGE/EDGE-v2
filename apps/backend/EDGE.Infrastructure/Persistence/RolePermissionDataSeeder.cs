@@ -562,7 +562,7 @@ public static class RolePermissionDataSeeder
         var defaultMeetingId = SeedConstants.Communication.DefaultMeetingId;
         var existingMeeting = await context.Meetings
             .Include(m => m.Participants)
-            .FirstOrDefaultAsync(m => m.Id == defaultMeetingId);
+            .FirstOrDefaultAsync(m => m.Id == defaultMeetingId || m.MeetingCode == "NTC-OPS-2026");
 
         if (existingMeeting == null)
         {
@@ -615,7 +615,7 @@ public static class RolePermissionDataSeeder
                     context.MeetingParticipants.Add(new MeetingParticipant
                     {
                         Id = Guid.NewGuid(),
-                        MeetingId = defaultMeetingId,
+                        MeetingId = existingMeeting.Id,
                         UserId = missingUid,
                         TenantId = defaultTenantId,
                         Role = ParticipantRole.Member,
