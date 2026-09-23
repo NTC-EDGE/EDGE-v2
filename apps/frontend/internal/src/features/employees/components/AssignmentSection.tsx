@@ -81,8 +81,8 @@ export function AssignmentSection({
       style={[
         fieldStyles.cardSection,
         {
-          zIndex: isFieldOfficeDropdownOpen ? 120 : 40,
-          elevation: isFieldOfficeDropdownOpen ? 20 : 1,
+          zIndex: isFieldOfficeDropdownOpen ? 300 : 1,
+          elevation: isFieldOfficeDropdownOpen ? 25 : 1,
         },
       ]}
     >
@@ -103,8 +103,8 @@ export function AssignmentSection({
         style={[
           fieldStyles.inputGroup,
           {
-            zIndex: isFieldOfficeDropdownOpen ? 130 : 50,
-            elevation: isFieldOfficeDropdownOpen ? 25 : 1,
+            zIndex: isFieldOfficeDropdownOpen ? 350 : 1,
+            elevation: isFieldOfficeDropdownOpen ? 30 : 1,
           },
         ]}
       >
@@ -167,7 +167,7 @@ export function AssignmentSection({
       </View>
 
       {/* 2. Position & Level */}
-      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
+      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile, { zIndex: 1 }]}>
         <FormTextInput
           control={control}
           name="position"
@@ -183,7 +183,7 @@ export function AssignmentSection({
       </View>
 
       {/* 3. Title & Division */}
-      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile]}>
+      <View style={[fieldStyles.formGridRow, isMobile && fieldStyles.formGridRowMobile, { zIndex: 1 }]}>
         <FormTextInput
           control={control}
           name="title"
@@ -199,12 +199,14 @@ export function AssignmentSection({
       </View>
 
       {/* 4. Designation */}
-      <FormTextInput
-        control={control}
-        name="designation"
-        label="Designation"
-        placeholder="e.g. Officer-in-Charge"
-      />
+      <View style={{ zIndex: 1 }}>
+        <FormTextInput
+          control={control}
+          name="designation"
+          label="Designation"
+          placeholder="e.g. Officer-in-Charge"
+        />
+      </View>
     </View>
   );
 }

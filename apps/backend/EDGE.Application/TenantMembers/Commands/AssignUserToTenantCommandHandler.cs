@@ -12,6 +12,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
     private readonly ITenantMemberRepository _memberRepository;
     private readonly IRoleRepository _roleRepository;
     private readonly ITenantContextService _tenantContextService;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AssignUserToTenantCommandHandler(
@@ -19,12 +20,14 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
         ITenantMemberRepository memberRepository,
         IRoleRepository roleRepository,
         ITenantContextService tenantContextService,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork)
     {
         _tenantRepository = tenantRepository;
         _memberRepository = memberRepository;
         _roleRepository = roleRepository;
         _tenantContextService = tenantContextService;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -79,15 +82,17 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new InvalidOperationException("Failed to retrieve the newly created tenant member.");
         }
 
+        var assignedUser = await _userRepository.GetByIdAsync(savedMember.UserId, cancellationToken);
+
         return new TenantMemberDto
         {
             Id = savedMember.Id,
             TenantId = savedMember.TenantId,
             TenantName = savedMember.Tenant?.Name ?? string.Empty,
             UserId = savedMember.UserId,
-            UserEmail = string.Empty, // Populate dynamically later when User entity is available
-            UserFirstName = string.Empty,
-            UserLastName = string.Empty,
+            UserEmail = assignedUser?.Email ?? string.Empty,
+            UserFirstName = assignedUser?.FirstName ?? string.Empty,
+            UserLastName = assignedUser?.LastName ?? string.Empty,
             RoleId = savedMember.RoleId,
             JobTitle = savedMember.JobTitle,
             Level = savedMember.Level,
