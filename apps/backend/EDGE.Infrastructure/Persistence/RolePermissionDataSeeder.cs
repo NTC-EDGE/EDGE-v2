@@ -152,6 +152,8 @@ public static class RolePermissionDataSeeder
             (actualClientRoleId, Permissions.DownloadStorage),
             (actualClientRoleId, Permissions.ReadSchedules),
             (actualClientRoleId, Permissions.ReadServiceVariantElements),
+            (actualClientRoleId, Permissions.ReadChat),
+            (actualClientRoleId, Permissions.ReadMeetings),
 
             // Evaluator (Frontline Staff Evaluator)
             (actualEvaluatorRoleId, Permissions.ReadTenants),
@@ -173,6 +175,8 @@ public static class RolePermissionDataSeeder
             (actualEvaluatorRoleId, Permissions.CreateSoaNotes),
             (actualEvaluatorRoleId, Permissions.UpdateSoaNotes),
             (actualEvaluatorRoleId, Permissions.ReadSchedules),
+            (actualEvaluatorRoleId, Permissions.ReadChat),
+            (actualEvaluatorRoleId, Permissions.ReadMeetings),
 
             // Chief of EOD (Enforcement & Operations Division Head)
             (actualChiefEodRoleId, Permissions.ReadTenants),
@@ -190,6 +194,8 @@ public static class RolePermissionDataSeeder
             (actualChiefEodRoleId, Permissions.ReadServiceNotes),
             (actualChiefEodRoleId, Permissions.ReadSoaNotes),
             (actualChiefEodRoleId, Permissions.ReadSchedules),
+            (actualChiefEodRoleId, Permissions.ReadChat),
+            (actualChiefEodRoleId, Permissions.ReadMeetings),
 
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
@@ -208,6 +214,8 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.PublishSchedules),
             (actualRegionalDirectorRoleId, Permissions.ReceiptsRead),
             (actualRegionalDirectorRoleId, Permissions.CashierReports),
+            (actualRegionalDirectorRoleId, Permissions.ReadChat),
+            (actualRegionalDirectorRoleId, Permissions.ReadMeetings),
 
             // Legal Officer (Compliance & Legal Reviews)
             (actualLegalRoleId, Permissions.ReadTenants),
@@ -220,6 +228,8 @@ public static class RolePermissionDataSeeder
             (actualLegalRoleId, Permissions.ReadStorage),
             (actualLegalRoleId, Permissions.DownloadStorage),
             (actualLegalRoleId, Permissions.ReadServiceNotes),
+            (actualLegalRoleId, Permissions.ReadChat),
+            (actualLegalRoleId, Permissions.ReadMeetings),
 
             // Accountant (Billing & Financial Reviews)
             (actualAccountantRoleId, Permissions.ReadTenants),
@@ -238,6 +248,8 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.BankAccountsManage),
             (actualAccountantRoleId, Permissions.ReceiptsDeposit),
             (actualAccountantRoleId, Permissions.CashierReports),
+            (actualAccountantRoleId, Permissions.ReadChat),
+            (actualAccountantRoleId, Permissions.ReadMeetings),
 
             // Cashier (Payments & Official Receipts)
             (actualCashierRoleId, Permissions.ReadTenants),
@@ -258,6 +270,8 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.ReceiptsCancel),
             (actualCashierRoleId, Permissions.ReceiptsDeposit),
             (actualCashierRoleId, Permissions.CashierReports),
+            (actualCashierRoleId, Permissions.ReadChat),
+            (actualCashierRoleId, Permissions.ReadMeetings),
         };
 
         // Add all permissions to SuperAdmin and Admin roles dynamically
@@ -460,6 +474,154 @@ public static class RolePermissionDataSeeder
             else
             {
                 logger?.LogInformation("Clerk synchronization successfully verified/provisioned all {Count} seed users.", syncResults.Count);
+            }
+        }
+
+        // ── 7. Seed Initial Staff Collaboration Conversations & Meetings ──────────
+        var allSeededUserIds = defaultUsers.Select(u => u.Id).Distinct().ToList();
+
+        var generalConversationId = Guid.Parse("50000000-0000-0000-0000-000000000001");
+        var existingConversation = await context.Conversations
+            .Include(c => c.Participants)
+            .FirstOrDefaultAsync(c => c.Id == generalConversationId);
+
+        if (existingConversation == null)
+        {
+            var generalConversation = new Conversation
+            {
+                Id = generalConversationId,
+                Title = "NTC Regional Staff Collaboration",
+                Description = "General collaboration channel for all regional staff and department officers",
+                Type = ConversationType.Group,
+                Scope = ConversationScope.IntraRegional,
+                TenantId = defaultTenantId,
+                CreatedAt = staticDate,
+                LastMessageAt = staticDate,
+                LastMessagePreview = "Welcome to the NTC-EDGE Regional Collaboration Hub!",
+                Participants = allSeededUserIds.Select(uid => new ConversationParticipant
+                {
+                    Id = Guid.NewGuid(),
+                    ConversationId = generalConversationId,
+                    UserId = uid,
+                    TenantId = defaultTenantId,
+                    Role = uid == Guid.Parse("77777777-7777-7777-7777-777777777777") || uid == Guid.Parse("66666666-6666-6666-6666-666666666666")
+                        ? ParticipantRole.Owner
+                        : ParticipantRole.Member,
+                    CreatedAt = staticDate
+                }).ToList(),
+                Messages = new List<ChatMessage>
+                {
+                    new()
+                    {
+                        Id = Guid.Parse("51000000-0000-0000-0000-000000000001"),
+                        ConversationId = generalConversationId,
+                        SenderId = Guid.Parse("77777777-7777-7777-7777-777777777777"),
+                        SenderTenantId = defaultTenantId,
+                        Content = "Welcome to the NTC-EDGE Regional Collaboration Hub! All internal staff have access to coordinate on permits, licensing, and compliance here.",
+                        Type = MessageType.Text,
+                        CreatedAt = staticDate
+                    }
+                }
+            };
+
+            try
+            {
+                await context.Conversations.AddAsync(generalConversation);
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Seeded general collaboration conversation '{Title}' with all roles participating.", generalConversation.Title);
+            }
+            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+            {
+                context.Entry(generalConversation).State = EntityState.Detached;
+            }
+        }
+        else
+        {
+            // Ensure any missing staff user is enrolled as participant
+            var existingParticipantIds = existingConversation.Participants.Select(p => p.UserId).ToHashSet();
+            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
+            if (missingUsers.Count > 0)
+            {
+                foreach (var missingUid in missingUsers)
+                {
+                    context.ConversationParticipants.Add(new ConversationParticipant
+                    {
+                        Id = Guid.NewGuid(),
+                        ConversationId = generalConversationId,
+                        UserId = missingUid,
+                        TenantId = defaultTenantId,
+                        Role = ParticipantRole.Member,
+                        CreatedAt = staticDate
+                    });
+                }
+                await context.SaveChangesAsync();
+            }
+        }
+
+        var defaultMeetingId = Guid.Parse("60000000-0000-0000-0000-000000000001");
+        var existingMeeting = await context.Meetings
+            .Include(m => m.Participants)
+            .FirstOrDefaultAsync(m => m.Id == defaultMeetingId);
+
+        if (existingMeeting == null)
+        {
+            var defaultMeeting = new Meeting
+            {
+                Id = defaultMeetingId,
+                Title = "Weekly Regional Operations & Coordination",
+                Description = "Regular coordination meeting for regional evaluation, cashiering, and management review.",
+                MeetingCode = "NTC-OPS-2026",
+                Scope = ConversationScope.IntraRegional,
+                TenantId = defaultTenantId,
+                HostUserId = Guid.Parse("77777777-7777-7777-7777-777777777777"), // Regional Director
+                ScheduledStartTime = DateTimeOffset.UtcNow.AddHours(2),
+                ScheduledEndTime = DateTimeOffset.UtcNow.AddHours(3),
+                Status = MeetingStatus.Scheduled,
+                AllowExternalGuests = false,
+                CreatedAt = staticDate,
+                Participants = allSeededUserIds.Select(uid => new MeetingParticipant
+                {
+                    Id = Guid.NewGuid(),
+                    MeetingId = defaultMeetingId,
+                    UserId = uid,
+                    TenantId = defaultTenantId,
+                    Role = uid == Guid.Parse("77777777-7777-7777-7777-777777777777")
+                        ? ParticipantRole.Owner
+                        : ParticipantRole.Member,
+                    CreatedAt = staticDate
+                }).ToList()
+            };
+
+            try
+            {
+                await context.Meetings.AddAsync(defaultMeeting);
+                await context.SaveChangesAsync();
+                logger?.LogInformation("Seeded default upcoming meeting '{Title}' (Code: {Code}) with all roles participating.", defaultMeeting.Title, defaultMeeting.MeetingCode);
+            }
+            catch (Exception ex) when (ex is DbUpdateException || ex.InnerException is PostgresException)
+            {
+                context.Entry(defaultMeeting).State = EntityState.Detached;
+            }
+        }
+        else
+        {
+            var existingParticipantIds = existingMeeting.Participants.Select(p => p.UserId).ToHashSet();
+            var missingUsers = allSeededUserIds.Where(uid => !existingParticipantIds.Contains(uid)).ToList();
+            if (missingUsers.Count > 0)
+            {
+                foreach (var missingUid in missingUsers)
+                {
+                    context.MeetingParticipants.Add(new MeetingParticipant
+                    {
+                        Id = Guid.NewGuid(),
+                        MeetingId = defaultMeetingId,
+                        UserId = missingUid,
+                        TenantId = defaultTenantId,
+                        Role = ParticipantRole.Member,
+                        CreatedAt = staticDate
+                    });
+                }
+                await context.SaveChangesAsync();
             }
         }
     }

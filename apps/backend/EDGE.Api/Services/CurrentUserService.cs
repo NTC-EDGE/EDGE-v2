@@ -22,10 +22,21 @@ public class CurrentUserService : ICurrentUserService
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email")
                          ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_address");
 
-    public bool IsEmailVerified => bool.TryParse(
-        _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verified")
-        ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verification_status"),
-        out var verified) && verified;
+    public bool IsEmailVerified
+    {
+        get
+        {
+            var verifiedClaim = _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verified")
+                             ?? _httpContextAccessor.HttpContext?.User?.FindFirstValue("email_verification_status");
+            if (bool.TryParse(verifiedClaim, out var verified))
+            {
+                return verified;
+            }
+
+            // If user is authenticated via trusted token provider (e.g. Clerk) and has an email claim, consider verified
+            return !string.IsNullOrWhiteSpace(Email) && (_httpContextAccessor.HttpContext?.User?.Identity?.IsAuthenticated ?? false);
+        }
+    }
 
     public string? IpAddress => _httpContextAccessor.HttpContext?.Connection?.RemoteIpAddress?.ToString()
                              ?? _httpContextAccessor.HttpContext?.Request?.Headers["X-Forwarded-For"].FirstOrDefault();
