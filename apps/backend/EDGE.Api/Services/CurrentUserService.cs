@@ -94,16 +94,33 @@ public class CurrentUserService : ICurrentUserService
             return true;
         }
 
-        // 3. Check known trusted Clerk domain hosts
+        // 3. Domain/Host match with configured Clerk:Authority host or Clerk:TrustedIssuerDomains
         if (Uri.TryCreate(cleanIssuer, UriKind.Absolute, out var uri))
         {
             var host = uri.Host.ToLowerInvariant();
-            if (host.EndsWith(".clerk.accounts.dev") ||
-                host == "clerk.accounts.dev" ||
-                host.EndsWith(".clerk.com") ||
-                host == "clerk.edge.ntc.gov.ph")
+
+            // Match authority host if authority is a valid URI
+            if (!string.IsNullOrWhiteSpace(clerkAuthority) &&
+                Uri.TryCreate(clerkAuthority, UriKind.Absolute, out var authorityUri) &&
+                string.Equals(host, authorityUri.Host, StringComparison.OrdinalIgnoreCase))
             {
                 return true;
+            }
+
+            // Match configured trusted issuer domains / wildcards (e.g. .clerk.accounts.dev, .clerk.com)
+            var configuredDomains = _configuration?.GetSection("Clerk:TrustedIssuerDomains").Get<string[]>()
+                ?? _configuration?.GetSection("Clerk:TrustedDomains").Get<string[]>();
+
+            if (configuredDomains != null && configuredDomains.Length > 0)
+            {
+                return configuredDomains.Any(domain =>
+                {
+                    if (string.IsNullOrWhiteSpace(domain)) return false;
+                    var cleanDomain = domain.Trim().ToLowerInvariant();
+                    return cleanDomain.StartsWith('.')
+                        ? host.EndsWith(cleanDomain)
+                        : string.Equals(host, cleanDomain, StringComparison.OrdinalIgnoreCase) || host.EndsWith("." + cleanDomain);
+                });
             }
         }
 
