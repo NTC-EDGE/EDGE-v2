@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Persistence.SeederData;
@@ -17,11 +18,11 @@ namespace EDGE.Infrastructure.Persistence;
 public static class ApplicationDataSeeder
 {
     // ─── Fixed GUIDs anchored to the IAM seeder ──────────────────────────────
-    private static readonly Guid TenantId         = Guid.Parse("00000000-0000-0000-0000-000000000001");
-    private static readonly Guid ClientUserId     = Guid.Parse("11111111-1111-1111-1111-111111111111");
-    private static readonly Guid EvaluatorUserId  = Guid.Parse("22222222-2222-2222-2222-222222222222");
-    private static readonly Guid AccountantUserId = Guid.Parse("44444444-4444-4444-4444-444444444444");
-    private static readonly Guid CashierUserId    = Guid.Parse("55555555-5555-5555-5555-555555555555");
+    private static readonly Guid TenantId         = SeedConstants.DefaultTenantId;
+    private static readonly Guid ClientUserId     = SeedConstants.Users.ClientUserId;
+    private static readonly Guid EvaluatorUserId  = SeedConstants.Users.EvaluatorUserId;
+    private static readonly Guid AccountantUserId = SeedConstants.Users.AccountantUserId;
+    private static readonly Guid CashierUserId    = SeedConstants.Users.CashierUserId;
 
     // Service IDs from FastTrackSeeder (active catalog)
     private static readonly Guid ServicePermitId  = PermitsCategorySeederData.Svc109Id;      // NTC_1_09 (Permits in Amateur Service)
@@ -63,7 +64,7 @@ public static class ApplicationDataSeeder
         }
 
         // ── Ensure Liaison User & Company Detail are linked ─────────────────
-        var liaisonUserId = Guid.Parse("11111111-1111-1111-1111-222222222222");
+        var liaisonUserId = SeedConstants.Users.LiaisonUserId;
         var liaisonUser = await context.Users.Include(u => u.CompanyDetail).FirstOrDefaultAsync(u => u.Id == liaisonUserId);
         if (liaisonUser != null && liaisonUser.CompanyDetail == null)
         {

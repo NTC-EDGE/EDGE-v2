@@ -9,6 +9,7 @@ using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Constants;
 
 namespace EDGE.Application.Auth.Commands.VerifyStaffSession;
 
@@ -139,13 +140,13 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
 
         if (resolvedTenant == null)
         {
-            var defaultTenantId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+            var defaultTenantId = SeedConstants.DefaultTenantId;
             resolvedTenant = allTenants.FirstOrDefault(t => t.Id == defaultTenantId)
                           ?? allTenants.FirstOrDefault(t => t.IsActive)
                           ?? allTenants.FirstOrDefault();
         }
 
-        var finalTenantId = resolvedTenant?.Id ?? Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var finalTenantId = resolvedTenant?.Id ?? SeedConstants.DefaultTenantId;
         var finalTenantName = resolvedTenant?.Name ?? $"NTC Regional Office - {regionCode}";
 
         // 3. Resolve user's actual assigned Role and Permissions

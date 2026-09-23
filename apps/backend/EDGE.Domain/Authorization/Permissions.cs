@@ -117,6 +117,10 @@ public static class Permissions
     public const string DeleteSchedules = "schedules.delete";
     public const string PublishSchedules = "schedules.publish";
 
+    // Communication & Collaboration (Chat & Meetings)
+    public const string ReadChat = "chat.read";
+    public const string ReadMeetings = "meetings.read";
+
     // System
     public const string SystemAdmin = "system.admin";
 
@@ -214,6 +218,10 @@ public static class Permissions
         new(UpdateSchedules, "Schedules", "Update Schedules", PermissionScope.Internal, "Allows editing examination and appointment schedules for the regional tenant"),
         new(DeleteSchedules, "Schedules", "Delete Schedules", PermissionScope.Internal, "Allows removing draft examination and appointment schedules for the regional tenant"),
         new(PublishSchedules, "Schedules", "Publish Schedules", PermissionScope.Internal, "Allows publishing or unpublishing examination schedules for public applicant viewing"),
+
+        // Communication & Collaboration
+        new(ReadChat, "Communication", "Access Chat", PermissionScope.Internal, "Allows accessing chat and team discussions"),
+        new(ReadMeetings, "Communication", "Access Meetings", PermissionScope.Internal, "Allows accessing video meetings and conferences"),
 
         // System
         new(SystemAdmin, "System", "System Administrator", PermissionScope.SystemAdmin, "Full system administration access")
