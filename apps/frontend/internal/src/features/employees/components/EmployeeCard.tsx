@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, Platform } from 'react-native';
 import { COLORS, SHADOWS, Icon as Lucide } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { employeeCardStyles as styles } from '../styles/employeeCardStyles';
 
 interface EmployeeCardProps {

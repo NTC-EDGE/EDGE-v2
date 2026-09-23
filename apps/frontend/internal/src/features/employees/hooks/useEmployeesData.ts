@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import { useTenantMembers, useAdminRoles, useAdminFieldOffices } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { mapTenantMemberToEmployee } from '../utils/employeeMappers';
 import { useEmployeeActions } from './useEmployeeActions';
 

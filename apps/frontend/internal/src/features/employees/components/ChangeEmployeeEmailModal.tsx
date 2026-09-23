@@ -7,7 +7,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SHADOWS, Icon as Lucide, AlertToast } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { useChangeEmailForm } from '../hooks/useChangeEmailForm';
 import { ChangeEmployeeEmailFormFields } from './ChangeEmployeeEmailFormFields';
 import { changeEmailModalStyles as styles } from '../styles/changeEmailModalStyles';

@@ -11,5 +11,6 @@ public record AssignUserToTenantCommand(
     string? Level,
     string Division,
     string Position,
-    string? Designation
+    string? Designation,
+    Guid? FieldOfficeId = null
 ) : IRequest<TenantMemberDto>;

@@ -1,5 +1,5 @@
-import { userService, Role, FieldOffice } from '@edge/api';
-import { Employee } from '../data/mockEmployees';
+import { userService, tenantMemberService, Role, FieldOffice } from '@edge/api';
+import { Employee } from '../types/employeeTypes';
 
 interface UseEmployeeActionsParams {
   currentTenantId?: string;
@@ -154,12 +154,21 @@ export function useEmployeeActions({
   };
 
   const handleConfirmDelete = async (emp: Employee) => {
-    const [_, err] = await userService.deleteUser(emp.id);
+    let err: unknown = null;
+    const memberId = emp.memberId || emp.id;
+    if (currentTenantId !== undefined && currentTenantId !== null && currentTenantId.trim().length > 0 && memberId !== undefined && memberId.trim().length > 0) {
+      const [_, removeErr] = await tenantMemberService.removeUserFromTenant(currentTenantId, memberId);
+      err = removeErr;
+    } else {
+      const [_, deleteErr] = await userService.deleteUser(emp.id);
+      err = deleteErr;
+    }
+
     if (err !== null) {
-      const errorMsg = typeof err === 'string' ? err : 'Failed to delete employee';
+      const errorMsg = typeof err === 'string' ? err : 'Failed to remove employee';
       showToast(errorMsg, 'error');
     } else {
-      showToast(`Successfully deleted employee ${emp.firstName} ${emp.lastName}`, 'success');
+      showToast(`Successfully removed employee ${emp.firstName} ${emp.lastName} from tenant`, 'success');
     }
     await refetch();
     setIsDeleteModalOpen(false);

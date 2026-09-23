@@ -23,7 +23,7 @@ import {
   ThemeToggle,
 } from "@edge/ui";
 import { useAuthContext } from "../../auth/context/AuthContext";
-import { REGIONS_LIST } from "../../employees/data/mockEmployees";
+import { REGIONS_LIST } from "../../employees/types/employeeTypes";
 import { useRole } from "../../shell/context/RoleContext";
 import { useAppNavigation } from "../../../navigation/types";
 import {

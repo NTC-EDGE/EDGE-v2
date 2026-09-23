@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import {
   employeeFormSchema,
   EmployeeFormData,

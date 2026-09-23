@@ -82,7 +82,7 @@ export function RoleListItem({
               },
             ]}
           >
-            {role.isSystemRole ? 'SYSTEM' : 'CUSTOM'}
+            {role.isSystemRole ? 'STANDARD' : 'CUSTOM'}
           </Text>
         </View>
       </View>
@@ -91,7 +91,9 @@ export function RoleListItem({
       {!role.isSystemRole && (
         <Pressable
           onPress={(e) => {
-            e.stopPropagation?.();
+            if (e && typeof e.stopPropagation === 'function') {
+              e.stopPropagation();
+            }
             onDeletePress();
           }}
           style={styles.deleteBtn}

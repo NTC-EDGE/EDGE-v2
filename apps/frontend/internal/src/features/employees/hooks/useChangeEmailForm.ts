@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { userService } from '@edge/api';
 import { changeEmailSchema, ChangeEmailFormData } from '../schemas/changeEmailSchema';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 
 interface UseChangeEmailFormParams {
   visible: boolean;

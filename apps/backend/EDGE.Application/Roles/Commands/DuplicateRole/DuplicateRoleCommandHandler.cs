@@ -4,6 +4,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.Roles.Commands;
@@ -13,17 +14,20 @@ public class DuplicateRoleCommandHandler : IRequestHandler<DuplicateRoleCommand,
     private readonly IRoleRepository _roleRepository;
     private readonly IRolePermissionRepository _rolePermissionRepository;
     private readonly ITenantRepository _tenantRepository;
+    private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
 
     public DuplicateRoleCommandHandler(
         IRoleRepository roleRepository,
         IRolePermissionRepository rolePermissionRepository,
         ITenantRepository tenantRepository,
+        ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork)
     {
         _roleRepository = roleRepository;
         _rolePermissionRepository = rolePermissionRepository;
         _tenantRepository = tenantRepository;
+        _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
     }
 
@@ -40,6 +44,11 @@ public class DuplicateRoleCommandHandler : IRequestHandler<DuplicateRoleCommand,
         {
             throw new InvalidOperationException($"Target tenant '{request.TargetTenantId}' not found.");
         }
+
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TargetTenantId,
+            "You are only authorized to duplicate roles into your own regional tenant.",
+            cancellationToken);
 
         var isUnique = await _roleRepository.IsRoleNameUniqueAsync(request.Name, request.TargetTenantId, null, cancellationToken);
         if (!isUnique)

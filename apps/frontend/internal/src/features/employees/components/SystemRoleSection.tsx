@@ -27,7 +27,7 @@ export function SystemRoleSection({
     <View
       style={[
         fieldStyles.cardSection,
-        { zIndex: isOpen ? 140 : 60, elevation: isOpen ? 25 : 1 },
+        { zIndex: isOpen ? 300 : 2, elevation: isOpen ? 25 : 1 },
       ]}
     >
       <View style={fieldStyles.sectionHeaderRow}>
@@ -43,7 +43,7 @@ export function SystemRoleSection({
       <View
         style={[
           fieldStyles.inputGroup,
-          { zIndex: isOpen ? 150 : 50, elevation: isOpen ? 30 : 1 },
+          { zIndex: isOpen ? 350 : 1, elevation: isOpen ? 30 : 1 },
         ]}
       >
         <Text style={fieldStyles.label}>

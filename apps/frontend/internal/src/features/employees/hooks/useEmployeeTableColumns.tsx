@@ -2,7 +2,7 @@ import React, { useMemo } from 'react';
 import { StyleSheet, View, Text } from 'react-native';
 import { ColumnDef } from '@tanstack/react-table';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 import { TableActionCell } from '../components/TableActionCell';
 
 interface UseEmployeeTableColumnsParams {

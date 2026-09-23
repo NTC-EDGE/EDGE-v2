@@ -308,7 +308,10 @@ public class UserAuthorizationService : IUserAuthorizationService
                 Permissions.ReadRoles,
                 Permissions.ReadServices,
                 Permissions.ReadRequirements,
-                Permissions.ReadSchedules
+                Permissions.ReadSchedules,
+                Permissions.ReadUsers,
+                Permissions.ReadChat,
+                Permissions.ReadMeetings
             };
 
             foreach (var basePerm in basePermissions)
