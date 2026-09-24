@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
+using EDGE.Domain.Authorization;
+using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
@@ -424,37 +426,36 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            var normalizedRole = (role ?? string.Empty).Trim().ToLowerInvariant();
 
-            if (normalizedRole == "accountant")
+            if (ApplicationStatusHelper.IsAccountantRole(role))
             {
                 if (tab == "pending")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant);
                 }
-                else if (tab == "history")
+                else if (tab == "history" || tab == "archived")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
                 }
             }
-            else if (normalizedRole == "cashier")
+            else if (ApplicationStatusHelper.IsCashierRole(role))
             {
                 if (tab == "pending")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment);
                 }
-                else if (tab == "history")
+                else if (tab == "history" || tab == "archived")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
                 }
             }
-            else if (normalizedRole == "evaluator" || normalizedRole == "chief of eod" || normalizedRole == "regional director")
+            else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))
             {
                 if (tab == "pending")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
                 }
-                else if (tab == "history")
+                else if (tab == "history" || tab == "archived")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
                 }
@@ -465,7 +466,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
                 }
-                else if (tab == "history")
+                else if (tab == "history" || tab == "archived")
                 {
                     filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
                 }
@@ -594,7 +595,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         {
             if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
             {
-                item.QueueTab = DetermineQueueTab(parsedStatus, role);
+                item.QueueTab = ApplicationStatusHelper.DetermineQueueTab(parsedStatus, role);
             }
         }
 
@@ -978,42 +979,5 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken);
-    }
-
-    public static string DetermineQueueTab(ApplicationStatus status, string? role)
-    {
-        var normalizedRole = (role ?? string.Empty).Trim().ToLowerInvariant();
-
-        if (normalizedRole == "accountant")
-        {
-            if (status == ApplicationStatus.ForAccountant) return "pending";
-            if (status == ApplicationStatus.PendingPayment || status == ApplicationStatus.Approved || status == ApplicationStatus.Completed || status == ApplicationStatus.Returned) return "history";
-            return "activity";
-        }
-
-        if (normalizedRole == "cashier")
-        {
-            if (status == ApplicationStatus.PendingPayment) return "pending";
-            if (status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
-            return "activity";
-        }
-
-        if (normalizedRole == "evaluator" || normalizedRole == "chief of eod" || normalizedRole == "regional director")
-        {
-            if (status == ApplicationStatus.Submitted || status == ApplicationStatus.Evaluating) return "pending";
-            if (status == ApplicationStatus.ForAccountant || status == ApplicationStatus.PendingPayment || status == ApplicationStatus.Approved || status == ApplicationStatus.Completed || status == ApplicationStatus.Returned) return "history";
-            return "activity";
-        }
-
-        // Default / Admin
-        if (status == ApplicationStatus.Submitted || status == ApplicationStatus.Evaluating || status == ApplicationStatus.ForAccountant || status == ApplicationStatus.PendingPayment)
-        {
-            return "pending";
-        }
-        if (status == ApplicationStatus.Approved || status == ApplicationStatus.Returned || status == ApplicationStatus.Completed)
-        {
-            return "history";
-        }
-        return "activity";
     }
 }
