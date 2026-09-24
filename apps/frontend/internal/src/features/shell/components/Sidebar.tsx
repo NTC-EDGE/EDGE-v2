@@ -132,6 +132,7 @@ export function Sidebar({
     {
       queueTab: 'pending',
       scope: 'queue',
+      role: currentRole,
     },
     {
       refreshInterval: 30000,

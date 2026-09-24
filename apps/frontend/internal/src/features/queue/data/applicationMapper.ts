@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, SYSTEM_ROLES } from '@edge/api';
 import {
   ApplicationData,
   ApplicationStatus,
@@ -68,22 +68,42 @@ function parseBackendQueueTab(tab?: string): QueueTab | null {
   return null;
 }
 
-export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
-  const normalizedRole = (role || '').trim().toLowerCase();
+export function isAccountantRole(role?: string): boolean {
+  if (!role) return false;
+  const lower = role.trim().toLowerCase();
+  return lower === SYSTEM_ROLES.Accountant.toLowerCase();
+}
 
-  if (normalizedRole === 'accountant') {
+export function isCashierRole(role?: string): boolean {
+  if (!role) return false;
+  const lower = role.trim().toLowerCase();
+  return lower === SYSTEM_ROLES.Cashier.toLowerCase();
+}
+
+export function isEvaluatorOrSupervisorRole(role?: string): boolean {
+  if (!role) return false;
+  const lower = role.trim().toLowerCase();
+  return (
+    lower === SYSTEM_ROLES.Evaluator.toLowerCase() ||
+    lower === SYSTEM_ROLES.ChiefOfEod.toLowerCase() ||
+    lower === SYSTEM_ROLES.RegionalDirector.toLowerCase()
+  );
+}
+
+export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
+  if (isAccountantRole(role)) {
     if (status === 'ForAccountant') return 'pending';
     if (status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
     return 'activity';
   }
 
-  if (normalizedRole === 'cashier') {
+  if (isCashierRole(role)) {
     if (status === 'PendingPayment') return 'pending';
     if (status === 'Completed' || status === 'Approved' || status === 'Returned') return 'history';
     return 'activity';
   }
 
-  if (normalizedRole === 'evaluator' || normalizedRole === 'chief of eod' || normalizedRole === 'regional director') {
+  if (isEvaluatorOrSupervisorRole(role)) {
     if (status === 'Submitted' || status === 'Evaluating') return 'pending';
     if (status === 'ForAccountant' || status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
     return 'activity';
