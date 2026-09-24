@@ -139,15 +139,11 @@ const styles = StyleSheet.create({
   headerWrapper: {
     paddingHorizontal: SPACING[24],
     paddingTop: SPACING[16],
-    maxWidth: 1280,
-    alignSelf: 'center',
     width: '100%',
   },
   body: {
     flex: 1,
     flexDirection: 'row',
-    maxWidth: 1280,
-    alignSelf: 'center',
     width: '100%',
     paddingHorizontal: SPACING[24],
     paddingBottom: SPACING[24],

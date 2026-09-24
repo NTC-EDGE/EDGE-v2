@@ -402,8 +402,6 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING[24],
     gap: SPACING[16],
-    maxWidth: 1280,
-    alignSelf: 'center',
     width: '100%',
   },
   titleRow: {

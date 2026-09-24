@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Icon as Lucide, TYPOGRAPHY, useTheme } from '@edge/ui';
 import { useAdminApplications } from '@edge/api';
+import { useChatConversations } from '../../chat/hooks/useChatConversations';
 import {
   NAV_GROUP_ORDER,
   NavigationLink,
@@ -143,11 +144,19 @@ export function Sidebar({
     pagination?.totalCount ??
     (Array.isArray(applications) ? applications.length : 0);
 
+  const { totalUnreadCount: unreadChatCount } = useChatConversations();
+
   const enrichedLinks = links.map((link) => {
     if (link.screen === 'Activities' || link.name === 'Activities') {
       return {
         ...link,
         badgeCount: link.badgeCount !== undefined ? link.badgeCount : pendingCount > 0 ? pendingCount : undefined,
+      };
+    }
+    if (link.screen === 'Chat' || link.name === 'Chat') {
+      return {
+        ...link,
+        badgeCount: link.badgeCount !== undefined ? link.badgeCount : unreadChatCount > 0 ? unreadChatCount : undefined,
       };
     }
     return link;

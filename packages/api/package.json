@@ -4,6 +4,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
+    "@microsoft/signalr": "^10.0.11",
     "axios": "^1.7.9",
     "swr": "^2.3.0"
   },

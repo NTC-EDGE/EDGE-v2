@@ -528,9 +528,7 @@ const styles = StyleSheet.create({
   contentContainer: {
     paddingHorizontal: 24,
     paddingVertical: 24,
-    maxWidth: 1200,
     width: "100%",
-    alignSelf: "center",
   },
   container: {
     gap: 24,

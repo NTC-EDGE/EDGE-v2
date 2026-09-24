@@ -7,6 +7,92 @@ import {
 } from "./officerEvaluationHelper";
 import { ApplicationData, ApplicantItem } from "../../../types/application";
 
+function createMockApplicant(overrides: Partial<ApplicantItem> = {}): ApplicantItem {
+  return {
+    id: overrides.id ?? "app-1",
+    name: overrides.name ?? "Applicant Name",
+    applicantType: overrides.applicantType ?? "Individual",
+    status: overrides.status ?? "Complete",
+    evaluationRemarks: overrides.evaluationRemarks,
+    contactNumber: overrides.contactNumber ?? "09170000000",
+    email: overrides.email ?? "applicant@example.com",
+    address: overrides.address ?? "123 Main St",
+    barangay: overrides.barangay ?? "Barangay 1",
+    city: overrides.city ?? "Manila",
+    province: overrides.province ?? "Metro Manila",
+    zipCode: overrides.zipCode ?? "1000",
+    ...overrides,
+  };
+}
+
+function createMockApp(overrides: Partial<ApplicationData> = {}): ApplicationData {
+  return {
+    id: overrides.id ?? "app-101",
+    referenceNumber: overrides.referenceNumber ?? "REF-101",
+    applicationNumber: overrides.applicationNumber ?? "APP-101",
+    applicant: overrides.applicant ?? "Acme Corp",
+    applicantType: overrides.applicantType ?? "Company",
+    permitTitle: overrides.permitTitle ?? "Radio Station License",
+    category: overrides.category ?? "Licenses",
+    status: overrides.status ?? "Evaluating",
+    queueTab: overrides.queueTab ?? "pending",
+    createdAt: overrides.createdAt ?? "2026-09-20T10:00:00Z",
+    dateLabel: overrides.dateLabel ?? "Sep 20, 2026",
+    assignedTo: overrides.assignedTo ?? "Engr. Maria Santos",
+    evaluatingOfficer: overrides.evaluatingOfficer ?? "Engr. Maria Santos",
+    applicationType: overrides.applicationType ?? "SINGLE",
+    isBeingViewed: overrides.isBeingViewed ?? false,
+    isUrgent: overrides.isUrgent ?? false,
+    isPinned: overrides.isPinned ?? false,
+    address: overrides.address ?? {
+      barangay: "Barangay 1",
+      city: "Manila",
+      province: "Metro Manila",
+      zipCode: "1000",
+    },
+    contactDetails: overrides.contactDetails ?? {
+      contactNumber: "09170000000",
+      email: "contact@example.com",
+    },
+    basicInfo: overrides.basicInfo ?? {
+      lastName: "Santos",
+      firstName: "Maria",
+      middleName: "",
+      extensionName: "",
+      dob: "1990-01-01",
+      placeOfBirth: "Manila",
+      sex: "Female",
+      weight: 55,
+      height: 165,
+      nationality: "Filipino",
+      employmentStatus: "Employed",
+      occupation: "Engineer",
+    },
+    applicationDetails: overrides.applicationDetails ?? {
+      noOfYears: 1,
+      permitCategory: "Radio",
+      formType: "Standard",
+      submittedAt: "2026-09-20T10:00:00Z",
+    },
+    requirements: overrides.requirements ?? [],
+    forms: overrides.forms ?? [],
+    soaItems: overrides.soaItems ?? [],
+    totalAmountDue: overrides.totalAmountDue ?? 1500,
+    dueDate: overrides.dueDate ?? "2026-10-20",
+    payment: overrides.payment ?? {
+      amountReceived: 0,
+      method: "cash",
+      orNumber: "",
+      checkNumber: "",
+      checkName: "",
+    },
+    correctionAuditTrail: overrides.correctionAuditTrail ?? [],
+    history: overrides.history ?? [],
+    note: overrides.note ?? "",
+    ...overrides,
+  };
+}
+
 describe("officerEvaluationHelper", () => {
   describe("resolveUserIdentifiers", () => {
     it("consolidates unique lowercased identifiers from user, clerkUser, and currentUserName", () => {
@@ -84,19 +170,7 @@ describe("officerEvaluationHelper", () => {
   });
 
   describe("computeOfficerEvaluationState", () => {
-    const baseApp: ApplicationData = {
-      id: "app-101",
-      referenceNumber: "REF-101",
-      permitTitle: "Radio Station License",
-      status: "Evaluating",
-      applicant: "Acme Corp",
-      applicantType: "Company",
-      category: "Licenses",
-      totalAmountDue: 1500,
-      assignedTo: "Engr. Maria Santos",
-      evaluatingOfficer: "Engr. Maria Santos",
-      createdAt: "2026-09-20T10:00:00Z",
-    };
+    const baseApp = createMockApp();
 
     it("detects when application is evaluated by current user", () => {
       const state = computeOfficerEvaluationState({
@@ -121,11 +195,10 @@ describe("officerEvaluationHelper", () => {
     });
 
     it("allows any officer to evaluate generic/unassigned evaluating officer", () => {
-      const genericApp: ApplicationData = {
-        ...baseApp,
+      const genericApp = createMockApp({
         assignedTo: "Authorized Officer",
         evaluatingOfficer: "Authorized Officer",
-      };
+      });
 
       const state = computeOfficerEvaluationState({
         application: genericApp,
@@ -138,10 +211,9 @@ describe("officerEvaluationHelper", () => {
     });
 
     it("handles endorsement states correctly for officers vs admins", () => {
-      const endorsedApp: ApplicationData = {
-        ...baseApp,
+      const endorsedApp = createMockApp({
         endorsedTo: "Engr. Juan Dela Cruz",
-      };
+      });
 
       const nonAdminState = computeOfficerEvaluationState({
         application: endorsedApp,
@@ -163,7 +235,7 @@ describe("officerEvaluationHelper", () => {
 
   describe("resolveApplicantAuditHistory", () => {
     it("returns full application history for single applications", () => {
-      const app: ApplicationData = {
+      const app = createMockApp({
         id: "app-single",
         referenceNumber: "REF-S-1",
         permitTitle: "RROC Certificate",
@@ -182,21 +254,38 @@ describe("officerEvaluationHelper", () => {
             timestamp: "Sep 21, 2026",
           },
         ],
-      };
-
-      const history = resolveApplicantAuditHistory(app, {
-        id: "applicant-1",
-        name: "Alice Wonderland",
-        applicantType: "Individual",
-        status: "Complete",
       });
+
+      const history = resolveApplicantAuditHistory(
+        app,
+        createMockApplicant({
+          id: "applicant-1",
+          name: "Alice Wonderland",
+          applicantType: "Individual",
+          status: "Complete",
+        })
+      );
 
       expect(history.length).toBe(1);
       expect(history[0]?.action).toBe("Application Submitted");
     });
 
     it("generates structured audit entries for bulk applications with evaluation verdicts", () => {
-      const app: ApplicationData = {
+      const candidateOne = createMockApplicant({
+        id: "app-1",
+        name: "Candidate One",
+        applicantType: "Individual",
+        status: "Incomplete",
+        evaluationRemarks: "Missing 2x2 Photo",
+      });
+      const candidateTwo = createMockApplicant({
+        id: "app-2",
+        name: "Candidate Two",
+        applicantType: "Individual",
+        status: "Complete",
+      });
+
+      const app = createMockApp({
         id: "app-bulk",
         referenceNumber: "REF-B-1",
         permitTitle: "Bulk Operator Exam",
@@ -207,13 +296,9 @@ describe("officerEvaluationHelper", () => {
         category: "Exams",
         totalAmountDue: 3000,
         createdAt: "2026-09-22T09:00:00Z",
-        applicantsList: [
-          { id: "app-1", name: "Candidate One", applicantType: "Individual", status: "Incomplete", evaluationRemarks: "Missing 2x2 Photo" },
-          { id: "app-2", name: "Candidate Two", applicantType: "Individual", status: "Complete" },
-        ],
-      };
+        applicantsList: [candidateOne, candidateTwo],
+      });
 
-      const candidateOne = app.applicantsList?.[0] as ApplicantItem;
       const history = resolveApplicantAuditHistory(app, candidateOne);
 
       expect(history.length).toBeGreaterThanOrEqual(2);

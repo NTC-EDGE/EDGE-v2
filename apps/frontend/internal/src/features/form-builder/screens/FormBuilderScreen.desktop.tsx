@@ -148,8 +148,6 @@ const styles = StyleSheet.create({
   container: {
     padding: SPACING[24],
     gap: SPACING[20],
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   loadingStack: {

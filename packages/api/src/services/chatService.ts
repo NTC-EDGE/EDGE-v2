@@ -109,4 +109,15 @@ export const chatService = {
     );
     return response.data;
   },
+
+  async markAsRead(conversationId: string): Promise<boolean> {
+    try {
+      const response = await apiClient.post<{ success: boolean }>(
+        `/api/v2/chat/conversations/${conversationId}/read`
+      );
+      return response.data.success;
+    } catch {
+      return true;
+    }
+  },
 };

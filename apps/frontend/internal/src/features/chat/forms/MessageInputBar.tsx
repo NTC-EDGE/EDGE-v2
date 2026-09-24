@@ -4,10 +4,11 @@ import { Icon, useTheme } from '@edge/ui';
 
 interface MessageInputBarProps {
   onSendMessage: (content: string) => Promise<boolean>;
+  onTyping?: () => void;
   isSending: boolean;
 }
 
-export const MessageInputBar: React.FC<MessageInputBarProps> = ({ onSendMessage, isSending }) => {
+export const MessageInputBar: React.FC<MessageInputBarProps> = ({ onSendMessage, onTyping, isSending }) => {
   const { colors } = useTheme();
   const [content, setContent] = useState<string>('');
   const [isFocused, setIsFocused] = useState<boolean>(false);
@@ -18,6 +19,15 @@ export const MessageInputBar: React.FC<MessageInputBarProps> = ({ onSendMessage,
     const success = await onSendMessage(trimmed);
     if (success) {
       setContent('');
+    }
+  };
+
+  const handleKeyPress = (e: { nativeEvent: { key: string; shiftKey?: boolean; preventDefault?: () => void } }) => {
+    if (e.nativeEvent.key === 'Enter' && !e.nativeEvent.shiftKey) {
+      if (Platform.OS === 'web' && typeof e.nativeEvent.preventDefault === 'function') {
+        e.nativeEvent.preventDefault();
+      }
+      void handleSend();
     }
   };
 
@@ -34,12 +44,16 @@ export const MessageInputBar: React.FC<MessageInputBarProps> = ({ onSendMessage,
       >
         <TextInput
           style={[styles.input, { color: colors.text }]}
-          placeholder="Type your message..."
+          placeholder="Type your message... (Enter to send, Shift+Enter for new line)"
           placeholderTextColor={colors.textMuted}
           value={content}
-          onChangeText={setContent}
+          onChangeText={(text) => {
+            setContent(text);
+            onTyping?.();
+          }}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
+          onKeyPress={handleKeyPress}
           multiline
           maxLength={2000}
         />

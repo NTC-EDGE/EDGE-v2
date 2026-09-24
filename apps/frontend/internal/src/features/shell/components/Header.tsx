@@ -21,6 +21,8 @@ import {
   useTheme,
 } from '@edge/ui';
 import { useAdminApplications, useAdminAnnouncements } from '@edge/api';
+import { useMeetingsList } from '../../meet/hooks/useMeetingsList';
+import { useChatConversations } from '../../chat/hooks/useChatConversations';
 import { UserRole, NAV_GROUP_ORDER, ROLE_NAVIGATION_LINKS, NavigationLink } from '../context/RoleContext';
 import { UserProfile as UserProfileType } from '../../auth/context/AuthContext';
 import { EditAccountModal } from '../../auth/components/EditAccountModal';
@@ -177,6 +179,9 @@ export function Header({
     revalidateOnFocus: true,
   });
 
+  const { meetings } = useMeetingsList(user?.tenantId);
+  const { conversations } = useChatConversations(user?.tenantId);
+
   const notifications = useMemo(() => {
     const list: Array<{
       id: string;
@@ -184,10 +189,42 @@ export function Header({
       title: string;
       description: string;
       timestamp?: string;
-      type: 'evaluation' | 'announcement';
+      type: 'evaluation' | 'announcement' | 'meeting' | 'chat';
       screen: string;
       isRead: boolean;
     }> = [];
+
+    if (Array.isArray(meetings)) {
+      for (const meet of meetings) {
+        if (meet.status === 'Scheduled' || meet.status === 'Live') {
+          list.push({
+            id: `meet_${meet.id}`,
+            title: meet.status === 'Live' ? 'Live Meeting Ongoing' : 'Upcoming Meet Reminder',
+            description: `${meet.title} (Host: ${meet.hostUserName})`,
+            timestamp: meet.scheduledStartTime,
+            type: 'meeting',
+            screen: 'Meet',
+            isRead: readNotifIds.has(`meet_${meet.id}`),
+          });
+        }
+      }
+    }
+
+    if (Array.isArray(conversations)) {
+      for (const conv of conversations) {
+        if (conv.unreadCount > 0) {
+          list.push({
+            id: `chat_${conv.id}`,
+            title: conv.title ?? 'New Message',
+            description: conv.lastMessagePreview ?? `${conv.unreadCount} unread message(s)`,
+            timestamp: conv.lastMessageAt ?? undefined,
+            type: 'chat',
+            screen: 'Chat',
+            isRead: readNotifIds.has(`chat_${conv.id}`),
+          });
+        }
+      }
+    }
 
     if (Array.isArray(applications)) {
       for (const app of applications) {
@@ -221,7 +258,7 @@ export function Header({
     }
 
     return list;
-  }, [applications, announcements, readNotifIds]);
+  }, [applications, announcements, meetings, conversations, readNotifIds]);
 
   const unreadCount = useMemo(() => {
     return notifications.filter((n) => !n.isRead).length;
@@ -399,7 +436,15 @@ export function Header({
                     >
                       <View style={styles.notifItemIconWrap}>
                         <Lucide
-                          name={item.type === 'announcement' ? 'volume-2' : 'activity'}
+                          name={
+                            item.type === 'announcement'
+                              ? 'volume-2'
+                              : item.type === 'meeting'
+                              ? 'video'
+                              : item.type === 'chat'
+                              ? 'message-square'
+                              : 'activity'
+                          }
                           size={14}
                           color={
                             item.isRead

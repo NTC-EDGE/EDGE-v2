@@ -1,17 +1,21 @@
 import React from 'react';
 import { View, Text, FlatList, StyleSheet, Pressable } from 'react-native';
-import { Conversation, ChatMessage } from '@edge/api';
+import { Conversation } from '@edge/api';
 import { EmptyState, Icon, useTheme } from '@edge/ui';
 import { MessageBubble } from './MessageBubble';
 import { MessageInputBar } from '../forms/MessageInputBar';
+import { ExtendedChatMessage } from '../hooks/useChatMessages';
 
 interface ChatActivePaneProps {
   conversation: Conversation | null;
-  messages: ChatMessage[];
+  messages: ExtendedChatMessage[];
   currentUserId?: string;
   showBackButton?: boolean;
   onBack?: () => void;
   onSendMessage: (content: string) => Promise<boolean>;
+  onRetryMessage?: (message: ExtendedChatMessage) => void;
+  onTyping?: () => void;
+  typingUsers?: string[];
   isSending: boolean;
 }
 
@@ -22,6 +26,9 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
   showBackButton = false,
   onBack,
   onSendMessage,
+  onRetryMessage,
+  onTyping,
+  typingUsers = [],
   isSending,
 }) => {
   const { colors } = useTheme();
@@ -82,12 +89,29 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
         inverted
         keyExtractor={(item) => item.id}
         renderItem={({ item }) => (
-          <MessageBubble message={item} isCurrentUser={item.senderId === currentUserId} />
+          <MessageBubble
+            message={item}
+            isCurrentUser={item.senderId === currentUserId || item.senderId === 'self'}
+            onRetry={onRetryMessage}
+          />
         )}
         contentContainerStyle={styles.listContent}
       />
 
-      <MessageInputBar onSendMessage={onSendMessage} isSending={isSending} />
+      {/* Typing Indicator */}
+      {typingUsers.length > 0 && (
+        <View style={styles.typingContainer}>
+          <Text style={[styles.typingText, { color: colors.textMuted }]}>
+            {typingUsers.join(', ')} {typingUsers.length === 1 ? 'is' : 'are'} typing...
+          </Text>
+        </View>
+      )}
+
+      <MessageInputBar
+        onSendMessage={onSendMessage}
+        onTyping={onTyping}
+        isSending={isSending}
+      />
     </View>
   );
 };
@@ -149,5 +173,13 @@ const styles = StyleSheet.create({
   listContent: {
     paddingVertical: 16,
     paddingHorizontal: 8,
+  },
+  typingContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+  },
+  typingText: {
+    fontSize: 11,
+    fontStyle: 'italic',
   },
 });

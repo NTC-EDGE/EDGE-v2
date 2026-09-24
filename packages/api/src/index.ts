@@ -49,4 +49,5 @@ export * from './hooks/useReceipts';
 export * from './hooks/useTenants';
 export * from './services/chatService';
 export * from './services/meetService';
+export * from './services/realtimeService';
 export * from './services/tenantMemberService';

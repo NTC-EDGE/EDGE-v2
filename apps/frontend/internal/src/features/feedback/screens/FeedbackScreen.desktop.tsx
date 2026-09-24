@@ -482,8 +482,6 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     paddingBottom: 80,
     gap: SPACING[16],
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   headerActions: {
