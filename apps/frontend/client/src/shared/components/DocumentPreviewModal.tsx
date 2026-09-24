@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Modal,
   View,
@@ -6,11 +6,10 @@ import {
   TouchableOpacity,
   Image,
   StyleSheet,
-  Linking,
   Platform,
   ScrollView,
 } from "react-native";
-import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
+import { Icon, TYPOGRAPHY } from "@edge/ui";
 
 export interface DocumentPreviewFile {
   name: string;
@@ -24,11 +23,16 @@ export interface DocumentPreviewFile {
   uploadedAt?: string;
 }
 
-interface DocumentPreviewModalProps {
+export interface DocumentPreviewModalProps {
   visible: boolean;
   onClose: () => void;
   file: DocumentPreviewFile | string | null;
   label?: string;
+  onDownload?: (file: DocumentPreviewFile | string) => void;
+}
+
+function isDocumentPreviewFile(file: unknown): file is DocumentPreviewFile {
+  return typeof file === "object" && file !== null && "name" in file;
 }
 
 export function DocumentPreviewModal({
@@ -36,19 +40,37 @@ export function DocumentPreviewModal({
   onClose,
   file,
   label,
+  onDownload,
 }: DocumentPreviewModalProps) {
-  if (!file) return null;
+  const [imageError, setImageError] = useState(false);
 
-  const fileName = typeof file === "string" ? file : file.name || "Attachment Document";
-  const fileUri = typeof file === "string" ? "" : file.uri || "";
-  const fileCategory =
-    typeof file === "object" && file !== null && "category" in file
-      ? (file as { category?: string }).category
-      : undefined;
-  const fileSize =
-    typeof file === "object" && file !== null && "size" in file
-      ? (file as { size?: string }).size
-      : undefined;
+  const isObj = isDocumentPreviewFile(file);
+  const fileName = typeof file === "string" ? file : isObj ? file.name : "Attachment Document";
+  const fileUri = isObj && typeof file.uri === "string" ? file.uri : "";
+  const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
+
+  useEffect(() => {
+    setImageError(false);
+  }, [fileUri, file]);
+
+  useEffect(() => {
+    return () => {
+      if (
+        fileUri &&
+        fileUri.startsWith("blob:") &&
+        typeof URL !== "undefined" &&
+        typeof URL.revokeObjectURL === "function"
+      ) {
+        try {
+          URL.revokeObjectURL(fileUri);
+        } catch {
+          // Ignore revocation error
+        }
+      }
+    };
+  }, [fileUri]);
+
+  if (!file) return null;
 
   const fileNameLower = (fileName || "").toLowerCase();
   const uriLower = (fileUri || "").toLowerCase();
@@ -57,7 +79,7 @@ export function DocumentPreviewModal({
     fileNameLower.endsWith(".pdf") ||
     uriLower.endsWith(".pdf") ||
     uriLower.includes("application/pdf") ||
-    (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "PDF");
+    (isObj && fileType === "PDF");
 
   const isImage =
     !isPdf &&
@@ -68,26 +90,35 @@ export function DocumentPreviewModal({
       fileNameLower.endsWith(".gif") ||
       fileNameLower.endsWith(".svg") ||
       uriLower.startsWith("data:image") ||
-      (typeof file === "object" && file !== null && "type" in file && (file as { type?: string }).type === "IMAGE") ||
+      (isObj && fileType === "IMAGE") ||
       (uriLower.startsWith("blob:") && !isPdf));
 
-  const handleOpenExternal = async () => {
-    if (!fileUri) return;
-    try {
-      if (Platform.OS === "web" && typeof window !== "undefined") {
-        window.open(fileUri, "_blank");
-      } else {
-        const supported = await Linking.canOpenURL(fileUri);
-        if (supported) {
-          await Linking.openURL(fileUri);
-        } else {
-          window.open(fileUri, "_blank");
-        }
+  const handleDownloadAction = () => {
+    if (onDownload !== undefined) {
+      onDownload(file);
+      return;
+    }
+
+    if (fileUri && Platform.OS === "web" && typeof window !== "undefined" && typeof document !== "undefined") {
+      try {
+        const anchor = document.createElement("a");
+        anchor.setAttribute("href", fileUri);
+        anchor.setAttribute("download", fileName);
+        anchor.style.visibility = "hidden";
+        document.body.appendChild(anchor);
+        anchor.click();
+        document.body.removeChild(anchor);
+      } catch (err) {
+        console.warn("Direct download failed:", err);
       }
-    } catch (err) {
-      console.warn("Failed to open document URI:", err);
     }
   };
+
+  const hasValidRenderUri =
+    typeof fileUri === "string" &&
+    fileUri.trim() !== "" &&
+    fileUri.toLowerCase() !== "null" &&
+    fileUri.toLowerCase() !== "undefined";
 
   return (
     <Modal
@@ -97,109 +128,86 @@ export function DocumentPreviewModal({
       onRequestClose={onClose}
     >
       <View style={styles.overlay}>
-        <View style={[styles.container, Platform.OS === 'web' ? { maxWidth: 860, width: '92%' } : null]}>
-          {/* Clean Modal Header: Just file title and close button */}
+        <View style={[styles.container, Platform.OS === "web" ? { maxWidth: 860, width: "92%" } : null]}>
+          {/* Simple Clean Header */}
           <View style={styles.header}>
             <View style={styles.headerLeft}>
               <View style={styles.iconCircle}>
                 <Icon
                   name={isPdf ? "file-text" : isImage ? "image" : "paperclip"}
                   size={18}
-                  color="#0F2C59"
+                  color="#1D4ED8"
                 />
               </View>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.headerTitle} numberOfLines={1}>
-                  {fileName}
-                </Text>
-                <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  {label || (fileCategory ? `${fileCategory.replace('_', ' ')} ${fileSize ? `· ${fileSize}` : ''}` : isPdf ? 'PDF Document' : isImage ? 'Image Attachment' : 'Attached Document')}
-                </Text>
-              </View>
+              <Text style={styles.headerTitle} numberOfLines={1}>
+                {fileName}
+              </Text>
             </View>
+
             <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
               <Icon name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
 
-          {/* Modal Content Body: Pure attachment display */}
+          {/* Body Content */}
           <ScrollView contentContainerStyle={styles.bodyContent}>
-            {isPdf && fileUri && Platform.OS === 'web' ? (
-              <View style={styles.pdfWrapper}>
-                <iframe
-                  src={fileUri}
-                  title={fileName}
-                  style={{
-                    width: '100%',
-                    height: 560,
-                    border: 'none',
-                    borderRadius: 8,
-                  }}
-                />
-              </View>
-            ) : isImage && fileUri ? (
+            {isImage && hasValidRenderUri && !imageError ? (
+              /* Simple Pure Image Preview */
               <View style={styles.imageWrapper}>
                 <Image
                   source={{ uri: fileUri }}
                   style={styles.previewImage}
                   resizeMode="contain"
+                  onError={() => setImageError(true)}
+                />
+              </View>
+            ) : isPdf && hasValidRenderUri && Platform.OS === "web" ? (
+              /* Simple Pure PDF Preview */
+              <View style={styles.pdfWrapper}>
+                <iframe
+                  src={fileUri}
+                  title={fileName}
+                  style={{
+                    width: "100%",
+                    height: 560,
+                    border: "none",
+                    borderRadius: 8,
+                    backgroundColor: "#FFFFFF",
+                  }}
                 />
               </View>
             ) : (
-              /* High-fidelity Authentic Scanned Document Sheet */
-              <View style={styles.scannedPaper}>
-                <View style={styles.scannedPaperInner}>
-                  {/* Watermark Seal */}
-                  <View style={styles.watermarkBox}>
-                    <Icon name="award" size={120} color="#E2E8F0" />
-                  </View>
-
-                  <View style={styles.scannedHeaderRow}>
-                    <Icon name="file-text" size={32} color="#0F2C59" />
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.scannedDocTitle}>{fileName}</Text>
-                      <Text style={styles.scannedDocMeta}>
-                        {fileCategory ? fileCategory.replace('_', ' ') : 'Supporting Requirement Attachment'} · {fileSize || '1.2 MB'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  <View style={styles.scannedDivider} />
-
-                  <View style={styles.scannedDocBody}>
-                    <View style={styles.scannedPlaceholderLine} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '85%' }]} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '92%' }]} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '70%' }]} />
-                    <View style={{ height: 16 }} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '96%' }]} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '88%' }]} />
-                    <View style={[styles.scannedPlaceholderLine, { width: '60%' }]} />
-                  </View>
-
-                  <View style={styles.scannedStampBox}>
-                    <View style={styles.verifiedStamp}>
-                      <Icon name="check-circle" size={14} color="#166534" />
-                      <Text style={styles.verifiedStampText}>AUTHENTIC & VERIFIED ATTACHMENT</Text>
-                    </View>
-                  </View>
+              /* Simple Download Card when document cannot be previewed */
+              <View style={styles.noPreviewCard}>
+                <View style={styles.noPreviewIconCircle}>
+                  <Icon name={isPdf ? "file-text" : "download-cloud"} size={36} color="#2563EB" />
                 </View>
+                <Text style={styles.noPreviewTitle}>{fileName}</Text>
+                <Text style={styles.noPreviewText}>
+                  A direct inline preview is not available for this document format. You can download the file directly to view it on your device.
+                </Text>
+                <TouchableOpacity
+                  onPress={handleDownloadAction}
+                  style={styles.cardDownloadBtn}
+                  activeOpacity={0.8}
+                >
+                  <Icon name="download" size={16} color="#FFFFFF" style={{ marginRight: 8 }} />
+                  <Text style={styles.cardDownloadBtnText}>Download Document</Text>
+                </TouchableOpacity>
               </View>
             )}
           </ScrollView>
 
-          {/* Footer Actions */}
+          {/* Simple Footer Actions */}
           <View style={styles.footer}>
-            {fileUri ? (
-              <TouchableOpacity
-                onPress={handleOpenExternal}
-                style={styles.footerActionBtn}
-                activeOpacity={0.8}
-              >
-                <Icon name="external-link" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
-                <Text style={styles.footerActionText}>Open Fullscreen / Download</Text>
-              </TouchableOpacity>
-            ) : null}
+            <TouchableOpacity
+              onPress={handleDownloadAction}
+              style={styles.footerDownloadBtn}
+              activeOpacity={0.8}
+            >
+              <Icon name="download" size={15} color="#FFFFFF" style={{ marginRight: 6 }} />
+              <Text style={styles.footerDownloadText}>Download</Text>
+            </TouchableOpacity>
 
             <TouchableOpacity onPress={onClose} style={styles.footerCloseBtn} activeOpacity={0.8}>
               <Text style={styles.footerCloseText}>Close</Text>
@@ -214,7 +222,7 @@ export function DocumentPreviewModal({
 const styles = StyleSheet.create({
   overlay: {
     flex: 1,
-    backgroundColor: "rgba(15, 23, 42, 0.7)",
+    backgroundColor: "rgba(15, 23, 42, 0.65)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16,
@@ -224,19 +232,19 @@ const styles = StyleSheet.create({
     maxWidth: 860,
     maxHeight: "90%",
     backgroundColor: "#FFFFFF",
-    borderRadius: 16,
+    borderRadius: 14,
     overflow: "hidden",
-    shadowColor: "#0F2C59",
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.2,
-    shadowRadius: 16,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
     elevation: 8,
   },
   header: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 20,
+    paddingHorizontal: 18,
     paddingVertical: 14,
     borderBottomWidth: 1,
     borderColor: "#E2E8F0",
@@ -250,9 +258,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   iconCircle: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: "#EFF6FF",
     justifyContent: "center",
     alignItems: "center",
@@ -261,30 +269,27 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: "700",
-    color: "#0F2C59",
-  },
-  headerSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: "#64748B",
-    marginTop: 1,
+    color: "#0F172A",
+    flex: 1,
   },
   closeBtn: {
     padding: 6,
-    borderRadius: 8,
+    borderRadius: 6,
     backgroundColor: "#EDF2F7",
   },
   bodyContent: {
     padding: 16,
     alignItems: "center",
     justifyContent: "center",
-    minHeight: 400,
+    minHeight: 380,
   },
   imageWrapper: {
     width: "100%",
     height: 520,
-    backgroundColor: "#0F172A",
-    borderRadius: 10,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
     overflow: "hidden",
     justifyContent: "center",
     alignItems: "center",
@@ -296,118 +301,90 @@ const styles = StyleSheet.create({
   pdfWrapper: {
     width: "100%",
     minHeight: 560,
-    backgroundColor: "#F8FAFC",
-    borderRadius: 8,
-    overflow: "hidden",
-  },
-  scannedPaper: {
-    width: "100%",
-    maxWidth: 620,
     backgroundColor: "#FFFFFF",
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#CBD5E1",
-    padding: 28,
-    shadowColor: "#000000",
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
+    borderColor: "#E2E8F0",
+    overflow: "hidden",
   },
-  scannedPaperInner: {
-    position: "relative",
-  },
-  watermarkBox: {
-    position: "absolute",
-    top: "30%",
-    left: "38%",
-    opacity: 0.15,
-  },
-  scannedHeaderRow: {
-    flexDirection: "row",
+  noPreviewCard: {
     alignItems: "center",
-    gap: 14,
+    justifyContent: "center",
+    padding: 32,
+    maxWidth: 460,
+    backgroundColor: "#F8FAFC",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
   },
-  scannedDocTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: "800",
-    color: "#0F2C59",
+  noPreviewIconCircle: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: "#EFF6FF",
+    justifyContent: "center",
+    alignItems: "center",
+    marginBottom: 16,
   },
-  scannedDocMeta: {
+  noPreviewTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 15,
+    fontWeight: "700",
+    color: "#0F172A",
+    textAlign: "center",
+    marginBottom: 8,
+  },
+  noPreviewText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
     color: "#64748B",
-    marginTop: 2,
+    textAlign: "center",
+    lineHeight: 20,
+    marginBottom: 20,
   },
-  scannedDivider: {
-    height: 1.5,
-    backgroundColor: "#E2E8F0",
-    marginVertical: 18,
-  },
-  scannedDocBody: {
-    gap: 10,
-    paddingVertical: 10,
-  },
-  scannedPlaceholderLine: {
-    height: 10,
-    backgroundColor: "#F1F5F9",
-    borderRadius: 5,
-    width: "100%",
-  },
-  scannedStampBox: {
-    alignItems: "flex-end",
-    marginTop: 24,
-  },
-  verifiedStamp: {
+  cardDownloadBtn: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
-    backgroundColor: "#DCFCE7",
-    borderWidth: 1.5,
-    borderColor: "#86EFAC",
-    borderRadius: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    backgroundColor: "#1D4ED8",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
-  verifiedStampText: {
+  cardDownloadBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: "800",
-    color: "#166534",
-    letterSpacing: 0.5,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#FFFFFF",
   },
   footer: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "flex-end",
     gap: 10,
-    paddingHorizontal: 20,
-    paddingVertical: 14,
+    paddingHorizontal: 18,
+    paddingVertical: 12,
     borderTopWidth: 1,
     borderColor: "#E2E8F0",
     backgroundColor: "#FFFFFF",
   },
-  footerActionBtn: {
+  footerDownloadBtn: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: "#EFF6FF",
-    borderWidth: 1,
-    borderColor: "#BFDBFE",
+    backgroundColor: "#1D4ED8",
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
-  footerActionText: {
+  footerDownloadText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: "700",
-    color: "#0F2C59",
+    color: "#FFFFFF",
   },
   footerCloseBtn: {
     backgroundColor: "#F1F5F9",
     paddingVertical: 8,
-    paddingHorizontal: 14,
+    paddingHorizontal: 16,
     borderRadius: 8,
   },
   footerCloseText: {

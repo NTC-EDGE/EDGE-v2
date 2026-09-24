@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
@@ -18,6 +18,11 @@ import {
   useTheme,
 } from "@edge/ui";
 import { ApplicationData } from "../../../types/application";
+import { useAuthContext } from "../../auth/context/AuthContext";
+import {
+  resolveUserIdentifiers,
+  computeOfficerEvaluationState,
+} from "../utils/officerEvaluationHelper";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -25,7 +30,9 @@ interface ActivityCardProps {
   application: ApplicationData;
   isActive: boolean;
   onPress: () => void;
-  onMenuAction: (action: "evaluate" | "pin" | "archive", id: string) => void;
+  onMenuAction: (action: "evaluate" | "release_evaluation" | "pin" | "archive", id: string) => void;
+  currentUserName?: string;
+  isAdmin?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -55,6 +62,9 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (isSubjectForPayment(application)) return "FOR PAYMENT";
   const s = application.status.toLowerCase();
   if (s === "submitted") return "FOR EVALUATION";
+  if (s === "evaluating") return "EVALUATING";
+  if (s === "foraccountant") return "FOR SOA";
+  if (s === "pendingpayment") return "FOR PAYMENT";
   return application.status.toUpperCase();
 }
 
@@ -65,7 +75,9 @@ function getStatusStyle(application: ApplicationData): { bg: string; text: strin
   if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
   if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
   if (s === "returned")                     return { bg: COLORS.semantic.error,   text: COLORS.neutral.white };
-  if (s === "draft")                        return { bg: COLORS.neutral[400],    text: COLORS.neutral.white };
+  if (s === "foraccountant")                return { bg: '#0284C7',               text: COLORS.neutral.white };
+  if (s === "pendingpayment")               return { bg: '#16A34A',               text: COLORS.neutral.white };
+  if (s === "draft")                        return { bg: COLORS.neutral[400],     text: COLORS.neutral.white };
   return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };
 }
 
@@ -83,8 +95,11 @@ export function ActivityCard({
   isActive,
   onPress,
   onMenuAction,
+  currentUserName,
+  isAdmin,
 }: ActivityCardProps) {
   const { colors, isDark } = useTheme();
+  const { user, clerkUser } = useAuthContext();
   const [menuVisible, setMenuVisible] = useState(false);
   const [menuPos,     setMenuPos]     = useState({ top: 0, left: 0 });
   const kebabRef = useRef<View>(null);
@@ -103,6 +118,27 @@ export function ActivityCard({
   const menuBorder     = isDark ? colors.neutral[700] : colors.neutral[200];
 
   const brandBg        = isDark ? colors.neutral[700] : '#EFF6FF';
+
+  const currentUserIdentifiers = useMemo(
+    () => resolveUserIdentifiers(user, clerkUser, currentUserName),
+    [user, clerkUser, currentUserName]
+  );
+
+  const {
+    isEvaluating,
+    evaluatingOfficer,
+    isEndorsedAwayFromMe,
+    isEvaluatedByMe,
+    isEvaluatedByOther,
+  } = useMemo(
+    () =>
+      computeOfficerEvaluationState({
+        application,
+        identifiers: currentUserIdentifiers,
+        isAdmin,
+      }),
+    [application, currentUserIdentifiers, isAdmin]
+  );
 
   const displayFilingName =
     application.filingUser?.accountType === "Company"
@@ -126,7 +162,7 @@ export function ActivityCard({
 
   const handleOpenMenu = () => {
     kebabRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      const menuWidth  = 180;
+      const menuWidth  = 200;
       const windowWidth = Dimensions.get("window").width;
       let leftPos = pageX + width - menuWidth;
       if (leftPos < 10) leftPos = 10;
@@ -225,7 +261,21 @@ export function ActivityCard({
             </Text>
           </View>
           <View style={styles.rightActions}>
-            <View style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}>
+            <View
+              style={[
+                styles.statusPill,
+                { backgroundColor: statusStyle.bg },
+                isEvaluating && isEvaluatedByOther && { backgroundColor: isDark ? '#78350F' : '#D97706' },
+              ]}
+              accessibilityLabel={`Status: ${formatStatusDisplay(application)}`}
+              {...Platform.select({
+                web: {
+                  title: isEvaluating && evaluatingOfficer
+                    ? `Evaluating Officer: ${evaluatingOfficer}${isEvaluatedByOther ? ' (Under evaluation by another officer)' : ''}`
+                    : `Status: ${formatStatusDisplay(application)}`,
+                } as object,
+              })}
+            >
               <Text style={[styles.statusPillText, { color: statusStyle.text }]} numberOfLines={1}>
                 {formatStatusDisplay(application)}
               </Text>
@@ -244,9 +294,24 @@ export function ActivityCard({
         {/* Bottom row: Assignment + Type badges */}
         <View style={styles.bottomRow}>
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
-            <Lucide name="user-plus" size={10} color={textMuted} />
-            <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
-              {application.assignedTo || 'Unassigned'}
+            <Lucide
+              name={application.endorsedTo ? "share-2" : isEvaluating ? (isEvaluatedByOther ? "lock" : "user-check") : "user-plus"}
+              size={10}
+              color={application.endorsedTo ? (isDark ? '#818CF8' : '#4F46E5') : isEvaluating ? (isDark ? colors.brand[400] : colors.brand[700]) : textMuted}
+            />
+            <Text
+              style={[
+                styles.assignText,
+                { color: application.endorsedTo ? (isDark ? '#C7D2FE' : '#4338CA') : isEvaluating ? (isDark ? colors.brand[300] : colors.brand[900]) : textSub },
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {application.endorsedTo
+                ? `Endorsed to: ${application.endorsedTo}`
+                : isEvaluating && evaluatingOfficer
+                  ? `Evaluating: ${evaluatingOfficer}`
+                  : (application.office || application.assignedTo || 'Unassigned')}
             </Text>
           </View>
           <View style={styles.badgeRow}>
@@ -283,24 +348,73 @@ export function ActivityCard({
               { top: menuPos.top, left: menuPos.left, backgroundColor: menuBg, borderColor: menuBorder },
             ]}
           >
-            {[
-              ...(application.status.toLowerCase() === "submitted"
-                ? [{ action: "evaluate" as const, icon: "settings" as const, label: "Evaluate", isPrimary: true }]
-                : []),
-              { action: "pin"      as const, icon: "map-pin"   as const, label: application.isPinned ? "Unpin" : "Pin to top", isPrimary: false },
-              { action: "archive"  as const, icon: "archive"   as const, label: application.isArchived ? "Unarchive" : "Archive", isPrimary: false },
-            ].map(({ action, icon, label, isPrimary }) => (
+            {/* If Endorsed to someone else: show read-only status in history */}
+            {isEndorsedAwayFromMe && (
+              <View style={[styles.menuItem, { opacity: 0.8 }]}>
+                <Lucide name="share-2" size={14} color={brandColor} />
+                <Text style={[styles.menuItemText, { color: textMuted, fontStyle: 'italic' }]}>
+                  Endorsed to {application.endorsedTo}
+                </Text>
+              </View>
+            )}
+
+            {/* If Submitted (and not endorsed away): Start Evaluation */}
+            {!isEndorsedAwayFromMe && application.status.toLowerCase() === "submitted" && (
               <Pressable
-                key={action}
                 style={styles.menuItem}
-                onPress={() => { setMenuVisible(false); onMenuAction(action, application.id); }}
+                onPress={() => { setMenuVisible(false); onMenuAction("evaluate", application.id); }}
               >
-                <Lucide name={icon} size={14} color={isPrimary ? brandColor : textSub} />
-                <Text style={[styles.menuItemText, { color: isPrimary ? brandColor : text, fontWeight: isPrimary ? TYPOGRAPHY.weights.semibold : TYPOGRAPHY.weights.regular }]}>
-                  {label}
+                <Lucide name="play-circle" size={14} color={brandColor} />
+                <Text style={[styles.menuItemText, { color: brandColor, fontWeight: TYPOGRAPHY.weights.semibold }]}>
+                  Start Evaluation
                 </Text>
               </Pressable>
-            ))}
+            )}
+
+            {/* If Evaluating by me or Admin: Release back to For Evaluation */}
+            {!isEndorsedAwayFromMe && isEvaluating && (isEvaluatedByMe || isAdmin) && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => { setMenuVisible(false); onMenuAction("release_evaluation", application.id); }}
+              >
+                <Lucide name="rotate-ccw" size={14} color={isDark ? colors.semantic.warning : '#D97706'} />
+                <Text style={[styles.menuItemText, { color: isDark ? colors.semantic.warning : '#D97706', fontWeight: TYPOGRAPHY.weights.medium }]}>
+                  Release (For Evaluation)
+                </Text>
+              </Pressable>
+            )}
+
+            {/* If Evaluating by another officer: show locked indicator */}
+            {!isEndorsedAwayFromMe && isEvaluating && isEvaluatedByOther && (
+              <View style={[styles.menuItem, { opacity: 0.7 }]}>
+                <Lucide name="lock" size={14} color={textMuted} />
+                <Text style={[styles.menuItemText, { color: textMuted, fontStyle: 'italic' }]}>
+                  Evaluating: {evaluatingOfficer}
+                </Text>
+              </View>
+            )}
+
+            {/* Pin / Unpin */}
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => { setMenuVisible(false); onMenuAction("pin", application.id); }}
+            >
+              <Lucide name="map-pin" size={14} color={textSub} />
+              <Text style={[styles.menuItemText, { color: text }]}>
+                {application.isPinned ? "Unpin" : "Pin to top"}
+              </Text>
+            </Pressable>
+
+            {/* Archive / Unarchive */}
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => { setMenuVisible(false); onMenuAction("archive", application.id); }}
+            >
+              <Lucide name="archive" size={14} color={textSub} />
+              <Text style={[styles.menuItemText, { color: text }]}>
+                {application.isArchived ? "Unarchive" : "Archive"}
+              </Text>
+            </Pressable>
           </View>
         </Pressable>
       </Modal>
@@ -440,15 +554,24 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   statusPill: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
     borderRadius: RADIUS.sm,
+    flexShrink: 0,
+    ...Platform.select({
+      web: {
+        whiteSpace: "nowrap",
+      } as object,
+    }),
   },
   statusPillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 9,
     fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.4,
+    letterSpacing: 0.5,
   },
   kebabBtn: {
     width: 22,

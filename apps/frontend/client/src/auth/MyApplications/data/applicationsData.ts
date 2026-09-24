@@ -105,6 +105,26 @@ export interface SingleApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  histories?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  history?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
   filingUser?: {
     id?: string;
     name?: string;
@@ -223,6 +243,26 @@ export interface BulkApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  histories?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  history?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
   filingUser?: {
     id?: string;
     name?: string;
@@ -619,6 +659,26 @@ export interface ApiApplicationDto {
   Documents?: RawRequirement[];
   companyName?: string;
   applicantName?: string;
+  histories?: Array<{
+    id?: string;
+    action?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    staffName?: string;
+    staffRole?: string;
+    remarks?: string;
+    timestamp?: string;
+  }>;
+  Histories?: Array<{
+    id?: string;
+    action?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    staffName?: string;
+    staffRole?: string;
+    remarks?: string;
+    timestamp?: string;
+  }>;
 }
 
 export function mapApiApplicationToApplication(dto: ApiApplicationDto): Application {
@@ -852,6 +912,18 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   const resolvedVariantName = rawVariantName || variantFromFields || '';
 
+  const rawHistories = dto.histories || dto.Histories || [];
+  const mappedHistories = rawHistories.map((h, hIdx) => ({
+    id: h.id || `hist-${hIdx}`,
+    action: h.action || (h.toStatus ? `Status: ${h.toStatus}` : 'Application Event'),
+    fromStatus: h.fromStatus,
+    toStatus: h.toStatus || 'Submitted',
+    staffName: h.staffName || 'Authorized Officer',
+    staffRole: h.staffRole || 'Processing Officer',
+    remarks: h.remarks,
+    timestamp: h.timestamp || '',
+  }));
+
   if (isBulk) {
     const bulkApp: BulkApplication = {
       id: dto.id || '',
@@ -875,6 +947,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       tenantId: dto.tenantId,
       serviceId: dto.serviceId,
       serviceVariantId: dto.serviceVariantId,
+      histories: mappedHistories,
+      history: mappedHistories,
       filingUser: dto.filingUser,
     };
     return bulkApp;
@@ -918,6 +992,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     remarks: dto.remarks,
     serviceVariantName: resolvedVariantName,
     tenantId: dto.tenantId,
+    histories: mappedHistories,
+    history: mappedHistories,
   };
   return singleApp;
 }

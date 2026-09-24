@@ -45,6 +45,8 @@ export interface SoaItem {
 }
 
 export interface PaymentDetails {
+  orderOfPaymentId?: string;
+  opNumber?: string;
   amountReceived: number;
   method: 'cash' | 'check';
   orNumber: string;
@@ -56,6 +58,9 @@ export interface AuditTrailEntry {
   id: string;
   action: string;
   staff: string;
+  role?: string;
+  remarks?: string;
+  status?: string;
   timestamp: string;
 }
 
@@ -114,6 +119,7 @@ export interface ApplicantItem {
     email?: string;
   };
   requirements?: RequirementDocument[];
+  history?: AuditTrailEntry[];
 }
 
 export interface FormSubmissionSummaryItem {
@@ -149,6 +155,9 @@ export interface ApplicationData {
   createdAt: string;
   dateLabel: string;
   assignedTo: string;
+  evaluatingOfficer?: string;
+  endorsedTo?: string;
+  endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';
   applicantsList?: ApplicantItem[];
   services?: ApplicationServiceItem[];

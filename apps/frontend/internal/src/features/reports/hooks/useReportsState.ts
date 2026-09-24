@@ -375,7 +375,13 @@ export function useReportsState() {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // Ignore revocation error
+        }
+      }, 60_000);
     }
   }, [reportType, filteredApplications, filteredTransactions, filteredFeedback]);
 

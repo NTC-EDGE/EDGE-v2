@@ -192,6 +192,27 @@ export function ApplicationDetailsPage({
       <CustomDocPreviewModal
         previewCustomDoc={previewCustomDoc}
         onClose={() => handleSetPreviewCustomDoc(null)}
+        onDownload={(file) => {
+          if (typeof file === 'object' && file !== null && 'name' in file) {
+            const rawCategory = typeof file.category === 'string' ? file.category : 'ATTACHMENT';
+            let catVal: ApplicationDocument['category'] = 'ATTACHMENT';
+            if (rawCategory === 'ADMISSION_SLIP' || rawCategory === 'RECEIPT' || rawCategory === 'SOA' || rawCategory === 'ISSUED_PERMIT') {
+              catVal = rawCategory;
+            }
+            const docToDownload: ApplicationDocument = {
+              id: previewCustomDoc?.referenceNumber || 'doc-preview',
+              name: file.name,
+              category: catVal,
+              type: file.type === 'IMAGE' ? 'IMAGE' : file.type === 'DOCX' ? 'DOCX' : file.type === 'ZIP' ? 'ZIP' : 'PDF',
+              size: file.size || '350 KB',
+              uploadedAt: file.uploadedAt || app.submittedAt || new Date().toISOString(),
+              url: file.uri,
+            };
+            if (onDownloadDoc !== undefined) {
+              onDownloadDoc(docToDownload);
+            }
+          }
+        }}
       />
     </ScrollView>
   );

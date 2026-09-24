@@ -82,15 +82,31 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             };
             await _applicationRepository.AddApplicationStatusHistoryAsync(statusHistory, cancellationToken);
 
+            var actionTitle = !string.IsNullOrWhiteSpace(request.Action)
+                ? request.Action
+                : $"Status updated to {newStatus}";
+
+            var staffName = !string.IsNullOrWhiteSpace(request.StaffName)
+                ? request.StaffName
+                : (_currentUserService.Email ?? currentUserIdStr ?? "Authorized Officer");
+
+            var staffRole = !string.IsNullOrWhiteSpace(request.StaffRole)
+                ? request.StaffRole
+                : (newStatus == ApplicationStatus.Evaluating ? "Evaluating Officer" :
+                   newStatus == ApplicationStatus.ForAccountant ? "Evaluating Officer" :
+                   newStatus == ApplicationStatus.PendingPayment ? "Accountant" :
+                   newStatus == ApplicationStatus.Completed ? "Cashier" :
+                   newStatus == ApplicationStatus.Returned ? "Return Officer" : "NTC Engineer");
+
             await _applicationRepository.AddApplicationHistoryAsync(new ApplicationHistory
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = app.Id,
-                Action = $"Status updated to {newStatus}",
+                Action = actionTitle,
                 ToStatus = newStatus,
                 PerformedByUserId = actingUserId ?? Guid.Empty,
-                StaffName = currentUserIdStr ?? "Staff",
-                StaffRole = "NTC Staff",
+                StaffName = staffName,
+                StaffRole = staffRole,
                 Remarks = request.Remarks,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);

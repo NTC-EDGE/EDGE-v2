@@ -22,16 +22,19 @@ import {
 import { ApplicationData, ApplicationStatus } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   applicationService,
   useAdminApplicationDetails,
   mutateApplications,
+  useNextAvailableOrNumber,
+  PendingPaymentDto,
 } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal, EndorsementSubmission } from "../components/modals/EndorseModal";
-import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
+import { IssueReceiptModal } from "../../receipts/components/IssueReceiptModal";
 import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
 import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
 import {
@@ -47,6 +50,11 @@ import { ApplicationDetailsTab } from "../components/review/ApplicationDetailsTa
 import { ApplicantRecordTab } from "../components/review/ApplicantRecordTab";
 import { SoaPaymentTab } from "../components/review/SoaPaymentTab";
 import { InnerTab, INNER_TABS } from "../components/review/reviewTypes";
+import {
+  resolveUserIdentifiers,
+  matchesUserIdentifier,
+  computeOfficerEvaluationState,
+} from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
   applicationId?: string | null;
@@ -65,6 +73,30 @@ export function ApplicationReviewScreenContent({
   const { width } = useWindowDimensions();
   const isNarrow = width < 900;
   const { applicationDto, isLoading: isDetailsLoading, refetch } = useAdminApplicationDetails(propApplicationId);
+  const { user, clerkUser } = useAuthContext();
+  const { currentRole } = useRole();
+  const { canApprove, canDecline, canEndorse, canForwardToAccountant, canApproveAsAccountant, canVerifyCashier } = usePermissions();
+  const isAdmin = currentRole === 'Admin';
+  const officerName = (
+    user?.name?.trim() ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    clerkUser?.fullName?.trim() ||
+    user?.username?.trim() ||
+    clerkUser?.username?.trim() ||
+    user?.email?.trim() ||
+    clerkUser?.primaryEmailAddress?.emailAddress?.trim() ||
+    'Authorized Officer'
+  );
+
+  const currentUserIdentifiers = useMemo(
+    () => resolveUserIdentifiers(user, clerkUser),
+    [user, clerkUser]
+  );
+
+  const matchesCurrentUser = useCallback(
+    (target?: string | null): boolean => matchesUserIdentifier(target, currentUserIdentifiers),
+    [currentUserIdentifiers]
+  );
 
   const selectedApplication = useMemo(() => {
     return applicationDto ? mapApplicationDtoToUI(applicationDto) : null;
@@ -76,6 +108,7 @@ export function ApplicationReviewScreenContent({
         const [, err] = await applicationService.updateStatus(id, {
           status: patch.status,
           remarks: typeof patch.note === 'string' ? patch.note : undefined,
+          staffName: officerName,
         });
         if (err !== null) {
           const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
@@ -117,10 +150,7 @@ export function ApplicationReviewScreenContent({
     } catch {
       toast.error("Failed to update application data.");
     }
-  }, [refetch]);
-
-  const { currentRole } = useRole();
-  const { canApprove, canDecline, canEndorse, canVerifyCashier, canForwardToAccountant, canApproveAsAccountant } = usePermissions();
+  }, [officerName, refetch]);
 
   const [innerTab, setInnerTab] = useState<InnerTab>("details");
   const [selectedApplicantIndex, setSelectedApplicantIndex] = useState(0);
@@ -135,6 +165,50 @@ export function ApplicationReviewScreenContent({
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
+
+  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001');
+  const { nextOr, mutate: mutateNextOr } = useNextAvailableOrNumber(
+    showCashier || selectedApplication?.status === 'PendingPayment' ? cashierTenantId : null,
+    user?.id ?? user?.email ?? null
+  );
+
+  const pendingPaymentPayload = useMemo<PendingPaymentDto | null>(() => {
+    if (!selectedApplication) return null;
+    const itemApp = selectedApplication;
+    const lineItems = (itemApp.soaItems && itemApp.soaItems.length > 0)
+      ? itemApp.soaItems.map((item) => ({
+          feeCode: item.code || 'FEE',
+          description: item.particular,
+          amount: item.amount,
+        }))
+      : [{
+          feeCode: 'FEE',
+          description: itemApp.serviceName || itemApp.permitTitle || 'Permit / Licensing Fee',
+          amount: itemApp.totalAmountDue || 0,
+        }];
+
+    const refOrId = (itemApp.referenceNumber && itemApp.referenceNumber.length > 0)
+      ? itemApp.referenceNumber
+      : itemApp.id.slice(0, 8).toUpperCase();
+
+    return {
+      orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
+      applicationId: itemApp.id,
+      statementOfAccountId: itemApp.id,
+      opNumber: itemApp.payment?.opNumber || `OP-${refOrId}`,
+      soaNumber: `SOA-${refOrId}`,
+      applicationNumber: itemApp.applicationNumber || '',
+      referenceNumber: itemApp.referenceNumber || '',
+      applicantName: itemApp.applicant || itemApp.companyDetails?.name || 'Applicant',
+      applicantType: itemApp.applicantType || 'Individual',
+      serviceName: itemApp.serviceName || itemApp.permitTitle || itemApp.category || 'NTC Service',
+      serviceCategory: itemApp.serviceCategory || itemApp.category || 'Licensing',
+      amountDue: itemApp.totalAmountDue || itemApp.payment?.amountReceived || 0,
+      billedAt: itemApp.createdAt || new Date().toISOString(),
+      remarks: itemApp.note || null,
+      lineItems,
+    };
+  }, [selectedApplication]);
 
   useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
   useEffect(() => {
@@ -175,7 +249,7 @@ export function ApplicationReviewScreenContent({
     if (selectedApplication !== null) openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
   }, [selectedApplication]);
 
-  const handlePreviewReport = useCallback((docType: ReportDocumentType = "soa") => {
+  const handlePreviewReport = useCallback((docType: ReportDocumentType) => {
     setReportPreviewInitialDoc(docType);
     setShowReportPreview(true);
   }, []);
@@ -212,15 +286,75 @@ export function ApplicationReviewScreenContent({
   }
 
   const app = selectedApplication;
-  const isEditable = app.queueTab !== "history" && app.status !== "Completed" && app.status !== "Approved";
+
+  const isSubmitted = app.status === "Submitted";
+  const isForAccountant = app.status === "ForAccountant";
+  const isPendingPayment = app.status === "PendingPayment";
+
+  const {
+    isEvaluating,
+    evaluatingOfficer,
+    isEndorsed,
+    isEndorsedToMe,
+    isEndorsedAwayFromMe,
+    isEvaluatedByMe,
+    isEvaluatedByOther,
+  } = computeOfficerEvaluationState({
+    application: app,
+    identifiers: currentUserIdentifiers,
+  });
+
+  const isEditable = !isEndorsedAwayFromMe && !isEvaluatedByOther && app.queueTab !== "history" && app.status !== "Completed" && app.status !== "Approved" && app.status !== "Returned";
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
+
+  /** Evaluator starts evaluation -> changes status from Submitted to Evaluating */
+  const handleStartEvaluation = async () => {
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Evaluating',
+      action: 'Evaluating',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: `Evaluation started by ${officerName}.`,
+    });
+    if (err !== null) {
+      toast.error('Failed to start evaluation.');
+      return;
+    }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+    });
+    toast.success('Evaluation started. Application status changed to Evaluating.');
+    await mutateApplications(app.id);
+    await refetch();
+  };
+
+  /** Evaluator releases evaluation back to For Evaluation queue */
+  const handleReleaseEvaluation = async () => {
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Submitted',
+      action: 'Returned to Queue',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: `Evaluation released by ${officerName}. Status reverted to For Evaluation.`,
+    });
+    if (err !== null) {
+      toast.error('Failed to release evaluation.');
+      return;
+    }
+    toast.success('Evaluation released. Application returned to For Evaluation queue.');
+    await mutateApplications(app.id);
+    await refetch();
+  };
 
   /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
   const handleForwardToAccountant = async () => {
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'ForAccountant',
+      action: 'Approved & Forwarded to Accountant',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
       remarks: 'Evaluation approved. Advanced to Accountant for SOA review.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
@@ -235,6 +369,9 @@ export function ApplicationReviewScreenContent({
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'PendingPayment',
+      action: 'SOA Approved by Accountant',
+      staffName: officerName,
+      staffRole: currentRole || 'Accountant',
       remarks: 'SOA and assessment approved by Accountant. Ready for client payment.',
     });
     if (err !== null) { toast.error('Failed to approve SOA.'); return; }
@@ -244,22 +381,28 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Cashier → verifies payment and marks the application Completed */
-  const handleCashierVerify = async (data: { orNumber: string; checkNumber: string; checkName: string }) => {
+  /** Cashier → issues official receipt via IssueReceiptModal and marks the application Completed */
+  const handleCashierReceiptSuccess = async () => {
     setShowCashier(false);
     const [, statusErr] = await applicationService.updateStatus(app.id, {
       status: 'Completed',
-      remarks: `Payment verified by Cashier. OR: ${data.orNumber}. Application completed.`,
+      action: 'Payment Collected & OR Issued',
+      staffName: officerName,
+      staffRole: currentRole || 'Cashier',
+      remarks: `Official Receipt issued by Cashier ${officerName}. Application marked as Paid & Completed.`,
     });
-    if (statusErr !== null) { toast.error('Failed to complete application.'); return; }
-    await updateApplication(app.id, { payment: { ...app.payment, ...data } });
-    toast.success('Payment verified. Application completed successfully.');
+    if (statusErr !== null) {
+      toast.error('Failed to update application status.');
+      return;
+    }
+    toast.success('Official Receipt issued successfully. Application completed.');
     await mutateApplications(app.id);
+    await mutateNextOr();
     await refetch();
     onClose();
   };
 
-  /** Return / decline — multi-tier return in background based on workflow stage */
+  /** Return / decline — multi-tier return in background based on workflow stage or endorsement */
   const handleDecline = async (notice: string) => {
     setShowDecline(false);
     const trimmedNotice = notice.trim() || 'Application returned with notice.';
@@ -267,29 +410,47 @@ export function ApplicationReviewScreenContent({
     let targetStatus: ApplicationStatus = 'Returned';
     let successMessage = 'Application returned to applicant with notice.';
     let auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+    let actionTitle = 'Returned with Notice';
 
-    if (app.status === 'PendingPayment') {
+    if (isEndorsedToMe && app.endorsedBy) {
+      // Endorsed officer returns -> goes back to endorsing evaluator
+      targetStatus = 'Evaluating';
+      successMessage = `Application returned to ${app.endorsedBy}.`;
+      auditRemarks = `Returned by ${officerName} to ${app.endorsedBy}: ${trimmedNotice}`;
+      actionTitle = `Returned to ${app.endorsedBy}`;
+    } else if (app.status === 'PendingPayment') {
       // Cashier returns -> goes back to Accountant (previous touch)
       targetStatus = 'ForAccountant';
       successMessage = 'Application returned to Accountant for SOA review.';
       auditRemarks = `Returned by Cashier to Accountant: ${trimmedNotice}`;
+      actionTitle = 'Returned to Accountant';
     } else if (app.status === 'ForAccountant') {
       // Accountant returns -> goes back to Evaluator (previous touch)
       targetStatus = 'Evaluating';
       successMessage = 'Application returned to Evaluator for review.';
       auditRemarks = `Returned by Accountant to Evaluator: ${trimmedNotice}`;
+      actionTitle = 'Returned to Evaluator';
     } else {
       // Evaluator / Chief / Director returns -> goes back to Applicant
       targetStatus = 'Returned';
       successMessage = 'Application returned to applicant with notice.';
       auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+      actionTitle = 'Returned with Notice';
     }
 
     const [, err] = await applicationService.updateStatus(app.id, {
       status: targetStatus,
+      action: actionTitle,
+      staffName: officerName,
+      staffRole: currentRole || 'Officer',
       remarks: auditRemarks,
     });
     if (err !== null) { toast.error('Failed to return application.'); return; }
+    if (isEndorsedToMe && app.endorsedBy) {
+      await updateApplication(app.id, {
+        assignedTo: app.endorsedBy,
+      });
+    }
     toast.success(successMessage);
     await mutateApplications(app.id);
     await refetch();
@@ -302,10 +463,13 @@ export function ApplicationReviewScreenContent({
     const { person, notes } = submission;
     const notesSuffix = notes && notes.trim().length > 0 ? ` Instructions: ${notes.trim()}` : '';
     const roleLabel = person.position || person.role || 'Evaluator';
-    const remarks = `Application endorsed to ${person.name} (${roleLabel}).${notesSuffix}`;
+    const remarks = `Application endorsed to ${person.name} (${roleLabel}) by ${officerName}.${notesSuffix}`;
 
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'Evaluating',
+      action: `Endorsed to ${person.name}`,
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluating Officer',
       remarks,
     });
     if (err !== null) {
@@ -326,6 +490,9 @@ export function ApplicationReviewScreenContent({
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'Approved',
+      action: 'Directly Approved by Administrator',
+      staffName: officerName,
+      staffRole: 'Admin',
       remarks: 'Application directly approved by administrator.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
@@ -341,16 +508,56 @@ export function ApplicationReviewScreenContent({
   const endorsementApplicantsCount = app.applicantsList?.filter(a => a.status === 'ForEndorsement').length ?? 0;
   const hasIncompleteApplicants = isBulkApp
     ? uncompletedApplicantsCount > 0 || endorsementApplicantsCount > 0
-    : (app.applicantsList?.some(a => a.status === 'Incomplete') ?? false);
+    : false;
 
+  /** Start evaluation button for Submitted applications */
+  const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe;
   /** Show Cashier-specific payment verify button */
-  const showCashierBtn = (currentRole === 'Cashier' || canVerifyCashier) && app.status === 'PendingPayment';
+  const showCashierBtn = isPendingPayment && !isEndorsedAwayFromMe && (currentRole === 'Cashier' || canVerifyCashier || isAdmin);
   /** Show Accountant-specific SOA approve button */
-  const showAccountantBtn = (currentRole === 'Accountant' || canApproveAsAccountant) && app.status === 'ForAccountant';
-  /** Show Evaluator forward-to-accountant button */
-  const showForwardBtn = canForwardToAccountant && (app.status === 'Evaluating' || app.status === 'Submitted');
-  /** Admin can do everything — show the stage-appropriate primary action */
-  const isAdmin = currentRole === 'Admin';
+  const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && (currentRole === 'Accountant' || canApproveAsAccountant || isAdmin);
+  /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
+  const showForwardBtn = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe) && !isEndorsedAwayFromMe;
+
+  let approveButtonLabel = 'Approve';
+  let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
+
+  if (showStartEvalBtn) {
+    approveButtonLabel = 'Start Evaluation';
+    approveButtonIcon = 'play-circle';
+  } else if (showCashierBtn) {
+    approveButtonLabel = 'Collect & Issue OR';
+    approveButtonIcon = 'credit-card';
+  } else if (showAccountantBtn) {
+    approveButtonLabel = 'Approve SOA';
+    approveButtonIcon = 'check-circle';
+  } else if (showForwardBtn) {
+    approveButtonLabel = 'Approve Evaluation';
+    approveButtonIcon = 'check-circle';
+  }
+
+  // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA)
+  const canApproveAction = isEditable && (showStartEvalBtn || showCashierBtn || showAccountantBtn || showForwardBtn);
+
+  // Return button: Only available when actively evaluating (or endorsed to me), or in Accountant / Cashier stage
+  const canDeclineAction = isEditable && (
+    (isEvaluating && (isEvaluatedByMe || isEndorsedToMe || !isEvaluatedByOther)) ||
+    (isForAccountant && (currentRole === 'Accountant' || canApproveAsAccountant || isAdmin)) ||
+    (isPendingPayment && (currentRole === 'Cashier' || canVerifyCashier || isAdmin))
+  );
+
+  // Endorse button: ONLY available when actively evaluating (by current evaluator or endorsed officer)
+  const canEndorseAction = isEditable && isEvaluating && (isEvaluatedByMe || isEndorsedToMe || !isEvaluatedByOther) && canEndorse;
+
+  const handlePrimaryAction = () => {
+    if (showStartEvalBtn) {
+      void handleStartEvaluation();
+    } else if (showCashierBtn) {
+      setShowCashier(true);
+    } else {
+      setShowApprove(true);
+    }
+  };
 
   return (
     <Animated.View style={[sc.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
@@ -407,8 +614,38 @@ export function ApplicationReviewScreenContent({
         )}
       </View>
 
+      {/* Endorsed away banner */}
+      {isEndorsedAwayFromMe && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF', borderBottomColor: isDark ? '#4338CA' : '#C7D2FE' }]}>
+          <Lucide name="share-2" size={14} color={isDark ? '#A5B4FC' : '#4F46E5'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#E0E7FF' : '#3730A3' }]}>
+            This application has been endorsed to <Text style={{ fontWeight: '700' }}>{app.endorsedTo}</Text>{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}. Actions are restricted to the endorsed officer until reviewed or returned.
+          </Text>
+        </View>
+      )}
+
+      {/* Endorsed to me banner */}
+      {isEndorsedToMe && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#14532D' : '#F0FDF4', borderBottomColor: isDark ? '#15803D' : '#BBF7D0' }]}>
+          <Lucide name="share-2" size={14} color={isDark ? '#4ADE80' : '#16A34A'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#DCFCE7' : '#14532D' }]}>
+            This application has been endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''} for technical evaluation and decision.
+          </Text>
+        </View>
+      )}
+
+      {/* Locked / Under Evaluation by another officer banner */}
+      {!isEndorsedAwayFromMe && !isEndorsedToMe && isEvaluatedByOther && (
+        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
+          <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
+          <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
+            This application is currently being evaluated by <Text style={{ fontWeight: '700' }}>{evaluatingOfficer}</Text>. Actions are locked to prevent duplicate simultaneous evaluations.
+          </Text>
+        </View>
+      )}
+
       {/* Read-only banner */}
-      {!isEditable && (
+      {!isEditable && !isEndorsedAwayFromMe && (
         <View style={[sc.readOnlyBanner, { backgroundColor: colors.brand.yellowLight }]}>
           <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
           <Text style={[sc.readOnlyText, { color: COLORS.semantic.warningText }]}>
@@ -459,19 +696,13 @@ export function ApplicationReviewScreenContent({
         isEditable={isEditable}
         isDark={isDark}
         colors={colors}
-        canApprove={showCashierBtn || showAccountantBtn || showForwardBtn || isAdmin || canApprove}
-        canDecline={canDecline}
-        canEndorse={canEndorse && !showCashierBtn}
+        canApprove={canApproveAction}
+        canDecline={canDeclineAction}
+        canEndorse={canEndorseAction}
         isApproveDisabled={showForwardBtn && hasIncompleteApplicants}
-        approveLabel={showCashierBtn ? "Verify Payment" : "Approve"}
-        approveIcon={showCashierBtn ? "credit-card" : "check-circle"}
-        onApprove={() => {
-          if (showCashierBtn) {
-            setShowCashier(true);
-          } else {
-            setShowApprove(true);
-          }
-        }}
+        approveLabel={approveButtonLabel}
+        approveIcon={approveButtonIcon}
+        onApprove={handlePrimaryAction}
         onReturn={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
       />
@@ -496,26 +727,32 @@ export function ApplicationReviewScreenContent({
         visible={showDecline}
         applicantName={app.applicant}
         title={
-          app.status === 'PendingPayment'
-            ? 'Return to Accountant'
-            : app.status === 'ForAccountant'
-              ? 'Return to Evaluator'
-              : 'Return Application'
+          isEndorsedToMe && app.endorsedBy
+            ? `Return to ${app.endorsedBy}`
+            : app.status === 'PendingPayment'
+              ? 'Return to Accountant'
+              : app.status === 'ForAccountant'
+                ? 'Return to Evaluator'
+                : 'Return Application'
         }
         confirmText="Confirm Return"
         reasonLabel={
-          app.status === 'PendingPayment'
-            ? 'Return Reason for Accountant'
-            : app.status === 'ForAccountant'
-              ? 'Return Reason for Evaluator'
-              : 'Reason / Notice of Discrepancy'
+          isEndorsedToMe && app.endorsedBy
+            ? `Return Reason for ${app.endorsedBy}`
+            : app.status === 'PendingPayment'
+              ? 'Return Reason for Accountant'
+              : app.status === 'ForAccountant'
+                ? 'Return Reason for Evaluator'
+                : 'Reason / Notice of Discrepancy'
         }
         placeholder={
-          app.status === 'PendingPayment'
-            ? 'Describe fee adjustments or discrepancy for the Accountant...'
-            : app.status === 'ForAccountant'
-              ? 'Describe findings or missing details for the Evaluator...'
-              : 'Describe the discrepancy or reason for returning this application...'
+          isEndorsedToMe && app.endorsedBy
+            ? `Describe findings, reasons, or remarks for returning to ${app.endorsedBy}...`
+            : app.status === 'PendingPayment'
+              ? 'Describe fee adjustments or discrepancy for the Accountant...'
+              : app.status === 'ForAccountant'
+                ? 'Describe findings or missing details for the Evaluator...'
+                : 'Describe the discrepancy or reason for returning this application...'
         }
         onConfirm={handleDecline}
         onCancel={() => setShowDecline(false)}
@@ -528,7 +765,14 @@ export function ApplicationReviewScreenContent({
         onConfirm={handleEndorse}
         onCancel={() => setShowEndorse(false)}
       />
-      <CashierVerificationModal visible={showCashier} applicantName={app.applicant} initialOrNumber={app.payment.orNumber} onConfirm={handleCashierVerify} onCancel={() => setShowCashier(false)} />
+      <IssueReceiptModal
+        visible={showCashier}
+        tenantId={app.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001'}
+        nextOr={nextOr}
+        pendingPayment={pendingPaymentPayload}
+        onClose={() => setShowCashier(false)}
+        onSuccess={handleCashierReceiptSuccess}
+      />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
       <SoaReportPreviewModal visible={showReportPreview} app={app} initialDocType={reportPreviewInitialDoc} onClose={() => setShowReportPreview(false)} onOpenGenerateSoa={() => setShowGenerateSoa(true)} />
     </Animated.View>
@@ -546,7 +790,7 @@ interface WorkflowActionBarProps {
   canEndorse: boolean;
   isApproveDisabled: boolean;
   approveLabel: string;
-  approveIcon: 'check-circle' | 'credit-card';
+  approveIcon: 'check-circle' | 'credit-card' | 'play-circle';
   onApprove: () => void;
   onReturn: () => void;
   onEndorse: () => void;
@@ -579,6 +823,10 @@ function WorkflowActionBar({
   const approveEnabled = isEditable && canApprove && !isApproveDisabled;
   const returnEnabled = isEditable && canDecline;
   const endorseEnabled = isEditable && canEndorse;
+
+  if (!canApprove && !returnEnabled && !endorseEnabled) {
+    return null;
+  }
 
   return (
     <View
@@ -690,6 +938,10 @@ const sc = StyleSheet.create({
   tabUnderline: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1 },
   tabSpacer: { flex: 1 },
   iconBtn: { padding: SPACING[8], borderRadius: RADIUS.button },
+  endorsedBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[10], borderBottomWidth: 1 },
+  endorsedText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
+  lockedBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[10], borderBottomWidth: 1 },
+  lockedText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
   readOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[8] },
   readOnlyText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
   actionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[12], borderTopWidth: 1, flexWrap: 'wrap' },

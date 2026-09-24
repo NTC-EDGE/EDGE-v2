@@ -3,13 +3,17 @@ import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
 import { styles } from './applicationDetailsStyles';
-import { useApi } from '../../../../shared/hooks/useApi';
+import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
+import {
+  prepareDocumentPreviewFile,
+  downloadApplicationDocument,
+} from '../../helpers/applicationDocumentActions';
 
 interface DocumentsSectionProps {
   app: Application;
   docs: ApplicationDocument[];
   onPreviewDoc: (doc: ApplicationDocument) => void;
-  onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
+  onPreviewCustomDoc: (doc: DocumentPreviewFile) => void;
   onDownloadDoc?: (doc: ApplicationDocument) => void;
   previewLoadingId: string | null;
   setPreviewLoadingId: (id: string | null) => void;
@@ -24,7 +28,6 @@ export function DocumentsSection({
   previewLoadingId,
   setPreviewLoadingId,
 }: DocumentsSectionProps) {
-  const api = useApi();
   const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
@@ -51,39 +54,46 @@ export function DocumentsSection({
           const matched = rawReq.find(
             (r) => r.id === doc.id || (r.url !== undefined && r.url.includes(doc.id))
           );
-          const fileUrl: string | undefined = doc.url ?? matched?.url ?? undefined;
 
-          if (fileUrl !== undefined && fileUrl !== '') {
+          if (isMountedRef.current) {
+            setPreviewLoadingId(doc.id);
+          }
+          try {
+            const previewFile = await prepareDocumentPreviewFile(doc, app, matched);
             if (isMountedRef.current) {
-              setPreviewLoadingId(doc.id);
+              onPreviewCustomDoc(previewFile);
             }
-            try {
-              const baseUrl =
-                (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
-              const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
-
-              const blob = await api.get<Blob>(fullUrl);
-              if (!isMountedRef.current) return;
-              const objectUrl =
-                typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
-                  ? URL.createObjectURL(blob as unknown as Blob)
-                  : fullUrl;
-
-              onPreviewCustomDoc({ uri: objectUrl, name: doc.name });
-            } catch (fetchErr) {
-              console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
-              if (isMountedRef.current) {
-                onPreviewCustomDoc({ uri: fileUrl, name: doc.name });
-              }
-            } finally {
-              if (isMountedRef.current) {
-                setPreviewLoadingId(null);
-              }
+          } catch (fetchErr) {
+            console.warn('[DocumentsSection] Could not fetch file preview:', fetchErr);
+            if (isMountedRef.current) {
+              onPreviewCustomDoc({
+                uri: '',
+                name: doc.name,
+                category: doc.category,
+                size: doc.size,
+                type: doc.type,
+                referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
+                serviceName: app.serviceName || 'Standard Licensing Application',
+                applicantName: app.applicantName || 'Applicant',
+                uploadedAt: doc.uploadedAt || app.submittedAt,
+              });
             }
+          } finally {
+            if (isMountedRef.current) {
+              setPreviewLoadingId(null);
+            }
+          }
+        };
+
+        const handleDownload = async () => {
+          if (onDownloadDoc !== undefined) {
+            onDownloadDoc(doc);
           } else {
-            if (isMountedRef.current) {
-              onPreviewDoc(doc);
-            }
+            const rawReq = (app.requirements ?? app.Requirements ?? []) as RawRequirement[];
+            const matched = rawReq.find(
+              (r) => r.id === doc.id || (r.url !== undefined && r.url.includes(doc.id))
+            );
+            await downloadApplicationDocument(doc, app, matched);
           }
         };
 
@@ -120,9 +130,7 @@ export function DocumentsSection({
               </TouchableOpacity>
 
               <TouchableOpacity
-                onPress={() => {
-                  if (onDownloadDoc !== undefined) onDownloadDoc(doc);
-                }}
+                onPress={handleDownload}
                 style={styles.docDownloadBtn}
                 activeOpacity={0.8}
               >

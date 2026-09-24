@@ -19,14 +19,16 @@ import {
   mutateApplications,
 } from "@edge/api";
 import { ApplicantRecordTabProps } from "./reviewTypes";
-import { ApplicantItem } from "../../../../types/application";
+import { ApplicantItem, AuditTrailEntry } from "../../../../types/application";
 import { DocumentPreviewFile } from "../../../../shared/components/DocumentPreviewModal";
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
 import { BaseApplicationPreview } from "../../../../shared/formPreview";
 import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
+import { ApplicationHistoryTimeline } from "./ApplicationHistoryTimeline";
 import { isAllowedRequirementFileType } from "../../../../utils/fileValidation";
+import { resolveApplicantAuditHistory } from "../../utils/officerEvaluationHelper";
 
 export function ApplicantRecordTab({
   app,
@@ -98,6 +100,11 @@ export function ApplicantRecordTab({
       return trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '[]' && trimmed !== '{}';
     });
   }, [formData, flatFormValues]);
+
+  const applicantHistory = useMemo<AuditTrailEntry[]>(
+    () => resolveApplicantAuditHistory(app, activeApplicant),
+    [app, activeApplicant]
+  );
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -194,6 +201,15 @@ export function ApplicantRecordTab({
         <View style={styles.infoBlock}>
           <ApplicantRequirementsSection app={app} activeApplicant={activeApplicant} isEditable={isEditable} onPreviewFile={onPreviewFile} />
         </View>
+
+        {/* 4. Applicant History & Evaluation Audit */}
+        <ApplicationHistoryTimeline
+          history={applicantHistory}
+          title={app.applicationType === 'BULK'
+            ? `4. APPLICANT RECORD AUDIT & EVALUATION HISTORY (${applicantHistory.length})`
+            : undefined
+          }
+        />
 
         <View style={{ height: 80 }} />
       </ScrollView>
