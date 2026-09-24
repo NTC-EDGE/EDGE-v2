@@ -209,6 +209,27 @@ class RealTimeManager {
     }
   }
 
+  public async requestJoinMeeting(meetingCode: string): Promise<void> {
+    const conn = await this.getMeetConnection();
+    if (conn.state === HubConnectionState.Connected) {
+      await conn.invoke('RequestJoinMeeting', meetingCode);
+    }
+  }
+
+  public async admitParticipant(meetingCode: string, targetConnectionId: string, targetUserId: string): Promise<void> {
+    const conn = await this.getMeetConnection();
+    if (conn.state === HubConnectionState.Connected) {
+      await conn.invoke('AdmitParticipant', meetingCode, targetConnectionId, targetUserId);
+    }
+  }
+
+  public async denyParticipant(meetingCode: string, targetConnectionId: string, targetUserId: string): Promise<void> {
+    const conn = await this.getMeetConnection();
+    if (conn.state === HubConnectionState.Connected) {
+      await conn.invoke('DenyParticipant', meetingCode, targetConnectionId, targetUserId);
+    }
+  }
+
   public async leaveMeeting(meetingCode: string): Promise<void> {
     if (this.meetHub && this.meetHub.state === HubConnectionState.Connected) {
       await this.meetHub.invoke('LeaveMeeting', meetingCode);
@@ -227,9 +248,39 @@ class RealTimeManager {
     }
   }
 
-  public async broadcastMeetingChat(meetingCode: string, message: { senderName: string; content: string; timestamp: string }): Promise<void> {
+  public async broadcastMeetingChat(meetingCode: string, message: { id?: string; senderName: string; content: string; timestamp: string }): Promise<void> {
     if (this.meetHub && this.meetHub.state === HubConnectionState.Connected) {
       await this.meetHub.invoke('BroadcastMeetingChatMessage', meetingCode, message);
+    }
+  }
+
+  public async broadcastMeetingChatEdited(meetingCode: string, payload: { messageId: string; content: string }): Promise<void> {
+    if (this.meetHub && this.meetHub.state === HubConnectionState.Connected) {
+      try {
+        await this.meetHub.invoke('BroadcastMeetingChatEdited', meetingCode, payload);
+      } catch {
+        // Fallback
+      }
+    }
+  }
+
+  public async broadcastMeetingChatUnsent(meetingCode: string, payload: { messageId: string }): Promise<void> {
+    if (this.meetHub && this.meetHub.state === HubConnectionState.Connected) {
+      try {
+        await this.meetHub.invoke('BroadcastMeetingChatUnsent', meetingCode, payload);
+      } catch {
+        // Fallback
+      }
+    }
+  }
+
+  public async broadcastMeetingChatReaction(meetingCode: string, payload: { messageId: string; emoji: string; userName: string }): Promise<void> {
+    if (this.meetHub && this.meetHub.state === HubConnectionState.Connected) {
+      try {
+        await this.meetHub.invoke('BroadcastMeetingChatReaction', meetingCode, payload);
+      } catch {
+        // Fallback
+      }
     }
   }
 
@@ -238,6 +289,50 @@ class RealTimeManager {
     void this.getMeetConnection().then((conn) => {
       conn.on('OnParticipantJoined', handler);
       unsubs = () => conn.off('OnParticipantJoined', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onJoinRequested(handler: (request: { connectionId: string; userId: string; userName: string; avatarUrl?: string; meetingCode: string }) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnJoinRequested', handler);
+      unsubs = () => conn.off('OnJoinRequested', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onJoinRequestPending(handler: (meetingCode: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnJoinRequestPending', handler);
+      unsubs = () => conn.off('OnJoinRequestPending', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onJoinRequestAdmitted(handler: (meetingCode: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnJoinRequestAdmitted', handler);
+      unsubs = () => conn.off('OnJoinRequestAdmitted', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onJoinRequestDenied(handler: (meetingCode: string, reason: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnJoinRequestDenied', handler);
+      unsubs = () => conn.off('OnJoinRequestDenied', handler);
     });
     return () => {
       if (unsubs) unsubs();
@@ -255,11 +350,44 @@ class RealTimeManager {
     };
   }
 
-  public onReceiveMeetingChatMessage(handler: (message: { senderName: string; content: string; timestamp: string }) => void): () => void {
+  public onReceiveMeetingChatMessage(handler: (message: { id?: string; senderName: string; content: string; timestamp: string }) => void): () => void {
     let unsubs: (() => void) | null = null;
     void this.getMeetConnection().then((conn) => {
       conn.on('ReceiveMeetingChatMessage', handler);
       unsubs = () => conn.off('ReceiveMeetingChatMessage', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveMeetingChatEdited(handler: (payload: { messageId: string; content: string }) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveMeetingChatEdited', handler);
+      unsubs = () => conn.off('ReceiveMeetingChatEdited', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveMeetingChatUnsent(handler: (payload: { messageId: string }) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveMeetingChatUnsent', handler);
+      unsubs = () => conn.off('ReceiveMeetingChatUnsent', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveMeetingChatReaction(handler: (payload: { messageId: string; emoji: string; userName: string }) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveMeetingChatReaction', handler);
+      unsubs = () => conn.off('ReceiveMeetingChatReaction', handler);
     });
     return () => {
       if (unsubs) unsubs();
@@ -271,6 +399,39 @@ class RealTimeManager {
     void this.getMeetConnection().then((conn) => {
       conn.on('OnReactionReceived', handler);
       unsubs = () => conn.off('OnReactionReceived', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveWebRtcOffer(handler: (senderConnectionId: string, sdp: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveWebRtcOffer', handler);
+      unsubs = () => conn.off('ReceiveWebRtcOffer', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveWebRtcAnswer(handler: (senderConnectionId: string, sdp: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveWebRtcAnswer', handler);
+      unsubs = () => conn.off('ReceiveWebRtcAnswer', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveIceCandidate(handler: (senderConnectionId: string, candidateJson: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('ReceiveIceCandidate', handler);
+      unsubs = () => conn.off('ReceiveIceCandidate', handler);
     });
     return () => {
       if (unsubs) unsubs();

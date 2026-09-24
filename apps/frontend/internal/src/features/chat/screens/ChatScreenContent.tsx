@@ -44,6 +44,9 @@ export const ChatScreenContent: React.FC = () => {
     isSending,
     sendMessage,
     retryMessage,
+    editMessage,
+    unsendMessage,
+    reactToMessage,
     sendTypingNotification,
     typingUsers,
   } = useChatMessages(selectedConversation?.id, user?.name);
@@ -178,10 +181,14 @@ export const ChatScreenContent: React.FC = () => {
               conversation={selectedConversation}
               messages={messages}
               currentUserId={user?.id}
+              currentUserName={user?.name}
               showBackButton={!isLargeScreen}
               onBack={() => setSelectedConversation(null)}
               onSendMessage={handleSendMessage}
               onRetryMessage={retryMessage}
+              onEditMessage={editMessage}
+              onUnsendMessage={unsendMessage}
+              onReactMessage={reactToMessage}
               onTyping={sendTypingNotification}
               typingUsers={typingUsers}
               isSending={isSending}

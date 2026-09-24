@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal, Platform } from 'react-native';
+import React, { useRef, useState } from 'react';
+import { View, Text, Pressable, StyleSheet, Modal, Platform, Dimensions } from 'react-native';
 import { Conversation } from '@edge/api';
-import { Avatar, Icon, useTheme } from '@edge/ui';
+import { Avatar, Icon, SHADOWS, useTheme } from '@edge/ui';
 
 interface ConversationItemProps {
   conversation: Conversation & { isArchived?: boolean };
@@ -26,6 +26,8 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
 }) => {
   const { colors, isDark } = useTheme();
   const [menuVisible, setMenuVisible] = useState<boolean>(false);
+  const moreBtnRef = useRef<View>(null);
+  const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const title = conversation.title ?? conversation.participants[0]?.fullName ?? 'Direct Chat';
   const subtitle = conversation.lastMessagePreview ?? 'No messages yet';
@@ -36,6 +38,23 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
     if (!isoString) return '';
     const date = new Date(isoString);
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const handleOpenMenu = () => {
+    moreBtnRef.current?.measure((x, y, width, height, pageX, pageY) => {
+      const menuWidth = 190;
+      const windowWidth = Dimensions.get('window').width;
+      const windowHeight = Dimensions.get('window').height;
+      let leftPos = (pageX !== undefined ? pageX : 0) + width - menuWidth;
+      if (leftPos < 10) leftPos = 10;
+      if (leftPos + menuWidth > windowWidth - 10) leftPos = windowWidth - menuWidth - 10;
+      let topPos = (pageY !== undefined ? pageY : 0) + height + 4;
+      if (topPos + 170 > windowHeight - 10) {
+        topPos = Math.max(10, (pageY !== undefined ? pageY : 0) - 170);
+      }
+      setMenuPos({ top: topPos, left: leftPos });
+      setMenuVisible(true);
+    });
   };
 
   const handleAction = (action: 'read' | 'unread' | 'archive' | 'unarchive' | 'delete') => {
@@ -91,16 +110,18 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
                   {formatTime(conversation.lastMessageAt)}
                 </Text>
               )}
-              <Pressable
-                style={styles.moreBtn}
-                onPress={(e) => {
-                  e.stopPropagation?.();
-                  setMenuVisible(true);
-                }}
-                accessibilityLabel="Conversation actions"
-              >
-                <Icon name="more-vertical" size={14} color={colors.textMuted} />
-              </Pressable>
+              <View ref={moreBtnRef} collapsable={false}>
+                <Pressable
+                  style={styles.moreBtn}
+                  onPress={(e) => {
+                    e.stopPropagation?.();
+                    handleOpenMenu();
+                  }}
+                  accessibilityLabel="Conversation actions"
+                >
+                  <Icon name="more-vertical" size={14} color={colors.textMuted} />
+                </Pressable>
+              </View>
             </View>
           </View>
           <View style={styles.bottomRow}>
@@ -134,21 +155,30 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
         </View>
       </Pressable>
 
-      {/* Action Menu Modal */}
+      {/* Action Menu Dropdown */}
       <Modal
         visible={menuVisible}
         transparent
-        animationType="fade"
+        animationType="none"
         onRequestClose={() => setMenuVisible(false)}
       >
-        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
+        <Pressable
+          style={styles.modalOverlay}
+          onPress={(e) => {
+            e.stopPropagation?.();
+            setMenuVisible(false);
+          }}
+        >
           <View
             style={[
               styles.menuCard,
               {
+                top: menuPos.top,
+                left: menuPos.left,
                 backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
                 borderColor: colors.border,
               },
+              SHADOWS.modal,
             ]}
           >
             {hasUnread ? (
@@ -275,21 +305,23 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.3)',
-    justifyContent: 'center',
-    alignItems: 'center',
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'transparent',
+    zIndex: 99998,
   },
   menuCard: {
-    width: 200,
+    position: 'absolute',
+    width: 190,
     borderRadius: 12,
     borderWidth: 1,
     paddingVertical: 6,
-    elevation: 5,
-    shadowColor: '#000000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
+    elevation: 20,
+    zIndex: 99999,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 25px -5px rgba(15, 23, 42, 0.18), 0 8px 10px -6px rgba(15, 23, 42, 0.1)',
+      },
+    }),
   },
   menuItem: {
     flexDirection: 'row',

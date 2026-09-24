@@ -1,14 +1,40 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { meetService, Meeting, safeAsync, realTimeService } from '@edge/api';
+import { useWebRtcMeeting } from './useWebRtcMeeting';
 
 export type RecordingAccessPermission = 'HostOnly' | 'AllParticipants' | 'Selected';
 
+export function clearMeetingSessionState(meetingCode?: string) {
+  if (typeof window !== 'undefined' && window.sessionStorage) {
+    if (meetingCode) {
+      window.sessionStorage.removeItem(`edge_meet_${meetingCode}_mic_muted`);
+      window.sessionStorage.removeItem(`edge_meet_${meetingCode}_video_muted`);
+    }
+    window.sessionStorage.removeItem('edge_active_meeting_code');
+  }
+}
+
 export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: string) {
   const [meeting, setMeeting] = useState<Meeting | null>(initialMeeting ?? null);
-  const [isMicMuted, setIsMicMuted] = useState<boolean>(false);
-  const [isVideoMuted, setIsVideoMuted] = useState<boolean>(false);
+  const meetingCode = meeting?.meetingCode;
+
+  const getInitialMutedState = (key: string, defaultVal: boolean): boolean => {
+    if (typeof window !== 'undefined' && window.sessionStorage && meetingCode) {
+      const saved = window.sessionStorage.getItem(`edge_meet_${meetingCode}_${key}`);
+      if (saved !== null) {
+        try {
+          return JSON.parse(saved) as boolean;
+        } catch {
+          return defaultVal;
+        }
+      }
+    }
+    return defaultVal;
+  };
+
+  const [isMicMuted, setIsMicMuted] = useState<boolean>(() => getInitialMutedState('mic_muted', false));
+  const [isVideoMuted, setIsVideoMuted] = useState<boolean>(() => getInitialMutedState('video_muted', false));
   const [isHandRaised, setIsHandRaised] = useState<boolean>(false);
-  const [isScreenSharing, setIsScreenSharing] = useState<boolean>(false);
   const [isRecording, setIsRecording] = useState<boolean>(false);
   const [recordingSeconds, setRecordingSeconds] = useState<number>(0);
   const [recordingAccess, setRecordingAccess] = useState<RecordingAccessPermission>('HostOnly');
@@ -16,7 +42,13 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
 
   const recordingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const meetingCode = meeting?.meetingCode;
+  // Sync state if meeting code updates
+  useEffect(() => {
+    if (meetingCode) {
+      setIsMicMuted(getInitialMutedState('mic_muted', false));
+      setIsVideoMuted(getInitialMutedState('video_muted', false));
+    }
+  }, [meetingCode]);
 
   // Real-time room connection and reaction listener
   useEffect(() => {
@@ -37,6 +69,23 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
       void realTimeService.leaveMeeting(meetingCode);
     };
   }, [meetingCode]);
+
+  // Real-time WebRTC Mesh & Hardware Capture (Camera, Mic, Speakers)
+  const {
+    localStream,
+    screenStream,
+    remoteStreams,
+    isSpeaking,
+    mediaError,
+    isScreenSharingActive,
+    toggleScreenShare,
+    stopAllMediaTracks,
+  } = useWebRtcMeeting({
+    meetingCode,
+    currentUserId,
+    isMicMuted,
+    isVideoMuted,
+  });
 
   // Recording timer
   useEffect(() => {
@@ -59,16 +108,29 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
   }, [isRecording]);
 
   const toggleMic = useCallback(() => {
-    setIsMicMuted((prev) => !prev);
-  }, []);
+    setIsMicMuted((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined' && window.sessionStorage && meetingCode) {
+        window.sessionStorage.setItem(`edge_meet_${meetingCode}_mic_muted`, JSON.stringify(next));
+      }
+      return next;
+    });
+  }, [meetingCode]);
 
   const toggleVideo = useCallback(() => {
-    setIsVideoMuted((prev) => !prev);
-  }, []);
+    setIsVideoMuted((prev) => {
+      const next = !prev;
+      if (typeof window !== 'undefined' && window.sessionStorage && meetingCode) {
+        window.sessionStorage.setItem(`edge_meet_${meetingCode}_video_muted`, JSON.stringify(next));
+      }
+      return next;
+    });
+  }, [meetingCode]);
 
-  const toggleScreenShare = useCallback(() => {
-    setIsScreenSharing((prev) => !prev);
-  }, []);
+  const leaveAndResetRoom = useCallback(() => {
+    stopAllMediaTracks();
+    clearMeetingSessionState(meetingCode);
+  }, [meetingCode, stopAllMediaTracks]);
 
   const toggleRecording = useCallback(() => {
     setIsRecording((prev) => !prev);
@@ -123,18 +185,25 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
     isMicMuted,
     isVideoMuted,
     isHandRaised,
-    isScreenSharing,
+    isScreenSharing: isScreenSharingActive,
     isRecording,
     recordingSeconds,
     formattedRecordingTime,
     recordingAccess,
     setRecordingAccess,
     floatingEmojis,
+    localStream,
+    screenStream,
+    remoteStreams,
+    isSpeaking,
+    mediaError,
     toggleMic,
     toggleVideo,
     toggleScreenShare,
     toggleRecording,
     toggleHandRaise,
     triggerReaction,
+    leaveAndResetRoom,
+    stopAllMediaTracks,
   };
 }

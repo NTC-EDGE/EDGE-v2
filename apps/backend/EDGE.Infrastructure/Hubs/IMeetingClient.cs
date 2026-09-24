@@ -19,4 +19,9 @@ public interface IMeetingClient
     Task OnSpeakerSpotlighted(Guid targetUserId);
     Task OnParticipantJoined(object participant);
     Task OnParticipantLeft(Guid userId);
+
+    Task OnJoinRequested(object request);
+    Task OnJoinRequestPending(string meetingCode);
+    Task OnJoinRequestAdmitted(string meetingCode);
+    Task OnJoinRequestDenied(string meetingCode, string reason);
 }

@@ -13,6 +13,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserNotificationRepository _userNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateMeetingCommandHandler(
@@ -21,6 +22,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
+        IUserNotificationRepository userNotificationRepository,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
@@ -28,6 +30,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
+        _userNotificationRepository = userNotificationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -101,12 +104,38 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         }
 
         await _meetingRepository.AddMeetingAsync(meeting, cancellationToken);
+
+        var formattedTime = meeting.ScheduledStartTime.ToString("MMM dd, yyyy 'at' hh:mm tt");
+        var hostName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+
+        var notifications = meeting.Participants
+            .Where(p => p.UserId != currentUser.Id)
+            .Select(p => new UserNotification
+            {
+                UserId = p.UserId,
+                TenantId = p.TenantId ?? hostTenantId,
+                Type = NotificationType.MeetingInvite,
+                Title = $"Meeting Scheduled: {meeting.Title}",
+                Body = $"You have been invited by {hostName} to join '{meeting.Title}' scheduled on {formattedTime}. Meeting Code: {meeting.MeetingCode}.",
+                ActionUrl = $"/meet?code={meeting.MeetingCode}",
+                ReferenceId = meeting.MeetingCode,
+                IsRead = false
+            })
+            .ToList();
+
+        if (notifications.Any())
+        {
+            await _userNotificationRepository.CreateNotificationsAsync(notifications, cancellationToken);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var created = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken);
+        var created = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken)
+            ?? throw new InvalidOperationException($"Failed to retrieve meeting with ID {meeting.Id} after creation.");
+
         return new MeetingDto
         {
-            Id = created!.Id,
+            Id = created.Id,
             Title = created.Title,
             Description = created.Description,
             MeetingCode = created.MeetingCode,
@@ -114,14 +143,16 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             TenantId = created.TenantId,
             TenantName = created.Tenant?.Name,
             HostUserId = created.HostUserId,
-            HostUserName = $"{created.HostUser?.FirstName} {created.HostUser?.LastName}".Trim(),
+            HostUserName = created.HostUser != null
+                ? $"{created.HostUser.FirstName} {created.HostUser.LastName}".Trim()
+                : hostName,
             ScheduledStartTime = created.ScheduledStartTime,
             ScheduledEndTime = created.ScheduledEndTime,
             Status = created.Status,
             Participants = created.Participants.Select(p => new MeetingParticipantDto
             {
                 UserId = p.UserId,
-                FullName = $"{p.User?.FirstName} {p.User?.LastName}".Trim(),
+                FullName = p.User != null ? $"{p.User.FirstName} {p.User.LastName}".Trim() : string.Empty,
                 Email = p.User?.Email ?? string.Empty,
                 AvatarUrl = p.User?.ProfilePicture,
                 Role = p.Role,

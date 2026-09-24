@@ -866,6 +866,16 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.MeetingCode).IsUnique();
             entity.HasIndex(e => new { e.HostUserId, e.ScheduledStartTime, e.IsDeleted });
             entity.HasIndex(e => e.TenantId);
+
+            entity.HasOne(e => e.HostUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.HostUserId)
+                  .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<MeetingParticipant>(entity =>
@@ -873,25 +883,85 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Role).HasConversion<string>();
             entity.HasIndex(e => new { e.MeetingId, e.UserId });
             entity.HasIndex(e => new { e.UserId, e.MeetingId, e.IsDeleted });
+            entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => new { e.MeetingId, e.IsHandRaised });
+
+            entity.HasOne(e => e.Meeting)
+                  .WithMany(m => m.Participants)
+                  .HasForeignKey(e => e.MeetingId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<MeetingAction>(entity =>
         {
             entity.Property(e => e.ActionType).HasConversion<string>();
             entity.HasIndex(e => new { e.MeetingId, e.CreatedAt });
+            entity.HasIndex(e => e.ActorUserId);
+            entity.HasIndex(e => e.TargetUserId);
+
+            entity.HasOne(e => e.Meeting)
+                  .WithMany(m => m.Actions)
+                  .HasForeignKey(e => e.MeetingId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<MeetingPoll>(entity =>
         {
             entity.Property(e => e.Question).IsRequired().HasMaxLength(500);
             entity.HasIndex(e => e.MeetingId);
+
+            entity.HasOne(e => e.Meeting)
+                  .WithMany(m => m.Polls)
+                  .HasForeignKey(e => e.MeetingId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<MeetingPollVote>(entity =>
+        {
+            entity.HasIndex(e => new { e.MeetingPollId, e.UserId });
+            entity.HasIndex(e => e.UserId);
+
+            entity.HasOne(e => e.MeetingPoll)
+                  .WithMany(p => p.Votes)
+                  .HasForeignKey(e => e.MeetingPollId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<UserNotification>(entity =>
         {
             entity.Property(e => e.Title).IsRequired().HasMaxLength(200);
             entity.Property(e => e.Type).HasConversion<string>();
+            entity.Property(e => e.ReferenceId).HasMaxLength(100);
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.TenantId);
             entity.HasIndex(e => new { e.UserId, e.IsRead });
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+            entity.HasIndex(e => new { e.UserId, e.IsRead, e.CreatedAt });
+
+            entity.HasOne(e => e.User)
+                  .WithMany()
+                  .HasForeignKey(e => e.UserId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
     }
 

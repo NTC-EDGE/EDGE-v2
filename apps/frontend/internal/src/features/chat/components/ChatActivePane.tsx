@@ -10,10 +10,14 @@ interface ChatActivePaneProps {
   conversation: Conversation | null;
   messages: ExtendedChatMessage[];
   currentUserId?: string;
+  currentUserName?: string;
   showBackButton?: boolean;
   onBack?: () => void;
   onSendMessage: (content: string) => Promise<boolean>;
   onRetryMessage?: (message: ExtendedChatMessage) => void;
+  onEditMessage?: (messageId: string, newContent: string) => void;
+  onUnsendMessage?: (messageId: string) => void;
+  onReactMessage?: (messageId: string, emoji: string) => void;
   onTyping?: () => void;
   typingUsers?: string[];
   isSending: boolean;
@@ -23,10 +27,14 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
   conversation,
   messages,
   currentUserId,
+  currentUserName,
   showBackButton = false,
   onBack,
   onSendMessage,
   onRetryMessage,
+  onEditMessage,
+  onUnsendMessage,
+  onReactMessage,
   onTyping,
   typingUsers = [],
   isSending,
@@ -92,7 +100,11 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
           <MessageBubble
             message={item}
             isCurrentUser={item.senderId === currentUserId || item.senderId === 'self'}
+            currentUserName={currentUserName}
             onRetry={onRetryMessage}
+            onEdit={onEditMessage}
+            onUnsend={onUnsendMessage}
+            onReact={onReactMessage}
           />
         )}
         contentContainerStyle={styles.listContent}

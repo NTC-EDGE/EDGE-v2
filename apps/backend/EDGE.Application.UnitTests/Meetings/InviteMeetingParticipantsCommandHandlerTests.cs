@@ -19,6 +19,7 @@ public class InviteMeetingParticipantsCommandHandlerTests
     private readonly Mock<ITenantMemberRepository> _tenantMemberRepositoryMock = new();
     private readonly Mock<ITenantRepository> _tenantRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
+    private readonly Mock<IUserNotificationRepository> _userNotificationRepositoryMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly InviteMeetingParticipantsCommandHandler _handler;
 
@@ -30,6 +31,7 @@ public class InviteMeetingParticipantsCommandHandlerTests
             _tenantMemberRepositoryMock.Object,
             _tenantRepositoryMock.Object,
             _currentUserServiceMock.Object,
+            _userNotificationRepositoryMock.Object,
             _unitOfWorkMock.Object
         );
     }

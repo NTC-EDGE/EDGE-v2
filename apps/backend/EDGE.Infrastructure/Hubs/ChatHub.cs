@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.Authorization;
 using EDGE.Application.Common.Interfaces;
@@ -5,24 +6,34 @@ using EDGE.Application.Common.Interfaces;
 namespace EDGE.Infrastructure.Hubs;
 
 [Authorize]
-public class ChatHub : Hub<IChatClient>
+public class ChatHub : AuthenticatedHub<IChatClient>
 {
     private readonly IConversationRepository _conversationRepository;
 
-    public ChatHub(IConversationRepository conversationRepository)
+    public ChatHub(IConversationRepository conversationRepository, IUserRepository userRepository)
+        : base(userRepository)
     {
         _conversationRepository = conversationRepository;
     }
 
     public async Task JoinConversation(string conversationId)
     {
-        if (Guid.TryParse(conversationId, out var convId) && Guid.TryParse(Context.UserIdentifier, out var userId))
+        if (Guid.TryParse(conversationId, out var convId))
         {
+            var resolvedUserId = await ResolveUserIdAsync();
             var conversation = await _conversationRepository.GetByIdAsync(convId);
-            if (conversation != null && conversation.Participants.Any(p => p.UserId == userId && !p.HasLeft))
+            if (conversation != null)
             {
-                await Groups.AddToGroupAsync(Context.ConnectionId, $"conv_{conversationId}");
-                return;
+                if (resolvedUserId.HasValue && conversation.Participants.Any(p => p.UserId == resolvedUserId.Value && !p.HasLeft))
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"conv_{conversationId}");
+                    return;
+                }
+                if (conversation.Scope == Domain.Enums.ConversationScope.InterRegional)
+                {
+                    await Groups.AddToGroupAsync(Context.ConnectionId, $"conv_{conversationId}");
+                    return;
+                }
             }
         }
         throw new HubException("Access denied: You are not an active participant in this conversation.");
@@ -35,24 +46,26 @@ public class ChatHub : Hub<IChatClient>
 
     public async Task SendTyping(string conversationId, string userName)
     {
-        if (Guid.TryParse(conversationId, out var convId) && Guid.TryParse(Context.UserIdentifier, out var userId))
+        if (Guid.TryParse(conversationId, out var convId))
         {
+            var resolvedUserId = await ResolveUserIdAsync();
             var conversation = await _conversationRepository.GetByIdAsync(convId);
-            if (conversation != null && conversation.Participants.Any(p => p.UserId == userId && !p.HasLeft))
+            if (conversation != null && resolvedUserId.HasValue && conversation.Participants.Any(p => p.UserId == resolvedUserId.Value && !p.HasLeft))
             {
-                await Clients.OthersInGroup($"conv_{conversationId}").UserTyping(convId, userId, userName);
+                await Clients.OthersInGroup($"conv_{conversationId}").UserTyping(convId, resolvedUserId.Value, userName);
             }
         }
     }
 
     public async Task StopTyping(string conversationId)
     {
-        if (Guid.TryParse(conversationId, out var convId) && Guid.TryParse(Context.UserIdentifier, out var userId))
+        if (Guid.TryParse(conversationId, out var convId))
         {
+            var resolvedUserId = await ResolveUserIdAsync();
             var conversation = await _conversationRepository.GetByIdAsync(convId);
-            if (conversation != null && conversation.Participants.Any(p => p.UserId == userId && !p.HasLeft))
+            if (conversation != null && resolvedUserId.HasValue && conversation.Participants.Any(p => p.UserId == resolvedUserId.Value && !p.HasLeft))
             {
-                await Clients.OthersInGroup($"conv_{conversationId}").UserStoppedTyping(convId, userId);
+                await Clients.OthersInGroup($"conv_{conversationId}").UserStoppedTyping(convId, resolvedUserId.Value);
             }
         }
     }

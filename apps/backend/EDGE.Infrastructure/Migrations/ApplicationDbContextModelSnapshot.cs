@@ -947,11 +947,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("LastReadAt");
+
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("UserId");
-
                     b.HasIndex("ConversationId", "UserId");
+
+                    b.HasIndex("UserId", "HasLeft", "IsDeleted");
 
                     b.ToTable("ConversationParticipants", "public");
                 });
@@ -1629,14 +1631,14 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("HostUserId");
-
                     b.HasIndex("LinkedConversationId");
 
                     b.HasIndex("MeetingCode")
                         .IsUnique();
 
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("HostUserId", "ScheduledStartTime", "IsDeleted");
 
                     b.ToTable("Meetings", "public");
                 });
@@ -1756,9 +1758,11 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("TenantId");
 
-                    b.HasIndex("UserId");
+                    b.HasIndex("MeetingId", "IsHandRaised");
 
                     b.HasIndex("MeetingId", "UserId");
+
+                    b.HasIndex("UserId", "MeetingId", "IsDeleted");
 
                     b.ToTable("MeetingParticipants", "public");
                 });
@@ -1849,9 +1853,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("MeetingPollId");
-
                     b.HasIndex("UserId");
+
+                    b.HasIndex("MeetingPollId", "UserId");
 
                     b.ToTable("MeetingPollVotes", "public");
                 });
@@ -3843,7 +3847,8 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<string>("ReferenceId")
-                        .HasColumnType("text");
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
 
                     b.Property<Guid?>("TenantId")
                         .HasColumnType("uuid");
@@ -3864,7 +3869,13 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasIndex("TenantId");
 
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("UserId", "CreatedAt");
+
                     b.HasIndex("UserId", "IsRead");
+
+                    b.HasIndex("UserId", "IsRead", "CreatedAt");
 
                     b.ToTable("UserNotifications", "public");
                 });
@@ -4323,7 +4334,7 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasOne("EDGE.Domain.Entities.User", "HostUser")
                         .WithMany()
                         .HasForeignKey("HostUserId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("EDGE.Domain.Entities.Conversation", "LinkedConversation")
@@ -4332,7 +4343,8 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId");
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.Navigation("HostUser");
 
@@ -4376,7 +4388,8 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId");
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("EDGE.Domain.Entities.User", "User")
                         .WithMany()
@@ -4933,7 +4946,8 @@ namespace EDGE.Infrastructure.Migrations
                 {
                     b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
                         .WithMany()
-                        .HasForeignKey("TenantId");
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("EDGE.Domain.Entities.User", "User")
                         .WithMany()
