@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
 import { Meeting } from '@edge/api';
 import { Button, Icon, useTheme } from '@edge/ui';
 
@@ -7,11 +7,39 @@ interface MeetingCardProps {
   meeting: Meeting;
   onJoin: (meeting: Meeting) => void;
   onInvite?: (meeting: Meeting) => void;
+  onDelete?: (meetingId: string) => void;
+  onViewRecording?: (meeting: Meeting) => void;
 }
 
-export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInvite }) => {
-  const { colors } = useTheme();
+export const MeetingCard: React.FC<MeetingCardProps> = ({
+  meeting,
+  onJoin,
+  onInvite,
+  onDelete,
+  onViewRecording,
+}) => {
+  const { colors, isDark } = useTheme();
+  const [menuVisible, setMenuVisible] = useState<boolean>(false);
+  const [showDeleteModal, setShowDeleteModal] = useState<boolean>(false);
+
   const isInterRegional = meeting.scope === 'InterRegional';
+  const isFinished = meeting.status === 'Ended' || meeting.status === 'Cancelled';
+  const isLive = meeting.status === 'Live';
+
+  const getStatusBadge = () => {
+    if (isLive) {
+      return { bg: '#DCFCE7', text: '#15803D', label: 'Live' };
+    }
+    if (meeting.status === 'Ended') {
+      return { bg: '#F1F5F9', text: '#64748B', label: 'Finished' };
+    }
+    if (meeting.status === 'Cancelled') {
+      return { bg: '#FEE2E2', text: '#B91C1C', label: 'Cancelled' };
+    }
+    return { bg: '#DBEAFE', text: '#1D4ED8', label: 'Upcoming' };
+  };
+
+  const statusInfo = getStatusBadge();
 
   return (
     <View
@@ -25,9 +53,15 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInv
     >
       <View style={styles.topRow}>
         <View style={styles.titleInfo}>
-          <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
-            {meeting.title}
-          </Text>
+          <View style={styles.titleWithStatus}>
+            <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+              {meeting.title}
+            </Text>
+            <View style={[styles.statusBadge, { backgroundColor: statusInfo.bg }]}>
+              <Text style={[styles.statusBadgeText, { color: statusInfo.text }]}>{statusInfo.label}</Text>
+            </View>
+          </View>
+
           <View style={styles.metaRow}>
             <View
               style={[
@@ -56,7 +90,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInv
         </View>
 
         <View style={styles.actionsRow}>
-          {onInvite && (
+          {onInvite && !isFinished && (
             <Button
               variant="secondary"
               size="sm"
@@ -67,9 +101,31 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInv
               Invite
             </Button>
           )}
-          <Button variant="primary" size="sm" fullWidth={false} onPress={() => onJoin(meeting)}>
-            Join Call
-          </Button>
+
+          {!isFinished ? (
+            <Button variant="primary" size="sm" fullWidth={false} onPress={() => onJoin(meeting)}>
+              Join Call
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              fullWidth={false}
+              leftIcon={<Icon name="play-circle" size={14} color={colors.text} />}
+              onPress={() => onViewRecording?.(meeting)}
+            >
+              Recording
+            </Button>
+          )}
+
+          {/* Action Menu (⋮) */}
+          <Pressable
+            style={[styles.menuButton, { borderColor: colors.border }]}
+            onPress={() => setMenuVisible(true)}
+            accessibilityLabel="Meeting options"
+          >
+            <Icon name="more-vertical" size={16} color={colors.text} />
+          </Pressable>
         </View>
       </View>
 
@@ -87,6 +143,103 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({ meeting, onJoin, onInv
           {meeting.participants.length} invited
         </Text>
       </View>
+
+      {/* Action Menu Modal */}
+      <Modal
+        visible={menuVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setMenuVisible(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setMenuVisible(false)}>
+          <View
+            style={[
+              styles.menuCard,
+              {
+                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            {!isFinished && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onJoin(meeting);
+                }}
+              >
+                <Icon name="video" size={14} color={colors.brand.primary} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>Join Meeting</Text>
+              </Pressable>
+            )}
+
+            <Pressable
+              style={styles.menuItem}
+              onPress={() => {
+                setMenuVisible(false);
+                onViewRecording?.(meeting);
+              }}
+            >
+              <Icon name="film" size={14} color={colors.text} />
+              <Text style={[styles.menuItemText, { color: colors.text }]}>View Recording</Text>
+            </Pressable>
+
+            {onDelete && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  setShowDeleteModal(true);
+                }}
+              >
+                <Icon name="trash-2" size={14} color="#EF4444" />
+                <Text style={[styles.menuItemText, { color: '#EF4444' }]}>Delete Meeting</Text>
+              </Pressable>
+            )}
+          </View>
+        </Pressable>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setShowDeleteModal(false)}>
+          <View
+            style={[
+              styles.confirmModalCard,
+              {
+                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.confirmTitle, { color: colors.text }]}>Delete Meeting</Text>
+            <Text style={[styles.confirmDesc, { color: colors.textMuted }]}>
+              Are you sure you want to delete &quot;{meeting.title}&quot;? Note: If this meeting has a saved recording, it will remain archived in according to retention policies.
+            </Text>
+            <View style={styles.confirmBtnRow}>
+              <Button variant="outline" size="sm" onPress={() => setShowDeleteModal(false)}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                size="sm"
+                onPress={() => {
+                  setShowDeleteModal(false);
+                  onDelete?.(meeting.id);
+                }}
+              >
+                Delete Meeting
+              </Button>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
@@ -110,14 +263,34 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 200,
   },
+  titleWithStatus: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  title: {
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  statusBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
   actionsRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  title: {
-    fontSize: 16,
-    fontWeight: '700',
+  menuButton: {
+    padding: 6,
+    borderRadius: 8,
+    borderWidth: 1,
   },
   metaRow: {
     flexDirection: 'row',
@@ -161,5 +334,56 @@ const styles = StyleSheet.create({
   },
   participantCount: {
     fontSize: 12,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  menuCard: {
+    width: 200,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingVertical: 6,
+    elevation: 6,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  menuItemText: {
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  confirmModalCard: {
+    width: '100%',
+    maxWidth: 420,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 12,
+  },
+  confirmTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  confirmDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  confirmBtnRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 8,
+    marginTop: 8,
   },
 });

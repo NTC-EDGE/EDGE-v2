@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { View, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, Pressable, Modal } from 'react-native';
 import { Meeting, meetService, safeAsync } from '@edge/api';
-import { AlertToast } from '@edge/ui';
-import { useMeetingRoom } from '../hooks/useMeetingRoom';
+import { AlertToast, Button, Icon, useTheme } from '@edge/ui';
+import { useMeetingRoom, RecordingAccessPermission } from '../hooks/useMeetingRoom';
 import { VideoTile } from './VideoTile';
 import { MeetingControlsBar } from './MeetingControlsBar';
 import { FloatingReactionsOverlay } from './FloatingReactionsOverlay';
@@ -13,10 +13,18 @@ import { CreatePollFormValues } from '../schemas/meetSchemas';
 
 interface ActiveMeetingRoomProps {
   meeting: Meeting;
+  currentUserId?: string;
+  currentUserName?: string;
   onLeave: () => void;
 }
 
-export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: initialMeeting, onLeave }) => {
+export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
+  meeting: initialMeeting,
+  currentUserId,
+  currentUserName,
+  onLeave,
+}) => {
+  const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 1024;
 
@@ -24,6 +32,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
   const [isPollOpen, setIsPollOpen] = useState<boolean>(false);
   const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
+  const [isRecordingSettingsOpen, setIsRecordingSettingsOpen] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
@@ -33,17 +42,32 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
   };
 
   const {
+    isHost,
     isMicMuted,
     isVideoMuted,
     isHandRaised,
     isScreenSharing,
+    isRecording,
+    formattedRecordingTime,
+    recordingAccess,
+    setRecordingAccess,
     floatingEmojis,
     toggleMic,
     toggleVideo,
     toggleScreenShare,
+    toggleRecording,
     toggleHandRaise,
     triggerReaction,
-  } = useMeetingRoom(meeting);
+  } = useMeetingRoom(meeting, currentUserId);
+
+  const handleToggleRecording = () => {
+    toggleRecording();
+    if (!isRecording) {
+      showToast('Meeting recording started. All participants have been notified.', 'success');
+    } else {
+      showToast('Meeting recording stopped and saved.', 'success');
+    }
+  };
 
   const handleCreatePoll = async (values: CreatePollFormValues) => {
     setIsSubmitting(true);
@@ -59,15 +83,23 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
       })
     );
     setIsSubmitting(false);
-    if (err !== null) { showToast(err, 'error'); return; }
-    if (poll !== null) showToast('Live poll published to all participants.', 'success');
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
+    if (poll !== null) {
+      showToast('Live poll published to all participants.', 'success');
+    }
   };
 
   const handleInvite = async (userIds: string[]) => {
     setIsSubmitting(true);
     const [updated, err] = await safeAsync(meetService.inviteParticipants(meeting.meetingCode, userIds));
     setIsSubmitting(false);
-    if (err !== null) { showToast(err, 'error'); return; }
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
     if (updated !== null) {
       setMeeting(updated);
       showToast(`Invited ${userIds.length} colleague(s) successfully.`, 'success');
@@ -78,11 +110,22 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
     setIsSubmitting(true);
     const [success, err] = await safeAsync(meetService.removeParticipant(meeting.meetingCode, userId));
     setIsSubmitting(false);
-    if (err !== null) { showToast(err, 'error'); return; }
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
     if (success) {
-      setMeeting((prev) => ({ ...prev, participants: prev.participants.filter((p) => p.userId !== userId) }));
+      setMeeting((prev) => ({
+        ...prev,
+        participants: prev.participants.filter((p) => p.userId !== userId),
+      }));
       showToast('Participant removed from meeting.', 'success');
     }
+  };
+
+  const handleEndMeetingForEveryone = () => {
+    showToast('Meeting ended for all participants.', 'success');
+    onLeave();
   };
 
   return (
@@ -93,6 +136,37 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
         </View>
       )}
 
+      {/* Top Meeting Header Bar */}
+      <View style={[styles.topBar, { backgroundColor: 'rgba(15, 23, 42, 0.85)' }]}>
+        <View style={styles.topBarLeft}>
+          <Text style={styles.meetingTitleText} numberOfLines={1}>
+            {meeting.title}
+          </Text>
+          <View style={styles.meetingBadge}>
+            <Text style={styles.meetingBadgeText}>{meeting.meetingCode}</Text>
+          </View>
+        </View>
+
+        {isRecording && (
+          <Pressable
+            style={styles.recordingBanner}
+            onPress={() => isHost && setIsRecordingSettingsOpen(true)}
+            accessibilityLabel="Recording status"
+          >
+            <View style={styles.redDot} />
+            <Text style={styles.recordingText}>REC {formattedRecordingTime}</Text>
+            {isHost && <Icon name="settings" size={12} color="#EF4444" />}
+          </Pressable>
+        )}
+
+        {isScreenSharing && (
+          <View style={styles.screenShareBanner}>
+            <Icon name="monitor" size={14} color="#60A5FA" />
+            <Text style={styles.screenShareText}>Sharing Screen</Text>
+          </View>
+        )}
+      </View>
+
       <View style={styles.stageWrapper}>
         <View style={styles.videoGrid}>
           {meeting.participants.map((p) => (
@@ -102,7 +176,12 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
 
         {isChatOpen ? (
           <View style={isLargeScreen ? styles.dockedChat : styles.overlayChat}>
-            <InMeetingChatSidebar visible={isChatOpen} onClose={() => setIsChatOpen(false)} />
+            <InMeetingChatSidebar
+              meetingCode={meeting.meetingCode}
+              currentUserName={currentUserName}
+              visible={isChatOpen}
+              onClose={() => setIsChatOpen(false)}
+            />
           </View>
         ) : null}
       </View>
@@ -110,19 +189,23 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
       <FloatingReactionsOverlay reactions={floatingEmojis} />
 
       <MeetingControlsBar
+        isHost={isHost}
         isMicMuted={isMicMuted}
         isVideoMuted={isVideoMuted}
         isHandRaised={isHandRaised}
         isScreenSharing={isScreenSharing}
+        isRecording={isRecording}
         onToggleMic={toggleMic}
         onToggleVideo={toggleVideo}
         onToggleHandRaise={toggleHandRaise}
         onToggleScreenShare={toggleScreenShare}
+        onToggleRecording={isHost ? handleToggleRecording : undefined}
         onReact={triggerReaction}
         onOpenPoll={() => setIsPollOpen(true)}
         onOpenInvite={() => setIsInviteOpen(true)}
         onToggleChat={() => setIsChatOpen((prev) => !prev)}
         onLeave={onLeave}
+        onEndMeetingForEveryone={isHost ? handleEndMeetingForEveryone : undefined}
       />
 
       <InMeetingPollModal
@@ -140,15 +223,228 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({ meeting: i
         onRemoveParticipant={handleRemoveParticipant}
         isSubmitting={isSubmitting}
       />
+
+      {/* Recording Permissions Modal */}
+      <Modal
+        visible={isRecordingSettingsOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsRecordingSettingsOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setIsRecordingSettingsOpen(false)}>
+          <View
+            style={[
+              styles.settingsModalCard,
+              {
+                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <Text style={[styles.modalTitle, { color: colors.text }]}>Recording Permissions</Text>
+            <Text style={[styles.modalDesc, { color: colors.textMuted }]}>
+              Control who will have access to view and download this meeting recording after it concludes.
+            </Text>
+
+            <View style={styles.permissionOptions}>
+              {(
+                [
+                  { id: 'HostOnly', label: 'Host Only', desc: 'Only you can view and share recording.' },
+                  { id: 'AllParticipants', label: 'All Participants', desc: 'All invited attendees can view.' },
+                  { id: 'Selected', label: 'Selected Colleagues', desc: 'Manually specify access list.' },
+                ] as { id: RecordingAccessPermission; label: string; desc: string }[]
+              ).map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  style={[
+                    styles.permOptionItem,
+                    {
+                      borderColor: recordingAccess === opt.id ? colors.brand.primary : colors.border,
+                      backgroundColor:
+                        recordingAccess === opt.id ? colors.brand.primary + '15' : 'transparent',
+                    },
+                  ]}
+                  onPress={() => setRecordingAccess(opt.id)}
+                >
+                  <Text
+                    style={[
+                      styles.permLabel,
+                      { color: recordingAccess === opt.id ? colors.brand.primary : colors.text },
+                    ]}
+                  >
+                    {opt.label}
+                  </Text>
+                  <Text style={[styles.permSubDesc, { color: colors.textMuted }]}>{opt.desc}</Text>
+                </Pressable>
+              ))}
+            </View>
+
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => {
+                setIsRecordingSettingsOpen(false);
+                showToast(`Recording permissions updated: ${recordingAccess}`, 'success');
+              }}
+            >
+              Save Preferences
+            </Button>
+          </View>
+        </Pressable>
+      </Modal>
     </View>
   );
 };
 
 const styles = StyleSheet.create({
-  roomContainer: { flex: 1, width: '100%', height: '100%', backgroundColor: '#0F172A', overflow: 'hidden', position: 'relative' },
-  toastWrapper: { position: 'absolute', top: 16, zIndex: 9999, width: '90%', maxWidth: 500, alignSelf: 'center' },
-  stageWrapper: { flex: 1, flexDirection: 'row', position: 'relative' },
-  videoGrid: { flex: 1, flexDirection: 'row', flexWrap: 'wrap', padding: 16, gap: 12, alignContent: 'center', justifyContent: 'center' },
-  dockedChat: { width: 320, height: '100%' },
-  overlayChat: { position: 'absolute', right: 0, top: 0, bottom: 0, width: 300, zIndex: 100 },
+  roomContainer: {
+    flex: 1,
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#0F172A',
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  toastWrapper: {
+    position: 'absolute',
+    top: 16,
+    zIndex: 9999,
+    width: '90%',
+    maxWidth: 500,
+    alignSelf: 'center',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    zIndex: 50,
+  },
+  topBarLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  meetingTitleText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '700',
+    maxWidth: 250,
+  },
+  meetingBadge: {
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  meetingBadgeText: {
+    color: '#94A3B8',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  recordingBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(239, 68, 68, 0.4)',
+  },
+  redDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#EF4444',
+  },
+  recordingText: {
+    color: '#EF4444',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  screenShareBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(59, 130, 246, 0.2)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(59, 130, 246, 0.4)',
+  },
+  screenShareText: {
+    color: '#60A5FA',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  stageWrapper: {
+    flex: 1,
+    flexDirection: 'row',
+    position: 'relative',
+  },
+  videoGrid: {
+    flex: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    padding: 16,
+    gap: 12,
+    alignContent: 'center',
+    justifyContent: 'center',
+  },
+  dockedChat: {
+    width: 320,
+    height: '100%',
+  },
+  overlayChat: {
+    position: 'absolute',
+    right: 0,
+    top: 0,
+    bottom: 0,
+    width: 300,
+    zIndex: 100,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  settingsModalCard: {
+    width: '100%',
+    maxWidth: 440,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 20,
+    gap: 14,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  modalDesc: {
+    fontSize: 13,
+    lineHeight: 18,
+  },
+  permissionOptions: {
+    gap: 8,
+  },
+  permOptionItem: {
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 4,
+  },
+  permLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  permSubDesc: {
+    fontSize: 12,
+  },
 });

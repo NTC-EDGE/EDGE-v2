@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet, useWindowDimensions } from 'react-native';
 import { Conversation, chatService, safeAsync, useUsers } from '@edge/api';
 import { AlertToast, useTheme } from '@edge/ui';
+import { useAuthContext } from '../../auth/context/AuthContext';
 import { useChatConversations } from '../hooks/useChatConversations';
 import { useChatMessages } from '../hooks/useChatMessages';
 import { ChatSidebar } from '../components/ChatSidebar';
@@ -15,6 +16,7 @@ export const ChatScreenContent: React.FC = () => {
   const { width } = useWindowDimensions();
   const isLargeScreen = width >= 768;
 
+  const { user } = useAuthContext();
   const { users } = useUsers();
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [isGroupModalOpen, setIsGroupModalOpen] = useState<boolean>(false);
@@ -22,8 +24,36 @@ export const ChatScreenContent: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
-  const { conversations, isLoading: isLoadingConversations, refreshConversations } = useChatConversations();
-  const { messages, isSending, sendMessage } = useChatMessages(selectedConversation?.id);
+  const {
+    conversations,
+    isLoading: isLoadingConversations,
+    filter,
+    setFilter,
+    searchQuery,
+    setSearchQuery,
+    markAsRead,
+    markAsUnread,
+    archiveConversation,
+    unarchiveConversation,
+    deleteConversation,
+    refreshConversations,
+  } = useChatConversations(user?.tenantId);
+
+  const {
+    messages,
+    isSending,
+    sendMessage,
+    retryMessage,
+    sendTypingNotification,
+    typingUsers,
+  } = useChatMessages(selectedConversation?.id, user?.name);
+
+  // Automatically mark conversation as read when selected
+  useEffect(() => {
+    if (selectedConversation && selectedConversation.unreadCount > 0) {
+      void markAsRead(selectedConversation.id);
+    }
+  }, [selectedConversation, markAsRead]);
 
   const showToast = (message: string, variant: 'success' | 'error') => {
     setToast({ message, variant });
@@ -38,38 +68,50 @@ export const ChatScreenContent: React.FC = () => {
     const targetUserId = targetUser ? targetUser.id : values.recipientUserId;
     const title = targetUser ? `Direct: ${targetUser.firstName} ${targetUser.lastName}` : `Direct: ${values.recipientUserId}`;
 
-    const [newConv, err] = await safeAsync(chatService.createConversation({
-      title,
-      type: 'Direct',
-      scope: values.scope,
-      participantUserIds: targetUserId ? [targetUserId] : [],
-    }));
+    const [newConv, err] = await safeAsync(
+      chatService.createConversation({
+        title,
+        type: 'Direct',
+        scope: values.scope,
+        participantUserIds: targetUserId ? [targetUserId] : [],
+      })
+    );
     setIsSubmitting(false);
-    if (err !== null) { showToast(err, 'error'); return; }
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
     if (newConv !== null) {
       showToast('Direct message channel opened.', 'success');
       await refreshConversations();
       setSelectedConversation(newConv);
       if (values.initialMessage && values.initialMessage.trim().length > 0) {
-        await safeAsync(chatService.sendMessage({
-          conversationId: newConv.id,
-          content: values.initialMessage.trim(),
-        }));
+        await safeAsync(
+          chatService.sendMessage({
+            conversationId: newConv.id,
+            content: values.initialMessage.trim(),
+          })
+        );
       }
     }
   };
 
   const handleCreateGroup = async (values: CreateGroupChatFormValues) => {
     setIsSubmitting(true);
-    const [newConv, err] = await safeAsync(chatService.createConversation({
-      title: values.title,
-      description: values.description,
-      type: 'Group',
-      scope: values.scope,
-      participantUserIds: values.participantUserIds,
-    }));
+    const [newConv, err] = await safeAsync(
+      chatService.createConversation({
+        title: values.title,
+        description: values.description,
+        type: 'Group',
+        scope: values.scope,
+        participantUserIds: values.participantUserIds,
+      })
+    );
     setIsSubmitting(false);
-    if (err !== null) { showToast(err, 'error'); return; }
+    if (err !== null) {
+      showToast(err, 'error');
+      return;
+    }
     if (newConv !== null) {
       showToast(`Group chat "${values.title}" created.`, 'success');
       await refreshConversations();
@@ -80,9 +122,17 @@ export const ChatScreenContent: React.FC = () => {
   const handleSendMessage = async (content: string) => {
     const success = await sendMessage(content);
     if (!success) {
-      showToast('Failed to send message. Please check connection.', 'error');
+      showToast('Failed to send message. Please retry.', 'error');
     }
     return success;
+  };
+
+  const handleDeleteConversation = (id: string) => {
+    deleteConversation(id);
+    if (selectedConversation?.id === id) {
+      setSelectedConversation(null);
+    }
+    showToast('Conversation removed.', 'success');
   };
 
   return (
@@ -109,6 +159,15 @@ export const ChatScreenContent: React.FC = () => {
               onOpenCreateDirect={() => setIsDirectModalOpen(true)}
               onOpenCreateGroup={() => setIsGroupModalOpen(true)}
               isLoading={isLoadingConversations}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              filter={filter}
+              onFilterChange={setFilter}
+              onMarkAsRead={markAsRead}
+              onMarkAsUnread={markAsUnread}
+              onArchive={archiveConversation}
+              onUnarchive={unarchiveConversation}
+              onDelete={handleDeleteConversation}
             />
           </View>
         )}
@@ -118,9 +177,13 @@ export const ChatScreenContent: React.FC = () => {
             <ChatActivePane
               conversation={selectedConversation}
               messages={messages}
+              currentUserId={user?.id}
               showBackButton={!isLargeScreen}
               onBack={() => setSelectedConversation(null)}
               onSendMessage={handleSendMessage}
+              onRetryMessage={retryMessage}
+              onTyping={sendTypingNotification}
+              typingUsers={typingUsers}
               isSending={isSending}
             />
           </View>
