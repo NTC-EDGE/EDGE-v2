@@ -5,6 +5,7 @@ import { Avatar, Icon, SHADOWS, useTheme } from '@edge/ui';
 
 interface ConversationItemProps {
   conversation: Conversation & { isArchived?: boolean };
+  currentUserId?: string;
   isSelected: boolean;
   onSelect: (conversation: Conversation) => void;
   onMarkAsRead?: (conversationId: string) => void;
@@ -16,6 +17,7 @@ interface ConversationItemProps {
 
 export const ConversationItem: React.FC<ConversationItemProps> = ({
   conversation,
+  currentUserId,
   isSelected,
   onSelect,
   onMarkAsRead,
@@ -29,7 +31,18 @@ export const ConversationItem: React.FC<ConversationItemProps> = ({
   const moreBtnRef = useRef<View>(null);
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
-  const title = conversation.title ?? conversation.participants[0]?.fullName ?? 'Direct Chat';
+  let title = conversation.title;
+  if (conversation.type === 'Direct') {
+    const otherParticipant = conversation.participants.find(
+      (p) => p.userId !== currentUserId && p.userId !== 'self'
+    );
+    if (otherParticipant !== undefined && otherParticipant.fullName.length > 0) {
+      title = otherParticipant.fullName;
+    }
+  }
+  if (title === undefined || title === null || title.length === 0) {
+    title = conversation.participants[0]?.fullName ?? 'Direct Chat';
+  }
   const subtitle = conversation.lastMessagePreview ?? 'No messages yet';
   const isRegional = conversation.scope === 'InterRegional';
   const hasUnread = conversation.unreadCount > 0;

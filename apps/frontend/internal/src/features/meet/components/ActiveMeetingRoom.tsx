@@ -102,15 +102,25 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   }, [isHost, meeting.meetingCode]);
 
   const handleAdmitParticipant = async (req: PendingJoinRequest) => {
-    await realTimeService.admitParticipant(meeting.meetingCode, req.connectionId, req.userId);
-    setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
-    showToast(`Admitted ${req.userName} to the meeting.`, 'success');
+    try {
+      const sanitizedUserId = req.userId && req.userId.length > 0 ? req.userId : '00000000-0000-0000-0000-000000000000';
+      await realTimeService.admitParticipant(meeting.meetingCode, req.connectionId, sanitizedUserId);
+      setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
+      showToast(`Admitted ${req.userName} to the meeting.`, 'success');
+    } catch {
+      showToast(`Failed to admit ${req.userName}. Please try again.`, 'error');
+    }
   };
 
   const handleDenyParticipant = async (req: PendingJoinRequest) => {
-    await realTimeService.denyParticipant(meeting.meetingCode, req.connectionId, req.userId);
-    setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
-    showToast(`Declined join request from ${req.userName}.`, 'error');
+    try {
+      const sanitizedUserId = req.userId && req.userId.length > 0 ? req.userId : '00000000-0000-0000-0000-000000000000';
+      await realTimeService.denyParticipant(meeting.meetingCode, req.connectionId, sanitizedUserId);
+      setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
+      showToast(`Declined join request from ${req.userName}.`, 'error');
+    } catch {
+      showToast(`Failed to decline ${req.userName}.`, 'error');
+    }
   };
 
   const handleToggleRecording = () => {
@@ -205,7 +215,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   return (
     <View style={styles.roomContainer}>
       {toast !== null && (
-        <View style={styles.toastWrapper}>
+        <View style={styles.toastWrapper} pointerEvents="box-none">
           <AlertToast message={toast.message} variant={toast.variant} onDismiss={() => setToast(null)} />
         </View>
       )}
@@ -301,7 +311,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
               >
                 {currentParticipants.map((p, index) => {
                   const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-                  const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+                  const remoteStream = remoteStreams[p.userId] ?? null;
                   return (
                     <VideoTile
                       key={p.userId}
@@ -326,7 +336,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
               >
                 {currentParticipants.map((p, index) => {
                   const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-                  const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+                  const remoteStream = remoteStreams[p.userId] ?? null;
                   return (
                     <VideoTile
                       key={p.userId}
@@ -348,7 +358,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
           <View style={styles.videoGrid}>
             {currentParticipants.map((p, index) => {
               const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
-              const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+              const remoteStream = remoteStreams[p.userId] ?? null;
               return (
                 <VideoTile
                   key={p.userId}
@@ -681,7 +691,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     flexWrap: 'wrap',
     gap: 10,
-    zIndex: 60,
+    zIndex: 100,
   },
   waitingRoomBannerLeft: {
     flexDirection: 'row',

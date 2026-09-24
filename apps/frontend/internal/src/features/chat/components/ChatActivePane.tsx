@@ -52,7 +52,18 @@ export const ChatActivePane: React.FC<ChatActivePaneProps> = ({
     );
   }
 
-  const title = conversation.title ?? conversation.participants[0]?.fullName ?? 'Chat';
+  let title = conversation.title;
+  if (conversation.type === 'Direct') {
+    const otherParticipant = conversation.participants.find(
+      (p) => p.userId !== currentUserId && p.userId !== 'self'
+    );
+    if (otherParticipant !== undefined && otherParticipant.fullName.length > 0) {
+      title = otherParticipant.fullName;
+    }
+  }
+  if (title === undefined || title === null || title.length === 0) {
+    title = conversation.participants[0]?.fullName ?? 'Chat';
+  }
   const isInterRegional = conversation.scope === 'InterRegional';
 
   return (

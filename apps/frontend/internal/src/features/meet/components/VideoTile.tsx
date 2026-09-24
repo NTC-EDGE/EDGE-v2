@@ -68,12 +68,10 @@ export const VideoTile: React.FC<VideoTileProps> = ({
     >
       {/* Live Video Stream on Web */}
       {Platform.OS === 'web' && stream !== null && hasVideoTrack ? (
-        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-        // @ts-ignore
         <video
-          ref={(el: HTMLVideoElement | null) => {
+          ref={(el) => {
             videoRef.current = el;
-            if (el && stream && el.srcObject !== stream) {
+            if (el !== null && stream !== null && el.srcObject !== stream) {
               el.srcObject = stream;
             }
           }}
@@ -95,6 +93,22 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         />
       ) : (
         <View style={styles.centerAvatar}>
+          {/* Ensure Remote Audio Still Plays When Video is Off */}
+          {Platform.OS === 'web' && !isSelf && stream !== null ? (
+            <audio
+              ref={(el) => {
+                if (el !== null && stream !== null && el.srcObject !== stream) {
+                  el.srcObject = stream;
+                  el.play().catch(() => {
+                    // Handled browser autoplay
+                  });
+                }
+              }}
+              autoPlay
+              playsInline
+              style={{ display: 'none' }}
+            />
+          ) : null}
           <Avatar name={participant.fullName} size="lg" />
           <View style={styles.camOffBadge}>
             <Icon name="video-off" size={13} color="#94A3B8" />
