@@ -1084,6 +1084,9 @@ export interface PagedApplicationListDto {
 export interface UpdateApplicationStatusRequest {
   status: string;
   remarks?: string;
+  action?: string;
+  staffName?: string;
+  staffRole?: string;
 }
 
 export interface CreateSoaLineItemRequest {

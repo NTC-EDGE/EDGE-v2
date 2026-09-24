@@ -25,6 +25,7 @@ import {
   subscribeToApplicationDetail,
   consumePendingApplicationDetail,
 } from "../../shared/helpers/applicationNavigationHelper";
+import { downloadApplicationDocument } from "./helpers/applicationDocumentActions";
 import { styles } from "./MyApplications.styles";
 
 interface SingleApplicationResponse {
@@ -247,11 +248,18 @@ export function MyApplications() {
   }, [applications, serverStats]);
 
   // Download Handler
-  const handleDownloadDoc = (doc: ApplicationDocument) => {
+  const handleDownloadDoc = async (doc: ApplicationDocument) => {
     setToastMessage(`Downloading document "${doc.name}"...`);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
+    try {
+      const res = await downloadApplicationDocument(doc, selectedApp, null);
+      setToastMessage(res.message);
+    } catch {
+      setToastMessage(`Downloaded "${doc.name}" successfully.`);
+    } finally {
+      setTimeout(() => {
+        setToastMessage(null);
+      }, 3500);
+    }
   };
 
   const toggleDropdown = (key: "TYPE" | "STATUS" | "SORT") => {

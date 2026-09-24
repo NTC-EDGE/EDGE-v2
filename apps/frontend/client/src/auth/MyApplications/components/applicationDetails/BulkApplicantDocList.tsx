@@ -1,15 +1,22 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
-import { ApplicationDocument } from '../../data/applicationsData';
-import { useApi } from '../../../../shared/hooks/useApi';
+import { Application, ApplicationDocument } from '../../data/applicationsData';
 import { SectionCard } from '../../../../shared/formPreview';
+import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
+import {
+  prepareDocumentPreviewFile,
+  downloadApplicationDocument,
+} from '../../helpers/applicationDocumentActions';
 
 interface BulkApplicantDocListProps {
-  app?: import('../../data/applicationsData').Application;
+  app?: Application;
   selectedApplicantDocs: ApplicationDocument[];
   onPreviewDoc: (doc: ApplicationDocument) => void;
-  onPreviewCustomDoc: (doc: { uri: string; name: string }) => void;
+  onPreviewCustomDoc: (doc: DocumentPreviewFile) => void;
+  onDownloadDoc?: (doc: ApplicationDocument) => void;
+  previewLoadingId?: string | null;
+  setPreviewLoadingId?: (id: string | null) => void;
 }
 
 function isDocAvailable(doc: ApplicationDocument): boolean {
@@ -50,8 +57,10 @@ export function BulkApplicantDocList({
   selectedApplicantDocs,
   onPreviewDoc,
   onPreviewCustomDoc,
+  onDownloadDoc,
+  previewLoadingId,
+  setPreviewLoadingId,
 }: BulkApplicantDocListProps) {
-  const api = useApi();
   const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
@@ -87,6 +96,47 @@ export function BulkApplicantDocList({
         {selectedApplicantDocs.map((doc, dIdx) => {
           const hasFile = isDocAvailable(doc);
           const dateText = formatDocDate(doc.uploadedAt);
+          const isLoading = previewLoadingId === doc.id;
+
+          const handlePreview = async () => {
+            if (!hasFile) return;
+            if (setPreviewLoadingId !== undefined && isMountedRef.current) {
+              setPreviewLoadingId(doc.id);
+            }
+            try {
+              const previewFile = await prepareDocumentPreviewFile(doc, app, null);
+              if (isMountedRef.current) {
+                onPreviewCustomDoc(previewFile);
+              }
+            } catch (err) {
+              console.warn('[BulkApplicantDocList] Preview preparation error:', err);
+              if (isMountedRef.current) {
+                onPreviewCustomDoc({
+                  uri: '',
+                  name: doc.name,
+                  category: doc.category,
+                  size: doc.size,
+                  type: doc.type,
+                  referenceNumber: app?.referenceNumber || 'NTC-REQ-2026',
+                  serviceName: app?.serviceName || 'Standard Licensing Application',
+                  applicantName: app?.companyName || 'Applicant',
+                  uploadedAt: doc.uploadedAt || app?.submittedAt,
+                });
+              }
+            } finally {
+              if (setPreviewLoadingId !== undefined && isMountedRef.current) {
+                setPreviewLoadingId(null);
+              }
+            }
+          };
+
+          const handleDownload = async () => {
+            if (onDownloadDoc !== undefined) {
+              onDownloadDoc(doc);
+            } else {
+              await downloadApplicationDocument(doc, app, null);
+            }
+          };
 
           return (
             <View
@@ -146,59 +196,64 @@ export function BulkApplicantDocList({
               </View>
 
               {hasFile ? (
-                <TouchableOpacity
-                  onPress={async () => {
-                    const tenantId =
-                      app?.tenantId ||
-                      (typeof process !== 'undefined' ? (process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID) : undefined) ||
-                      'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
-                    const rawFileUrl = doc.url || (doc.storedFileId ? `/api/v2/tenants/${tenantId}/storage/files/${doc.storedFileId}` : undefined);
-                    if (rawFileUrl) {
-                      try {
-                        const baseUrl =
-                          (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
-                        const fullUrl = rawFileUrl.startsWith('http') ? rawFileUrl : `${baseUrl}${rawFileUrl}`;
-                        const blob = await api.get<Blob>(fullUrl);
-                        if (!isMountedRef.current) return;
-                        const objectUrl =
-                          typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
-                            ? URL.createObjectURL(blob as unknown as Blob)
-                            : fullUrl;
-                        onPreviewCustomDoc({ uri: objectUrl, name: doc.name });
-                      } catch {
-                        if (isMountedRef.current) {
-                          onPreviewCustomDoc({ uri: rawFileUrl, name: doc.name });
-                        }
-                      }
-                    } else {
-                      if (isMountedRef.current) {
-                        onPreviewDoc(doc);
-                      }
-                    }
-                  }}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    gap: 6,
-                    backgroundColor: '#EFF6FF',
-                    paddingHorizontal: 12,
-                    paddingVertical: 6,
-                    borderRadius: 6,
-                  }}
-                  activeOpacity={0.7}
-                >
-                  <Icon name="eye" size={14} color="#1D4ED8" />
-                  <Text
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <TouchableOpacity
+                    onPress={handlePreview}
+                    disabled={isLoading}
                     style={{
-                      fontFamily: TYPOGRAPHY.fonts.primary,
-                      fontSize: 12,
-                      fontWeight: '600',
-                      color: '#1D4ED8',
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: '#EFF6FF',
+                      borderWidth: 1,
+                      borderColor: '#BFDBFE',
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 8,
                     }}
+                    activeOpacity={0.7}
                   >
-                    View
-                  </Text>
-                </TouchableOpacity>
+                    <Icon name={isLoading ? 'loader' : 'eye'} size={13} color={isLoading ? '#94A3B8' : '#1D4ED8'} />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: '700',
+                        color: isLoading ? '#94A3B8' : '#1D4ED8',
+                      }}
+                    >
+                      {isLoading ? 'Loading...' : 'View'}
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={handleDownload}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 4,
+                      backgroundColor: '#FFFFFF',
+                      borderWidth: 1,
+                      borderColor: '#CBD5E1',
+                      paddingHorizontal: 10,
+                      paddingVertical: 5,
+                      borderRadius: 8,
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name="download" size={13} color="#475569" />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: '600',
+                        color: '#475569',
+                      }}
+                    >
+                      Download
+                    </Text>
+                  </TouchableOpacity>
+                </View>
               ) : (
                 <View
                   style={{
@@ -260,7 +315,7 @@ export function BulkApplicantDocList({
               }}
             >
               {unavailableDocsCount === 0
-                ? `${selectedApplicantDocs.length} attached & verified`
+                ? `${selectedApplicantDocs.length} document${selectedApplicantDocs.length !== 1 ? 's' : ''} attached & verified`
                 : `${availableDocsCount} attached · ${unavailableDocsCount} not available`}
             </Text>
           </View>

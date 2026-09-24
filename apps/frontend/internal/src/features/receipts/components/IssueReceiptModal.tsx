@@ -423,91 +423,115 @@ export function IssueReceiptModal({
               )}
             </View>
 
-            {/* PARTICULARS & AMOUNT BREAKDOWN (Auto-filled from SOA if OP payment, or empty fees if manual) */}
+            {/* PARTICULARS & AMOUNT BREAKDOWN (Locked for OP payment, editable only for manual issuance) */}
             <View style={styles.breakdownSection}>
               <View style={styles.breakdownHeader}>
-                <View>
+                <View style={{ flex: 1 }}>
                   <Text style={[styles.sectionHeading, { color: colors.text }]}>
-                    {isFromPendingPayment ? 'Items to be Paid (Loaded from SOA / Order of Payment)' : 'Particulars & Fee Breakdown'}
+                    {isFromPendingPayment ? 'Prescribed Items to be Paid (Assessed Fees)' : 'Particulars & Fee Breakdown'}
                   </Text>
                   <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
                     {isFromPendingPayment
-                      ? 'Fees captured from approved assessment. Cashier may adjust or add items if needed.'
+                      ? 'Fees and particulars are determined by Evaluator/Accountant and locked for Cashier collection.'
                       : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
                   </Text>
                 </View>
-                <View style={styles.breakdownActions}>
-                  <TouchableOpacity
-                    onPress={handleAddLineItem}
-                    style={[styles.addItemBtn, { backgroundColor: colors.brand.primary }]}
-                  >
-                    <Lucide name="plus" size={13} color="#fff" />
-                    <Text style={[styles.addItemBtnText, { color: '#fff' }]}>Add Item</Text>
-                  </TouchableOpacity>
-                </View>
+                {!isFromPendingPayment && (
+                  <View style={styles.breakdownActions}>
+                    <TouchableOpacity
+                      onPress={handleAddLineItem}
+                      style={[styles.addItemBtn, { backgroundColor: colors.brand.primary }]}
+                    >
+                      <Lucide name="plus" size={13} color="#fff" />
+                      <Text style={[styles.addItemBtnText, { color: '#fff' }]}>Add Item</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
               </View>
 
               {/* Line Items List */}
-              {lineItems.map((item, idx) => (
-                <View key={idx} style={styles.lineItemWrapper}>
-                  <View style={styles.lineItemRow}>
-                    {/* Description / Particulars Search Input (Searchable by Fee Code or Description) */}
-                    <View style={{ flex: 3, marginRight: 8, position: 'relative' }}>
-                      <View style={[styles.searchInputWrapper, { borderColor: colors.neutral[300] }]}>
-                        <Lucide name="search" size={14} color={colors.neutral[400]} style={{ marginRight: 6 }} />
-                        <TextInput
-                          style={[styles.descInput, { color: colors.text }]}
-                          placeholder="Search fee code (e.g. REG-FEE) or type particulars..."
-                          placeholderTextColor={colors.neutral[400]}
-                          value={item.description}
-                          onFocus={() => setActiveSuggestionIndex(idx)}
-                          onChangeText={(val) => {
-                            handleUpdateLineItem(idx, 'description', val);
-                            setActiveSuggestionIndex(idx);
-                          }}
-                        />
+              {isFromPendingPayment ? (
+                <View style={{ marginBottom: 4 }}>
+                  {lineItems.map((item, idx) => (
+                    <View key={idx} style={[styles.readOnlyLineItemCard, { borderColor: colors.border, backgroundColor: colors.cardBg }]}>
+                      <View style={styles.readOnlyLineItemLeft}>
+                        <View style={[styles.readOnlyFeeCodeBadge, { backgroundColor: colors.neutral[100] }]}>
+                          <Text style={[styles.readOnlyFeeCodeText, { color: colors.neutral[700] }]}>
+                            {item.feeCode || 'FEE'}
+                          </Text>
+                        </View>
+                        <Text style={[styles.readOnlyDescText, { color: colors.text }]} numberOfLines={2}>
+                          {item.description}
+                        </Text>
                       </View>
+                      <Text style={[styles.readOnlyAmountText, { color: colors.semantic.successText }]}>
+                        ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  ))}
+                </View>
+              ) : (
+                lineItems.map((item, idx) => (
+                  <View key={idx} style={styles.lineItemWrapper}>
+                    <View style={styles.lineItemRow}>
+                      {/* Description / Particulars Search Input (Searchable by Fee Code or Description) */}
+                      <View style={{ flex: 3, marginRight: 8, position: 'relative' }}>
+                        <View style={[styles.searchInputWrapper, { borderColor: colors.neutral[300] }]}>
+                          <Lucide name="search" size={14} color={colors.neutral[400]} style={{ marginRight: 6 }} />
+                          <TextInput
+                            style={[styles.descInput, { color: colors.text }]}
+                            placeholder="Search fee code (e.g. REG-FEE) or type particulars..."
+                            placeholderTextColor={colors.neutral[400]}
+                            value={item.description}
+                            onFocus={() => setActiveSuggestionIndex(idx)}
+                            onChangeText={(val) => {
+                              handleUpdateLineItem(idx, 'description', val);
+                              setActiveSuggestionIndex(idx);
+                            }}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Amount Input */}
+                      <View style={{ width: 140, marginRight: 6 }}>
+                        <View style={[styles.amountInputWrapper, { borderColor: colors.neutral[300] }]}>
+                          <Text style={[styles.currencyPrefix, { color: colors.neutral[500] }]}>₱</Text>
+                          <TextInput
+                            style={[styles.amountInput, { color: colors.text }]}
+                            keyboardType="numeric"
+                            placeholder="0.00"
+                            placeholderTextColor={colors.neutral[400]}
+                            value={item.amount > 0 ? item.amount.toString() : ''}
+                            onChangeText={(val) => handleUpdateLineItem(idx, 'amount', val)}
+                          />
+                        </View>
+                      </View>
+
+                      {/* Remove Row Button */}
+                      {lineItems.length > 1 && (
+                        <TouchableOpacity
+                          onPress={() => handleRemoveLineItem(idx)}
+                          style={styles.removeItemBtn}
+                          accessibilityLabel="Remove Line Item"
+                        >
+                          <Lucide name="trash-2" size={15} color={colors.semantic.error} />
+                        </TouchableOpacity>
+                      )}
                     </View>
 
-                    {/* Amount Input */}
-                    <View style={{ width: 140, marginRight: 6 }}>
-                      <View style={[styles.amountInputWrapper, { borderColor: colors.neutral[300] }]}>
-                        <Text style={[styles.currencyPrefix, { color: colors.neutral[500] }]}>₱</Text>
-                        <TextInput
-                          style={[styles.amountInput, { color: colors.text }]}
-                          keyboardType="numeric"
-                          placeholder="0.00"
-                          placeholderTextColor={colors.neutral[400]}
-                          value={item.amount > 0 ? item.amount.toString() : ''}
-                          onChangeText={(val) => handleUpdateLineItem(idx, 'amount', val)}
-                        />
-                      </View>
-                    </View>
-
-                    {/* Remove Row Button */}
-                    {lineItems.length > 1 && (
-                      <TouchableOpacity
-                        onPress={() => handleRemoveLineItem(idx)}
-                        style={styles.removeItemBtn}
-                        accessibilityLabel="Remove Line Item"
-                      >
-                        <Lucide name="trash-2" size={15} color={colors.semantic.error} />
-                      </TouchableOpacity>
+                    {/* Auto-Complete Fee Suggestions Popover */}
+                    {activeSuggestionIndex === idx && (
+                      <FeeSuggestionsDropdown
+                        feeCatalog={feeCatalog}
+                        isLoading={isLoadingFeeCatalog}
+                        query={item.description || item.feeCode || ''}
+                        onSelect={(fee) => handleSelectFee(idx, fee)}
+                        onClose={() => setActiveSuggestionIndex(null)}
+                      />
                     )}
                   </View>
-
-                  {/* Auto-Complete Fee Suggestions Popover */}
-                  {activeSuggestionIndex === idx && (
-                    <FeeSuggestionsDropdown
-                      feeCatalog={feeCatalog}
-                      isLoading={isLoadingFeeCatalog}
-                      query={item.description || item.feeCode || ''}
-                      onSelect={(fee) => handleSelectFee(idx, fee)}
-                      onClose={() => setActiveSuggestionIndex(null)}
-                    />
-                  )}
-                </View>
-              ))}
+                ))
+              )}
 
               {/* Total Amount Summary Banner */}
               <View style={[styles.totalBanner, { backgroundColor: colors.neutral[100], borderColor: colors.border }]}>
@@ -828,6 +852,40 @@ const styles = StyleSheet.create({
   },
   removeItemBtn: {
     padding: 6,
+  },
+  readOnlyLineItemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 10,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginBottom: 6,
+  },
+  readOnlyLineItemLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+    marginRight: 12,
+  },
+  readOnlyFeeCodeBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  readOnlyFeeCodeText: {
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  readOnlyDescText: {
+    fontSize: 12,
+    fontWeight: '600',
+    flex: 1,
+  },
+  readOnlyAmountText: {
+    fontSize: 13,
+    fontWeight: '700',
   },
   totalBanner: {
     flexDirection: 'row',

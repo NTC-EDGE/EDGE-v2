@@ -141,6 +141,10 @@ export function ActivitiesFeedPane({
 }: ActivitiesFeedPaneProps) {
   const { visibleTabs } = usePermissions();
   const { colors, isDark } = useTheme();
+  const { user } = useAuthContext();
+  const { currentRole } = useRole();
+  const isAdmin = currentRole === "Admin";
+  const officerName = user?.name || user?.email || "Evaluating Officer";
 
   const PAGE_SIZE_STEP = 15;
   const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
@@ -203,15 +207,38 @@ export function ActivitiesFeedPane({
   }, [applications, selectedId, setSelectedId, refetch]);
 
   const evaluateApplication = useCallback(async (id: string) => {
-    const [res, err] = await applicationService.updateStatus(id, { status: "Evaluating" });
+    const [res, err] = await applicationService.updateStatus(id, {
+      status: "Evaluating",
+      action: `Evaluation Started by ${officerName}`,
+      staffName: officerName,
+      staffRole: "Evaluating Officer",
+      remarks: `Technical evaluation started by ${officerName}.`,
+    });
     if (err !== null) {
       toast.error("Failed to start evaluation.");
       return;
     }
-    toast.success("Application moved to technical evaluation.");
+    toast.success(`Evaluation started by ${officerName}.`);
     await mutateApplications(id);
     await refetch();
-  }, [refetch]);
+  }, [officerName, refetch]);
+
+  const releaseEvaluation = useCallback(async (id: string) => {
+    const [res, err] = await applicationService.updateStatus(id, {
+      status: "Submitted",
+      action: `Evaluation Released / Returned to Queue by ${officerName}`,
+      staffName: officerName,
+      staffRole: "Evaluating Officer",
+      remarks: `Evaluation released back to queue by ${officerName}.`,
+    });
+    if (err !== null) {
+      toast.error("Failed to release evaluation.");
+      return;
+    }
+    toast.success("Evaluation released back to queue.");
+    await mutateApplications(id);
+    await refetch();
+  }, [officerName, refetch]);
 
   const resetStore = useCallback(() => {
     setPageSize(PAGE_SIZE_STEP);
@@ -325,7 +352,7 @@ export function ActivitiesFeedPane({
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||
@@ -593,9 +620,13 @@ export function ActivitiesFeedPane({
                       application={app}
                       isActive={selectedId === app.id}
                       onPress={() => setSelectedId?.(app.id)}
+                      currentUserName={officerName}
+                      isAdmin={isAdmin}
                       onMenuAction={(action, id) => {
                         if (action === "evaluate") {
                           void evaluateApplication(id);
+                        } else if (action === "release_evaluation") {
+                          void releaseEvaluation(id);
                         } else if (action === "pin") {
                           void togglePinApplication(id);
                         } else if (action === "archive") {

@@ -19,13 +19,14 @@ import {
   mutateApplications,
 } from "@edge/api";
 import { ApplicantRecordTabProps } from "./reviewTypes";
-import { ApplicantItem } from "../../../../types/application";
+import { ApplicantItem, AuditTrailEntry } from "../../../../types/application";
 import { DocumentPreviewFile } from "../../../../shared/components/DocumentPreviewModal";
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
 import { BaseApplicationPreview } from "../../../../shared/formPreview";
 import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
+import { ApplicationHistoryTimeline } from "./ApplicationHistoryTimeline";
 import { isAllowedRequirementFileType } from "../../../../utils/fileValidation";
 
 export function ApplicantRecordTab({
@@ -98,6 +99,109 @@ export function ApplicantRecordTab({
       return trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '[]' && trimmed !== '{}';
     });
   }, [formData, flatFormValues]);
+
+  const applicantHistory = useMemo<AuditTrailEntry[]>(() => {
+    if (activeApplicant === null || activeApplicant === undefined) return [];
+
+    const isBulk = app.applicationType === "BULK" && (app.applicantsList && app.applicantsList.length > 1);
+
+    // For single/regular applications, display the full application audit history
+    if (!isBulk && app.history && app.history.length > 0) {
+      return app.history;
+    }
+
+    if (activeApplicant.history !== null && activeApplicant.history !== undefined && activeApplicant.history.length > 0) {
+      return activeApplicant.history;
+    }
+
+    const list: AuditTrailEntry[] = [];
+
+    // 1. Initial Submission for this applicant
+    const submitter = app.filingUser?.name || app.applicant || "Applicant";
+    list.push({
+      id: `applicant-sub-${activeApplicant.id}`,
+      action: isBulk
+        ? `Applicant Record Submitted (${activeApplicant.name})`
+        : "Applicant Record Submitted",
+      staff: submitter,
+      role: "Filing Submitter",
+      status: "Submitted",
+      timestamp: app.createdAt
+        ? new Date(app.createdAt).toLocaleString("en-US", {
+            month: "short",
+            day: "2-digit",
+            year: "numeric",
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: true,
+          })
+        : "",
+    });
+
+    // 2. Application-level history events that mention this applicant
+    if (app.history !== null && app.history !== undefined && app.history.length > 0) {
+      const applicantNameLower = typeof activeApplicant.name === "string" ? activeApplicant.name.toLowerCase() : "";
+      for (const h of app.history) {
+        if (
+          h.id.startsWith("init-") ||
+          (h.action.toLowerCase().includes("application submitted") &&
+            (applicantNameLower.length === 0 || !h.action.toLowerCase().includes(applicantNameLower)))
+        ) {
+          continue;
+        }
+
+        const actionMatch = applicantNameLower.length > 0 && h.action.toLowerCase().includes(applicantNameLower);
+        const remarksMatch = applicantNameLower.length > 0 && typeof h.remarks === "string" && h.remarks.toLowerCase().includes(applicantNameLower);
+
+        if (!isBulk || actionMatch || remarksMatch) {
+          list.push(h);
+        }
+      }
+    }
+
+    // 3. Current Applicant Evaluation Verdict / Status
+    if (activeApplicant.status !== null && activeApplicant.status !== undefined) {
+      if (activeApplicant.status === "Incomplete") {
+        list.push({
+          id: `applicant-eval-${activeApplicant.id}`,
+          action: "Applicant Evaluation: Incomplete / Deficiencies Noted",
+          staff: "Evaluating Officer",
+          role: "Return Officer",
+          status: "Incomplete",
+          remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
+            ? activeApplicant.evaluationRemarks
+            : "Discrepancy remarks or missing requirements noted during evaluation.",
+          timestamp: "Current Evaluation State",
+        });
+      } else if (activeApplicant.status === "ForEndorsement") {
+        list.push({
+          id: `applicant-eval-${activeApplicant.id}`,
+          action: "Applicant Evaluation: Recommended for Endorsement",
+          staff: "Evaluating Officer",
+          role: "Evaluating Officer",
+          status: "ForEndorsement",
+          remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
+            ? activeApplicant.evaluationRemarks
+            : undefined,
+          timestamp: "Current Evaluation State",
+        });
+      } else if (activeApplicant.status === "Complete") {
+        list.push({
+          id: `applicant-eval-${activeApplicant.id}`,
+          action: "Applicant Evaluation: Complete & Verified",
+          staff: "Evaluating Officer",
+          role: "Evaluating Officer",
+          status: "Complete",
+          remarks: activeApplicant.evaluationRemarks && activeApplicant.evaluationRemarks.trim().length > 0
+            ? activeApplicant.evaluationRemarks
+            : undefined,
+          timestamp: "Current Evaluation State",
+        });
+      }
+    }
+
+    return list;
+  }, [activeApplicant, app]);
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -194,6 +298,15 @@ export function ApplicantRecordTab({
         <View style={styles.infoBlock}>
           <ApplicantRequirementsSection app={app} activeApplicant={activeApplicant} isEditable={isEditable} onPreviewFile={onPreviewFile} />
         </View>
+
+        {/* 4. Applicant History & Evaluation Audit */}
+        <ApplicationHistoryTimeline
+          history={applicantHistory}
+          title={app.applicationType === 'BULK'
+            ? `4. APPLICANT RECORD AUDIT & EVALUATION HISTORY (${applicantHistory.length})`
+            : undefined
+          }
+        />
 
         <View style={{ height: 80 }} />
       </ScrollView>

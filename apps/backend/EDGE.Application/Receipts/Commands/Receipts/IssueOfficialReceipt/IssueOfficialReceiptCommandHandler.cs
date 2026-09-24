@@ -130,58 +130,89 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             op = await _appRepository.GetOpByIdAsync(request.OrderOfPaymentId.Value, cancellationToken);
             if (op == null)
             {
-                return ApiResponse<OfficialReceiptDto>.Fail($"Order of Payment '{request.OrderOfPaymentId}' not found.");
+                var appWithDetails = await _appRepository.GetByIdWithDetailsAsync(request.OrderOfPaymentId.Value, cancellationToken);
+                if (appWithDetails != null)
+                {
+                    op = appWithDetails.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+                    if (op == null)
+                    {
+                        applicationId = appWithDetails.Id;
+                        appNumber = appWithDetails.ApplicationNumber;
+                        var prevAppStatus = appWithDetails.Status;
+                        appWithDetails.Status = ApplicationStatus.Completed;
+
+                        await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicationId = appWithDetails.Id,
+                            Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                            FromStatus = prevAppStatus,
+                            ToStatus = ApplicationStatus.Completed,
+                            PerformedByUserId = cashierContext.UserId,
+                            StaffName = cashierContext.StaffName,
+                            StaffRole = cashierContext.StaffRole,
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                }
+                else
+                {
+                    return ApiResponse<OfficialReceiptDto>.Fail($"Order of Payment '{request.OrderOfPaymentId}' not found.");
+                }
             }
 
-            applicationId = op.ApplicationId;
-            if (op.Application != null)
+            if (op != null)
             {
-                appNumber = op.Application.ApplicationNumber;
-            }
+                applicationId = op.ApplicationId;
+                if (op.Application != null)
+                {
+                    appNumber = op.Application.ApplicationNumber;
+                }
 
-            // Update OP Status to Paid
-            var prevOpStatus = op.Status;
-            op.Status = OpStatus.Paid;
-            op.OfficialReceiptNumber = orNumber;
-            op.AmountReceived = request.Amount;
-            op.PaymentMethod = request.PaymentMethod;
-            op.CheckNumber = request.CheckNumber;
-            op.CheckBank = request.CheckBank;
-            op.CheckDate = request.CheckDate;
-            op.VerifiedByCashierId = cashierContext.UserId;
-            op.PaidAt = DateTime.UtcNow;
+                // Update OP Status to Paid
+                var prevOpStatus = op.Status;
+                op.Status = OpStatus.Paid;
+                op.OfficialReceiptNumber = orNumber;
+                op.AmountReceived = request.Amount;
+                op.PaymentMethod = request.PaymentMethod;
+                op.CheckNumber = request.CheckNumber;
+                op.CheckBank = request.CheckBank;
+                op.CheckDate = request.CheckDate;
+                op.VerifiedByCashierId = cashierContext.UserId;
+                op.PaidAt = DateTime.UtcNow;
 
-            op.Histories.Add(new OpHistory
-            {
-                Id = Guid.NewGuid(),
-                OrderOfPaymentId = op.Id,
-                Action = $"Payment received and Official Receipt issued: {orNumber}",
-                FromStatus = prevOpStatus,
-                ToStatus = OpStatus.Paid,
-                PerformedByUserId = cashierContext.UserId,
-                StaffName = cashierContext.StaffName,
-                StaffRole = cashierContext.StaffRole,
-                OfficialReceiptNumber = orNumber,
-                Timestamp = DateTime.UtcNow
-            });
-
-            if (op.Application != null)
-            {
-                var prevAppStatus = op.Application.Status;
-                op.Application.Status = ApplicationStatus.Completed;
-
-                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                op.Histories.Add(new OpHistory
                 {
                     Id = Guid.NewGuid(),
-                    ApplicationId = op.ApplicationId,
-                    Action = $"Payment verified via OR #{orNumber}. Application completed.",
-                    FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.Completed,
+                    OrderOfPaymentId = op.Id,
+                    Action = $"Payment received and Official Receipt issued: {orNumber}",
+                    FromStatus = prevOpStatus,
+                    ToStatus = OpStatus.Paid,
                     PerformedByUserId = cashierContext.UserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
+                    OfficialReceiptNumber = orNumber,
                     Timestamp = DateTime.UtcNow
-                }, cancellationToken);
+                });
+
+                if (op.Application != null)
+                {
+                    var prevAppStatus = op.Application.Status;
+                    op.Application.Status = ApplicationStatus.Completed;
+
+                    await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        ApplicationId = op.ApplicationId,
+                        Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                        FromStatus = prevAppStatus,
+                        ToStatus = ApplicationStatus.Completed,
+                        PerformedByUserId = cashierContext.UserId,
+                        StaffName = cashierContext.StaffName,
+                        StaffRole = cashierContext.StaffRole,
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+                }
             }
         }
 

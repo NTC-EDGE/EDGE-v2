@@ -1,11 +1,13 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { useAuth } from '@clerk/expo';
 import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { Application, ApplicationDocument, RawRequirement } from '../../data/applicationsData';
-import { isGuid } from './applicationDetailsTypes';
 import { SectionCard } from '../../../../shared/formPreview';
 import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
+import {
+  prepareDocumentPreviewFile,
+  downloadApplicationDocument,
+} from '../../helpers/applicationDocumentActions';
 
 interface ApplicantRequirementsCardProps {
   app: Application;
@@ -62,7 +64,6 @@ export function ApplicantRequirementsCard({
   previewLoadingId,
   setPreviewLoadingId,
 }: ApplicantRequirementsCardProps) {
-  const { getToken } = useAuth();
   const isMountedRef = React.useRef(true);
 
   React.useEffect(() => {
@@ -153,106 +154,16 @@ export function ApplicantRequirementsCard({
             const handlePreview = async () => {
               if (!hasFile) return;
 
-              let fileUrl: string | undefined = doc.url ?? matched?.url ?? undefined;
-              if (!fileUrl && (doc.storedFileId || matched?.storedFileId)) {
-                const targetFileId = doc.storedFileId || matched?.storedFileId;
-                const tenantId =
-                  app.tenantId && isGuid(app.tenantId)
-                    ? app.tenantId
-                    : app.region && isGuid(app.region)
-                      ? app.region
-                      : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
-                fileUrl = `/api/v2/tenants/${tenantId}/storage/files/${targetFileId}`;
+              if (isMountedRef.current) {
+                setPreviewLoadingId(doc.id);
               }
-
-              const primaryApplicantName =
-                app.mode === 'BULK'
-                  ? app.companyName || (app.company as { name?: string })?.name || 'Applicant'
-                  : app.applicantName || 'Applicant';
-
-              if (fileUrl !== undefined && fileUrl !== '') {
-                if (fileUrl.startsWith('data:') || fileUrl.startsWith('blob:')) {
-                  onPreviewCustomDoc({
-                    uri: fileUrl,
-                    name: doc.name,
-                    category: doc.category,
-                    size: doc.size,
-                    type: doc.type,
-                    referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
-                    serviceName: app.serviceName || 'Standard Licensing Application',
-                    applicantName: primaryApplicantName,
-                    uploadedAt: doc.uploadedAt || app.submittedAt,
-                  });
-                  return;
-                }
-
+              try {
+                const previewFile = await prepareDocumentPreviewFile(doc, app, matched);
                 if (isMountedRef.current) {
-                  setPreviewLoadingId(doc.id);
+                  onPreviewCustomDoc(previewFile);
                 }
-                try {
-                  const baseUrl =
-                    (process.env.EXPO_PUBLIC_API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? '').trim();
-                  const fullUrl = fileUrl.startsWith('http') ? fileUrl : `${baseUrl}${fileUrl}`;
-                  const token = await getToken();
-                  const headers: Record<string, string> = {};
-                  if (token) headers['Authorization'] = `Bearer ${token}`;
-
-                  const response = await fetch(fullUrl, { headers });
-                  if (!isMountedRef.current) return;
-
-                  if (response.ok) {
-                    const blob = await response.blob();
-                    if (!isMountedRef.current) return;
-                    const objectUrl =
-                      typeof URL !== 'undefined' && typeof URL.createObjectURL === 'function'
-                        ? URL.createObjectURL(blob)
-                        : fullUrl;
-
-                    onPreviewCustomDoc({
-                      uri: objectUrl,
-                      name: doc.name,
-                      category: doc.category,
-                      size: doc.size,
-                      type: doc.type,
-                      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
-                      serviceName: app.serviceName || 'Standard Licensing Application',
-                      applicantName: primaryApplicantName,
-                      uploadedAt: doc.uploadedAt || app.submittedAt,
-                    });
-                  } else {
-                    onPreviewCustomDoc({
-                      uri: fullUrl,
-                      name: doc.name,
-                      category: doc.category,
-                      size: doc.size,
-                      type: doc.type,
-                      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
-                      serviceName: app.serviceName || 'Standard Licensing Application',
-                      applicantName: primaryApplicantName,
-                      uploadedAt: doc.uploadedAt || app.submittedAt,
-                    });
-                  }
-                } catch (fetchErr) {
-                  console.warn('[ApplicationDetails] Could not fetch file preview:', fetchErr);
-                  if (isMountedRef.current) {
-                    onPreviewCustomDoc({
-                      uri: fileUrl,
-                      name: doc.name,
-                      category: doc.category,
-                      size: doc.size,
-                      type: doc.type,
-                      referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
-                      serviceName: app.serviceName || 'Standard Licensing Application',
-                      applicantName: primaryApplicantName,
-                      uploadedAt: doc.uploadedAt || app.submittedAt,
-                    });
-                  }
-                } finally {
-                  if (isMountedRef.current) {
-                    setPreviewLoadingId(null);
-                  }
-                }
-              } else {
+              } catch (fetchErr) {
+                console.warn('[ApplicantRequirementsCard] Could not fetch file preview:', fetchErr);
                 if (isMountedRef.current) {
                   onPreviewCustomDoc({
                     uri: '',
@@ -262,10 +173,22 @@ export function ApplicantRequirementsCard({
                     type: doc.type,
                     referenceNumber: app.referenceNumber || 'NTC-REQ-2026',
                     serviceName: app.serviceName || 'Standard Licensing Application',
-                    applicantName: primaryApplicantName,
+                    applicantName: app.mode === 'BULK' ? app.companyName || 'Applicant' : app.applicantName || 'Applicant',
                     uploadedAt: doc.uploadedAt || app.submittedAt,
                   });
                 }
+              } finally {
+                if (isMountedRef.current) {
+                  setPreviewLoadingId(null);
+                }
+              }
+            };
+
+            const handleDownload = async () => {
+              if (onDownloadDoc !== undefined) {
+                onDownloadDoc(doc);
+              } else {
+                await downloadApplicationDocument(doc, app, matched);
               }
             };
 
@@ -361,27 +284,25 @@ export function ApplicantRequirementsCard({
                         </Text>
                       </TouchableOpacity>
 
-                      {onDownloadDoc !== undefined ? (
-                        <TouchableOpacity
-                          onPress={() => onDownloadDoc(doc)}
-                          style={{
-                            flexDirection: 'row',
-                            alignItems: 'center',
-                            backgroundColor: '#FFFFFF',
-                            borderWidth: 1,
-                            borderColor: '#CBD5E1',
-                            paddingVertical: 5,
-                            paddingHorizontal: 10,
-                            borderRadius: 8,
-                          }}
-                          activeOpacity={0.7}
-                        >
-                          <Icon name="download" size={13} color="#475569" style={{ marginRight: 4 }} />
-                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '600', color: '#475569' }}>
-                            Download
-                          </Text>
-                        </TouchableOpacity>
-                      ) : null}
+                      <TouchableOpacity
+                        onPress={handleDownload}
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          backgroundColor: '#FFFFFF',
+                          borderWidth: 1,
+                          borderColor: '#CBD5E1',
+                          paddingVertical: 5,
+                          paddingHorizontal: 10,
+                          borderRadius: 8,
+                        }}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="download" size={13} color="#475569" style={{ marginRight: 4 }} />
+                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '600', color: '#475569' }}>
+                          Download
+                        </Text>
+                      </TouchableOpacity>
                     </View>
                   </>
                 ) : (

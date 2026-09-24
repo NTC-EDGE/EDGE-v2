@@ -1,8 +1,9 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text, Modal, TouchableOpacity, ScrollView, useWindowDimensions } from 'react-native';
 import { Icon } from '@edge/ui';
 import { Application, ApplicationDocument, formatRelativeTime } from '../../data/applicationsData';
 import { styles } from './applicationDetailsStyles';
+import { downloadApplicationDocument } from '../../helpers/applicationDocumentActions';
 
 interface DocumentPreviewSectionProps {
   app: Application;
@@ -87,7 +88,7 @@ export function DocumentPreviewSection({
 
               <View style={styles.docSheetStampRow}>
                 <View style={styles.officialStampBadge}>
-                  <Icon name="check-circle" size={16} color="#16A34A" />
+                  <Icon name="check-circle" size={16} color="#166534" />
                   <Text style={styles.officialStampText}>OFFICIALLY VERIFIED & VALID</Text>
                 </View>
               </View>
@@ -95,8 +96,12 @@ export function DocumentPreviewSection({
 
             <View style={styles.modalFooter}>
               <TouchableOpacity
-                onPress={() => {
-                  if (onDownloadDoc !== undefined) onDownloadDoc(previewDoc);
+                onPress={async () => {
+                  if (onDownloadDoc !== undefined) {
+                    onDownloadDoc(previewDoc);
+                  } else {
+                    await downloadApplicationDocument(previewDoc, app, null);
+                  }
                 }}
                 style={styles.modalDownloadBtn}
                 activeOpacity={0.85}
