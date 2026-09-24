@@ -284,32 +284,33 @@ export function Header({
   const dropdownBorder = isDark ? colors.neutral[800] : colors.border;
   const dropdownText = colors.text;
 
-  const headerBorderColor = isDark ? 'rgba(255,255,255,0.08)' : colors.border;
-  const iconColor = isDark ? COLORS.neutral.white : colors.text;
-  const iconBtnBg = isDark ? 'rgba(255,255,255,0.07)' : colors.neutral[100];
-  const breadcrumbGroupColor = isDark ? 'rgba(255,255,255,0.45)' : colors.textMuted;
-  const breadcrumbChevronColor = isDark ? 'rgba(255,255,255,0.4)' : colors.textMuted;
-  const breadcrumbScreenColor = isDark ? 'rgba(255,255,255,0.85)' : colors.text;
-  const dividerColor = isDark ? 'rgba(255,255,255,0.15)' : colors.border;
-  const avatarBg = isDark ? 'rgba(255,255,255,0.15)' : colors.brand[100];
-  const avatarBorder = isDark ? 'rgba(255,255,255,0.25)' : colors.brand[300];
-  const avatarTextColor = isDark ? '#FFFFFF' : colors.brand[700];
-  const nameColor = isDark ? '#FFFFFF' : colors.text;
-  const roleColor = isDark ? 'rgba(255,255,255,0.55)' : colors.textMuted;
-  const chevronColor = isDark ? 'rgba(255,255,255,0.5)' : colors.textMuted;
+  const headerBorderColor = '#D97706';
+  const iconColor = '#FFFFFF';
+  const iconBtnBg = 'rgba(255, 255, 255, 0.12)';
+  const breadcrumbGroupColor = 'rgba(255, 255, 255, 0.75)';
+  const breadcrumbChevronColor = 'rgba(255, 255, 255, 0.5)';
+  const breadcrumbScreenColor = '#FFFFFF';
+  const dividerColor = 'rgba(255, 255, 255, 0.2)';
+  const avatarBg = '#FFFFFF';
+  const avatarBorder = 'rgba(255, 255, 255, 0.3)';
+  const avatarTextColor = '#0F2C59';
+  const nameColor = '#FFFFFF';
+  const roleColor = 'rgba(255, 255, 255, 0.75)';
+  const chevronColor = 'rgba(255, 255, 255, 0.75)';
 
   const headerDynamicStyle: ViewStyle = Platform.select({
     web: {
-      backgroundImage: isDark
-        ? `linear-gradient(to right, #0E1B61 0%, #1E3A8A 50%, #1E293B 100%)`
-        : `linear-gradient(to right, #FFFFFF 0%, #F8FAFC 50%, #EFF6FF 100%)`,
-      boxShadow: isDark ? '0 1px 3px 0 rgba(0,0,0,0.25)' : '0 1px 3px 0 rgba(0,0,0,0.05)',
-      borderBottomColor: headerBorderColor,
+      backgroundColor: '#0F2C59',
+      backgroundImage: 'linear-gradient(135deg, #0F2C59 0%, #1E3E62 60%, #1E40AF 100%)',
+      boxShadow: '0 4px 16px rgba(15, 44, 89, 0.25)',
+      borderBottomColor: '#D97706',
+      borderBottomWidth: 3,
       flexShrink: 0,
     },
     default: {
-      backgroundColor: isDark ? '#1E3A8A' : colors.cardBg,
-      borderBottomColor: headerBorderColor,
+      backgroundColor: '#0F2C59',
+      borderBottomColor: '#D97706',
+      borderBottomWidth: 3,
     },
   }) ?? {};
 
@@ -351,7 +352,15 @@ export function Header({
       {/* ── Right: Controls ─────────────────────────────────────────────── */}
       <View style={styles.right}>
         {/* Theme toggle — icon only */}
-        <ThemeToggle variant="icon" size="sm" />
+        <ThemeToggle
+          variant="icon"
+          size="sm"
+          iconColor="#FFFFFF"
+          style={{
+            backgroundColor: 'rgba(255, 255, 255, 0.12)',
+            borderColor: 'rgba(255, 255, 255, 0.2)',
+          }}
+        />
 
         {/* Notifications bell */}
         <View style={styles.bellWrap}>
@@ -644,18 +653,19 @@ export function Header({
 
 const styles = StyleSheet.create({
   header: {
-    height: 56,
+    height: 64,
+    backgroundColor: '#0F2C59',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: SPACING[16],
     zIndex: 100,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255,255,255,0.08)',
+    borderBottomWidth: 3,
+    borderBottomColor: '#D97706',
     gap: SPACING[12],
   },
   headerMobile: {
     paddingHorizontal: SPACING[12],
-    height: 52,
+    height: 56,
   },
   left: {
     flexDirection: 'row',
@@ -695,9 +705,11 @@ const styles = StyleSheet.create({
     marginLeft: 'auto',
   },
   iconBtn: {
-    width: 32,
-    height: 32,
+    width: 34,
+    height: 34,
     borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     ...Platform.select({
@@ -721,22 +733,24 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: 2,
-    right: 2,
-    minWidth: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: '#EF4444',
+    top: -4,
+    right: -4,
+    minWidth: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#DC2626',
+    borderWidth: 1.5,
+    borderColor: '#0F2C59',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
   },
   badgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 8,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 10,
+    fontWeight: '700',
     color: '#FFFFFF',
-    lineHeight: 10,
+    lineHeight: 12,
   },
   divider: {
     width: 1,
@@ -747,9 +761,12 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
-    paddingHorizontal: SPACING[8],
+    paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: RADIUS.sm,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
     ...Platform.select({
       web: {
         cursor: 'pointer',
@@ -758,9 +775,9 @@ const styles = StyleSheet.create({
     }),
   },
   profileAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: RADIUS.sm,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
@@ -772,8 +789,8 @@ const styles = StyleSheet.create({
   },
   profileAvatarText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 13,
+    fontWeight: '700',
   },
   profileInfo: {
     alignItems: 'flex-start',
