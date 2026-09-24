@@ -19,6 +19,10 @@ import {
 } from "@edge/ui";
 import { ApplicationData } from "../../../types/application";
 import { useAuthContext } from "../../auth/context/AuthContext";
+import {
+  resolveUserIdentifiers,
+  computeOfficerEvaluationState,
+} from "../utils/officerEvaluationHelper";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -115,73 +119,25 @@ export function ActivityCard({
 
   const brandBg        = isDark ? colors.neutral[700] : '#EFF6FF';
 
-  const currentUserIdentifiers = useMemo(() => {
-    const ids = new Set<string>();
-    if (user?.id) ids.add(user.id.toLowerCase().trim());
-    if (clerkUser?.id) ids.add(clerkUser.id.toLowerCase().trim());
-    if (user?.email) ids.add(user.email.toLowerCase().trim());
-    if (clerkUser?.primaryEmailAddress?.emailAddress) {
-      ids.add(clerkUser.primaryEmailAddress.emailAddress.toLowerCase().trim());
-    }
-    if (user?.name) ids.add(user.name.toLowerCase().trim());
-    if (clerkUser?.fullName) ids.add(clerkUser.fullName.toLowerCase().trim());
-    if (user?.username) ids.add(user.username.toLowerCase().trim());
-    if (clerkUser?.username) ids.add(clerkUser.username.toLowerCase().trim());
-    if (user?.firstName) ids.add(user.firstName.toLowerCase().trim());
-    if (user?.lastName) ids.add(user.lastName.toLowerCase().trim());
-    if (currentUserName) ids.add(currentUserName.toLowerCase().trim());
-    const fullNameCombined = [user?.firstName, user?.lastName].filter(Boolean).join(' ').toLowerCase().trim();
-    if (fullNameCombined) ids.add(fullNameCombined);
-    return Array.from(ids).filter((s) => s.length > 0);
-  }, [user, clerkUser, currentUserName]);
-
-  const matchesCurrentUser = useCallback((target?: string | null): boolean => {
-    if (!target) return false;
-    const t = target.trim().toLowerCase();
-    if (!t) return false;
-
-    for (const ident of currentUserIdentifiers) {
-      if (t === ident || t.includes(ident) || ident.includes(t)) {
-        return true;
-      }
-    }
-    return false;
-  }, [currentUserIdentifiers]);
-
-  const isEvaluating = application.status.toLowerCase() === "evaluating";
-  const evaluatingOfficer = application.evaluatingOfficer || (isEvaluating ? application.assignedTo : undefined);
-
-  const isGenericOfficer = (name?: string | null): boolean => {
-    if (!name) return true;
-    const n = name.trim().toLowerCase();
-    return (
-      n.length === 0 ||
-      n === 'unassigned' ||
-      n === 'authorized officer' ||
-      n === 'officer' ||
-      n === 'evaluating officer' ||
-      n === 'ntc officer' ||
-      n === 'admin' ||
-      n === 'system admin' ||
-      n === (application.office ?? '').toLowerCase()
-    );
-  };
-
-  const isEndorsed = Boolean(application.endorsedTo && application.endorsedTo.trim().length > 0);
-  const isEndorsedToMe = Boolean(isEndorsed && matchesCurrentUser(application.endorsedTo));
-  const isEndorsedAwayFromMe = isEndorsed && !isEndorsedToMe && !isAdmin;
-
-  const isEvaluatedByMe = isEvaluating && (
-    isEndorsedToMe ||
-    isGenericOfficer(evaluatingOfficer) ||
-    matchesCurrentUser(evaluatingOfficer) ||
-    matchesCurrentUser(application.assignedTo)
+  const currentUserIdentifiers = useMemo(
+    () => resolveUserIdentifiers(user, clerkUser, currentUserName),
+    [user, clerkUser, currentUserName]
   );
 
-  const isEvaluatedByOther = isEvaluating && !isEndorsedToMe && !isAdmin && Boolean(
-    evaluatingOfficer &&
-    !isGenericOfficer(evaluatingOfficer) &&
-    !isEvaluatedByMe
+  const {
+    isEvaluating,
+    evaluatingOfficer,
+    isEndorsedAwayFromMe,
+    isEvaluatedByMe,
+    isEvaluatedByOther,
+  } = useMemo(
+    () =>
+      computeOfficerEvaluationState({
+        application,
+        identifiers: currentUserIdentifiers,
+        isAdmin,
+      }),
+    [application, currentUserIdentifiers, isAdmin]
   );
 
   const displayFilingName =

@@ -50,6 +50,11 @@ import { ApplicationDetailsTab } from "../components/review/ApplicationDetailsTa
 import { ApplicantRecordTab } from "../components/review/ApplicantRecordTab";
 import { SoaPaymentTab } from "../components/review/SoaPaymentTab";
 import { InnerTab, INNER_TABS } from "../components/review/reviewTypes";
+import {
+  resolveUserIdentifiers,
+  matchesUserIdentifier,
+  computeOfficerEvaluationState,
+} from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
   applicationId?: string | null;
@@ -83,37 +88,15 @@ export function ApplicationReviewScreenContent({
     'Authorized Officer'
   );
 
-  const currentUserIdentifiers = useMemo(() => {
-    const ids = new Set<string>();
-    if (user?.id) ids.add(user.id.toLowerCase().trim());
-    if (clerkUser?.id) ids.add(clerkUser.id.toLowerCase().trim());
-    if (user?.email) ids.add(user.email.toLowerCase().trim());
-    if (clerkUser?.primaryEmailAddress?.emailAddress) {
-      ids.add(clerkUser.primaryEmailAddress.emailAddress.toLowerCase().trim());
-    }
-    if (user?.name) ids.add(user.name.toLowerCase().trim());
-    if (clerkUser?.fullName) ids.add(clerkUser.fullName.toLowerCase().trim());
-    if (user?.username) ids.add(user.username.toLowerCase().trim());
-    if (clerkUser?.username) ids.add(clerkUser.username.toLowerCase().trim());
-    if (user?.firstName) ids.add(user.firstName.toLowerCase().trim());
-    if (user?.lastName) ids.add(user.lastName.toLowerCase().trim());
-    const fullNameCombined = [user?.firstName, user?.lastName].filter(Boolean).join(' ').toLowerCase().trim();
-    if (fullNameCombined) ids.add(fullNameCombined);
-    return Array.from(ids).filter((s) => s.length > 0);
-  }, [user, clerkUser]);
+  const currentUserIdentifiers = useMemo(
+    () => resolveUserIdentifiers(user, clerkUser),
+    [user, clerkUser]
+  );
 
-  const matchesCurrentUser = useCallback((target?: string | null): boolean => {
-    if (!target) return false;
-    const t = target.trim().toLowerCase();
-    if (!t) return false;
-
-    for (const ident of currentUserIdentifiers) {
-      if (t === ident || t.includes(ident) || ident.includes(t)) {
-        return true;
-      }
-    }
-    return false;
-  }, [currentUserIdentifiers]);
+  const matchesCurrentUser = useCallback(
+    (target?: string | null): boolean => matchesUserIdentifier(target, currentUserIdentifiers),
+    [currentUserIdentifiers]
+  );
 
   const selectedApplication = useMemo(() => {
     return applicationDto ? mapApplicationDtoToUI(applicationDto) : null;
@@ -304,44 +287,22 @@ export function ApplicationReviewScreenContent({
 
   const app = selectedApplication;
 
-  const isEndorsed = Boolean(app.endorsedTo && app.endorsedTo.trim().length > 0);
-  const isEndorsedToMe = Boolean(isEndorsed && matchesCurrentUser(app.endorsedTo));
-  const isEndorsedAwayFromMe = isEndorsed && !isEndorsedToMe;
-
   const isSubmitted = app.status === "Submitted";
-  const isEvaluating = app.status === "Evaluating";
   const isForAccountant = app.status === "ForAccountant";
   const isPendingPayment = app.status === "PendingPayment";
-  const evaluatingOfficer = app.evaluatingOfficer;
 
-  const isGenericOfficer = (name?: string | null): boolean => {
-    if (!name) return true;
-    const n = name.trim().toLowerCase();
-    return (
-      n.length === 0 ||
-      n === 'unassigned' ||
-      n === 'authorized officer' ||
-      n === 'officer' ||
-      n === 'evaluating officer' ||
-      n === 'ntc officer' ||
-      n === 'admin' ||
-      n === 'system admin' ||
-      n === (app.office ?? '').toLowerCase()
-    );
-  };
-
-  const isEvaluatedByMe = isEvaluating && (
-    isEndorsedToMe ||
-    isGenericOfficer(evaluatingOfficer) ||
-    matchesCurrentUser(evaluatingOfficer) ||
-    matchesCurrentUser(app.assignedTo)
-  );
-
-  const isEvaluatedByOther = isEvaluating && !isEndorsedToMe && Boolean(
-    evaluatingOfficer &&
-    !isGenericOfficer(evaluatingOfficer) &&
-    !isEvaluatedByMe
-  );
+  const {
+    isEvaluating,
+    evaluatingOfficer,
+    isEndorsed,
+    isEndorsedToMe,
+    isEndorsedAwayFromMe,
+    isEvaluatedByMe,
+    isEvaluatedByOther,
+  } = computeOfficerEvaluationState({
+    application: app,
+    identifiers: currentUserIdentifiers,
+  });
 
   const isEditable = !isEndorsedAwayFromMe && !isEvaluatedByOther && app.queueTab !== "history" && app.status !== "Completed" && app.status !== "Approved" && app.status !== "Returned";
 
