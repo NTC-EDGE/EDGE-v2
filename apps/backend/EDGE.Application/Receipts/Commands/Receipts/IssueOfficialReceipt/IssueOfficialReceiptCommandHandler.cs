@@ -54,7 +54,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUnitOfWork _unitOfWork;
-    private readonly ILogger<IssueOfficialReceiptCommandHandler>? _logger;
+    private readonly ILogger<IssueOfficialReceiptCommandHandler> _logger;
 
     public IssueOfficialReceiptCommandHandler(
         IOfficialReceiptRepository receiptRepository,
@@ -71,7 +71,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
-        _logger = logger;
+        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<IssueOfficialReceiptCommandHandler>.Instance;
     }
 
     public async Task<ApiResponse<OfficialReceiptDto>> Handle(IssueOfficialReceiptCommand request, CancellationToken cancellationToken)
@@ -99,13 +99,13 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
 
             if (booklet == null)
             {
-                _logger?.LogWarning("Failed to issue official receipt. No active OR booklet found for Tenant '{TenantId}'. Cashier: '{CashierId}' ({CashierName}).", request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+                _logger.LogWarning("Failed to issue official receipt. No active OR booklet found for Tenant '{TenantId}'. Cashier: '{CashierId}' ({CashierName}).", request.TenantId, cashierContext.UserId, cashierContext.StaffName);
                 return ApiResponse<OfficialReceiptDto>.Fail("No active OR booklet found for this tenant or cashier. Please register or assign an OR booklet.");
             }
 
             if (booklet.Status != BookletStatus.Active || booklet.RemainingCount <= 0)
             {
-                _logger?.LogWarning("Failed to issue official receipt. OR booklet '{BookletNumber}' is exhausted or inactive. Tenant: '{TenantId}', Cashier: '{CashierId}' ({CashierName}).", booklet.BookletNumber, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+                _logger.LogWarning("Failed to issue official receipt. OR booklet '{BookletNumber}' is exhausted or inactive. Tenant: '{TenantId}', Cashier: '{CashierId}' ({CashierName}).", booklet.BookletNumber, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
                 return ApiResponse<OfficialReceiptDto>.Fail($"OR booklet '{booklet.BookletNumber}' is exhausted or inactive.");
             }
 
@@ -124,7 +124,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         var exists = await _receiptRepository.ExistsOrNumberAsync(request.TenantId, orNumber, null, cancellationToken);
         if (exists)
         {
-            _logger?.LogWarning("Failed to issue official receipt. Official Receipt number '{OrNumber}' already exists for Tenant '{TenantId}'.", orNumber, request.TenantId);
+            _logger.LogWarning("Failed to issue official receipt. Official Receipt number '{OrNumber}' already exists for Tenant '{TenantId}'.", orNumber, request.TenantId);
             return ApiResponse<OfficialReceiptDto>.Fail($"Official Receipt number '{orNumber}' already exists.");
         }
 
@@ -164,7 +164,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                 }
                 else
                 {
-                    _logger?.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+                    _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
                     return ApiResponse<OfficialReceiptDto>.Fail($"Order of Payment '{request.OrderOfPaymentId}' not found.");
                 }
             }
@@ -303,7 +303,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             receipt.LineItems.Select(l => new OfficialReceiptLineItemDto(l.Id, l.FeeCode, l.Description, l.Amount)).ToList()
         );
 
-        _logger?.LogInformation("Official Receipt #{OrNumber} successfully issued for Amount {Amount}. OrderOfPaymentId: {OrderOfPaymentId}, ApplicationId: {ApplicationId}, TenantId: {TenantId}, Cashier: '{CashierId}' ({CashierName}).", orNumber, request.Amount, op?.Id, applicationId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+        _logger.LogInformation("Official Receipt #{OrNumber} successfully issued for Amount {Amount}. OrderOfPaymentId: {OrderOfPaymentId}, ApplicationId: {ApplicationId}, TenantId: {TenantId}, Cashier: '{CashierId}' ({CashierName}).", orNumber, request.Amount, op?.Id, applicationId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
 
         return ApiResponse<OfficialReceiptDto>.Success(dto, $"Official Receipt #{orNumber} issued successfully.");
     }
