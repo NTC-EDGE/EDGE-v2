@@ -59,7 +59,36 @@ function formatDateLabel(isoDate: string): string {
   }).format(date);
 }
 
-function deriveQueueTab(status: ApplicationStatus): QueueTab {
+function parseBackendQueueTab(tab?: string): QueueTab | null {
+  if (!tab || typeof tab !== 'string') return null;
+  const trimmed = tab.trim().toLowerCase();
+  if (trimmed === 'pending') return 'pending';
+  if (trimmed === 'history' || trimmed === 'archived') return 'history';
+  if (trimmed === 'activity' || trimmed === 'all') return 'activity';
+  return null;
+}
+
+export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
+  const normalizedRole = (role || '').trim().toLowerCase();
+
+  if (normalizedRole === 'accountant') {
+    if (status === 'ForAccountant') return 'pending';
+    if (status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
+    return 'activity';
+  }
+
+  if (normalizedRole === 'cashier') {
+    if (status === 'PendingPayment') return 'pending';
+    if (status === 'Completed' || status === 'Approved' || status === 'Returned') return 'history';
+    return 'activity';
+  }
+
+  if (normalizedRole === 'evaluator' || normalizedRole === 'chief of eod' || normalizedRole === 'regional director') {
+    if (status === 'Submitted' || status === 'Evaluating') return 'pending';
+    if (status === 'ForAccountant' || status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
+    return 'activity';
+  }
+
   if (status === 'Submitted' || status === 'Evaluating' || status === 'ForAccountant' || status === 'PendingPayment') {
     return 'pending';
   }
@@ -135,7 +164,10 @@ function parseEndorsementState(dto: ApplicationDto | ApplicationSummaryDto): {
   return { endorsedTo: undefined, endorsedBy: undefined, isActivelyEndorsed: false };
 }
 
-export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDto): ApplicationData {
+export function mapApplicationDtoToUI(
+  dto: ApplicationDto | ApplicationSummaryDto,
+  role?: string
+): ApplicationData {
   const rawFilingUser = dto.filingUser;
   const GENERIC_NAMES = new Set([
     'applicant details',
@@ -440,7 +472,7 @@ export function mapApplicationDtoToUI(dto: ApplicationDto | ApplicationSummaryDt
     permitTitle: resolvedServiceName,
     category: resolvedCategory,
     status: feStatus,
-    queueTab: deriveQueueTab(feStatus),
+    queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
     serviceName: resolvedServiceName,

@@ -40,6 +40,7 @@ export function useAdminApplications(
     searchTerm?: string;
     mode?: string;
     tenantId?: string;
+    role?: string;
   },
   options?: UseAdminApplicationsOptions
 ) {
@@ -52,6 +53,7 @@ export function useAdminApplications(
   if (params?.searchTerm) searchParams.set('searchTerm', params.searchTerm);
   if (params?.mode) searchParams.set('mode', params.mode);
   if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
+  if (params?.role) searchParams.set('role', params.role);
 
   const queryString = searchParams.toString();
   const key = `/api/v2/applications${queryString ? `?${queryString}` : ''}`;

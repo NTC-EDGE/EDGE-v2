@@ -150,6 +150,7 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
             filterTenantIds,
             request.FieldOffice,
             request.AssignedTo,
+            request.Role,
             cancellationToken);
 
         return ApiResponse<PagedApplicationListDto>.Success(pagedResult, "User applications retrieved successfully.");

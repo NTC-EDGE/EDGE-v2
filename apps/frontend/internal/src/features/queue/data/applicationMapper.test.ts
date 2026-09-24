@@ -170,4 +170,108 @@ describe('applicationMapper', () => {
     expect(ui.category).toBe('Permits');
     expect(ui.permitTitle).toBe('Permits Application');
   });
+
+  describe('Role-based queueTab deriving', () => {
+    it('places Submitted/Evaluating in pending and ForAccountant/PendingPayment/Completed in archived (history) for Evaluator', () => {
+      const evalPendingDto: ApplicationSummaryDto = {
+        id: 'eval-1',
+        status: 'Evaluating',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+      const evalApprovedDto: ApplicationSummaryDto = {
+        id: 'eval-2',
+        status: 'ForAccountant',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+
+      const pendingUi = mapApplicationDtoToUI(evalPendingDto, 'Evaluator');
+      const approvedUi = mapApplicationDtoToUI(evalApprovedDto, 'Evaluator');
+
+      expect(pendingUi.queueTab).toBe('pending');
+      expect(approvedUi.queueTab).toBe('history');
+    });
+
+    it('places ForAccountant in pending and PendingPayment/Completed in archived (history) for Accountant', () => {
+      const acctPendingDto: ApplicationSummaryDto = {
+        id: 'acct-1',
+        status: 'ForAccountant',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+      const acctApprovedDto: ApplicationSummaryDto = {
+        id: 'acct-2',
+        status: 'PendingPayment',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+
+      const pendingUi = mapApplicationDtoToUI(acctPendingDto, 'Accountant');
+      const approvedUi = mapApplicationDtoToUI(acctApprovedDto, 'Accountant');
+
+      expect(pendingUi.queueTab).toBe('pending');
+      expect(approvedUi.queueTab).toBe('history');
+    });
+
+    it('places PendingPayment in pending and Completed in archived (history) for Cashier', () => {
+      const cashierPendingDto: ApplicationSummaryDto = {
+        id: 'cashier-1',
+        status: 'PendingPayment',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+      const cashierCompletedDto: ApplicationSummaryDto = {
+        id: 'cashier-2',
+        status: 'Completed',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+
+      const pendingUi = mapApplicationDtoToUI(cashierPendingDto, 'Cashier');
+      const completedUi = mapApplicationDtoToUI(cashierCompletedDto, 'Cashier');
+
+      expect(pendingUi.queueTab).toBe('pending');
+      expect(completedUi.queueTab).toBe('history');
+    });
+
+    it('directly uses backend returned queueTab as the single source of truth when present', () => {
+      const backendPendingDto: ApplicationSummaryDto = {
+        id: 'be-1',
+        status: 'ForAccountant',
+        queueTab: 'pending',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+      const backendArchivedDto: ApplicationSummaryDto = {
+        id: 'be-2',
+        status: 'ForAccountant',
+        queueTab: 'history',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+
+      const pendingUi = mapApplicationDtoToUI(backendPendingDto);
+      const archivedUi = mapApplicationDtoToUI(backendArchivedDto);
+
+      expect(pendingUi.queueTab).toBe('pending');
+      expect(archivedUi.queueTab).toBe('history');
+    });
+  });
 });

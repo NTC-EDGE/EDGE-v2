@@ -298,9 +298,19 @@ public static class ApplicationEndpoints
         [FromQuery] string? searchTerm,
         [FromQuery] string? mode,
         [FromQuery] Guid? tenantId,
+        [FromQuery] string? role,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllApplicationsQuery(status, queueTab, scope, pageNumber, pageSize, searchTerm, mode, tenantId));
+        var result = await mediator.Send(new GetAllApplicationsQuery(
+            Status: status,
+            QueueTab: queueTab,
+            Scope: scope,
+            PageNumber: pageNumber,
+            PageSize: pageSize,
+            SearchTerm: searchTerm,
+            Mode: mode,
+            TenantId: tenantId,
+            Role: role));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
             return Results.Unauthorized();

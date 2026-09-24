@@ -992,6 +992,7 @@ export interface ApplicationDto {
   referenceNumber?: string;
   remarks?: string;
   status: ApplicationStatusDto;
+  queueTab?: string;
   submissionMode: string;
   dataEntryMethod?: string;
   isGuest: boolean;
@@ -1036,6 +1037,7 @@ export interface ApplicationSummaryDto {
   applicationNumber?: string;
   referenceNumber?: string;
   status: ApplicationStatusDto;
+  queueTab?: string;
   submissionMode: string;
   remarks?: string;
   isGuest?: boolean;

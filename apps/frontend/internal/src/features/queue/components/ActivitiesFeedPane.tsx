@@ -85,7 +85,7 @@ const FILTER_CATEGORIES: {
 const TAB_LABELS: { key: QueueTab; label: string }[] = [
   { key: "activity", label: "All" },
   { key: "pending",  label: "Pending" },
-  { key: "history",  label: "History" },
+  { key: "history",  label: "Archived" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -152,6 +152,7 @@ export function ActivitiesFeedPane({
 
   const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
+    role: currentRole,
     scope: "queue",
     pageSize,
     pageNumber: 1,
@@ -159,8 +160,8 @@ export function ActivitiesFeedPane({
 
   const applications = useMemo(() => {
     if (!Array.isArray(rawDtos)) return [];
-    return rawDtos.map(mapApplicationDtoToUI);
-  }, [rawDtos]);
+    return rawDtos.map((dto) => mapApplicationDtoToUI(dto, currentRole));
+  }, [rawDtos, currentRole]);
 
   useEffect(() => {
     setPageSize(PAGE_SIZE_STEP);

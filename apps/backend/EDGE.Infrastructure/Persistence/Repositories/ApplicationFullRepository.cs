@@ -354,6 +354,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         List<Guid>? tenantIds = null,
         string? fieldOffice = null,
         string? assignedTo = null,
+        string? role = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Applications
@@ -423,13 +424,51 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+            var normalizedRole = (role ?? string.Empty).Trim().ToLowerInvariant();
+
+            if (normalizedRole == "accountant")
             {
-                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant);
+                }
+                else if (tab == "history")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                }
             }
-            else if (tab == "history")
+            else if (normalizedRole == "cashier")
             {
-                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment);
+                }
+                else if (tab == "history")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
+                }
+            }
+            else if (normalizedRole == "evaluator" || normalizedRole == "chief of eod" || normalizedRole == "regional director")
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                }
+                else if (tab == "history")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                }
+            }
+            else
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                }
+                else if (tab == "history")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+                }
             }
         }
 
@@ -550,6 +589,14 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 }).ToList()
             })
             .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+        {
+            if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
+            {
+                item.QueueTab = DetermineQueueTab(parsedStatus, role);
+            }
+        }
 
         return new EDGE.Application.Applications.Dtos.PagedApplicationListDto
         {
@@ -931,5 +978,42 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken);
+    }
+
+    public static string DetermineQueueTab(ApplicationStatus status, string? role)
+    {
+        var normalizedRole = (role ?? string.Empty).Trim().ToLowerInvariant();
+
+        if (normalizedRole == "accountant")
+        {
+            if (status == ApplicationStatus.ForAccountant) return "pending";
+            if (status == ApplicationStatus.PendingPayment || status == ApplicationStatus.Approved || status == ApplicationStatus.Completed || status == ApplicationStatus.Returned) return "history";
+            return "activity";
+        }
+
+        if (normalizedRole == "cashier")
+        {
+            if (status == ApplicationStatus.PendingPayment) return "pending";
+            if (status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
+            return "activity";
+        }
+
+        if (normalizedRole == "evaluator" || normalizedRole == "chief of eod" || normalizedRole == "regional director")
+        {
+            if (status == ApplicationStatus.Submitted || status == ApplicationStatus.Evaluating) return "pending";
+            if (status == ApplicationStatus.ForAccountant || status == ApplicationStatus.PendingPayment || status == ApplicationStatus.Approved || status == ApplicationStatus.Completed || status == ApplicationStatus.Returned) return "history";
+            return "activity";
+        }
+
+        // Default / Admin
+        if (status == ApplicationStatus.Submitted || status == ApplicationStatus.Evaluating || status == ApplicationStatus.ForAccountant || status == ApplicationStatus.PendingPayment)
+        {
+            return "pending";
+        }
+        if (status == ApplicationStatus.Approved || status == ApplicationStatus.Returned || status == ApplicationStatus.Completed)
+        {
+            return "history";
+        }
+        return "activity";
     }
 }
