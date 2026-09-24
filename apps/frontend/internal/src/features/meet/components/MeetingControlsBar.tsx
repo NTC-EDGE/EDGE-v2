@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native';
-import { Button, Icon, useTheme } from '@edge/ui';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { Button, ConfirmationModal, Icon, useTheme } from '@edge/ui';
 
 interface MeetingControlsBarProps {
   isHost: boolean;
@@ -41,15 +41,11 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
   onLeave,
   onEndMeetingForEveryone,
 }) => {
-  const { colors, isDark } = useTheme();
+  const { colors } = useTheme();
   const [showLeaveModal, setShowLeaveModal] = useState<boolean>(false);
 
   const handleEndCallClick = () => {
-    if (isHost && onEndMeetingForEveryone) {
-      setShowLeaveModal(true);
-    } else {
-      onLeave();
-    }
+    setShowLeaveModal(true);
   };
 
   return (
@@ -131,53 +127,63 @@ export const MeetingControlsBar: React.FC<MeetingControlsBarProps> = ({
         </Pressable>
       </View>
 
-      {/* Leave vs End Meeting Modal */}
-      <Modal
-        visible={showLeaveModal}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowLeaveModal(false)}
-      >
-        <Pressable style={styles.modalOverlay} onPress={() => setShowLeaveModal(false)}>
-          <View
-            style={[
-              styles.leaveModalCard,
-              {
-                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <Text style={[styles.modalTitle, { color: colors.text }]}>Leave Meeting?</Text>
-            <Text style={[styles.modalDescription, { color: colors.textMuted }]}>
-              As the meeting host, you can leave the meeting open for others or end it for all participants.
-            </Text>
-
-            <View style={styles.modalActions}>
-              <Button
-                variant="outline"
-                size="sm"
-                onPress={() => {
-                  setShowLeaveModal(false);
-                  onLeave();
-                }}
-              >
-                Leave Meeting
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onPress={() => {
-                  setShowLeaveModal(false);
-                  onEndMeetingForEveryone?.();
-                }}
-              >
-                End for Everyone
-              </Button>
-            </View>
-          </View>
-        </Pressable>
-      </Modal>
+      {/* Reusable Confirmation Modal for Leave / End Meeting */}
+      {isHost ? (
+        <ConfirmationModal
+          visible={showLeaveModal}
+          title={onEndMeetingForEveryone ? 'End or Leave Meeting?' : 'Leave Meeting?'}
+          subtitle={
+            isScreenSharing
+              ? 'You are hosting this meeting and sharing your screen. Ending will disconnect all participants, and leaving will stop your screen share.'
+              : 'As the host, you can end the meeting for all participants or leave the room open.'
+          }
+          variant="danger"
+          confirmText={onEndMeetingForEveryone ? 'End for Everyone' : 'Leave Meeting'}
+          cancelText="Cancel"
+          onCancel={() => setShowLeaveModal(false)}
+          onConfirm={() => {
+            setShowLeaveModal(false);
+            if (onEndMeetingForEveryone) {
+              onEndMeetingForEveryone();
+            } else {
+              onLeave();
+            }
+          }}
+        >
+          {isHost && onEndMeetingForEveryone && (
+            <Button
+              variant="outline"
+              size="sm"
+              fullWidth
+              onPress={() => {
+                setShowLeaveModal(false);
+                onLeave();
+              }}
+              style={{ marginTop: 6 }}
+            >
+              Leave Meeting (Keep Room Open)
+            </Button>
+          )}
+        </ConfirmationModal>
+      ) : (
+        <ConfirmationModal
+          visible={showLeaveModal}
+          title="Leave Meeting?"
+          subtitle={
+            isScreenSharing
+              ? 'You are currently sharing your screen. Leaving the meeting will stop your screen share and disconnect you from the call.'
+              : 'Are you sure you want to leave this meeting?'
+          }
+          variant={isScreenSharing ? 'warning' : 'info'}
+          confirmText="Leave Meeting"
+          cancelText="Stay"
+          onCancel={() => setShowLeaveModal(false)}
+          onConfirm={() => {
+            setShowLeaveModal(false);
+            onLeave();
+          }}
+        />
+      )}
     </View>
   );
 };
@@ -257,34 +263,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 4,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.5)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 16,
-  },
-  leaveModalCard: {
-    width: '100%',
-    maxWidth: 400,
-    borderRadius: 16,
-    borderWidth: 1,
-    padding: 20,
-    gap: 12,
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  modalDescription: {
-    fontSize: 13,
-    lineHeight: 18,
-  },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    gap: 8,
-    marginTop: 8,
   },
 });

@@ -17,6 +17,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IUserNotificationRepository _userNotificationRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public InviteMeetingParticipantsCommandHandler(
@@ -25,6 +26,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
+        IUserNotificationRepository userNotificationRepository,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
@@ -32,6 +34,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
+        _userNotificationRepository = userNotificationRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -63,6 +66,7 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
 
         var allParticipants = await _meetingRepository.GetAllParticipantsAsync(meeting.Id, cancellationToken);
         var activeUserIds = allParticipants.Where(p => !p.IsDeleted).Select(p => p.UserId).ToHashSet();
+        var newlyInvitedUserIds = new List<(Guid UserId, Guid? TenantId)>();
 
         foreach (var userId in request.UserIds.Where(id => id != Guid.Empty && !activeUserIds.Contains(id)))
         {
@@ -102,6 +106,28 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
                     IsDeletedBy = string.Empty
                 });
             }
+
+            newlyInvitedUserIds.Add((userId, participantTenantId));
+        }
+
+        if (newlyInvitedUserIds.Any())
+        {
+            var formattedTime = meeting.ScheduledStartTime.ToString("MMM dd, yyyy 'at' hh:mm tt");
+            var hostName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+
+            var notifications = newlyInvitedUserIds.Select(item => new UserNotification
+            {
+                UserId = item.UserId,
+                TenantId = item.TenantId ?? meeting.TenantId ?? fallbackTenantId,
+                Type = NotificationType.MeetingInvite,
+                Title = $"Meeting Invitation: {meeting.Title}",
+                Body = $"You have been invited by {hostName} to join '{meeting.Title}' scheduled on {formattedTime}. Meeting Code: {meeting.MeetingCode}.",
+                ActionUrl = $"/meet?code={meeting.MeetingCode}",
+                ReferenceId = meeting.MeetingCode,
+                IsRead = false
+            }).ToList();
+
+            await _userNotificationRepository.CreateNotificationsAsync(notifications, cancellationToken);
         }
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);

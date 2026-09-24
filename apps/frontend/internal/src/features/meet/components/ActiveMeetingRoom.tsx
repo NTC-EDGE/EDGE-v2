@@ -1,15 +1,24 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, useWindowDimensions, Pressable, Modal } from 'react-native';
-import { Meeting, meetService, safeAsync } from '@edge/api';
+import React, { useState, useEffect } from 'react';
+import { View, Text, StyleSheet, useWindowDimensions, Pressable, Modal, ScrollView } from 'react-native';
+import { Meeting, meetService, safeAsync, realTimeService } from '@edge/api';
 import { AlertToast, Button, Icon, useTheme } from '@edge/ui';
 import { useMeetingRoom, RecordingAccessPermission } from '../hooks/useMeetingRoom';
 import { VideoTile } from './VideoTile';
+import { ScreenShareStage } from './ScreenShareStage';
 import { MeetingControlsBar } from './MeetingControlsBar';
 import { FloatingReactionsOverlay } from './FloatingReactionsOverlay';
 import { InMeetingChatSidebar } from './InMeetingChatSidebar';
 import { InMeetingPollModal } from '../forms/InMeetingPollModal';
 import { InviteParticipantModal } from '../forms/InviteParticipantModal';
 import { CreatePollFormValues } from '../schemas/meetSchemas';
+
+interface PendingJoinRequest {
+  connectionId: string;
+  userId: string;
+  userName: string;
+  avatarUrl?: string;
+  meetingCode: string;
+}
 
 interface ActiveMeetingRoomProps {
   meeting: Meeting;
@@ -33,6 +42,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [isRecordingSettingsOpen, setIsRecordingSettingsOpen] = useState<boolean>(false);
+  const [pendingRequests, setPendingRequests] = useState<PendingJoinRequest[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
@@ -52,13 +62,56 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     recordingAccess,
     setRecordingAccess,
     floatingEmojis,
+    localStream,
+    screenStream,
+    remoteStreams,
+    isSpeaking,
+    mediaError,
     toggleMic,
     toggleVideo,
     toggleScreenShare,
     toggleRecording,
     toggleHandRaise,
     triggerReaction,
+    leaveAndResetRoom,
   } = useMeetingRoom(meeting, currentUserId);
+
+  useEffect(() => {
+    if (mediaError) {
+      showToast(mediaError, 'error');
+    }
+  }, [mediaError]);
+
+  // Real-time host admission listener
+  useEffect(() => {
+    if (!isHost) return;
+
+    const unsub = realTimeService.onJoinRequested((req) => {
+      if (req.meetingCode === meeting.meetingCode) {
+        setPendingRequests((prev) => {
+          if (prev.some((r) => r.connectionId === req.connectionId)) return prev;
+          return [...prev, req];
+        });
+        showToast(`${req.userName} is in the waiting room.`, 'success');
+      }
+    });
+
+    return () => {
+      unsub();
+    };
+  }, [isHost, meeting.meetingCode]);
+
+  const handleAdmitParticipant = async (req: PendingJoinRequest) => {
+    await realTimeService.admitParticipant(meeting.meetingCode, req.connectionId, req.userId);
+    setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
+    showToast(`Admitted ${req.userName} to the meeting.`, 'success');
+  };
+
+  const handleDenyParticipant = async (req: PendingJoinRequest) => {
+    await realTimeService.denyParticipant(meeting.meetingCode, req.connectionId, req.userId);
+    setPendingRequests((prev) => prev.filter((r) => r.connectionId !== req.connectionId));
+    showToast(`Declined join request from ${req.userName}.`, 'error');
+  };
 
   const handleToggleRecording = () => {
     toggleRecording();
@@ -123,10 +176,31 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     }
   };
 
+  const handleLeaveRoom = () => {
+    leaveAndResetRoom();
+    onLeave();
+  };
+
   const handleEndMeetingForEveryone = () => {
+    leaveAndResetRoom();
     showToast('Meeting ended for all participants.', 'success');
     onLeave();
   };
+
+  // Ensure self participant exists in grid
+  const currentParticipants = [...meeting.participants];
+  const hasSelfParticipant = currentUserId && currentParticipants.some((p) => p.userId === currentUserId);
+  if (!hasSelfParticipant) {
+    currentParticipants.unshift({
+      userId: currentUserId ?? 'self',
+      fullName: currentUserName ?? 'You',
+      email: '',
+      role: isHost ? 'Owner' : 'Member',
+      isMutedByHost: false,
+      isHandRaised: isHandRaised,
+      isSpotlighted: false,
+    });
+  }
 
   return (
     <View style={styles.roomContainer}>
@@ -167,12 +241,129 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
         )}
       </View>
 
-      <View style={styles.stageWrapper}>
-        <View style={styles.videoGrid}>
-          {meeting.participants.map((p) => (
-            <VideoTile key={p.userId} participant={p} />
-          ))}
+      {/* Host Waiting Room Admission Notification Banner */}
+      {isHost && pendingRequests.length > 0 && (
+        <View style={styles.waitingRoomHostBanner}>
+          <View style={styles.waitingRoomBannerLeft}>
+            <View style={styles.waitingBadgePulse}>
+              <Icon name="users" size={14} color="#FFFFFF" />
+            </View>
+            <Text style={styles.waitingRoomBannerText}>
+              {pendingRequests.length === 1
+                ? `${pendingRequests[0].userName} is in the waiting room`
+                : `${pendingRequests.length} people are in the waiting room`}
+            </Text>
+          </View>
+
+          <View style={styles.waitingRoomActionsRow}>
+            {pendingRequests.map((req) => (
+              <View key={req.connectionId} style={styles.pendingUserChip}>
+                <Text style={styles.pendingUserName} numberOfLines={1}>
+                  {req.userName}
+                </Text>
+                <Pressable
+                  style={styles.admitBtn}
+                  onPress={() => handleAdmitParticipant(req)}
+                  accessibilityLabel={`Admit ${req.userName}`}
+                >
+                  <Text style={styles.admitBtnText}>Admit</Text>
+                </Pressable>
+                <Pressable
+                  style={styles.denyBtn}
+                  onPress={() => handleDenyParticipant(req)}
+                  accessibilityLabel={`Deny ${req.userName}`}
+                >
+                  <Icon name="x" size={14} color="#EF4444" />
+                </Pressable>
+              </View>
+            ))}
+          </View>
         </View>
+      )}
+
+      <View style={styles.stageWrapper}>
+        {screenStream !== null ? (
+          <View style={[styles.screenShareLayout, isLargeScreen ? styles.screenShareLayoutRow : styles.screenShareLayoutColumn]}>
+            <View style={styles.screenShareMainStage}>
+              <ScreenShareStage
+                screenStream={screenStream}
+                presenterName={currentUserName ?? 'You'}
+                isSelfPresenter={true}
+                onStopSharing={toggleScreenShare}
+              />
+            </View>
+
+            {isLargeScreen ? (
+              <ScrollView
+                style={styles.cameraStripVertical}
+                contentContainerStyle={styles.cameraStripContentVertical}
+                showsVerticalScrollIndicator={false}
+              >
+                {currentParticipants.map((p, index) => {
+                  const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
+                  const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+                  return (
+                    <VideoTile
+                      key={p.userId}
+                      participant={p}
+                      isSelf={isSelf}
+                      stream={isSelf ? localStream : remoteStream}
+                      isVideoMuted={isSelf ? isVideoMuted : false}
+                      isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
+                      isSpeaking={isSelf ? isSpeaking : false}
+                      totalParticipants={currentParticipants.length}
+                      layoutMode="strip"
+                    />
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <ScrollView
+                horizontal
+                style={styles.cameraStripHorizontal}
+                contentContainerStyle={styles.cameraStripContentHorizontal}
+                showsHorizontalScrollIndicator={false}
+              >
+                {currentParticipants.map((p, index) => {
+                  const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
+                  const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+                  return (
+                    <VideoTile
+                      key={p.userId}
+                      participant={p}
+                      isSelf={isSelf}
+                      stream={isSelf ? localStream : remoteStream}
+                      isVideoMuted={isSelf ? isVideoMuted : false}
+                      isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
+                      isSpeaking={isSelf ? isSpeaking : false}
+                      totalParticipants={currentParticipants.length}
+                      layoutMode="strip"
+                    />
+                  );
+                })}
+              </ScrollView>
+            )}
+          </View>
+        ) : (
+          <View style={styles.videoGrid}>
+            {currentParticipants.map((p, index) => {
+              const isSelf = p.userId === currentUserId || p.userId === 'self' || (currentUserId === undefined && index === 0);
+              const remoteStream = remoteStreams[p.userId] ?? Object.values(remoteStreams)[index] ?? null;
+              return (
+                <VideoTile
+                  key={p.userId}
+                  participant={p}
+                  isSelf={isSelf}
+                  stream={isSelf ? localStream : remoteStream}
+                  isVideoMuted={isSelf ? isVideoMuted : false}
+                  isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
+                  isSpeaking={isSelf ? isSpeaking : false}
+                  totalParticipants={currentParticipants.length}
+                />
+              );
+            })}
+          </View>
+        )}
 
         {isChatOpen ? (
           <View style={isLargeScreen ? styles.dockedChat : styles.overlayChat}>
@@ -204,7 +395,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
         onOpenPoll={() => setIsPollOpen(true)}
         onOpenInvite={() => setIsInviteOpen(true)}
         onToggleChat={() => setIsChatOpen((prev) => !prev)}
-        onLeave={onLeave}
+        onLeave={handleLeaveRoom}
         onEndMeetingForEveryone={isHost ? handleEndMeetingForEveryone : undefined}
       />
 
@@ -396,6 +587,38 @@ const styles = StyleSheet.create({
     alignContent: 'center',
     justifyContent: 'center',
   },
+  screenShareLayout: {
+    flex: 1,
+    padding: 12,
+    gap: 12,
+  },
+  screenShareLayoutRow: {
+    flexDirection: 'row',
+  },
+  screenShareLayoutColumn: {
+    flexDirection: 'column',
+  },
+  screenShareMainStage: {
+    flex: 1,
+    minHeight: 280,
+  },
+  cameraStripVertical: {
+    width: 250,
+    maxHeight: '100%',
+  },
+  cameraStripContentVertical: {
+    gap: 10,
+    paddingRight: 4,
+  },
+  cameraStripHorizontal: {
+    height: 140,
+    width: '100%',
+  },
+  cameraStripContentHorizontal: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingBottom: 4,
+  },
   dockedChat: {
     width: 320,
     height: '100%',
@@ -446,5 +669,76 @@ const styles = StyleSheet.create({
   },
   permSubDesc: {
     fontSize: 12,
+  },
+  waitingRoomHostBanner: {
+    backgroundColor: '#1E293B',
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: 10,
+    zIndex: 60,
+  },
+  waitingRoomBannerLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  waitingBadgePulse: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  waitingRoomBannerText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  waitingRoomActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  pendingUserChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#0F172A',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#475569',
+    paddingLeft: 10,
+    paddingRight: 4,
+    paddingVertical: 4,
+    gap: 8,
+  },
+  pendingUserName: {
+    color: '#F1F5F9',
+    fontSize: 12,
+    fontWeight: '600',
+    maxWidth: 140,
+  },
+  admitBtn: {
+    backgroundColor: '#10B981',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  admitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  denyBtn: {
+    padding: 4,
+    borderRadius: 6,
+    backgroundColor: 'rgba(239, 68, 68, 0.15)',
   },
 });

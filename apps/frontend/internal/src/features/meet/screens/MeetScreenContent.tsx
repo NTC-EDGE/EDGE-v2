@@ -1,15 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, StyleSheet, useWindowDimensions, TextInput, Pressable, Modal } from 'react-native';
-import { Meeting, meetService, safeAsync, useUsers } from '@edge/api';
+import { Meeting, meetService, safeAsync, realTimeService, useUsers } from '@edge/api';
 import { AlertToast, Button, EmptyState, Icon, SkeletonLoader, useTheme } from '@edge/ui';
 import { useAuthContext } from '../../auth/context/AuthContext';
 import { useMeetingsList, MeetingFilter } from '../hooks/useMeetingsList';
+import { clearMeetingSessionState } from '../hooks/useMeetingRoom';
 import { MeetingCard } from '../components/MeetingCard';
 import { ActiveMeetingRoom } from '../components/ActiveMeetingRoom';
+import { WaitingRoomModal } from '../components/WaitingRoomModal';
 import { CreateMeetingModal } from '../forms/CreateMeetingModal';
 import { CreateDirectMeetingModal } from '../forms/CreateDirectMeetingModal';
 import { InviteParticipantModal } from '../forms/InviteParticipantModal';
-import { CreateMeetingFormValues, CreateDirectMeetingFormValues } from '../schemas/meetSchemas';
+import { JoinMeetingModal } from '../forms/JoinMeetingModal';
+import { CreateMeetingFormValues, CreateDirectMeetingFormValues, JoinMeetingFormValues } from '../schemas/meetSchemas';
 
 const FILTER_TABS: { id: MeetingFilter; label: string }[] = [
   { id: 'All', label: 'All' },
@@ -41,6 +44,8 @@ export const MeetScreenContent: React.FC = () => {
   const [viewingRecordingMeeting, setViewingRecordingMeeting] = useState<Meeting | null>(null);
   const [isScheduleOpen, setIsScheduleOpen] = useState<boolean>(false);
   const [isDirectOpen, setIsDirectOpen] = useState<boolean>(false);
+  const [isJoinModalOpen, setIsJoinModalOpen] = useState<boolean>(false);
+  const [waitingRoomMeeting, setWaitingRoomMeeting] = useState<Meeting | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
 
@@ -48,6 +53,48 @@ export const MeetScreenContent: React.FC = () => {
     setToast({ message, variant });
     setTimeout(() => setToast(null), 4000);
   };
+
+  const handleJoinMeeting = (meetingToJoin: Meeting) => {
+    setActiveMeeting(meetingToJoin);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.setItem('edge_active_meeting_code', meetingToJoin.meetingCode);
+      const url = new URL(window.location.href);
+      url.searchParams.set('code', meetingToJoin.meetingCode);
+      window.history.replaceState(null, '', url.toString());
+    }
+  };
+
+  const handleLeaveMeeting = () => {
+    const code = activeMeeting?.meetingCode;
+    setActiveMeeting(null);
+    clearMeetingSessionState(code);
+    if (typeof window !== 'undefined' && window.sessionStorage) {
+      window.sessionStorage.removeItem('edge_active_meeting_code');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('code');
+      window.history.replaceState(null, '', url.toString());
+    }
+  };
+
+  // Restore active meeting on page reload / direct URL link (?code=MEET-XXX)
+  useEffect(() => {
+    let savedCode: string | null = null;
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      savedCode = urlParams.get('code') || window.sessionStorage?.getItem('edge_active_meeting_code') || null;
+    }
+
+    if (savedCode && activeMeeting === null) {
+      void (async () => {
+        const [meeting, err] = await safeAsync(meetService.getMeetingByCode(savedCode as string));
+        if (meeting !== null && err === null && meeting.status !== 'Ended' && meeting.status !== 'Cancelled') {
+          handleJoinMeeting(meeting);
+        } else if (typeof window !== 'undefined' && window.sessionStorage) {
+          window.sessionStorage.removeItem('edge_active_meeting_code');
+        }
+      })();
+    }
+  }, []);
 
   const handleCreateMeeting = async (values: CreateMeetingFormValues) => {
     setIsSubmitting(true);
@@ -90,8 +137,65 @@ export const MeetScreenContent: React.FC = () => {
     if (newMeet !== null) {
       showToast('Direct meeting started. Entering room...', 'success');
       await refreshMeetings();
-      setActiveMeeting(newMeet);
+      handleJoinMeeting(newMeet);
     }
+  };
+
+  const handleJoinByCode = async (values: JoinMeetingFormValues) => {
+    const code = values.meetingCode.trim();
+    if (!code) return;
+
+    setIsSubmitting(true);
+    const [meeting, err] = await safeAsync(meetService.getMeetingByCode(code));
+    setIsSubmitting(false);
+
+    if (err !== null || meeting === null) {
+      showToast('Meeting not found or invalid meeting code.', 'error');
+      return;
+    }
+
+    if (meeting.status === 'Ended' || meeting.status === 'Cancelled') {
+      showToast(`This meeting has already ${meeting.status.toLowerCase()}.`, 'error');
+      return;
+    }
+
+    setIsJoinModalOpen(false);
+
+    const isHost = user?.id !== undefined && meeting.hostUserId === user.id;
+    const isParticipant = user?.id !== undefined && meeting.participants.some((p) => p.userId === user.id);
+    const isDirectlyAuthorized = isHost || isParticipant || meeting.scope === 'InterRegional';
+
+    if (isDirectlyAuthorized) {
+      handleJoinMeeting(meeting);
+    } else {
+      // User is not invited -> Enter waiting room and send admission request to host
+      setWaitingRoomMeeting(meeting);
+      void realTimeService.requestJoinMeeting(meeting.meetingCode);
+    }
+  };
+
+  const handleWaitingRoomAdmitted = async () => {
+    if (!waitingRoomMeeting) return;
+    const code = waitingRoomMeeting.meetingCode;
+    setWaitingRoomMeeting(null);
+    showToast('Admitted by the host! Entering meeting room...', 'success');
+
+    const [meeting, err] = await safeAsync(meetService.getMeetingByCode(code));
+    if (meeting !== null && err === null) {
+      handleJoinMeeting(meeting);
+    }
+  };
+
+  const handleWaitingRoomDenied = (reason: string) => {
+    setWaitingRoomMeeting(null);
+    showToast(reason || 'Your request to join was declined by the host.', 'error');
+  };
+
+  const handleWaitingRoomCancel = () => {
+    if (waitingRoomMeeting) {
+      void realTimeService.leaveMeeting(waitingRoomMeeting.meetingCode);
+    }
+    setWaitingRoomMeeting(null);
   };
 
   const handleInviteFromList = async (userIds: string[]) => {
@@ -148,7 +252,7 @@ export const MeetScreenContent: React.FC = () => {
         meeting={activeMeeting}
         currentUserId={user?.id}
         currentUserName={user?.name}
-        onLeave={() => setActiveMeeting(null)}
+        onLeave={handleLeaveMeeting}
       />
     );
   }
@@ -170,6 +274,16 @@ export const MeetScreenContent: React.FC = () => {
             </Text>
           </View>
           <View style={[styles.actionButtonsRow, isMobile && styles.actionButtonsRowMobile]}>
+            <Button
+              variant="outline"
+              size={isMobile ? 'sm' : 'md'}
+              fullWidth={false}
+              leftIcon={<Icon name="link" size={16} color={colors.text} />}
+              onPress={() => setIsJoinModalOpen(true)}
+              style={isMobile ? styles.mobileBtn : undefined}
+            >
+              Join Meeting
+            </Button>
             <Button
               variant="outline"
               size={isMobile ? 'sm' : 'md'}
@@ -278,7 +392,7 @@ export const MeetScreenContent: React.FC = () => {
             renderItem={({ item }) => (
               <MeetingCard
                 meeting={item}
-                onJoin={setActiveMeeting}
+                onJoin={handleJoinMeeting}
                 onInvite={setInvitingMeeting}
                 onDelete={handleDeleteMeeting}
                 onViewRecording={setViewingRecordingMeeting}
@@ -310,6 +424,21 @@ export const MeetScreenContent: React.FC = () => {
         onInvite={handleInviteFromList}
         onRemoveParticipant={handleRemoveFromList}
         isSubmitting={isSubmitting}
+      />
+
+      <JoinMeetingModal
+        visible={isJoinModalOpen}
+        onClose={() => setIsJoinModalOpen(false)}
+        onSubmit={handleJoinByCode}
+        isSubmitting={isSubmitting}
+      />
+
+      <WaitingRoomModal
+        visible={waitingRoomMeeting !== null}
+        meeting={waitingRoomMeeting}
+        onAdmitted={handleWaitingRoomAdmitted}
+        onDenied={handleWaitingRoomDenied}
+        onCancel={handleWaitingRoomCancel}
       />
 
       {/* Recording Playback Modal */}

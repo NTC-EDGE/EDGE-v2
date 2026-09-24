@@ -172,6 +172,84 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
     [conversationId]
   );
 
+  const editMessage = useCallback(
+    async (messageId: string, newContent: string) => {
+      if (!conversationId || !newContent.trim()) return false;
+      const trimmed = newContent.trim();
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId
+            ? { ...m, content: trimmed, isEdited: true }
+            : m
+        )
+      );
+      void safeAsync(chatService.editMessage(conversationId, messageId, trimmed));
+      return true;
+    },
+    [conversationId]
+  );
+
+  const unsendMessage = useCallback(
+    async (messageId: string) => {
+      if (!conversationId) return false;
+      setMessages((prev) => prev.filter((m) => m.id !== messageId));
+      void safeAsync(chatService.unsendMessage(conversationId, messageId));
+      return true;
+    },
+    [conversationId]
+  );
+
+  const reactToMessage = useCallback(
+    async (messageId: string, emoji: string, userName?: string) => {
+      if (!conversationId) return false;
+      const reactor = userName || currentUserName || 'You';
+
+      setMessages((prev) =>
+        prev.map((m) => {
+          if (m.id !== messageId) return m;
+          const currentReactions = m.reactions ? [...m.reactions] : [];
+          const existingIdx = currentReactions.findIndex((r) => r.emoji === emoji);
+
+          if (existingIdx >= 0) {
+            const existing = currentReactions[existingIdx];
+            if (!existing) return m;
+            const hasReacted = existing.users.includes(reactor);
+            if (hasReacted) {
+              const updatedUsers = existing.users.filter((u) => u !== reactor);
+              if (updatedUsers.length === 0) {
+                currentReactions.splice(existingIdx, 1);
+              } else {
+                currentReactions[existingIdx] = {
+                  ...existing,
+                  count: updatedUsers.length,
+                  users: updatedUsers,
+                };
+              }
+            } else {
+              currentReactions[existingIdx] = {
+                ...existing,
+                count: existing.count + 1,
+                users: [...existing.users, reactor],
+              };
+            }
+          } else {
+            currentReactions.push({
+              emoji,
+              count: 1,
+              users: [reactor],
+            });
+          }
+
+          return { ...m, reactions: currentReactions };
+        })
+      );
+
+      void safeAsync(chatService.reactToMessage(conversationId, messageId, emoji));
+      return true;
+    },
+    [conversationId, currentUserName]
+  );
+
   return {
     messages,
     isLoading,
@@ -180,6 +258,9 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
     typingUsers: Object.values(typingUsers),
     sendMessage,
     retryMessage,
+    editMessage,
+    unsendMessage,
+    reactToMessage,
     sendTypingNotification,
     refreshMessages: fetchMessages,
   };

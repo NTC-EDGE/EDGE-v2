@@ -111,6 +111,7 @@ public static class DependencyInjection
         services.AddScoped<IServiceInformationRepository, ServiceInformationRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();
         services.AddScoped<IMeetingRepository, MeetingRepository>();
+        services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register Encryption & Cloudflare R2 Storage Services
