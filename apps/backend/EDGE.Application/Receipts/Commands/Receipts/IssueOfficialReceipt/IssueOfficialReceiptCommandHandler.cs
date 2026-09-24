@@ -63,7 +63,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
         IUnitOfWork unitOfWork,
-        ILogger<IssueOfficialReceiptCommandHandler>? logger = null)
+        ILogger<IssueOfficialReceiptCommandHandler> logger)
     {
         _receiptRepository = receiptRepository;
         _bookletRepository = bookletRepository;
@@ -71,54 +71,17 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         _userRepository = userRepository;
         _currentUserService = currentUserService;
         _unitOfWork = unitOfWork;
-        _logger = logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger<IssueOfficialReceiptCommandHandler>.Instance;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<OfficialReceiptDto>> Handle(IssueOfficialReceiptCommand request, CancellationToken cancellationToken)
     {
         var cashierContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Cashier", cancellationToken);
 
-        OrBooklet? booklet = null;
-        string orNumber;
-
-        if (!string.IsNullOrWhiteSpace(request.ManualOrNumber))
+        var (orNumber, booklet, orError) = await ResolveOrNumberAsync(request, cashierContext, cancellationToken);
+        if (orError != null || orNumber == null)
         {
-            orNumber = request.ManualOrNumber.Trim();
-        }
-        else
-        {
-            if (request.BookletId.HasValue)
-            {
-                booklet = await _bookletRepository.GetByIdAsync(request.BookletId.Value, cancellationToken);
-            }
-            else
-            {
-                booklet = await _bookletRepository.GetActiveBookletAsync(request.TenantId, cashierContext.UserId, cancellationToken)
-                          ?? await _bookletRepository.GetActiveBookletAsync(request.TenantId, null, cancellationToken);
-            }
-
-            if (booklet == null)
-            {
-                _logger.LogWarning("Failed to issue official receipt. No active OR booklet found for Tenant '{TenantId}'. Cashier: '{CashierId}' ({CashierName}).", request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-                return ApiResponse<OfficialReceiptDto>.Fail("No active OR booklet found for this tenant or cashier. Please register or assign an OR booklet.");
-            }
-
-            if (booklet.Status != BookletStatus.Active || booklet.RemainingCount <= 0)
-            {
-                _logger.LogWarning("Failed to issue official receipt. OR booklet '{BookletNumber}' is exhausted or inactive. Tenant: '{TenantId}', Cashier: '{CashierId}' ({CashierName}).", booklet.BookletNumber, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-                return ApiResponse<OfficialReceiptDto>.Fail($"OR booklet '{booklet.BookletNumber}' is exhausted or inactive.");
-            }
-
-            orNumber = booklet.CurrentFormattedOrNumber;
-
-            // Increment booklet counter
-            booklet.CurrentNumber++;
-            booklet.IssuedCount++;
-            if (booklet.IssuedCount >= booklet.TotalCount || booklet.CurrentNumber > booklet.EndNumber)
-            {
-                booklet.Status = BookletStatus.Exhausted;
-            }
-            await _bookletRepository.UpdateAsync(booklet, cancellationToken);
+            return ApiResponse<OfficialReceiptDto>.Fail(orError ?? "Failed to determine OR number.");
         }
 
         var exists = await _receiptRepository.ExistsOrNumberAsync(request.TenantId, orNumber, null, cancellationToken);
@@ -128,102 +91,183 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             return ApiResponse<OfficialReceiptDto>.Fail($"Official Receipt number '{orNumber}' already exists.");
         }
 
-        OrderOfPayment? op = null;
+        var (op, applicationId, appNumber, opError) = await ResolveOrderOfPaymentAsync(request, orNumber, cashierContext, cancellationToken);
+        if (opError != null)
+        {
+            return ApiResponse<OfficialReceiptDto>.Fail(opError);
+        }
+
+        var receipt = CreateReceiptEntity(request, orNumber, booklet, op, applicationId, cashierContext);
+
+        await _receiptRepository.AddAsync(receipt, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var dto = CreateReceiptDto(receipt, booklet, op, appNumber, cashierContext);
+
+        _logger.LogInformation("Official Receipt #{OrNumber} successfully issued for Amount {Amount}. OrderOfPaymentId: {OrderOfPaymentId}, ApplicationId: {ApplicationId}, TenantId: {TenantId}, Cashier: '{CashierId}' ({CashierName}).", orNumber, request.Amount, op?.Id, applicationId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+
+        return ApiResponse<OfficialReceiptDto>.Success(dto, $"Official Receipt #{orNumber} issued successfully.");
+    }
+
+    private async Task<(string? OrNumber, OrBooklet? Booklet, string? Error)> ResolveOrNumberAsync(
+        IssueOfficialReceiptCommand request,
+        StaffUserContext cashierContext,
+        CancellationToken cancellationToken)
+    {
+        if (!string.IsNullOrWhiteSpace(request.ManualOrNumber))
+        {
+            return (request.ManualOrNumber.Trim(), null, null);
+        }
+
+        OrBooklet? booklet;
+        if (request.BookletId.HasValue)
+        {
+            booklet = await _bookletRepository.GetByIdAsync(request.BookletId.Value, cancellationToken);
+        }
+        else
+        {
+            booklet = await _bookletRepository.GetActiveBookletAsync(request.TenantId, cashierContext.UserId, cancellationToken)
+                      ?? await _bookletRepository.GetActiveBookletAsync(request.TenantId, null, cancellationToken);
+        }
+
+        if (booklet == null)
+        {
+            _logger.LogWarning("Failed to issue official receipt. No active OR booklet found for Tenant '{TenantId}'. Cashier: '{CashierId}' ({CashierName}).", request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+            return (null, null, "No active OR booklet found for this tenant or cashier. Please register or assign an OR booklet.");
+        }
+
+        if (booklet.Status != BookletStatus.Active || booklet.RemainingCount <= 0)
+        {
+            _logger.LogWarning("Failed to issue official receipt. OR booklet '{BookletNumber}' is exhausted or inactive. Tenant: '{TenantId}', Cashier: '{CashierId}' ({CashierName}).", booklet.BookletNumber, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+            return (null, null, $"OR booklet '{booklet.BookletNumber}' is exhausted or inactive.");
+        }
+
+        var orNumber = booklet.CurrentFormattedOrNumber;
+
+        // Increment booklet counter
+        booklet.CurrentNumber++;
+        booklet.IssuedCount++;
+        if (booklet.IssuedCount >= booklet.TotalCount || booklet.CurrentNumber > booklet.EndNumber)
+        {
+            booklet.Status = BookletStatus.Exhausted;
+        }
+        await _bookletRepository.UpdateAsync(booklet, cancellationToken);
+
+        return (orNumber, booklet, null);
+    }
+
+    private async Task<(OrderOfPayment? Op, Guid? ApplicationId, string? AppNumber, string? Error)> ResolveOrderOfPaymentAsync(
+        IssueOfficialReceiptCommand request,
+        string orNumber,
+        StaffUserContext cashierContext,
+        CancellationToken cancellationToken)
+    {
+        if (!request.OrderOfPaymentId.HasValue)
+        {
+            return (null, null, null, null);
+        }
+
+        var op = await _appRepository.GetOpByIdAsync(request.OrderOfPaymentId.Value, cancellationToken);
         Guid? applicationId = null;
         string? appNumber = null;
 
-        if (request.OrderOfPaymentId.HasValue)
+        if (op == null)
         {
-            op = await _appRepository.GetOpByIdAsync(request.OrderOfPaymentId.Value, cancellationToken);
-            if (op == null)
+            var appWithDetails = await _appRepository.GetByIdWithDetailsAsync(request.OrderOfPaymentId.Value, cancellationToken);
+            if (appWithDetails == null)
             {
-                var appWithDetails = await _appRepository.GetByIdWithDetailsAsync(request.OrderOfPaymentId.Value, cancellationToken);
-                if (appWithDetails != null)
-                {
-                    op = appWithDetails.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
-                    if (op == null)
-                    {
-                        applicationId = appWithDetails.Id;
-                        appNumber = appWithDetails.ApplicationNumber;
-                        var prevAppStatus = appWithDetails.Status;
-                        appWithDetails.Status = ApplicationStatus.Completed;
-
-                        await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
-                        {
-                            Id = Guid.NewGuid(),
-                            ApplicationId = appWithDetails.Id,
-                            Action = $"Payment verified via OR #{orNumber}. Application completed.",
-                            FromStatus = prevAppStatus,
-                            ToStatus = ApplicationStatus.Completed,
-                            PerformedByUserId = cashierContext.UserId,
-                            StaffName = cashierContext.StaffName,
-                            StaffRole = cashierContext.StaffRole,
-                            Timestamp = DateTime.UtcNow
-                        }, cancellationToken);
-                    }
-                }
-                else
-                {
-                    _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-                    return ApiResponse<OfficialReceiptDto>.Fail($"Order of Payment '{request.OrderOfPaymentId}' not found.");
-                }
+                _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
+                return (null, null, null, $"Order of Payment '{request.OrderOfPaymentId}' not found.");
             }
 
-            if (op != null)
+            op = appWithDetails.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            if (op == null)
             {
-                applicationId = op.ApplicationId;
-                if (op.Application != null)
-                {
-                    appNumber = op.Application.ApplicationNumber;
-                }
+                applicationId = appWithDetails.Id;
+                appNumber = appWithDetails.ApplicationNumber;
+                var prevAppStatus = appWithDetails.Status;
+                appWithDetails.Status = ApplicationStatus.Completed;
 
-                // Update OP Status to Paid
-                var prevOpStatus = op.Status;
-                op.Status = OpStatus.Paid;
-                op.OfficialReceiptNumber = orNumber;
-                op.AmountReceived = request.Amount;
-                op.PaymentMethod = request.PaymentMethod;
-                op.CheckNumber = request.CheckNumber;
-                op.CheckBank = request.CheckBank;
-                op.CheckDate = request.CheckDate;
-                op.VerifiedByCashierId = cashierContext.UserId;
-                op.PaidAt = DateTime.UtcNow;
-
-                op.Histories.Add(new OpHistory
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
                 {
                     Id = Guid.NewGuid(),
-                    OrderOfPaymentId = op.Id,
-                    Action = $"Payment received and Official Receipt issued: {orNumber}",
-                    FromStatus = prevOpStatus,
-                    ToStatus = OpStatus.Paid,
+                    ApplicationId = appWithDetails.Id,
+                    Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                    FromStatus = prevAppStatus,
+                    ToStatus = ApplicationStatus.Completed,
                     PerformedByUserId = cashierContext.UserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
-                    OfficialReceiptNumber = orNumber,
                     Timestamp = DateTime.UtcNow
-                });
-
-                if (op.Application != null)
-                {
-                    var prevAppStatus = op.Application.Status;
-                    op.Application.Status = ApplicationStatus.Completed;
-
-                    await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
-                    {
-                        Id = Guid.NewGuid(),
-                        ApplicationId = op.ApplicationId,
-                        Action = $"Payment verified via OR #{orNumber}. Application completed.",
-                        FromStatus = prevAppStatus,
-                        ToStatus = ApplicationStatus.Completed,
-                        PerformedByUserId = cashierContext.UserId,
-                        StaffName = cashierContext.StaffName,
-                        StaffRole = cashierContext.StaffRole,
-                        Timestamp = DateTime.UtcNow
-                    }, cancellationToken);
-                }
+                }, cancellationToken);
             }
         }
 
+        if (op != null)
+        {
+            applicationId = op.ApplicationId;
+            if (op.Application != null)
+            {
+                appNumber = op.Application.ApplicationNumber;
+            }
+
+            // Update OP Status to Paid
+            var prevOpStatus = op.Status;
+            op.Status = OpStatus.Paid;
+            op.OfficialReceiptNumber = orNumber;
+            op.AmountReceived = request.Amount;
+            op.PaymentMethod = request.PaymentMethod;
+            op.CheckNumber = request.CheckNumber;
+            op.CheckBank = request.CheckBank;
+            op.CheckDate = request.CheckDate;
+            op.VerifiedByCashierId = cashierContext.UserId;
+            op.PaidAt = DateTime.UtcNow;
+
+            op.Histories.Add(new OpHistory
+            {
+                Id = Guid.NewGuid(),
+                OrderOfPaymentId = op.Id,
+                Action = $"Payment received and Official Receipt issued: {orNumber}",
+                FromStatus = prevOpStatus,
+                ToStatus = OpStatus.Paid,
+                PerformedByUserId = cashierContext.UserId,
+                StaffName = cashierContext.StaffName,
+                StaffRole = cashierContext.StaffRole,
+                OfficialReceiptNumber = orNumber,
+                Timestamp = DateTime.UtcNow
+            });
+
+            if (op.Application != null)
+            {
+                var prevAppStatus = op.Application.Status;
+                op.Application.Status = ApplicationStatus.Completed;
+
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = op.ApplicationId,
+                    Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                    FromStatus = prevAppStatus,
+                    ToStatus = ApplicationStatus.Completed,
+                    PerformedByUserId = cashierContext.UserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+        }
+
+        return (op, applicationId, appNumber, null);
+    }
+
+    private static OfficialReceipt CreateReceiptEntity(
+        IssueOfficialReceiptCommand request,
+        string orNumber,
+        OrBooklet? booklet,
+        OrderOfPayment? op,
+        Guid? applicationId,
+        StaffUserContext cashierContext)
+    {
         var receipt = new OfficialReceipt
         {
             TenantId = request.TenantId,
@@ -259,7 +303,6 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         }
         else if (op != null)
         {
-            // Default line item from OP if none provided
             receipt.LineItems.Add(new OfficialReceiptLineItem
             {
                 OfficialReceiptId = receipt.Id,
@@ -269,10 +312,17 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             });
         }
 
-        await _receiptRepository.AddAsync(receipt, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return receipt;
+    }
 
-        var dto = new OfficialReceiptDto(
+    private static OfficialReceiptDto CreateReceiptDto(
+        OfficialReceipt receipt,
+        OrBooklet? booklet,
+        OrderOfPayment? op,
+        string? appNumber,
+        StaffUserContext cashierContext)
+    {
+        return new OfficialReceiptDto(
             receipt.Id,
             receipt.TenantId,
             receipt.OfficialReceiptNumber,
@@ -302,9 +352,5 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             receipt.Remarks,
             receipt.LineItems.Select(l => new OfficialReceiptLineItemDto(l.Id, l.FeeCode, l.Description, l.Amount)).ToList()
         );
-
-        _logger.LogInformation("Official Receipt #{OrNumber} successfully issued for Amount {Amount}. OrderOfPaymentId: {OrderOfPaymentId}, ApplicationId: {ApplicationId}, TenantId: {TenantId}, Cashier: '{CashierId}' ({CashierName}).", orNumber, request.Amount, op?.Id, applicationId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-
-        return ApiResponse<OfficialReceiptDto>.Success(dto, $"Official Receipt #{orNumber} issued successfully.");
     }
 }
