@@ -43,6 +43,8 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
+        var hostName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
+
         var meeting = await _meetingRepository.GetByCodeAsync(request.MeetingCode, cancellationToken)
             ?? throw new KeyNotFoundException($"Meeting with code '{request.MeetingCode}' was not found.");
 
@@ -113,7 +115,6 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
         if (newlyInvitedUserIds.Any())
         {
             var formattedTime = meeting.ScheduledStartTime.ToString("MMM dd, yyyy 'at' hh:mm tt");
-            var hostName = $"{currentUser.FirstName} {currentUser.LastName}".Trim();
 
             var notifications = newlyInvitedUserIds.Select(item => new UserNotification
             {
@@ -132,10 +133,12 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var updated = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken);
+        var updated = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken)
+            ?? throw new InvalidOperationException($"Failed to retrieve meeting with ID {meeting.Id} after inviting participants.");
+
         return new MeetingDto
         {
-            Id = updated!.Id,
+            Id = updated.Id,
             Title = updated.Title,
             Description = updated.Description,
             MeetingCode = updated.MeetingCode,
@@ -143,14 +146,16 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             TenantId = updated.TenantId,
             TenantName = updated.Tenant?.Name,
             HostUserId = updated.HostUserId,
-            HostUserName = $"{updated.HostUser?.FirstName} {updated.HostUser?.LastName}".Trim(),
+            HostUserName = updated.HostUser != null
+                ? $"{updated.HostUser.FirstName} {updated.HostUser.LastName}".Trim()
+                : hostName,
             ScheduledStartTime = updated.ScheduledStartTime,
             ScheduledEndTime = updated.ScheduledEndTime,
             Status = updated.Status,
             Participants = updated.Participants.Select(p => new MeetingParticipantDto
             {
                 UserId = p.UserId,
-                FullName = $"{p.User?.FirstName} {p.User?.LastName}".Trim(),
+                FullName = p.User != null ? $"{p.User.FirstName} {p.User.LastName}".Trim() : string.Empty,
                 Email = p.User?.Email ?? string.Empty,
                 AvatarUrl = p.User?.ProfilePicture,
                 Role = p.Role,

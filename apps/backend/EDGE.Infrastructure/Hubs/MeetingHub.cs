@@ -7,57 +7,20 @@ using EDGE.Application.Common.Interfaces;
 namespace EDGE.Infrastructure.Hubs;
 
 [Authorize]
-public class MeetingHub : Hub<IMeetingClient>
+public class MeetingHub : AuthenticatedHub<IMeetingClient>
 {
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> ConnectionMeetings = new();
     private readonly IMeetingRepository _meetingRepository;
-    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public MeetingHub(
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         IUnitOfWork unitOfWork)
+        : base(userRepository)
     {
         _meetingRepository = meetingRepository;
-        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
-    }
-
-    private async Task<Guid?> ResolveUserIdAsync()
-    {
-        var identifier = Context.UserIdentifier
-                      ?? Context.User?.FindFirst(ClaimTypes.NameIdentifier)?.Value
-                      ?? Context.User?.FindFirst("sub")?.Value
-                      ?? Context.User?.FindFirst("user_id")?.Value;
-
-        if (!string.IsNullOrWhiteSpace(identifier) && Guid.TryParse(identifier, out var parsedGuid))
-        {
-            return parsedGuid;
-        }
-
-        if (!string.IsNullOrWhiteSpace(identifier))
-        {
-            var user = await _userRepository.GetByAuthUserIdAsync(identifier);
-            if (user != null)
-            {
-                return user.Id;
-            }
-        }
-
-        var email = Context.User?.FindFirst(ClaimTypes.Email)?.Value
-                 ?? Context.User?.FindFirst("email")?.Value;
-
-        if (!string.IsNullOrWhiteSpace(email))
-        {
-            var userByEmail = await _userRepository.GetByEmailAsync(email);
-            if (userByEmail != null)
-            {
-                return userByEmail.Id;
-            }
-        }
-
-        return null;
     }
 
     public async Task JoinMeeting(string meetingCode)
@@ -128,7 +91,7 @@ public class MeetingHub : Hub<IMeetingClient>
         var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
         meetings.TryAdd(meetingCode, 0);
 
-        var user = resolvedUserId.HasValue ? await _userRepository.GetByIdAsync(resolvedUserId.Value) : null;
+        var user = resolvedUserId.HasValue ? await UserRepository.GetByIdAsync(resolvedUserId.Value) : null;
         var userName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : "Guest User";
         var avatarUrl = user?.ProfilePicture;
 

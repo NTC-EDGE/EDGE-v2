@@ -130,10 +130,12 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var created = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken);
+        var created = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken)
+            ?? throw new InvalidOperationException($"Failed to retrieve meeting with ID {meeting.Id} after creation.");
+
         return new MeetingDto
         {
-            Id = created!.Id,
+            Id = created.Id,
             Title = created.Title,
             Description = created.Description,
             MeetingCode = created.MeetingCode,
@@ -141,14 +143,16 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
             TenantId = created.TenantId,
             TenantName = created.Tenant?.Name,
             HostUserId = created.HostUserId,
-            HostUserName = $"{created.HostUser?.FirstName} {created.HostUser?.LastName}".Trim(),
+            HostUserName = created.HostUser != null
+                ? $"{created.HostUser.FirstName} {created.HostUser.LastName}".Trim()
+                : hostName,
             ScheduledStartTime = created.ScheduledStartTime,
             ScheduledEndTime = created.ScheduledEndTime,
             Status = created.Status,
             Participants = created.Participants.Select(p => new MeetingParticipantDto
             {
                 UserId = p.UserId,
-                FullName = $"{p.User?.FirstName} {p.User?.LastName}".Trim(),
+                FullName = p.User != null ? $"{p.User.FirstName} {p.User.LastName}".Trim() : string.Empty,
                 Email = p.User?.Email ?? string.Empty,
                 AvatarUrl = p.User?.ProfilePicture,
                 Role = p.Role,
