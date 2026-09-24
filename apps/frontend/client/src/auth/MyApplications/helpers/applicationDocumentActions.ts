@@ -10,6 +10,20 @@ function isGuid(val: unknown): val is string {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
 }
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
+function extractCompanyName(company: unknown): string {
+  if (typeof company === 'string' && company.trim() !== '') {
+    return company.trim();
+  }
+  if (isRecord(company) && typeof company.name === 'string' && company.name.trim() !== '') {
+    return company.name.trim();
+  }
+  return '';
+}
+
 function resolveTenantId(app?: Application | null): string {
   if (app?.tenantId !== undefined && app.tenantId !== null && isGuid(app.tenantId)) {
     return app.tenantId;
@@ -78,9 +92,10 @@ export async function prepareDocumentPreviewFile(
   app?: Application | null,
   matchedReq?: RawRequirement | null
 ): Promise<DocumentPreviewFile> {
+  const extractedCompany = extractCompanyName(app?.company);
   const primaryApplicantName =
     app?.mode === 'BULK'
-      ? app.companyName || (typeof app.company === 'object' && app.company !== null && 'name' in app.company ? String((app.company as { name?: unknown }).name ?? '') : '') || 'Applicant'
+      ? app.companyName || extractedCompany || 'Applicant'
       : app?.applicantName || 'Applicant';
 
   const fileName = doc.name || matchedReq?.name || 'Requirement Document';
@@ -161,9 +176,10 @@ export function generateOfficialDocumentReceipt(
 ): Blob {
   const refNum = app?.referenceNumber || 'NTC-REQ-2026';
   const serviceName = app?.serviceName || 'National Telecommunications Commission Application';
+  const extractedCompany = extractCompanyName(app?.company);
   const applicantName =
     app?.mode === 'BULK'
-      ? app.companyName || 'Applicant Batch'
+      ? app.companyName || extractedCompany || 'Applicant Batch'
       : app?.applicantName || 'Applicant';
   const dateStr = new Date().toLocaleString();
 
