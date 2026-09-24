@@ -608,9 +608,7 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING[24],
     gap: SPACING[16],
-    maxWidth: 1280,
     width: '100%',
-    alignSelf: 'center',
   },
   toastContainer: {
     position: 'absolute',

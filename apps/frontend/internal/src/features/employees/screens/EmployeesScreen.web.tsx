@@ -29,9 +29,7 @@ const styles = StyleSheet.create({
   },
   inner: {
     flex: 1,
-    maxWidth: 1280,
     width: '100%',
-    alignSelf: 'center',
     padding: SPACING[24],
   },
 });

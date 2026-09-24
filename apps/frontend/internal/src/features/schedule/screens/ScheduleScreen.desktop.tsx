@@ -322,8 +322,6 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     paddingBottom: 90,
     gap: SPACING[16],
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   createBtn: {

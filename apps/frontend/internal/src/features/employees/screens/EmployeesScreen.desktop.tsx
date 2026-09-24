@@ -32,8 +32,6 @@ const styles = StyleSheet.create({
   },
   container: {
     flex: 1,
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   cardWrapper: {

@@ -437,8 +437,6 @@ const styles = StyleSheet.create({
   },
   container: {
     width: '100%',
-    maxWidth: 1400,
-    alignSelf: 'center',
     gap: SPACING[12],
   },
   topTabsScrollWrapper: {

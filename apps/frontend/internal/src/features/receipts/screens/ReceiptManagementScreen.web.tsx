@@ -155,7 +155,7 @@ export function ReceiptManagementScreen() {
       </View>
 
       {/* Main Content Area */}
-      <View style={[styles.contentArea, { maxWidth: 1320, alignSelf: 'center', width: '100%' }]}>
+      <View style={[styles.contentArea, { width: '100%' }]}>
         {state.activeTab === 'receipts' && (
           <OfficialReceiptsTab
             receipts={state.receipts}
@@ -317,8 +317,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     marginBottom: 16,
-    maxWidth: 1320,
-    alignSelf: 'center',
     width: '100%',
     flexWrap: 'wrap',
     gap: 12,
@@ -362,8 +360,6 @@ const styles = StyleSheet.create({
     padding: 6,
     borderWidth: 1,
     marginBottom: 16,
-    maxWidth: 1320,
-    alignSelf: 'center',
     width: '100%',
   },
   navScroll: {

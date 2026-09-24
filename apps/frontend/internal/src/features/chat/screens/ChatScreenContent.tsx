@@ -227,7 +227,6 @@ const styles = StyleSheet.create({
   mainLayout: {
     flex: 1,
     width: '100%',
-    maxWidth: 1400,
     borderWidth: 1,
     borderRadius: 12,
     overflow: 'hidden',

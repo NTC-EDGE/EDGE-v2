@@ -382,7 +382,6 @@ const styles = StyleSheet.create({
   mainWrapper: {
     flex: 1,
     width: '100%',
-    maxWidth: 1200,
     paddingHorizontal: 16,
     paddingVertical: 12,
   },

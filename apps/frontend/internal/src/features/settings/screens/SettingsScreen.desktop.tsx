@@ -482,8 +482,6 @@ const styles = StyleSheet.create({
   },
   container: {
     width: "100%",
-    maxWidth: 1200,
-    alignSelf: "center",
   },
   headerRow: {
     flexDirection: "row",
