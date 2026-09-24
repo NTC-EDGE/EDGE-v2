@@ -38,6 +38,11 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
             throw new UnauthorizedAccessException("You are not a participant in this meeting.");
         }
 
+        var isHostOrAdmin = meeting.HostUserId == currentUser.Id ||
+                            participant.Role == ParticipantRole.Owner ||
+                            participant.Role == ParticipantRole.Admin ||
+                            currentUser.IsSuperAdmin;
+
         if (request.ActionType == MeetingActionType.RaiseHand)
         {
             var count = await _meetingRepository.GetHandRaiseQueueCountAsync(meeting.Id, cancellationToken);
@@ -53,11 +58,19 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
         }
         else if (request.ActionType == MeetingActionType.MuteParticipant && request.TargetUserId.HasValue)
         {
+            if (!isHostOrAdmin)
+            {
+                throw new UnauthorizedAccessException("Only the meeting host or administrators can mute participants.");
+            }
             var target = meeting.Participants.FirstOrDefault(p => p.UserId == request.TargetUserId.Value);
             if (target != null) target.IsMutedByHost = true;
         }
         else if (request.ActionType == MeetingActionType.SpotlightParticipant && request.TargetUserId.HasValue)
         {
+            if (!isHostOrAdmin)
+            {
+                throw new UnauthorizedAccessException("Only the meeting host or administrators can spotlight participants.");
+            }
             foreach (var p in meeting.Participants)
             {
                 p.IsSpotlighted = p.UserId == request.TargetUserId.Value;

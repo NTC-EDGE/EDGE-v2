@@ -154,6 +154,7 @@ public static class RolePermissionDataSeeder
             (actualClientRoleId, Permissions.ReadSchedules),
             (actualClientRoleId, Permissions.ReadServiceVariantElements),
             (actualClientRoleId, Permissions.ReadChat),
+            (actualClientRoleId, Permissions.SendChat),
             (actualClientRoleId, Permissions.ReadMeetings),
 
             // Evaluator (Frontline Staff Evaluator)
@@ -178,7 +179,13 @@ public static class RolePermissionDataSeeder
             (actualEvaluatorRoleId, Permissions.UpdateSoaNotes),
             (actualEvaluatorRoleId, Permissions.ReadSchedules),
             (actualEvaluatorRoleId, Permissions.ReadChat),
+            (actualEvaluatorRoleId, Permissions.CreateChat),
+            (actualEvaluatorRoleId, Permissions.ManageChatParticipants),
+            (actualEvaluatorRoleId, Permissions.SendChat),
             (actualEvaluatorRoleId, Permissions.ReadMeetings),
+            (actualEvaluatorRoleId, Permissions.CreateMeetings),
+            (actualEvaluatorRoleId, Permissions.ManageMeetingParticipants),
+            (actualEvaluatorRoleId, Permissions.ManageMeetingHostControls),
 
             // Chief of EOD (Enforcement & Operations Division Head)
             (actualChiefEodRoleId, Permissions.ReadTenants),
@@ -198,7 +205,13 @@ public static class RolePermissionDataSeeder
             (actualChiefEodRoleId, Permissions.ReadSoaNotes),
             (actualChiefEodRoleId, Permissions.ReadSchedules),
             (actualChiefEodRoleId, Permissions.ReadChat),
+            (actualChiefEodRoleId, Permissions.CreateChat),
+            (actualChiefEodRoleId, Permissions.ManageChatParticipants),
+            (actualChiefEodRoleId, Permissions.SendChat),
             (actualChiefEodRoleId, Permissions.ReadMeetings),
+            (actualChiefEodRoleId, Permissions.CreateMeetings),
+            (actualChiefEodRoleId, Permissions.ManageMeetingParticipants),
+            (actualChiefEodRoleId, Permissions.ManageMeetingHostControls),
 
             // Regional Director (Regional Executive Authority & Approver)
             (actualRegionalDirectorRoleId, Permissions.ReadTenants),
@@ -219,7 +232,13 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.ReceiptsRead),
             (actualRegionalDirectorRoleId, Permissions.CashierReports),
             (actualRegionalDirectorRoleId, Permissions.ReadChat),
+            (actualRegionalDirectorRoleId, Permissions.CreateChat),
+            (actualRegionalDirectorRoleId, Permissions.ManageChatParticipants),
+            (actualRegionalDirectorRoleId, Permissions.SendChat),
             (actualRegionalDirectorRoleId, Permissions.ReadMeetings),
+            (actualRegionalDirectorRoleId, Permissions.CreateMeetings),
+            (actualRegionalDirectorRoleId, Permissions.ManageMeetingParticipants),
+            (actualRegionalDirectorRoleId, Permissions.ManageMeetingHostControls),
 
             // Legal Officer (Compliance & Legal Reviews)
             (actualLegalRoleId, Permissions.ReadTenants),
@@ -234,7 +253,13 @@ public static class RolePermissionDataSeeder
             (actualLegalRoleId, Permissions.DownloadStorage),
             (actualLegalRoleId, Permissions.ReadServiceNotes),
             (actualLegalRoleId, Permissions.ReadChat),
+            (actualLegalRoleId, Permissions.CreateChat),
+            (actualLegalRoleId, Permissions.ManageChatParticipants),
+            (actualLegalRoleId, Permissions.SendChat),
             (actualLegalRoleId, Permissions.ReadMeetings),
+            (actualLegalRoleId, Permissions.CreateMeetings),
+            (actualLegalRoleId, Permissions.ManageMeetingParticipants),
+            (actualLegalRoleId, Permissions.ManageMeetingHostControls),
 
             // Accountant (Billing & Financial Reviews)
             (actualAccountantRoleId, Permissions.ReadTenants),
@@ -255,7 +280,13 @@ public static class RolePermissionDataSeeder
             (actualAccountantRoleId, Permissions.ReceiptsDeposit),
             (actualAccountantRoleId, Permissions.CashierReports),
             (actualAccountantRoleId, Permissions.ReadChat),
+            (actualAccountantRoleId, Permissions.CreateChat),
+            (actualAccountantRoleId, Permissions.ManageChatParticipants),
+            (actualAccountantRoleId, Permissions.SendChat),
             (actualAccountantRoleId, Permissions.ReadMeetings),
+            (actualAccountantRoleId, Permissions.CreateMeetings),
+            (actualAccountantRoleId, Permissions.ManageMeetingParticipants),
+            (actualAccountantRoleId, Permissions.ManageMeetingHostControls),
 
             // Cashier (Payments & Official Receipts)
             (actualCashierRoleId, Permissions.ReadTenants),
@@ -278,7 +309,13 @@ public static class RolePermissionDataSeeder
             (actualCashierRoleId, Permissions.ReceiptsDeposit),
             (actualCashierRoleId, Permissions.CashierReports),
             (actualCashierRoleId, Permissions.ReadChat),
+            (actualCashierRoleId, Permissions.CreateChat),
+            (actualCashierRoleId, Permissions.ManageChatParticipants),
+            (actualCashierRoleId, Permissions.SendChat),
             (actualCashierRoleId, Permissions.ReadMeetings),
+            (actualCashierRoleId, Permissions.CreateMeetings),
+            (actualCashierRoleId, Permissions.ManageMeetingParticipants),
+            (actualCashierRoleId, Permissions.ManageMeetingHostControls),
         };
 
         // Add all permissions to SuperAdmin and Admin roles dynamically
