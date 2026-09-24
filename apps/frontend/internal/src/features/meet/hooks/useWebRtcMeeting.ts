@@ -32,6 +32,7 @@ export function useWebRtcMeeting({
   const [isScreenSharingActive, setIsScreenSharingActive] = useState<boolean>(false);
 
   const peerConnections = useRef<Map<string, RTCPeerConnection>>(new Map());
+  const connectionToUserRef = useRef<Map<string, string>>(new Map());
   const localStreamRef = useRef<MediaStream | null>(null);
   const screenStreamRef = useRef<MediaStream | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
@@ -208,19 +209,27 @@ export function useWebRtcMeeting({
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       if (stream) {
-        setRemoteStreams((prev) => ({
-          ...prev,
-          [targetConnectionId]: stream,
-        }));
+        const mappedUserId = connectionToUserRef.current.get(targetConnectionId);
+        setRemoteStreams((prev) => {
+          const next = { ...prev, [targetConnectionId]: stream };
+          if (mappedUserId !== undefined && mappedUserId.length > 0) {
+            next[mappedUserId] = stream;
+          }
+          return next;
+        });
       }
     };
 
     pc.onconnectionstatechange = () => {
       if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
         peerConnections.current.delete(targetConnectionId);
+        const mappedUserId = connectionToUserRef.current.get(targetConnectionId);
         setRemoteStreams((prev) => {
           const copy = { ...prev };
           delete copy[targetConnectionId];
+          if (mappedUserId !== undefined) {
+            delete copy[mappedUserId];
+          }
           return copy;
         });
       }
@@ -230,13 +239,37 @@ export function useWebRtcMeeting({
     return pc;
   }, [meetingCode]);
 
+  // Synchronize local tracks to all active RTCPeerConnections when stream initializes or updates
+  useEffect(() => {
+    if (!localStream) return;
+    const localTracks = localStream.getTracks();
+    peerConnections.current.forEach((pc) => {
+      const senders = pc.getSenders();
+      localTracks.forEach((track) => {
+        const sender = senders.find((s) => s.track !== null && s.track.kind === track.kind);
+        if (sender !== undefined) {
+          void sender.replaceTrack(track);
+        } else {
+          try {
+            pc.addTrack(track, localStream);
+          } catch {
+            // Ignore duplicate track addition
+          }
+        }
+      });
+    });
+  }, [localStream]);
+
   // 3. WebRTC Signaling Listeners (SignalR Bridge)
   useEffect(() => {
     if (!meetingCode || Platform.OS !== 'web') return;
 
     // A. When another participant joins, initiate an SDP Offer
-    const unsubJoined = realTimeService.onParticipantJoined(async ({ connectionId }) => {
+    const unsubJoined = realTimeService.onParticipantJoined(async ({ connectionId, userId }) => {
       if (!connectionId) return;
+      if (userId !== undefined && userId !== null && userId.length > 0) {
+        connectionToUserRef.current.set(connectionId, userId);
+      }
       try {
         const pc = getOrCreatePeerConnection(connectionId);
         const offer = await pc.createOffer();
@@ -290,8 +323,31 @@ export function useWebRtcMeeting({
     });
 
     // E. When participant leaves, cleanup their peer connection
-    const unsubLeft = realTimeService.onParticipantLeft((_userId) => {
-      // Clean up peer connections and remote streams
+    const unsubLeft = realTimeService.onParticipantLeft((userId) => {
+      if (userId !== undefined && userId !== null) {
+        let connIdToRemove: string | null = null;
+        connectionToUserRef.current.forEach((val, key) => {
+          if (val === userId) {
+            connIdToRemove = key;
+          }
+        });
+        if (connIdToRemove !== null) {
+          const pc = peerConnections.current.get(connIdToRemove);
+          if (pc) {
+            pc.close();
+            peerConnections.current.delete(connIdToRemove);
+          }
+          connectionToUserRef.current.delete(connIdToRemove);
+        }
+        setRemoteStreams((prev) => {
+          const copy = { ...prev };
+          delete copy[userId];
+          if (connIdToRemove !== null) {
+            delete copy[connIdToRemove];
+          }
+          return copy;
+        });
+      }
     });
 
     return () => {
@@ -303,6 +359,7 @@ export function useWebRtcMeeting({
 
       peerConnections.current.forEach((pc) => pc.close());
       peerConnections.current.clear();
+      connectionToUserRef.current.clear();
       setRemoteStreams({});
     };
   }, [meetingCode, getOrCreatePeerConnection]);

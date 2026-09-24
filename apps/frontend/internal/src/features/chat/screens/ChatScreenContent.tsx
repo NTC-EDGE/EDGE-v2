@@ -69,11 +69,10 @@ export const ChatScreenContent: React.FC = () => {
       (u) => u.id === values.recipientUserId || u.email.toLowerCase() === values.recipientUserId.trim().toLowerCase()
     );
     const targetUserId = targetUser ? targetUser.id : values.recipientUserId;
-    const title = targetUser ? `Direct: ${targetUser.firstName} ${targetUser.lastName}` : `Direct: ${values.recipientUserId}`;
 
     const [newConv, err] = await safeAsync(
       chatService.createConversation({
-        title,
+        title: '',
         type: 'Direct',
         scope: values.scope,
         participantUserIds: targetUserId ? [targetUserId] : [],
@@ -141,7 +140,7 @@ export const ChatScreenContent: React.FC = () => {
   return (
     <View style={[styles.outerContainer, { backgroundColor: colors.bg }]}>
       {toast !== null && (
-        <View style={styles.toastWrapper}>
+        <View style={styles.toastWrapper} pointerEvents="box-none">
           <AlertToast message={toast.message} variant={toast.variant} onDismiss={() => setToast(null)} />
         </View>
       )}
@@ -157,6 +156,7 @@ export const ChatScreenContent: React.FC = () => {
           <View style={isLargeScreen ? styles.sidebarDesktop : styles.fullWidth}>
             <ChatSidebar
               conversations={conversations}
+              currentUserId={user?.id}
               selectedConversation={selectedConversation}
               onSelectConversation={setSelectedConversation}
               onOpenCreateDirect={() => setIsDirectModalOpen(true)}

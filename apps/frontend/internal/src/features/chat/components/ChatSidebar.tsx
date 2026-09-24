@@ -7,6 +7,7 @@ import { ChatFilter, ExtendedConversation } from '../hooks/useChatConversations'
 
 interface ChatSidebarProps {
   conversations: ExtendedConversation[];
+  currentUserId?: string;
   selectedConversation: Conversation | null;
   onSelectConversation: (conv: Conversation) => void;
   onOpenCreateDirect: () => void;
@@ -33,6 +34,7 @@ const FILTER_OPTIONS: { id: ChatFilter; label: string }[] = [
 
 export const ChatSidebar: React.FC<ChatSidebarProps> = ({
   conversations,
+  currentUserId,
   selectedConversation,
   onSelectConversation,
   onOpenCreateDirect,
@@ -156,6 +158,7 @@ export const ChatSidebar: React.FC<ChatSidebarProps> = ({
           renderItem={({ item }) => (
             <ConversationItem
               conversation={item}
+              currentUserId={currentUserId}
               isSelected={selectedConversation?.id === item.id}
               onSelect={onSelectConversation}
               onMarkAsRead={onMarkAsRead}

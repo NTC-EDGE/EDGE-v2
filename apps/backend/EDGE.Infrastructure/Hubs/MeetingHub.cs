@@ -109,7 +109,7 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         await Clients.Caller.OnJoinRequestPending(meetingCode);
     }
 
-    public async Task AdmitParticipant(string meetingCode, string targetConnectionId, Guid targetUserId)
+    public async Task AdmitParticipant(string meetingCode, string targetConnectionId, string? targetUserId)
     {
         if (string.IsNullOrWhiteSpace(meetingCode) || string.IsNullOrWhiteSpace(targetConnectionId))
         {
@@ -133,10 +133,16 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
             throw new HubException("Only the meeting host or administrators can admit participants.");
         }
 
-        // Add participant to meeting if not already present
-        if (targetUserId != Guid.Empty)
+        Guid parsedTargetUserId = Guid.Empty;
+        if (!string.IsNullOrWhiteSpace(targetUserId) && Guid.TryParse(targetUserId, out var g))
         {
-            var existing = meeting.Participants.FirstOrDefault(p => p.UserId == targetUserId);
+            parsedTargetUserId = g;
+        }
+
+        // Add participant to meeting if not already present
+        if (parsedTargetUserId != Guid.Empty)
+        {
+            var existing = meeting.Participants.FirstOrDefault(p => p.UserId == parsedTargetUserId);
             if (existing != null)
             {
                 existing.IsDeleted = false;
@@ -146,7 +152,7 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
                 meeting.Participants.Add(new Domain.Entities.MeetingParticipant
                 {
                     MeetingId = meeting.Id,
-                    UserId = targetUserId,
+                    UserId = parsedTargetUserId,
                     TenantId = meeting.TenantId,
                     Role = Domain.Enums.ParticipantRole.Member,
                     IsDeleted = false,
@@ -166,10 +172,10 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         targetMeetings.TryAdd(meetingCode, 0);
 
         await Clients.Client(targetConnectionId).OnJoinRequestAdmitted(meetingCode);
-        await Clients.Group(roomGroupName).OnParticipantJoined(new { connectionId = targetConnectionId, userId = targetUserId });
+        await Clients.Group(roomGroupName).OnParticipantJoined(new { connectionId = targetConnectionId, userId = parsedTargetUserId });
     }
 
-    public async Task DenyParticipant(string meetingCode, string targetConnectionId, Guid targetUserId)
+    public async Task DenyParticipant(string meetingCode, string targetConnectionId, string? targetUserId)
     {
         if (string.IsNullOrWhiteSpace(meetingCode) || string.IsNullOrWhiteSpace(targetConnectionId))
         {
