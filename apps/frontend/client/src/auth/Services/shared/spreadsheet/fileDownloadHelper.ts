@@ -12,7 +12,13 @@ export function downloadCsvFile(filename: string, csvContent: string): void {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+      setTimeout(() => {
+        try {
+          URL.revokeObjectURL(url);
+        } catch {
+          // Ignore revocation error
+        }
+      }, 60_000);
     } catch (err) {
       console.error("Failed to download CSV on web:", err);
       Alert.alert("Download Error", "Could not trigger file download in browser.");

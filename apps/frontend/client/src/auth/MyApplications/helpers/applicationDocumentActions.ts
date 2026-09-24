@@ -163,7 +163,7 @@ export function triggerBrowserBlobDownload(blobOrUrl: Blob | string, fileName: s
         } catch {
           // Ignore revocation error
         }
-      }, 1000);
+      }, 60_000);
     }
   }
 }
