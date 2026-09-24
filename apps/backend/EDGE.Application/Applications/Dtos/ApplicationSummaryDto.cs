@@ -10,6 +10,7 @@ public class ApplicationSummaryDto
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string QueueTab { get; set; } = "activity";
     public string SubmissionMode { get; set; } = string.Empty;
     public string? Office { get; set; }
     public string? Remarks { get; set; }

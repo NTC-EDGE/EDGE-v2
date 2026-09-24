@@ -16,5 +16,6 @@ public record GetAllApplicationsQuery(
     string? Mode = null,
     Guid? TenantId = null,
     string? FieldOffice = null,
-    string? AssignedTo = null
+    string? AssignedTo = null,
+    string? Role = null
 ) : IRequest<ApiResponse<PagedApplicationListDto>>;

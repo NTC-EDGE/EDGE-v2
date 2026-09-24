@@ -1,3 +1,17 @@
+export const SYSTEM_ROLES = {
+  Admin: 'Admin',
+  Evaluator: 'Evaluator',
+  ChiefOfEod: 'Chief of EOD',
+  RegionalDirector: 'Regional Director',
+  Legal: 'Legal',
+  Accountant: 'Accountant',
+  Cashier: 'Cashier',
+  SuperAdmin: 'superadmin',
+  Client: 'Client',
+} as const;
+
+export type SystemRole = typeof SYSTEM_ROLES[keyof typeof SYSTEM_ROLES];
+
 export interface ApiResponse<T> {
   succeeded: boolean;
   message: string | null;
@@ -992,6 +1006,7 @@ export interface ApplicationDto {
   referenceNumber?: string;
   remarks?: string;
   status: ApplicationStatusDto;
+  queueTab?: string;
   submissionMode: string;
   dataEntryMethod?: string;
   isGuest: boolean;
@@ -1036,6 +1051,7 @@ export interface ApplicationSummaryDto {
   applicationNumber?: string;
   referenceNumber?: string;
   status: ApplicationStatusDto;
+  queueTab?: string;
   submissionMode: string;
   remarks?: string;
   isGuest?: boolean;

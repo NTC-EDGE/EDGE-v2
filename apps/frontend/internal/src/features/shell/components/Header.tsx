@@ -167,6 +167,7 @@ export function Header({
     {
       queueTab: 'pending',
       scope: 'queue',
+      role: currentRole,
     },
     {
       refreshInterval: 30000,

@@ -41,6 +41,7 @@ export function DashboardScreen(): React.ReactElement {
 
   // Live applications and statistics
   const { applications, statistics, isLoading, isError } = useAdminApplications({
+    role: currentRole,
     scope: 'queue',
     pageSize: 10,
   });

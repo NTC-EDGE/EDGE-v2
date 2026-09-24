@@ -6,6 +6,8 @@ using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
+using EDGE.Domain.Authorization;
+using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
@@ -354,6 +356,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         List<Guid>? tenantIds = null,
         string? fieldOffice = null,
         string? assignedTo = null,
+        string? role = null,
         CancellationToken cancellationToken = default)
     {
         var baseQuery = _context.Applications
@@ -423,13 +426,50 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+
+            if (ApplicationStatusHelper.IsAccountantRole(role))
             {
-                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                }
             }
-            else if (tab == "history")
+            else if (ApplicationStatusHelper.IsCashierRole(role))
             {
-                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
+                }
+            }
+            else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                }
+            }
+            else
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+                }
             }
         }
 
@@ -550,6 +590,14 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 }).ToList()
             })
             .ToListAsync(cancellationToken);
+
+        foreach (var item in items)
+        {
+            if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
+            {
+                item.QueueTab = ApplicationStatusHelper.DetermineQueueTab(parsedStatus, role);
+            }
+        }
 
         return new EDGE.Application.Applications.Dtos.PagedApplicationListDto
         {

@@ -99,8 +99,8 @@ export function ApplicationReviewScreenContent({
   );
 
   const selectedApplication = useMemo(() => {
-    return applicationDto ? mapApplicationDtoToUI(applicationDto) : null;
-  }, [applicationDto]);
+    return applicationDto ? mapApplicationDtoToUI(applicationDto, currentRole) : null;
+  }, [applicationDto, currentRole]);
 
   const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
     try {

@@ -76,6 +76,7 @@ export function DashboardScreen(): React.ReactElement {
 
   // Fetch live applications & metrics scoped to the active tenant / queue
   const { applications, statistics, isLoading, isError, refetch } = useAdminApplications({
+    role: currentRole,
     scope: 'queue',
     pageSize: 15,
   });

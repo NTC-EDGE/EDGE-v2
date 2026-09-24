@@ -263,7 +263,10 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.ReadApplication,
                     Permissions.UploadStorage,
                     Permissions.ReadStorage,
-                    Permissions.DownloadStorage
+                    Permissions.DownloadStorage,
+                    Permissions.ReadChat,
+                    Permissions.SendChat,
+                    Permissions.ReadMeetings
                 };
                 return _cachedPermissions;
             }

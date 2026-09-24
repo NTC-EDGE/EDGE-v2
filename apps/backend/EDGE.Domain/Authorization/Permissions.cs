@@ -119,7 +119,14 @@ public static class Permissions
 
     // Communication & Collaboration (Chat & Meetings)
     public const string ReadChat = "chat.read";
+    public const string CreateChat = "chat.create";
+    public const string ManageChatParticipants = "chat.participants_manage";
+    public const string SendChat = "chat.send";
+
     public const string ReadMeetings = "meetings.read";
+    public const string CreateMeetings = "meetings.create";
+    public const string ManageMeetingParticipants = "meetings.participants_manage";
+    public const string ManageMeetingHostControls = "meetings.host_controls";
 
     // System
     public const string SystemAdmin = "system.admin";
@@ -221,7 +228,13 @@ public static class Permissions
 
         // Communication & Collaboration
         new(ReadChat, "Communication", "Access Chat", PermissionScope.Internal, "Allows accessing chat and team discussions"),
+        new(CreateChat, "Communication", "Create Conversations", PermissionScope.Internal, "Allows creating direct and group chat channels"),
+        new(ManageChatParticipants, "Communication", "Manage Chat Participants", PermissionScope.Internal, "Allows adding and removing participants from chat channels"),
+        new(SendChat, "Communication", "Send Chat Messages", PermissionScope.Internal, "Allows sending messages and attachments in chat channels"),
         new(ReadMeetings, "Communication", "Access Meetings", PermissionScope.Internal, "Allows accessing video meetings and conferences"),
+        new(CreateMeetings, "Communication", "Create Meetings", PermissionScope.Internal, "Allows scheduling and hosting video meetings"),
+        new(ManageMeetingParticipants, "Communication", "Manage Meeting Participants", PermissionScope.Internal, "Allows inviting and removing participants in meetings"),
+        new(ManageMeetingHostControls, "Communication", "Meeting Host Controls", PermissionScope.Internal, "Allows host controls such as muting, spotlighting, and creating polls in meetings"),
 
         // System
         new(SystemAdmin, "System", "System Administrator", PermissionScope.SystemAdmin, "Full system administration access")

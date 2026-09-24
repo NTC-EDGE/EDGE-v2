@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using MediatR;
 using EDGE.Application.Applicants.Dtos;
 using EDGE.Application.Applications.Dtos;
+using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 
@@ -40,6 +41,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ApplicationNumber = app.ApplicationNumber,
             ReferenceNumber = app.ReferenceNumber,
             Status = app.Status.ToString(),
+            QueueTab = ApplicationStatusHelper.DetermineQueueTab(app.Status),
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
             Remarks = app.Remarks,
