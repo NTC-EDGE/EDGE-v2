@@ -23,6 +23,7 @@ import {
 import { useAuthContext } from "../../auth/context/AuthContext";
 import { useRole } from "../../shell/context/RoleContext";
 import { useAppNavigation } from "../../../navigation/types";
+import { useTabQueryParam } from "../../../hooks/useTabQueryParam";
 import {
   TabType,
   getErrorMessage,
@@ -31,13 +32,15 @@ import {
   validatePasswordChange,
 } from "../utils/settingsUtils";
 
+const VALID_SETTINGS_TABS: readonly TabType[] = ["profile", "security", "appearance", "support"];
+
 export function SettingsScreen(): React.ReactElement {
   const { colors, isDark, setMode } = useTheme();
   const { clerkUser } = useAuthContext();
   const { currentRole } = useRole();
   const navigation = useAppNavigation();
 
-  const [activeTab, setActiveTab] = useState<TabType>("profile");
+  const [activeTab, setActiveTab] = useTabQueryParam<TabType>("tab", "profile", VALID_SETTINGS_TABS);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
 
   const handleBackToDashboard = () => {

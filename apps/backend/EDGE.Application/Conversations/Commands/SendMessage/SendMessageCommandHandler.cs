@@ -2,6 +2,7 @@ using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Conversations.DTOs;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Conversations.Commands.SendMessage;
 
@@ -35,8 +36,27 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Cha
         var conversation = await _conversationRepository.GetByIdAsync(request.ConversationId, cancellationToken)
             ?? throw new KeyNotFoundException("Conversation not found.");
 
-        var participant = conversation.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.HasLeft)
-            ?? throw new UnauthorizedAccessException("You are not a participant in this conversation.");
+        var participant = conversation.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.HasLeft);
+        if (participant == null)
+        {
+            var isCreator = conversation.CreatedBy == currentUser.Id.ToString();
+            if (isCreator || currentUser.IsSuperAdmin)
+            {
+                participant = new ConversationParticipant
+                {
+                    ConversationId = conversation.Id,
+                    UserId = currentUser.Id,
+                    TenantId = conversation.TenantId,
+                    Role = ParticipantRole.Owner,
+                    IsDeleted = false
+                };
+                conversation.Participants.Add(participant);
+            }
+            else
+            {
+                throw new UnauthorizedAccessException("You are not a participant in this conversation.");
+            }
+        }
 
         var message = new ChatMessage
         {

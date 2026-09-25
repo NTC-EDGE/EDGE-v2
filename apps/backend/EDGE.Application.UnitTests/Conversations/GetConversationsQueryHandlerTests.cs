@@ -75,10 +75,10 @@ public class GetConversationsQueryHandlerTests
             .ReturnsAsync(currentUser);
 
         _conversationRepositoryMock
-            .Setup(r => r.GetUserConversationsAsync(currentUserId, null, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetUserConversationsAsync(currentUserId, null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<Conversation> { conversation });
 
-        var query = new GetConversationsQuery(null);
+        var query = new GetConversationsQuery(null, null);
         var result = await _handler.Handle(query, CancellationToken.None);
 
         result.Should().NotBeNull();
@@ -86,5 +86,6 @@ public class GetConversationsQueryHandlerTests
         result[0].Title.Should().Be("Bob Jones");
         result[0].AvatarUrl.Should().Be("https://bob.jpg");
         result[0].UnreadCount.Should().Be(2);
+        result[0].IsArchived.Should().BeFalse();
     }
 }

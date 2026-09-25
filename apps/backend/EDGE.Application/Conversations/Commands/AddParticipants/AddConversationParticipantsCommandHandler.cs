@@ -44,9 +44,23 @@ public class AddConversationParticipantsCommandHandler : IRequestHandler<AddConv
             ?? throw new KeyNotFoundException($"Conversation with ID '{request.ConversationId}' was not found.");
 
         var callerParticipant = conversation.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.HasLeft);
-        if (callerParticipant == null && !currentUser.IsSuperAdmin)
+        var isCreator = conversation.CreatedBy == currentUser.Id.ToString();
+
+        if (callerParticipant == null && (isCreator || currentUser.IsSuperAdmin))
         {
-            throw new UnauthorizedAccessException("You are not an active member of this conversation.");
+            callerParticipant = new ConversationParticipant
+            {
+                ConversationId = conversation.Id,
+                UserId = currentUser.Id,
+                TenantId = conversation.TenantId,
+                Role = ParticipantRole.Owner,
+                IsDeleted = false
+            };
+            conversation.Participants.Add(callerParticipant);
+        }
+        else if (callerParticipant == null)
+        {
+            throw new UnauthorizedAccessException("You do not have permission to add members to this conversation.");
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);

@@ -21,6 +21,8 @@ import { User, UserTransaction } from '../types';
 import { useAuthContext } from '../../auth/context/AuthContext';
 import { useTenantClientDetails } from '@edge/api';
 
+import { useTabQueryParam } from '../../../hooks/useTabQueryParam';
+
 interface UserDetailsScreenProps {
   user: User;
   onBack: () => void;
@@ -29,6 +31,8 @@ interface UserDetailsScreenProps {
 }
 
 type TabKey = 'transactions' | 'profile' | 'permits' | 'billing';
+
+const VALID_USER_DETAILS_TABS: readonly TabKey[] = ['transactions', 'profile', 'permits', 'billing'];
 
 export function UserDetailsScreen({
   user,
@@ -41,7 +45,7 @@ export function UserDetailsScreen({
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  const [activeTab, setActiveTab] = useState<TabKey>('transactions');
+  const [activeTab, setActiveTab] = useTabQueryParam<TabKey>('tab', 'transactions', VALID_USER_DETAILS_TABS);
 
   // Optional live query for deep client details
   const { client: liveDetails, isLoading: isDetailsLoading } = useTenantClientDetails(

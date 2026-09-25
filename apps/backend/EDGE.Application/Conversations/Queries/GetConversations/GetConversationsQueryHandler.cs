@@ -25,11 +25,11 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
-        var conversations = await _conversationRepository.GetUserConversationsAsync(currentUser.Id, request.TenantId, cancellationToken);
+        var conversations = await _conversationRepository.GetUserConversationsAsync(currentUser.Id, request.TenantId, request.Filter, cancellationToken);
 
-        return conversations.Select(c =>
+        var result = conversations.Select(c =>
         {
-            var otherParticipant = c.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted);
+            var otherParticipant = c.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.HasLeft);
             var otherUserName = otherParticipant?.User != null 
                 ? $"{otherParticipant.User.FirstName} {otherParticipant.User.LastName}".Trim() 
                 : null;
@@ -61,6 +61,7 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
                 LastMessageAt = c.LastMessageAt,
                 LastMessagePreview = c.LastMessagePreview,
                 UnreadCount = unreadCount,
+                IsArchived = c.IsArchived,
                 Participants = c.Participants.Select(p => new ConversationParticipantDto
                 {
                     UserId = p.UserId,
@@ -74,6 +75,13 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
                     LastReadAt = p.LastReadAt
                 }).ToList()
             };
-        }).ToList();
+        });
+
+        if (string.Equals(request.Filter, "unread", StringComparison.OrdinalIgnoreCase))
+        {
+            result = result.Where(c => c.UnreadCount > 0);
+        }
+
+        return result.ToList();
     }
 }

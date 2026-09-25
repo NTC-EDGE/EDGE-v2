@@ -22,9 +22,9 @@ public static class MeetingEndpoints
     {
         var meet = group.MapGroup("meetings").WithTags("Meetings");
 
-        meet.MapGet("/", async ([FromQuery] Guid? tenantId, IMediator mediator) =>
+        meet.MapGet("/", async ([FromQuery] Guid? tenantId, [FromQuery] string? filter, IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetMeetingsQuery(tenantId));
+            var result = await mediator.Send(new GetMeetingsQuery(tenantId, filter));
             return Results.Ok(result);
         }).WithName("GetMeetings").RequireAuthorization();
 

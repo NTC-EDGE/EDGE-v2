@@ -57,6 +57,7 @@ export interface Conversation {
   lastMessageAt?: string | null;
   lastMessagePreview?: string | null;
   unreadCount: number;
+  isArchived?: boolean;
   participants: ChatParticipant[];
 }
 
@@ -78,10 +79,28 @@ export interface SendMessagePayload {
 }
 
 export const chatService = {
-  async getConversations(tenantId?: string): Promise<Conversation[]> {
-    const params = tenantId ? { tenantId } : undefined;
-    const response = await apiClient.get<Conversation[]>('/api/v2/chat/conversations', { params });
+  async getConversations(tenantId?: string, filter?: string): Promise<Conversation[]> {
+    const params: Record<string, string> = {};
+    if (tenantId) params.tenantId = tenantId;
+    if (filter) params.filter = filter;
+    const response = await apiClient.get<Conversation[]>('/api/v2/chat/conversations', {
+      params: Object.keys(params).length > 0 ? params : undefined,
+    });
     return response.data;
+  },
+
+  async archiveConversation(conversationId: string): Promise<boolean> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/archive`
+    );
+    return response.data.success;
+  },
+
+  async unarchiveConversation(conversationId: string): Promise<boolean> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/unarchive`
+    );
+    return response.data.success;
   },
 
   async createConversation(payload: CreateConversationPayload): Promise<Conversation> {

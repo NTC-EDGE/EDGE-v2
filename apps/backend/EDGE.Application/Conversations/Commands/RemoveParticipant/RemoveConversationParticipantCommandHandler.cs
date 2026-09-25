@@ -36,8 +36,9 @@ public class RemoveConversationParticipantCommandHandler : IRequestHandler<Remov
             ?? throw new KeyNotFoundException($"Conversation with ID '{request.ConversationId}' was not found.");
 
         var isSelf = currentUser.Id == request.UserId;
+        var isCreator = conversation.CreatedBy == currentUser.Id.ToString();
         var callerParticipant = conversation.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.HasLeft);
-        var isAdmin = callerParticipant != null && (callerParticipant.Role == ParticipantRole.Owner || callerParticipant.Role == ParticipantRole.Admin);
+        var isAdmin = isCreator || (callerParticipant != null && (callerParticipant.Role == ParticipantRole.Owner || callerParticipant.Role == ParticipantRole.Admin));
 
         if (!isSelf && !isAdmin && !currentUser.IsSuperAdmin)
         {

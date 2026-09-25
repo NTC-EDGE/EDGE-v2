@@ -21,9 +21,9 @@ public static class ChatEndpoints
     {
         var chat = group.MapGroup("chat").WithTags("Chat");
 
-        chat.MapGet("/conversations", async ([FromQuery] Guid? tenantId, IMediator mediator) =>
+        chat.MapGet("/conversations", async ([FromQuery] Guid? tenantId, [FromQuery] string? filter, IMediator mediator) =>
         {
-            var result = await mediator.Send(new GetConversationsQuery(tenantId));
+            var result = await mediator.Send(new GetConversationsQuery(tenantId, filter));
             return Results.Ok(result);
         }).WithName("GetConversations").RequireAuthorization();
 
@@ -172,6 +172,60 @@ public static class ChatEndpoints
                 return Results.Forbid();
             }
         }).WithName("MarkConversationUnread").RequireAuthorization();
+
+        chat.MapPost("/conversations/{conversationId:guid}/archive", async (
+            Guid conversationId,
+            IValidator<EDGE.Application.Conversations.Commands.ToggleArchiveConversation.ToggleArchiveConversationCommand> validator,
+            IMediator mediator) =>
+        {
+            var command = new EDGE.Application.Conversations.Commands.ToggleArchiveConversation.ToggleArchiveConversationCommand(conversationId, true);
+            var valResult = await validator.ValidateAsync(command);
+            if (!valResult.IsValid)
+            {
+                return Results.ValidationProblem(valResult.ToDictionary());
+            }
+
+            try
+            {
+                var result = await mediator.Send(command);
+                return Results.Ok(new { success = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+        }).WithName("ArchiveConversation").RequireAuthorization();
+
+        chat.MapPost("/conversations/{conversationId:guid}/unarchive", async (
+            Guid conversationId,
+            IValidator<EDGE.Application.Conversations.Commands.ToggleArchiveConversation.ToggleArchiveConversationCommand> validator,
+            IMediator mediator) =>
+        {
+            var command = new EDGE.Application.Conversations.Commands.ToggleArchiveConversation.ToggleArchiveConversationCommand(conversationId, false);
+            var valResult = await validator.ValidateAsync(command);
+            if (!valResult.IsValid)
+            {
+                return Results.ValidationProblem(valResult.ToDictionary());
+            }
+
+            try
+            {
+                var result = await mediator.Send(command);
+                return Results.Ok(new { success = !result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+        }).WithName("UnarchiveConversation").RequireAuthorization();
 
         return group;
     }
