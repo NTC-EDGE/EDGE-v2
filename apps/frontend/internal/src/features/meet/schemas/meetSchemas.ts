@@ -41,3 +41,23 @@ export const createPollSchema = z.object({
 });
 
 export type CreatePollFormValues = z.infer<typeof createPollSchema>;
+
+export const executeMeetingActionSchema = z.object({
+  meetingCode: z.string().min(1, 'Meeting code is required'),
+  actionType: z.enum([
+    'RaiseHand',
+    'LowerHand',
+    'EmojiReaction',
+    'MuteParticipant',
+    'SpotlightParticipant',
+    'AdmitFromLobby',
+    'KickParticipant',
+    'EndMeeting',
+    'CancelMeeting',
+    'LeaveMeeting',
+  ]),
+  targetUserId: z.string().nullable().optional(),
+  actionPayload: z.string().nullable().optional(),
+});
+
+export type ExecuteMeetingActionFormValues = z.infer<typeof executeMeetingActionSchema>;

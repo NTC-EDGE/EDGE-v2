@@ -356,6 +356,10 @@ class RealTimeManager {
   public onReceiveIceCandidate(handler: (senderConnectionId: string, senderUserId: string, candidateJson: string) => void): () => void {
     return this.createListener(() => this.getMeetConnection(), 'ReceiveIceCandidate', handler);
   }
+
+  public onHostChanged(handler: (newHostUserId: string, newHostUserName: string) => void): () => void {
+    return this.createListener(() => this.getMeetConnection(), 'OnHostChanged', handler);
+  }
 }
 
 export const realTimeService = new RealTimeManager();

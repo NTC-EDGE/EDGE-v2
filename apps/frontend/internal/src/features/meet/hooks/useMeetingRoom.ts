@@ -50,22 +50,31 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
     }
   }, [meetingCode]);
 
-  // Real-time room connection and reaction listener
+  // Real-time room connection, reactions, and host change listener
   useEffect(() => {
     if (!meetingCode) return;
 
     void realTimeService.joinMeeting(meetingCode);
 
     const unsubReaction = realTimeService.onReactionReceived((_userId, emoji) => {
-      const reactionId = `${Date.now()}_${Math.random()}`;
+      const reactionId = `react_${Date.now()}_${Math.random()}`;
       setFloatingEmojis((prev) => [...prev, { id: reactionId, emoji }]);
-      setTimeout(() => {
-        setFloatingEmojis((prev) => prev.filter((r) => r.id !== reactionId));
-      }, 3000);
+    });
+
+    const unsubHost = realTimeService.onHostChanged((newHostUserId, newHostUserName) => {
+      setMeeting((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          hostUserId: newHostUserId,
+          hostUserName: newHostUserName,
+        };
+      });
     });
 
     return () => {
       unsubReaction();
+      unsubHost();
       void realTimeService.leaveMeeting(meetingCode);
     };
   }, [meetingCode]);
@@ -75,6 +84,7 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
     localStream,
     screenStream,
     remoteStreams,
+    connectedUserIds,
     isSpeaking,
     mediaError,
     isScreenSharingActive,
@@ -152,13 +162,6 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
   const triggerReaction = useCallback(
     async (emoji: string) => {
       if (meeting === null) return;
-      const reactionId = `${Date.now()}_${Math.random()}`;
-      setFloatingEmojis((prev) => [...prev, { id: reactionId, emoji }]);
-
-      setTimeout(() => {
-        setFloatingEmojis((prev) => prev.filter((r) => r.id !== reactionId));
-      }, 3000);
-
       void realTimeService.sendMeetingReaction(meeting.meetingCode, emoji);
 
       await safeAsync(
@@ -171,6 +174,10 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
     },
     [meeting]
   );
+
+  const dismissReaction = useCallback((reactionId: string) => {
+    setFloatingEmojis((prev) => prev.filter((r) => r.id !== reactionId));
+  }, []);
 
   const formattedRecordingTime = `${String(Math.floor(recordingSeconds / 60)).padStart(2, '0')}:${String(
     recordingSeconds % 60
@@ -192,9 +199,11 @@ export function useMeetingRoom(initialMeeting?: Meeting | null, currentUserId?: 
     recordingAccess,
     setRecordingAccess,
     floatingEmojis,
+    dismissReaction,
     localStream,
     screenStream,
     remoteStreams,
+    connectedUserIds,
     isSpeaking,
     mediaError,
     toggleMic,

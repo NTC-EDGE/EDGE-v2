@@ -275,6 +275,19 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
                 userConns.TryRemove(resolvedUserId.Value, out _);
             }
             await Clients.OthersInGroup(groupName).OnParticipantLeft(resolvedUserId.Value);
+
+            // If host left, check if other active participants are in room to reassign active host duties
+            var meeting = await _meetingRepository.GetByCodeAsync(meetingCode);
+            if (meeting != null && meeting.HostUserId == resolvedUserId.Value && userConns != null && !userConns.IsEmpty)
+            {
+                var remainingUserId = userConns.Keys.FirstOrDefault();
+                if (remainingUserId != Guid.Empty)
+                {
+                    var newHost = await UserRepository.GetByIdAsync(remainingUserId);
+                    var newHostName = newHost != null ? $"{newHost.FirstName} {newHost.LastName}".Trim() : "Participant";
+                    await Clients.Group(groupName).OnHostChanged(remainingUserId, newHostName);
+                }
+            }
         }
     }
 

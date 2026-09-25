@@ -20,14 +20,12 @@ public class ChatNotificationService : IChatNotificationService
 
     public async Task NotifyMessageSentAsync(ChatMessageDto message, List<Guid> participantUserIds, CancellationToken cancellationToken = default)
     {
-        // 1. Broadcast to the active conversation room
+        // 1. Broadcast new message to the active conversation room
         await _hubContext.Clients.Group($"conv_{message.ConversationId}").ReceiveMessage(message);
-        await _hubContext.Clients.Group($"conv_{message.ConversationId}").ConversationUpdated(message.ConversationId);
 
-        // 2. Broadcast to each participant's user group for sidebar & notification bell badge updates
+        // 2. Broadcast conversation update (unread count & preview) to all participant user groups
         foreach (var userId in participantUserIds)
         {
-            await _hubContext.Clients.Group($"user_{userId}").ReceiveMessage(message);
             await _hubContext.Clients.Group($"user_{userId}").ConversationUpdated(message.ConversationId);
         }
     }

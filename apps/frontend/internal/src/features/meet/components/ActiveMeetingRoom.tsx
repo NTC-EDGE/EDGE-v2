@@ -63,9 +63,11 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     recordingAccess,
     setRecordingAccess,
     floatingEmojis,
+    dismissReaction,
     localStream,
     screenStream,
     remoteStreams,
+    connectedUserIds,
     isSpeaking,
     mediaError,
     toggleMic,
@@ -82,6 +84,32 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
       showToast(mediaError, 'error');
     }
   }, [mediaError]);
+
+  // Web Floating Window / Picture-in-Picture when user switches browser tab or minimizes window
+  useEffect(() => {
+    if (typeof document === 'undefined' || !('pictureInPictureEnabled' in document)) return;
+
+    const handleVisibilityChange = async () => {
+      if (document.hidden) {
+        const videos = document.querySelectorAll('video');
+        for (const video of Array.from(videos)) {
+          if (video && video.srcObject && !document.pictureInPictureElement) {
+            try {
+              await video.requestPictureInPicture();
+              break;
+            } catch {
+              // Handled browser PiP policy
+            }
+          }
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
 
   // Real-time meeting ended listener
   useEffect(() => {
@@ -222,7 +250,15 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     }
   };
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = async () => {
+    if (isHost) {
+      await safeAsync(
+        meetService.executeAction({
+          meetingCode: meeting.meetingCode,
+          actionType: 'LeaveMeeting',
+        })
+      );
+    }
     leaveAndResetRoom();
     onLeave();
   };
@@ -239,20 +275,24 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     onLeave();
   };
 
-  // Ensure self participant exists in grid
-  const currentParticipants = [...meeting.participants];
-  const hasSelfParticipant = currentUserId && currentParticipants.some((p) => p.userId === currentUserId);
-  if (!hasSelfParticipant) {
-    currentParticipants.unshift({
-      userId: currentUserId ?? 'self',
-      fullName: currentUserName ?? 'You',
-      email: '',
-      role: isHost ? 'Owner' : 'Member',
-      isMutedByHost: false,
-      isHandRaised: isHandRaised,
-      isSpotlighted: false,
-    });
-  }
+  // Only render participants who have ACTUALLY joined the call into the video grid
+  const allParticipants = [...meeting.participants];
+  const selfParticipant = allParticipants.find((p) => p.userId === currentUserId) ?? {
+    userId: currentUserId ?? 'self',
+    fullName: currentUserName ?? 'You',
+    email: '',
+    role: isHost ? 'Owner' : 'Member',
+    isMutedByHost: false,
+    isHandRaised: isHandRaised,
+    isSpotlighted: false,
+  };
+
+  const activeConnectedParticipants = allParticipants.filter((p) => {
+    if (p.userId === currentUserId || p.userId === 'self') return false;
+    return connectedUserIds.includes(p.userId) || Boolean(remoteStreams[p.userId]);
+  });
+
+  const currentParticipants = [selfParticipant, ...activeConnectedParticipants];
 
   return (
     <View style={styles.roomContainer}>
@@ -363,6 +403,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
                       isVideoMuted={isSelf ? isVideoMuted : false}
                       isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
                       isSpeaking={isSelf ? isSpeaking : false}
+                      isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
                       totalParticipants={currentParticipants.length}
                       layoutMode="strip"
                     />
@@ -388,6 +429,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
                       isVideoMuted={isSelf ? isVideoMuted : false}
                       isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
                       isSpeaking={isSelf ? isSpeaking : false}
+                      isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
                       totalParticipants={currentParticipants.length}
                       layoutMode="strip"
                     />
@@ -410,6 +452,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
                   isVideoMuted={isSelf ? isVideoMuted : false}
                   isMicMuted={isSelf ? isMicMuted : p.isMutedByHost}
                   isSpeaking={isSelf ? isSpeaking : false}
+                  isHandRaised={isSelf ? isHandRaised : p.isHandRaised}
                   totalParticipants={currentParticipants.length}
                 />
               );
@@ -429,7 +472,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
         ) : null}
       </View>
 
-      <FloatingReactionsOverlay reactions={floatingEmojis} />
+      <FloatingReactionsOverlay reactions={floatingEmojis} onReactionComplete={dismissReaction} />
 
       <MeetingControlsBar
         isHost={isHost}

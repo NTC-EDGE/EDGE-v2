@@ -17,6 +17,7 @@ public class ExecuteMeetingActionCommandHandlerTests
     private readonly Mock<IMeetingRepository> _meetingRepositoryMock = new();
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
+    private readonly Mock<IMeetingNotificationService> _meetingNotificationServiceMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
 
     private readonly ExecuteMeetingActionCommandHandler _handler;
@@ -27,6 +28,7 @@ public class ExecuteMeetingActionCommandHandlerTests
             _meetingRepositoryMock.Object,
             _userRepositoryMock.Object,
             _currentUserServiceMock.Object,
+            _meetingNotificationServiceMock.Object,
             _unitOfWorkMock.Object);
     }
 
@@ -126,7 +128,81 @@ public class ExecuteMeetingActionCommandHandlerTests
 
         result.Should().BeTrue();
         meeting.Status.Should().Be(MeetingStatus.Ended);
-        meeting.ScheduledEndTime.Should().NotBeNull();
+        _meetingNotificationServiceMock.Verify(n => n.NotifyMeetingEndedAsync("edg-test", It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldCancelMeeting_WhenCallerIsHost()
+    {
+        var hostUserId = Guid.NewGuid();
+        var meetingId = Guid.NewGuid();
+        var hostUser = new User { Id = hostUserId };
+        var participant = new MeetingParticipant { MeetingId = meetingId, UserId = hostUserId, Role = ParticipantRole.Owner };
+        var meeting = new Meeting
+        {
+            Id = meetingId,
+            MeetingCode = "edg-cancel",
+            HostUserId = hostUserId,
+            Status = MeetingStatus.Scheduled,
+            Participants = new List<MeetingParticipant> { participant }
+        };
+
+        _userRepositoryMock
+            .Setup(r => r.ResolveCurrentUserAsync(_currentUserServiceMock.Object, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hostUser);
+
+        _meetingRepositoryMock
+            .Setup(r => r.GetByCodeAsync("edg-cancel", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(meeting);
+
+        var command = new ExecuteMeetingActionCommand("edg-cancel", MeetingActionType.CancelMeeting);
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().BeTrue();
+        meeting.Status.Should().Be(MeetingStatus.Cancelled);
+        _meetingNotificationServiceMock.Verify(n => n.NotifyMeetingEndedAsync("edg-cancel", It.IsAny<CancellationToken>()), Times.Once);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_ShouldLeaveMeeting_AndReassignHostDuties_WhenHostLeaves()
+    {
+        var hostUserId = Guid.NewGuid();
+        var otherUserId = Guid.NewGuid();
+        var meetingId = Guid.NewGuid();
+        var hostUser = new User { Id = hostUserId };
+        var hostParticipant = new MeetingParticipant { MeetingId = meetingId, UserId = hostUserId, Role = ParticipantRole.Owner };
+        var otherParticipant = new MeetingParticipant { MeetingId = meetingId, UserId = otherUserId, Role = ParticipantRole.Member };
+        var meeting = new Meeting
+        {
+            Id = meetingId,
+            MeetingCode = "edg-leave",
+            HostUserId = hostUserId,
+            Status = MeetingStatus.Live,
+            Participants = new List<MeetingParticipant> { hostParticipant, otherParticipant }
+        };
+
+        _userRepositoryMock
+            .Setup(r => r.ResolveCurrentUserAsync(_currentUserServiceMock.Object, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(hostUser);
+
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(otherUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = otherUserId, FirstName = "Jane", LastName = "Doe" });
+
+        _meetingRepositoryMock
+            .Setup(r => r.GetByCodeAsync("edg-leave", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(meeting);
+
+        var command = new ExecuteMeetingActionCommand("edg-leave", MeetingActionType.LeaveMeeting);
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        result.Should().BeTrue();
+        hostParticipant.LeftAt.Should().NotBeNull();
+        otherParticipant.Role.Should().Be(ParticipantRole.Admin);
+        meeting.HostUserId.Should().Be(hostUserId); // Permanent ownership preserved
+        _meetingNotificationServiceMock.Verify(n => n.NotifyHostChangedAsync("edg-leave", otherUserId, "Jane Doe", It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
