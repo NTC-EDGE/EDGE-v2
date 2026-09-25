@@ -58,11 +58,19 @@ export const MeetScreenContent: React.FC = () => {
 
   const handleJoinMeeting = (meetingToJoin: Meeting) => {
     setActiveMeeting(meetingToJoin);
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.setItem('edge_active_meeting_code', meetingToJoin.meetingCode);
-      const url = new URL(window.location.href);
-      url.searchParams.set('code', meetingToJoin.meetingCode);
-      window.history.replaceState(null, '', url.toString());
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          window.sessionStorage.setItem('edge_active_meeting_code', meetingToJoin.meetingCode);
+        }
+        if (window.location !== undefined && typeof window.location.href === 'string') {
+          const url = new URL(window.location.href);
+          url.searchParams.set('code', meetingToJoin.meetingCode);
+          window.history.replaceState(null, '', url.toString());
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
@@ -70,29 +78,53 @@ export const MeetScreenContent: React.FC = () => {
     const code = activeMeeting?.meetingCode;
     setActiveMeeting(null);
     clearMeetingSessionState(code);
-    if (typeof window !== 'undefined' && window.sessionStorage) {
-      window.sessionStorage.removeItem('edge_active_meeting_code');
-      const url = new URL(window.location.href);
-      url.searchParams.delete('code');
-      window.history.replaceState(null, '', url.toString());
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          window.sessionStorage.removeItem('edge_active_meeting_code');
+        }
+        if (window.location !== undefined && typeof window.location.href === 'string') {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('code');
+          window.history.replaceState(null, '', url.toString());
+        }
+      } catch {
+        // ignore
+      }
     }
   };
 
   // Restore active meeting on page reload / direct URL link (?code=MEET-XXX)
   useEffect(() => {
     let savedCode: string | null = null;
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      savedCode = urlParams.get('code') || window.sessionStorage?.getItem('edge_active_meeting_code') || null;
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        if (window.location !== undefined && typeof window.location.search === 'string') {
+          const urlParams = new URLSearchParams(window.location.search);
+          savedCode = urlParams.get('code') || null;
+        }
+        if (savedCode === null && 'sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          savedCode = window.sessionStorage.getItem('edge_active_meeting_code');
+        }
+      } catch {
+        // ignore
+      }
     }
 
-    if (savedCode && activeMeeting === null) {
+    if (savedCode !== null && savedCode !== '' && activeMeeting === null) {
+      const codeToFetch = savedCode;
       void (async () => {
-        const [meeting, err] = await safeAsync(meetService.getMeetingByCode(savedCode as string));
+        const [meeting, err] = await safeAsync(meetService.getMeetingByCode(codeToFetch));
         if (meeting !== null && err === null && meeting.status !== 'Ended' && meeting.status !== 'Cancelled') {
           handleJoinMeeting(meeting);
-        } else if (typeof window !== 'undefined' && window.sessionStorage) {
-          window.sessionStorage.removeItem('edge_active_meeting_code');
+        } else if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+          try {
+            if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+              window.sessionStorage.removeItem('edge_active_meeting_code');
+            }
+          } catch {
+            // ignore
+          }
         }
       })();
     }

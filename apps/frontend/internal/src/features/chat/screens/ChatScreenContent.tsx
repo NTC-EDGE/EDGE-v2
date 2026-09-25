@@ -54,33 +54,50 @@ export const ChatScreenContent: React.FC = () => {
   // Select conversation handler with URL sync
   const handleSelectConversation = (conv: Conversation | null) => {
     setSelectedConversation(conv);
-    if (typeof window !== 'undefined') {
-      const url = new URL(window.location.href);
-      if (conv) {
-        url.searchParams.set('conv', conv.id);
-        if (window.sessionStorage) {
-          window.sessionStorage.setItem('edge_active_chat_conv_id', conv.id);
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        if (window.location !== undefined && typeof window.location.href === 'string') {
+          const url = new URL(window.location.href);
+          if (conv) {
+            url.searchParams.set('conv', conv.id);
+          } else {
+            url.searchParams.delete('conv');
+          }
+          window.history.replaceState(null, '', url.toString());
         }
-      } else {
-        url.searchParams.delete('conv');
-        if (window.sessionStorage) {
-          window.sessionStorage.removeItem('edge_active_chat_conv_id');
+        if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          if (conv) {
+            window.sessionStorage.setItem('edge_active_chat_conv_id', conv.id);
+          } else {
+            window.sessionStorage.removeItem('edge_active_chat_conv_id');
+          }
         }
+      } catch {
+        // ignore
       }
-      window.history.replaceState(null, '', url.toString());
     }
   };
 
   // Restore selected conversation on reload from URL param or sessionStorage
   useEffect(() => {
-    if (conversations.length > 0 && selectedConversation === null && typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      const targetId = urlParams.get('conv') || urlParams.get('conversationId') || window.sessionStorage?.getItem('edge_active_chat_conv_id');
-      if (targetId) {
-        const found = conversations.find((c) => c.id === targetId);
-        if (found) {
-          setSelectedConversation(found);
+    if (conversations.length > 0 && selectedConversation === null && typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        let targetId: string | null = null;
+        if (window.location !== undefined && typeof window.location.search === 'string') {
+          const urlParams = new URLSearchParams(window.location.search);
+          targetId = urlParams.get('conv') || urlParams.get('conversationId') || null;
         }
+        if (!targetId && 'sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          targetId = window.sessionStorage.getItem('edge_active_chat_conv_id');
+        }
+        if (targetId) {
+          const found = conversations.find((c) => c.id === targetId);
+          if (found) {
+            setSelectedConversation(found);
+          }
+        }
+      } catch {
+        // ignore
       }
     }
   }, [conversations, selectedConversation]);

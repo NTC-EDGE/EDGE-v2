@@ -10,6 +10,8 @@ using Xunit;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Conversations.Commands.AddParticipants;
 using EDGE.Application.Conversations.Commands.CreateConversation;
+using EDGE.Application.Conversations.Commands.ToggleArchiveConversation;
+using EDGE.Application.Conversations.Queries.GetConversations;
 using EDGE.Application.Meetings.Commands.CreateMeeting;
 using EDGE.Application.Meetings.Commands.InviteMeetingParticipants;
 using EDGE.Application.Meetings.Commands.RemoveMeetingParticipant;
@@ -17,6 +19,7 @@ using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Persistence;
+using MediatR;
 
 namespace EDGE.Api.IntegrationTests;
 
@@ -171,5 +174,52 @@ public class RolePermissionMeetAndChatTests : IClassFixture<CustomWebApplication
 
         finalMeeting!.Participants.Should().HaveCount(2);
         finalMeeting.Participants.Select(p => p.UserId).Should().NotContain(legal.Id);
+    }
+
+    [Fact]
+    public async Task Conversation_ArchiveAndUnarchive_UpdatesStatusAndPersistence()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
+
+        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == "evaluator@ntcedge.com");
+        user.Should().NotBeNull();
+
+        var conversation = new Conversation
+        {
+            Id = Guid.NewGuid(),
+            Title = "Archive Test Conversation",
+            Type = ConversationType.Direct,
+            Scope = ConversationScope.IntraRegional,
+            CreatedByUserId = user!.Id,
+            IsArchived = false
+        };
+        conversation.Participants.Add(new ConversationParticipant
+        {
+            Id = Guid.NewGuid(),
+            UserId = user.Id,
+            Role = ParticipantRole.Owner,
+            JoinedAt = DateTimeOffset.UtcNow
+        });
+
+        context.Conversations.Add(conversation);
+        await context.SaveChangesAsync();
+
+        // 1. Archive the conversation
+        var archiveResult = await mediator.Send(new ToggleArchiveConversationCommand(conversation.Id, true));
+        archiveResult.Should().BeTrue();
+
+        var updatedConv = await context.Conversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == conversation.Id);
+        updatedConv.Should().NotBeNull();
+        updatedConv!.IsArchived.Should().BeTrue();
+
+        // 2. Unarchive the conversation
+        var unarchiveResult = await mediator.Send(new ToggleArchiveConversationCommand(conversation.Id, false));
+        unarchiveResult.Should().BeFalse();
+
+        var finalConv = await context.Conversations.AsNoTracking().FirstOrDefaultAsync(c => c.Id == conversation.Id);
+        finalConv.Should().NotBeNull();
+        finalConv!.IsArchived.Should().BeFalse();
     }
 }
