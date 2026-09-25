@@ -98,7 +98,7 @@ export function SoaPaymentTab({
             ]}
           >
             {isEvaluationApproved
-              ? 'Ready to Generate Statement of Account'
+              ? 'Ready to Generate Statement of Account (Evaluator)'
               : 'Statement of Account (Evaluation Required)'}
           </Text>
 
@@ -114,8 +114,8 @@ export function SoaPaymentTab({
             ]}
           >
             {isEvaluationApproved
-              ? 'Application evaluation is complete and approved. Generate the Statement of Account (SOA) to compute statutory regulatory fees according to NTC fee schedules with zero mock data.'
-              : 'A Statement of Account can only be generated once application evaluation is approved. Please ensure all applicant records and documents are evaluated as Complete / Endorsed before proceeding.'}
+              ? 'As an Evaluator, generate the Statement of Account (SOA) during evaluation to compute statutory regulatory fees according to NTC fee schedules before forwarding this application to the Accountant for verification.'
+              : 'A Statement of Account can only be generated once application evaluation is in progress. Please ensure all applicant records and documents are evaluated as Complete / Endorsed before proceeding.'}
           </Text>
 
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
@@ -264,8 +264,55 @@ export function SoaPaymentTab({
     );
   }
 
+  const isForAccountant = app.status === 'ForAccountant';
+  const isSoaReturned = (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) || (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
+
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
+      {/* Accountant Verification Banner */}
+      {isForAccountant && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#1e1b4b' : '#eef2ff',
+            borderColor: isDark ? '#4338ca' : '#c7d2fe',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#e0e7ff' : '#3730a3', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Accountant Task — SOA Verification:</Text> Please review and verify the Statement of Account and statutory fee calculations prepared by the Evaluator. Click <Text style={{ fontWeight: '700' }}>Approve SOA</Text> in the action bar below to release the Order of Payment, or click <Text style={{ fontWeight: '700' }}>Return</Text> to send back to the Evaluator if discrepancies are identified.
+          </Text>
+        </View>
+      )}
+
+      {/* Returned from Accountant Alert */}
+      {isSoaReturned && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#451a03' : '#fef3c7',
+            borderColor: isDark ? '#b45309' : '#f59e0b',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="alert-triangle" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#fde68a' : '#92400e', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>SOA Returned by Accountant:</Text> {app.note || 'Please review findings and adjust fee calculations.'} Click <Text style={{ fontWeight: '700' }}>Recalculate / Edit SOA</Text> to make corrections and re-submit to the Accountant.
+          </Text>
+        </View>
+      )}
+
       <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
         <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12, marginBottom: 12 }}>
           <View style={{ flex: 1, minWidth: 220 }}>

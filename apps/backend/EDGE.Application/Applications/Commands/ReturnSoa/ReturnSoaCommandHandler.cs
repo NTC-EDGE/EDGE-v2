@@ -54,6 +54,37 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             Timestamp = DateTime.UtcNow
         });
 
+        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        if (app != null && app.Status == ApplicationStatus.ForAccountant)
+        {
+            app.Status = ApplicationStatus.Evaluating;
+            app.Remarks = $"SOA returned by Accountant: {request.Remarks}";
+            await _repository.UpdateAsync(app, cancellationToken);
+
+            await _repository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = ApplicationStatus.Evaluating,
+                Remarks = $"SOA returned by Accountant: {request.Remarks}",
+                Timestamp = DateTime.UtcNow,
+                UserId = userContext.UserId
+            }, cancellationToken);
+
+            await _repository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Action = "SOA Returned to Evaluator",
+                ToStatus = ApplicationStatus.Evaluating,
+                PerformedByUserId = userContext.UserId,
+                StaffName = userContext.StaffName,
+                StaffRole = userContext.StaffRole,
+                Remarks = request.Remarks,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return ApiResponse<bool>.Success(true);
     }

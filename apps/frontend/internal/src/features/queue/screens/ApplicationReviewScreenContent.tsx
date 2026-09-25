@@ -554,6 +554,15 @@ export function ApplicationReviewScreenContent({
       void handleStartEvaluation();
     } else if (showCashierBtn) {
       setShowCashier(true);
+    } else if (showForwardBtn) {
+      const hasSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
+      if (!hasSoa) {
+        toast.error("Please generate the Statement of Account (SOA) in the SOA & Payment tab before forwarding to the Accountant.");
+        setInnerTab("soa");
+        setShowGenerateSoa(true);
+        return;
+      }
+      setShowApprove(true);
     } else {
       setShowApprove(true);
     }
@@ -714,6 +723,29 @@ export function ApplicationReviewScreenContent({
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
+        title={
+          showAccountantBtn
+            ? "Verify & Approve Statement of Account"
+            : showForwardBtn
+              ? "Approve Evaluation & Forward to Accountant"
+              : isAdmin
+                ? "Approve Application (Administrator)"
+                : "Approve Application"
+        }
+        confirmText={
+          showAccountantBtn
+            ? "Approve SOA & Release"
+            : showForwardBtn
+              ? "Forward to Accountant"
+              : "Confirm Approval"
+        }
+        subtitleText={
+          showAccountantBtn
+            ? `You are verifying and approving the Statement of Account (SOA) for ${app.applicant}. An Order of Payment will be issued for payment collection.`
+            : showForwardBtn
+              ? `You are completing evaluation and submitting the Statement of Account (SOA) for ${app.applicant} to the Accountant for verification.`
+              : undefined
+        }
         onConfirm={
           showCashierBtn ? () => { /* handled by CashierModal */ } :
           showAccountantBtn ? handleAccountantApprove :
