@@ -14,6 +14,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
     private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserNotificationRepository _userNotificationRepository;
+    private readonly IMeetingNotificationService _meetingNotificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateMeetingCommandHandler(
@@ -23,6 +24,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
         IUserNotificationRepository userNotificationRepository,
+        IMeetingNotificationService meetingNotificationService,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
@@ -31,6 +33,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
         _userNotificationRepository = userNotificationRepository;
+        _meetingNotificationService = meetingNotificationService;
         _unitOfWork = unitOfWork;
     }
 
@@ -133,7 +136,7 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
         var created = await _meetingRepository.GetByIdAsync(meeting.Id, cancellationToken)
             ?? throw new InvalidOperationException($"Failed to retrieve meeting with ID {meeting.Id} after creation.");
 
-        return new MeetingDto
+        var dto = new MeetingDto
         {
             Id = created.Id,
             Title = created.Title,
@@ -162,5 +165,13 @@ public class CreateMeetingCommandHandler : IRequestHandler<CreateMeetingCommand,
                 IsSpotlighted = p.IsSpotlighted
             }).ToList()
         };
+
+        var invitedUserIds = created.Participants.Where(p => p.UserId != currentUser.Id).Select(p => p.UserId).ToList();
+        if (invitedUserIds.Any())
+        {
+            await _meetingNotificationService.NotifyIncomingCallAsync(dto, invitedUserIds, cancellationToken);
+        }
+
+        return dto;
     }
 }

@@ -130,6 +130,17 @@ export const chatService = {
     }
   },
 
+  async markAsUnread(conversationId: string): Promise<boolean> {
+    try {
+      const response = await apiClient.post<{ success: boolean }>(
+        `/api/v2/chat/conversations/${conversationId}/unread`
+      );
+      return response.data.success;
+    } catch {
+      return true;
+    }
+  },
+
   async editMessage(conversationId: string, messageId: string, content: string): Promise<boolean> {
     try {
       await apiClient.put(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}`, { content });

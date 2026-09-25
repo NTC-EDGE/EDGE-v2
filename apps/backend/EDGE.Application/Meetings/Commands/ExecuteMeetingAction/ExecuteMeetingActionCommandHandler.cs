@@ -76,6 +76,15 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
                 p.IsSpotlighted = p.UserId == request.TargetUserId.Value;
             }
         }
+        else if (request.ActionType == MeetingActionType.EndMeeting)
+        {
+            if (!isHostOrAdmin)
+            {
+                throw new UnauthorizedAccessException("Only the meeting host or administrators can end the meeting.");
+            }
+            meeting.Status = MeetingStatus.Ended;
+            meeting.ScheduledEndTime = DateTimeOffset.UtcNow;
+        }
 
         var action = new MeetingAction
         {

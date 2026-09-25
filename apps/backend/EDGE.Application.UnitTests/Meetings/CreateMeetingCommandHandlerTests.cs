@@ -20,6 +20,7 @@ public class CreateMeetingCommandHandlerTests
     private readonly Mock<ITenantRepository> _tenantRepositoryMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly Mock<IUserNotificationRepository> _userNotificationRepositoryMock = new();
+    private readonly Mock<IMeetingNotificationService> _meetingNotificationServiceMock = new();
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
 
     private readonly CreateMeetingCommandHandler _handler;
@@ -33,6 +34,7 @@ public class CreateMeetingCommandHandlerTests
             _tenantRepositoryMock.Object,
             _currentUserServiceMock.Object,
             _userNotificationRepositoryMock.Object,
+            _meetingNotificationServiceMock.Object,
             _unitOfWorkMock.Object);
     }
 

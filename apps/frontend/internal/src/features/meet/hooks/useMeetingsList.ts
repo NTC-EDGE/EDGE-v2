@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
-import { meetService, Meeting, safeAsync } from '@edge/api';
+import { meetService, Meeting, safeAsync, realTimeService } from '@edge/api';
 
 export type MeetingFilter = 'All' | 'Upcoming' | 'Live' | 'History';
 
@@ -25,6 +25,17 @@ export function useMeetingsList(tenantId?: string) {
   useEffect(() => {
     void fetchMeetings();
   }, [fetchMeetings]);
+
+  useEffect(() => {
+    const unsubEnded = realTimeService.onMeetingEnded((endedCode) => {
+      setMeetings((prev) =>
+        prev.map((m) => (m.meetingCode === endedCode ? { ...m, status: 'Ended' } : m))
+      );
+    });
+    return () => {
+      unsubEnded();
+    };
+  }, []);
 
   const deleteMeeting = useCallback((meetingId: string) => {
     setMeetings((prev) => prev.filter((m) => m.id !== meetingId));

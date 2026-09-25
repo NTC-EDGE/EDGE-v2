@@ -42,6 +42,7 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
   const [isInviteOpen, setIsInviteOpen] = useState<boolean>(false);
   const [isChatOpen, setIsChatOpen] = useState<boolean>(false);
   const [isRecordingSettingsOpen, setIsRecordingSettingsOpen] = useState<boolean>(false);
+  const [showExistingSessionModal, setShowExistingSessionModal] = useState<boolean>(false);
   const [pendingRequests, setPendingRequests] = useState<PendingJoinRequest[]>([]);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; variant: 'success' | 'error' } | null>(null);
@@ -81,6 +82,41 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
       showToast(mediaError, 'error');
     }
   }, [mediaError]);
+
+  // Real-time meeting ended listener
+  useEffect(() => {
+    const unsubEnded = realTimeService.onMeetingEnded((code) => {
+      if (code === meeting.meetingCode) {
+        showToast('The host has ended this meeting.', 'error');
+        leaveAndResetRoom();
+        setTimeout(() => {
+          onLeave();
+        }, 1200);
+      }
+    });
+
+    const unsubSessionDetected = realTimeService.onExistingSessionDetected((code) => {
+      if (code === meeting.meetingCode) {
+        setShowExistingSessionModal(true);
+      }
+    });
+
+    const unsubSessionSwitched = realTimeService.onSessionSwitchedToAnotherDevice((code) => {
+      if (code === meeting.meetingCode) {
+        showToast('Your session was transferred to another device.', 'error');
+        leaveAndResetRoom();
+        setTimeout(() => {
+          onLeave();
+        }, 1200);
+      }
+    });
+
+    return () => {
+      unsubEnded();
+      unsubSessionDetected();
+      unsubSessionSwitched();
+    };
+  }, [meeting.meetingCode, leaveAndResetRoom, onLeave]);
 
   // Real-time host admission listener
   useEffect(() => {
@@ -191,7 +227,13 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
     onLeave();
   };
 
-  const handleEndMeetingForEveryone = () => {
+  const handleEndMeetingForEveryone = async () => {
+    await safeAsync(
+      meetService.executeAction({
+        meetingCode: meeting.meetingCode,
+        actionType: 'EndMeeting',
+      })
+    );
     leaveAndResetRoom();
     showToast('Meeting ended for all participants.', 'success');
     onLeave();
@@ -493,6 +535,68 @@ export const ActiveMeetingRoom: React.FC<ActiveMeetingRoomProps> = ({
           </View>
         </Pressable>
       </Modal>
+
+      {/* Existing Session Prompt Modal */}
+      <Modal
+        visible={showExistingSessionModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowExistingSessionModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View
+            style={[
+              styles.sessionModalCard,
+              {
+                backgroundColor: isDark ? colors.cardBg : '#FFFFFF',
+                borderColor: colors.border,
+              },
+            ]}
+          >
+            <View style={styles.sessionModalIcon}>
+              <Icon name="monitor" size={28} color={colors.brand.primary} />
+            </View>
+            <Text style={[styles.modalTitle, { color: colors.text, textAlign: 'center' }]}>
+              Already Joined on Another Device
+            </Text>
+            <Text style={[styles.modalDesc, { color: colors.textMuted, textAlign: 'center' }]}>
+              You have already joined this meeting from another device. Would you like to switch to this device?
+            </Text>
+            <View style={styles.sessionModalActions}>
+              <Button
+                variant="primary"
+                size="md"
+                onPress={async () => {
+                  setShowExistingSessionModal(false);
+                  await realTimeService.switchDevice(meeting.meetingCode);
+                  showToast('Switched session to this device.', 'success');
+                }}
+              >
+                Switch to this device
+              </Button>
+              <Button
+                variant="secondary"
+                size="md"
+                onPress={() => {
+                  setShowExistingSessionModal(false);
+                }}
+              >
+                Stay on current device
+              </Button>
+              <Button
+                variant="outline"
+                size="md"
+                onPress={() => {
+                  setShowExistingSessionModal(false);
+                  handleLeaveRoom();
+                }}
+              >
+                Cancel
+              </Button>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -750,5 +854,28 @@ const styles = StyleSheet.create({
     padding: 4,
     borderRadius: 6,
     backgroundColor: 'rgba(239, 68, 68, 0.15)',
+  },
+  sessionModalCard: {
+    width: '100%',
+    maxWidth: 400,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    gap: 12,
+  },
+  sessionModalIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  sessionModalActions: {
+    width: '100%',
+    gap: 10,
+    marginTop: 8,
   },
 });

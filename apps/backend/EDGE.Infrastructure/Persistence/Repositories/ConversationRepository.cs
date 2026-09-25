@@ -29,6 +29,7 @@ public class ConversationRepository : IConversationRepository
     {
         return await _context.Conversations
             .Include(c => c.Tenant)
+            .Include(c => c.Messages)
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
             .Include(c => c.Participants)

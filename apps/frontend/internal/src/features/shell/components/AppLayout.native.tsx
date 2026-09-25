@@ -14,6 +14,7 @@ import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileBottomTabBar } from "./MobileBottomTabBar";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
+import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -151,6 +152,13 @@ export function AppLayout({
           loading={isSigningOut}
           onClose={closeSignOutModal}
           onConfirm={confirmSignOut}
+        />
+
+        {/* Incoming Call Ringing Modal */}
+        <IncomingCallModal
+          onAccept={(_code) => {
+            handleLinkPress('Meet');
+          }}
         />
 
         {activeScreen !== "AccountSettings" && (

@@ -18,9 +18,10 @@ function extractTitleProperty(target: unknown): string | null {
 /**
  * Custom Hook: Syncs browser tab titles directly using navigator screen titles on Web.
  */
-export function useWebMetadata(isAuthenticated: boolean, screenTitle: string): void {
+export function useWebMetadata(isAuthenticated: boolean, isLoading: boolean, screenTitle: string): void {
   useEffect(() => {
     if (Platform.OS !== "web") return;
+    if (isLoading) return;
 
     if (typeof document !== "undefined") {
       if (!isAuthenticated) {
@@ -30,7 +31,7 @@ export function useWebMetadata(isAuthenticated: boolean, screenTitle: string): v
       }
     }
 
-    // Preserve Target Deep Link when Unauthenticated
+    // Preserve Target Deep Link when definitively Unauthenticated
     if (!isAuthenticated && typeof window !== "undefined" && window.location !== undefined) {
       const hasClerkParam = window.location.search.includes("__clerk");
       if (!hasClerkParam) {
@@ -43,7 +44,7 @@ export function useWebMetadata(isAuthenticated: boolean, screenTitle: string): v
         }
       }
     }
-  }, [isAuthenticated, screenTitle]);
+  }, [isAuthenticated, isLoading, screenTitle]);
 }
 
 /**

@@ -405,7 +405,58 @@ class RealTimeManager {
     };
   }
 
-  public onReceiveWebRtcOffer(handler: (senderConnectionId: string, sdp: string) => void): () => void {
+  public async switchDevice(meetingCode: string): Promise<void> {
+    const conn = await this.getMeetConnection();
+    if (conn.state === HubConnectionState.Connected) {
+      await conn.invoke('SwitchDevice', meetingCode);
+    }
+  }
+
+  public onIncomingCall(handler: (meeting: unknown) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnIncomingCall', handler);
+      unsubs = () => conn.off('OnIncomingCall', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onMeetingEnded(handler: (meetingCode: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnMeetingEnded', handler);
+      unsubs = () => conn.off('OnMeetingEnded', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onExistingSessionDetected(handler: (meetingCode: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnExistingSessionDetected', handler);
+      unsubs = () => conn.off('OnExistingSessionDetected', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onSessionSwitchedToAnotherDevice(handler: (meetingCode: string) => void): () => void {
+    let unsubs: (() => void) | null = null;
+    void this.getMeetConnection().then((conn) => {
+      conn.on('OnSessionSwitchedToAnotherDevice', handler);
+      unsubs = () => conn.off('OnSessionSwitchedToAnotherDevice', handler);
+    });
+    return () => {
+      if (unsubs) unsubs();
+    };
+  }
+
+  public onReceiveWebRtcOffer(handler: (senderConnectionId: string, senderUserId: string, sdp: string) => void): () => void {
     let unsubs: (() => void) | null = null;
     void this.getMeetConnection().then((conn) => {
       conn.on('ReceiveWebRtcOffer', handler);
@@ -416,7 +467,7 @@ class RealTimeManager {
     };
   }
 
-  public onReceiveWebRtcAnswer(handler: (senderConnectionId: string, sdp: string) => void): () => void {
+  public onReceiveWebRtcAnswer(handler: (senderConnectionId: string, senderUserId: string, sdp: string) => void): () => void {
     let unsubs: (() => void) | null = null;
     void this.getMeetConnection().then((conn) => {
       conn.on('ReceiveWebRtcAnswer', handler);
@@ -427,7 +478,7 @@ class RealTimeManager {
     };
   }
 
-  public onReceiveIceCandidate(handler: (senderConnectionId: string, candidateJson: string) => void): () => void {
+  public onReceiveIceCandidate(handler: (senderConnectionId: string, senderUserId: string, candidateJson: string) => void): () => void {
     let unsubs: (() => void) | null = null;
     void this.getMeetConnection().then((conn) => {
       conn.on('ReceiveIceCandidate', handler);

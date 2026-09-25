@@ -8,5 +8,7 @@ public enum MeetingActionType
     MuteParticipant = 4,
     SpotlightParticipant = 5,
     AdmitFromLobby = 6,
-    KickParticipant = 7
+    KickParticipant = 7,
+    EndMeeting = 8
 }
+
