@@ -118,48 +118,42 @@ class RealTimeManager {
     }
   }
 
-  public onReceiveMessage(handler: (message: ChatMessage) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getChatConnection().then((conn) => {
-      conn.on('ReceiveMessage', handler);
-      unsubs = () => conn.off('ReceiveMessage', handler);
+  private createListener<TArgs extends unknown[]>(
+    getConnection: () => Promise<HubConnection>,
+    methodName: string,
+    handler: (...args: TArgs) => void
+  ): () => void {
+    let isCancelled = false;
+    let registeredConn: HubConnection | null = null;
+
+    void getConnection().then((conn) => {
+      if (isCancelled) return;
+      registeredConn = conn;
+      conn.on(methodName, handler);
     });
+
     return () => {
-      if (unsubs) unsubs();
+      isCancelled = true;
+      if (registeredConn) {
+        registeredConn.off(methodName, handler);
+      }
     };
+  }
+
+  public onReceiveMessage(handler: (message: ChatMessage) => void): () => void {
+    return this.createListener(() => this.getChatConnection(), 'ReceiveMessage', handler);
   }
 
   public onUserTyping(handler: (conversationId: string, userId: string, userName: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getChatConnection().then((conn) => {
-      conn.on('UserTyping', handler);
-      unsubs = () => conn.off('UserTyping', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getChatConnection(), 'UserTyping', handler);
   }
 
   public onUserStoppedTyping(handler: (conversationId: string, userId: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getChatConnection().then((conn) => {
-      conn.on('UserStoppedTyping', handler);
-      unsubs = () => conn.off('UserStoppedTyping', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getChatConnection(), 'UserStoppedTyping', handler);
   }
 
   public onConversationUpdated(handler: (conversationId: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getChatConnection().then((conn) => {
-      conn.on('ConversationUpdated', handler);
-      unsubs = () => conn.off('ConversationUpdated', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getChatConnection(), 'ConversationUpdated', handler);
   }
 
   // ─── MEET HUB ─────────────────────────────────────────────────────────────
@@ -285,124 +279,47 @@ class RealTimeManager {
   }
 
   public onParticipantJoined(handler: (participant: { connectionId: string; userId: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnParticipantJoined', handler);
-      unsubs = () => conn.off('OnParticipantJoined', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnParticipantJoined', handler);
   }
 
   public onJoinRequested(handler: (request: { connectionId: string; userId: string; userName: string; avatarUrl?: string; meetingCode: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnJoinRequested', handler);
-      unsubs = () => conn.off('OnJoinRequested', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnJoinRequested', handler);
   }
 
   public onJoinRequestPending(handler: (meetingCode: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnJoinRequestPending', handler);
-      unsubs = () => conn.off('OnJoinRequestPending', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnJoinRequestPending', handler);
   }
 
   public onJoinRequestAdmitted(handler: (meetingCode: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnJoinRequestAdmitted', handler);
-      unsubs = () => conn.off('OnJoinRequestAdmitted', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnJoinRequestAdmitted', handler);
   }
 
   public onJoinRequestDenied(handler: (meetingCode: string, reason: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnJoinRequestDenied', handler);
-      unsubs = () => conn.off('OnJoinRequestDenied', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnJoinRequestDenied', handler);
   }
 
   public onParticipantLeft(handler: (userId: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnParticipantLeft', handler);
-      unsubs = () => conn.off('OnParticipantLeft', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnParticipantLeft', handler);
   }
 
   public onReceiveMeetingChatMessage(handler: (message: { id?: string; senderName: string; content: string; timestamp: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveMeetingChatMessage', handler);
-      unsubs = () => conn.off('ReceiveMeetingChatMessage', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveMeetingChatMessage', handler);
   }
 
   public onReceiveMeetingChatEdited(handler: (payload: { messageId: string; content: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveMeetingChatEdited', handler);
-      unsubs = () => conn.off('ReceiveMeetingChatEdited', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveMeetingChatEdited', handler);
   }
 
   public onReceiveMeetingChatUnsent(handler: (payload: { messageId: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveMeetingChatUnsent', handler);
-      unsubs = () => conn.off('ReceiveMeetingChatUnsent', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveMeetingChatUnsent', handler);
   }
 
   public onReceiveMeetingChatReaction(handler: (payload: { messageId: string; emoji: string; userName: string }) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveMeetingChatReaction', handler);
-      unsubs = () => conn.off('ReceiveMeetingChatReaction', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveMeetingChatReaction', handler);
   }
 
   public onReactionReceived(handler: (userId: string, emoji: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnReactionReceived', handler);
-      unsubs = () => conn.off('OnReactionReceived', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnReactionReceived', handler);
   }
 
   public async switchDevice(meetingCode: string): Promise<void> {
@@ -413,80 +330,31 @@ class RealTimeManager {
   }
 
   public onIncomingCall(handler: (meeting: unknown) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnIncomingCall', handler);
-      unsubs = () => conn.off('OnIncomingCall', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnIncomingCall', handler);
   }
 
   public onMeetingEnded(handler: (meetingCode: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnMeetingEnded', handler);
-      unsubs = () => conn.off('OnMeetingEnded', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnMeetingEnded', handler);
   }
 
   public onExistingSessionDetected(handler: (meetingCode: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnExistingSessionDetected', handler);
-      unsubs = () => conn.off('OnExistingSessionDetected', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnExistingSessionDetected', handler);
   }
 
   public onSessionSwitchedToAnotherDevice(handler: (meetingCode: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('OnSessionSwitchedToAnotherDevice', handler);
-      unsubs = () => conn.off('OnSessionSwitchedToAnotherDevice', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'OnSessionSwitchedToAnotherDevice', handler);
   }
 
   public onReceiveWebRtcOffer(handler: (senderConnectionId: string, senderUserId: string, sdp: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveWebRtcOffer', handler);
-      unsubs = () => conn.off('ReceiveWebRtcOffer', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveWebRtcOffer', handler);
   }
 
   public onReceiveWebRtcAnswer(handler: (senderConnectionId: string, senderUserId: string, sdp: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveWebRtcAnswer', handler);
-      unsubs = () => conn.off('ReceiveWebRtcAnswer', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveWebRtcAnswer', handler);
   }
 
   public onReceiveIceCandidate(handler: (senderConnectionId: string, senderUserId: string, candidateJson: string) => void): () => void {
-    let unsubs: (() => void) | null = null;
-    void this.getMeetConnection().then((conn) => {
-      conn.on('ReceiveIceCandidate', handler);
-      unsubs = () => conn.off('ReceiveIceCandidate', handler);
-    });
-    return () => {
-      if (unsubs) unsubs();
-    };
+    return this.createListener(() => this.getMeetConnection(), 'ReceiveIceCandidate', handler);
   }
 }
 
