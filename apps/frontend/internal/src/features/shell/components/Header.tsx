@@ -2,6 +2,7 @@ import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   Image,
   ImageSourcePropType,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -379,11 +380,15 @@ export function Header({
             </View>
           )}
 
-          {/* Notifications Dropdown */}
-          {notifOpen && (
-            <>
-              <Pressable style={styles.backdrop} onPress={() => setNotifOpen(false)} />
-              <View
+          {/* Notifications Dropdown Modal */}
+          <Modal
+            visible={notifOpen}
+            transparent
+            animationType="none"
+            onRequestClose={() => setNotifOpen(false)}
+          >
+            <Pressable style={styles.modalOverlay} onPress={() => setNotifOpen(false)}>
+              <Pressable
                 style={[
                   styles.notifDropdown,
                   SHADOWS.modal,
@@ -392,116 +397,117 @@ export function Header({
                     borderColor: dropdownBorder,
                   },
                 ]}
+                onPress={(e) => e.stopPropagation?.()}
               >
-              <View style={[styles.notifHeader, { borderBottomColor: dropdownBorder }]}>
-                <View style={styles.notifHeaderTitleRow}>
-                  <Text style={[styles.notifTitle, { color: dropdownText }]}>
-                    Notifications
-                  </Text>
+                <View style={[styles.notifHeader, { borderBottomColor: dropdownBorder }]}>
+                  <View style={styles.notifHeaderTitleRow}>
+                    <Text style={[styles.notifTitle, { color: dropdownText }]}>
+                      Notifications
+                    </Text>
+                    {unreadCount > 0 && (
+                      <View style={styles.unreadBadge}>
+                        <Text style={styles.unreadBadgeText}>{unreadCount} new</Text>
+                      </View>
+                    )}
+                  </View>
                   {unreadCount > 0 && (
-                    <View style={styles.unreadBadge}>
-                      <Text style={styles.unreadBadgeText}>{unreadCount} new</Text>
-                    </View>
+                    <Pressable onPress={markAllAsRead}>
+                      <Text style={[styles.markAllReadText, { color: colors.brand[500] }]}>
+                        Mark all as read
+                      </Text>
+                    </Pressable>
                   )}
                 </View>
-                {unreadCount > 0 && (
-                  <Pressable onPress={markAllAsRead}>
-                    <Text style={[styles.markAllReadText, { color: colors.brand[500] }]}>
-                      Mark all as read
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
 
-              <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
-                {notifications.length === 0 ? (
-                  <View style={styles.notifEmpty}>
-                    <Lucide name="bell-off" size={24} color={isDark ? '#64748B' : '#94A3B8'} />
-                    <Text style={[styles.notifEmptyText, { color: isDark ? '#64748B' : '#94A3B8' }]}>
-                      No notifications right now
-                    </Text>
-                  </View>
-                ) : (
-                  notifications.map((item) => (
-                    <Pressable
-                      key={item.id}
-                      onPress={() => {
-                        markAsRead(item.id);
-                        setNotifOpen(false);
-                        if (item.appId !== undefined && item.appId !== null && item.appId !== '') {
-                          openQueueApplication(item.appId);
-                        }
-                        if (onNavigate !== undefined) {
-                          onNavigate(item.screen);
-                        }
-                      }}
-                      style={[
-                        styles.notifItem,
-                        !item.isRead && {
-                          backgroundColor: isDark
-                            ? 'rgba(59, 130, 246, 0.08)'
-                            : 'rgba(59, 130, 246, 0.04)',
-                        },
-                      ]}
-                    >
-                      <View style={styles.notifItemIconWrap}>
-                        <Lucide
-                          name={
-                            item.type === 'announcement'
-                              ? 'volume-2'
-                              : item.type === 'meeting'
-                              ? 'video'
-                              : item.type === 'chat'
-                              ? 'message-square'
-                              : 'activity'
+                <ScrollView style={styles.notifList} showsVerticalScrollIndicator={false}>
+                  {notifications.length === 0 ? (
+                    <View style={styles.notifEmpty}>
+                      <Lucide name="bell-off" size={24} color={isDark ? '#64748B' : '#94A3B8'} />
+                      <Text style={[styles.notifEmptyText, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+                        No notifications right now
+                      </Text>
+                    </View>
+                  ) : (
+                    notifications.map((item) => (
+                      <Pressable
+                        key={item.id}
+                        onPress={() => {
+                          markAsRead(item.id);
+                          setNotifOpen(false);
+                          if (item.appId !== undefined && item.appId !== null && item.appId !== '') {
+                            openQueueApplication(item.appId);
                           }
-                          size={14}
-                          color={
-                            item.isRead
-                              ? isDark ? '#64748B' : '#94A3B8'
-                              : isDark ? colors.brand[400] : colors.brand[600]
+                          if (onNavigate !== undefined) {
+                            onNavigate(item.screen);
                           }
-                        />
-                      </View>
-                      <View style={styles.notifItemContent}>
-                        <View style={styles.notifItemHeaderRow}>
+                        }}
+                        style={[
+                          styles.notifItem,
+                          !item.isRead && {
+                            backgroundColor: isDark
+                              ? 'rgba(59, 130, 246, 0.08)'
+                              : 'rgba(59, 130, 246, 0.04)',
+                          },
+                        ]}
+                      >
+                        <View style={styles.notifItemIconWrap}>
+                          <Lucide
+                            name={
+                              item.type === 'announcement'
+                                ? 'volume-2'
+                                : item.type === 'meeting'
+                                ? 'video'
+                                : item.type === 'chat'
+                                ? 'message-square'
+                                : 'activity'
+                            }
+                            size={14}
+                            color={
+                              item.isRead
+                                ? isDark ? '#64748B' : '#94A3B8'
+                                : isDark ? colors.brand[400] : colors.brand[600]
+                            }
+                          />
+                        </View>
+                        <View style={styles.notifItemContent}>
+                          <View style={styles.notifItemHeaderRow}>
+                            <Text
+                              style={[
+                                styles.notifItemTitle,
+                                {
+                                  color: dropdownText,
+                                  fontWeight: item.isRead
+                                    ? TYPOGRAPHY.weights.regular
+                                    : TYPOGRAPHY.weights.semibold,
+                                },
+                              ]}
+                              numberOfLines={1}
+                            >
+                              {item.title}
+                            </Text>
+                            {!item.isRead && (
+                              <View style={[styles.unreadDot, { backgroundColor: colors.brand[500] }]} />
+                            )}
+                          </View>
                           <Text
-                            style={[
-                              styles.notifItemTitle,
-                              {
-                                color: dropdownText,
-                                fontWeight: item.isRead
-                                  ? TYPOGRAPHY.weights.regular
-                                  : TYPOGRAPHY.weights.semibold,
-                              },
-                            ]}
-                            numberOfLines={1}
+                            style={[styles.notifItemDesc, { color: isDark ? '#94A3B8' : '#64748B' }]}
+                            numberOfLines={2}
                           >
-                            {item.title}
+                            {item.description}
                           </Text>
-                          {!item.isRead && (
-                            <View style={[styles.unreadDot, { backgroundColor: colors.brand[500] }]} />
+                          {item.timestamp !== undefined && (
+                            <Text style={[styles.notifItemTime, { color: isDark ? '#64748B' : '#94A3B8' }]}>
+                              {formatTimeAgo(item.timestamp)}
+                            </Text>
                           )}
                         </View>
-                        <Text
-                          style={[styles.notifItemDesc, { color: isDark ? '#94A3B8' : '#64748B' }]}
-                          numberOfLines={2}
-                        >
-                          {item.description}
-                        </Text>
-                        {item.timestamp !== undefined && (
-                          <Text style={[styles.notifItemTime, { color: isDark ? '#64748B' : '#94A3B8' }]}>
-                            {formatTimeAgo(item.timestamp)}
-                          </Text>
-                        )}
-                      </View>
-                    </Pressable>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-            </>
-          )}
+                      </Pressable>
+                    ))
+                  )}
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </Modal>
         </View>
 
         {/* Vertical divider */}
@@ -533,10 +539,14 @@ export function Header({
             </Pressable>
 
             {/* Profile dropdown */}
-            {profileOpen && (
-              <>
-                <Pressable style={styles.backdrop} onPress={() => setProfileOpen(false)} />
-                <View
+            <Modal
+              visible={profileOpen}
+              transparent
+              animationType="none"
+              onRequestClose={() => setProfileOpen(false)}
+            >
+              <Pressable style={styles.modalOverlay} onPress={() => setProfileOpen(false)}>
+                <Pressable
                   style={[
                     styles.dropdown,
                     SHADOWS.modal,
@@ -545,84 +555,85 @@ export function Header({
                       borderColor: dropdownBorder,
                     },
                   ]}
+                  onPress={(e) => e.stopPropagation?.()}
                 >
-                {/* Identity */}
-                <View style={styles.dropdownIdent}>
-                  <Text style={[styles.dropdownName, { color: dropdownText }]}>
-                    {profileName}
-                  </Text>
-                  <Text
+                  {/* Identity */}
+                  <View style={styles.dropdownIdent}>
+                    <Text style={[styles.dropdownName, { color: dropdownText }]}>
+                      {profileName}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.dropdownEmail,
+                        { color: isDark ? '#64748B' : '#94A3B8' },
+                      ]}
+                    >
+                      {profileEmail}
+                    </Text>
+                  </View>
+
+                  <View
                     style={[
-                      styles.dropdownEmail,
-                      { color: isDark ? '#64748B' : '#94A3B8' },
+                      styles.dropdownDivider,
+                      { backgroundColor: dropdownBorder },
                     ]}
-                  >
-                    {profileEmail}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.dropdownDivider,
-                    { backgroundColor: dropdownBorder },
-                  ]}
-                />
-
-                {/* Account Settings */}
-                <Pressable
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setProfileOpen(false);
-                    if (onNavigate !== undefined) {
-                      onNavigate('AccountSettings');
-                    } else {
-                      setSettingsModalOpen(true);
-                    }
-                  }}
-                >
-                  <Lucide name="settings" size={13} color={dropdownText} />
-                  <Text style={[styles.dropdownItemText, { color: dropdownText }]}>
-                    Account Settings
-                  </Text>
-                </Pressable>
-
-                <View
-                  style={[
-                    styles.dropdownDivider,
-                    { backgroundColor: dropdownBorder },
-                  ]}
-                />
-
-                {/* Logout */}
-                <Pressable
-                  style={styles.dropdownItem}
-                  onPress={() => {
-                    setProfileOpen(false);
-                    const result = onLogout();
-                    if (result instanceof Promise) {
-                      result.catch((err: unknown) =>
-                        console.error('Logout error:', err),
-                      );
-                    }
-                  }}
-                >
-                  <Lucide
-                    name="log-out"
-                    size={13}
-                    color={isDark ? '#F87171' : '#EF4444'}
                   />
-                  <Text
-                    style={[
-                      styles.dropdownItemText,
-                      { color: isDark ? '#F87171' : '#EF4444' },
-                    ]}
+
+                  {/* Account Settings */}
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setProfileOpen(false);
+                      if (onNavigate !== undefined) {
+                        onNavigate('AccountSettings');
+                      } else {
+                        setSettingsModalOpen(true);
+                      }
+                    }}
                   >
-                    Sign out
-                  </Text>
+                    <Lucide name="settings" size={13} color={dropdownText} />
+                    <Text style={[styles.dropdownItemText, { color: dropdownText }]}>
+                      Account Settings
+                    </Text>
+                  </Pressable>
+
+                  <View
+                    style={[
+                      styles.dropdownDivider,
+                      { backgroundColor: dropdownBorder },
+                    ]}
+                  />
+
+                  {/* Logout */}
+                  <Pressable
+                    style={styles.dropdownItem}
+                    onPress={() => {
+                      setProfileOpen(false);
+                      const result = onLogout();
+                      if (result instanceof Promise) {
+                        result.catch((err: unknown) =>
+                          console.error('Logout error:', err),
+                        );
+                      }
+                    }}
+                  >
+                    <Lucide
+                      name="log-out"
+                      size={13}
+                      color={isDark ? '#F87171' : '#EF4444'}
+                    />
+                    <Text
+                      style={[
+                        styles.dropdownItemText,
+                        { color: isDark ? '#F87171' : '#EF4444' },
+                      ]}
+                    >
+                      Sign out
+                    </Text>
+                  </Pressable>
                 </Pressable>
-              </View>
-              </>
-            )}
+              </Pressable>
+            </Modal>
           </View>
         ) : (
           /* Mobile avatar */
@@ -720,14 +731,12 @@ const styles = StyleSheet.create({
       },
     }),
   },
-  backdrop: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    zIndex: 150,
+  modalOverlay: {
+    flex: 1,
     backgroundColor: 'transparent',
+    alignItems: 'flex-end',
+    paddingTop: 54,
+    paddingRight: 16,
   },
   bellWrap: {
     position: 'relative',
@@ -808,13 +817,9 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.regular,
   },
   dropdown: {
-    position: 'absolute',
-    top: 44,
-    right: 0,
     width: 220,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    zIndex: 200,
     overflow: 'hidden',
   },
   dropdownIdent: {
@@ -849,14 +854,10 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.medium,
   },
   notifDropdown: {
-    position: 'absolute',
-    top: 44,
-    right: 0,
     width: 320,
     maxHeight: 380,
     borderRadius: RADIUS.card,
     borderWidth: 1,
-    zIndex: 200,
     overflow: 'hidden',
   },
   notifHeader: {

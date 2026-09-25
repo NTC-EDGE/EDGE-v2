@@ -55,7 +55,7 @@ export interface CreateMeetingPayload {
 
 export interface ExecuteMeetingActionPayload {
   meetingCode: string;
-  actionType: 'RaiseHand' | 'LowerHand' | 'EmojiReaction' | 'MuteParticipant' | 'SpotlightParticipant' | 'AdmitFromLobby' | 'KickParticipant';
+  actionType: 'RaiseHand' | 'LowerHand' | 'EmojiReaction' | 'MuteParticipant' | 'SpotlightParticipant' | 'AdmitFromLobby' | 'KickParticipant' | 'EndMeeting';
   targetUserId?: string | null;
   actionPayload?: string | null;
 }

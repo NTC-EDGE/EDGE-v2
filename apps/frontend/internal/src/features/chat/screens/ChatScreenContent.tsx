@@ -37,7 +37,7 @@ export const ChatScreenContent: React.FC = () => {
     unarchiveConversation,
     deleteConversation,
     refreshConversations,
-  } = useChatConversations(user?.tenantId);
+  } = useChatConversations(user?.tenantId, user?.id);
 
   const {
     messages,

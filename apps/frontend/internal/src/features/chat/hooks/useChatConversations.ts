@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { Platform } from 'react-native';
 import { chatService, Conversation, safeAsync, realTimeService } from '@edge/api';
 
 export type ChatFilter = 'All' | 'Unread' | 'Direct' | 'Group' | 'Archived';
@@ -7,13 +8,48 @@ export interface ExtendedConversation extends Conversation {
   isArchived?: boolean;
 }
 
-export function useChatConversations(tenantId?: string) {
+const ARCHIVED_STORAGE_PREFIX = 'edge_chat_archived_ids';
+
+function getStoredArchivedIds(userId?: string): Set<string> {
+  if (Platform.OS !== 'web') return new Set();
+  try {
+    const key = userId !== undefined && userId !== '' ? `${ARCHIVED_STORAGE_PREFIX}_${userId}` : ARCHIVED_STORAGE_PREFIX;
+    const raw = window.localStorage.getItem(key);
+    if (raw !== null && raw !== '') {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(parsed);
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return new Set();
+}
+
+function saveStoredArchivedIds(set: Set<string>, userId?: string): void {
+  if (Platform.OS !== 'web') return;
+  try {
+    const key = userId !== undefined && userId !== '' ? `${ARCHIVED_STORAGE_PREFIX}_${userId}` : ARCHIVED_STORAGE_PREFIX;
+    window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
+  } catch {
+    // ignore
+  }
+}
+
+export function useChatConversations(tenantId?: string, currentUserId?: string) {
   const [conversations, setConversations] = useState<ExtendedConversation[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<ChatFilter>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
-  const [archivedIds, setArchivedIds] = useState<Set<string>>(new Set());
+  const [archivedIds, setArchivedIds] = useState<Set<string>>(() => getStoredArchivedIds(currentUserId));
+
+  useEffect(() => {
+    if (currentUserId !== undefined && currentUserId !== '') {
+      setArchivedIds(getStoredArchivedIds(currentUserId));
+    }
+  }, [currentUserId]);
 
   const fetchConversations = useCallback(async () => {
     setIsLoading(true);
@@ -66,29 +102,35 @@ export function useChatConversations(tenantId?: string) {
     await safeAsync(chatService.markAsRead(conversationId));
   }, []);
 
-  const markAsUnread = useCallback((conversationId: string) => {
+  const markAsUnread = useCallback(async (conversationId: string) => {
     setConversations((prev) =>
       prev.map((c) => (c.id === conversationId ? { ...c, unreadCount: Math.max(1, c.unreadCount + 1) } : c))
     );
+    await safeAsync(chatService.markAsUnread(conversationId));
   }, []);
 
   const archiveConversation = useCallback((conversationId: string) => {
-    setArchivedIds((prev) => new Set([...prev, conversationId]));
+    setArchivedIds((prev) => {
+      const next = new Set([...prev, conversationId]);
+      saveStoredArchivedIds(next, currentUserId);
+      return next;
+    });
     setConversations((prev) =>
       prev.map((c) => (c.id === conversationId ? { ...c, isArchived: true } : c))
     );
-  }, []);
+  }, [currentUserId]);
 
   const unarchiveConversation = useCallback((conversationId: string) => {
     setArchivedIds((prev) => {
       const next = new Set(prev);
       next.delete(conversationId);
+      saveStoredArchivedIds(next, currentUserId);
       return next;
     });
     setConversations((prev) =>
       prev.map((c) => (c.id === conversationId ? { ...c, isArchived: false } : c))
     );
-  }, []);
+  }, [currentUserId]);
 
   const deleteConversation = useCallback((conversationId: string) => {
     setConversations((prev) => prev.filter((c) => c.id !== conversationId));

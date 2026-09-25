@@ -135,6 +135,44 @@ public static class ChatEndpoints
             return Results.Ok(result);
         }).WithName("SendMessage").RequireAuthorization();
 
+        chat.MapPost("/conversations/{conversationId:guid}/read", async (
+            Guid conversationId,
+            IMediator mediator) =>
+        {
+            try
+            {
+                var result = await mediator.Send(new EDGE.Application.Conversations.Commands.MarkConversationRead.MarkConversationReadCommand(conversationId));
+                return Results.Ok(new { success = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+        }).WithName("MarkConversationRead").RequireAuthorization();
+
+        chat.MapPost("/conversations/{conversationId:guid}/unread", async (
+            Guid conversationId,
+            IMediator mediator) =>
+        {
+            try
+            {
+                var result = await mediator.Send(new EDGE.Application.Conversations.Commands.MarkConversationUnread.MarkConversationUnreadCommand(conversationId));
+                return Results.Ok(new { success = result });
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return Results.NotFound(new { message = ex.Message });
+            }
+            catch (UnauthorizedAccessException)
+            {
+                return Results.Forbid();
+            }
+        }).WithName("MarkConversationUnread").RequireAuthorization();
+
         return group;
     }
 }

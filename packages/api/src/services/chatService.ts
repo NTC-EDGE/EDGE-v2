@@ -120,40 +120,33 @@ export const chatService = {
   },
 
   async markAsRead(conversationId: string): Promise<boolean> {
-    try {
-      const response = await apiClient.post<{ success: boolean }>(
-        `/api/v2/chat/conversations/${conversationId}/read`
-      );
-      return response.data.success;
-    } catch {
-      return true;
-    }
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/read`
+    );
+    return response.data.success;
+  },
+
+  async markAsUnread(conversationId: string): Promise<boolean> {
+    const response = await apiClient.post<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/unread`
+    );
+    return response.data.success;
   },
 
   async editMessage(conversationId: string, messageId: string, content: string): Promise<boolean> {
-    try {
-      await apiClient.put(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}`, { content });
-      return true;
-    } catch {
-      return true;
-    }
+    await apiClient.put(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}`, { content });
+    return true;
   },
 
   async unsendMessage(conversationId: string, messageId: string): Promise<boolean> {
-    try {
-      await apiClient.delete(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}`);
-      return true;
-    } catch {
-      return true;
-    }
+    const response = await apiClient.delete<{ success: boolean }>(
+      `/api/v2/chat/conversations/${conversationId}/messages/${messageId}`
+    );
+    return response.data.success ?? true;
   },
 
   async reactToMessage(conversationId: string, messageId: string, emoji: string): Promise<boolean> {
-    try {
-      await apiClient.post(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}/reactions`, { emoji });
-      return true;
-    } catch {
-      return true;
-    }
+    await apiClient.post(`/api/v2/chat/conversations/${conversationId}/messages/${messageId}/reactions`, { emoji });
+    return true;
   },
 };

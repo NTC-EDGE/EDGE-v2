@@ -2,9 +2,9 @@ namespace EDGE.Infrastructure.Hubs;
 
 public interface IMeetingClient
 {
-    Task ReceiveWebRtcOffer(string senderConnectionId, string sdp);
-    Task ReceiveWebRtcAnswer(string senderConnectionId, string sdp);
-    Task ReceiveIceCandidate(string senderConnectionId, string candidateJson);
+    Task ReceiveWebRtcOffer(string senderConnectionId, string senderUserId, string sdp);
+    Task ReceiveWebRtcAnswer(string senderConnectionId, string senderUserId, string sdp);
+    Task ReceiveIceCandidate(string senderConnectionId, string senderUserId, string candidateJson);
 
     Task OnUserRaisedHand(Guid userId, string userName, int queuePosition);
     Task OnUserLoweredHand(Guid userId);
@@ -24,4 +24,10 @@ public interface IMeetingClient
     Task OnJoinRequestPending(string meetingCode);
     Task OnJoinRequestAdmitted(string meetingCode);
     Task OnJoinRequestDenied(string meetingCode, string reason);
+
+    Task OnIncomingCall(object incomingCallInfo);
+    Task OnMeetingEnded(string meetingCode);
+    Task OnExistingSessionDetected(string meetingCode, string existingConnectionId);
+    Task OnSessionSwitchedToAnotherDevice(string meetingCode);
 }
+

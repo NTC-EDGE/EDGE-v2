@@ -10,6 +10,7 @@ namespace EDGE.Infrastructure.Hubs;
 public class MeetingHub : AuthenticatedHub<IMeetingClient>
 {
     private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, byte>> ConnectionMeetings = new();
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<Guid, string>> MeetingActiveUserConnections = new();
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUnitOfWork _unitOfWork;
 
@@ -21,6 +22,16 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
     {
         _meetingRepository = meetingRepository;
         _unitOfWork = unitOfWork;
+    }
+
+    public override async Task OnConnectedAsync()
+    {
+        var resolvedUserId = await ResolveUserIdAsync();
+        if (resolvedUserId.HasValue)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{resolvedUserId.Value}");
+        }
+        await base.OnConnectedAsync();
     }
 
     public async Task JoinMeeting(string meetingCode)
@@ -48,12 +59,50 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
             throw new HubException("Access denied: You are not authorized to join this meeting room.");
         }
 
+        if (resolvedUserId.HasValue && resolvedUserId.Value != Guid.Empty)
+        {
+            var userConns = MeetingActiveUserConnections.GetOrAdd(meetingCode, _ => new ConcurrentDictionary<Guid, string>());
+            if (userConns.TryGetValue(resolvedUserId.Value, out var existingConnId) && existingConnId != Context.ConnectionId)
+            {
+                await Clients.Caller.OnExistingSessionDetected(meetingCode, existingConnId);
+                return;
+            }
+            userConns[resolvedUserId.Value] = Context.ConnectionId;
+        }
+
         var groupName = $"meet_{meetingCode}";
         await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
 
         var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
         meetings.TryAdd(meetingCode, 0);
 
+        await Clients.OthersInGroup(groupName).OnParticipantJoined(new { connectionId = Context.ConnectionId, userId });
+    }
+
+    public async Task SwitchDevice(string meetingCode)
+    {
+        if (string.IsNullOrWhiteSpace(meetingCode)) return;
+
+        var resolvedUserId = await ResolveUserIdAsync();
+        if (resolvedUserId.HasValue && MeetingActiveUserConnections.TryGetValue(meetingCode, out var userConns))
+        {
+            if (userConns.TryGetValue(resolvedUserId.Value, out var oldConnId) && oldConnId != Context.ConnectionId)
+            {
+                await Clients.Client(oldConnId).OnSessionSwitchedToAnotherDevice(meetingCode);
+                var oldMeetings = ConnectionMeetings.GetOrAdd(oldConnId, _ => new ConcurrentDictionary<string, byte>());
+                oldMeetings.TryRemove(meetingCode, out _);
+                await Groups.RemoveFromGroupAsync(oldConnId, $"meet_{meetingCode}");
+            }
+            userConns[resolvedUserId.Value] = Context.ConnectionId;
+        }
+
+        var groupName = $"meet_{meetingCode}";
+        await Groups.AddToGroupAsync(Context.ConnectionId, groupName);
+
+        var meetings = ConnectionMeetings.GetOrAdd(Context.ConnectionId, _ => new ConcurrentDictionary<string, byte>());
+        meetings.TryAdd(meetingCode, 0);
+
+        var userId = resolvedUserId ?? Guid.Empty;
         await Clients.OthersInGroup(groupName).OnParticipantJoined(new { connectionId = Context.ConnectionId, userId });
     }
 
@@ -221,23 +270,30 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
         var resolvedUserId = await ResolveUserIdAsync();
         if (resolvedUserId.HasValue)
         {
+            if (MeetingActiveUserConnections.TryGetValue(meetingCode, out var userConns))
+            {
+                userConns.TryRemove(resolvedUserId.Value, out _);
+            }
             await Clients.OthersInGroup(groupName).OnParticipantLeft(resolvedUserId.Value);
         }
     }
 
     public async Task SendWebRtcSignal(string targetConnectionId, string type, string payload)
     {
+        var resolvedUserId = await ResolveUserIdAsync();
+        var senderUserId = (resolvedUserId ?? Guid.Empty).ToString();
+
         if (type == "offer")
         {
-            await Clients.Client(targetConnectionId).ReceiveWebRtcOffer(Context.ConnectionId, payload);
+            await Clients.Client(targetConnectionId).ReceiveWebRtcOffer(Context.ConnectionId, senderUserId, payload);
         }
         else if (type == "answer")
         {
-            await Clients.Client(targetConnectionId).ReceiveWebRtcAnswer(Context.ConnectionId, payload);
+            await Clients.Client(targetConnectionId).ReceiveWebRtcAnswer(Context.ConnectionId, senderUserId, payload);
         }
         else if (type == "ice")
         {
-            await Clients.Client(targetConnectionId).ReceiveIceCandidate(Context.ConnectionId, payload);
+            await Clients.Client(targetConnectionId).ReceiveIceCandidate(Context.ConnectionId, senderUserId, payload);
         }
     }
 
@@ -273,10 +329,19 @@ public class MeetingHub : AuthenticatedHub<IMeetingClient>
 
                 if (resolvedUserId.HasValue)
                 {
+                    if (MeetingActiveUserConnections.TryGetValue(meetingCode, out var userConns))
+                    {
+                        userConns.TryRemove(resolvedUserId.Value, out _);
+                    }
                     await Clients.OthersInGroup(groupName).OnParticipantLeft(resolvedUserId.Value);
                 }
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
                 await Groups.RemoveFromGroupAsync(Context.ConnectionId, waitingGroupName);
+            }
+
+            if (resolvedUserId.HasValue)
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{resolvedUserId.Value}");
             }
         }
 

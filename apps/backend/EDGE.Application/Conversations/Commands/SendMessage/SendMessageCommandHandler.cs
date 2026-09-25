@@ -10,17 +10,20 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Cha
     private readonly IConversationRepository _conversationRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IChatNotificationService _chatNotificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public SendMessageCommandHandler(
         IConversationRepository conversationRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
+        IChatNotificationService chatNotificationService,
         IUnitOfWork unitOfWork)
     {
         _conversationRepository = conversationRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _chatNotificationService = chatNotificationService;
         _unitOfWork = unitOfWork;
     }
 
@@ -66,7 +69,7 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Cha
         await _conversationRepository.AddMessageAsync(message, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        return new ChatMessageDto
+        var dto = new ChatMessageDto
         {
             Id = message.Id,
             ConversationId = message.ConversationId,
@@ -88,5 +91,10 @@ public class SendMessageCommandHandler : IRequestHandler<SendMessageCommand, Cha
                 StoragePath = a.StoragePath
             }).ToList()
         };
+
+        var participantUserIds = conversation.Participants.Where(p => !p.HasLeft).Select(p => p.UserId).ToList();
+        await _chatNotificationService.NotifyMessageSentAsync(dto, participantUserIds, cancellationToken);
+
+        return dto;
     }
 }

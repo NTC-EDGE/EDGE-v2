@@ -42,6 +42,12 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
                 ? otherParticipant.User.ProfilePicture
                 : c.AvatarUrl;
 
+            var userParticipant = c.Participants.FirstOrDefault(p => p.UserId == currentUser.Id);
+            var lastRead = userParticipant?.LastReadAt;
+            var unreadCount = c.Messages != null
+                ? c.Messages.Count(m => !m.IsDeleted && m.SenderId != currentUser.Id && (lastRead == null || m.CreatedAt > lastRead))
+                : 0;
+
             return new ConversationDto
             {
                 Id = c.Id,
@@ -54,6 +60,7 @@ public class GetConversationsQueryHandler : IRequestHandler<GetConversationsQuer
                 TenantName = c.Tenant?.Name,
                 LastMessageAt = c.LastMessageAt,
                 LastMessagePreview = c.LastMessagePreview,
+                UnreadCount = unreadCount,
                 Participants = c.Participants.Select(p => new ConversationParticipantDto
                 {
                     UserId = p.UserId,

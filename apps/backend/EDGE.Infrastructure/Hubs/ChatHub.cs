@@ -69,4 +69,24 @@ public class ChatHub : AuthenticatedHub<IChatClient>
             }
         }
     }
+
+    public override async Task OnConnectedAsync()
+    {
+        var resolvedUserId = await ResolveUserIdAsync();
+        if (resolvedUserId.HasValue)
+        {
+            await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{resolvedUserId.Value}");
+        }
+        await base.OnConnectedAsync();
+    }
+
+    public override async Task OnDisconnectedAsync(Exception? exception)
+    {
+        var resolvedUserId = await ResolveUserIdAsync();
+        if (resolvedUserId.HasValue)
+        {
+            await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{resolvedUserId.Value}");
+        }
+        await base.OnDisconnectedAsync(exception);
+    }
 }

@@ -31,7 +31,7 @@ export function RootNavigator() {
   );
 
   // Sync web metadata and track routes
-  useWebMetadata(isAuthenticated, screenTitle);
+  useWebMetadata(isAuthenticated, isLoading, screenTitle);
   useRouteTracker(isAuthenticated, navigationRef, (routeName, title) => {
     setActiveScreen(routeName);
     setScreenTitle(title);

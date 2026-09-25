@@ -283,7 +283,10 @@ export function useWebRtcMeeting({
     });
 
     // B. When an SDP Offer is received, set remote description and send SDP Answer
-    const unsubOffer = realTimeService.onReceiveWebRtcOffer(async (senderConnectionId, sdp) => {
+    const unsubOffer = realTimeService.onReceiveWebRtcOffer(async (senderConnectionId, senderUserId, sdp) => {
+      if (senderUserId !== undefined && senderUserId !== null && senderUserId.length > 0) {
+        connectionToUserRef.current.set(senderConnectionId, senderUserId);
+      }
       try {
         const pc = getOrCreatePeerConnection(senderConnectionId);
         await pc.setRemoteDescription({ type: 'offer', sdp });
@@ -298,7 +301,10 @@ export function useWebRtcMeeting({
     });
 
     // C. When an SDP Answer is received, set remote description
-    const unsubAnswer = realTimeService.onReceiveWebRtcAnswer(async (senderConnectionId, sdp) => {
+    const unsubAnswer = realTimeService.onReceiveWebRtcAnswer(async (senderConnectionId, senderUserId, sdp) => {
+      if (senderUserId !== undefined && senderUserId !== null && senderUserId.length > 0) {
+        connectionToUserRef.current.set(senderConnectionId, senderUserId);
+      }
       try {
         const pc = peerConnections.current.get(senderConnectionId);
         if (pc) {
@@ -310,7 +316,10 @@ export function useWebRtcMeeting({
     });
 
     // D. When an ICE Candidate is received, add candidate to peer connection
-    const unsubIce = realTimeService.onReceiveIceCandidate(async (senderConnectionId, candidateJson) => {
+    const unsubIce = realTimeService.onReceiveIceCandidate(async (senderConnectionId, senderUserId, candidateJson) => {
+      if (senderUserId !== undefined && senderUserId !== null && senderUserId.length > 0) {
+        connectionToUserRef.current.set(senderConnectionId, senderUserId);
+      }
       try {
         const pc = peerConnections.current.get(senderConnectionId);
         if (pc && candidateJson) {
