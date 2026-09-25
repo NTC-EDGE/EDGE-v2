@@ -349,16 +349,24 @@ export function ApplicationReviewScreenContent({
 
   /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
   const handleForwardToAccountant = async () => {
+    const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+    if (!hasSoa) {
+      setShowApprove(false);
+      toast.error('The Statement of Account (SOA) must be generated before the evaluation can be approved and forwarded to the Accountant.');
+      setInnerTab('soa');
+      setShowGenerateSoa(true);
+      return;
+    }
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'ForAccountant',
       action: 'Approved & Forwarded to Accountant',
       staffName: officerName,
       staffRole: currentRole || 'Evaluator',
-      remarks: 'Evaluation approved. Advanced to Accountant for SOA review.',
+      remarks: 'Evaluation approved with generated SOA. Advanced to Accountant for SOA verification.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
-    toast.success('Application approved and advanced to Accountant.');
+    toast.success('Application approved and advanced to Accountant for SOA verification.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -519,6 +527,8 @@ export function ApplicationReviewScreenContent({
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
   const showForwardBtn = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe) && !isEndorsedAwayFromMe;
 
+  const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+
   let approveButtonLabel = 'Approve';
   let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
 
@@ -532,8 +542,13 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = 'Approve SOA';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
-    approveButtonLabel = 'Approve Evaluation';
-    approveButtonIcon = 'check-circle';
+    if (!hasSoa) {
+      approveButtonLabel = 'Generate SOA';
+      approveButtonIcon = 'play-circle';
+    } else {
+      approveButtonLabel = 'Approve Evaluation';
+      approveButtonIcon = 'check-circle';
+    }
   }
 
   // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA)
@@ -555,9 +570,8 @@ export function ApplicationReviewScreenContent({
     } else if (showCashierBtn) {
       setShowCashier(true);
     } else if (showForwardBtn) {
-      const hasSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
       if (!hasSoa) {
-        toast.error("Please generate the Statement of Account (SOA) in the SOA & Payment tab before forwarding to the Accountant.");
+        toast.info("Opening SOA Generator. Please generate the Statement of Account to proceed with evaluation approval.");
         setInnerTab("soa");
         setShowGenerateSoa(true);
         return;
