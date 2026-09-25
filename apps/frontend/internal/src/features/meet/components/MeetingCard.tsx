@@ -25,7 +25,8 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
   const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
   const isInterRegional = meeting.scope === 'InterRegional';
-  const isFinished = meeting.status === 'Ended' || meeting.status === 'Cancelled';
+  const isFinished = meeting.status === 'Ended';
+  const isCancelled = meeting.status === 'Cancelled';
   const isLive = meeting.status === 'Live';
 
   const getStatusBadge = () => {
@@ -109,7 +110,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
         </View>
 
         <View style={styles.actionsRow}>
-          {onInvite && !isFinished && (
+          {onInvite && !isFinished && !isCancelled && (
             <Button
               variant="secondary"
               size="sm"
@@ -121,11 +122,11 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
             </Button>
           )}
 
-          {!isFinished ? (
+          {!isFinished && !isCancelled ? (
             <Button variant="primary" size="sm" fullWidth={false} onPress={() => onJoin(meeting)}>
               Join Call
             </Button>
-          ) : (
+          ) : isFinished && !isCancelled ? (
             <Button
               variant="outline"
               size="sm"
@@ -135,7 +136,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
             >
               Recording
             </Button>
-          )}
+          ) : null}
 
           {/* Action Menu (⋮) */}
           <View ref={menuBtnRef} collapsable={false}>
@@ -194,7 +195,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
               SHADOWS.modal,
             ]}
           >
-            {!isFinished && (
+            {!isFinished && !isCancelled && (
               <Pressable
                 style={styles.menuItem}
                 onPress={() => {
@@ -207,18 +208,20 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
               </Pressable>
             )}
 
-            <Pressable
-              style={styles.menuItem}
-              onPress={() => {
-                setMenuVisible(false);
-                onViewRecording?.(meeting);
-              }}
-            >
-              <Icon name="film" size={14} color={colors.text} />
-              <Text style={[styles.menuItemText, { color: colors.text }]}>View Recording</Text>
-            </Pressable>
+            {isFinished && !isCancelled && (
+              <Pressable
+                style={styles.menuItem}
+                onPress={() => {
+                  setMenuVisible(false);
+                  onViewRecording?.(meeting);
+                }}
+              >
+                <Icon name="film" size={14} color={colors.text} />
+                <Text style={[styles.menuItemText, { color: colors.text }]}>View Recording</Text>
+              </Pressable>
+            )}
 
-            {onDelete && (
+            {onDelete && !isCancelled && (
               <Pressable
                 style={styles.menuItem}
                 onPress={() => {

@@ -68,9 +68,13 @@ export interface CreateMeetingPollPayload {
 }
 
 export const meetService = {
-  async getMeetings(tenantId?: string): Promise<Meeting[]> {
-    const params = tenantId ? { tenantId } : undefined;
-    const response = await apiClient.get<Meeting[]>('/api/v2/meetings', { params });
+  async getMeetings(tenantId?: string, filter?: string): Promise<Meeting[]> {
+    const params: Record<string, string> = {};
+    if (tenantId) params.tenantId = tenantId;
+    if (filter) params.filter = filter;
+    const response = await apiClient.get<Meeting[]>('/api/v2/meetings', {
+      params: Object.keys(params).length > 0 ? params : undefined,
+    });
     return response.data;
   },
 

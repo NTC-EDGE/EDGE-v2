@@ -25,16 +25,42 @@ public class ConversationRepository : IConversationRepository
             .FirstOrDefaultAsync(c => c.Id == id, cancellationToken);
     }
 
-    public async Task<List<Conversation>> GetUserConversationsAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default)
+    public async Task<List<Conversation>> GetUserConversationsAsync(Guid userId, Guid? tenantId, string? filter = null, CancellationToken cancellationToken = default)
     {
-        return await _context.Conversations
+        var query = _context.Conversations
             .Include(c => c.Tenant)
             .Include(c => c.Messages)
             .Include(c => c.Participants)
                 .ThenInclude(p => p.User)
             .Include(c => c.Participants)
                 .ThenInclude(p => p.Tenant)
-            .Where(c => c.Participants.Any(p => p.UserId == userId && !p.HasLeft))
+            .Where(c => !c.IsDeleted && c.Participants.Any(p => p.UserId == userId && !p.HasLeft));
+
+        if (tenantId.HasValue)
+        {
+            query = query.Where(c => c.TenantId == tenantId || c.Scope == Domain.Enums.ConversationScope.InterRegional);
+        }
+
+        var normalizedFilter = filter?.Trim().ToLowerInvariant();
+
+        if (normalizedFilter == "archived")
+        {
+            query = query.Where(c => c.IsArchived);
+        }
+        else if (normalizedFilter == "direct")
+        {
+            query = query.Where(c => !c.IsArchived && c.Type == Domain.Enums.ConversationType.Direct);
+        }
+        else if (normalizedFilter == "group")
+        {
+            query = query.Where(c => !c.IsArchived && (c.Type == Domain.Enums.ConversationType.Group || c.Type == Domain.Enums.ConversationType.Channel));
+        }
+        else if (normalizedFilter == "active" || normalizedFilter == "all")
+        {
+            query = query.Where(c => !c.IsArchived);
+        }
+
+        return await query
             .OrderByDescending(c => c.LastMessageAt ?? c.CreatedAt)
             .ToListAsync(cancellationToken);
     }

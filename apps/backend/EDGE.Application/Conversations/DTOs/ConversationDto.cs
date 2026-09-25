@@ -28,5 +28,6 @@ public class ConversationDto
     public DateTimeOffset? LastMessageAt { get; set; }
     public string? LastMessagePreview { get; set; }
     public int UnreadCount { get; set; }
+    public bool IsArchived { get; set; }
     public List<ConversationParticipantDto> Participants { get; set; } = new();
 }

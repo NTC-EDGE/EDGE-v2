@@ -38,7 +38,22 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
         var participant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id);
         if (participant == null)
         {
-            throw new UnauthorizedAccessException("You are not a participant in this meeting.");
+            if (meeting.HostUserId == currentUser.Id || currentUser.IsSuperAdmin)
+            {
+                participant = new MeetingParticipant
+                {
+                    MeetingId = meeting.Id,
+                    UserId = currentUser.Id,
+                    TenantId = meeting.TenantId,
+                    Role = ParticipantRole.Owner,
+                    IsDeleted = false
+                };
+                meeting.Participants.Add(participant);
+            }
+            else
+            {
+                throw new UnauthorizedAccessException("You are not a participant in this meeting.");
+            }
         }
 
         var isHostOrAdmin = meeting.HostUserId == currentUser.Id ||

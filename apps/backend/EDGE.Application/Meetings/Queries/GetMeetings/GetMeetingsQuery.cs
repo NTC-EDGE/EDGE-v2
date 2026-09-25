@@ -5,7 +5,7 @@ using EDGE.Application.Meetings.DTOs;
 
 namespace EDGE.Application.Meetings.Queries.GetMeetings;
 
-public record GetMeetingsQuery(Guid? TenantId = null) : IRequest<List<MeetingDto>>;
+public record GetMeetingsQuery(Guid? TenantId = null, string? Filter = null) : IRequest<List<MeetingDto>>;
 
 public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<MeetingDto>>
 {
@@ -33,7 +33,7 @@ public class GetMeetingsQueryHandler : IRequestHandler<GetMeetingsQuery, List<Me
         var currentUser = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken)
             ?? throw new UnauthorizedAccessException("User not authenticated.");
 
-        var meetings = await _meetingRepository.GetUpcomingMeetingsAsync(currentUser.Id, request.TenantId, cancellationToken);
+        var meetings = await _meetingRepository.GetMeetingsAsync(currentUser.Id, request.TenantId, request.Filter, cancellationToken);
 
         return meetings.Select(m => new MeetingDto
         {

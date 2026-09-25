@@ -41,7 +41,11 @@ import {
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
+import { useTabQueryParam } from '../../../hooks/useTabQueryParam';
+
 export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio';
+
+const VALID_ADMIN_TABS: readonly AdminTabType[] = ['regional-details', 'branch-directory', 'services-studio'];
 
 interface TabItem {
   id: AdminTabType;
@@ -76,7 +80,7 @@ export function AdminSettingsScreen(): React.ReactElement {
   const { width } = useWindowDimensions();
   const isMobile = width < 768;
 
-  const [activeTab, setActiveTab] = useState<AdminTabType>('regional-details');
+  const [activeTab, setActiveTab] = useTabQueryParam<AdminTabType>('tab', 'regional-details', VALID_ADMIN_TABS);
 
   // Mouse Drag-to-Scroll Web Ref & Handlers
   const tabScrollRef = useRef<ScrollView>(null);

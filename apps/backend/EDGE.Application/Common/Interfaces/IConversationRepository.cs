@@ -5,7 +5,7 @@ namespace EDGE.Application.Common.Interfaces;
 public interface IConversationRepository
 {
     Task<Conversation?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
-    Task<List<Conversation>> GetUserConversationsAsync(Guid userId, Guid? tenantId, CancellationToken cancellationToken = default);
+    Task<List<Conversation>> GetUserConversationsAsync(Guid userId, Guid? tenantId, string? filter = null, CancellationToken cancellationToken = default);
     Task<List<ChatMessage>> GetMessagesAsync(Guid conversationId, int skip, int take, CancellationToken cancellationToken = default);
     Task<Conversation> AddConversationAsync(Conversation conversation, CancellationToken cancellationToken = default);
     Task<ChatMessage> AddMessageAsync(ChatMessage message, CancellationToken cancellationToken = default);

@@ -1,13 +1,16 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { meetService, Meeting, safeAsync, realTimeService } from '@edge/api';
+import { useTabQueryParam } from '../../../hooks/useTabQueryParam';
 
 export type MeetingFilter = 'All' | 'Upcoming' | 'Live' | 'History';
+
+const VALID_FILTERS: readonly MeetingFilter[] = ['All', 'Upcoming', 'Live', 'History'];
 
 export function useMeetingsList(tenantId?: string) {
   const [meetings, setMeetings] = useState<Meeting[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState<MeetingFilter>('All');
+  const [filter, setFilter] = useTabQueryParam<MeetingFilter>('tab', 'All', VALID_FILTERS);
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [notifiedMeetingCodes, setNotifiedMeetingCodes] = useState<Set<string>>(new Set());
   const [scheduledMeetingNotification, setScheduledMeetingNotification] = useState<Meeting | null>(null);
@@ -15,14 +18,15 @@ export function useMeetingsList(tenantId?: string) {
   const fetchMeetings = useCallback(async () => {
     setIsLoading(true);
     setError(null);
-    const [data, err] = await safeAsync(meetService.getMeetings(tenantId));
+    const filterKey = filter === 'All' ? 'all' : filter.toLowerCase();
+    const [data, err] = await safeAsync(meetService.getMeetings(tenantId, filterKey));
     if (err !== null) {
       setError(err);
     } else if (data !== null) {
-      setMeetings(data);
+      setMeetings(data.filter((m) => m.status !== 'Cancelled'));
     }
     setIsLoading(false);
-  }, [tenantId]);
+  }, [tenantId, filter]);
 
   useEffect(() => {
     void fetchMeetings();

@@ -51,6 +51,57 @@ export const ChatScreenContent: React.FC = () => {
     typingUsers,
   } = useChatMessages(selectedConversation?.id, user?.name);
 
+  // Select conversation handler with URL sync
+  const handleSelectConversation = (conv: Conversation | null) => {
+    setSelectedConversation(conv);
+    if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        if (window.location !== undefined && typeof window.location.href === 'string') {
+          const url = new URL(window.location.href);
+          if (conv) {
+            url.searchParams.set('conv', conv.id);
+          } else {
+            url.searchParams.delete('conv');
+          }
+          window.history.replaceState(null, '', url.toString());
+        }
+        if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          if (conv) {
+            window.sessionStorage.setItem('edge_active_chat_conv_id', conv.id);
+          } else {
+            window.sessionStorage.removeItem('edge_active_chat_conv_id');
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  // Restore selected conversation on reload from URL param or sessionStorage
+  useEffect(() => {
+    if (conversations.length > 0 && selectedConversation === null && typeof window !== 'undefined' && typeof document !== 'undefined') {
+      try {
+        let targetId: string | null = null;
+        if (window.location !== undefined && typeof window.location.search === 'string') {
+          const urlParams = new URLSearchParams(window.location.search);
+          targetId = urlParams.get('conv') || urlParams.get('conversationId') || null;
+        }
+        if (!targetId && 'sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+          targetId = window.sessionStorage.getItem('edge_active_chat_conv_id');
+        }
+        if (targetId) {
+          const found = conversations.find((c) => c.id === targetId);
+          if (found) {
+            setSelectedConversation(found);
+          }
+        }
+      } catch {
+        // ignore
+      }
+    }
+  }, [conversations, selectedConversation]);
+
   // Automatically mark conversation as read when selected
   useEffect(() => {
     if (selectedConversation && selectedConversation.unreadCount > 0) {
@@ -158,7 +209,7 @@ export const ChatScreenContent: React.FC = () => {
               conversations={conversations}
               currentUserId={user?.id}
               selectedConversation={selectedConversation}
-              onSelectConversation={setSelectedConversation}
+              onSelectConversation={handleSelectConversation}
               onOpenCreateDirect={() => setIsDirectModalOpen(true)}
               onOpenCreateGroup={() => setIsGroupModalOpen(true)}
               isLoading={isLoadingConversations}
@@ -183,7 +234,7 @@ export const ChatScreenContent: React.FC = () => {
               currentUserId={user?.id}
               currentUserName={user?.name}
               showBackButton={!isLargeScreen}
-              onBack={() => setSelectedConversation(null)}
+              onBack={() => handleSelectConversation(null)}
               onSendMessage={handleSendMessage}
               onRetryMessage={retryMessage}
               onEditMessage={editMessage}

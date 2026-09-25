@@ -52,12 +52,13 @@ public class InviteMeetingParticipantsCommandHandler : IRequestHandler<InviteMee
             ?? throw new KeyNotFoundException($"Meeting with code '{request.MeetingCode}' was not found.");
 
         var isHost = meeting.HostUserId == currentUser.Id;
-        var callerParticipant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id);
+        var callerParticipant = meeting.Participants.FirstOrDefault(p => p.UserId == currentUser.Id && !p.IsDeleted);
         var isAdmin = callerParticipant != null && (callerParticipant.Role == ParticipantRole.Owner || callerParticipant.Role == ParticipantRole.Admin);
+        var isParticipant = callerParticipant != null;
 
-        if (!isHost && !isAdmin && !currentUser.IsSuperAdmin)
+        if (!isHost && !isAdmin && !isParticipant && !currentUser.IsSuperAdmin)
         {
-            throw new UnauthorizedAccessException("Only the meeting host or administrators can invite new participants.");
+            throw new UnauthorizedAccessException("Only authorized meeting members or hosts can invite new participants.");
         }
 
         var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
