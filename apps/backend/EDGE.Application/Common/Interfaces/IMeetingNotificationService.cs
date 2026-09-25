@@ -10,4 +10,5 @@ public interface IMeetingNotificationService
 {
     Task NotifyIncomingCallAsync(MeetingDto meeting, List<Guid> targetUserIds, CancellationToken cancellationToken = default);
     Task NotifyMeetingEndedAsync(string meetingCode, CancellationToken cancellationToken = default);
+    Task NotifyHostChangedAsync(string meetingCode, Guid newHostUserId, string newHostUserName, CancellationToken cancellationToken = default);
 }

@@ -187,6 +187,10 @@ public class ExecuteMeetingActionCommandHandlerTests
             .Setup(r => r.ResolveCurrentUserAsync(_currentUserServiceMock.Object, It.IsAny<CancellationToken>()))
             .ReturnsAsync(hostUser);
 
+        _userRepositoryMock
+            .Setup(r => r.GetByIdAsync(otherUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new User { Id = otherUserId, FirstName = "Jane", LastName = "Doe" });
+
         _meetingRepositoryMock
             .Setup(r => r.GetByCodeAsync("edg-leave", It.IsAny<CancellationToken>()))
             .ReturnsAsync(meeting);
@@ -198,6 +202,7 @@ public class ExecuteMeetingActionCommandHandlerTests
         hostParticipant.LeftAt.Should().NotBeNull();
         otherParticipant.Role.Should().Be(ParticipantRole.Admin);
         meeting.HostUserId.Should().Be(hostUserId); // Permanent ownership preserved
+        _meetingNotificationServiceMock.Verify(n => n.NotifyHostChangedAsync("edg-leave", otherUserId, "Jane Doe", It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

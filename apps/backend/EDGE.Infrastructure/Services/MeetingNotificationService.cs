@@ -41,4 +41,9 @@ public class MeetingNotificationService : IMeetingNotificationService
     {
         await _hubContext.Clients.Group($"meet_{meetingCode}").OnMeetingEnded(meetingCode);
     }
+
+    public async Task NotifyHostChangedAsync(string meetingCode, Guid newHostUserId, string newHostUserName, CancellationToken cancellationToken = default)
+    {
+        await _hubContext.Clients.Group($"meet_{meetingCode}").OnHostChanged(newHostUserId, newHostUserName);
+    }
 }

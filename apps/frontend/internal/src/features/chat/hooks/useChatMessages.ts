@@ -5,6 +5,13 @@ export interface ExtendedChatMessage extends ChatMessage {
   status?: 'sending' | 'sent' | 'delivered' | 'failed';
 }
 
+function generateTempMessageId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return `temp-${crypto.randomUUID()}`;
+  }
+  return `temp-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+}
+
 export function useChatMessages(conversationId?: string | null, currentUserName?: string) {
   const [messages, setMessages] = useState<ExtendedChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -109,7 +116,7 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
       if (conversationId === undefined || conversationId === null) return false;
       setIsSending(true);
 
-      const tempId = `temp-${Date.now()}-${Math.random()}`;
+      const tempId = generateTempMessageId();
       const optimisticMsg: ExtendedChatMessage = {
         id: tempId,
         conversationId,

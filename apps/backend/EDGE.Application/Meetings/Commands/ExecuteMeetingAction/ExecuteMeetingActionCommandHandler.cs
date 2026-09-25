@@ -101,17 +101,25 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
         else if (request.ActionType == MeetingActionType.LeaveMeeting)
         {
             participant.LeftAt = DateTimeOffset.UtcNow;
-            // If host leaves without ending for all, assign co-host / admin role to another participant if available
+            // If host leaves without ending for all, assign co-host / admin role to another active participant if available
             if (meeting.HostUserId == currentUser.Id)
             {
-                var nextAdmin = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted && p.Role == ParticipantRole.Admin);
+                var nextAdmin = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted && p.LeftAt == null && (p.Role == ParticipantRole.Admin || p.Role == ParticipantRole.Owner));
                 if (nextAdmin == null)
                 {
-                    var nextMember = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted);
+                    var nextMember = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted && p.LeftAt == null);
                     if (nextMember != null)
                     {
                         nextMember.Role = ParticipantRole.Admin;
+                        nextAdmin = nextMember;
                     }
+                }
+
+                if (nextAdmin != null)
+                {
+                    var promotedUser = await _userRepository.GetByIdAsync(nextAdmin.UserId, cancellationToken);
+                    var newHostName = promotedUser != null ? $"{promotedUser.FirstName} {promotedUser.LastName}".Trim() : "Participant";
+                    await _meetingNotificationService.NotifyHostChangedAsync(meeting.MeetingCode, nextAdmin.UserId, newHostName, cancellationToken);
                 }
             }
         }
