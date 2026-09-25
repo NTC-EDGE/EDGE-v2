@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Authorization;
 
 namespace EDGE.Infrastructure.Services;
 
@@ -166,23 +167,14 @@ public class CurrentUserService : ICurrentUserService
             if (bool.TryParse(isSuperAdminClaim, out var isSa) && isSa) return true;
 
             var roleClaim = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? user.FindFirstValue("org_role");
-            if (!string.IsNullOrWhiteSpace(roleClaim))
+            if (AdministrativeIdentityPolicy.IsSuperAdminRole(roleClaim))
             {
-                var r = roleClaim.Trim().ToLowerInvariant();
-                if (r == "superadmin" || r == "super_admin" || r == "super-admin" || r == "org:superadmin" || r == "org:super_admin")
-                {
-                    return true;
-                }
+                return true;
             }
 
-            var email = Email;
-            if (!string.IsNullOrWhiteSpace(email))
+            if (AdministrativeIdentityPolicy.IsSuperAdminEmail(Email))
             {
-                var clean = email.Trim().ToLowerInvariant();
-                if (clean.Equals("superadmin@ntcedge.com", StringComparison.OrdinalIgnoreCase) || clean.StartsWith("superadmin@"))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;
@@ -206,27 +198,15 @@ public class CurrentUserService : ICurrentUserService
 
             foreach (var role in roleClaims)
             {
-                if (string.IsNullOrWhiteSpace(role)) continue;
-                var r = role.Trim().ToLowerInvariant();
-                if (r == "admin" || r == "administrator" || r == "superadmin" || r == "super_admin" ||
-                    r == "org:admin" || r == "org:administrator" || r == "tenant_admin" || r == "tenantadmin" ||
-                    r == "regional_admin" || r == "regionaladmin")
+                if (AdministrativeIdentityPolicy.IsAdministrativeRole(role))
                 {
                     return true;
                 }
             }
 
-            var email = Email;
-            if (!string.IsNullOrWhiteSpace(email))
+            if (AdministrativeIdentityPolicy.IsAdministrativeEmail(Email))
             {
-                var clean = email.Trim().ToLowerInvariant();
-                if (clean.Equals("admin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-                    clean.StartsWith("admin@") ||
-                    clean.Equals("superadmin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-                    clean.StartsWith("superadmin@"))
-                {
-                    return true;
-                }
+                return true;
             }
 
             return false;

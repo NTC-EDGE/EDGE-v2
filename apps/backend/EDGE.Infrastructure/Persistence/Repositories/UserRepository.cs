@@ -2,6 +2,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Constants;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
@@ -200,7 +201,7 @@ public class UserRepository : IUserRepository
             if (candidateUser != null)
             {
                 candidateUser.AuthUserId = authUserId;
-                if (currentUserService.IsSuperAdminClaim || cleanEmail.StartsWith("superadmin@"))
+                if (currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(cleanEmail))
                 {
                     candidateUser.IsSuperAdmin = true;
                 }
@@ -219,23 +220,18 @@ public class UserRepository : IUserRepository
             }
             else
             {
-                // 4. Auto-provision user if they authenticate with verified email and don't exist yet in the database
-                var isSuperAdminEmail = currentUserService.IsSuperAdminClaim ||
-                                       cleanEmail.Equals("superadmin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-                                       cleanEmail.StartsWith("superadmin@", StringComparison.OrdinalIgnoreCase);
-                var isAdminEmail = isSuperAdminEmail ||
-                                  currentUserService.IsAdminClaim ||
-                                  cleanEmail.Equals("admin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-                                  cleanEmail.StartsWith("admin@", StringComparison.OrdinalIgnoreCase);
+                // 4. Secure Auto-provisioning: only grant administrative roles if verified claims or exact seed admin emails match
+                var isSuperAdmin = currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(cleanEmail);
+                var isAdmin = isSuperAdmin || currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(cleanEmail);
 
                 var newUser = new User
                 {
                     Id = Guid.NewGuid(),
                     AuthUserId = authUserId,
                     Email = cleanEmail,
-                    FirstName = isSuperAdminEmail ? "Super" : (isAdminEmail ? "Regional" : "User"),
-                    LastName = isSuperAdminEmail ? "Administrator" : (isAdminEmail ? "Admin" : "Account"),
-                    IsSuperAdmin = isSuperAdminEmail,
+                    FirstName = isSuperAdmin ? "Super" : (isAdmin ? "Regional" : "User"),
+                    LastName = isSuperAdmin ? "Administrator" : (isAdmin ? "Admin" : "Account"),
+                    IsSuperAdmin = isSuperAdmin,
                     CreatedAt = DateTime.UtcNow
                 };
 
@@ -243,11 +239,11 @@ public class UserRepository : IUserRepository
                 {
                     await _context.Users.AddAsync(newUser, cancellationToken);
 
-                    // If this is an admin or superadmin, automatically assign default tenant membership
-                    if (isAdminEmail || isSuperAdminEmail)
+                    // If verified claims or seed admin emails indicate an administrator, assign default tenant membership
+                    if (isAdmin || isSuperAdmin)
                     {
                         var defaultTenantId = SeedConstants.DefaultTenantId;
-                        var targetRoleId = isSuperAdminEmail
+                        var targetRoleId = isSuperAdmin
                             ? SeedConstants.Roles.SuperAdminRoleId
                             : SeedConstants.Roles.AdminRoleId;
 
@@ -268,7 +264,7 @@ public class UserRepository : IUserRepository
                     }
 
                     await _context.SaveChangesAsync(cancellationToken);
-                    _logger?.LogInformation("Auto-provisioned new authenticated user '{Email}' ({AuthUserId}) with SuperAdmin={IsSuperAdmin}.", cleanEmail, authUserId, isSuperAdminEmail);
+                    _logger?.LogInformation("Auto-provisioned new verified user '{Email}' ({AuthUserId}) with SuperAdmin={IsSuperAdmin}.", cleanEmail, authUserId, isSuperAdmin);
                     return newUser;
                 }
                 catch (Exception ex)

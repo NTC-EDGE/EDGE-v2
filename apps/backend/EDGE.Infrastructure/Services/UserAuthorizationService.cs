@@ -15,36 +15,6 @@ public class UserAuthorizationService : IUserAuthorizationService
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<UserAuthorizationService> _logger;
 
-    private static readonly HashSet<string> AdministrativeRoleKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "admin",
-        "administrator",
-        "superadmin",
-        "super_admin",
-        "super-admin",
-        "systemadmin",
-        "system_admin",
-        "system-admin",
-        "tenantadmin",
-        "tenant_admin",
-        "tenant-admin",
-        "regionaladmin",
-        "regional_admin",
-        "regional-admin",
-        "regionaldirector",
-        "regional_director",
-        "regional-director",
-        "director"
-    };
-
-    private static bool IsAdministrativeRole(string? roleKey)
-    {
-        if (string.IsNullOrWhiteSpace(roleKey)) return false;
-        var trimmed = roleKey.Trim();
-        if (AdministrativeRoleKeys.Contains(trimmed)) return true;
-        var normalized = trimmed.Replace("-", "").Replace("_", "").Replace(" ", "");
-        return AdministrativeRoleKeys.Contains(normalized);
-    }
 
     private User? _cachedUser;
     private List<string>? _cachedPermissions;
@@ -134,17 +104,19 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        if (_currentUserService.IsAdminClaim && IsAdministrativeRole(role))
+        if (_currentUserService.IsAdminClaim && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
         {
             return true;
         }
 
-        var email = _currentUserService.Email;
-        if (!string.IsNullOrWhiteSpace(email))
+        if (AdministrativeIdentityPolicy.IsSuperAdminEmail(_currentUserService.Email))
         {
-            var clean = email.Trim().ToLowerInvariant();
-            if (clean.StartsWith("superadmin@")) return true;
-            if (clean.StartsWith("admin@") && IsAdministrativeRole(role)) return true;
+            return true;
+        }
+
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email) && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
+        {
+            return true;
         }
 
         var user = await GetCurrentUserAsync(cancellationToken);
@@ -153,12 +125,12 @@ public class UserAuthorizationService : IUserAuthorizationService
             return false;
         }
 
-        if (user.IsSuperAdmin || user.Email.StartsWith("superadmin@"))
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsSuperAdminEmail(user.Email))
         {
             return true;
         }
 
-        if (user.Email.StartsWith("admin@") && IsAdministrativeRole(role))
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email) && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
         {
             return true;
         }
@@ -173,7 +145,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 select r.Key
             ).ToListAsync(cancellationToken);
 
-            return memberships.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(k)));
+            return memberships.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (AdministrativeIdentityPolicy.IsAdministrativeRole(role) && AdministrativeIdentityPolicy.IsAdministrativeRole(k)));
         }
 
         var memberRoles = await (
@@ -183,7 +155,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             select r.Key
         ).ToListAsync(cancellationToken);
 
-        return memberRoles.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(k)));
+        return memberRoles.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (AdministrativeIdentityPolicy.IsAdministrativeRole(role) && AdministrativeIdentityPolicy.IsAdministrativeRole(k)));
     }
 
     public async Task<bool> IsInternalUserAsync(CancellationToken cancellationToken = default)
@@ -193,14 +165,9 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        var email = _currentUserService.Email;
-        if (!string.IsNullOrWhiteSpace(email))
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
         {
-            var clean = email.Trim().ToLowerInvariant();
-            if (clean.StartsWith("superadmin@") || clean.StartsWith("admin@"))
-            {
-                return true;
-            }
+            return true;
         }
 
         var user = await GetCurrentUserAsync(cancellationToken);
@@ -209,7 +176,7 @@ public class UserAuthorizationService : IUserAuthorizationService
             return false;
         }
 
-        if (user.IsSuperAdmin || user.Email.StartsWith("superadmin@") || user.Email.StartsWith("admin@"))
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
         {
             return true;
         }
@@ -269,16 +236,10 @@ public class UserAuthorizationService : IUserAuthorizationService
             return _cachedPermissions;
         }
 
-        var email = _currentUserService.Email;
-        if (!string.IsNullOrWhiteSpace(email))
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
         {
-            var clean = email.Trim().ToLowerInvariant();
-            if (clean.Equals("superadmin@ntcedge.com", StringComparison.OrdinalIgnoreCase) || clean.StartsWith("superadmin@") ||
-                clean.Equals("admin@ntcedge.com", StringComparison.OrdinalIgnoreCase) || clean.StartsWith("admin@"))
-            {
-                _cachedPermissions = Permissions.AllKeys.ToList();
-                return _cachedPermissions;
-            }
+            _cachedPermissions = Permissions.AllKeys.ToList();
+            return _cachedPermissions;
         }
 
         var user = await GetCurrentUserAsync(cancellationToken);
@@ -302,11 +263,7 @@ public class UserAuthorizationService : IUserAuthorizationService
         }
 
         // SuperAdmin or Admin user has ALL permissions across the system
-        if (user.IsSuperAdmin ||
-            user.Email.Equals("superadmin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-            user.Email.StartsWith("superadmin@") ||
-            user.Email.Equals("admin@ntcedge.com", StringComparison.OrdinalIgnoreCase) ||
-            user.Email.StartsWith("admin@"))
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
         {
             _cachedPermissions = Permissions.AllKeys.ToList();
             return _cachedPermissions;
@@ -345,7 +302,7 @@ public class UserAuthorizationService : IUserAuthorizationService
                 select r.Key
             ).ToListAsync(cancellationToken);
 
-            if (memberRoleKeys.Any(IsAdministrativeRole))
+            if (memberRoleKeys.Any(AdministrativeIdentityPolicy.IsAdministrativeRole))
             {
                 _cachedPermissions = Permissions.AllKeys.ToList();
                 return _cachedPermissions;

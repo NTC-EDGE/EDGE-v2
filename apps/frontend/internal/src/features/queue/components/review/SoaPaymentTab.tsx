@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -36,6 +36,18 @@ export function SoaPaymentTab({
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
   const [dueDraft, setDueDraft] = useState(app.dueDate);
+
+  useEffect(() => {
+    if (!editingOrNumber) {
+      setOrDraft(app.payment.orNumber);
+    }
+  }, [app.payment.orNumber, editingOrNumber]);
+
+  useEffect(() => {
+    if (!editingDueDate) {
+      setDueDraft(app.dueDate);
+    }
+  }, [app.dueDate, editingDueDate]);
 
   const hasSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
   const hasPayment = app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0;
