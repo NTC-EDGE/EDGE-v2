@@ -215,14 +215,12 @@ export function GenerateSoaModal({
     setSubmitting(false);
 
     if (err !== null) {
-      toast.error('Failed to generate Statement of Account. Please try again.');
+      toast.error('Failed to generate SOA.');
       return;
     }
 
     const isExistingSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
-    const successMsg = isExistingSoa
-      ? 'Statement of Account recalculated and updated successfully!'
-      : 'Statement of Account generated successfully!';
+    const successMsg = isExistingSoa ? 'SOA updated.' : 'SOA generated.';
     toast.success(successMsg);
     await mutateApplications(app.id);
     if (onSuccess) {
@@ -272,7 +270,7 @@ export function GenerateSoaModal({
                     { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                   ]}
                 >
-                  {isExistingSoa ? 'Recalculate Statement of Account (SOA)' : 'Generate Statement of Account (SOA)'}
+                  {isExistingSoa ? 'Recalculate SOA' : 'Generate SOA'}
                 </Text>
                 <Text
                   style={[
@@ -322,7 +320,7 @@ export function GenerateSoaModal({
                       { color: isDark ? colors.brand[300] : colors.brand[800] },
                     ]}
                   >
-                    Automated Statutory Calculation Engine
+                    Statutory Fee Calculation
                   </Text>
                 </View>
 
@@ -390,9 +388,7 @@ export function GenerateSoaModal({
                   { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                 ]}
               >
-                The backend automatically computes all statutory assessment fees, late renewal
-                surcharges, and Documentary Stamp Tax (DST) based on registered service catalog
-                formulas and parameters.
+                Statutory regulatory fees, surcharges, and DST are calculated automatically.
               </Text>
 
               {/* Service & Category Metadata Tag */}

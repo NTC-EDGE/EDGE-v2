@@ -61,16 +61,16 @@ public class CustomAuthorizationMiddlewareResultHandler : IAuthorizationMiddlewa
             if (requiredPermissions.Count > 0)
             {
                 var permList = string.Join(", ", requiredPermissions);
-                detail = $"Access Denied: Your account does not have the required permission ({permList}) to perform this action. Please contact your system administrator if you need access.";
+                detail = $"Access Denied: Missing permission ({permList}).";
             }
             else if (requiredRoles.Count > 0)
             {
                 var roleList = string.Join(", ", requiredRoles);
-                detail = $"Access Denied: This feature is restricted to the '{roleList}' role. Please make sure you are signed in with an authorized role or contact your administrator.";
+                detail = $"Access Denied: Requires '{roleList}' role.";
             }
             else
             {
-                detail = "Access Denied: You do not have permission to access this resource or perform this action. Please contact your system administrator.";
+                detail = "Access Denied: Insufficient permissions.";
             }
 
             var responsePayload = new

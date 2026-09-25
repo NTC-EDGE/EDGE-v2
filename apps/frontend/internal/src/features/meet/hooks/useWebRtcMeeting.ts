@@ -92,7 +92,18 @@ export function useWebRtcMeeting({
         setLocalStream(stream);
         setMediaError(null);
       } catch (err) {
-        // Fallback to audio-only if camera access fails
+        const isPermissionDenied =
+          (err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError')) ||
+          (typeof err === 'object' && err !== null && 'name' in err && (err.name === 'NotAllowedError' || err.name === 'PermissionDeniedError'));
+
+        if (isPermissionDenied) {
+          if (!isCancelled) {
+            setMediaError('Camera or microphone permission was denied. Please allow access in browser settings.');
+          }
+          return;
+        }
+
+        // Fallback to audio-only if camera access failed due to hardware/availability reasons
         try {
           const audioStream = await navigator.mediaDevices.getUserMedia({
             audio: {
@@ -113,10 +124,18 @@ export function useWebRtcMeeting({
           });
 
           setLocalStream(audioStream);
-          setMediaError(null);
-        } catch {
+          setMediaError('Camera is unavailable. Joined with audio only.');
+        } catch (audioErr) {
           if (!isCancelled) {
-            setMediaError('Could not access microphone or camera. Please check browser permissions.');
+            const isAudioDenied =
+              (audioErr instanceof DOMException && (audioErr.name === 'NotAllowedError' || audioErr.name === 'PermissionDeniedError')) ||
+              (typeof audioErr === 'object' && audioErr !== null && 'name' in audioErr && (audioErr.name === 'NotAllowedError' || audioErr.name === 'PermissionDeniedError'));
+
+            setMediaError(
+              isAudioDenied
+                ? 'Microphone permission was denied. Please allow access in browser settings.'
+                : 'Could not access microphone or camera. Please check browser permissions.'
+            );
           }
         }
       }
@@ -126,6 +145,10 @@ export function useWebRtcMeeting({
 
     return () => {
       isCancelled = true;
+      if (localStreamRef.current !== null) {
+        localStreamRef.current.getTracks().forEach((t) => t.stop());
+        localStreamRef.current = null;
+      }
     };
   }, [meetingCode]);
 

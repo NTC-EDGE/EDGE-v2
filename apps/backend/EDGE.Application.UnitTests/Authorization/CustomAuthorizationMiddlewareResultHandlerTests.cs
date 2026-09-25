@@ -171,7 +171,7 @@ public class CustomAuthorizationMiddlewareResultHandlerTests
         root.GetProperty("succeeded").GetBoolean().Should().BeFalse();
         root.GetProperty("statusCode").GetInt32().Should().Be(StatusCodes.Status403Forbidden);
         root.GetProperty("title").GetString().Should().Be("Access Denied");
-        root.GetProperty("detail").GetString().Should().Be("Access Denied: You do not have permission to access this resource or perform this action. Please contact your system administrator.");
+        root.GetProperty("detail").GetString().Should().Be("Access Denied: Insufficient permissions.");
         root.GetProperty("requiredPermissions").GetArrayLength().Should().Be(0);
         root.GetProperty("requiredRoles").GetArrayLength().Should().Be(0);
     }

@@ -319,9 +319,9 @@ public class UserAuthorizationService : IUserAuthorizationService
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
 
-            if (dbPermissions.Count == 0)
+            if (dbPermissions.Count == 0 && !tenantId.HasValue)
             {
-                // Fallback: if no active tenant in request or specified tenant has no matches, load permissions across all active memberships
+                // Fallback: if no active tenant specified in request context, load permissions across all active memberships
                 var query = from tm in _dbContext.Set<TenantMember>()
                             join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
                             where tm.UserId == user.Id && !tm.IsDeleted

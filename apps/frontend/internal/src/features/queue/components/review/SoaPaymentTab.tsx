@@ -110,7 +110,7 @@ export function SoaPaymentTab({
             ]}
           >
             {isEvaluationApproved
-              ? 'Ready to Generate Statement of Account (Evaluator)'
+              ? 'Generate Statement of Account'
               : 'Statement of Account (Evaluation Required)'}
           </Text>
 
@@ -120,14 +120,14 @@ export function SoaPaymentTab({
               {
                 color: isDark ? colors.neutral[400] : colors.neutral[500],
                 textAlign: 'center',
-                maxWidth: 520,
+                maxWidth: 480,
                 lineHeight: 18,
               },
             ]}
           >
             {isEvaluationApproved
-              ? 'As an Evaluator, generate the Statement of Account (SOA) during evaluation to compute statutory regulatory fees according to NTC fee schedules before forwarding this application to the Accountant for verification.'
-              : 'A Statement of Account can only be generated once application evaluation is in progress. Please ensure all applicant records and documents are evaluated as Complete / Endorsed before proceeding.'}
+              ? 'Generate the SOA to compute statutory fees before forwarding to the Accountant.'
+              : 'Complete applicant evaluation to generate the SOA.'}
           </Text>
 
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap', justifyContent: 'center', marginTop: 4 }}>
@@ -298,7 +298,7 @@ export function SoaPaymentTab({
         >
           <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#e0e7ff' : '#3730a3', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '700' }}>Accountant Task — SOA Verification:</Text> Please review and verify the Statement of Account and statutory fee calculations prepared by the Evaluator. Click <Text style={{ fontWeight: '700' }}>Approve SOA</Text> in the action bar below to release the Order of Payment, or click <Text style={{ fontWeight: '700' }}>Return</Text> to send back to the Evaluator if discrepancies are identified.
+            <Text style={{ fontWeight: '700' }}>SOA Verification:</Text> Verify fee calculations. Click <Text style={{ fontWeight: '700' }}>Approve SOA</Text> to issue Order of Payment, or <Text style={{ fontWeight: '700' }}>Return</Text> if corrections are needed.
           </Text>
         </View>
       )}
@@ -320,7 +320,7 @@ export function SoaPaymentTab({
         >
           <Lucide name="alert-triangle" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#fde68a' : '#92400e', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '700' }}>SOA Returned by Accountant:</Text> {app.note || 'Please review findings and adjust fee calculations.'} Click <Text style={{ fontWeight: '700' }}>Recalculate / Edit SOA</Text> to make corrections and re-submit to the Accountant.
+            <Text style={{ fontWeight: '700' }}>SOA Returned:</Text> {app.note || 'Review findings and adjust calculations.'} Click <Text style={{ fontWeight: '700' }}>Edit SOA</Text> to revise and resubmit.
           </Text>
         </View>
       )}

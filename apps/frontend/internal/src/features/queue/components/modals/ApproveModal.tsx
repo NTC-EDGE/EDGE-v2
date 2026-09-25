@@ -44,7 +44,7 @@ export function ApproveModal({
             subtitleText
           ) : (
             <>
-              You are about to approve the application for{' '}
+              Approve application for{' '}
               <Text
                 style={{
                   fontWeight: TYPOGRAPHY.weights.semibold,
@@ -52,8 +52,7 @@ export function ApproveModal({
                 }}
               >
                 {applicantName}
-              </Text>.
-              {'\n'}This action cannot be undone.
+              </Text>?
             </>
           )}
         </Text>
