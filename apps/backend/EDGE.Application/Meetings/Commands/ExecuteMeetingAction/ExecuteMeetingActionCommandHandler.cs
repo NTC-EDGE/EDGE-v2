@@ -10,17 +10,20 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
     private readonly IMeetingRepository _meetingRepository;
     private readonly IUserRepository _userRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IMeetingNotificationService _meetingNotificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public ExecuteMeetingActionCommandHandler(
         IMeetingRepository meetingRepository,
         IUserRepository userRepository,
         ICurrentUserService currentUserService,
+        IMeetingNotificationService meetingNotificationService,
         IUnitOfWork unitOfWork)
     {
         _meetingRepository = meetingRepository;
         _userRepository = userRepository;
         _currentUserService = currentUserService;
+        _meetingNotificationService = meetingNotificationService;
         _unitOfWork = unitOfWork;
     }
 
@@ -83,7 +86,34 @@ public class ExecuteMeetingActionCommandHandler : IRequestHandler<ExecuteMeeting
                 throw new UnauthorizedAccessException("Only the meeting host or administrators can end the meeting.");
             }
             meeting.Status = MeetingStatus.Ended;
-            meeting.ScheduledEndTime = DateTimeOffset.UtcNow;
+            meeting.ActualEndTime = DateTimeOffset.UtcNow;
+            await _meetingNotificationService.NotifyMeetingEndedAsync(meeting.MeetingCode, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.CancelMeeting)
+        {
+            if (!isHostOrAdmin)
+            {
+                throw new UnauthorizedAccessException("Only the meeting host or administrators can delete or cancel the meeting.");
+            }
+            meeting.Status = MeetingStatus.Cancelled;
+            await _meetingNotificationService.NotifyMeetingEndedAsync(meeting.MeetingCode, cancellationToken);
+        }
+        else if (request.ActionType == MeetingActionType.LeaveMeeting)
+        {
+            participant.LeftAt = DateTimeOffset.UtcNow;
+            // If host leaves without ending for all, assign co-host / admin role to another participant if available
+            if (meeting.HostUserId == currentUser.Id)
+            {
+                var nextAdmin = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted && p.Role == ParticipantRole.Admin);
+                if (nextAdmin == null)
+                {
+                    var nextMember = meeting.Participants.FirstOrDefault(p => p.UserId != currentUser.Id && !p.IsDeleted);
+                    if (nextMember != null)
+                    {
+                        nextMember.Role = ParticipantRole.Admin;
+                    }
+                }
+            }
         }
 
         var action = new MeetingAction

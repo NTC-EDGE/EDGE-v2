@@ -42,9 +42,25 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
     const unsubMsg = realTimeService.onReceiveMessage((incomingMsg) => {
       if (incomingMsg.conversationId === conversationId) {
         setMessages((prev) => {
-          if (prev.some((m) => m.id === incomingMsg.id)) {
+          // 1. If message with real ID is already in list, update it
+          const alreadyExists = prev.some((m) => m.id === incomingMsg.id);
+          if (alreadyExists) {
             return prev.map((m) => (m.id === incomingMsg.id ? { ...incomingMsg, status: 'delivered' } : m));
           }
+
+          // 2. If this incoming message matches a pending optimistic message from self, replace it
+          const tempIdx = prev.findIndex(
+            (m) =>
+              m.id.startsWith('temp-') &&
+              m.content.trim() === incomingMsg.content.trim() &&
+              (m.senderId === 'self' || m.senderId === incomingMsg.senderId)
+          );
+          if (tempIdx !== -1) {
+            const updated = [...prev];
+            updated[tempIdx] = { ...incomingMsg, status: 'delivered' };
+            return updated;
+          }
+
           return [{ ...incomingMsg, status: 'delivered' }, ...prev];
         });
       }
@@ -93,7 +109,7 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
       if (conversationId === undefined || conversationId === null) return false;
       setIsSending(true);
 
-      const tempId = `temp-${Date.now()}`;
+      const tempId = `temp-${Date.now()}-${Math.random()}`;
       const optimisticMsg: ExtendedChatMessage = {
         id: tempId,
         conversationId,
@@ -127,9 +143,15 @@ export function useChatMessages(conversationId?: string | null, currentUserName?
       }
 
       if (sentMsg !== null) {
-        setMessages((prev) =>
-          prev.map((m) => (m.id === tempId ? { ...sentMsg, status: 'sent' } : m))
-        );
+        setMessages((prev) => {
+          // If SignalR already pushed this message into state, drop the temp placeholder
+          const alreadyAddedBySignalR = prev.some((m) => m.id === sentMsg.id);
+          if (alreadyAddedBySignalR) {
+            return prev.filter((m) => m.id !== tempId);
+          }
+          // Otherwise, replace the temp placeholder with the real sent message
+          return prev.map((m) => (m.id === tempId ? { ...sentMsg, status: 'sent' } : m));
+        });
         return true;
       }
 

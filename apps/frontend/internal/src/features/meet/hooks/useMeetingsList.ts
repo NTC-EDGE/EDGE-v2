@@ -9,6 +9,8 @@ export function useMeetingsList(tenantId?: string) {
   const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<MeetingFilter>('All');
   const [searchQuery, setSearchQuery] = useState<string>('');
+  const [notifiedMeetingCodes, setNotifiedMeetingCodes] = useState<Set<string>>(new Set());
+  const [scheduledMeetingNotification, setScheduledMeetingNotification] = useState<Meeting | null>(null);
 
   const fetchMeetings = useCallback(async () => {
     setIsLoading(true);
@@ -29,7 +31,7 @@ export function useMeetingsList(tenantId?: string) {
   useEffect(() => {
     const unsubEnded = realTimeService.onMeetingEnded((endedCode) => {
       setMeetings((prev) =>
-        prev.map((m) => (m.meetingCode === endedCode ? { ...m, status: 'Ended' } : m))
+        prev.map((m) => (m.meetingCode === endedCode ? { ...m, status: 'Cancelled' } : m))
       );
     });
     return () => {
@@ -37,11 +39,45 @@ export function useMeetingsList(tenantId?: string) {
     };
   }, []);
 
-  const deleteMeeting = useCallback((meetingId: string) => {
-    setMeetings((prev) => prev.filter((m) => m.id !== meetingId));
+  // Periodic check: When a scheduled meeting reaches its target date and time, notify the user
+  useEffect(() => {
+    const checkSchedule = () => {
+      const now = new Date().getTime();
+      for (const m of meetings) {
+        if (m.status === 'Scheduled' && !notifiedMeetingCodes.has(m.meetingCode)) {
+          const startTime = new Date(m.scheduledStartTime).getTime();
+          // If within 2 minutes before start time or within 10 minutes after start time
+          if (now >= startTime - 60000 && now <= startTime + 600000) {
+            setNotifiedMeetingCodes((prev) => new Set([...prev, m.meetingCode]));
+            setScheduledMeetingNotification(m);
+            break;
+          }
+        }
+      }
+    };
+
+    const interval = setInterval(checkSchedule, 15000);
+    checkSchedule();
+
+    return () => {
+      clearInterval(interval);
+    };
+  }, [meetings, notifiedMeetingCodes]);
+
+  const cancelOrDeleteMeeting = useCallback(async (meetingCode: string, meetingId: string) => {
+    setMeetings((prev) =>
+      prev.map((m) => (m.id === meetingId ? { ...m, status: 'Cancelled' } : m))
+    );
+    await safeAsync(
+      meetService.executeAction({
+        meetingCode,
+        actionType: 'CancelMeeting',
+      })
+    );
   }, []);
 
   const filteredMeetings = useMemo(() => {
+    const now = new Date();
     return meetings.filter((m) => {
       // 1. Search filter
       if (searchQuery.trim().length > 0) {
@@ -55,15 +91,21 @@ export function useMeetingsList(tenantId?: string) {
         }
       }
 
+      const isTargetPassed = m.scheduledEndTime
+        ? new Date(m.scheduledEndTime) < now
+        : new Date(m.scheduledStartTime).getTime() + 86400000 < now.getTime();
+
+      const isDone = m.status === 'Ended' || m.status === 'Cancelled' || (m.status === 'Scheduled' && isTargetPassed);
+
       // 2. Tab filter
       if (filter === 'Upcoming') {
-        return m.status === 'Scheduled';
+        return m.status === 'Scheduled' && !isTargetPassed;
       }
       if (filter === 'Live') {
         return m.status === 'Live';
       }
       if (filter === 'History') {
-        return m.status === 'Ended' || m.status === 'Cancelled';
+        return isDone;
       }
 
       return true;
@@ -79,7 +121,9 @@ export function useMeetingsList(tenantId?: string) {
     setFilter,
     searchQuery,
     setSearchQuery,
-    deleteMeeting,
+    scheduledMeetingNotification,
+    clearScheduledMeetingNotification: () => setScheduledMeetingNotification(null),
+    deleteMeeting: cancelOrDeleteMeeting,
     refreshMeetings: fetchMeetings,
   };
 }

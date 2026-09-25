@@ -35,6 +35,8 @@ export const MeetScreenContent: React.FC = () => {
     setFilter,
     searchQuery,
     setSearchQuery,
+    scheduledMeetingNotification,
+    clearScheduledMeetingNotification,
     deleteMeeting,
     refreshMeetings,
   } = useMeetingsList(user?.tenantId);
@@ -241,9 +243,10 @@ export const MeetScreenContent: React.FC = () => {
     }
   };
 
-  const handleDeleteMeeting = (meetingId: string) => {
-    deleteMeeting(meetingId);
-    showToast('Meeting removed from your list.', 'success');
+  const handleDeleteMeeting = async (meeting: Meeting) => {
+    await deleteMeeting(meeting.meetingCode, meeting.id);
+    showToast('Meeting cancelled and moved to history.', 'success');
+    await refreshMeetings();
   };
 
   if (activeMeeting !== null) {
@@ -262,6 +265,45 @@ export const MeetScreenContent: React.FC = () => {
       {toast !== null && (
         <View style={styles.toastWrapper}>
           <AlertToast message={toast.message} variant={toast.variant} onDismiss={() => setToast(null)} />
+        </View>
+      )}
+
+      {/* Scheduled Meeting Starting Notification Prompt */}
+      {scheduledMeetingNotification !== null && (
+        <View style={[styles.scheduledAlertBanner, { backgroundColor: '#1E293B', borderColor: colors.brand.primary }]}>
+          <View style={styles.scheduledAlertLeft}>
+            <View style={styles.scheduledAlertPulse}>
+              <Icon name="clock" size={16} color="#FFFFFF" />
+            </View>
+            <View>
+              <Text style={styles.scheduledAlertTitle}>
+                Meeting Starting: {scheduledMeetingNotification.title}
+              </Text>
+              <Text style={styles.scheduledAlertSub}>
+                Scheduled for {new Date(scheduledMeetingNotification.scheduledStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • Host: {scheduledMeetingNotification.hostUserName}
+              </Text>
+            </View>
+          </View>
+          <View style={styles.scheduledAlertActions}>
+            <Button
+              variant="primary"
+              size="sm"
+              onPress={() => {
+                const target = scheduledMeetingNotification;
+                clearScheduledMeetingNotification();
+                handleJoinMeeting(target);
+              }}
+            >
+              Join Call Now
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onPress={clearScheduledMeetingNotification}
+            >
+              Dismiss
+            </Button>
+          </View>
         </View>
       )}
 
@@ -394,7 +436,7 @@ export const MeetScreenContent: React.FC = () => {
                 meeting={item}
                 onJoin={handleJoinMeeting}
                 onInvite={setInvitingMeeting}
-                onDelete={handleDeleteMeeting}
+                onDelete={() => handleDeleteMeeting(item)}
                 onViewRecording={setViewingRecordingMeeting}
               />
             )}
@@ -655,5 +697,47 @@ const styles = StyleSheet.create({
   },
   retentionNotice: {
     fontSize: 12,
+  },
+  scheduledAlertBanner: {
+    width: '100%',
+    padding: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 12,
+    marginBottom: 12,
+  },
+  scheduledAlertLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flex: 1,
+    minWidth: 260,
+  },
+  scheduledAlertPulse: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  scheduledAlertTitle: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  scheduledAlertSub: {
+    color: '#94A3B8',
+    fontSize: 12,
+  },
+  scheduledAlertActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
 });

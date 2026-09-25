@@ -10,6 +10,7 @@ interface VideoTileProps {
   isVideoMuted?: boolean;
   isMicMuted?: boolean;
   isSpeaking?: boolean;
+  isHandRaised?: boolean;
   totalParticipants?: number;
   layoutMode?: 'grid' | 'solo' | 'strip';
 }
@@ -21,6 +22,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   isVideoMuted = false,
   isMicMuted = false,
   isSpeaking = false,
+  isHandRaised = false,
   totalParticipants = 1,
   layoutMode = 'grid',
 }) => {
@@ -29,6 +31,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
   const [fitMode, setFitMode] = useState<'cover' | 'contain'>('cover');
 
   const hasVideoTrack = stream !== null && stream.getVideoTracks().length > 0 && !isVideoMuted;
+  const isParticipantHandRaised = isSelf ? isHandRaised : participant.isHandRaised;
 
   useEffect(() => {
     if (Platform.OS === 'web' && videoRef.current && stream) {
@@ -43,6 +46,20 @@ export const VideoTile: React.FC<VideoTileProps> = ({
 
   const toggleFitMode = () => {
     setFitMode((prev) => (prev === 'cover' ? 'contain' : 'cover'));
+  };
+
+  const togglePictureInPicture = async () => {
+    if (Platform.OS === 'web' && videoRef.current && typeof document !== 'undefined') {
+      try {
+        if (document.pictureInPictureElement) {
+          await document.exitPictureInPicture();
+        } else if (document.pictureInPictureEnabled) {
+          await videoRef.current.requestPictureInPicture();
+        }
+      } catch (err) {
+        console.warn('[PiP] Picture-in-Picture error:', err);
+      }
+    }
   };
 
   const isSolo = totalParticipants <= 1;
@@ -117,7 +134,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         </View>
       )}
 
-      {/* Top Floating Controls Bar */}
+      {/* Top Floating Controls & Badges Bar */}
       <View style={styles.topControlRow}>
         {isSpeaking ? (
           <View style={styles.speakingTag}>
@@ -126,15 +143,34 @@ export const VideoTile: React.FC<VideoTileProps> = ({
           </View>
         ) : <View />}
 
-        {hasVideoTrack && Platform.OS === 'web' && (
-          <Pressable
-            style={styles.fitToggleBtn}
-            onPress={toggleFitMode}
-            accessibilityLabel="Toggle video fit mode"
-          >
-            <Icon name={fitMode === 'cover' ? 'maximize-2' : 'minimize-2'} size={12} color="#FFFFFF" />
-          </Pressable>
-        )}
+        <View style={styles.topActionsGroup}>
+          {isParticipantHandRaised ? (
+            <View style={styles.upperRightHandBadge}>
+              <Text style={styles.handText}>
+                ✋ {participant.handRaiseQueuePosition ? `#${participant.handRaiseQueuePosition}` : 'Hand Raised'}
+              </Text>
+            </View>
+          ) : null}
+
+          {hasVideoTrack && Platform.OS === 'web' && (
+            <>
+              <Pressable
+                style={styles.fitToggleBtn}
+                onPress={togglePictureInPicture}
+                accessibilityLabel="Floating mini window / Picture in picture"
+              >
+                <Icon name="airplay" size={12} color="#FFFFFF" />
+              </Pressable>
+              <Pressable
+                style={styles.fitToggleBtn}
+                onPress={toggleFitMode}
+                accessibilityLabel="Toggle video fit mode"
+              >
+                <Icon name={fitMode === 'cover' ? 'maximize-2' : 'minimize-2'} size={12} color="#FFFFFF" />
+              </Pressable>
+            </>
+          )}
+        </View>
       </View>
 
       {/* Bottom Information Overlay Bar */}
@@ -146,11 +182,6 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         </View>
 
         <View style={styles.iconRow}>
-          {participant.isHandRaised ? (
-            <View style={styles.handBadge}>
-              <Text style={styles.handText}>✋ #{participant.handRaiseQueuePosition ?? 1}</Text>
-            </View>
-          ) : null}
           {isMicMuted || participant.isMutedByHost ? (
             <View style={styles.micMutedBadge}>
               <Icon name="mic-off" size={12} color="#EF4444" />
@@ -250,6 +281,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700',
   },
+  topActionsGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   fitToggleBtn: {
     width: 24,
     height: 24,
@@ -294,15 +330,25 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
-  handBadge: {
+  upperRightHandBadge: {
     backgroundColor: '#F59E0B',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
   },
   handText: {
     color: '#FFFFFF',
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '700',
   },
   micMutedBadge: {

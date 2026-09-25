@@ -29,5 +29,6 @@ public interface IMeetingClient
     Task OnMeetingEnded(string meetingCode);
     Task OnExistingSessionDetected(string meetingCode, string existingConnectionId);
     Task OnSessionSwitchedToAnotherDevice(string meetingCode);
+    Task OnHostChanged(Guid newHostUserId, string newHostUserName);
 }
 
