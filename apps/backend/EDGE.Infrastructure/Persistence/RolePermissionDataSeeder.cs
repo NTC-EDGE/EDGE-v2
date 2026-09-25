@@ -239,6 +239,7 @@ public static class RolePermissionDataSeeder
             (actualRegionalDirectorRoleId, Permissions.CreateMeetings),
             (actualRegionalDirectorRoleId, Permissions.ManageMeetingParticipants),
             (actualRegionalDirectorRoleId, Permissions.ManageMeetingHostControls),
+            (actualRegionalDirectorRoleId, Permissions.ManageTenantMembers),
 
             // Legal Officer (Compliance & Legal Reviews)
             (actualLegalRoleId, Permissions.ReadTenants),

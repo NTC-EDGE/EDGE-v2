@@ -78,6 +78,37 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Timestamp = DateTime.UtcNow
         });
 
+        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        if (app != null && app.Status == ApplicationStatus.ForAccountant)
+        {
+            app.Status = ApplicationStatus.PendingPayment;
+            app.Remarks = "SOA approved by Accountant. Ready for payment.";
+            await _repository.UpdateAsync(app, cancellationToken);
+
+            await _repository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = ApplicationStatus.PendingPayment,
+                Remarks = "SOA approved by Accountant. Ready for payment.",
+                Timestamp = DateTime.UtcNow,
+                UserId = userContext.UserId
+            }, cancellationToken);
+
+            await _repository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Action = "SOA Approved by Accountant",
+                ToStatus = ApplicationStatus.PendingPayment,
+                PerformedByUserId = userContext.UserId,
+                StaffName = userContext.StaffName,
+                StaffRole = userContext.StaffRole,
+                Remarks = request.Remarks ?? "SOA approved by Accountant. Order of Payment generated.",
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
         await _repository.AddOpAsync(op, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

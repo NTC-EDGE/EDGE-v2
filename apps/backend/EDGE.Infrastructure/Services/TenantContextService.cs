@@ -107,8 +107,13 @@ public class TenantContextService : ITenantContextService
 
     public async Task<bool> IsCurrentUserSuperAdminAsync(CancellationToken cancellationToken = default)
     {
+        if (_currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(_currentUserService.Email))
+        {
+            return true;
+        }
+
         var user = await GetCurrentUserAsync(cancellationToken);
-        return user?.IsSuperAdmin == true;
+        return user?.IsSuperAdmin == true || AdministrativeIdentityPolicy.IsSuperAdminEmail(user?.Email);
     }
 
     public async Task<bool> IsUserActiveMemberAsync(Guid tenantId, CancellationToken cancellationToken = default)
@@ -120,6 +125,15 @@ public class TenantContextService : ITenantContextService
             return cachedResult;
         }
 
+        // SuperAdmins and Admins are granted active access across all tenants
+        if (await IsCurrentUserSuperAdminAsync(cancellationToken) ||
+            _currentUserService.IsAdminClaim ||
+            AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            _membershipCache[tenantId] = true;
+            return true;
+        }
+
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null)
         {
@@ -127,8 +141,21 @@ public class TenantContextService : ITenantContextService
             return false;
         }
 
-        // SuperAdmins are granted active access across all tenants
-        if (user.IsSuperAdmin)
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
+        {
+            _membershipCache[tenantId] = true;
+            return true;
+        }
+
+        // Check if user holds an administrative role across tenant memberships
+        var isAdmin = await (
+            from tm in _dbContext.TenantMembers
+            join r in _dbContext.Roles on tm.RoleId equals r.Id
+            where tm.UserId == user.Id && !tm.IsDeleted && !r.IsDeleted
+            select r.Key
+        ).ToListAsync(cancellationToken);
+
+        if (isAdmin.Any(AdministrativeIdentityPolicy.IsAdministrativeRole))
         {
             _membershipCache[tenantId] = true;
             return true;
@@ -158,6 +185,19 @@ public class TenantContextService : ITenantContextService
             return _cachedActiveTenantIds;
         }
 
+        if (await IsCurrentUserSuperAdminAsync(cancellationToken) ||
+            _currentUserService.IsAdminClaim ||
+            AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            _cachedActiveTenantIds = await _dbContext.Tenants
+                .AsNoTracking()
+                .Where(t => !t.IsDeleted && t.IsActive)
+                .Select(t => t.Id)
+                .ToListAsync(cancellationToken);
+
+            return _cachedActiveTenantIds;
+        }
+
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null)
         {
@@ -165,7 +205,7 @@ public class TenantContextService : ITenantContextService
             return _cachedActiveTenantIds;
         }
 
-        if (user.IsSuperAdmin)
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
         {
             _cachedActiveTenantIds = await _dbContext.Tenants
                 .AsNoTracking()

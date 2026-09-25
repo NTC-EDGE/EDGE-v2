@@ -56,7 +56,7 @@ export function DeclineModal({
             marginBottom: 20,
           }}
         >
-          Returning the application for{' '}
+          Return application for{' '}
           <Text
             style={{
               fontWeight: TYPOGRAPHY.weights.semibold,
@@ -65,7 +65,6 @@ export function DeclineModal({
           >
             {applicantName}
           </Text>.
-          {'\n'}Please provide details or remarks.
         </Text>
       }
       onConfirm={handleConfirm}

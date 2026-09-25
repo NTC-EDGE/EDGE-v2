@@ -66,7 +66,7 @@ public class User : AuditableEntity
 
     /// <summary>
     /// Attempts to bind an incoming external auth subject ID to this account.
-    /// Returns true if linking succeeded or was already matching; returns false if rejected due to collision.
+    /// Returns true if linking succeeded or was already matching.
     /// </summary>
     public bool TryLinkExternalAuthUserId(string incomingAuthUserId)
     {

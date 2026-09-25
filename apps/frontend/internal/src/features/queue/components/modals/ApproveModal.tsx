@@ -5,19 +5,30 @@ import { TYPOGRAPHY, COLORS, ConfirmationModal, useTheme } from '@edge/ui';
 interface ApproveModalProps {
   visible: boolean;
   applicantName: string;
+  title?: string;
+  confirmText?: string;
+  subtitleText?: string;
   onConfirm: () => void;
   onCancel: () => void;
 }
 
-export function ApproveModal({ visible, applicantName, onConfirm, onCancel }: ApproveModalProps) {
+export function ApproveModal({
+  visible,
+  applicantName,
+  title = 'Approve Application',
+  confirmText = 'Confirm Approval',
+  subtitleText,
+  onConfirm,
+  onCancel,
+}: ApproveModalProps) {
   const { colors, isDark } = useTheme();
 
   return (
     <ConfirmationModal
       visible={visible}
-      title="Approve Application"
+      title={title}
       variant="success"
-      confirmText="Confirm Approval"
+      confirmText={confirmText}
       subtitle={
         <Text
           style={{
@@ -29,16 +40,21 @@ export function ApproveModal({ visible, applicantName, onConfirm, onCancel }: Ap
             marginBottom: 20,
           }}
         >
-          You are about to approve the application for{' '}
-          <Text
-            style={{
-              fontWeight: TYPOGRAPHY.weights.semibold,
-              color: isDark ? colors.neutral[200] : COLORS.neutral[700],
-            }}
-          >
-            {applicantName}
-          </Text>.
-          {'\n'}This action cannot be undone.
+          {subtitleText !== undefined && subtitleText.length > 0 ? (
+            subtitleText
+          ) : (
+            <>
+              Approve application for{' '}
+              <Text
+                style={{
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: isDark ? colors.neutral[200] : COLORS.neutral[700],
+                }}
+              >
+                {applicantName}
+              </Text>?
+            </>
+          )}
         </Text>
       }
       onConfirm={onConfirm}

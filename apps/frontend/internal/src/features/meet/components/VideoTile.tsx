@@ -83,13 +83,16 @@ export const VideoTile: React.FC<VideoTileProps> = ({
         },
       ]}
     >
-      {/* Live Video Stream on Web */}
-      {Platform.OS === 'web' && stream !== null && hasVideoTrack ? (
+      {/* Live Video & Audio Stream on Web */}
+      {Platform.OS === 'web' && stream !== null ? (
         <video
           ref={(el) => {
             videoRef.current = el;
             if (el !== null && stream !== null && el.srcObject !== stream) {
               el.srcObject = stream;
+              el.play().catch(() => {
+                // Autoplay policy handled
+              });
             }
           }}
           autoPlay
@@ -106,26 +109,16 @@ export const VideoTile: React.FC<VideoTileProps> = ({
             left: 0,
             borderRadius: 14,
             backgroundColor: '#090D16',
+            opacity: hasVideoTrack ? 1 : 0,
+            pointerEvents: hasVideoTrack ? 'auto' : 'none',
+            zIndex: 1,
           }}
         />
-      ) : (
-        <View style={styles.centerAvatar}>
-          {/* Ensure Remote Audio Still Plays When Video is Off */}
-          {Platform.OS === 'web' && !isSelf && stream !== null ? (
-            <audio
-              ref={(el) => {
-                if (el !== null && stream !== null && el.srcObject !== stream) {
-                  el.srcObject = stream;
-                  el.play().catch(() => {
-                    // Handled browser autoplay
-                  });
-                }
-              }}
-              autoPlay
-              playsInline
-              style={{ display: 'none' }}
-            />
-          ) : null}
+      ) : null}
+
+      {/* Avatar Fallback View when Camera is Off */}
+      {(!hasVideoTrack || stream === null) && (
+        <View style={[styles.centerAvatar, { zIndex: 2 }]}>
           <Avatar name={participant.fullName} size="lg" />
           <View style={styles.camOffBadge}>
             <Icon name="video-off" size={13} color="#94A3B8" />
@@ -135,7 +128,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({
       )}
 
       {/* Top Floating Controls & Badges Bar */}
-      <View style={styles.topControlRow}>
+      <View style={[styles.topControlRow, { zIndex: 3 }]}>
         {isSpeaking ? (
           <View style={styles.speakingTag}>
             <View style={styles.greenPulse} />

@@ -7,4 +7,6 @@ public interface ICurrentUserService
     bool IsEmailVerified { get; }
     Guid? TenantId { get; }
     string? IpAddress { get; }
+    bool IsSuperAdminClaim { get; }
+    bool IsAdminClaim { get; }
 }

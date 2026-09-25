@@ -15,36 +15,6 @@ public class UserAuthorizationService : IUserAuthorizationService
     private readonly ApplicationDbContext _dbContext;
     private readonly ILogger<UserAuthorizationService> _logger;
 
-    private static readonly HashSet<string> AdministrativeRoleKeys = new(StringComparer.OrdinalIgnoreCase)
-    {
-        "admin",
-        "administrator",
-        "superadmin",
-        "super_admin",
-        "super-admin",
-        "systemadmin",
-        "system_admin",
-        "system-admin",
-        "tenantadmin",
-        "tenant_admin",
-        "tenant-admin",
-        "regionaladmin",
-        "regional_admin",
-        "regional-admin",
-        "regionaldirector",
-        "regional_director",
-        "regional-director",
-        "director"
-    };
-
-    private static bool IsAdministrativeRole(string? roleKey)
-    {
-        if (string.IsNullOrWhiteSpace(roleKey)) return false;
-        var trimmed = roleKey.Trim();
-        if (AdministrativeRoleKeys.Contains(trimmed)) return true;
-        var normalized = trimmed.Replace("-", "").Replace("_", "").Replace(" ", "");
-        return AdministrativeRoleKeys.Contains(normalized);
-    }
 
     private User? _cachedUser;
     private List<string>? _cachedPermissions;
@@ -129,44 +99,84 @@ public class UserAuthorizationService : IUserAuthorizationService
             return false;
         }
 
-        var user = await GetCurrentUserAsync(cancellationToken);
-        if (user == null) return false;
-
-        if (user.IsSuperAdmin)
+        if (_currentUserService.IsSuperAdminClaim)
         {
-            if (IsAdministrativeRole(role))
-            {
-                return true;
-            }
+            return true;
         }
 
-        var tenantId = _tenantContextService.TenantId;
-        if (!tenantId.HasValue)
+        if (_currentUserService.IsAdminClaim && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
         {
-            var memberships = await _dbContext.TenantMembers
-                .Include(m => m.Role)
-                .Where(m => m.UserId == user.Id && !m.IsDeleted)
-                .ToListAsync(cancellationToken);
-
-            return memberships.Any(m => m.Role != null && (m.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(m.Role.Key))));
+            return true;
         }
 
-        var member = await _dbContext.TenantMembers
-            .Include(m => m.Role)
-            .FirstOrDefaultAsync(m => m.UserId == user.Id && m.TenantId == tenantId.Value && !m.IsDeleted, cancellationToken);
+        if (AdministrativeIdentityPolicy.IsSuperAdminEmail(_currentUserService.Email))
+        {
+            return true;
+        }
 
-        return member?.Role != null && (member.Role.Key.Equals(role, StringComparison.OrdinalIgnoreCase) || (IsAdministrativeRole(role) && IsAdministrativeRole(member.Role.Key)));
-    }
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email) && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
+        {
+            return true;
+        }
 
-    public async Task<bool> IsInternalUserAsync(CancellationToken cancellationToken = default)
-    {
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null)
         {
             return false;
         }
 
-        if (user.IsSuperAdmin)
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsSuperAdminEmail(user.Email))
+        {
+            return true;
+        }
+
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email) && AdministrativeIdentityPolicy.IsAdministrativeRole(role))
+        {
+            return true;
+        }
+
+        var tenantId = _tenantContextService.TenantId;
+        if (!tenantId.HasValue)
+        {
+            var memberships = await (
+                from tm in _dbContext.TenantMembers
+                join r in _dbContext.Roles on tm.RoleId equals r.Id
+                where tm.UserId == user.Id && !tm.IsDeleted && !r.IsDeleted
+                select r.Key
+            ).ToListAsync(cancellationToken);
+
+            return memberships.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (AdministrativeIdentityPolicy.IsAdministrativeRole(role) && AdministrativeIdentityPolicy.IsAdministrativeRole(k)));
+        }
+
+        var memberRoles = await (
+            from tm in _dbContext.TenantMembers
+            join r in _dbContext.Roles on tm.RoleId equals r.Id
+            where tm.UserId == user.Id && tm.TenantId == tenantId.Value && !tm.IsDeleted && !r.IsDeleted
+            select r.Key
+        ).ToListAsync(cancellationToken);
+
+        return memberRoles.Any(k => k.Equals(role, StringComparison.OrdinalIgnoreCase) || (AdministrativeIdentityPolicy.IsAdministrativeRole(role) && AdministrativeIdentityPolicy.IsAdministrativeRole(k)));
+    }
+
+    public async Task<bool> IsInternalUserAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim)
+        {
+            return true;
+        }
+
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            return true;
+        }
+
+        var user = await GetCurrentUserAsync(cancellationToken);
+        if (user == null)
+        {
+            return false;
+        }
+
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
         {
             return true;
         }
@@ -219,6 +229,19 @@ public class UserAuthorizationService : IUserAuthorizationService
             return _cachedPermissions;
         }
 
+        // Direct claim/email check for SuperAdmin or Admin
+        if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim)
+        {
+            _cachedPermissions = Permissions.AllKeys.ToList();
+            return _cachedPermissions;
+        }
+
+        if (AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            _cachedPermissions = Permissions.AllKeys.ToList();
+            return _cachedPermissions;
+        }
+
         var user = await GetCurrentUserAsync(cancellationToken);
         if (user == null)
         {
@@ -239,8 +262,8 @@ public class UserAuthorizationService : IUserAuthorizationService
             return _cachedPermissions;
         }
 
-        // SuperAdmin has ALL permissions across the system
-        if (user.IsSuperAdmin)
+        // SuperAdmin or Admin user has ALL permissions across the system
+        if (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email))
         {
             _cachedPermissions = Permissions.AllKeys.ToList();
             return _cachedPermissions;
@@ -272,12 +295,14 @@ public class UserAuthorizationService : IUserAuthorizationService
             }
 
             // Check if user holds an Admin/Administrator role in any active tenant membership
-            var memberRoleKeys = await _dbContext.TenantMembers
-                .Where(tm => tm.UserId == user.Id && !tm.IsDeleted && tm.Role != null)
-                .Select(tm => tm.Role!.Key)
-                .ToListAsync(cancellationToken);
+            var memberRoleKeys = await (
+                from tm in _dbContext.TenantMembers
+                join r in _dbContext.Roles on tm.RoleId equals r.Id
+                where tm.UserId == user.Id && !tm.IsDeleted && !r.IsDeleted
+                select r.Key
+            ).ToListAsync(cancellationToken);
 
-            if (memberRoleKeys.Any(IsAdministrativeRole))
+            if (memberRoleKeys.Any(AdministrativeIdentityPolicy.IsAdministrativeRole))
             {
                 _cachedPermissions = Permissions.AllKeys.ToList();
                 return _cachedPermissions;
@@ -294,9 +319,9 @@ public class UserAuthorizationService : IUserAuthorizationService
                 dbPermissions = await query.Distinct().ToListAsync(cancellationToken);
             }
 
-            if (dbPermissions.Count == 0)
+            if (dbPermissions.Count == 0 && !tenantId.HasValue)
             {
-                // Fallback: if no active tenant in request or specified tenant has no matches, load permissions across all active memberships
+                // Fallback: if no active tenant specified in request context, load permissions across all active memberships
                 var query = from tm in _dbContext.Set<TenantMember>()
                             join rp in _dbContext.Set<RolePermission>() on tm.RoleId equals rp.RoleId
                             where tm.UserId == user.Id && !tm.IsDeleted

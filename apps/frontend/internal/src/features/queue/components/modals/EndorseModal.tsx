@@ -247,7 +247,7 @@ export function EndorseModal({
               lineHeight: 20,
             }}
           >
-            Select a tenant member from{' '}
+            Select a member from{' '}
             <Text
               style={{
                 fontWeight: TYPOGRAPHY.weights.semibold,
@@ -256,7 +256,7 @@ export function EndorseModal({
             >
               {displayOfficeName}
             </Text>{' '}
-            to pass{' '}
+            to endorse{' '}
             <Text
               style={{
                 fontWeight: TYPOGRAPHY.weights.semibold,
@@ -265,7 +265,7 @@ export function EndorseModal({
             >
               {applicantName}
             </Text>
-            &apos;s application to.
+            &apos;s application.
           </Text>
         </View>
       }

@@ -342,23 +342,31 @@ export function ApplicationReviewScreenContent({
       toast.error('Failed to release evaluation.');
       return;
     }
-    toast.success('Evaluation released. Application returned to For Evaluation queue.');
+    toast.success('Evaluation released.');
     await mutateApplications(app.id);
     await refetch();
   };
 
   /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
   const handleForwardToAccountant = async () => {
+    const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+    if (!hasSoa) {
+      setShowApprove(false);
+      toast.error('Generate SOA first before approving evaluation.');
+      setInnerTab('soa');
+      setShowGenerateSoa(true);
+      return;
+    }
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'ForAccountant',
       action: 'Approved & Forwarded to Accountant',
       staffName: officerName,
       staffRole: currentRole || 'Evaluator',
-      remarks: 'Evaluation approved. Advanced to Accountant for SOA review.',
+      remarks: 'Evaluation approved. Forwarded to Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
-    toast.success('Application approved and advanced to Accountant.');
+    toast.success('Evaluation approved and forwarded to Accountant.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -372,10 +380,10 @@ export function ApplicationReviewScreenContent({
       action: 'SOA Approved by Accountant',
       staffName: officerName,
       staffRole: currentRole || 'Accountant',
-      remarks: 'SOA and assessment approved by Accountant. Ready for client payment.',
+      remarks: 'SOA approved by Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve SOA.'); return; }
-    toast.success('SOA approved. Application is now ready for payment.');
+    toast.success('SOA approved.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -389,7 +397,7 @@ export function ApplicationReviewScreenContent({
       action: 'Payment Collected & OR Issued',
       staffName: officerName,
       staffRole: currentRole || 'Cashier',
-      remarks: `Official Receipt issued by Cashier ${officerName}. Application marked as Paid & Completed.`,
+      remarks: `Official Receipt issued by ${officerName}.`,
     });
     if (statusErr !== null) {
       toast.error('Failed to update application status.');
@@ -519,6 +527,8 @@ export function ApplicationReviewScreenContent({
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
   const showForwardBtn = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe) && !isEndorsedAwayFromMe;
 
+  const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+
   let approveButtonLabel = 'Approve';
   let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
 
@@ -532,8 +542,13 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = 'Approve SOA';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
-    approveButtonLabel = 'Approve Evaluation';
-    approveButtonIcon = 'check-circle';
+    if (!hasSoa) {
+      approveButtonLabel = 'Generate SOA';
+      approveButtonIcon = 'play-circle';
+    } else {
+      approveButtonLabel = 'Approve Evaluation';
+      approveButtonIcon = 'check-circle';
+    }
   }
 
   // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA)
@@ -554,6 +569,14 @@ export function ApplicationReviewScreenContent({
       void handleStartEvaluation();
     } else if (showCashierBtn) {
       setShowCashier(true);
+    } else if (showForwardBtn) {
+      if (!hasSoa) {
+        toast.info("Please generate SOA to approve evaluation.");
+        setInnerTab("soa");
+        setShowGenerateSoa(true);
+        return;
+      }
+      setShowApprove(true);
     } else {
       setShowApprove(true);
     }
@@ -619,7 +642,7 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF', borderBottomColor: isDark ? '#4338CA' : '#C7D2FE' }]}>
           <Lucide name="share-2" size={14} color={isDark ? '#A5B4FC' : '#4F46E5'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#E0E7FF' : '#3730A3' }]}>
-            This application has been endorsed to <Text style={{ fontWeight: '700' }}>{app.endorsedTo}</Text>{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}. Actions are restricted to the endorsed officer until reviewed or returned.
+            Endorsed to <Text style={{ fontWeight: '700' }}>{app.endorsedTo}</Text>{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}. Actions restricted to endorsed officer.
           </Text>
         </View>
       )}
@@ -629,7 +652,7 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#14532D' : '#F0FDF4', borderBottomColor: isDark ? '#15803D' : '#BBF7D0' }]}>
           <Lucide name="share-2" size={14} color={isDark ? '#4ADE80' : '#16A34A'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DCFCE7' : '#14532D' }]}>
-            This application has been endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''} for technical evaluation and decision.
+            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''} for evaluation.
           </Text>
         </View>
       )}
@@ -639,7 +662,7 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
           <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
           <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
-            This application is currently being evaluated by <Text style={{ fontWeight: '700' }}>{evaluatingOfficer}</Text>. Actions are locked to prevent duplicate simultaneous evaluations.
+            Under evaluation by <Text style={{ fontWeight: '700' }}>{evaluatingOfficer}</Text>. Actions locked.
           </Text>
         </View>
       )}
@@ -649,7 +672,7 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.readOnlyBanner, { backgroundColor: colors.brand.yellowLight }]}>
           <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
           <Text style={[sc.readOnlyText, { color: COLORS.semantic.warningText }]}>
-            Read-only — actions only available on Pending applications with actionable status
+            Read-only
           </Text>
         </View>
       )}
@@ -714,6 +737,29 @@ export function ApplicationReviewScreenContent({
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
+        title={
+          showAccountantBtn
+            ? "Approve SOA"
+            : showForwardBtn
+              ? "Forward to Accountant"
+              : isAdmin
+                ? "Approve Application (Admin)"
+                : "Approve Application"
+        }
+        confirmText={
+          showAccountantBtn
+            ? "Approve SOA"
+            : showForwardBtn
+              ? "Forward to Accountant"
+              : "Confirm Approval"
+        }
+        subtitleText={
+          showAccountantBtn
+            ? `Approve SOA and issue Order of Payment for ${app.applicant}.`
+            : showForwardBtn
+              ? `Forward evaluation and SOA for ${app.applicant} to Accountant.`
+              : undefined
+        }
         onConfirm={
           showCashierBtn ? () => { /* handled by CashierModal */ } :
           showAccountantBtn ? handleAccountantApprove :

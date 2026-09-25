@@ -5,6 +5,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Domain.Authorization;
 
 namespace EDGE.Infrastructure.Services;
 
@@ -152,6 +153,63 @@ public class CurrentUserService : ICurrentUserService
             }
 
             return null;
+        }
+    }
+
+    public bool IsSuperAdminClaim
+    {
+        get
+        {
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return false;
+
+            var isSuperAdminClaim = user.FindFirstValue("is_super_admin") ?? user.FindFirstValue("isSuperAdmin");
+            if (bool.TryParse(isSuperAdminClaim, out var isSa) && isSa) return true;
+
+            var roleClaim = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? user.FindFirstValue("org_role");
+            if (AdministrativeIdentityPolicy.IsSuperAdminRole(roleClaim))
+            {
+                return true;
+            }
+
+            if (AdministrativeIdentityPolicy.IsSuperAdminEmail(Email))
+            {
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    public bool IsAdminClaim
+    {
+        get
+        {
+            if (IsSuperAdminClaim) return true;
+
+            var user = _httpContextAccessor.HttpContext?.User;
+            if (user == null) return false;
+
+            var roleClaims = user.FindAll("role")
+                .Concat(user.FindAll(ClaimTypes.Role))
+                .Concat(user.FindAll("org_role"))
+                .Concat(user.FindAll("roles"))
+                .Select(c => c.Value);
+
+            foreach (var role in roleClaims)
+            {
+                if (AdministrativeIdentityPolicy.IsAdministrativeRole(role))
+                {
+                    return true;
+                }
+            }
+
+            if (AdministrativeIdentityPolicy.IsAdministrativeEmail(Email))
+            {
+                return true;
+            }
+
+            return false;
         }
     }
 }

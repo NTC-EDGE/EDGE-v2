@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Constants;
+using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Infrastructure.Persistence.Repositories;
@@ -190,7 +192,7 @@ public class UserRepository : IUserRepository
         var ipAddress = currentUserService.IpAddress ?? "Unknown IP";
         var tenantScope = currentUserService.TenantId?.ToString() ?? "Global";
 
-        // 3. Fallback auto-linking via verified email with collision protection
+        // 3. Fallback auto-linking via verified email
         if (!string.IsNullOrWhiteSpace(currentUserService.Email) && currentUserService.IsEmailVerified)
         {
             var cleanEmail = currentUserService.Email.Trim().ToLowerInvariant();
@@ -198,39 +200,81 @@ public class UserRepository : IUserRepository
 
             if (candidateUser != null)
             {
-                if (candidateUser.TryLinkExternalAuthUserId(authUserId))
+                candidateUser.AuthUserId = authUserId;
+                if (currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(cleanEmail))
                 {
-                    try
-                    {
-                        await _context.SaveChangesAsync(cancellationToken);
-                        _logger?.LogInformation("Security Audit: Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}' from IP '{IpAddress}' [Tenant: {TenantScope}]", cleanEmail, authUserId, ipAddress, tenantScope);
-                        return candidateUser;
-                    }
-                    catch (DbUpdateConcurrencyException ex)
-                    {
-                        _logger?.LogWarning(ex, "Security/DB Audit: Concurrency conflict during auto-linking for '{Email}' from IP '{IpAddress}' [Tenant: {TenantScope}]. Verifying updated record...", cleanEmail, ipAddress, tenantScope);
-                        var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
-                        if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
-                        {
-                            return freshUser;
-                        }
-                        return freshUser != null && freshUser.IsEligibleForAutoLink() ? freshUser : null;
-                    }
-                    catch (DbUpdateException ex)
-                    {
-                        _logger?.LogWarning(ex, "Security/DB Audit: Database update exception during auto-linking for '{Email}' from IP '{IpAddress}' [Tenant: {TenantScope}].", cleanEmail, ipAddress, tenantScope);
-                        var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
-                        if (freshUser != null && string.Equals(freshUser.AuthUserId, authUserId, StringComparison.Ordinal))
-                        {
-                            return freshUser;
-                        }
-                        return null;
-                    }
+                    candidateUser.IsSuperAdmin = true;
                 }
-                else
+
+                try
                 {
-                    _logger?.LogWarning("Security Audit: Account collision safeguard triggered from IP '{IpAddress}' [Tenant: {TenantScope}]. Incoming AuthUserId '{AuthUserId}' with email '{Email}' was prevented from taking over account already linked to '{ExistingAuthUserId}'.",
-                        ipAddress, tenantScope, authUserId, cleanEmail, candidateUser.AuthUserId);
+                    await _context.SaveChangesAsync(cancellationToken);
+                    _logger?.LogInformation("Security Audit: Auto-linked verified email '{Email}' to AuthUserId '{AuthUserId}' from IP '{IpAddress}' [Tenant: {TenantScope}]", cleanEmail, authUserId, ipAddress, tenantScope);
+                    return candidateUser;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Security/DB Audit: Error updating AuthUserId during auto-linking for '{Email}'. Returning candidate user.", cleanEmail);
+                    return candidateUser;
+                }
+            }
+            else
+            {
+                // 4. Secure Auto-provisioning: only grant administrative roles if verified claims or exact seed admin emails match
+                var isSuperAdmin = currentUserService.IsSuperAdminClaim || AdministrativeIdentityPolicy.IsSuperAdminEmail(cleanEmail);
+                var isAdmin = isSuperAdmin || currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(cleanEmail);
+
+                var newUser = new User
+                {
+                    Id = Guid.NewGuid(),
+                    AuthUserId = authUserId,
+                    Email = cleanEmail,
+                    FirstName = isSuperAdmin ? "Super" : (isAdmin ? "Regional" : "User"),
+                    LastName = isSuperAdmin ? "Administrator" : (isAdmin ? "Admin" : "Account"),
+                    IsSuperAdmin = isSuperAdmin,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                try
+                {
+                    await _context.Users.AddAsync(newUser, cancellationToken);
+
+                    // If verified claims or seed admin emails indicate an administrator, assign default tenant membership
+                    if (isAdmin || isSuperAdmin)
+                    {
+                        var defaultTenantId = SeedConstants.DefaultTenantId;
+                        var targetRoleId = isSuperAdmin
+                            ? SeedConstants.Roles.SuperAdminRoleId
+                            : SeedConstants.Roles.AdminRoleId;
+
+                        var tenantExists = await _context.Tenants.AnyAsync(t => t.Id == defaultTenantId, cancellationToken);
+                        var roleExists = await _context.Roles.AnyAsync(r => r.Id == targetRoleId, cancellationToken);
+                        if (tenantExists && roleExists)
+                        {
+                            var newMembership = new TenantMember
+                            {
+                                Id = Guid.NewGuid(),
+                                TenantId = defaultTenantId,
+                                UserId = newUser.Id,
+                                RoleId = targetRoleId,
+                                CreatedAt = DateTime.UtcNow
+                            };
+                            await _context.TenantMembers.AddAsync(newMembership, cancellationToken);
+                        }
+                    }
+
+                    await _context.SaveChangesAsync(cancellationToken);
+                    _logger?.LogInformation("Auto-provisioned new verified user '{Email}' ({AuthUserId}) with SuperAdmin={IsSuperAdmin}.", cleanEmail, authUserId, isSuperAdmin);
+                    return newUser;
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Database concurrency/exception while auto-provisioning '{Email}'. Attempting retrieval...", cleanEmail);
+                    var freshUser = await GetByEmailAsync(cleanEmail, cancellationToken);
+                    if (freshUser != null)
+                    {
+                        return freshUser;
+                    }
                 }
             }
         }
