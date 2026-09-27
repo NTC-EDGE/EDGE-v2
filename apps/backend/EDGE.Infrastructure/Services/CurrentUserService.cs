@@ -166,10 +166,18 @@ public class CurrentUserService : ICurrentUserService
             var isSuperAdminClaim = user.FindFirstValue("is_super_admin") ?? user.FindFirstValue("isSuperAdmin");
             if (bool.TryParse(isSuperAdminClaim, out var isSa) && isSa) return true;
 
-            var roleClaim = user.FindFirstValue("role") ?? user.FindFirstValue(ClaimTypes.Role) ?? user.FindFirstValue("org_role");
-            if (AdministrativeIdentityPolicy.IsSuperAdminRole(roleClaim))
+            var roleClaims = user.FindAll("role")
+                .Concat(user.FindAll(ClaimTypes.Role))
+                .Concat(user.FindAll("org_role"))
+                .Concat(user.FindAll("roles"))
+                .Select(c => c.Value);
+
+            foreach (var role in roleClaims)
             {
-                return true;
+                if (AdministrativeIdentityPolicy.IsSuperAdminRole(role))
+                {
+                    return true;
+                }
             }
 
             if (AdministrativeIdentityPolicy.IsSuperAdminEmail(Email))

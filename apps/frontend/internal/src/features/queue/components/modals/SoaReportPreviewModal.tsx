@@ -626,7 +626,7 @@ export function SoaReportPreviewModal({
               { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200] },
             ]}
           >
-            {onOpenGenerateSoa !== undefined && docType === 'soa' && (
+            {onOpenGenerateSoa !== undefined && docType === 'soa' && app.status !== 'ForAccountant' && app.status !== 'PendingPayment' && app.status !== 'Completed' && (
               <Pressable
                 style={[
                   styles.secondaryBtn,

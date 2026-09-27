@@ -7,16 +7,20 @@ import {
   Role as ApiRole,
 } from '@edge/api';
 import { useAuthContext } from '../../auth/context/AuthContext';
+import { usePermissions } from '../../shell/context/PermissionContext';
 import { Role as UIFormatRole } from '../types';
 
 export type RoleFilterScope = 'all' | 'system' | 'custom';
 
 export function useRoleManagement() {
   const { user } = useAuthContext();
+  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
   const tenantId = user?.tenantId;
-  const isSuperAdmin = user?.roles !== undefined && user.roles !== null
-    ? user.roles.some((r) => r.toLowerCase().includes('super'))
-    : false;
+
+  const canCreateRole = isSuperAdmin || isAdmin || hasPermission('roles.create');
+  const canUpdateRole = isSuperAdmin || isAdmin || hasPermission('roles.update');
+  const canDeleteRole = isSuperAdmin || isAdmin || hasPermission('roles.delete');
+  const canAssignPermissions = isSuperAdmin || isAdmin || hasPermission('roles.permissions_assign') || hasPermission('roles.update');
 
   const { roles: apiRoles, isLoading: isRolesLoading, refetch: refetchRoles } = useAdminRoles(tenantId);
   const { categories: apiCategories, isLoading: isCatalogLoading } = usePermissionsCatalog();
@@ -161,7 +165,7 @@ export function useRoleManagement() {
       .filter((cat) => cat.options.length > 0);
   }, [nonSystemCategories, selectedCategoryFilter, permissionQuery]);
 
-  const isCurrentRoleReadOnly = Boolean(selectedRole?.isSystemRole && !isSuperAdmin);
+  const isCurrentRoleReadOnly = Boolean((selectedRole?.isSystemRole && !isSuperAdmin) || !canAssignPermissions);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSelectRole = (role: UIFormatRole) => {
@@ -299,6 +303,10 @@ export function useRoleManagement() {
     selectedRole,
     isCurrentRoleReadOnly,
     isSuperAdmin,
+    canCreateRole,
+    canUpdateRole,
+    canDeleteRole,
+    canAssignPermissions,
     roleSearchQuery,
     setRoleSearchQuery,
     roleScopeFilter,

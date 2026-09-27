@@ -7,7 +7,7 @@ interface RoleListItemProps {
   role: Role;
   isSelected: boolean;
   onPress: () => void;
-  onDeletePress: () => void;
+  onDeletePress?: () => void;
 }
 
 export function RoleListItem({
@@ -88,7 +88,7 @@ export function RoleListItem({
       </View>
 
       {/* Delete (custom roles only) */}
-      {!role.isSystemRole && (
+      {!role.isSystemRole && onDeletePress !== undefined && (
         <Pressable
           onPress={(e) => {
             if (e && typeof e.stopPropagation === 'function') {

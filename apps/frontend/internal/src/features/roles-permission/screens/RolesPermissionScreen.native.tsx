@@ -39,6 +39,10 @@ export function RolesPermissionScreen() {
     isLoading,
     isCurrentRoleReadOnly,
     isSuperAdmin,
+    canCreateRole,
+    canUpdateRole,
+    canDeleteRole,
+    canAssignPermissions,
     handleTogglePermission,
     handleToggleSelectAll,
     resetChanges,
@@ -137,12 +141,14 @@ export function RolesPermissionScreen() {
                 onChangeText={setRoleSearchQuery}
               />
             </View>
-            <Pressable
-              style={[styles.addBtn, { backgroundColor: accentBg }]}
-              onPress={() => setIsAddModalOpen(true)}
-            >
-              <Lucide name="plus" size={15} color="#FFFFFF" />
-            </Pressable>
+            {canCreateRole && (
+              <Pressable
+                style={[styles.addBtn, { backgroundColor: accentBg }]}
+                onPress={() => setIsAddModalOpen(true)}
+              >
+                <Lucide name="plus" size={15} color="#FFFFFF" />
+              </Pressable>
+            )}
           </View>
 
           {/* Role List */}
@@ -156,7 +162,7 @@ export function RolesPermissionScreen() {
                   setSelectedRoleId(role.id);
                   setMobileView('permissions');
                 }}
-                onDeletePress={() => setRoleToDelete(role)}
+                onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
               />
             ))}
           </ScrollView>
@@ -197,7 +203,7 @@ export function RolesPermissionScreen() {
                 <View style={styles.roleNameRow}>
                   <Text style={[styles.roleNameText, { color: textColor }]}>{selectedRole.name}</Text>
                   {hasUnsavedChanges && <View style={styles.unsavedDot} />}
-                  {!selectedRole.isSystemRole && (
+                  {!selectedRole.isSystemRole && canUpdateRole && (
                     <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                       <Lucide name="edit-2" size={13} color={mutedColor} />
                     </Pressable>

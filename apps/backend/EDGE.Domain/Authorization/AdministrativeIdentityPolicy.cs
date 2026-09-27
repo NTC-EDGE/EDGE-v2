@@ -37,7 +37,9 @@ public static class AdministrativeIdentityPolicy
         "super_admin",
         "super-admin",
         "org:superadmin",
-        "org:super_admin"
+        "org:super_admin",
+        "super administrator",
+        "superadministrator"
     };
 
     private static readonly HashSet<string> SeedAdministrativeEmails = new(StringComparer.OrdinalIgnoreCase)

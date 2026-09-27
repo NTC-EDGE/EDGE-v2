@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
+import { usePermissions } from '../../shell/context/PermissionContext';
 import { OfficialReceiptDto, NextAvailableOrDto, PendingPaymentDto } from '@edge/api';
 
 interface OfficialReceiptsTabProps {
@@ -65,6 +66,11 @@ export function OfficialReceiptsTab({
 }: OfficialReceiptsTabProps) {
   const { colors } = useTheme();
   const [activeSubView, setActiveSubView] = useState<ReceiptsSubView>('pending');
+  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+
+  const canIssueReceipt = isSuperAdmin || isAdmin || hasPermission('receipts.issue') || hasPermission('billing.collect');
+  const canEditReceiptPerm = isSuperAdmin || isAdmin || hasPermission('receipts.edit');
+  const canCancelReceiptPerm = isSuperAdmin || isAdmin || hasPermission('receipts.cancel');
 
   const totalCollections = receipts
     .filter((r) => !isReceiptCancelled(r.status))
@@ -124,18 +130,20 @@ export function OfficialReceiptsTab({
           </View>
         )}
 
-        <TouchableOpacity
-          onPress={onOpenIssueModal}
-          style={[styles.issueOrBtn, { backgroundColor: colors.brand.primary }]}
-        >
-          <View style={styles.issueIconCircle}>
-            <Lucide name="plus" size={18} color="#fff" />
-          </View>
-          <View>
-            <Text style={styles.issueBtnTitle}>Issue Walk-in OR</Text>
-            <Text style={styles.issueBtnSubtitle}>Direct Cashier Entry</Text>
-          </View>
-        </TouchableOpacity>
+        {canIssueReceipt && (
+          <TouchableOpacity
+            onPress={onOpenIssueModal}
+            style={[styles.issueOrBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <View style={styles.issueIconCircle}>
+              <Lucide name="plus" size={18} color="#fff" />
+            </View>
+            <View>
+              <Text style={styles.issueBtnTitle}>Issue Walk-in OR</Text>
+              <Text style={styles.issueBtnSubtitle}>Direct Cashier Entry</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Segmented Sub-View Switcher */}
@@ -319,15 +327,17 @@ export function OfficialReceiptsTab({
                       </View>
 
                       {/* Card Footer Action */}
-                      <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
-                        <TouchableOpacity
-                          onPress={() => onIssueReceiptForPendingPayment(payment)}
-                          style={[styles.issueActionBtn, { backgroundColor: colors.brand.primary }]}
-                        >
-                          <Lucide name="printer" size={14} color="#fff" />
-                          <Text style={styles.issueActionBtnText}>Collect & Issue Official Receipt</Text>
-                        </TouchableOpacity>
-                      </View>
+                      {canIssueReceipt && (
+                        <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                          <TouchableOpacity
+                            onPress={() => onIssueReceiptForPendingPayment(payment)}
+                            style={[styles.issueActionBtn, { backgroundColor: colors.brand.primary }]}
+                          >
+                            <Lucide name="printer" size={14} color="#fff" />
+                            <Text style={styles.issueActionBtnText}>Collect & Issue Official Receipt</Text>
+                          </TouchableOpacity>
+                        </View>
+                      )}
                     </View>
                   );
                 })}
@@ -541,7 +551,7 @@ export function OfficialReceiptsTab({
                         </TouchableOpacity>
 
                         {/* Edit Button */}
-                        {isIssued && (
+                        {canEditReceiptPerm && isIssued && (
                           <TouchableOpacity
                             onPress={() => onEditReceipt(r)}
                             style={[styles.actionIconBtn, { backgroundColor: colors.neutral[100] }]}
@@ -552,7 +562,7 @@ export function OfficialReceiptsTab({
                         )}
 
                         {/* Cancel Button */}
-                        {isIssued && (
+                        {canCancelReceiptPerm && isIssued && (
                           <TouchableOpacity
                             onPress={() => onCancelReceipt(r)}
                             style={[styles.actionIconBtn, { backgroundColor: colors.neutral[100] }]}

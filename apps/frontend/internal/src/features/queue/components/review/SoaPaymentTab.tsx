@@ -63,7 +63,7 @@ export function SoaPaymentTab({
     app.status !== 'Draft' &&
     app.status !== 'Returned';
 
-  const canGenerateSoa = isEditable && isEvaluationApproved;
+  const canGenerateSoa = isEditable && isEvaluationApproved && app.status !== 'ForAccountant' && app.status !== 'PendingPayment' && app.status !== 'Completed';
 
   if (!hasSoa) {
     return (
@@ -337,7 +337,7 @@ export function SoaPaymentTab({
 
           {/* Action buttons toolbar for SOA & OP */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {isEditable && !hasPayment ? (
+            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || app.status === 'Submitted' || isSoaReturned || app.status === 'Draft') ? (
               <Pressable
                 style={[
                   styles.soaActionBtn,
@@ -350,7 +350,7 @@ export function SoaPaymentTab({
               >
                 <Lucide name="refresh-cw" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
                 <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
-                  Recalculate / Edit SOA
+                  {isSoaReturned ? 'Edit SOA' : 'Recalculate / Edit SOA'}
                 </Text>
               </Pressable>
             ) : hasPayment ? (

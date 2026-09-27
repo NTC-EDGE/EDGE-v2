@@ -66,6 +66,10 @@ export function RolesPermissionScreen() {
     isLoading,
     isCurrentRoleReadOnly,
     isSuperAdmin,
+    canCreateRole,
+    canUpdateRole,
+    canDeleteRole,
+    canAssignPermissions,
     handleTogglePermission,
     handleToggleSelectAll,
     resetChanges,
@@ -170,13 +174,15 @@ export function RolesPermissionScreen() {
               <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
                 <View style={styles.leftHeaderTop}>
                   <Text style={[styles.leftTitle, { color: textColor }]}>Roles Directory</Text>
-                  <Pressable
-                    style={[styles.addBtn, { backgroundColor: accentBg }]}
-                    onPress={() => setIsAddModalOpen(true)}
-                  >
-                    <Lucide name="plus" size={14} color="#FFFFFF" />
-                    <Text style={styles.addBtnText}>Add</Text>
-                  </Pressable>
+                  {canCreateRole && (
+                    <Pressable
+                      style={[styles.addBtn, { backgroundColor: accentBg }]}
+                      onPress={() => setIsAddModalOpen(true)}
+                    >
+                      <Lucide name="plus" size={14} color="#FFFFFF" />
+                      <Text style={styles.addBtnText}>Add</Text>
+                    </Pressable>
+                  )}
                 </View>
 
                 {/* Search */}
@@ -209,7 +215,7 @@ export function RolesPermissionScreen() {
                       setSelectedRoleId(role.id);
                       setMobileView('permissions');
                     }}
-                    onDeletePress={() => setRoleToDelete(role)}
+                    onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
                   />
                 ))}
               </ScrollView>
@@ -254,7 +260,7 @@ export function RolesPermissionScreen() {
                           {selectedRole.name}
                         </Text>
                         {hasUnsavedChanges && <View style={styles.unsavedDot} />}
-                        {!selectedRole.isSystemRole && (
+                        {!selectedRole.isSystemRole && canUpdateRole && (
                           <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                             <Lucide name="edit-2" size={13} color={mutedColor} />
                           </Pressable>
@@ -342,14 +348,16 @@ export function RolesPermissionScreen() {
             <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
               <View style={styles.leftHeaderTop}>
                 <Text style={[styles.leftTitle, { color: textColor }]}>Roles</Text>
-                <Pressable
-                  style={[styles.addBtn, { backgroundColor: accentBg }]}
-                  onPress={() => setIsAddModalOpen(true)}
-                  accessibilityLabel="Add new role"
-                >
-                  <Lucide name="plus" size={14} color="#FFFFFF" />
-                  <Text style={styles.addBtnText}>Add</Text>
-                </Pressable>
+                {canCreateRole && (
+                  <Pressable
+                    style={[styles.addBtn, { backgroundColor: accentBg }]}
+                    onPress={() => setIsAddModalOpen(true)}
+                    accessibilityLabel="Add new role"
+                  >
+                    <Lucide name="plus" size={14} color="#FFFFFF" />
+                    <Text style={styles.addBtnText}>Add</Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Search */}
@@ -389,7 +397,7 @@ export function RolesPermissionScreen() {
                     role={role}
                     isSelected={selectedRole?.id === role.id}
                     onPress={() => setSelectedRoleId(role.id)}
-                    onDeletePress={() => setRoleToDelete(role)}
+                    onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
                   />
                 ))
               )}
@@ -443,7 +451,7 @@ export function RolesPermissionScreen() {
                           {hasUnsavedChanges && (
                             <View style={styles.unsavedDot} />
                           )}
-                          {!selectedRole.isSystemRole && (
+                          {!selectedRole.isSystemRole && canUpdateRole && (
                             <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                               <Lucide name="edit-2" size={13} color={mutedColor} />
                             </Pressable>
