@@ -9,6 +9,7 @@ import {
   Platform,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
+import { usePermissions } from '../../shell/context/PermissionContext';
 import { OrBookletDto } from '@edge/api';
 
 interface OrBookletsTabProps {
@@ -44,6 +45,11 @@ export function OrBookletsTab({
 }: OrBookletsTabProps) {
   const { colors } = useTheme();
   const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+
+  const canRegisterBundle = isSuperAdmin || isAdmin || hasPermission('receipts.bundle_entry');
+  const canEditSeries = isSuperAdmin || isAdmin || hasPermission('receipts.edit') || hasPermission('receipts.bundle_entry');
+  const canTransferCustody = isSuperAdmin || isAdmin || hasPermission('receipts.bundle_entry') || hasPermission('receipts.edit');
 
   if (isLoading) {
     return (
@@ -79,13 +85,15 @@ export function OrBookletsTab({
           <Text style={[styles.statNumber, { color: colors.text }]}>{exhaustedCount}</Text>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>Exhausted / Completed</Text>
         </View>
-        <TouchableOpacity
-          onPress={onOpenBundleModal}
-          style={[styles.addBundleBtn, { backgroundColor: colors.brand.primary }]}
-        >
-          <Lucide name="plus" size={18} color="#fff" />
-          <Text style={styles.addBundleBtnText}>Register Booklet Bundle</Text>
-        </TouchableOpacity>
+        {canRegisterBundle && (
+          <TouchableOpacity
+            onPress={onOpenBundleModal}
+            style={[styles.addBundleBtn, { backgroundColor: colors.brand.primary }]}
+          >
+            <Lucide name="plus" size={18} color="#fff" />
+            <Text style={styles.addBundleBtnText}>Register Booklet Bundle</Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       {/* Booklets Feed */}
@@ -96,12 +104,14 @@ export function OrBookletsTab({
           <Text style={[styles.emptySubtitle, { color: colors.textMuted }]}>
             Register accountable form 51 bundles (50 pcs per booklet) to start issuing sequential official receipts.
           </Text>
-          <TouchableOpacity
-            onPress={onOpenBundleModal}
-            style={[styles.emptyActionBtn, { backgroundColor: colors.brand.primary }]}
-          >
-            <Text style={styles.emptyActionBtnText}>Register First Booklet</Text>
-          </TouchableOpacity>
+          {canRegisterBundle && (
+            <TouchableOpacity
+              onPress={onOpenBundleModal}
+              style={[styles.emptyActionBtn, { backgroundColor: colors.brand.primary }]}
+            >
+              <Text style={styles.emptyActionBtnText}>Register First Booklet</Text>
+            </TouchableOpacity>
+          )}
         </View>
       ) : (
         <ScrollView contentContainerStyle={styles.bookletGrid} showsVerticalScrollIndicator={false}>
@@ -154,7 +164,7 @@ export function OrBookletsTab({
                   </View>
 
                   {/* 3-dots Popover Menu */}
-                  {isMenuOpen && (
+                  {isMenuOpen && (canEditSeries || canTransferCustody) && (
                     <View
                       style={[
                         styles.popoverMenu,
@@ -164,43 +174,47 @@ export function OrBookletsTab({
                         },
                       ]}
                     >
-                      {isEditable ? (
+                      {canEditSeries && (
+                        isEditable ? (
+                          <TouchableOpacity
+                            activeOpacity={0.7}
+                            onPress={() => {
+                              setActiveMenuId(null);
+                              onEditBooklet?.(b);
+                            }}
+                            style={styles.popoverItem}
+                          >
+                            <Lucide name="edit-3" size={15} color={colors.neutral[700]} />
+                            <Text style={[styles.popoverText, { color: colors.neutral[900] }]}>Edit Series</Text>
+                          </TouchableOpacity>
+                        ) : (
+                          <View style={[styles.popoverItem, { opacity: 0.55 }]}>
+                            <Lucide name="lock" size={15} color={colors.neutral[400]} />
+                            <View>
+                              <Text style={[styles.popoverText, { color: colors.neutral[500] }]}>Edit Series</Text>
+                              <Text style={{ fontSize: 9, color: colors.neutral[400], fontWeight: '500' }}>
+                                Locked ({b.issuedCount} issued)
+                              </Text>
+                            </View>
+                          </View>
+                        )
+                      )}
+
+                      {canTransferCustody && (
                         <TouchableOpacity
                           activeOpacity={0.7}
                           onPress={() => {
                             setActiveMenuId(null);
-                            onEditBooklet?.(b);
+                            onTransferBooklet?.(b);
                           }}
-                          style={styles.popoverItem}
+                          style={[styles.popoverItem, canEditSeries && { borderTopWidth: 1, borderTopColor: colors.neutral[200] }]}
                         >
-                          <Lucide name="edit-3" size={15} color={colors.neutral[700]} />
-                          <Text style={[styles.popoverText, { color: colors.neutral[900] }]}>Edit Series</Text>
+                          <Lucide name="repeat" size={15} color={colors.brand.primary} />
+                          <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '700' }]}>
+                            Transfer Custody
+                          </Text>
                         </TouchableOpacity>
-                      ) : (
-                        <View style={[styles.popoverItem, { opacity: 0.55 }]}>
-                          <Lucide name="lock" size={15} color={colors.neutral[400]} />
-                          <View>
-                            <Text style={[styles.popoverText, { color: colors.neutral[500] }]}>Edit Series</Text>
-                            <Text style={{ fontSize: 9, color: colors.neutral[400], fontWeight: '500' }}>
-                              Locked ({b.issuedCount} issued)
-                            </Text>
-                          </View>
-                        </View>
                       )}
-
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={() => {
-                          setActiveMenuId(null);
-                          onTransferBooklet?.(b);
-                        }}
-                        style={[styles.popoverItem, { borderTopWidth: 1, borderTopColor: colors.neutral[200] }]}
-                      >
-                        <Lucide name="repeat" size={15} color={colors.brand.primary} />
-                        <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '700' }]}>
-                          Transfer Custody
-                        </Text>
-                      </TouchableOpacity>
                     </View>
                   )}
                 </View>
@@ -395,7 +409,9 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    cursor: 'pointer' as any,
+    ...Platform.select({
+      web: { cursor: 'pointer' },
+    }),
   },
   popoverMenu: {
     position: 'absolute',
@@ -418,7 +434,9 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    cursor: 'pointer' as any,
+    ...Platform.select({
+      web: { cursor: 'pointer' },
+    }),
   },
   popoverText: {
     fontSize: 13,

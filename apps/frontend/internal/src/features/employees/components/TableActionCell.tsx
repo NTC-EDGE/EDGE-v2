@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
+import { usePermissions } from '../../shell/context/PermissionContext';
 import { Employee } from '../types/employeeTypes';
 
 interface TableActionCellProps {
@@ -23,6 +24,10 @@ export function TableActionCell({
   onDelete,
 }: TableActionCellProps) {
   const isPopoverOpen = activePopoverId === employee.id;
+  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+
+  const canEdit = isSuperAdmin || isAdmin || hasPermission('tenants.members_manage') || hasPermission('users.update');
+  const canDelete = isSuperAdmin || isAdmin || hasPermission('tenants.members_manage') || hasPermission('users.delete');
 
   const handleAction = (action: 'view' | 'edit' | 'change-email' | 'delete') => {
     setActivePopoverId(null);
@@ -57,22 +62,29 @@ export function TableActionCell({
             <Text style={styles.popoverItemText}>View Details</Text>
           </Pressable>
 
-          <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
-            <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemText}>Edit Employee</Text>
-          </Pressable>
+          {canEdit && (
+            <>
+              <Pressable style={styles.popoverItem} onPress={() => handleAction('edit')}>
+                <Lucide name="edit-2" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemText}>Edit Employee</Text>
+              </Pressable>
 
-          <Pressable style={styles.popoverItem} onPress={() => handleAction('change-email')}>
-            <Lucide name="mail" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemText}>Change Email</Text>
-          </Pressable>
+              <Pressable style={styles.popoverItem} onPress={() => handleAction('change-email')}>
+                <Lucide name="mail" size={14} color={COLORS.brand[700]} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemText}>Change Email</Text>
+              </Pressable>
+            </>
+          )}
 
-          <View style={styles.popoverDivider} />
-
-          <Pressable style={styles.popoverItemDanger} onPress={() => handleAction('delete')}>
-            <Lucide name="trash-2" size={14} color={COLORS.semantic.error} style={styles.popoverIcon} />
-            <Text style={styles.popoverItemTextDanger}>Delete Employee</Text>
-          </Pressable>
+          {canDelete && (
+            <>
+              <View style={styles.popoverDivider} />
+              <Pressable style={styles.popoverItemDanger} onPress={() => handleAction('delete')}>
+                <Lucide name="trash-2" size={14} color={COLORS.semantic.error} style={styles.popoverIcon} />
+                <Text style={styles.popoverItemTextDanger}>Delete Employee</Text>
+              </Pressable>
+            </>
+          )}
         </View>
       )}
     </View>

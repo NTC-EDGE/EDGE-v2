@@ -190,6 +190,15 @@ public class VerifyStaffSessionCommandHandler : IRequestHandler<VerifyStaffSessi
             effectivePermissions.AddRange(Permissions.AllKeys);
         }
 
+        if (user != null && (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsAdministrativeEmail(user.Email)))
+        {
+            if (!assignedRoleNames.Contains("Super Administrator") && !assignedRoleNames.Contains("SuperAdmin") && !assignedRoleNames.Contains("Administrator"))
+            {
+                assignedRoleNames.Insert(0, user.IsSuperAdmin ? "Super Administrator" : "Administrator");
+            }
+            effectivePermissions.AddRange(Permissions.AllKeys);
+        }
+
         var dto = new VerifyStaffSessionDto(
             UserId: user?.Id ?? (!string.IsNullOrEmpty(rawUserId) && Guid.TryParse(rawUserId, out var uid) ? uid : Guid.NewGuid()),
             Email: user?.Email ?? "staff@ntc.gov.ph",

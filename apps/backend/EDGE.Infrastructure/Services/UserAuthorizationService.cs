@@ -66,6 +66,11 @@ public class UserAuthorizationService : IUserAuthorizationService
             return false;
         }
 
+        if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            return true;
+        }
+
         var permissions = await GetUserPermissionsAsync(cancellationToken);
         return permissions.Contains(permission);
     }
@@ -77,6 +82,11 @@ public class UserAuthorizationService : IUserAuthorizationService
             return false;
         }
 
+        if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            return true;
+        }
+
         var userPermissions = await GetUserPermissionsAsync(cancellationToken);
         return permissions.Any(p => userPermissions.Contains(p));
     }
@@ -84,6 +94,11 @@ public class UserAuthorizationService : IUserAuthorizationService
     public async Task<bool> HasAllPermissionsAsync(IEnumerable<string> permissions, CancellationToken cancellationToken = default)
     {
         if (permissions == null || !permissions.Any())
+        {
+            return true;
+        }
+
+        if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
         {
             return true;
         }

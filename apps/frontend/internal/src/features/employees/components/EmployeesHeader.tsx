@@ -1,6 +1,7 @@
 import React from 'react';
 import { StyleSheet, View, Text, Pressable, Platform } from 'react-native';
 import { COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
+import { usePermissions } from '../../shell/context/PermissionContext';
 
 interface EmployeesHeaderProps {
   isMobile: boolean;
@@ -16,6 +17,8 @@ export function EmployeesHeader({
   onOpenAddModal,
 }: EmployeesHeaderProps) {
   const { colors, isDark } = useTheme();
+  const { hasPermission, isSuperAdmin, isAdmin } = usePermissions();
+  const canAddEmployee = isSuperAdmin || isAdmin || hasPermission('tenants.members_manage') || hasPermission('users.create');
 
   return (
     <View style={styles.headerSection}>
@@ -82,10 +85,12 @@ export function EmployeesHeader({
           </View>
 
           {/* Add Employee Button */}
-          <Pressable style={styles.addEmployeeBtn} onPress={onOpenAddModal}>
-            <Lucide name="plus" size={18} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
-            <Text style={styles.addEmployeeBtnText}>Add Employee</Text>
-          </Pressable>
+          {canAddEmployee && (
+            <Pressable style={styles.addEmployeeBtn} onPress={onOpenAddModal}>
+              <Lucide name="plus" size={18} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
+              <Text style={styles.addEmployeeBtnText}>Add Employee</Text>
+            </Pressable>
+          )}
         </View>
       </View>
     </View>

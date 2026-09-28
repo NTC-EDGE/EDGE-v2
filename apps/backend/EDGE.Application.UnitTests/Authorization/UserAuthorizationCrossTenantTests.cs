@@ -274,4 +274,271 @@ public class UserAuthorizationCrossTenantTests : IDisposable
         var canEvaluateTenantB = await serviceTenantB.HasPermissionAsync(Permissions.EvaluateApplication);
         canEvaluateTenantB.Should().BeFalse("Non-admin staff member cannot evaluate applications in unassigned Tenant B");
     }
+
+    [Fact]
+    public async Task EndToEnd_FullApplicationLifecycle_AllRolesHaveRequiredPermissionsWithout403Blockers()
+    {
+        // ── 1. Client Step (Submit Application) ───────────────────────────────
+        var clientUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_client_e2e",
+            Email = "client.e2e@example.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        _dbContext.Users.Add(clientUser);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_client_e2e");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("client.e2e@example.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(clientUser);
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns((Guid?)null);
+
+        var clientAuthService = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        var canClientSubmit = await clientAuthService.CanSubmitApplicationAsync();
+        var clientHasSubmitPerm = await clientAuthService.HasPermissionAsync(Permissions.SubmitApplication);
+        var clientHasReadPerm = await clientAuthService.HasPermissionAsync(Permissions.ReadApplication);
+
+        canClientSubmit.Should().BeTrue("Client must be allowed to submit applications");
+        clientHasSubmitPerm.Should().BeTrue("Client has SubmitApplication permission");
+        clientHasReadPerm.Should().BeTrue("Client has ReadApplication permission to inspect submission status");
+
+        // ── 2. Evaluator Step (Evaluate & Generate SOA) ───────────────────────
+        var tenantId = Guid.NewGuid();
+        var evaluatorUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_evaluator_e2e",
+            Email = "evaluator.e2e@ntcedge.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        var evaluatorRole = new Role
+        {
+            Id = Guid.NewGuid(),
+            Key = "evaluator",
+            Name = "Evaluator",
+            TenantId = tenantId,
+            IsDeleted = false
+        };
+        var evaluatorMembership = new TenantMember
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = evaluatorUser.Id,
+            RoleId = evaluatorRole.Id,
+            IsDeleted = false
+        };
+
+        var evaluatorPermissions = new[]
+        {
+            Permissions.EvaluateApplication,
+            Permissions.CreateBilling,
+            Permissions.UpdateApplication,
+            Permissions.ReadApplication,
+            Permissions.ViewAllApplications
+        }.Select(k => new RolePermission { RoleId = evaluatorRole.Id, PermissionKey = k });
+
+        _dbContext.Users.Add(evaluatorUser);
+        _dbContext.Roles.Add(evaluatorRole);
+        _dbContext.TenantMembers.Add(evaluatorMembership);
+        _dbContext.RolePermissions.AddRange(evaluatorPermissions);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_evaluator_e2e");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("evaluator.e2e@ntcedge.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(evaluatorUser);
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns(tenantId);
+
+        var evaluatorAuthService = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        var canEvaluate = await evaluatorAuthService.HasPermissionAsync(Permissions.EvaluateApplication);
+        var canCreateBilling = await evaluatorAuthService.HasPermissionAsync(Permissions.CreateBilling);
+        var canUpdateStatusToAccountant = await evaluatorAuthService.HasPermissionAsync(Permissions.UpdateApplication);
+
+        canEvaluate.Should().BeTrue("Evaluator must have EvaluateApplication permission");
+        canCreateBilling.Should().BeTrue("Evaluator must have CreateBilling permission to generate SOA");
+        canUpdateStatusToAccountant.Should().BeTrue("Evaluator must have UpdateApplication permission to advance status to ForAccountant");
+
+        // ── 3. Accountant Step (Verify & Approve SOA) ─────────────────────────
+        var accountantUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_accountant_e2e",
+            Email = "accountant.e2e@ntcedge.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        var accountantRole = new Role
+        {
+            Id = Guid.NewGuid(),
+            Key = "accountant",
+            Name = "Accountant",
+            TenantId = tenantId,
+            IsDeleted = false
+        };
+        var accountantMembership = new TenantMember
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = accountantUser.Id,
+            RoleId = accountantRole.Id,
+            IsDeleted = false
+        };
+
+        var accountantPermissions = new[]
+        {
+            Permissions.ApproveSoa,
+            Permissions.ReturnSoa,
+            Permissions.UpdateApplication,
+            Permissions.ReadApplication,
+            Permissions.ViewAllApplications
+        }.Select(k => new RolePermission { RoleId = accountantRole.Id, PermissionKey = k });
+
+        _dbContext.Users.Add(accountantUser);
+        _dbContext.Roles.Add(accountantRole);
+        _dbContext.TenantMembers.Add(accountantMembership);
+        _dbContext.RolePermissions.AddRange(accountantPermissions);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_accountant_e2e");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("accountant.e2e@ntcedge.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(accountantUser);
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns(tenantId);
+
+        var accountantAuthService = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        var canApproveSoa = await accountantAuthService.HasPermissionAsync(Permissions.ApproveSoa);
+        var canReturnSoa = await accountantAuthService.HasPermissionAsync(Permissions.ReturnSoa);
+        var canUpdateStatusToPendingPayment = await accountantAuthService.HasPermissionAsync(Permissions.UpdateApplication);
+
+        canApproveSoa.Should().BeTrue("Accountant must have ApproveSoa permission");
+        canReturnSoa.Should().BeTrue("Accountant must have ReturnSoa permission");
+        canUpdateStatusToPendingPayment.Should().BeTrue("Accountant must have UpdateApplication permission to advance status to PendingPayment");
+
+        // ── 4. Cashier Step (Collect Payment & Issue Receipt) ─────────────────
+        var cashierUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_cashier_e2e",
+            Email = "cashier.e2e@ntcedge.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        var cashierRole = new Role
+        {
+            Id = Guid.NewGuid(),
+            Key = "cashier",
+            Name = "Cashier",
+            TenantId = tenantId,
+            IsDeleted = false
+        };
+        var cashierMembership = new TenantMember
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            UserId = cashierUser.Id,
+            RoleId = cashierRole.Id,
+            IsDeleted = false
+        };
+
+        var cashierPermissions = new[]
+        {
+            Permissions.CollectPayment,
+            Permissions.ReturnOp,
+            Permissions.ReceiptsIssue,
+            Permissions.ReceiptsRead,
+            Permissions.UpdateApplication,
+            Permissions.ReadApplication
+        }.Select(k => new RolePermission { RoleId = cashierRole.Id, PermissionKey = k });
+
+        _dbContext.Users.Add(cashierUser);
+        _dbContext.Roles.Add(cashierRole);
+        _dbContext.TenantMembers.Add(cashierMembership);
+        _dbContext.RolePermissions.AddRange(cashierPermissions);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_cashier_e2e");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("cashier.e2e@ntcedge.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(cashierUser);
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns(tenantId);
+
+        var cashierAuthService = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        var canCollectPayment = await cashierAuthService.HasPermissionAsync(Permissions.CollectPayment);
+        var canIssueReceipt = await cashierAuthService.HasPermissionAsync(Permissions.ReceiptsIssue);
+        var canCompleteApplication = await cashierAuthService.HasPermissionAsync(Permissions.UpdateApplication);
+
+        canCollectPayment.Should().BeTrue("Cashier must have CollectPayment permission");
+        canIssueReceipt.Should().BeTrue("Cashier must have ReceiptsIssue permission");
+        canCompleteApplication.Should().BeTrue("Cashier must have UpdateApplication permission to complete application");
+
+        // ── 5. SuperAdmin Step (Root Access Across Every Step) ────────────────
+        var superAdmin = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_superadmin_root",
+            Email = "superadmin@ntcedge.com",
+            IsSuperAdmin = true,
+            IsDeleted = false
+        };
+        _dbContext.Users.Add(superAdmin);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_superadmin_root");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("superadmin@ntcedge.com");
+        _currentUserServiceMock.Setup(s => s.IsSuperAdminClaim).Returns(true);
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(superAdmin);
+
+        var superAdminAuthService = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        foreach (var requiredPerm in new[]
+        {
+            Permissions.SubmitApplication,
+            Permissions.EvaluateApplication,
+            Permissions.CreateBilling,
+            Permissions.ApproveSoa,
+            Permissions.ReturnSoa,
+            Permissions.CollectPayment,
+            Permissions.ReceiptsIssue,
+            Permissions.UpdateApplication,
+            Permissions.ManageTenantMembers
+        })
+        {
+            var hasPerm = await superAdminAuthService.HasPermissionAsync(requiredPerm);
+            hasPerm.Should().BeTrue($"SuperAdmin must have {requiredPerm} unconditionally");
+        }
+    }
 }
