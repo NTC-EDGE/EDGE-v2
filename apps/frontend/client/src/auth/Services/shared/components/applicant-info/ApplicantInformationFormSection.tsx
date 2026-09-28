@@ -90,6 +90,24 @@ export function ApplicantInformationFormSection({
     }
   }, [applicant.city, municipalities, selectedMunicipalityId]);
 
+  // Auto-sync representative name parts from existing representativeName if present
+  useEffect(() => {
+    if (isCompany && applicant.representativeName && !applicant.representativeFirstName && !applicant.representativeLastName) {
+      const parts = applicant.representativeName.trim().split(/\s+/);
+      if (parts.length === 1) {
+        onChange({ representativeFirstName: parts[0] });
+      } else if (parts.length === 2) {
+        onChange({ representativeFirstName: parts[0], representativeLastName: parts[1] });
+      } else if (parts.length >= 3) {
+        onChange({
+          representativeFirstName: parts[0],
+          representativeMiddleName: parts.slice(1, -1).join(" "),
+          representativeLastName: parts[parts.length - 1],
+        });
+      }
+    }
+  }, [isCompany, applicant.representativeName, applicant.representativeFirstName, applicant.representativeLastName, onChange]);
+
   const regionOptions = regions.map((r) => ({ label: r.name, value: r.name }));
   const provinceOptions = provinces.map((p) => ({ label: p.name, value: p.name }));
   const municipalityOptions = municipalities.map((m) => ({ label: m.name, value: m.name }));
@@ -147,46 +165,94 @@ export function ApplicantInformationFormSection({
 
       {/* 1. Identity Particulars */}
       {isCompany ? (
-        <FormGrid>
-          <FormCol span={8}>
-            <ValidatedInput
-              label="Registered Business / Company Name"
-              required
-              placeholder="e.g. Globe Telecom, Inc."
-              value={applicant.companyName || ""}
-              error={errors["companyName"]}
-              onChangeText={(val) => onChange({ companyName: val })}
-            />
-          </FormCol>
-          <FormCol span={4}>
-            <ValidatedInput
-              label="SEC / DTI Registration No."
-              placeholder="e.g. CS201512345"
-              value={applicant.dtiSecRegistration || ""}
-              error={errors["dtiSecRegistration"]}
-              onChangeText={(val) => onChange({ dtiSecRegistration: val })}
-            />
-          </FormCol>
-          <FormCol span={6}>
-            <ValidatedInput
-              label="Authorized Representative Name"
-              required
-              placeholder="e.g. Juan Dela Cruz"
-              value={applicant.representativeName || ""}
-              error={errors["representativeName"]}
-              onChangeText={(val) => onChange({ representativeName: val })}
-            />
-          </FormCol>
-          <FormCol span={6}>
-            <ValidatedInput
-              label="Representative Position / Designation"
-              placeholder="e.g. Chief Operating Officer"
-              value={applicant.representativePosition || ""}
-              error={errors["representativePosition"]}
-              onChangeText={(val) => onChange({ representativePosition: val })}
-            />
-          </FormCol>
-        </FormGrid>
+        <>
+          <FormGrid>
+            <FormCol span={8}>
+              <ValidatedInput
+                label="Registered Business / Company Name"
+                required
+                placeholder="e.g. Globe Telecom, Inc."
+                value={applicant.companyName || ""}
+                error={errors["companyName"]}
+                onChangeText={(val) => onChange({ companyName: val })}
+              />
+            </FormCol>
+            <FormCol span={4}>
+              <ValidatedInput
+                label="SEC / DTI Registration No."
+                placeholder="e.g. CS201512345"
+                value={applicant.dtiSecRegistration || ""}
+                error={errors["dtiSecRegistration"]}
+                onChangeText={(val) => onChange({ dtiSecRegistration: val })}
+              />
+            </FormCol>
+          </FormGrid>
+
+          <View style={{ marginTop: 14 }}>
+            <Text style={styles.subheading}>Authorized Representative Particulars</Text>
+            <FormGrid>
+              <FormCol span={3}>
+                <ValidatedInput
+                  label="Representative First Name"
+                  required
+                  placeholder="e.g. Juan"
+                  value={applicant.representativeFirstName || ""}
+                  error={errors["representativeFirstName"]}
+                  onChangeText={(val) => {
+                    const fullName = [val, applicant.representativeMiddleName, applicant.representativeLastName, applicant.representativeSuffix].filter(Boolean).join(" ");
+                    onChange({ representativeFirstName: val, representativeName: fullName });
+                  }}
+                />
+              </FormCol>
+              <FormCol span={3}>
+                <ValidatedInput
+                  label="Middle Name"
+                  placeholder="e.g. Protacio"
+                  value={applicant.representativeMiddleName || ""}
+                  error={errors["representativeMiddleName"]}
+                  onChangeText={(val) => {
+                    const fullName = [applicant.representativeFirstName, val, applicant.representativeLastName, applicant.representativeSuffix].filter(Boolean).join(" ");
+                    onChange({ representativeMiddleName: val, representativeName: fullName });
+                  }}
+                />
+              </FormCol>
+              <FormCol span={3}>
+                <ValidatedInput
+                  label="Last Name"
+                  required
+                  placeholder="e.g. Dela Cruz"
+                  value={applicant.representativeLastName || ""}
+                  error={errors["representativeLastName"]}
+                  onChangeText={(val) => {
+                    const fullName = [applicant.representativeFirstName, applicant.representativeMiddleName, val, applicant.representativeSuffix].filter(Boolean).join(" ");
+                    onChange({ representativeLastName: val, representativeName: fullName });
+                  }}
+                />
+              </FormCol>
+              <FormCol span={3}>
+                <Select
+                  label="Suffix"
+                  options={SUFFIX_OPTIONS}
+                  value={applicant.representativeSuffix || ""}
+                  onValueChange={(val) => {
+                    const fullName = [applicant.representativeFirstName, applicant.representativeMiddleName, applicant.representativeLastName, val].filter(Boolean).join(" ");
+                    onChange({ representativeSuffix: val, representativeName: fullName });
+                  }}
+                />
+              </FormCol>
+              <FormCol span={12}>
+                <ValidatedInput
+                  label="Representative Position / Designation"
+                  required
+                  placeholder="e.g. Chief Operating Officer / Authorized Liaison Officer"
+                  value={applicant.representativePosition || ""}
+                  error={errors["representativePosition"]}
+                  onChangeText={(val) => onChange({ representativePosition: val })}
+                />
+              </FormCol>
+            </FormGrid>
+          </View>
+        </>
       ) : (
         <FormGrid>
           <FormCol span={3}>

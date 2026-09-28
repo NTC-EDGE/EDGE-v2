@@ -72,6 +72,10 @@ export interface GeneralApplicantData {
   suffix?: string;
   applicantType?: "individual" | "company";
   companyName?: string;
+  representativeFirstName?: string;
+  representativeMiddleName?: string;
+  representativeLastName?: string;
+  representativeSuffix?: string;
   representativeName?: string;
   representativePosition?: string;
   dtiSecRegistration?: string;
@@ -125,6 +129,10 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   suffix: "",
   applicantType: "individual",
   companyName: "",
+  representativeFirstName: "",
+  representativeMiddleName: "",
+  representativeLastName: "",
+  representativeSuffix: "",
   representativeName: "",
   representativePosition: "",
   dtiSecRegistration: "",
