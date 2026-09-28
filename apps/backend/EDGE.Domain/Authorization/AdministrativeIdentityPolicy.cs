@@ -38,6 +38,9 @@ public static class AdministrativeIdentityPolicy
         "super-admin",
         "org:superadmin",
         "org:super_admin",
+        "org:super-admin",
+        "org:superadministrator",
+        "org:super administrator",
         "super administrator",
         "superadministrator"
     };
@@ -72,7 +75,9 @@ public static class AdministrativeIdentityPolicy
     {
         if (string.IsNullOrWhiteSpace(roleKey)) return false;
         var trimmed = roleKey.Trim();
-        return SuperAdminRoleKeys.Contains(trimmed);
+        if (SuperAdminRoleKeys.Contains(trimmed)) return true;
+        var normalized = trimmed.Replace("-", "").Replace("_", "").Replace(" ", "");
+        return SuperAdminRoleKeys.Contains(normalized);
     }
 
     /// <summary>
