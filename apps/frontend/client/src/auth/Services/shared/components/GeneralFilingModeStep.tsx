@@ -157,8 +157,10 @@ export function GeneralFilingModeStep({
   React.useEffect(() => {
     if (!appMode) {
       onAppModeChange("SINGLE");
+    } else if (applicantType === "individual" && appMode === "BULK") {
+      onAppModeChange("SINGLE");
     }
-  }, [appMode, onAppModeChange]);
+  }, [appMode, applicantType, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
@@ -681,6 +683,7 @@ export function GeneralFilingModeStep({
             activeOpacity={0.8}
             onPress={() => {
               onApplicantTypeChange?.("individual");
+              onAppModeChange("SINGLE");
             }}
             style={{
               flexDirection: "row",
@@ -1069,28 +1072,69 @@ export function GeneralFilingModeStep({
           </Text>
         </View>
 
-        <Select
-          label="Filing Mode*"
-          placeholder="Select Filing Mode..."
-          value={appMode}
-          onValueChange={(val) => {
-            if (val === "SINGLE" || val === "BULK") {
-              onAppModeChange(val);
-            }
-          }}
-          options={
-            applicantType === "individual"
-              ? [
-                  { label: "Single Application (1 Individual Applicant)", value: "SINGLE" },
-                  { label: "Bulk Application (Multiple Individual Applicants / Spreadsheet Import)", value: "BULK" },
-                ]
-              : [
-                  { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
-                  { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
-                ]
-          }
-          iconName="users"
-        />
+        {applicantType === "individual" ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 14,
+              borderRadius: 10,
+              borderWidth: 1.5,
+              borderColor: "#10B981",
+              backgroundColor: "#F0FDF4",
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: "#DCFCE7",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Icon name="user" size={16} color="#15803D" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#15803D" }}>
+                Single Application (1 Individual Applicant)
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#166534", marginTop: 2 }}>
+                Individual applicant filings are processed strictly as single transactions.
+              </Text>
+            </View>
+            <View
+              style={{
+                paddingVertical: 4,
+                paddingHorizontal: 8,
+                borderRadius: 6,
+                backgroundColor: "#DCFCE7",
+              }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#15803D" }}>
+                SINGLE ONLY
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <Select
+            label="Filing Mode*"
+            placeholder="Select Filing Mode..."
+            value={appMode || "SINGLE"}
+            onValueChange={(val) => {
+              if (val === "SINGLE" || val === "BULK") {
+                onAppModeChange(val);
+              }
+            }}
+            options={[
+              { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
+              { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
+            ]}
+            iconName="users"
+          />
+        )}
       </View>
     </View>
   );
