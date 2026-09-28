@@ -806,7 +806,7 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
-                    label="Representative First Name"
+                    label="First Name"
                     required={true}
                     placeholder="e.g., Juan"
                     value={activeApplicant?.representativeFirstName ?? ""}
