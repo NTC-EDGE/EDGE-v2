@@ -69,6 +69,16 @@ interface GeneralFilingModeStepProps {
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
 }
 
+const SUFFIX_OPTIONS = [
+  { label: "None", value: "" },
+  { label: "Jr.", value: "Jr." },
+  { label: "Sr.", value: "Sr." },
+  { label: "II", value: "II" },
+  { label: "III", value: "III" },
+  { label: "IV", value: "IV" },
+  { label: "V", value: "V" },
+];
+
 const safeUpper = (str?: unknown): string => {
   if (typeof str === "string") return str.toUpperCase();
   if (str !== null && str !== undefined && typeof (str as { toString: () => string }).toString === "function") {
@@ -796,20 +806,85 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
-                    label="Authorized Representative Name"
+                    label="Representative First Name"
                     required={true}
-                    placeholder="e.g., Engr. Juan Dela Cruz"
-                    value={activeApplicant?.representativeName ?? representativeName}
+                    placeholder="e.g., Juan"
+                    value={activeApplicant?.representativeFirstName ?? ""}
                     onChangeText={(text) => {
-                      onRepresentativeNameChange?.(text);
-                      updateActiveApplicant?.({ representativeName: text });
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [text, currentMiddle, currentLast, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeFirstName: text,
+                        representativeName: fullName,
+                      });
                     }}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
-                    label="Designation / Position"
-                    placeholder="e.g., Authorized Representative / Manager / Trustee"
+                    label="Middle Name"
+                    placeholder="e.g., Protacio"
+                    value={activeApplicant?.representativeMiddleName ?? ""}
+                    onChangeText={(text) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [currentFirst, text, currentLast, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeMiddleName: text,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Last Name"
+                    required={true}
+                    placeholder="e.g., Dela Cruz"
+                    value={activeApplicant?.representativeLastName ?? ""}
+                    onChangeText={(text) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [currentFirst, currentMiddle, text, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeLastName: text,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 0.8 }}>
+                  <Select
+                    label="Suffix"
+                    options={SUFFIX_OPTIONS}
+                    value={activeApplicant?.representativeSuffix ?? ""}
+                    onValueChange={(val) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const fullName = [currentFirst, currentMiddle, currentLast, val].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeSuffix: val,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Representative Position / Designation"
+                    placeholder="e.g., Authorized Representative / Manager / Trustee / Liaison Officer"
                     value={activeApplicant?.representativePosition ?? representativePosition}
                     onChangeText={(text) => {
                       onRepresentativePositionChange?.(text);

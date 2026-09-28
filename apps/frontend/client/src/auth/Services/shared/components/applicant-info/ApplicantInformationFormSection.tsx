@@ -193,7 +193,7 @@ export function ApplicantInformationFormSection({
             <FormGrid>
               <FormCol span={3}>
                 <ValidatedInput
-                  label="Representative First Name"
+                  label="First Name"
                   required
                   placeholder="e.g. Juan"
                   value={applicant.representativeFirstName || ""}

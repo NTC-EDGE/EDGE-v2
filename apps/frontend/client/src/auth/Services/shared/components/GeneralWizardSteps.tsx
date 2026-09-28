@@ -135,10 +135,18 @@ export function GeneralWizardSteps({
             setApplicants((prev) =>
               prev.map((app) => {
                 if (type === "company") {
-                  const rep = app.representativeName || [app.firstName, app.lastName].filter(Boolean).join(" ");
+                  const repFirst = app.representativeFirstName || app.firstName || "";
+                  const repMiddle = app.representativeMiddleName || app.middleName || "";
+                  const repLast = app.representativeLastName || app.lastName || "";
+                  const repSuffix = app.representativeSuffix || app.suffix || "";
+                  const rep = app.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ");
                   return {
                     ...app,
                     applicantType: type,
+                    representativeFirstName: repFirst,
+                    representativeMiddleName: repMiddle,
+                    representativeLastName: repLast,
+                    representativeSuffix: repSuffix,
                     representativeName: rep,
                     firstName: "",
                     middleName: "",
@@ -150,8 +158,10 @@ export function GeneralWizardSteps({
                   return {
                     ...app,
                     applicantType: type,
-                    firstName: app.firstName || nameParts[0] || "",
-                    lastName: app.lastName || nameParts.slice(1).join(" ") || "",
+                    firstName: app.firstName || app.representativeFirstName || nameParts[0] || "",
+                    middleName: app.middleName || app.representativeMiddleName || "",
+                    lastName: app.lastName || app.representativeLastName || nameParts.slice(1).join(" ") || "",
+                    suffix: app.suffix || app.representativeSuffix || "",
                   };
                 }
               })
