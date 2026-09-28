@@ -27,14 +27,18 @@ public record ApplicantSubmissionDto
     public Guid? ServiceVariantId { get; init; }
 
     public string FirstName { get; init; } = "";
+    public string? MiddleName { get; init; }
     public string LastName { get; init; } = "";
+    public string? Suffix { get; init; }
     public string? ApplicantType { get; init; }
     public string? CompanyName { get; init; }
     public string? RepresentativeName { get; init; }
+    public string? DtiSecRegistration { get; init; }
     public string Email { get; init; } = "";
     public string ContactNumber { get; init; } = "";
     public string Address { get; init; } = "";
     public DateOnly? BirthDate { get; init; }
+    public string? ESignature { get; init; }
 
     public List<FormFieldValueSubmissionDto> FormFieldValues { get; init; } = new();
 }

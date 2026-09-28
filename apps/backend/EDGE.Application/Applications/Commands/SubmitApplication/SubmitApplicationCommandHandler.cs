@@ -365,11 +365,14 @@ public class SubmitApplicationCommandHandler
                 {
                     Id = Guid.NewGuid(),
                     FirstName = string.IsNullOrWhiteSpace(dto.FirstName) ? (request.IsDraft ? "Draft" : "") : dto.FirstName,
+                    MiddleName = dto.MiddleName,
                     LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName,
+                    Suffix = dto.Suffix,
                     EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email,
                     ContactNumber = dto.ContactNumber ?? "",
                     Address = dto.Address ?? "",
-                    BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value
+                    BirthDate = (!dto.BirthDate.HasValue || dto.BirthDate.Value == default) ? new DateOnly(2000, 1, 1) : dto.BirthDate.Value,
+                    ESignature = dto.ESignature
                 };
                 await _applicantRepository.AddApplicantDetailAsync(detail, cancellationToken);
 
@@ -388,6 +391,7 @@ public class SubmitApplicationCommandHandler
                     {
                         Id = Guid.NewGuid(),
                         Name = dto.CompanyName,
+                        RegistrationNumber = dto.DtiSecRegistration ?? "",
                         Address = dto.Address ?? "",
                         ContactNumber = dto.ContactNumber ?? "",
                         Email = dto.Email

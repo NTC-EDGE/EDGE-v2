@@ -188,12 +188,16 @@ export interface SerializedApplicantPayload {
   applicantType?: string;
   companyName?: string;
   representativeName?: string;
+  dtiSecRegistration?: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
+  suffix?: string;
   email: string;
   contactNumber: string;
   address: string;
   birthDate: string;
+  eSignature?: string;
   formFieldValues: FormFieldValuePayload[];
 }
 
@@ -327,16 +331,34 @@ export function serializeCertificateApplicant(
         return true;
       });
 
+    const isComp = (app.applicantType || "").toLowerCase() === "company";
+    const effectiveFirstName = isComp
+      ? app.representativeFirstName || finalFirstName || "Representative"
+      : finalFirstName || "Applicant";
+    const effectiveMiddleName = isComp
+      ? app.representativeMiddleName || app.middleName
+      : app.middleName;
+    const effectiveLastName = isComp
+      ? app.representativeLastName || finalLastName || "Officer"
+      : finalLastName || "Detail";
+    const effectiveSuffix = isComp
+      ? app.representativeSuffix || app.suffix
+      : app.suffix;
+
     return {
       applicantType: app.applicantType || "individual",
       companyName: app.companyName || undefined,
       representativeName: app.representativeName || undefined,
-      firstName: finalFirstName || "Applicant",
-      lastName: finalLastName || "Detail",
+      dtiSecRegistration: app.dtiSecRegistration || undefined,
+      firstName: effectiveFirstName,
+      middleName: effectiveMiddleName || undefined,
+      lastName: effectiveLastName,
+      suffix: effectiveSuffix || undefined,
       email: emailField || app.email || "applicant@example.com",
       contactNumber: contactNoField || app.contactNo || "",
       address: addressField || app.address || "N/A",
       birthDate,
+      eSignature: app.signatureUrl || undefined,
       formFieldValues: filteredFieldValues.map(fv => ({
         fieldId: fv.fieldId,
         fieldLabel: fv.fieldLabel,
