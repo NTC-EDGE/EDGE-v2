@@ -32,8 +32,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""station"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""entityType"": ""Application""
@@ -53,8 +51,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""aircraft"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""entityType"": ""Application""
@@ -75,8 +71,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""vessel"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""radioOfficers"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -105,8 +99,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""stations"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -132,8 +124,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""headEnd"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""entityType"": ""Application""
@@ -152,8 +142,6 @@ public static class LicensesCategorySeederData
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""permitLicenseCertificateNo"", ""required"": true },
             { ""key"": ""circumstances"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""entityType"": ""Application""
@@ -814,68 +802,45 @@ public static class LicensesCategorySeederData
     {
         new("NTC_AMA_LICENSES", Guid.Parse("f7000000-0000-0000-0000-000000000001"), Guid.Parse("f70a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign", "classOfAmateur", "handleName" }),
             new("club", "Club Details (if Club Station)", new() { "clubName", "trusteeName", "trusteeCallSign", "trusteeLicenseNo", "clubAddress" }),
             new("station", "Station Details", new() { "stationLocation", "stationType", "authorizedPower", "frequencyBands" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
         }),
         new("NTC_AERO_LICENSES", Guid.Parse("f7100000-0000-0000-0000-000000000001"), Guid.Parse("f71a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email", "callSign" }),
             new("aircraft", "Aircraft Particulars", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
         }),
         new("NTC_MAR_LICENSES", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Permit", new() { "permitType", "classOfStation" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("vessel", "Particulars of Station / Vessel", new() { "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" })
         }),
         new("NTC_FLM_LICENSES", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Service", new() { "permitType", "classOfStation" }),
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stations", "Particulars of Station / Equipment / Antenna", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
             new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" })
         }),
         new("NTC_OTHER_LICENSES", Guid.Parse("f7400000-0000-0000-0000-000000000001"), Guid.Parse("f74a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
             new("stations", "Particulars of Station(s)", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput" }),
             new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity" })
         }),
         new("NTC_TVRO_CATV_LICENSES", Guid.Parse("f7500000-0000-0000-0000-000000000001"), Guid.Parse("f75a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
             new("headEnd", "Head-End Station Details", new() { "stationLocation", "carrierFrequency", "bandwidth", "serviceArea", "channelCapacity" }),
             new("equipment", "Head-End Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Dish Antenna Particulars", new() { "antennaType", "diameter", "gain", "azimuth", "elevation" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("antennas", "Dish Antenna Particulars", new() { "antennaType", "diameter", "gain", "azimuth", "elevation" })
         }),
         new("NTC_COPY_LICENSES", Guid.Parse("f7600000-0000-0000-0000-000000000001"), Guid.Parse("f76a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
             new("permitLicenseCertificateNo", "License Reference Details", new() { "callSign", "permitRslNo", "stationLocation" }),
-            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
         })
     };
 

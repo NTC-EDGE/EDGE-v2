@@ -157,12 +157,6 @@ export const mapApplicantsPayload = (
 
     if (formFields.length > 0) {
       const mappings = [
-        { fieldId: "fd000000-0000-0000-0000-000000000001", terms: ["full name", "applicant name", "name"], value: `${app.firstName} ${app.lastName}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000002", terms: ["birth date", "date of birth", "dob"], value: `${app.birthYear}-${monthNum}-${day}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000003", terms: ["address", "street", "residence"], value: address },
-        { fieldId: "fd000000-0000-0000-0000-000000000004", terms: ["contact no", "contact number", "phone", "mobile"], value: app.contactNo },
-        { fieldId: "fd000000-0000-0000-0000-000000000005", terms: ["email address", "email"], value: app.email },
-        { fieldId: "fd000000-0000-0000-0000-000000000006", terms: ["education", "school", "course", "degree"], value: `${app.schoolName} - ${app.courseDegree}` },
         { 
           fieldId: "fd000000-0000-0000-0000-000000000007", 
           terms: ["exam category", "category"], 
@@ -172,23 +166,27 @@ export const mapApplicantsPayload = (
         { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
         { fieldId: "fd000000-0000-0000-0000-000000000010", terms: ["special needs", "assistance"], value: "None" },
         { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000012", terms: ["signature"], value: `${app.firstName} ${app.lastName}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000013", terms: ["declare", "info is true", "checkbox"], value: "true" },
+      ];
+
+      const ignoredBioTerms = [
+        "full name", "first name", "last name", "middle name", "applicant name", "name",
+        "birth date", "date of birth", "dob", "birth",
+        "address", "street", "residence", "barangay", "city", "province", "zip",
+        "contact no", "contact number", "phone", "mobile",
+        "email address", "email",
+        "signature", "declare", "declaration", "terms"
       ];
 
       formFields.forEach((field: any) => {
         const labelLower = (field.label || "").toLowerCase();
         const id = field.fieldId;
+        if (ignoredBioTerms.some(t => labelLower.includes(t))) return;
+
         const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
         if (match) {
           formFieldValues.push({
             fieldId: id,
             value: match.value
-          });
-        } else {
-          formFieldValues.push({
-            fieldId: id,
-            value: field.type === "checkbox" ? "false" : ""
           });
         }
       });

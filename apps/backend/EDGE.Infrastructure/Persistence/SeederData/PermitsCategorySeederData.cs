@@ -58,9 +58,7 @@ public static class PermitsCategorySeederData
             { ""key"": ""typeOfRadioService"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""station"", ""required"": true },
-            { ""key"": ""equipment"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
+            { ""key"": ""equipment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -513,74 +511,46 @@ public static class PermitsCategorySeederData
     {
         new("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Application Type", new() { "permitType", "preferredCallSign", "licenseNo", "dateOfExpiry" }),
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_AERO_PERMITS", Guid.Parse("fa000000-0000-0000-0000-000000000001"), Guid.Parse("fa0a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Application Type", new() { "permitType", "natureOfService" }),
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "aeroStationParticulars", "serviceArea", "frequency", "frequencyUnit", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_MAR_PERMITS", Guid.Parse("fb100000-0000-0000-0000-000000000001"), Guid.Parse("fb1a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_FLM_PERMITS", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_PTE_PERMITS", Guid.Parse("fbe00000-0000-0000-0000-000000000001"), Guid.Parse("fbea0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("stationEquipment", "Particulars of Proposed Station / Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain", "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
-            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
         new("NTC_EQUIP_PERMITS", Guid.Parse("fb300000-0000-0000-0000-000000000001"), Guid.Parse("fb3a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Permit Category", new() { "permitType", "classOfStation" }),
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" })
         }),
         new("NTC_MP_PERMITS", Guid.Parse("fb400000-0000-0000-0000-000000000001"), Guid.Parse("fb4a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Permit Category", new() { "permitType", "classOfStation" }),
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" })
         }),
         new("NTC_COPY_PERMITS", Guid.Parse("fb500000-0000-0000-0000-000000000001"), Guid.Parse("fb5a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("permitLicenseCertificateNo", "Permit / Certificate Particulars", new() { "permitRslNo", "stationClass" }),
-            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
         })
     };
 

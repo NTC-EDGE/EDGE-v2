@@ -22,8 +22,7 @@ public static class RequestsAndComplaintsCategorySeederData
             { ""key"": ""complainant"", ""required"": true },
             { ""key"": ""serviceProvider"", ""required"": true },
             { ""key"": ""natureOfComplaint"", ""required"": true },
-            { ""key"": ""details"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true }
+            { ""key"": ""details"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -133,11 +132,9 @@ public static class RequestsAndComplaintsCategorySeederData
     {
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("complainant", "Complainant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("serviceProvider", "Particulars of Service Provider", new() { "dealerName", "sellerAddress", "contactNo" }),
             new("natureOfComplaint", "Nature of Complaint", new() { "permitType", "specifyDetails" }),
-            new("details", "Details and Supporting Documents", new() { "circumstances" }),
-            new("declaration", "Acknowledgement and Signature", new() { "signatureField", "declarationCheckbox" })
+            new("details", "Details and Supporting Documents", new() { "circumstances" })
         })
     };
 
