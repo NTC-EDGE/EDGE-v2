@@ -153,7 +153,8 @@ public class CreateOrBookletCommandHandlerTests
             TenantId: tenantId,
             BookletNumber: "BKL-001",
             Prefix: "NTC-",
-            StartNumber: 100001
+            StartNumber: 100001,
+            AssignedUserId: Guid.NewGuid()
         );
 
         // Act
@@ -162,5 +163,34 @@ public class CreateOrBookletCommandHandlerTests
         // Assert
         result.Succeeded.Should().BeFalse();
         result.Message.Should().Contain("already exists");
+    }
+
+    [Fact]
+    public async Task Handle_NoCashierSelected_ReturnsFailure()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+
+        _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Name = "Region 10" });
+
+        _mockBookletRepo.Setup(b => b.ExistsBookletNumberAsync(tenantId, "BKL-001", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var command = new CreateOrBookletCommand(
+            TenantId: tenantId,
+            BookletNumber: "BKL-001",
+            Prefix: "NTC-",
+            StartNumber: 100001,
+            AssignedUserId: null,
+            AssignedUserIds: new List<Guid>()
+        );
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().Contain("Please select at least one authorized Cashier");
     }
 }

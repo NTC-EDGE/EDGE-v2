@@ -61,7 +61,10 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       return;
     }
 
-    const effectiveUserIds = selectedUserIds.length > 0 ? selectedUserIds : (user?.id ? [user.id] : []);
+    if (selectedUserIds.length === 0) {
+      setErrorMsg('Please select at least one authorized Cashier to assign this booklet.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -73,8 +76,8 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       startNumber: parsedStart,
       endNumber: calculatedEnd,
       totalCount: parsedCount,
-      assignedUserId: effectiveUserIds[0] ?? null,
-      assignedUserIds: effectiveUserIds,
+      assignedUserId: selectedUserIds[0] ?? null,
+      assignedUserIds: selectedUserIds,
       remarks: remarks.trim().length > 0 ? remarks.trim() : null,
     });
 
@@ -86,6 +89,7 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       setBookletNumber('');
       setStartNumber('');
       setRemarks('');
+      setSelectedUserIds([]);
       onSuccess();
       onClose();
     }
@@ -142,20 +146,13 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
 
   const availableCashiers = members.filter(isCashierMember);
 
-  // Initialize selectedUserIds with current user (if cashier) or first available cashier when opening
+  // Reset selection when opening modal to require explicit selection by Admin / User
   useEffect(() => {
     if (visible) {
-      const currentUserId = user?.id;
-      const isCurrentUserCashier = currentUserId !== undefined && availableCashiers.some((c) => c.userId === currentUserId);
-      if (isCurrentUserCashier && currentUserId !== undefined) {
-        setSelectedUserIds([currentUserId]);
-      } else if (availableCashiers.length > 0) {
-        setSelectedUserIds([availableCashiers[0].userId]);
-      } else {
-        setSelectedUserIds([]);
-      }
+      setSelectedUserIds([]);
+      setErrorMsg(null);
     }
-  }, [visible, user?.id, members]);
+  }, [visible]);
 
   const selectedMemberNames = availableCashiers
     .filter((m) => selectedUserIds.includes(m.userId))
@@ -163,9 +160,7 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
 
   const assignedDisplay = selectedMemberNames.length > 0
     ? selectedMemberNames.join(', ')
-    : user?.name
-    ? `${user.name} (You - Current User)`
-    : 'All Cashiers (Unassigned Pool)';
+    : 'None selected (Please check at least one Cashier below)';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

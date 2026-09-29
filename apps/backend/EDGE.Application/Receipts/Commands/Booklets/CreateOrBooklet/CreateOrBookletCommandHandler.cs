@@ -32,6 +32,9 @@ public class CreateOrBookletCommandValidator : AbstractValidator<CreateOrBooklet
         RuleFor(x => x.BookletNumber).NotEmpty().MaximumLength(100).WithMessage("Booklet number is required.");
         RuleFor(x => x.StartNumber).GreaterThan(0).WithMessage("Start number must be greater than 0.");
         RuleFor(x => x.TotalCount).GreaterThan(0).WithMessage("Total count must be greater than 0.");
+        RuleFor(x => x)
+            .Must(cmd => (cmd.AssignedUserIds != null && cmd.AssignedUserIds.Any(id => id != Guid.Empty)) || (cmd.AssignedUserId.HasValue && cmd.AssignedUserId.Value != Guid.Empty))
+            .WithMessage("Please select at least one authorized Cashier to assign this booklet series.");
     }
 }
 
@@ -91,6 +94,11 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         else if (request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty)
         {
             userIdsToAssign.Add(request.AssignedUserId.Value);
+        }
+
+        if (userIdsToAssign.Count == 0)
+        {
+            return ApiResponse<OrBookletDto>.Fail("Please select at least one authorized Cashier to assign this booklet series.");
         }
 
         var assignedCashierList = new List<BookletCashierDto>();
