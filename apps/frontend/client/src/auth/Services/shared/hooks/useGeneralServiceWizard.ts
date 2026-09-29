@@ -731,7 +731,11 @@ export function useGeneralServiceWizard(
         prev.map((app, idx) => {
           if (idx !== 0) return app;
           const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
-          const repName = app.representativeName || initialProfile.representativeName || initialProfile.fullName || [initialProfile.firstName, initialProfile.lastName].filter(Boolean).join(" ");
+          const repFirst = app.representativeFirstName || initialProfile.representativeFirstName || initialProfile.firstName || initialProfile.fullName.split(" ")[0] || "";
+          const repMiddle = app.representativeMiddleName || initialProfile.representativeMiddleName || initialProfile.middleName || "";
+          const repLast = app.representativeLastName || initialProfile.representativeLastName || initialProfile.lastName || initialProfile.fullName.split(" ").slice(1).join(" ") || "";
+          const repSuffix = app.representativeSuffix || initialProfile.representativeSuffix || initialProfile.suffix || "";
+          const repName = app.representativeName || initialProfile.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || initialProfile.fullName;
           const repPos = app.representativePosition || initialProfile.designation || initialProfile.position || "";
           return {
             ...app,
@@ -753,6 +757,10 @@ export function useGeneralServiceWizard(
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
             companyName: app.companyName || initialProfile.companyName,
+            representativeFirstName: repFirst,
+            representativeMiddleName: repMiddle,
+            representativeLastName: repLast,
+            representativeSuffix: repSuffix,
             representativeName: repName,
             representativePosition: repPos,
             dtiSecRegistration: app.dtiSecRegistration || "",
@@ -776,7 +784,11 @@ export function useGeneralServiceWizard(
           prev.map((app, idx) => {
             if (idx !== 0) return app;
             const isBlank = !app.firstName && !app.lastName && !app.email && !app.contactNo && !app.selectedVariantId;
-            const repName = app.representativeName || enriched.representativeName || enriched.fullName || [enriched.firstName, enriched.lastName].filter(Boolean).join(" ");
+            const repFirst = app.representativeFirstName || enriched.representativeFirstName || enriched.firstName || enriched.fullName.split(" ")[0] || "";
+            const repMiddle = app.representativeMiddleName || enriched.representativeMiddleName || enriched.middleName || "";
+            const repLast = app.representativeLastName || enriched.representativeLastName || enriched.lastName || enriched.fullName.split(" ").slice(1).join(" ") || "";
+            const repSuffix = app.representativeSuffix || enriched.representativeSuffix || enriched.suffix || "";
+            const repName = app.representativeName || enriched.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || enriched.fullName;
             const repPos = app.representativePosition || enriched.designation || enriched.position || "";
             return {
               ...app,
@@ -798,6 +810,10 @@ export function useGeneralServiceWizard(
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,
               companyName: app.companyName || enriched.companyName,
+              representativeFirstName: repFirst,
+              representativeMiddleName: repMiddle,
+              representativeLastName: repLast,
+              representativeSuffix: repSuffix,
               representativeName: repName,
               representativePosition: repPos,
               dtiSecRegistration: app.dtiSecRegistration || "",

@@ -36,6 +36,10 @@ export interface ResolvedUserProfile {
   companyAddress: string;
   companyPhone: string;
   companyEmail: string;
+  representativeFirstName: string;
+  representativeMiddleName: string;
+  representativeLastName: string;
+  representativeSuffix: string;
   representativeName: string;
   designation: string;
   position: string;
@@ -329,6 +333,42 @@ export function extractUserProfile(
     str(metaComp.designation) ||
     "";
 
+  const representativeFirstName =
+    str(localProfile?.representativeFirstName) ||
+    str(localComp.representativeFirstName) ||
+    str(db.representativeFirstName) ||
+    str(dbComp.representativeFirstName) ||
+    str(metaProfile.representativeFirstName) ||
+    str(metaComp.representativeFirstName) ||
+    "";
+
+  const representativeMiddleName =
+    str(localProfile?.representativeMiddleName) ||
+    str(localComp.representativeMiddleName) ||
+    str(db.representativeMiddleName) ||
+    str(dbComp.representativeMiddleName) ||
+    str(metaProfile.representativeMiddleName) ||
+    str(metaComp.representativeMiddleName) ||
+    "";
+
+  const representativeLastName =
+    str(localProfile?.representativeLastName) ||
+    str(localComp.representativeLastName) ||
+    str(db.representativeLastName) ||
+    str(dbComp.representativeLastName) ||
+    str(metaProfile.representativeLastName) ||
+    str(metaComp.representativeLastName) ||
+    "";
+
+  const representativeSuffix =
+    str(localProfile?.representativeSuffix) ||
+    str(localComp.representativeSuffix) ||
+    str(db.representativeSuffix) ||
+    str(dbComp.representativeSuffix) ||
+    str(metaProfile.representativeSuffix) ||
+    str(metaComp.representativeSuffix) ||
+    "";
+
   const representativeName =
     str(localProfile?.representativeName) ||
     str(localComp.representativeName) ||
@@ -336,6 +376,7 @@ export function extractUserProfile(
     str(dbComp.representativeName) ||
     str(metaProfile.representativeName) ||
     str(metaComp.representativeName) ||
+    [representativeFirstName, representativeMiddleName, representativeLastName, representativeSuffix].filter(Boolean).join(" ") ||
     fullName ||
     "";
 
@@ -375,6 +416,10 @@ export function extractUserProfile(
     companyAddress,
     companyPhone,
     companyEmail,
+    representativeFirstName,
+    representativeMiddleName,
+    representativeLastName,
+    representativeSuffix,
     representativeName,
     designation,
     position: designation,

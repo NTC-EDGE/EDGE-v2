@@ -292,4 +292,91 @@ public class SubmitApplicationCommandHandlerTests
         _mockApplicationRepo.Verify(a => a.AddAsync(It.IsAny<Domain.Entities.Application>(), It.IsAny<CancellationToken>()), Times.Never);
         _mockUnitOfWork.Verify(u => u.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
+
+    [Fact]
+    public async Task Handle_CompanyApplicantWithStructuredRepresentative_SavesStructuredApplicantDetailAndCompanyDetail()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var regionId = Guid.NewGuid();
+
+        _mockCurrentUserService.Setup(u => u.UserId).Returns((string?)null);
+        _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "Region 7" });
+
+        var service = new Service
+        {
+            Id = serviceId,
+            Name = "CPE Accreditation"
+        };
+        _mockServiceRepo.Setup(s => s.GetByIdAsync(serviceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(service);
+
+        ApplicantDetail? capturedDetail = null;
+        _mockApplicantRepo.Setup(a => a.AddApplicantDetailAsync(It.IsAny<ApplicantDetail>(), It.IsAny<CancellationToken>()))
+            .Callback<ApplicantDetail, CancellationToken>((d, _) => capturedDetail = d)
+            .Returns(Task.CompletedTask);
+
+        CompanyDetail? capturedCompany = null;
+        _mockApplicantRepo.Setup(a => a.AddCompanyDetailAsync(It.IsAny<CompanyDetail>(), It.IsAny<CancellationToken>()))
+            .Callback<CompanyDetail, CancellationToken>((c, _) => capturedCompany = c)
+            .Returns(Task.CompletedTask);
+
+        Applicant? capturedApplicant = null;
+        _mockApplicantRepo.Setup(a => a.AddApplicantAsync(It.IsAny<Applicant>(), It.IsAny<CancellationToken>()))
+            .Callback<Applicant, CancellationToken>((app, _) => capturedApplicant = app)
+            .Returns(Task.CompletedTask);
+
+        var command = new SubmitApplicationCommand
+        {
+            TenantId = tenantId,
+            ServiceId = serviceId,
+            SubmissionMode = "Single",
+            IsDraft = false,
+            Applicants = new List<ApplicantSubmissionDto>
+            {
+                new ApplicantSubmissionDto
+                {
+                    ApplicantType = "Company",
+                    CompanyName = "Globe Telecom Inc.",
+                    DtiSecRegistration = "SEC-CS201912345",
+                    FirstName = "Juan",
+                    MiddleName = "Protacio",
+                    LastName = "Dela Cruz",
+                    Suffix = "Jr.",
+                    Email = "representative@globe.com.ph",
+                    ContactNumber = "09171234567",
+                    Address = "123 Ayala Ave, Makati City",
+                    BirthDate = new DateOnly(1985, 6, 15),
+                    FormFieldValues = new List<FormFieldValueSubmissionDto>()
+                }
+            }
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+
+        capturedDetail.Should().NotBeNull();
+        capturedDetail!.FirstName.Should().Be("Juan");
+        capturedDetail.MiddleName.Should().Be("Protacio");
+        capturedDetail.LastName.Should().Be("Dela Cruz");
+        capturedDetail.Suffix.Should().Be("Jr.");
+        capturedDetail.EmailAddress.Should().Be("representative@globe.com.ph");
+        capturedDetail.ContactNumber.Should().Be("09171234567");
+        capturedDetail.Address.Should().Be("123 Ayala Ave, Makati City");
+        capturedDetail.BirthDate.Should().Be(new DateOnly(1985, 6, 15));
+
+        capturedCompany.Should().NotBeNull();
+        capturedCompany!.Name.Should().Be("Globe Telecom Inc.");
+        capturedCompany.RegistrationNumber.Should().Be("SEC-CS201912345");
+
+        capturedApplicant.Should().NotBeNull();
+        capturedApplicant!.ApplicantType.Should().Be(ApplicantType.Company);
+        capturedApplicant.ApplicantDetailId.Should().Be(capturedDetail.Id);
+        capturedApplicant.CompanyDetailId.Should().Be(capturedCompany.Id);
+    }
 }

@@ -117,6 +117,17 @@ export function parseSpreadsheetContent(
     const years = getVal("noofyears", "numberofyears", "years") || "1";
     const notes = getVal("notes", "remarks", "specialneeds", "assistance") || "";
 
+    const repFirstName = getVal("representativefirstname", "repfirstname", "repfirst");
+    const repMiddleName = getVal("representativemiddlename", "repmiddlename", "repmiddle");
+    const repLastName = getVal("representativelastname", "replastname", "replast");
+    const repSuffix = getVal("representativesuffix", "repsuffix");
+    const repName = getVal("representativename", "authorizedrepresentative", "representative", "repname") ||
+      [repFirstName, repMiddleName, repLastName, repSuffix].filter(Boolean).join(" ");
+    const repPosition = getVal("representativeposition", "designation", "position", "repposition");
+    const companyName = getVal("companyname", "businessname", "corporatename", "organizationname", "entityname");
+    const dtiSecRegistration = getVal("dtisecregistration", "dtisecno", "dtisec", "secno", "dtino", "registrationno", "registrationnumber");
+    const applicantTypeVal = getVal("applicanttype", "entitytype", "classification");
+
     const addressParts = [street, barangay, city, province, zipCode].filter(Boolean);
     const address = addressParts.length > 0 ? addressParts.join(", ") : getVal("address", "physicaladdress");
 
@@ -175,8 +186,19 @@ export function parseSpreadsheetContent(
       }
     }
 
+    const isComp = applicantTypeVal.toLowerCase().includes("comp") || applicantTypeVal.toLowerCase().includes("org") || Boolean(companyName);
+
     const appObj: GeneralApplicantData = {
       ...initialGeneralApplicant(i),
+      applicantType: isComp ? "company" : "individual",
+      companyName: companyName || (isComp ? (firstName || displayName) : ""),
+      representativeFirstName: repFirstName,
+      representativeMiddleName: repMiddleName,
+      representativeLastName: repLastName,
+      representativeSuffix: repSuffix,
+      representativeName: repName,
+      representativePosition: repPosition,
+      dtiSecRegistration: dtiSecRegistration,
       firstName: firstName || displayName,
       middleName: middleName,
       lastName: lastName,
