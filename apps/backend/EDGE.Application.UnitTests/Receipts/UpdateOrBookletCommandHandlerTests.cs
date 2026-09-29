@@ -11,6 +11,8 @@ using EDGE.Application.Receipts.Commands.Booklets.UpdateOrBooklet;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 
+using EDGE.Application.Receipts.Services;
+
 namespace EDGE.Application.UnitTests.Receipts;
 
 public class UpdateOrBookletCommandHandlerTests
@@ -19,6 +21,7 @@ public class UpdateOrBookletCommandHandlerTests
     private readonly Mock<IUserRepository> _mockUserRepo;
     private readonly Mock<ITenantMemberRepository> _mockTenantMemberRepo;
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
+    private readonly ICashierCustodianValidator _custodianValidator;
     private readonly UpdateOrBookletCommandHandler _handler;
 
     public UpdateOrBookletCommandHandlerTests()
@@ -27,11 +30,11 @@ public class UpdateOrBookletCommandHandlerTests
         _mockUserRepo = new Mock<IUserRepository>();
         _mockTenantMemberRepo = new Mock<ITenantMemberRepository>();
         _mockUnitOfWork = new Mock<IUnitOfWork>();
+        _custodianValidator = new CashierCustodianValidator(_mockUserRepo.Object, _mockTenantMemberRepo.Object);
 
         _handler = new UpdateOrBookletCommandHandler(
             _mockBookletRepo.Object,
-            _mockUserRepo.Object,
-            _mockTenantMemberRepo.Object,
+            _custodianValidator,
             _mockUnitOfWork.Object
         );
     }

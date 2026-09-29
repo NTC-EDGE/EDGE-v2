@@ -1,14 +1,16 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
-using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Receipts.Dtos;
+using EDGE.Application.Receipts.Services;
 
 namespace EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet;
 
@@ -41,22 +43,19 @@ public class CreateOrBookletCommandValidator : AbstractValidator<CreateOrBooklet
 public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletCommand, ApiResponse<OrBookletDto>>
 {
     private readonly IOrBookletRepository _bookletRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
+    private readonly ICashierCustodianValidator _custodianValidator;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
-        IUserRepository userRepository,
-        ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
+        ICashierCustodianValidator custodianValidator,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
-        _userRepository = userRepository;
-        _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
+        _custodianValidator = custodianValidator;
         _unitOfWork = unitOfWork;
     }
 
@@ -82,62 +81,37 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             return ApiResponse<OrBookletDto>.Fail("End number cannot be less than start number.");
         }
 
-        // Collect all assigned cashier user IDs (supporting multi-cashier assignment)
+        // Collect all assigned cashier user IDs
         var userIdsToAssign = new List<Guid>();
         if (request.AssignedUserIds != null && request.AssignedUserIds.Count > 0)
         {
-            foreach (var uid in request.AssignedUserIds.Where(id => id != Guid.Empty).Distinct())
-            {
-                userIdsToAssign.Add(uid);
-            }
+            userIdsToAssign.AddRange(request.AssignedUserIds.Where(id => id != Guid.Empty));
         }
         else if (request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty)
         {
             userIdsToAssign.Add(request.AssignedUserId.Value);
         }
 
-        if (userIdsToAssign.Count == 0)
+        // Validate cashier custodians via shared domain validation service
+        var validation = await _custodianValidator.ValidateCustodiansAsync(
+            request.TenantId,
+            userIdsToAssign,
+            request.AssignedUserId,
+            cancellationToken);
+
+        if (!validation.Succeeded)
         {
-            return ApiResponse<OrBookletDto>.Fail("Please select at least one authorized Cashier to assign this booklet series.");
+            return ApiResponse<OrBookletDto>.Fail(validation.ErrorMessage!);
         }
 
-        var assignedCashierList = new List<BookletCashierDto>();
-        var assignedCashierEntities = new List<OrBookletCashier>();
-        Guid? primaryUserId = request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty
-            ? request.AssignedUserId.Value
-            : userIdsToAssign.FirstOrDefault();
-
-        foreach (var userId in userIdsToAssign)
+        var assignedCashierEntities = validation.ValidatedCustodians.Select(c => new OrBookletCashier
         {
-            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
-            if (user == null)
-            {
-                return ApiResponse<OrBookletDto>.Fail($"Cashier user '{userId}' was not found.");
-            }
+            CashierUserId = c.UserId,
+            IsPrimary = c.IsPrimary,
+            AssignedAt = DateTime.UtcNow
+        }).ToList();
 
-            var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
-            if (membership == null)
-            {
-                return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
-            }
-
-            if (!IsAuthorizedCashierRole(user, membership))
-            {
-                var roleDisplayName = membership.Role?.Name ?? membership.Position ?? "User";
-                return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
-            }
-
-            var fullName = $"{user.FirstName} {user.LastName}".Trim();
-            bool isPrimary = userId == primaryUserId;
-
-            assignedCashierList.Add(new BookletCashierDto(userId, fullName, isPrimary));
-            assignedCashierEntities.Add(new OrBookletCashier
-            {
-                CashierUserId = userId,
-                IsPrimary = isPrimary,
-                AssignedAt = DateTime.UtcNow
-            });
-        }
+        var primaryCustodian = validation.ValidatedCustodians.FirstOrDefault(c => c.IsPrimary) ?? validation.ValidatedCustodians.FirstOrDefault();
 
         var booklet = new OrBooklet
         {
@@ -149,7 +123,7 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             CurrentNumber = request.StartNumber,
             TotalCount = totalCount,
             IssuedCount = 0,
-            AssignedUserId = primaryUserId != Guid.Empty ? primaryUserId : null,
+            AssignedUserId = primaryCustodian?.UserId,
             Status = BookletStatus.Active,
             ReceivedDate = DateTime.UtcNow,
             Remarks = request.Remarks?.Trim(),
@@ -159,9 +133,13 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         await _bookletRepository.AddAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var primaryCashierName = assignedCashierList.FirstOrDefault(c => c.IsPrimary)?.FullName ?? assignedCashierList.FirstOrDefault()?.FullName;
-        var cashierDisplayNames = assignedCashierList.Select(c => c.FullName).ToList();
-        var cashierIds = assignedCashierList.Select(c => c.UserId).ToList();
+        var assignedCashierList = validation.ValidatedCustodians
+            .Select(c => new BookletCashierDto(c.UserId, c.FullName, c.IsPrimary))
+            .ToList();
+
+        var primaryCashierName = primaryCustodian?.FullName;
+        var cashierDisplayNames = validation.ValidatedCustodians.Select(c => c.FullName).ToList();
+        var cashierIds = validation.ValidatedCustodians.Select(c => c.UserId).ToList();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -194,54 +172,5 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             : "Official Receipt booklet registered as unassigned/pooled booklet.";
 
         return ApiResponse<OrBookletDto>.Success(dto, assignmentMessage);
-    }
-
-    public static bool IsAuthorizedCashierRole(User user, TenantMember? membership)
-    {
-        if (membership == null) return false;
-
-        // 1. Primary RBAC check: Does the user's role have permission to issue receipts or collect fee payments?
-        if (membership.Role?.RolePermissions != null && membership.Role.RolePermissions.Count > 0)
-        {
-            var hasCashierPermission = membership.Role.RolePermissions.Any(rp =>
-                rp.PermissionKey == Permissions.ReceiptsIssue ||
-                rp.PermissionKey == Permissions.CollectPayment ||
-                rp.PermissionKey == Permissions.ReceiptsBundleEntry);
-
-            if (hasCashierPermission)
-            {
-                return true;
-            }
-        }
-
-        // 2. Secondary check: Role key / role name matching
-        var roleKey = membership.Role?.Key?.ToLowerInvariant() ?? string.Empty;
-        var roleName = membership.Role?.Name?.ToLowerInvariant() ?? string.Empty;
-        var position = membership.Position?.ToLowerInvariant() ?? string.Empty;
-        var jobTitle = membership.JobTitle?.ToLowerInvariant() ?? string.Empty;
-        var designation = membership.Designation?.ToLowerInvariant() ?? string.Empty;
-
-        // Explicitly reject roles that are distinct non-cashier positions (Accountant, Evaluator, Legal, Records)
-        if (roleKey.Contains("accountant") || roleName.Contains("accountant") ||
-            roleKey.Contains("evaluat") || roleName.Contains("evaluat") ||
-            roleKey.Contains("legal") || roleName.Contains("legal") ||
-            roleKey.Contains("record") || roleName.Contains("record"))
-        {
-            return false;
-        }
-
-        return roleKey == "cashier" ||
-               roleKey.Contains("cashier") ||
-               roleName.Contains("cashier") ||
-               position.Contains("cashier") ||
-               jobTitle.Contains("cashier") ||
-               designation.Contains("cashier") ||
-               roleKey.Contains("collect") ||
-               roleName.Contains("collect") ||
-               roleKey.Contains("admin") ||
-               roleKey.Contains("superadmin") ||
-               roleName.Contains("admin") ||
-               roleKey.Contains("director") ||
-               roleName.Contains("director");
     }
 }

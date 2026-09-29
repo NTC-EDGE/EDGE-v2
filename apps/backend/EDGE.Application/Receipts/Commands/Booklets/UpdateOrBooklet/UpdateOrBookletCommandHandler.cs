@@ -9,6 +9,8 @@ using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Receipts.Dtos;
 
+using EDGE.Application.Receipts.Services;
+
 namespace EDGE.Application.Receipts.Commands.Booklets.UpdateOrBooklet;
 
 public record UpdateOrBookletCommand(
@@ -39,19 +41,16 @@ public class UpdateOrBookletCommandValidator : AbstractValidator<UpdateOrBooklet
 public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletCommand, ApiResponse<OrBookletDto>>
 {
     private readonly IOrBookletRepository _bookletRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly ICashierCustodianValidator _custodianValidator;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
-        IUserRepository userRepository,
-        ITenantMemberRepository tenantMemberRepository,
+        ICashierCustodianValidator custodianValidator,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
-        _userRepository = userRepository;
-        _tenantMemberRepository = tenantMemberRepository;
+        _custodianValidator = custodianValidator;
         _unitOfWork = unitOfWork;
     }
 
@@ -116,40 +115,31 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
 
         if (request.AssignedUserIds != null || request.AssignedUserId.HasValue)
         {
-            booklet.AssignedCashiers.Clear();
-            Guid? primaryUserId = request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty
-                ? request.AssignedUserId.Value
-                : userIdsToAssign.FirstOrDefault();
+            var validation = await _custodianValidator.ValidateCustodiansAsync(
+                request.TenantId,
+                userIdsToAssign,
+                request.AssignedUserId,
+                cancellationToken);
 
-            foreach (var userId in userIdsToAssign)
+            if (!validation.Succeeded)
             {
-                var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
-                if (user == null)
-                {
-                    return ApiResponse<OrBookletDto>.Fail($"Cashier user '{userId}' was not found.");
-                }
+                return ApiResponse<OrBookletDto>.Fail(validation.ErrorMessage!);
+            }
 
-                var mem = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
-                if (mem == null)
-                {
-                    return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
-                }
+            booklet.AssignedCashiers.Clear();
+            var primaryCustodian = validation.ValidatedCustodians.FirstOrDefault(c => c.IsPrimary) ?? validation.ValidatedCustodians.FirstOrDefault();
 
-                if (!EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet.CreateOrBookletCommandHandler.IsAuthorizedCashierRole(user, mem))
-                {
-                    var roleDisplayName = mem.Role?.Name ?? mem.Position ?? "User";
-                    return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
-                }
-
+            foreach (var custodian in validation.ValidatedCustodians)
+            {
                 booklet.AssignedCashiers.Add(new OrBookletCashier
                 {
                     BookletId = booklet.Id,
-                    CashierUserId = userId,
-                    IsPrimary = userId == primaryUserId,
+                    CashierUserId = custodian.UserId,
+                    IsPrimary = custodian.IsPrimary,
                     AssignedAt = DateTime.UtcNow
                 });
             }
-            booklet.AssignedUserId = primaryUserId != Guid.Empty ? primaryUserId : null;
+            booklet.AssignedUserId = primaryCustodian?.UserId;
         }
 
         await _bookletRepository.UpdateAsync(booklet, cancellationToken);
