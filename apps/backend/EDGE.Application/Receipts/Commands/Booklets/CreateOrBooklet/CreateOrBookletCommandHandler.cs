@@ -192,11 +192,20 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         if (user.IsSuperAdmin) return true;
         if (membership == null) return false;
 
-        var roleKey = membership.Role?.Key?.ToLower() ?? string.Empty;
-        var roleName = membership.Role?.Name?.ToLower() ?? string.Empty;
-        var position = membership.Position?.ToLower() ?? string.Empty;
-        var jobTitle = membership.JobTitle?.ToLower() ?? string.Empty;
-        var designation = membership.Designation?.ToLower() ?? string.Empty;
+        var roleKey = membership.Role?.Key?.ToLowerInvariant() ?? string.Empty;
+        var roleName = membership.Role?.Name?.ToLowerInvariant() ?? string.Empty;
+        var position = membership.Position?.ToLowerInvariant() ?? string.Empty;
+        var jobTitle = membership.JobTitle?.ToLowerInvariant() ?? string.Empty;
+        var designation = membership.Designation?.ToLowerInvariant() ?? string.Empty;
+
+        // Explicitly reject roles that are distinct non-cashier positions (Accountant, Evaluator, Legal, Records)
+        if (roleKey.Contains("accountant") || roleName.Contains("accountant") ||
+            roleKey.Contains("evaluat") || roleName.Contains("evaluat") ||
+            roleKey.Contains("legal") || roleName.Contains("legal") ||
+            roleKey.Contains("record") || roleName.Contains("record"))
+        {
+            return false;
+        }
 
         return roleKey == "cashier" ||
                roleKey.Contains("cashier") ||

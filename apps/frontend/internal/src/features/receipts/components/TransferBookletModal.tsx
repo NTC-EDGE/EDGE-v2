@@ -39,11 +39,29 @@ export function TransferBookletModal({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   const isCashierMember = (m: (typeof members)[0]) => {
+    if (m.isDeleted) return false;
     const roleKey = (m.roleKey || '').toLowerCase();
     const roleName = (m.roleName || '').toLowerCase();
     const position = (m.position || '').toLowerCase();
     const jobTitle = (m.jobTitle || '').toLowerCase();
     const designation = (m.designation || '').toLowerCase();
+
+    // Explicitly reject non-cashier roles (Accountant, Evaluator, Legal, Records)
+    if (
+      roleKey.includes('accountant') ||
+      roleName.includes('accountant') ||
+      position.includes('accountant') ||
+      jobTitle.includes('accountant') ||
+      roleKey.includes('evaluat') ||
+      roleName.includes('evaluat') ||
+      roleKey.includes('legal') ||
+      roleName.includes('legal') ||
+      roleKey.includes('record') ||
+      roleName.includes('record')
+    ) {
+      return false;
+    }
+
     return (
       roleKey === 'cashier' ||
       roleKey.includes('cashier') ||
@@ -56,16 +74,23 @@ export function TransferBookletModal({
     );
   };
 
-  const cashierMembers = members.filter(isCashierMember);
-  const availableCashiers = cashierMembers.length > 0 ? cashierMembers : members.filter((m) => !m.isDeleted);
+  const availableCashiers = members.filter(isCashierMember);
 
   useEffect(() => {
     if (visible && booklet) {
-      // Default primary cashier to existing assignedUserId or first available cashier
-      setTargetUserId(booklet.assignedUserId ?? (availableCashiers.length > 0 ? availableCashiers[0].userId : ''));
+      // Default primary cashier to existing assignedUserId (if cashier) or first available cashier
+      const validAssignedId = booklet.assignedUserId && availableCashiers.some((c) => c.userId === booklet.assignedUserId)
+        ? booklet.assignedUserId
+        : (availableCashiers.length > 0 ? availableCashiers[0].userId : '');
+      setTargetUserId(validAssignedId);
+
       const coCashierIds = booklet.assignedUserIds
-        ? booklet.assignedUserIds.filter((id) => id !== booklet.assignedUserId)
-        : (booklet.assignedCashiers ? booklet.assignedCashiers.filter((c) => !c.isPrimary).map((c) => c.userId) : []);
+        ? booklet.assignedUserIds.filter((id) => id !== validAssignedId && availableCashiers.some((c) => c.userId === id))
+        : (booklet.assignedCashiers
+            ? booklet.assignedCashiers
+                .filter((c) => !c.isPrimary && availableCashiers.some((ac) => ac.userId === c.userId))
+                .map((c) => c.userId)
+            : []);
       setAdditionalUserIds(coCashierIds);
       setTransferReason('');
       setErrorMsg(null);

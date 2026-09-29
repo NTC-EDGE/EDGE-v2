@@ -34,12 +34,6 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Initialize selectedUserIds with current user when opening
-  useEffect(() => {
-    if (visible && user?.id) {
-      setSelectedUserIds([user.id]);
-    }
-  }, [visible, user?.id]);
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds((prev) => {
@@ -98,11 +92,29 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
   };
 
   const isCashierMember = (m: (typeof members)[0]) => {
+    if (m.isDeleted) return false;
     const roleKey = (m.roleKey || '').toLowerCase();
     const roleName = (m.roleName || '').toLowerCase();
     const position = (m.position || '').toLowerCase();
     const jobTitle = (m.jobTitle || '').toLowerCase();
     const designation = (m.designation || '').toLowerCase();
+
+    // Explicitly reject non-cashier roles (Accountant, Evaluator, Legal, Records)
+    if (
+      roleKey.includes('accountant') ||
+      roleName.includes('accountant') ||
+      position.includes('accountant') ||
+      jobTitle.includes('accountant') ||
+      roleKey.includes('evaluat') ||
+      roleName.includes('evaluat') ||
+      roleKey.includes('legal') ||
+      roleName.includes('legal') ||
+      roleKey.includes('record') ||
+      roleName.includes('record')
+    ) {
+      return false;
+    }
+
     return (
       roleKey === 'cashier' ||
       roleKey.includes('cashier') ||
@@ -115,8 +127,22 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
     );
   };
 
-  const cashierMembers = members.filter(isCashierMember);
-  const availableCashiers = cashierMembers.length > 0 ? cashierMembers : members.filter((m) => !m.isDeleted);
+  const availableCashiers = members.filter(isCashierMember);
+
+  // Initialize selectedUserIds with current user (if cashier) or first available cashier when opening
+  useEffect(() => {
+    if (visible) {
+      const currentUserId = user?.id;
+      const isCurrentUserCashier = currentUserId !== undefined && availableCashiers.some((c) => c.userId === currentUserId);
+      if (isCurrentUserCashier && currentUserId !== undefined) {
+        setSelectedUserIds([currentUserId]);
+      } else if (availableCashiers.length > 0) {
+        setSelectedUserIds([availableCashiers[0].userId]);
+      } else {
+        setSelectedUserIds([]);
+      }
+    }
+  }, [visible, user?.id, members]);
 
   const selectedMemberNames = availableCashiers
     .filter((m) => selectedUserIds.includes(m.userId))
