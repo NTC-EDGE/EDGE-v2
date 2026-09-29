@@ -63,6 +63,7 @@ export function ApplicationDetailsPage({
     currentStepIndex,
     variantLabel,
     scheduleSummaryText,
+    refetch,
   } = useApplicationDetailsData(appState);
 
   const filteredApplicants = useMemo(() => {
@@ -275,6 +276,7 @@ export function ApplicationDetailsPage({
             ...prev,
             remarks: 'Payment submitted via client. Waiting for Cashier verification.',
           }));
+          refetch();
         }}
       />
     </ScrollView>

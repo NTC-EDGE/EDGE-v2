@@ -14,6 +14,7 @@ import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
 import { Application } from '../../data/applicationsData';
 import { applicationService } from '@edge/api';
 import { PaymentMethodDto } from '@edge/api';
+import { useToast } from '../../../../shared/components/Toast';
 
 interface ClientPaymentSubmissionModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ export function ClientPaymentSubmissionModal({
 }: ClientPaymentSubmissionModalProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
+  const toast = useToast();
 
   const [selectedMode, setSelectedMode] = useState<ModeOfPayment>('LandBank');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -100,9 +102,16 @@ export function ClientPaymentSubmissionModal({
     setIsSubmitting(false);
 
     if (error !== null) {
-      setErrorMessage(error || 'Failed to submit payment details. Please try again.');
+      const errMsg = error || 'Failed to submit payment details. Please try again.';
+      setErrorMessage(errMsg);
+      toast.error('Payment Submission Failed', errMsg);
       return;
     }
+
+    toast.success(
+      'Payment Submitted Successfully',
+      'Your payment details have been submitted. Cashier verification is now in progress for Official Receipt (OR) issuance.'
+    );
 
     onSuccess();
     onClose();

@@ -29,8 +29,12 @@ export function ApplicationProgressStepper({
   const docLabel = getServiceDocumentType(serviceCategory, serviceName);
 
   const isPaymentSubmitted =
-    typeof remarks === 'string' &&
-    remarks.toLowerCase().includes('payment submitted');
+    (typeof remarks === 'string' &&
+      (remarks.toLowerCase().includes('payment submitted') ||
+       remarks.toLowerCase().includes('waiting for cashier verification') ||
+       remarks.toLowerCase().includes('verification in progress'))) ||
+    status === 'PAYMENT_SUBMITTED' ||
+    status === 'PAYMENT_PROCESSING';
 
   const paymentSubLabel =
     currentStepIndex > 3

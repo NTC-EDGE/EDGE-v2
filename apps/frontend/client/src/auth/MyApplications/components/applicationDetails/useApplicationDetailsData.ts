@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useApi } from '../../../../shared/hooks/useApi';
 import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRequirement, mapApiApplicationToApplication } from '../../data/applicationsData';
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
@@ -8,6 +8,11 @@ import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from '
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
   const [app, setApp] = useState<Application>(initialApp);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+
+  const refetch = useCallback(() => {
+    setRefreshTrigger((k) => k + 1);
+  }, []);
 
   useEffect(() => {
     setApp(initialApp);
@@ -120,7 +125,7 @@ export function useApplicationDetailsData(initialApp: Application) {
       loadFullDetails();
       return () => { isMounted = false; };
     }
-  }, [initialApp.id]);
+  }, [initialApp.id, initialApp.status, initialApp.remarks, refreshTrigger]);
 
   const isBulk = useMemo(() => (app.mode || '').toString().toUpperCase() === 'BULK', [app.mode]);
 
@@ -358,5 +363,6 @@ export function useApplicationDetailsData(initialApp: Application) {
     primaryName,
     resolvedServiceVariant,
     currentStepIndex,
+    refetch,
   };
 }

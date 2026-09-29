@@ -146,7 +146,8 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
                     .ThenInclude(aa => aa.Applicant)
                         .ThenInclude(a => a!.Service)
                             .ThenInclude(s => s!.ServiceCategory)
-            .Where(op => op.Status == OpStatus.Billed && op.Application.TenantId == tenantId);
+            .Where(op => (op.Status == OpStatus.Billed || op.Status == OpStatus.Processing) &&
+                         (tenantId == Guid.Empty || op.Application.TenantId == tenantId));
 
         if (!string.IsNullOrWhiteSpace(search))
         {

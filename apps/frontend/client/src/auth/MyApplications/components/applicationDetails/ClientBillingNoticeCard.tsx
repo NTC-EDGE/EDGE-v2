@@ -30,8 +30,13 @@ export function ClientBillingNoticeCard({
     (typeof app.soaNumber === 'string' && app.soaNumber.length > 0);
 
   const isPaymentSubmitted =
-    typeof app.remarks === 'string' &&
-    app.remarks.toLowerCase().includes('payment submitted');
+    (typeof app.remarks === 'string' &&
+      (app.remarks.toLowerCase().includes('payment submitted') ||
+       app.remarks.toLowerCase().includes('waiting for cashier verification') ||
+       app.remarks.toLowerCase().includes('verification in progress'))) ||
+    (app.op !== undefined &&
+      typeof app.op.status === 'string' &&
+      (app.op.status.toLowerCase() === 'processing' || app.op.status.toLowerCase() === 'paid'));
 
   if (!isReadyForPayment && !app.soaNumber) {
     return null;
