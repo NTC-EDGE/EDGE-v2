@@ -145,7 +145,7 @@ export function useOfficialReceipts(params: {
       if (params.search) queryParams.search = params.search;
       return fetcher<OfficialReceiptDto[]>('/api/v2/receipts', queryParams);
     },
-    { revalidateOnFocus: false }
+    { revalidateOnFocus: true, refreshInterval: 15000 }
   );
 
   return {
