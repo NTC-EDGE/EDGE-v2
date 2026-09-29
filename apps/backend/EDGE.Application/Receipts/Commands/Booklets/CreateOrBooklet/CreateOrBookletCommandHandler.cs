@@ -3,6 +3,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
@@ -192,6 +193,21 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
         if (user.IsSuperAdmin) return true;
         if (membership == null) return false;
 
+        // 1. Primary RBAC check: Does the user's role have permission to issue receipts or collect fee payments?
+        if (membership.Role?.RolePermissions != null && membership.Role.RolePermissions.Count > 0)
+        {
+            var hasCashierPermission = membership.Role.RolePermissions.Any(rp =>
+                rp.PermissionKey == Permissions.ReceiptsIssue ||
+                rp.PermissionKey == Permissions.CollectPayment ||
+                rp.PermissionKey == Permissions.ReceiptsBundleEntry);
+
+            if (hasCashierPermission)
+            {
+                return true;
+            }
+        }
+
+        // 2. Secondary check: Role key / role name matching
         var roleKey = membership.Role?.Key?.ToLowerInvariant() ?? string.Empty;
         var roleName = membership.Role?.Name?.ToLowerInvariant() ?? string.Empty;
         var position = membership.Position?.ToLowerInvariant() ?? string.Empty;

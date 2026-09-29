@@ -23,6 +23,7 @@ public class TenantMemberDto
     public string Division { get; set; } = string.Empty;
     public string Position { get; set; } = string.Empty;
     public string? Designation { get; set; }
+    public List<string> Permissions { get; set; } = [];
     public bool IsDeleted { get; set; }
     public DateTime CreatedAt { get; set; }
     public string? CreatedBy { get; set; }

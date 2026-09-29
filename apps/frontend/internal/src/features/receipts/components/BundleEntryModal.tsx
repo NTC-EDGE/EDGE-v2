@@ -93,6 +93,19 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
 
   const isCashierMember = (m: (typeof members)[0]) => {
     if (m.isDeleted) return false;
+
+    // 1. Primary RBAC check: Does the user's role have permission to issue receipts or collect fees?
+    if (Array.isArray(m.permissions) && m.permissions.length > 0) {
+      if (
+        m.permissions.includes('receipts.issue') ||
+        m.permissions.includes('billing.collect') ||
+        m.permissions.includes('receipts.bundle_entry')
+      ) {
+        return true;
+      }
+    }
+
+    // 2. Secondary check: Role key / name matching
     const roleKey = (m.roleKey || '').toLowerCase();
     const roleName = (m.roleName || '').toLowerCase();
     const position = (m.position || '').toLowerCase();
