@@ -28,7 +28,7 @@ public class AgencyBankAccountRepository : IAgencyBankAccountRepository
     {
         var query = _context.AgencyBankAccounts
             .AsNoTracking()
-            .Where(b => b.TenantId == tenantId);
+            .Where(b => tenantId == Guid.Empty || b.TenantId == tenantId);
 
         if (activeOnly == true)
         {
@@ -44,7 +44,7 @@ public class AgencyBankAccountRepository : IAgencyBankAccountRepository
     public async Task<bool> ExistsAccountNumberAsync(Guid tenantId, string accountNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.AgencyBankAccounts
-            .Where(b => b.TenantId == tenantId && b.AccountNumber == accountNumber);
+            .Where(b => (tenantId == Guid.Empty || b.TenantId == tenantId) && b.AccountNumber == accountNumber);
 
         if (excludeId.HasValue)
         {

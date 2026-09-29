@@ -186,15 +186,15 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                 applicationId = appWithDetails.Id;
                 appNumber = appWithDetails.ApplicationNumber;
                 var prevAppStatus = appWithDetails.Status;
-                appWithDetails.Status = ApplicationStatus.Completed;
+                appWithDetails.Status = ApplicationStatus.ForIssuance;
 
                 await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = appWithDetails.Id,
-                    Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                    Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
                     FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.Completed,
+                    ToStatus = ApplicationStatus.ForIssuance,
                     PerformedByUserId = cashierContext.UserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
@@ -240,15 +240,15 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             if (op.Application != null)
             {
                 var prevAppStatus = op.Application.Status;
-                op.Application.Status = ApplicationStatus.Completed;
+                op.Application.Status = ApplicationStatus.ForIssuance;
 
                 await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = op.ApplicationId,
-                    Action = $"Payment verified via OR #{orNumber}. Application completed.",
+                    Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
                     FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.Completed,
+                    ToStatus = ApplicationStatus.ForIssuance,
                     PerformedByUserId = cashierContext.UserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,

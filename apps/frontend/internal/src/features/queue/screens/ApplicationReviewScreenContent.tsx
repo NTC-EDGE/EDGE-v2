@@ -30,11 +30,12 @@ import {
   useNextAvailableOrNumber,
   PendingPaymentDto,
 } from "@edge/api";
-import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
 import { EndorseModal, EndorsementSubmission } from "../components/modals/EndorseModal";
 import { IssueReceiptModal } from "../../receipts/components/IssueReceiptModal";
+import { IssueDocumentModal } from "../components/modals/IssueDocumentModal";
 import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
 import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
 import {
@@ -158,6 +159,7 @@ export function ApplicationReviewScreenContent({
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+  const [showIssueDoc, setShowIssueDoc] = useState(false);
   const [showGenerateSoa, setShowGenerateSoa] = useState(false);
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [reportPreviewInitialDoc, setReportPreviewInitialDoc] = useState<ReportDocumentType>("soa");
@@ -166,7 +168,7 @@ export function ApplicationReviewScreenContent({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
 
-  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001');
+  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '');
   const { nextOr, mutate: mutateNextOr } = useNextAvailableOrNumber(
     showCashier || selectedApplication?.status === 'PendingPayment' ? cashierTenantId : null,
     user?.id ?? user?.email ?? null
@@ -195,6 +197,7 @@ export function ApplicationReviewScreenContent({
       orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
       applicationId: itemApp.id,
       statementOfAccountId: itemApp.id,
+      tenantId: itemApp.tenantId || user?.tenantId || '',
       opNumber: itemApp.payment?.opNumber || `OP-${refOrId}`,
       soaNumber: `SOA-${refOrId}`,
       applicationNumber: itemApp.applicationNumber || '',
@@ -208,7 +211,7 @@ export function ApplicationReviewScreenContent({
       remarks: itemApp.note || null,
       lineItems,
     };
-  }, [selectedApplication]);
+  }, [selectedApplication, user?.tenantId]);
 
   useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
   useEffect(() => {
@@ -290,6 +293,7 @@ export function ApplicationReviewScreenContent({
   const isSubmitted = app.status === "Submitted";
   const isForAccountant = app.status === "ForAccountant";
   const isPendingPayment = app.status === "PendingPayment";
+  const isForIssuance = app.status === "ForIssuance";
 
   const {
     isEvaluating,
@@ -426,6 +430,12 @@ export function ApplicationReviewScreenContent({
       successMessage = `Application returned to ${app.endorsedBy}.`;
       auditRemarks = `Returned by ${officerName} to ${app.endorsedBy}: ${trimmedNotice}`;
       actionTitle = `Returned to ${app.endorsedBy}`;
+    } else if (app.status === 'ForIssuance') {
+      // Issuing officer returns -> goes back to Evaluating
+      targetStatus = 'Evaluating';
+      successMessage = 'Application returned to Evaluator for document adjustments.';
+      auditRemarks = `Returned by Issuance Officer to Evaluator: ${trimmedNotice}`;
+      actionTitle = 'Returned to Evaluator';
     } else if (app.status === 'PendingPayment') {
       // Cashier returns -> goes back to Accountant (previous touch)
       targetStatus = 'ForAccountant';
@@ -520,10 +530,17 @@ export function ApplicationReviewScreenContent({
 
   /** Start evaluation button for Submitted applications */
   const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe;
+  const isPaymentSubmitted = Boolean(
+    (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
+    (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
+    (app.history && app.history.some((h) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+  );
   /** Show Cashier-specific payment verify button */
   const showCashierBtn = isPendingPayment && !isEndorsedAwayFromMe && (currentRole === 'Cashier' || canVerifyCashier || isAdmin);
   /** Show Accountant-specific SOA approve button */
   const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && (currentRole === 'Accountant' || canApproveAsAccountant || isAdmin);
+  /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
+  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
   const showForwardBtn = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe) && !isEndorsedAwayFromMe;
 
@@ -536,10 +553,18 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = 'Start Evaluation';
     approveButtonIcon = 'play-circle';
   } else if (showCashierBtn) {
-    approveButtonLabel = 'Collect & Issue OR';
-    approveButtonIcon = 'credit-card';
+    if (isPaymentSubmitted) {
+      approveButtonLabel = 'Verify & Issue OR';
+      approveButtonIcon = 'credit-card';
+    } else {
+      approveButtonLabel = 'Awaiting Client Payment (Locked)';
+      approveButtonIcon = 'play-circle';
+    }
   } else if (showAccountantBtn) {
     approveButtonLabel = 'Approve SOA';
+    approveButtonIcon = 'check-circle';
+  } else if (showIssueBtn) {
+    approveButtonLabel = 'Issue Document & License';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
@@ -551,14 +576,15 @@ export function ApplicationReviewScreenContent({
     }
   }
 
-  // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA)
-  const canApproveAction = isEditable && (showStartEvalBtn || showCashierBtn || showAccountantBtn || showForwardBtn);
+  // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA / Issue Document)
+  const canApproveAction = isEditable && (showStartEvalBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn);
 
-  // Return button: Only available when actively evaluating (or endorsed to me), or in Accountant / Cashier stage
+  // Return button: Only available when actively evaluating (or endorsed to me), or in Accountant / Cashier / Issuance stage
   const canDeclineAction = isEditable && (
     (isEvaluating && (isEvaluatedByMe || isEndorsedToMe || !isEvaluatedByOther)) ||
     (isForAccountant && (currentRole === 'Accountant' || canApproveAsAccountant || isAdmin)) ||
-    (isPendingPayment && (currentRole === 'Cashier' || canVerifyCashier || isAdmin))
+    (isPendingPayment && (currentRole === 'Cashier' || canVerifyCashier || isAdmin)) ||
+    (isForIssuance && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin))
   );
 
   // Endorse button: ONLY available when actively evaluating (by current evaluator or endorsed officer)
@@ -568,7 +594,13 @@ export function ApplicationReviewScreenContent({
     if (showStartEvalBtn) {
       void handleStartEvaluation();
     } else if (showCashierBtn) {
+      if (!isPaymentSubmitted) {
+        toast.warning("Awaiting client payment. Cannot issue OR until payment is made.");
+        return;
+      }
       setShowCashier(true);
+    } else if (showIssueBtn) {
+      setShowIssueDoc(true);
     } else if (showForwardBtn) {
       if (!hasSoa) {
         toast.info("Please generate SOA to approve evaluation.");
@@ -722,7 +754,10 @@ export function ApplicationReviewScreenContent({
         canApprove={canApproveAction}
         canDecline={canDeclineAction}
         canEndorse={canEndorseAction}
-        isApproveDisabled={showForwardBtn && hasIncompleteApplicants}
+        isApproveDisabled={
+          (showForwardBtn && hasIncompleteApplicants) ||
+          (showCashierBtn && !isPaymentSubmitted)
+        }
         approveLabel={approveButtonLabel}
         approveIcon={approveButtonIcon}
         onApprove={handlePrimaryAction}
@@ -818,6 +853,17 @@ export function ApplicationReviewScreenContent({
         pendingPayment={pendingPaymentPayload}
         onClose={() => setShowCashier(false)}
         onSuccess={handleCashierReceiptSuccess}
+      />
+      <IssueDocumentModal
+        visible={showIssueDoc}
+        app={app}
+        currentOfficerName={officerName}
+        onClose={() => setShowIssueDoc(false)}
+        onSuccess={async () => {
+          await mutateApplications(app.id);
+          await refetch();
+          onClose();
+        }}
       />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
       <SoaReportPreviewModal visible={showReportPreview} app={app} initialDocType={reportPreviewInitialDoc} onClose={() => setShowReportPreview(false)} onOpenGenerateSoa={() => setShowGenerateSoa(true)} />

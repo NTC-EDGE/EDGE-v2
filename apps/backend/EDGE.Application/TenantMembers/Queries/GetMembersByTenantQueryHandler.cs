@@ -48,6 +48,7 @@ public class GetMembersByTenantQueryHandler : IRequestHandler<GetMembersByTenant
             Division = m.Division,
             Position = m.Position,
             Designation = m.Designation,
+            Permissions = m.Role?.RolePermissions?.Select(rp => rp.PermissionKey).ToList() ?? [],
             IsDeleted = m.IsDeleted,
             CreatedAt = m.CreatedAt,
             CreatedBy = m.CreatedBy,

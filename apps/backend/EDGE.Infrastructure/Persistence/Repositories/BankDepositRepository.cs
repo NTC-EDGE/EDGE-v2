@@ -55,7 +55,7 @@ public class BankDepositRepository : IBankDepositRepository
             .Include(d => d.DepositedByUser)
             .Include(d => d.VerifiedByUser)
             .Include(d => d.Receipts)
-            .Where(d => d.TenantId == tenantId);
+            .Where(d => tenantId == Guid.Empty || d.TenantId == tenantId);
 
         if (bankAccountId.HasValue)
         {
@@ -87,7 +87,7 @@ public class BankDepositRepository : IBankDepositRepository
     public async Task<bool> ExistsDepositSlipNumberAsync(Guid tenantId, string depositSlipNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.BankDeposits
-            .Where(d => d.TenantId == tenantId && d.DepositSlipNumber == depositSlipNumber);
+            .Where(d => (tenantId == Guid.Empty || d.TenantId == tenantId) && d.DepositSlipNumber == depositSlipNumber);
 
         if (excludeId.HasValue)
         {

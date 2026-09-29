@@ -53,15 +53,15 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
         if (op.Application != null)
         {
             var prevAppStatus = op.Application.Status;
-            op.Application.Status = ApplicationStatus.Completed;
+            op.Application.Status = ApplicationStatus.ForIssuance;
 
             await _repository.AddApplicationHistoryAsync(new ApplicationHistory
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = op.ApplicationId,
-                Action = "Application completed. Payment received.",
+                Action = $"Payment verified. OR: {request.OfficialReceiptNumber}. Forwarded for Document & License Issuance.",
                 FromStatus = prevAppStatus,
-                ToStatus = ApplicationStatus.Completed,
+                ToStatus = ApplicationStatus.ForIssuance,
                 PerformedByUserId = userContext.UserId,
                 StaffName = userContext.StaffName,
                 StaffRole = userContext.StaffRole,

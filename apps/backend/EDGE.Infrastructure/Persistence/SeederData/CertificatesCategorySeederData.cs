@@ -124,7 +124,7 @@ public static class CertificatesCategorySeederData
             { ""key"": ""representative"", ""required"": false },
             { ""key"": ""companyDetails"", ""required"": false },
             { ""key"": ""applicantAddress"", ""required"": true },
-            { ""key"": ""devices"", ""required"": true },
+            { ""key"": ""devices"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -154,7 +154,7 @@ public static class CertificatesCategorySeederData
             { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""valueAddedServices"", ""required"": true },
             { ""key"": ""knownByAnotherName"", ""required"": false },
-            { ""key"": ""vasRegistration"", ""required"": false },
+            { ""key"": ""vasRegistration"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -176,7 +176,7 @@ public static class CertificatesCategorySeederData
         ""elements"": [],
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""copyParticulars"", ""required"": true },
+            { ""key"": ""copyParticulars"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -200,7 +200,7 @@ public static class CertificatesCategorySeederData
             { ""key"": ""tvroEquipment"", ""required"": true },
             { ""key"": ""antennaSystem"", ""required"": false },
             { ""key"": ""signalReception"", ""required"": false },
-            { ""key"": ""bsd"", ""required"": false },
+            { ""key"": ""bsd"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {

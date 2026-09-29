@@ -31,7 +31,6 @@ export function SoaPaymentTab({
   onPreviewReport,
 }: SoaPaymentTabProps) {
   const { colors, isDark } = useTheme();
-  const [auditOpen, setAuditOpen] = useState(false);
   const [editingOrNumber, setEditingOrNumber] = useState(false);
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
@@ -236,47 +235,18 @@ export function SoaPaymentTab({
           )}
         </View>
 
-        {/* Correction Audit Trail */}
-        <Pressable
-          style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], marginTop: SPACING[16] }]}
-          onPress={() => setAuditOpen((p) => !p)}
-        >
-          <View style={styles.auditHeaderLeft}>
-            <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-            <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
-            </Text>
-          </View>
-          <Lucide
-            name={auditOpen ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={isDark ? colors.neutral[500] : colors.neutral[500]}
-          />
-        </Pressable>
-
-        {auditOpen && (
-          <View style={styles.auditList}>
-            {app.correctionAuditTrail.length === 0 ? (
-              <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
-            ) : (
-              app.correctionAuditTrail.map((entry: AuditTrailEntry) => (
-                <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                  <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
-                  <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                    By {entry.staff} • {entry.timestamp}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        )}
-
         <View style={{ height: 80 }} />
       </ScrollView>
     );
   }
 
   const isForAccountant = app.status === 'ForAccountant';
+  const isPendingPayment = app.status === 'PendingPayment';
+  const isPaymentSubmitted = Boolean(
+    (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
+    (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
+    (app.history && app.history.some((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+  );
   const isSoaReturned = (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) || (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
 
   return (
@@ -299,6 +269,49 @@ export function SoaPaymentTab({
           <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#e0e7ff' : '#3730a3', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
             <Text style={{ fontWeight: '700' }}>SOA Verification:</Text> Verify fee calculations. Click <Text style={{ fontWeight: '700' }}>Approve SOA</Text> to issue Order of Payment, or <Text style={{ fontWeight: '700' }}>Return</Text> if corrections are needed.
+          </Text>
+        </View>
+      )}
+
+      {/* Cashier Payment Status Banner */}
+      {isPendingPayment && isPaymentSubmitted && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+            borderColor: isDark ? '#059669' : '#10b981',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="check-circle" size={18} color={isDark ? '#34d399' : '#059669'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#d1fae5' : '#065f46', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Payment Submitted:</Text> Client submitted payment reference. Ready for Cashier OR issuance.
+          </Text>
+        </View>
+      )}
+
+      {isPendingPayment && !isPaymentSubmitted && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#451a03' : '#fffbeb',
+            borderColor: isDark ? '#b45309' : '#f59e0b',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="lock" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#fde68a' : '#92400e', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Awaiting Payment:</Text> Client has not paid. Cashier cannot issue OR until payment is made.
           </Text>
         </View>
       )}
@@ -785,74 +798,57 @@ export function SoaPaymentTab({
             style={{
               padding: SPACING[16],
               borderRadius: RADIUS.card,
-              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+              backgroundColor: isPaymentSubmitted
+                ? (isDark ? '#064e3b' : '#ecfdf5')
+                : (isDark ? '#451a03' : '#fffbeb'),
               borderWidth: 1,
-              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              borderColor: isPaymentSubmitted
+                ? (isDark ? '#059669' : '#10b981')
+                : (isDark ? '#b45309' : '#f59e0b'),
               flexDirection: 'row',
               alignItems: 'center',
               gap: 12,
             }}
           >
-            <Lucide name="clock" size={20} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+            <Lucide
+              name={isPaymentSubmitted ? 'check-circle' : 'lock'}
+              size={22}
+              color={isPaymentSubmitted ? (isDark ? '#34d399' : '#059669') : (isDark ? '#fbbf24' : '#d97706')}
+            />
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
                   fontSize: 13,
-                  fontWeight: TYPOGRAPHY.weights.semibold,
-                  color: isDark ? colors.neutral[200] : colors.neutral[800],
+                  fontWeight: TYPOGRAPHY.weights.bold,
+                  color: isPaymentSubmitted
+                    ? (isDark ? '#d1fae5' : '#065f46')
+                    : (isDark ? '#fde68a' : '#92400e'),
                 }}
               >
-                Payment Settlement Pending
+                {isPaymentSubmitted
+                  ? 'Payment Submitted'
+                  : 'Awaiting Client Payment'}
               </Text>
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
                   fontSize: 12,
-                  color: isDark ? colors.neutral[400] : colors.neutral[500],
+                  color: isPaymentSubmitted
+                    ? (isDark ? '#a7f3d0' : '#047857')
+                    : (isDark ? '#fde68a' : '#b45309'),
                   marginTop: 2,
+                  lineHeight: 16,
                 }}
               >
-                Awaiting payment settlement from applicant and Cashier Official Receipt (OR) verification.
+                {isPaymentSubmitted
+                  ? 'Payment reference submitted. Ready for Cashier OR issuance.'
+                  : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
               </Text>
             </View>
           </View>
         )}
       </View>
-
-      <Pressable
-        style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
-        onPress={() => setAuditOpen((p) => !p)}
-      >
-        <View style={styles.auditHeaderLeft}>
-          <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-          <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
-          </Text>
-        </View>
-        <Lucide
-          name={auditOpen ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={isDark ? colors.neutral[500] : colors.neutral[500]}
-        />
-      </Pressable>
-
-      {auditOpen && (
-        <View style={styles.auditList}>
-          {app.correctionAuditTrail.length === 0 ? (
-            <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
-          ) : (
-            app.correctionAuditTrail.map((entry: AuditTrailEntry) => (
-              <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
-                <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                  By {entry.staff} • {entry.timestamp}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
 
       <View style={{ height: 80 }} />
     </ScrollView>

@@ -772,7 +772,7 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="briefcase" size={14} color={applicantType === "company" ? "#0F2C59" : "#64748B"} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "company" ? "#0F2C59" : "#1E293B" }}>
-                  Liason (Organization / Company / Entity)
+                  Liaison (Organization / Company / Entity)
                 </Text>
               </View>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>

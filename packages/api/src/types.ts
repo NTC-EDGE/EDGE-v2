@@ -811,7 +811,8 @@ export type ApplicationStatusDto =
   | 'Approved'
   | 'Completed'
   | 'ForAccountant'
-  | 'PendingPayment';
+  | 'PendingPayment'
+  | 'ForIssuance';
 
 export type SoaStatusDto = 'Pending' | 'Approved' | 'Returned';
 export type OpStatusDto = 'Billed' | 'Processing' | 'Returned' | 'Paid';
@@ -1013,6 +1014,8 @@ export interface ApplicationDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  lastModifiedAt?: string;
+  updatedAt?: string;
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
@@ -1028,6 +1031,54 @@ export interface ApplicationDto {
   ordersOfPayment: OrderOfPaymentDto[];
   histories: ApplicationHistoryDto[];
   correctionAuditTrails: CorrectionAuditTrailDto[];
+  issuedDocumentDetails?: IssuedDocumentDetailDto[];
+}
+
+export interface IssuedDocumentDetailDto {
+  id: string;
+  applicationId: string;
+  applicantId?: string;
+  documentType: string;
+  formNumber: string;
+  licenseNumber?: string;
+  callSign?: string;
+  stationClass?: string;
+  frequencyBand?: string;
+  issueDate: string;
+  expiryDate?: string;
+  originalEvaluatorUserId?: string;
+  originalEvaluatorName?: string;
+  issuedByUserId?: string;
+  issuedByStaffName: string;
+  isAlternateIssuer: boolean;
+  officialReceiptNumber?: string;
+  qrVerificationCode?: string;
+  documentFileUrl?: string;
+  remarks?: string;
+}
+
+export interface IssueApplicationRequest {
+  applicantId?: string;
+  documentType?: string;
+  formNumber: string;
+  licenseNumber?: string;
+  callSign?: string;
+  stationClass?: string;
+  frequencyBand?: string;
+  issueDate: string;
+  expiryDate?: string;
+  remarks?: string;
+}
+
+export interface GeneratedDocumentNumbersDto {
+  recommendedFormNumber: string;
+  recommendedLicenseNumber?: string;
+  serviceCategory?: string;
+  officePrefix?: string;
+  sequenceNumber: number;
+  officialReceiptNumber?: string;
+  originalEvaluatorName?: string;
+  isPaid: boolean;
 }
 
 export interface ApplicantSummaryDto {
@@ -1058,6 +1109,8 @@ export interface ApplicationSummaryDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  lastModifiedAt?: string;
+  updatedAt?: string;
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
@@ -1070,6 +1123,7 @@ export interface ApplicationSummaryDto {
   ordersOfPayment?: OrderOfPaymentDto[];
   histories?: ApplicationHistoryDto[];
   correctionAuditTrails?: CorrectionAuditTrailDto[];
+  issuedDocumentDetails?: IssuedDocumentDetailDto[];
 }
 
 // ─── Paged Applications & Statistics ────────────────────
@@ -1159,6 +1213,16 @@ export interface CreateSoaRequest {
 export interface VerifyPaymentRequest {
   officialReceiptNumber: string;
   amountReceived: number;
+}
+
+export interface SubmitPaymentRequest {
+  orderOfPaymentId?: string | null;
+  paymentMethod: PaymentMethodDto;
+  referenceNumber?: string | null;
+  payorName?: string | null;
+  amountPaid?: number | null;
+  remarks?: string | null;
+  proofOfPaymentFileId?: string | null;
 }
 
 export type ReturnTargetDto = 'Accountant' | 'Evaluator';

@@ -29,26 +29,43 @@ public class GetOrBookletsQueryHandler : IRequestHandler<GetOrBookletsQuery, Api
     {
         var booklets = await _bookletRepository.GetByTenantAsync(request.TenantId, request.Status, cancellationToken);
 
-        var dtos = booklets.Select(b => new OrBookletDto(
-            b.Id,
-            b.TenantId,
-            b.BookletNumber,
-            b.Prefix,
-            b.StartNumber,
-            b.EndNumber,
-            b.CurrentNumber,
-            b.TotalCount,
-            b.IssuedCount,
-            b.RemainingCount,
-            b.FormatOrNumber(b.StartNumber),
-            b.FormatOrNumber(b.EndNumber),
-            b.CurrentFormattedOrNumber,
-            b.AssignedUserId,
-            b.AssignedUser != null ? $"{b.AssignedUser.FirstName} {b.AssignedUser.LastName}".Trim() : null,
-            b.Status,
-            b.ReceivedDate,
-            b.Remarks
-        )).ToList();
+        var dtos = booklets.Select(b =>
+        {
+            var assignedCashiers = b.AssignedCashiers.Select(ac => new BookletCashierDto(
+                ac.CashierUserId,
+                ac.CashierUser != null ? $"{ac.CashierUser.FirstName} {ac.CashierUser.LastName}".Trim() : string.Empty,
+                ac.IsPrimary
+            )).ToList();
+
+            var primaryCashierName = assignedCashiers.FirstOrDefault(c => c.IsPrimary)?.FullName ??
+                                    (b.AssignedUser != null ? $"{b.AssignedUser.FirstName} {b.AssignedUser.LastName}".Trim() : null);
+            var cashierDisplayNames = assignedCashiers.Select(c => c.FullName).ToList();
+            var cashierIds = assignedCashiers.Select(c => c.UserId).ToList();
+
+            return new OrBookletDto(
+                b.Id,
+                b.TenantId,
+                b.BookletNumber,
+                b.Prefix,
+                b.StartNumber,
+                b.EndNumber,
+                b.CurrentNumber,
+                b.TotalCount,
+                b.IssuedCount,
+                b.RemainingCount,
+                b.FormatOrNumber(b.StartNumber),
+                b.FormatOrNumber(b.EndNumber),
+                b.CurrentFormattedOrNumber,
+                b.AssignedUserId,
+                primaryCashierName,
+                b.Status,
+                b.ReceivedDate,
+                b.Remarks,
+                cashierIds,
+                cashierDisplayNames,
+                assignedCashiers
+            );
+        }).ToList();
 
         return ApiResponse<List<OrBookletDto>>.Success(dtos);
     }

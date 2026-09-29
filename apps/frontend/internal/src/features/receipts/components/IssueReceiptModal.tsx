@@ -175,8 +175,12 @@ export function IssueReceiptModal({
         amount: l.amount,
       }));
 
+    const effectiveTenantId = (pendingPayment?.tenantId && pendingPayment.tenantId.length > 0)
+      ? pendingPayment.tenantId
+      : tenantId;
+
     const [res, err] = await receiptService.issueOfficialReceipt({
-      tenantId,
+      tenantId: effectiveTenantId,
       orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
       bookletId: useManualOr ? null : (nextOr?.bookletId ?? null),
       manualOrNumber: useManualOr && manualOrNumber.trim().length > 0 ? manualOrNumber.trim() : null,
@@ -274,6 +278,14 @@ export function IssueReceiptModal({
                           {nextOr.remainingCount} remaining
                         </Text>
                       </View>
+                      {nextOr.isShared && (
+                        <View style={[styles.seriesPill, { backgroundColor: '#E0E7FF' }]}>
+                          <Lucide name="users" size={11} color={colors.brand.primary} />
+                          <Text style={[styles.seriesPillText, { color: colors.brand.primary }]}>
+                            Shared ({nextOr.assignedUserNames?.length ?? 2} Cashiers)
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 

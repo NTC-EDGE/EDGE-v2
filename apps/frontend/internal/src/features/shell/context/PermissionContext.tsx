@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useMemo, ReactNode, useCallback } 
 import { useAuthContext, UserProfile } from '../../auth/context/AuthContext';
 import { useRole, UserRole } from './RoleContext';
 
-export type QueueTab = 'activity' | 'pending' | 'history';
+export type QueueTab = 'activity' | 'pending' | 'issuance' | 'history';
 
 export interface RolePermissionConfig {
   visibleTabs: QueueTab[];
@@ -12,6 +12,8 @@ export interface RolePermissionConfig {
   canApproveAsAccountant: boolean;
   /** Cashier: verify payment and mark as Completed */
   canVerifyCashier: boolean;
+  /** Evaluator / Supervisor: issue finalized permit / license / certificate after payment */
+  canIssueDocument: boolean;
   /** Legacy / fallback: direct approval (e.g. Admin bypassing the full cycle) */
   canApprove: boolean;
   canDecline: boolean;
@@ -30,6 +32,7 @@ export interface BaseRoleCapabilities {
   canForwardToAccountant: boolean;
   canApproveAsAccountant: boolean;
   canVerifyCashier: boolean;
+  canIssueDocument: boolean;
   canApprove: boolean;
   canDecline: boolean;
   canEndorse: boolean;
@@ -39,64 +42,71 @@ type PermissionMap = Record<UserRole, BaseRoleCapabilities>;
 
 const DEFAULT_PERMISSIONS: PermissionMap = {
   Admin: {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: true,
     canApproveAsAccountant: true,
     canVerifyCashier: true,
+    canIssueDocument: true,
     canApprove: true,
     canDecline: true,
     canEndorse: true,
   },
   Evaluator: {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: true,
     canApproveAsAccountant: false,
     canVerifyCashier: false,
+    canIssueDocument: true,
     canApprove: false,
     canDecline: true,
     canEndorse: true,
   },
   'Chief of EOD': {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: true,
     canApproveAsAccountant: false,
     canVerifyCashier: false,
+    canIssueDocument: true,
     canApprove: false,
     canDecline: true,
     canEndorse: true,
   },
   'Regional Director': {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: true,
     canApproveAsAccountant: false,
     canVerifyCashier: false,
+    canIssueDocument: true,
     canApprove: true,
     canDecline: true,
     canEndorse: true,
   },
   Legal: {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: false,
     canApproveAsAccountant: false,
     canVerifyCashier: false,
+    canIssueDocument: false,
     canApprove: false,
     canDecline: true,
     canEndorse: true,
   },
   Accountant: {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: false,
     canApproveAsAccountant: true,
     canVerifyCashier: false,
+    canIssueDocument: false,
     canApprove: false,
     canDecline: true,
     canEndorse: false,
   },
   Cashier: {
-    visibleTabs: ['activity', 'pending', 'history'],
+    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
     canForwardToAccountant: false,
     canApproveAsAccountant: false,
     canVerifyCashier: true,
+    canIssueDocument: false,
     canApprove: false,
     canDecline: true,
     canEndorse: false,
@@ -243,6 +253,13 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         hasPermission('receipts.issue') ||
         base.canVerifyCashier;
 
+      const canIssueDocument =
+        isSuperAdmin ||
+        hasPermission('applications.issue') ||
+        hasPermission('permits.issue') ||
+        hasPermission('licenses.issue') ||
+        base.canIssueDocument;
+
       const canApprove =
         isSuperAdmin ||
         hasPermission('applications.approve') ||
@@ -266,6 +283,7 @@ export function PermissionProvider({ children }: { children: ReactNode }) {
         canForwardToAccountant,
         canApproveAsAccountant,
         canVerifyCashier,
+        canIssueDocument,
         canApprove,
         canDecline,
         canEndorse,

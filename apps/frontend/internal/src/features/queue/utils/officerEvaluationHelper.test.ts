@@ -4,6 +4,7 @@ import {
   isGenericOfficer,
   computeOfficerEvaluationState,
   resolveApplicantAuditHistory,
+  getApprovingEvaluator,
 } from "./officerEvaluationHelper";
 import { ApplicationData, ApplicantItem } from "../../../types/application";
 
@@ -305,6 +306,72 @@ describe("officerEvaluationHelper", () => {
       expect(history[0]?.action).toContain("Candidate One");
       expect(history[1]?.status).toBe("Incomplete");
       expect(history[1]?.remarks).toBe("Missing 2x2 Photo");
+    });
+  });
+
+  describe("getApprovingEvaluator", () => {
+    it("resolves evaluating officer from handoff to accountant history entry", () => {
+      const app = createMockApp({
+        status: "ForIssuance",
+        history: [
+          {
+            id: "h-1",
+            action: "Application Submitted",
+            staff: "Client Applicant",
+            timestamp: "2026-09-20T10:00:00Z",
+          },
+          {
+            id: "h-2",
+            action: "Forwarded to Accountant",
+            staff: "Engr. Roberto Cruz",
+            role: "Evaluating Officer",
+            status: "ForAccountant",
+            timestamp: "2026-09-21T11:00:00Z",
+          },
+          {
+            id: "h-3",
+            action: "SOA Approved",
+            staff: "Accountant Jane",
+            role: "Accountant",
+            status: "PendingPayment",
+            timestamp: "2026-09-21T14:00:00Z",
+          },
+          {
+            id: "h-4",
+            action: "Payment Verified (OR-12345)",
+            staff: "Cashier Bob",
+            role: "Cashier",
+            status: "ForIssuance",
+            timestamp: "2026-09-22T09:00:00Z",
+          },
+        ],
+      });
+
+      const evaluator = getApprovingEvaluator(app);
+      expect(evaluator).toBe("Engr. Roberto Cruz");
+    });
+
+    it("falls back to evaluatingOfficer field if not found in history", () => {
+      const app = createMockApp({
+        status: "ForIssuance",
+        evaluatingOfficer: "Engr. Maria Santos",
+        history: [],
+      });
+
+      const evaluator = getApprovingEvaluator(app);
+      expect(evaluator).toBe("Engr. Maria Santos");
+    });
+
+    it("returns null when no specific evaluating officer exists or name is generic", () => {
+      const app = createMockApp({
+        status: "Submitted",
+        evaluatingOfficer: "Authorized Officer",
+        office: "National Capital Region",
+        history: [],
+      });
+
+      const evaluator = getApprovingEvaluator(app);
+      expect(evaluator).toBeNull();
     });
   });
 });

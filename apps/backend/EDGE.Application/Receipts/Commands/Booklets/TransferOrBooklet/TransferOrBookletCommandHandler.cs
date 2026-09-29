@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentValidation;
@@ -8,6 +10,7 @@ using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Receipts.Dtos;
+using EDGE.Application.Receipts.Services;
 
 namespace EDGE.Application.Receipts.Commands.Booklets.TransferOrBooklet;
 
@@ -15,6 +18,7 @@ public record TransferOrBookletCommand(
     Guid Id,
     Guid TenantId,
     Guid NewAssignedUserId,
+    List<Guid>? AdditionalUserIds = null,
     string? TransferReason = null
 ) : IRequest<ApiResponse<OrBookletDto>>;
 
@@ -31,19 +35,16 @@ public class TransferOrBookletCommandValidator : AbstractValidator<TransferOrBoo
 public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBookletCommand, ApiResponse<OrBookletDto>>
 {
     private readonly IOrBookletRepository _bookletRepository;
-    private readonly IUserRepository _userRepository;
-    private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly ICashierCustodianValidator _custodianValidator;
     private readonly IUnitOfWork _unitOfWork;
 
     public TransferOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
-        IUserRepository userRepository,
-        ITenantMemberRepository tenantMemberRepository,
+        ICashierCustodianValidator custodianValidator,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
-        _userRepository = userRepository;
-        _tenantMemberRepository = tenantMemberRepository;
+        _custodianValidator = custodianValidator;
         _unitOfWork = unitOfWork;
     }
 
@@ -55,25 +56,43 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
             return ApiResponse<OrBookletDto>.Fail("OR Booklet was not found.");
         }
 
-        var newUser = await _userRepository.GetByIdAsync(request.NewAssignedUserId, cancellationToken);
-        if (newUser == null)
+        // Collect all users to assign (Primary + Optional Co-Cashiers)
+        var allUserIds = new List<Guid> { request.NewAssignedUserId };
+        if (request.AdditionalUserIds != null)
         {
-            return ApiResponse<OrBookletDto>.Fail("Target cashier / staff user was not found.");
+            allUserIds.AddRange(request.AdditionalUserIds.Where(id => id != Guid.Empty && id != request.NewAssignedUserId));
         }
 
-        // Verify that the new assignee belongs to this tenant
-        var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, request.NewAssignedUserId, cancellationToken);
-        if (membership == null && !newUser.IsSuperAdmin)
+        // Validate cashier custodians via shared domain validation service
+        var validation = await _custodianValidator.ValidateCustodiansAsync(
+            request.TenantId,
+            allUserIds,
+            request.NewAssignedUserId,
+            cancellationToken);
+
+        if (!validation.Succeeded)
         {
-            return ApiResponse<OrBookletDto>.Fail("The new custodian must belong to this regional office / tenant.");
+            return ApiResponse<OrBookletDto>.Fail(validation.ErrorMessage!);
         }
 
-        var newUserName = $"{newUser.FirstName} {newUser.LastName}".Trim();
-        booklet.AssignedUserId = request.NewAssignedUserId;
+        var primaryCustodian = validation.ValidatedCustodians.First(c => c.IsPrimary);
+        booklet.AssignedUserId = primaryCustodian.UserId;
+
+        booklet.AssignedCashiers.Clear();
+        foreach (var custodian in validation.ValidatedCustodians)
+        {
+            booklet.AssignedCashiers.Add(new OrBookletCashier
+            {
+                BookletId = booklet.Id,
+                CashierUserId = custodian.UserId,
+                IsPrimary = custodian.IsPrimary,
+                AssignedAt = DateTime.UtcNow
+            });
+        }
 
         if (!string.IsNullOrWhiteSpace(request.TransferReason))
         {
-            var auditLog = $"[Transferred to {newUserName} on {DateTime.UtcNow:yyyy-MM-dd HH:mm}: {request.TransferReason.Trim()}]";
+            var auditLog = $"[Transferred to {primaryCustodian.FullName} on {DateTime.UtcNow:yyyy-MM-dd HH:mm}: {request.TransferReason.Trim()}]";
             booklet.Remarks = string.IsNullOrWhiteSpace(booklet.Remarks)
                 ? auditLog
                 : $"{booklet.Remarks}\n{auditLog}";
@@ -81,6 +100,13 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
 
         await _bookletRepository.UpdateAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var assignedCashiers = validation.ValidatedCustodians
+            .Select(c => new BookletCashierDto(c.UserId, c.FullName, c.IsPrimary))
+            .ToList();
+
+        var cashierDisplayNames = validation.ValidatedCustodians.Select(c => c.FullName).ToList();
+        var cashierIds = validation.ValidatedCustodians.Select(c => c.UserId).ToList();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -97,12 +123,15 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
             booklet.FormatOrNumber(booklet.EndNumber),
             booklet.CurrentFormattedOrNumber,
             booklet.AssignedUserId,
-            newUserName,
+            primaryCustodian.FullName,
             booklet.Status,
             booklet.ReceivedDate,
-            booklet.Remarks
+            booklet.Remarks,
+            cashierIds,
+            cashierDisplayNames,
+            assignedCashiers
         );
 
-        return ApiResponse<OrBookletDto>.Success(dto, $"Official Receipt booklet successfully transferred to {newUserName}.");
+        return ApiResponse<OrBookletDto>.Success(dto, $"Official Receipt booklet successfully transferred to {primaryCustodian.FullName}.");
     }
 }

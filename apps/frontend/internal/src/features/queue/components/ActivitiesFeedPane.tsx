@@ -43,7 +43,7 @@ type SortOrder = "newest" | "oldest";
 
 type FilterStatus = Extract<
   ApplicationStatus,
-  "Approved" | "Returned" | "Completed"
+  "Approved" | "Returned" | "Completed" | "ForIssuance"
 >;
 
 type FilterMode = "SINGLE" | "BULK";
@@ -62,11 +62,12 @@ const FILTER_MODES: {
 const FILTER_STATUSES: {
   label: string;
   value: FilterStatus;
-  icon: "check-circle" | "x-circle" | "calendar";
+  icon: "check-circle" | "x-circle" | "calendar" | "award";
 }[] = [
-  { label: "Approved", value: "Approved", icon: "check-circle" },
-  { label: "Returned", value: "Returned", icon: "x-circle" },
-  { label: "Completed", value: "Completed", icon: "calendar" },
+  { label: "Approved",     value: "Approved",    icon: "check-circle" },
+  { label: "Returned",     value: "Returned",    icon: "x-circle" },
+  { label: "Completed",    value: "Completed",   icon: "calendar" },
+  { label: "For Issuance", value: "ForIssuance", icon: "award" },
 ];
 
 const FILTER_CATEGORIES: {
@@ -85,7 +86,8 @@ const FILTER_CATEGORIES: {
 const TAB_LABELS: { key: QueueTab; label: string }[] = [
   { key: "activity", label: "All" },
   { key: "pending",  label: "Pending" },
-  { key: "history",  label: "Archived" },
+  { key: "history",  label: "Processed" },
+  { key: "issuance", label: "For Issuance" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -106,7 +108,8 @@ function buildDateGroups(
   >();
 
   for (const app of apps) {
-    const date = new Date(app.createdAt);
+    const dateStr = app.updatedAt ?? app.createdAt;
+    const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
     if (!groupMap.has(dateKey)) {
       groupMap.set(dateKey, { label: app.dateLabel, items: [], ts: date.getTime() });
@@ -121,7 +124,15 @@ function buildDateGroups(
     sortOrder === "newest" ? b.ts - a.ts : a.ts - b.ts,
   );
 
-  return sorted.map(([dateKey, { label, items }]) => ({ label, dateKey, items }));
+  return sorted.map(([dateKey, { label, items }]) => ({
+    label,
+    dateKey,
+    items: [...items].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    }),
+  }));
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -153,6 +164,7 @@ export function ActivitiesFeedPane({
   const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
     role: currentRole,
+    assignedTo: officerName,
     scope: "queue",
     pageSize,
     pageNumber: 1,
@@ -323,7 +335,11 @@ export function ActivitiesFeedPane({
     const q = searchQuery.trim().toLowerCase();
     const filtered = applications.filter((app) => {
       if (app.status === "Draft" || app.isArchived) return false;
-      if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) return false;
+      if (activeQueueTab === "issuance") {
+        if (app.status !== "ForIssuance" && app.queueTab !== "issuance") return false;
+      } else if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) {
+        return false;
+      }
       if (q.length > 0) {
         const matchesApplicant = app.applicant.toLowerCase().includes(q);
         const matchesTitle = app.permitTitle.toLowerCase().includes(q);

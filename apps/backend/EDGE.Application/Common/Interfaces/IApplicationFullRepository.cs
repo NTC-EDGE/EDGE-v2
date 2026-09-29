@@ -41,5 +41,7 @@ public interface IApplicationFullRepository
     Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default);
     Task AddCorrectionAuditTrailAsync(CorrectionAuditTrail trail, CancellationToken cancellationToken = default);
     Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default);
+    Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default);
+    Task<IssuedDocumentDetail?> GetIssuedDocumentByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken = default);
     Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
 }

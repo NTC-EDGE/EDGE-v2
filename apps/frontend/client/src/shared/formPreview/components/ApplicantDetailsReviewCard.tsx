@@ -62,6 +62,11 @@ export interface ApplicantDetailsSnapshot {
   companyAddress?: string | null;
   companyEmail?: string | null;
   companyContactNumber?: string | null;
+  representativeFirstName?: string | null;
+  representativeMiddleName?: string | null;
+  representativeLastName?: string | null;
+  representativeSuffix?: string | null;
+  representativePosition?: string | null;
   representativeName?: string | null;
   representativeEmail?: string | null;
   representativeContactNumber?: string | null;
@@ -97,7 +102,15 @@ export function ApplicantDetailsReviewCard({
   const companyAddress = activeApplicant?.companyAddress || null;
   const companyEmail = activeApplicant?.companyEmail || null;
   const companyContactNumber = activeApplicant?.companyContactNumber || null;
-  const representativeName = activeApplicant?.representativeName || null;
+  const repFromParts = [
+    activeApplicant?.representativeFirstName,
+    activeApplicant?.representativeMiddleName,
+    activeApplicant?.representativeLastName,
+    activeApplicant?.representativeSuffix,
+  ].filter(Boolean).join(' ');
+
+  const representativeName = activeApplicant?.representativeName || (repFromParts.length > 0 ? repFromParts : null);
+  const representativePosition = activeApplicant?.representativePosition || null;
   const representativeEmail = activeApplicant?.representativeEmail || null;
   const representativeContactNumber = activeApplicant?.representativeContactNumber || null;
   const notes = activeApplicant?.notes || null;
@@ -153,7 +166,10 @@ export function ApplicantDetailsReviewCard({
         </View>
       ) : null}
       {representativeName ? (
-        <SummaryRow label="Authorized Representative / Liaison Officer" value={representativeName} />
+        <SummaryRow
+          label="Authorized Representative / Liaison Officer"
+          value={representativePosition ? `${representativeName} (${representativePosition})` : representativeName}
+        />
       ) : null}
       {(representativeEmail || representativeContactNumber) ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>

@@ -8,6 +8,11 @@ public static class ApplicationStatusHelper
 {
     public static string DetermineQueueTab(ApplicationStatus status, string? role = null)
     {
+        if (status == ApplicationStatus.ForIssuance)
+        {
+            return "issuance";
+        }
+
         if (IsAccountantRole(role))
         {
             if (status == ApplicationStatus.ForAccountant) return "pending";
@@ -18,7 +23,7 @@ public static class ApplicationStatusHelper
         if (IsCashierRole(role))
         {
             if (status == ApplicationStatus.PendingPayment) return "pending";
-            if (status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
+            if (status == ApplicationStatus.ForIssuance || status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
             return "activity";
         }
 

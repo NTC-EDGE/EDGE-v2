@@ -119,7 +119,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
             .Where(a => a.UserId.HasValue && userIds.Contains(a.UserId.Value) && a.Status == ApplicationStatus.Draft)
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -141,7 +141,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         }
 
         return await query
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -180,9 +180,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+            if (tab == "issuance")
             {
-                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                query = query.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (tab == "pending")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.ForIssuance);
             }
             else if (tab == "history")
             {
@@ -205,7 +209,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -235,7 +239,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+            if (tab == "issuance")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (tab == "pending")
             {
                 query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
             }
@@ -260,7 +268,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
             {
                 Id = app.Id,
@@ -274,6 +282,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
                 ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
@@ -381,6 +391,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
         }
 
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLowerInvariant();
+            baseQuery = baseQuery.Where(a => a.Office != null && (a.Office.ToLower().Contains(fo) || fo.Contains(a.Office.ToLower())));
+        }
+
         // Global statistics for the user/scope dashboard metrics
         var totalCount = await baseQuery.CountAsync(cancellationToken);
         var singleCount = await baseQuery.CountAsync(a => a.SubmissionMode == SubmissionMode.Single, cancellationToken);
@@ -427,7 +443,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         {
             var tab = queueTab.Trim().ToLowerInvariant();
 
-            if (ApplicationStatusHelper.IsAccountantRole(role))
+            if (tab == "issuance")
+            {
+                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (ApplicationStatusHelper.IsAccountantRole(role))
             {
                 if (tab == "pending")
                 {
@@ -442,11 +462,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
             {
                 if (tab == "pending")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment && a.OrdersOfPayment.Any(op => op.Status == OpStatus.Processing));
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
                 }
             }
             else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))
@@ -486,12 +506,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
             }
         }
 
-        if (!string.IsNullOrWhiteSpace(fieldOffice))
-        {
-            var fo = fieldOffice.Trim().ToLowerInvariant();
-            filteredQuery = filteredQuery.Where(a => a.Office != null && a.Office.ToLower().Contains(fo));
-        }
-
         if (!string.IsNullOrWhiteSpace(assignedTo))
         {
             var at = assignedTo.Trim().ToLowerInvariant();
@@ -508,7 +522,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         var items = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
@@ -524,6 +538,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
                 ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
@@ -649,7 +665,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationDto
             {
                 Id = app.Id,
@@ -668,6 +684,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserDto
                 {
                     Id = app.User.Id,
@@ -871,7 +889,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
             .Where(a => a.ApplicationApplicants.Any(aa => aa.ApplicantId == applicantId))
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -974,6 +992,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default)
     {
         await _context.CompanyDetails.AddAsync(companyDetail, cancellationToken);
+    }
+
+    public async Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default)
+    {
+        await _context.IssuedDocumentDetails.AddAsync(issuedDoc, cancellationToken);
+    }
+
+    public async Task<IssuedDocumentDetail?> GetIssuedDocumentByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.IssuedDocumentDetails
+            .Include(d => d.Application)
+            .Include(d => d.Applicant)
+            .OrderByDescending(d => d.CreatedAt)
+            .FirstOrDefaultAsync(d => d.ApplicationId == applicationId, cancellationToken);
     }
 
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)

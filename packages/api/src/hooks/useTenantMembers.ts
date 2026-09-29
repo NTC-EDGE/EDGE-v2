@@ -23,6 +23,7 @@ export interface TenantMemberDto {
   division: string;
   position: string;
   designation?: string | null;
+  permissions?: string[];
   isDeleted: boolean;
   createdAt: string;
 }

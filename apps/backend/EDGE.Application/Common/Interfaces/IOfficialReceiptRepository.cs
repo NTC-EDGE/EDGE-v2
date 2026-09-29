@@ -22,7 +22,7 @@ public interface IOfficialReceiptRepository
         string? search = null,
         CancellationToken cancellationToken = default);
     Task<List<OfficialReceipt>> GetUndepositedReceiptsAsync(Guid tenantId, CancellationToken cancellationToken = default);
-    Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, CancellationToken cancellationToken = default);
+    Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, string? fieldOffice = null, CancellationToken cancellationToken = default);
     Task<bool> ExistsOrNumberAsync(Guid tenantId, string orNumber, Guid? excludeId = null, CancellationToken cancellationToken = default);
     Task AddAsync(OfficialReceipt receipt, CancellationToken cancellationToken = default);
     Task UpdateAsync(OfficialReceipt receipt, CancellationToken cancellationToken = default);

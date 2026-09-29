@@ -28,6 +28,7 @@ public static class Permissions
     public const string DeleteApplication = "applications.delete";
     public const string EvaluateApplication = "applications.evaluate";
     public const string ApproveApplication = "applications.approve";
+    public const string IssueApplication = "applications.issue";
     public const string ImportCsvApplications = "applications.import_csv";
 
     // Services Catalog
@@ -143,6 +144,7 @@ public static class Permissions
         new(DeleteApplication, "Applications", "Delete Application", PermissionScope.Internal, "Allows removing or canceling applications"),
         new(EvaluateApplication, "Applications", "Evaluate Application", PermissionScope.Internal, "Allows conducting technical evaluation on applications"),
         new(ApproveApplication, "Applications", "Approve Application", PermissionScope.Internal, "Allows issuing final approval or rejection"),
+        new(IssueApplication, "Applications", "Issue Application", PermissionScope.Internal, "Allows configuring form numbers and assigning new licenses upon payment verification"),
         new(ImportCsvApplications, "Applications", "Import Applications CSV", PermissionScope.Internal, "Allows batch importing applications via CSV"),
 
         // Services Catalog

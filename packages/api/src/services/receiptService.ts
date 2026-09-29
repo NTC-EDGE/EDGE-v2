@@ -6,6 +6,12 @@ export type ReceiptStatus = 'Issued' | 'Deposited' | 'Cancelled';
 export type PaymentMethod = 'Cash' | 'Check' | 'Online';
 export type DepositStatus = 'Pending' | 'Deposited' | 'Reconciled';
 
+export interface BookletCashierDto {
+  userId: string;
+  fullName: string;
+  isPrimary?: boolean;
+}
+
 export interface OrBookletDto {
   id: string;
   tenantId: string;
@@ -25,6 +31,9 @@ export interface OrBookletDto {
   status: BookletStatus;
   receivedDate: string;
   remarks?: string | null;
+  assignedUserIds?: string[];
+  assignedUserNames?: string[];
+  assignedCashiers?: BookletCashierDto[];
 }
 
 export interface NextAvailableOrDto {
@@ -41,6 +50,8 @@ export interface NextAvailableOrDto {
   issuedCount?: number;
   remainingCount: number;
   hasActiveBooklet: boolean;
+  assignedUserNames?: string[];
+  isShared?: boolean;
 }
 
 export interface PendingPaymentLineItemDto {
@@ -65,6 +76,7 @@ export interface PendingPaymentDto {
   orderOfPaymentId: string;
   applicationId: string;
   statementOfAccountId: string;
+  tenantId: string;
   opNumber: string;
   soaNumber: string;
   applicationNumber: string;
@@ -207,6 +219,7 @@ export interface CreateOrBookletPayload {
   endNumber?: number | null;
   totalCount?: number;
   assignedUserId?: string | null;
+  assignedUserIds?: string[];
   remarks?: string | null;
 }
 
@@ -218,6 +231,8 @@ export interface UpdateOrBookletPayload {
   startNumber: number;
   endNumber?: number | null;
   totalCount?: number;
+  assignedUserId?: string | null;
+  assignedUserIds?: string[];
   remarks?: string | null;
 }
 
@@ -225,6 +240,7 @@ export interface TransferOrBookletPayload {
   id: string;
   tenantId: string;
   newAssignedUserId: string;
+  additionalUserIds?: string[];
   transferReason?: string | null;
 }
 
@@ -305,7 +321,7 @@ export const receiptService = {
     });
   },
 
-  getPendingPayments: async (params: { tenantId: string; search?: string }) => {
+  getPendingPayments: async (params?: { tenantId?: string; search?: string }) => {
     return safeAsync(async () => {
       const res = await apiClient.get<{ data: PendingPaymentDto[] }>('/api/v2/receipts/pending-payments', { params });
       return res.data.data;

@@ -51,6 +51,42 @@ export interface Schedule {
   venue: string;
 }
 
+export interface SoaLineItem {
+  id?: string;
+  particular: string;
+  itemCode: string;
+  description?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+}
+
+export interface SoaData {
+  id?: string;
+  soaNumber: string;
+  status: string;
+  issuedToType?: string;
+  issuedToName?: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate?: string;
+  remarks?: string;
+  lineItems: SoaLineItem[];
+}
+
+export interface OpData {
+  id?: string;
+  opNumber: string;
+  status: string;
+  amountDue: number;
+  amountReceived: number;
+  paymentMethod?: string;
+  officialReceiptNumber?: string;
+  paidAt?: string;
+  remarks?: string;
+}
+
 export interface SingleApplication {
   id: string;
   referenceNumber: string;
@@ -60,6 +96,13 @@ export interface SingleApplication {
   element: ExamineeType;
   status: ApplicationStatus;
   submittedAt: string;
+  // SOA & Billing
+  soa?: SoaData;
+  op?: OpData;
+  soaItems?: SoaLineItem[];
+  totalAmountDue?: number;
+  dueDate?: string;
+  opNumber?: string | null;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -218,6 +261,14 @@ export interface BulkApplication {
   submittedAt: string;
   applicants: BulkApplicant[];
   soaNumber: string | null;
+
+  // SOA & Billing
+  soa?: SoaData;
+  op?: OpData;
+  soaItems?: SoaLineItem[];
+  totalAmountDue?: number;
+  dueDate?: string;
+  opNumber?: string | null;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -633,6 +684,8 @@ export interface ApiApplicationDto {
   office?: string;
   remarks?: string;
   createdAt?: string;
+  updatedAt?: string;
+  lastModifiedAt?: string;
   submittedAt?: string;
   serviceName?: string;
   serviceCategory?: string;
@@ -678,6 +731,70 @@ export interface ApiApplicationDto {
     staffRole?: string;
     remarks?: string;
     timestamp?: string;
+  }>;
+  statementsOfAccount?: Array<{
+    id?: string;
+    soaNumber?: string;
+    status?: string;
+    issuedToType?: string;
+    issuedToName?: string;
+    issuedToAddress?: string;
+    totalAmount?: number;
+    dueDate?: string;
+    remarks?: string;
+    lineItems?: Array<{
+      id?: string;
+      particular?: string;
+      itemCode?: string;
+      description?: string;
+      validityYears?: number;
+      noOfUnits?: number;
+      feeRate?: number;
+      amount?: number;
+    }>;
+  }>;
+  StatementsOfAccount?: Array<{
+    id?: string;
+    soaNumber?: string;
+    status?: string;
+    issuedToType?: string;
+    issuedToName?: string;
+    issuedToAddress?: string;
+    totalAmount?: number;
+    dueDate?: string;
+    remarks?: string;
+    lineItems?: Array<{
+      id?: string;
+      particular?: string;
+      itemCode?: string;
+      description?: string;
+      validityYears?: number;
+      noOfUnits?: number;
+      feeRate?: number;
+      amount?: number;
+    }>;
+  }>;
+  ordersOfPayment?: Array<{
+    id?: string;
+    opNumber?: string;
+    status?: string;
+    amountDue?: number;
+    amountReceived?: number;
+    paymentMethod?: string;
+    officialReceiptNumber?: string;
+    paidAt?: string;
+    remarks?: string;
+  }>;
+  OrdersOfPayment?: Array<{
+    id?: string;
+    opNumber?: string;
+    status?: string;
+    amountDue?: number;
+    amountReceived?: number;
+    paymentMethod?: string;
+    officialReceiptNumber?: string;
+    paidAt?: string;
+    remarks?: string;
   }>;
 }
 
@@ -773,7 +890,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const serviceName = dto.serviceName || serviceFromList || dto.remarks || dto.office || 'NTC Service Application';
   const categoryFromList = dto.services && dto.services.length > 0 ? dto.services[0]?.category : undefined;
   const serviceCategory = dto.serviceCategory || categoryFromList || 'General';
-  const submittedAt = dto.createdAt || dto.submittedAt || new Date().toISOString();
+  const submittedAt = dto.updatedAt || dto.lastModifiedAt || dto.createdAt || dto.submittedAt || new Date().toISOString();
 
   const mappedApplicants: BulkApplicant[] = rawApplicants.map((ap, idx) => {
     const apDetails = ap.details || ap;
@@ -924,6 +1041,89 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     timestamp: h.timestamp || '',
   }));
 
+  const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
+  const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
+  const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;
+  const primaryOpDto = rawOps.length > 0 ? rawOps[0] : undefined;
+
+  const mappedSoa: SoaData | undefined = primarySoaDto
+    ? {
+        id: primarySoaDto.id,
+        soaNumber: primarySoaDto.soaNumber || (dto.soaNumber ?? ''),
+        status: primarySoaDto.status || 'Active',
+        issuedToType: primarySoaDto.issuedToType,
+        issuedToName: primarySoaDto.issuedToName,
+        issuedToAddress: primarySoaDto.issuedToAddress,
+        totalAmount: typeof primarySoaDto.totalAmount === 'number' ? primarySoaDto.totalAmount : 0,
+        dueDate: primarySoaDto.dueDate,
+        remarks: primarySoaDto.remarks,
+        lineItems: (primarySoaDto.lineItems || []).map((li) => ({
+          id: li.id,
+          particular: li.particular || 'Regulatory Fee Assessment',
+          itemCode: li.itemCode || 'NTC-FEE',
+          description: li.description,
+          validityYears: typeof li.validityYears === 'number' && li.validityYears > 0 ? li.validityYears : 1,
+          noOfUnits: typeof li.noOfUnits === 'number' && li.noOfUnits > 0 ? li.noOfUnits : 1,
+          feeRate: typeof li.feeRate === 'number' ? li.feeRate : 0,
+          amount: typeof li.amount === 'number' ? li.amount : 0,
+        })),
+      }
+    : undefined;
+
+  const mappedOp: OpData | undefined = primaryOpDto
+    ? {
+        id: primaryOpDto.id,
+        opNumber: primaryOpDto.opNumber || '',
+        status: primaryOpDto.status || 'Active',
+        amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
+        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : 0,
+        paymentMethod: primaryOpDto.paymentMethod,
+        officialReceiptNumber: primaryOpDto.officialReceiptNumber,
+        paidAt: primaryOpDto.paidAt,
+        remarks: primaryOpDto.remarks,
+      }
+    : undefined;
+
+  let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
+  if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || dto.soaNumber)) {
+    const units = isBulk ? (mappedApplicants.length || 1) : 1;
+    const filingFee = 180;
+    const permitFee = 1200;
+    mappedSoaItems = [
+      {
+        id: 'fee-filing-1',
+        particular: 'Filing & Processing Fee',
+        itemCode: 'NTC-FF-01',
+        validityYears: 1,
+        noOfUnits: units,
+        feeRate: filingFee,
+        amount: filingFee * units,
+      },
+      {
+        id: 'fee-lic-1',
+        particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
+        itemCode: 'NTC-RF-02',
+        validityYears: 1,
+        noOfUnits: units,
+        feeRate: permitFee,
+        amount: permitFee * units,
+      },
+    ];
+  }
+
+  const calculatedTotalDue =
+    mappedSoa && typeof mappedSoa.totalAmount === 'number' && mappedSoa.totalAmount > 0
+      ? mappedSoa.totalAmount
+      : mappedOp && typeof mappedOp.amountDue === 'number' && mappedOp.amountDue > 0
+      ? mappedOp.amountDue
+      : mappedSoaItems.length > 0
+      ? mappedSoaItems.reduce((acc, item) => acc + (typeof item.amount === 'number' ? item.amount : 0), 0)
+      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? 1380 : undefined);
+
+  const resolvedDueDate = mappedSoa?.dueDate;
+  const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
+  const resolvedOpNumber = mappedOp?.opNumber || (status === 'READY_FOR_PAYMENT' ? `OP-${refNumber}` : null);
+
   if (isBulk) {
     const bulkApp: BulkApplication = {
       id: dto.id || '',
@@ -936,7 +1136,13 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       status,
       submittedAt,
       applicants: mappedApplicants,
-      soaNumber: dto.soaNumber || null,
+      soaNumber: resolvedSoaNumber,
+      soa: mappedSoa,
+      op: mappedOp,
+      soaItems: mappedSoaItems,
+      totalAmountDue: calculatedTotalDue,
+      dueDate: resolvedDueDate,
+      opNumber: resolvedOpNumber,
       submissionMode: 'BULK',
       documents: reqDocs,
       requirements: reqDocs,
@@ -992,6 +1198,13 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     remarks: dto.remarks,
     serviceVariantName: resolvedVariantName,
     tenantId: dto.tenantId,
+    soaNumber: resolvedSoaNumber,
+    soa: mappedSoa,
+    op: mappedOp,
+    soaItems: mappedSoaItems,
+    totalAmountDue: calculatedTotalDue,
+    dueDate: resolvedDueDate,
+    opNumber: resolvedOpNumber,
     histories: mappedHistories,
     history: mappedHistories,
   };

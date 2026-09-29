@@ -23,6 +23,9 @@ public class TenantMemberRepository : ITenantMemberRepository
         return await _context.TenantMembers
             .Include(m => m.Tenant)
             .Include(m => m.User)
+            .Include(m => m.Role)
+                .ThenInclude(r => r.RolePermissions)
+            .Include(m => m.FieldOffice)
             .FirstOrDefaultAsync(m => m.Id == id, cancellationToken);
     }
 
@@ -33,6 +36,7 @@ public class TenantMemberRepository : ITenantMemberRepository
             .Include(m => m.Tenant)
             .Include(m => m.User)
             .Include(m => m.Role)
+                .ThenInclude(r => r.RolePermissions)
             .Include(m => m.FieldOffice)
             .FirstOrDefaultAsync(m => m.TenantId == tenantId && m.UserId == userId, cancellationToken);
     }
@@ -42,6 +46,7 @@ public class TenantMemberRepository : ITenantMemberRepository
         return await _context.TenantMembers
             .Include(m => m.User)
             .Include(m => m.Role)
+                .ThenInclude(r => r.RolePermissions)
             .Include(m => m.FieldOffice)
             .Include(m => m.Tenant)
             .Where(m => m.TenantId == tenantId && !m.IsDeleted)
@@ -53,6 +58,7 @@ public class TenantMemberRepository : ITenantMemberRepository
         return await _context.TenantMembers
             .Include(m => m.Tenant)
             .Include(m => m.Role)
+                .ThenInclude(r => r.RolePermissions)
             .Include(m => m.FieldOffice)
             .Where(m => m.UserId == userId && !m.IsDeleted)
             .ToListAsync(cancellationToken);

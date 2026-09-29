@@ -19,7 +19,12 @@ public class ContractFormValidator
         List<ContractSection> requiredSections;
         try
         {
-            using var doc = JsonDocument.Parse(contractJson);
+            var jsonOptions = new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            };
+            using var doc = JsonDocument.Parse(contractJson, jsonOptions);
             var root = doc.RootElement;
 
             requiredSections = new List<ContractSection>();
@@ -63,7 +68,12 @@ public class ContractFormValidator
     {
         try
         {
-            using var doc = JsonDocument.Parse(contractJson);
+            var jsonOptions = new JsonDocumentOptions
+            {
+                AllowTrailingCommas = true,
+                CommentHandling = JsonCommentHandling.Skip
+            };
+            using var doc = JsonDocument.Parse(contractJson, jsonOptions);
             var root = doc.RootElement;
             if (!root.TryGetProperty("requiredSections", out var sectionsEl) ||
                 sectionsEl.ValueKind != JsonValueKind.Array)

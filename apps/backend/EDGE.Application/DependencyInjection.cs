@@ -21,6 +21,7 @@ public static class DependencyInjection
 
         services.AddValidatorsFromAssembly(assembly);
         services.AddScoped<ContractFormValidator>();
+        services.AddScoped<EDGE.Application.Receipts.Services.ICashierCustodianValidator, EDGE.Application.Receipts.Services.CashierCustodianValidator>();
 
         // Service Category Fee Calculation Strategies
         services.AddSingleton<EDGE.Application.Fees.Calculations.IFeeCalculationStrategy, EDGE.Application.Fees.Calculations.Strategies.CertificateFeeCalculationStrategy>();

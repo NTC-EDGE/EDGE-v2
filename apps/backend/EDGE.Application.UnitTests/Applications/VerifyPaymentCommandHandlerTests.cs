@@ -76,7 +76,7 @@ public class VerifyPaymentCommandHandlerTests
     }
 
     [Fact]
-    public async Task Handle_ShouldSetOpStatusPaid_AndApplicationCompleted_WhenValidPayment()
+    public async Task Handle_ShouldSetOpStatusPaid_AndApplicationForIssuance_WhenValidPayment()
     {
         // Arrange
         var app = new Domain.Entities.Application
@@ -110,9 +110,9 @@ public class VerifyPaymentCommandHandlerTests
         op.AmountReceived.Should().Be(1500m);
         op.PaidAt.Should().NotBeNull();
 
-        app.Status.Should().Be(ApplicationStatus.Completed); // Application transitions to Completed
+        app.Status.Should().Be(ApplicationStatus.ForIssuance); // Application transitions to ForIssuance
 
-        _repositoryMock.Verify(r => r.AddApplicationHistoryAsync(It.Is<ApplicationHistory>(h => h.ToStatus == ApplicationStatus.Completed), It.IsAny<CancellationToken>()), Times.Once);
+        _repositoryMock.Verify(r => r.AddApplicationHistoryAsync(It.Is<ApplicationHistory>(h => h.ToStatus == ApplicationStatus.ForIssuance), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

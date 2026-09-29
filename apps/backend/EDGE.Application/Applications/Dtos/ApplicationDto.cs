@@ -23,6 +23,8 @@ public class ApplicationDto
     public bool IsPinned { get; set; }
     public bool IsArchived { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
     public Guid? ServiceId { get; set; }
     public string? ServiceName { get; set; }

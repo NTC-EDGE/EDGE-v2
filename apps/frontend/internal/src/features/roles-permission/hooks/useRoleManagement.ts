@@ -55,7 +55,7 @@ export function useRoleManagement() {
             .substring(0, 2)
             .toUpperCase();
 
-          const isStandardRole = r.tenantId === null || r.tenantId === undefined || Boolean(r.isSystemRole);
+          const isStandardRole = r.tenantId === null || r.tenantId === undefined || Boolean(r.isSystemRole) || (tenantId !== undefined && r.tenantId !== tenantId);
 
           return {
             id: r.id,
@@ -69,7 +69,7 @@ export function useRoleManagement() {
         });
     }
     return [];
-  }, [apiRoles]);
+  }, [apiRoles, tenantId]);
 
   // ── Auto-select first role ──────────────────────────────────────────────────
   useEffect(() => {
@@ -165,7 +165,15 @@ export function useRoleManagement() {
       .filter((cat) => cat.options.length > 0);
   }, [nonSystemCategories, selectedCategoryFilter, permissionQuery]);
 
-  const isCurrentRoleReadOnly = Boolean((selectedRole?.isSystemRole && !isSuperAdmin) || !canAssignPermissions);
+  const isOwnCustomRole = Boolean(
+    selectedRole !== null &&
+    selectedRole.tenantId !== null &&
+    selectedRole.tenantId !== undefined &&
+    (tenantId === undefined || selectedRole.tenantId === tenantId) &&
+    !selectedRole.isSystemRole
+  );
+
+  const isCurrentRoleReadOnly = Boolean(!isOwnCustomRole || !canAssignPermissions);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSelectRole = (role: UIFormatRole) => {
@@ -212,10 +220,10 @@ export function useRoleManagement() {
 
   const savePermissions = async (): Promise<{ ok: boolean; error: string | null }> => {
     if (selectedRole === null || !hasUnsavedChanges || isSubmitting) return { ok: false, error: null };
-    if (isCurrentRoleReadOnly) {
+    if (!isOwnCustomRole) {
       return {
         ok: false,
-        error: 'Standard system roles cannot be modified by tenant administrators. Please create a custom role for your office.',
+        error: 'Standard system roles cannot be modified inside regional tenant management. You can only configure permissions for custom roles created for your office.',
       };
     }
     setIsSubmitting(true);
@@ -236,8 +244,15 @@ export function useRoleManagement() {
 
   const updateRole = async (roleId: string, newName: string): Promise<{ ok: boolean; error: string | null }> => {
     const role = roles.find((r) => r.id === roleId);
-    if (role?.isSystemRole && !isSuperAdmin) {
-      return { ok: false, error: 'Standard system roles cannot be modified.' };
+    const isCustomRoleForTenant = Boolean(
+      role &&
+      role.tenantId !== null &&
+      role.tenantId !== undefined &&
+      (tenantId === undefined || role.tenantId === tenantId) &&
+      !role.isSystemRole
+    );
+    if (!isCustomRoleForTenant) {
+      return { ok: false, error: 'Standard system roles cannot be modified in regional office management. You may only edit custom roles created for your regional office.' };
     }
     const trimmedName = newName.trim();
     if (!trimmedName) return { ok: false, error: 'Role name cannot be empty.' };
@@ -281,8 +296,15 @@ export function useRoleManagement() {
 
   const deleteRole = async (roleId: string): Promise<{ ok: boolean; error: string | null }> => {
     const role = roles.find((r) => r.id === roleId);
-    if (role?.isSystemRole) {
-      return { ok: false, error: 'Standard system roles cannot be deleted.' };
+    const isCustomRoleForTenant = Boolean(
+      role &&
+      role.tenantId !== null &&
+      role.tenantId !== undefined &&
+      (tenantId === undefined || role.tenantId === tenantId) &&
+      !role.isSystemRole
+    );
+    if (!isCustomRoleForTenant) {
+      return { ok: false, error: 'Standard system roles cannot be deleted. You can only delete custom roles created for your regional office.' };
     }
     const [ok, err] = await roleService.deleteRole(roleId);
     const isSuccess = !err && Boolean(ok);

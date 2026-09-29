@@ -94,8 +94,10 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<SoaHistory> SoaHistories => Set<SoaHistory>();
     public DbSet<OpHistory> OpHistories => Set<OpHistory>();
     public DbSet<CorrectionAuditTrail> CorrectionAuditTrails => Set<CorrectionAuditTrail>();
+    public DbSet<IssuedDocumentDetail> IssuedDocumentDetails => Set<IssuedDocumentDetail>();
 
     public DbSet<OrBooklet> OrBooklets => Set<OrBooklet>();
+    public DbSet<OrBookletCashier> OrBookletCashiers => Set<OrBookletCashier>();
     public DbSet<OfficialReceipt> OfficialReceipts => Set<OfficialReceipt>();
     public DbSet<OfficialReceiptLineItem> OfficialReceiptLineItems => Set<OfficialReceiptLineItem>();
     public DbSet<AgencyBankAccount> AgencyBankAccounts => Set<AgencyBankAccount>();
@@ -168,11 +170,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.RoleId });
+            entity.HasIndex(e => new { e.TenantId, e.FieldOfficeId });
         });
 
         // Role Configuration
         modelBuilder.Entity<Role>(entity =>
         {
+            entity.HasIndex(r => new { r.TenantId, r.Key });
+            entity.HasIndex(r => new { r.TenantId, r.Name });
             entity.HasOne(r => r.Tenant)
                   .WithMany()
                   .HasForeignKey(r => r.TenantId)
@@ -219,6 +225,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasMaxLength(50)
                   .HasDefaultValue(FieldOfficeCategory.Main);
             entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasIndex(e => new { e.TenantId, e.RegionId });
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
@@ -734,6 +742,33 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.PerformedByUserId).IsRequired(false);
         });
 
+        modelBuilder.Entity<IssuedDocumentDetail>(entity =>
+        {
+            entity.Property(e => e.FormNumber).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.LicenseNumber).HasMaxLength(100);
+            entity.Property(e => e.CallSign).HasMaxLength(50);
+            entity.Property(e => e.DocumentType).HasMaxLength(50);
+            entity.Property(e => e.IssuedByStaffName).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.OriginalEvaluatorName).HasMaxLength(200);
+            entity.Property(e => e.OfficialReceiptNumber).HasMaxLength(100);
+            entity.Property(e => e.QrVerificationCode).HasMaxLength(200);
+
+            entity.HasIndex(e => e.ApplicationId);
+            entity.HasIndex(e => e.FormNumber);
+            entity.HasIndex(e => e.LicenseNumber);
+            entity.HasIndex(e => e.CallSign);
+
+            entity.HasOne(e => e.Application)
+                  .WithMany(a => a.IssuedDocumentDetails)
+                  .HasForeignKey(e => e.ApplicationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Applicant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ApplicantId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
         // Receipt Management & Cashiering Configurations
         modelBuilder.Entity<OrBooklet>(entity =>
         {
@@ -747,6 +782,23 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.AssignedUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OrBookletCashier>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.BookletId, e.CashierUserId }).IsUnique();
+            entity.HasIndex(e => e.CashierUserId);
+
+            entity.HasOne(e => e.Booklet)
+                  .WithMany(b => b.AssignedCashiers)
+                  .HasForeignKey(e => e.BookletId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CashierUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.CashierUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OfficialReceipt>(entity =>
@@ -961,6 +1013,25 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<IssuedDocumentDetail>(entity =>
+        {
+            entity.HasIndex(e => e.ApplicationId);
+            entity.HasIndex(e => e.FormNumber);
+            entity.HasIndex(e => e.LicenseNumber);
+            entity.HasIndex(e => e.CallSign);
+            entity.HasIndex(e => e.OfficialReceiptNumber);
+
+            entity.HasOne(e => e.Application)
+                  .WithMany(a => a.IssuedDocumentDetails)
+                  .HasForeignKey(e => e.ApplicationId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Applicant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ApplicantId)
                   .OnDelete(DeleteBehavior.SetNull);
         });
     }

@@ -70,7 +70,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .Include(r => r.IssuedByUser)
             .Include(r => r.CancelledByUser)
             .Include(r => r.Deposit)
-            .Where(r => r.TenantId == tenantId);
+            .Where(r => tenantId == Guid.Empty || r.TenantId == tenantId);
 
         if (status.HasValue)
         {
@@ -119,12 +119,12 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .AsNoTracking()
             .Include(r => r.LineItems)
             .Include(r => r.IssuedByUser)
-            .Where(r => r.TenantId == tenantId && r.Status == ReceiptStatus.Issued && r.DepositId == null)
+            .Where(r => (tenantId == Guid.Empty || r.TenantId == tenantId) && r.Status == ReceiptStatus.Issued && r.DepositId == null)
             .OrderBy(r => r.IssuedAt)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, CancellationToken cancellationToken = default)
+    public async Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, string? fieldOffice = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OrdersOfPayment
             .AsNoTracking()
@@ -146,7 +146,15 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
                     .ThenInclude(aa => aa.Applicant)
                         .ThenInclude(a => a!.Service)
                             .ThenInclude(s => s!.ServiceCategory)
-            .Where(op => op.Status == OpStatus.Billed && op.Application.TenantId == tenantId);
+            .Where(op => (op.Status == OpStatus.Billed || op.Status == OpStatus.Processing) &&
+                         (tenantId == Guid.Empty || op.Application.TenantId == tenantId));
+
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLower();
+            query = query.Where(op => op.Application.Office != null &&
+                (op.Application.Office.ToLower().Contains(fo) || fo.Contains(op.Application.Office.ToLower())));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
@@ -172,7 +180,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
     public async Task<bool> ExistsOrNumberAsync(Guid tenantId, string orNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OfficialReceipts
-            .Where(r => r.TenantId == tenantId && r.OfficialReceiptNumber == orNumber);
+            .Where(r => (tenantId == Guid.Empty || r.TenantId == tenantId) && r.OfficialReceiptNumber == orNumber);
 
         if (excludeId.HasValue)
         {

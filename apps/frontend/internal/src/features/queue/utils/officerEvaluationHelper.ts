@@ -221,3 +221,62 @@ export function resolveApplicantAuditHistory(
 
   return list;
 }
+
+/**
+ * Resolves the approving evaluator (the technical evaluation engineer/officer who evaluated
+ * the application before the accountant and cashier stages).
+ */
+export function getApprovingEvaluator(application: ApplicationData): string | null {
+  // 1. Check history for explicit evaluation completion / forward to accountant
+  if (application.history && application.history.length > 0) {
+    const matchingEntry = [...application.history].reverse().find((h) => {
+      const act = (h.action || '').toLowerCase();
+      const rem = (h.remarks || '').toLowerCase();
+      const stat = (h.status || '').toLowerCase();
+      const role = (h.role || '').toLowerCase();
+
+      const isAccountantHandoff =
+        act.includes('accountant') ||
+        stat === 'foraccountant' ||
+        rem.includes('accountant');
+
+      const isEvaluationAction =
+        act.includes('evaluated') ||
+        act.includes('evaluation complete') ||
+        act.includes('approved evaluation') ||
+        act.includes('technical evaluation');
+
+      const isEvaluatorRole = role.includes('evaluator') || role.includes('engineer');
+
+      return (
+        (isAccountantHandoff || isEvaluationAction || (isEvaluatorRole && (act.includes('forwarded') || act.includes('approved') || act.includes('evaluat')))) &&
+        Boolean(h.staff && h.staff.trim().length > 0 && !isGenericOfficer(h.staff, application.office))
+      );
+    });
+
+    if (matchingEntry && matchingEntry.staff && matchingEntry.staff.trim().length > 0) {
+      return matchingEntry.staff.trim();
+    }
+
+    // Secondary fallback in history: any entry with a staff name that isn't generic
+    const anyEvaluatorEntry = [...application.history].reverse().find(
+      (h) =>
+        ((h.role || '').toLowerCase().includes('evaluat') || (h.action || '').toLowerCase().includes('evaluat')) &&
+        Boolean(h.staff && h.staff.trim().length > 0 && !isGenericOfficer(h.staff, application.office))
+    );
+    if (anyEvaluatorEntry && anyEvaluatorEntry.staff && anyEvaluatorEntry.staff.trim().length > 0) {
+      return anyEvaluatorEntry.staff.trim();
+    }
+  }
+
+  // 2. Check evaluatingOfficer on application
+  if (
+    application.evaluatingOfficer &&
+    application.evaluatingOfficer.trim().length > 0 &&
+    !isGenericOfficer(application.evaluatingOfficer, application.office)
+  ) {
+    return application.evaluatingOfficer.trim();
+  }
+
+  return null;
+}

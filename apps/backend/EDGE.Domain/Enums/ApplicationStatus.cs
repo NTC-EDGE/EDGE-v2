@@ -14,5 +14,7 @@ public enum ApplicationStatus
     /// <summary>Evaluation approved — forwarded to Accountant for SOA review and approval.</summary>
     ForAccountant = 6,
     /// <summary>SOA approved by Accountant — awaiting Cashier payment verification.</summary>
-    PendingPayment = 7
+    PendingPayment = 7,
+    /// <summary>Payment verified by Cashier — forwarded to Regional Evaluator / Issuance Officer for Form and License configuration.</summary>
+    ForIssuance = 8
 }
