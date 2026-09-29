@@ -12,13 +12,16 @@ export interface FieldDto {
   placeholder?: string;
   orderIndex?: number;
   validationRules?: string;
+  visibilityCondition?: string;
 }
 
 export interface FormSectionDto {
   id?: string;
   key?: string;
   title: string;
+  description?: string;
   orderIndex?: number;
+  visibilityCondition?: string;
   fields: FieldDto[];
 }
 

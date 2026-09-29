@@ -149,8 +149,20 @@ export function handleWizardNext({
         Alert.alert("Required Field", "Please enter the Company / Organization Name before proceeding.");
         return;
       }
-      if (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "") {
-        Alert.alert("Required Field", "Please enter the Authorized Representative Name before proceeding.");
+      if (
+        (!activeApplicant.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") &&
+        (!activeApplicant.representativeLastName || activeApplicant.representativeLastName.trim() === "") &&
+        (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "")
+      ) {
+        Alert.alert("Required Field", "Please enter the Authorized Representative Details (First Name and Last Name) before proceeding.");
+        return;
+      }
+      if (!activeApplicant.representativeFirstName && !activeApplicant.representativeName) {
+        Alert.alert("Required Field", "Please enter the Authorized Representative First Name before proceeding.");
+        return;
+      }
+      if (!activeApplicant.representativeLastName && !activeApplicant.representativeName) {
+        Alert.alert("Required Field", "Please enter the Authorized Representative Last Name before proceeding.");
         return;
       }
     }

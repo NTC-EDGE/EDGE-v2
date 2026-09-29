@@ -69,6 +69,16 @@ interface GeneralFilingModeStepProps {
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
 }
 
+const SUFFIX_OPTIONS = [
+  { label: "None", value: "" },
+  { label: "Jr.", value: "Jr." },
+  { label: "Sr.", value: "Sr." },
+  { label: "II", value: "II" },
+  { label: "III", value: "III" },
+  { label: "IV", value: "IV" },
+  { label: "V", value: "V" },
+];
+
 const safeUpper = (str?: unknown): string => {
   if (typeof str === "string") return str.toUpperCase();
   if (str !== null && str !== undefined && typeof (str as { toString: () => string }).toString === "function") {
@@ -157,8 +167,10 @@ export function GeneralFilingModeStep({
   React.useEffect(() => {
     if (!appMode) {
       onAppModeChange("SINGLE");
+    } else if (applicantType === "individual" && appMode === "BULK") {
+      onAppModeChange("SINGLE");
     }
-  }, [appMode, onAppModeChange]);
+  }, [appMode, applicantType, onAppModeChange]);
 
   const selectedClassId = selectedElementId || localSelectedClassId;
 
@@ -681,6 +693,7 @@ export function GeneralFilingModeStep({
             activeOpacity={0.8}
             onPress={() => {
               onApplicantTypeChange?.("individual");
+              onAppModeChange("SINGLE");
             }}
             style={{
               flexDirection: "row",
@@ -759,7 +772,7 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginBottom: 2 }}>
                 <Icon name="briefcase" size={14} color={applicantType === "company" ? "#0F2C59" : "#64748B"} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: applicantType === "company" ? "#0F2C59" : "#1E293B" }}>
-                  Applicant (Organization / Company / Entity)
+                  Liason (Organization / Company / Entity)
                 </Text>
               </View>
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B", lineHeight: 16 }}>
@@ -793,20 +806,85 @@ export function GeneralFilingModeStep({
               <View style={{ flexDirection: "row", gap: 12 }}>
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
-                    label="Authorized Representative Name"
+                    label="First Name"
                     required={true}
-                    placeholder="e.g., Engr. Juan Dela Cruz"
-                    value={activeApplicant?.representativeName ?? representativeName}
+                    placeholder="e.g., Juan"
+                    value={activeApplicant?.representativeFirstName ?? ""}
                     onChangeText={(text) => {
-                      onRepresentativeNameChange?.(text);
-                      updateActiveApplicant?.({ representativeName: text });
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [text, currentMiddle, currentLast, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeFirstName: text,
+                        representativeName: fullName,
+                      });
                     }}
                   />
                 </View>
                 <View style={{ flex: 1 }}>
                   <ValidatedInput
-                    label="Designation / Position"
-                    placeholder="e.g., Authorized Representative / Manager / Trustee"
+                    label="Middle Name"
+                    placeholder="e.g., Protacio"
+                    value={activeApplicant?.representativeMiddleName ?? ""}
+                    onChangeText={(text) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [currentFirst, text, currentLast, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeMiddleName: text,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Last Name"
+                    required={true}
+                    placeholder="e.g., Dela Cruz"
+                    value={activeApplicant?.representativeLastName ?? ""}
+                    onChangeText={(text) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentSuffix = activeApplicant?.representativeSuffix ?? "";
+                      const fullName = [currentFirst, currentMiddle, text, currentSuffix].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeLastName: text,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+                <View style={{ flex: 0.8 }}>
+                  <Select
+                    label="Suffix"
+                    options={SUFFIX_OPTIONS}
+                    value={activeApplicant?.representativeSuffix ?? ""}
+                    onValueChange={(val) => {
+                      const currentFirst = activeApplicant?.representativeFirstName ?? "";
+                      const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
+                      const currentLast = activeApplicant?.representativeLastName ?? "";
+                      const fullName = [currentFirst, currentMiddle, currentLast, val].filter(Boolean).join(" ");
+                      onRepresentativeNameChange?.(fullName);
+                      updateActiveApplicant?.({
+                        representativeSuffix: val,
+                        representativeName: fullName,
+                      });
+                    }}
+                  />
+                </View>
+              </View>
+
+              <View style={{ flexDirection: "row", gap: 12 }}>
+                <View style={{ flex: 1 }}>
+                  <ValidatedInput
+                    label="Representative Position / Designation"
+                    placeholder="e.g., Authorized Representative / Manager / Trustee / Liaison Officer"
                     value={activeApplicant?.representativePosition ?? representativePosition}
                     onChangeText={(text) => {
                       onRepresentativePositionChange?.(text);
@@ -1069,28 +1147,69 @@ export function GeneralFilingModeStep({
           </Text>
         </View>
 
-        <Select
-          label="Filing Mode*"
-          placeholder="Select Filing Mode..."
-          value={appMode}
-          onValueChange={(val) => {
-            if (val === "SINGLE" || val === "BULK") {
-              onAppModeChange(val);
-            }
-          }}
-          options={
-            applicantType === "individual"
-              ? [
-                  { label: "Single Application (1 Individual Applicant)", value: "SINGLE" },
-                  { label: "Bulk Application (Multiple Individual Applicants / Spreadsheet Import)", value: "BULK" },
-                ]
-              : [
-                  { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
-                  { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
-                ]
-          }
-          iconName="users"
-        />
+        {applicantType === "individual" ? (
+          <View
+            style={{
+              flexDirection: "row",
+              alignItems: "center",
+              padding: 14,
+              borderRadius: 10,
+              borderWidth: 1.5,
+              borderColor: "#10B981",
+              backgroundColor: "#F0FDF4",
+              gap: 12,
+            }}
+          >
+            <View
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 16,
+                backgroundColor: "#DCFCE7",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <Icon name="user" size={16} color="#15803D" />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#15803D" }}>
+                Single Application (1 Individual Applicant)
+              </Text>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#166534", marginTop: 2 }}>
+                Individual applicant filings are processed strictly as single transactions.
+              </Text>
+            </View>
+            <View
+              style={{
+                paddingVertical: 4,
+                paddingHorizontal: 8,
+                borderRadius: 6,
+                backgroundColor: "#DCFCE7",
+              }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#15803D" }}>
+                SINGLE ONLY
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <Select
+            label="Filing Mode*"
+            placeholder="Select Filing Mode..."
+            value={appMode || "SINGLE"}
+            onValueChange={(val) => {
+              if (val === "SINGLE" || val === "BULK") {
+                onAppModeChange(val);
+              }
+            }}
+            options={[
+              { label: "Single Application (1 Applicant under Company)", value: "SINGLE" },
+              { label: "Bulk Application (Multiple Applicants / Spreadsheet Import)", value: "BULK" },
+            ]}
+            iconName="users"
+          />
+        )}
       </View>
     </View>
   );

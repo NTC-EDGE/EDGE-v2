@@ -276,3 +276,92 @@ export function getSectionTitle(
   return sec.title;
 }
 
+export interface FormEvaluationContext {
+  variantType?: string;
+  variantId?: string;
+  variantDescription?: string;
+  elementCodes?: string[];
+  applicantType?: "individual" | "company";
+  formValues?: Record<string, string>;
+}
+
+export function evaluateVisibilityCondition(
+  condition: string | null | undefined,
+  context: FormEvaluationContext
+): boolean {
+  if (!condition || !condition.trim()) return true;
+
+  try {
+    const trimmed = condition.trim();
+
+    // 1. JSON Rule Syntax
+    if (trimmed.startsWith("{")) {
+      const rule = JSON.parse(trimmed);
+
+      // Positive Variant Match
+      if (rule.variants && Array.isArray(rule.variants) && rule.variants.length > 0) {
+        const vType = (context.variantType || "").toUpperCase();
+        const vId = context.variantId || "";
+        const vDesc = (context.variantDescription || "").toUpperCase();
+        const matches = rule.variants.some((v: string) => {
+          const vUpper = v.toUpperCase();
+          return vUpper === vType || v === vId || vDesc.includes(vUpper);
+        });
+        if (!matches) return false;
+      }
+
+      // Negative Variant Match (Excluded)
+      if (rule.excludedVariants && Array.isArray(rule.excludedVariants) && rule.excludedVariants.length > 0) {
+        const vType = (context.variantType || "").toUpperCase();
+        const vId = context.variantId || "";
+        const matches = rule.excludedVariants.some((v: string) => {
+          const vUpper = v.toUpperCase();
+          return vUpper === vType || v === vId;
+        });
+        if (matches) return false;
+      }
+
+      // Element Codes Match
+      if (rule.elements && Array.isArray(rule.elements) && rule.elements.length > 0) {
+        const elemCodes = context.elementCodes || [];
+        const matches = elemCodes.some((code) => rule.elements.includes(code));
+        if (!matches) return false;
+      }
+
+      // Applicant Type Match
+      if (rule.applicantType && rule.applicantType !== context.applicantType) {
+        return false;
+      }
+
+      // Dynamic Inter-field Dependencies
+      if (rule.dependsOn && context.formValues) {
+        const parentVal = context.formValues[rule.dependsOn.fieldId] || context.formValues[rule.dependsOn.fieldKey];
+        if (rule.dependsOn.operator === "equals" && parentVal !== rule.dependsOn.value) return false;
+        if (rule.dependsOn.operator === "notEquals" && parentVal === rule.dependsOn.value) return false;
+        if (rule.dependsOn.operator === "in" && Array.isArray(rule.dependsOn.value) && !rule.dependsOn.value.includes(parentVal)) return false;
+        if (rule.dependsOn.operator === "notEmpty" && (!parentVal || !parentVal.trim())) return false;
+      }
+
+      return true;
+    }
+
+    // 2. Simple Semicolon Delimited Rule Syntax (e.g. "variant:NEW,MODIFICATION")
+    const parts = trimmed.split(";").map((p) => p.trim());
+    for (const part of parts) {
+      if (part.startsWith("variant:")) {
+        const allowed = part.replace("variant:", "").split(",").map((v) => v.trim().toUpperCase());
+        const vType = (context.variantType || "").toUpperCase();
+        if (!allowed.includes(vType)) return false;
+      }
+      if (part.startsWith("applicantType:")) {
+        const allowed = part.replace("applicantType:", "").trim().toLowerCase();
+        if (allowed !== (context.applicantType || "individual").toLowerCase()) return false;
+      }
+    }
+    return true;
+  } catch {
+    return true;
+  }
+}
+
+

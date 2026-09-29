@@ -21,9 +21,7 @@ public static class AccreditationsCategorySeederData
         ""requiredSections"": [
             { ""key"": ""typeOfApplication"", ""required"": true },
             { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""personnel"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
+            { ""key"": ""personnel"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -156,11 +154,7 @@ public static class AccreditationsCategorySeederData
     {
         new("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfApplication", "Type of Application & Category", new() { "permitType", "noOfYears", "employmentType" }),
-            new("applicant", "Applicant Details", new() { "companyName", "entityType", "dtiSecRegistration", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("personnel", "Technical Personnel", new() { "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("personnel", "Technical Personnel", new() { "supervisingEngineer", "certificateEctNo", "certificateEctExpiryDate", "technicianName", "technicianCertNo", "technicianExpiryDate" })
         })
     };
 

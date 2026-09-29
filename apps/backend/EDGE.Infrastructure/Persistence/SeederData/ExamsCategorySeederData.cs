@@ -65,8 +65,7 @@ public static class ExamsCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicantPerson"", ""required"": true },
             { ""key"": ""applicantEducation"", ""required"": false },
-            { ""key"": ""assistanceRequest"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true }
+            { ""key"": ""assistanceRequest"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -282,12 +281,7 @@ public static class ExamsCategorySeederData
     {
         new("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
-            new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("applicantEducation", "Educational Background", new() { "schoolName", "courseDegree", "yearGraduated" }),
-            new("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
+            new("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" })
         })
     };
 

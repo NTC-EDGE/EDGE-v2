@@ -188,13 +188,65 @@ export interface SerializedApplicantPayload {
   applicantType?: string;
   companyName?: string;
   representativeName?: string;
+  dtiSecRegistration?: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
+  suffix?: string;
   email: string;
   contactNumber: string;
   address: string;
   birthDate: string;
+  eSignature?: string;
   formFieldValues: FormFieldValuePayload[];
+}
+
+export function isApplicantBiographicalOrSubmissionField(fieldIdOrLabel: string): boolean {
+  const lower = (fieldIdOrLabel || "").toLowerCase().trim();
+  return (
+    lower.includes("first name") ||
+    lower.includes("last name") ||
+    lower.includes("middle name") ||
+    lower.includes("full name") ||
+    lower.includes("applicant name") ||
+    lower.includes("birth date") ||
+    lower.includes("date of birth") ||
+    lower.includes("birth month") ||
+    lower.includes("birth day") ||
+    lower.includes("birth year") ||
+    lower.includes("civil status") ||
+    lower.includes("nationality") ||
+    lower.includes("contact number") ||
+    lower.includes("mobile") ||
+    lower.includes("phone number") ||
+    lower.includes("email address") ||
+    lower.includes("email") ||
+    lower.includes("street") ||
+    lower.includes("barangay") ||
+    lower.includes("city / municipality") ||
+    lower.includes("province") ||
+    lower.includes("region") ||
+    lower.includes("zip code") ||
+    lower.includes("postal code") ||
+    lower.includes("applicant address") ||
+    lower.includes("residential address") ||
+    lower.includes("permanent address") ||
+    lower.includes("declaration") ||
+    lower.includes("i hereby declare") ||
+    lower.includes("official receipt") ||
+    lower.includes("amount paid") ||
+    lower.includes("payment date") ||
+    lower === "fd000000-0000-0000-0000-000000000001" ||
+    lower === "fd000000-0000-0000-0000-000000000002" ||
+    lower === "fd000000-0000-0000-0000-000000000003" ||
+    lower === "fd000000-0000-0000-0000-000000000004" ||
+    lower === "fd000000-0000-0000-0000-000000000005" ||
+    lower === "fd000000-0000-0000-0000-000000000012" ||
+    lower === "fd000000-0000-0000-0000-000000000013" ||
+    lower === "fd000000-0000-0000-0000-000000000021" ||
+    lower === "fd000000-0000-0000-0000-000000000022" ||
+    lower === "fd000000-0000-0000-0000-000000000023"
+  );
 }
 
 export function serializeCertificateApplicant(
@@ -267,23 +319,46 @@ export function serializeCertificateApplicant(
       formFields.map((f) => f.fieldId).filter((id): id is string => Boolean(id))
     );
 
-    const filteredFieldValues =
-      validFieldIdSet.size > 0
-        ? app.formFieldValues.filter(
-            (fv) => !fv.fieldId || validFieldIdSet.has(fv.fieldId)
-          )
-        : app.formFieldValues;
+    // Filter out both unknown IDs and applicant/biographical/submission fields
+    const filteredFieldValues = app.formFieldValues
+      .filter((fv) => {
+        if (validFieldIdSet.size > 0 && fv.fieldId && !validFieldIdSet.has(fv.fieldId)) {
+          return false;
+        }
+        if (isApplicantBiographicalOrSubmissionField(fv.fieldLabel || fv.fieldId)) {
+          return false;
+        }
+        return true;
+      });
+
+    const isComp = (app.applicantType || "").toLowerCase() === "company";
+    const effectiveFirstName = isComp
+      ? app.representativeFirstName || finalFirstName || "Representative"
+      : finalFirstName || "Applicant";
+    const effectiveMiddleName = isComp
+      ? app.representativeMiddleName || app.middleName
+      : app.middleName;
+    const effectiveLastName = isComp
+      ? app.representativeLastName || finalLastName || "Officer"
+      : finalLastName || "Detail";
+    const effectiveSuffix = isComp
+      ? app.representativeSuffix || app.suffix
+      : app.suffix;
 
     return {
       applicantType: app.applicantType || "individual",
       companyName: app.companyName || undefined,
       representativeName: app.representativeName || undefined,
-      firstName: finalFirstName || "Applicant",
-      lastName: finalLastName || "Detail",
+      dtiSecRegistration: app.dtiSecRegistration || undefined,
+      firstName: effectiveFirstName,
+      middleName: effectiveMiddleName || undefined,
+      lastName: effectiveLastName,
+      suffix: effectiveSuffix || undefined,
       email: emailField || app.email || "applicant@example.com",
       contactNumber: contactNoField || app.contactNo || "",
       address: addressField || app.address || "N/A",
       birthDate,
+      eSignature: app.signatureUrl || undefined,
       formFieldValues: filteredFieldValues.map(fv => ({
         fieldId: fv.fieldId,
         fieldLabel: fv.fieldLabel,
@@ -297,16 +372,19 @@ export function serializeCertificateApplicant(
   // Append dynamic form field values if present
   if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
     app.formFieldValues.forEach((fv) => {
-      formFieldValues.push({
-        fieldId: fv.fieldId,
-        fieldLabel: fv.fieldLabel,
-        value: fv.value,
-      });
+      if (!isApplicantBiographicalOrSubmissionField(fv.fieldLabel || fv.fieldId)) {
+        formFieldValues.push({
+          fieldId: fv.fieldId,
+          fieldLabel: fv.fieldLabel,
+          value: fv.value,
+        });
+      }
     });
   }
 
   // Helper to append a field — always resolves to a real seeder GUID when available
   const addField = (label: string, val: string) => {
+    if (isApplicantBiographicalOrSubmissionField(label)) return;
     formFieldValues.push({
       fieldId: resolveFieldId(label, formFields),
       fieldLabel: label,
@@ -726,11 +804,7 @@ export function serializeCertificateApplicant(
   }
 
   // Default Generic Serialization
-  addField("Full Name", `${app.firstName} ${app.lastName}`.trim());
-  addField("Email", app.email);
-  addField("Contact Number", app.contactNo);
-  addField("Address", app.address);
-  addField("Filing Notes", app.notes);
+  if (app.notes) addField("Filing Notes", app.notes);
 
   return {
     applicantType: app.applicantType || "individual",

@@ -77,8 +77,6 @@ public static class CertificatesCategorySeederData
             { ""key"": ""applicantPerson"", ""required"": true },
             { ""key"": ""typeOfCertificate"", ""required"": true },
             { ""key"": ""examSeminarDetails"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -104,8 +102,6 @@ public static class CertificatesCategorySeederData
             { ""key"": ""applicantAddress"", ""required"": true },
             { ""key"": ""applicantContact"", ""required"": true },
             { ""key"": ""examSeminarDetails"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -129,8 +125,6 @@ public static class CertificatesCategorySeederData
             { ""key"": ""companyDetails"", ""required"": false },
             { ""key"": ""applicantAddress"", ""required"": true },
             { ""key"": ""devices"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -161,8 +155,6 @@ public static class CertificatesCategorySeederData
             { ""key"": ""valueAddedServices"", ""required"": true },
             { ""key"": ""knownByAnotherName"", ""required"": false },
             { ""key"": ""vasRegistration"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -185,8 +177,6 @@ public static class CertificatesCategorySeederData
         ""requiredSections"": [
             { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""copyParticulars"", ""required"": true },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -211,8 +201,6 @@ public static class CertificatesCategorySeederData
             { ""key"": ""antennaSystem"", ""required"": false },
             { ""key"": ""signalReception"", ""required"": false },
             { ""key"": ""bsd"", ""required"": false },
-            { ""key"": ""declaration"", ""required"": true },
-            { ""key"": ""payment"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -480,62 +468,36 @@ public static class CertificatesCategorySeederData
     {
         new("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
         {
-            new("typeOfCertificate", "Type of Certificate / Application", new() { "typeOfCertificate", "noOfYears" }),
-            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality", "employmentStatus", "employmentType", "weight_kg", "height_cm" }),
-            new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" })
         }),
         new("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
         {
-            new("permitType", "Type of Application & Permit Category", new() { "permitType", "noOfYears" }),
             new("certificateParticulars", "Certificate Particulars", new() { "licenseNo", "dateOfExpiry", "modificationDueTo" }),
-            new("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "sex", "civilStatus", "nationality" }),
-            new("applicantAddress", "Address Information", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
-            new("applicantContact", "Contact Information", new() { "contactNo", "email" }),
-            new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarAddress", "examSeminarDate", "examSeminarRating" })
         }),
         new("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant / Company Details", new() { "fullName", "contactNo", "email" }),
-            new("applicantAddress", "Address", new() { "region", "province", "city", "barangay", "street", "zipCode" }),
             new("invoiceDetails", "Commercial Invoice Information", new() { "invoiceNumber" }),
-            new("devices", "Registered Devices", new() { "devicesDetails" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("devices", "Registered Devices", new() { "devicesDetails" })
         }),
         new("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicationType", "Application Type", new() { "appType", "corVasNo", "corVasExpiryDate" }),
-            new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
-            new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" })
         }),
         new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant's Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
-            new("copyParticulars", "Certificate Details", new() { "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("copyParticulars", "Certificate Details", new() { "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" })
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
-            new("applicant", "Applicant / Company Details", new() { "fullName", "region", "province", "city", "barangay", "street", "zipCode", "contactNo", "email" }),
             new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
             new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
             new("antennaSystem", "Particulars of Antenna System", new() { "tvroAntenna" }),
             new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" }),
-            new("bsd", "Broadcast Services Division (BSD)", new() { "bsdNo" }),
-            new("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            new("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
+            new("bsd", "Broadcast Services Division (BSD)", new() { "bsdNo" })
         })
     };
 
