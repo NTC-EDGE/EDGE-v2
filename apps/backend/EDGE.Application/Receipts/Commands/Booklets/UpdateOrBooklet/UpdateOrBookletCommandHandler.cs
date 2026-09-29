@@ -130,14 +130,14 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
                 }
 
                 var mem = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
-                if (mem == null && !user.IsSuperAdmin)
+                if (mem == null)
                 {
                     return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
                 }
 
                 if (!EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet.CreateOrBookletCommandHandler.IsAuthorizedCashierRole(user, mem))
                 {
-                    var roleDisplayName = mem?.Role?.Name ?? mem?.Position ?? "User";
+                    var roleDisplayName = mem.Role?.Name ?? mem.Position ?? "User";
                     return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
                 }
 

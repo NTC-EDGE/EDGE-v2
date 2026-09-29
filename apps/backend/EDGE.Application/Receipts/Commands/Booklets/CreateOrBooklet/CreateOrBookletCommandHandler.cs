@@ -116,14 +116,14 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             }
 
             var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
-            if (membership == null && !user.IsSuperAdmin)
+            if (membership == null)
             {
                 return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
             }
 
             if (!IsAuthorizedCashierRole(user, membership))
             {
-                var roleDisplayName = membership?.Role?.Name ?? membership?.Position ?? "User";
+                var roleDisplayName = membership.Role?.Name ?? membership.Position ?? "User";
                 return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
             }
 
@@ -198,7 +198,6 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
 
     public static bool IsAuthorizedCashierRole(User user, TenantMember? membership)
     {
-        if (user.IsSuperAdmin) return true;
         if (membership == null) return false;
 
         // 1. Primary RBAC check: Does the user's role have permission to issue receipts or collect fee payments?

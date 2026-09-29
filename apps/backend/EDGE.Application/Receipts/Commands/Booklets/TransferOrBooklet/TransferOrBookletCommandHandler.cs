@@ -64,7 +64,7 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
 
         // Verify that the new assignee belongs to this tenant
         var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, request.NewAssignedUserId, cancellationToken);
-        if (membership == null && !newUser.IsSuperAdmin)
+        if (membership == null)
         {
             return ApiResponse<OrBookletDto>.Fail("The new custodian must belong to this regional office / tenant.");
         }
@@ -92,14 +92,14 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
             }
 
             var mem = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, uid, cancellationToken);
-            if (mem == null && !u.IsSuperAdmin)
+            if (mem == null)
             {
                 return ApiResponse<OrBookletDto>.Fail($"Cashier '{u.FirstName} {u.LastName}' must belong to this regional office / tenant.");
             }
 
             if (!EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet.CreateOrBookletCommandHandler.IsAuthorizedCashierRole(u, mem))
             {
-                var roleDisplayName = mem?.Role?.Name ?? mem?.Position ?? "User";
+                var roleDisplayName = mem.Role?.Name ?? mem.Position ?? "User";
                 return ApiResponse<OrBookletDto>.Fail($"User '{u.FirstName} {u.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
             }
 
