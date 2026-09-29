@@ -1211,6 +1211,16 @@ export interface VerifyPaymentRequest {
   amountReceived: number;
 }
 
+export interface SubmitPaymentRequest {
+  orderOfPaymentId?: string | null;
+  paymentMethod: PaymentMethodDto;
+  referenceNumber?: string | null;
+  payorName?: string | null;
+  amountPaid?: number | null;
+  remarks?: string | null;
+  proofOfPaymentFileId?: string | null;
+}
+
 export type ReturnTargetDto = 'Accountant' | 'Evaluator';
 
 export interface ReturnOpRequest {

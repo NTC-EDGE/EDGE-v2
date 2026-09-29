@@ -22,6 +22,8 @@ import { BulkApplicantsSection } from './applicationDetails/BulkApplicantsSectio
 import { SingleApplicantSection } from './applicationDetails/SingleApplicantSection';
 import { DocumentPreviewSection } from './applicationDetails/DocumentPreviewSection';
 import { CustomDocPreviewModal } from './applicationDetails/CustomDocPreviewModal';
+import { ClientBillingNoticeCard } from './applicationDetails/ClientBillingNoticeCard';
+import { ClientPaymentSubmissionModal } from './applicationDetails/ClientPaymentSubmissionModal';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 
 const TABLE_PAGE_SIZE = 6;
@@ -36,8 +38,10 @@ export function ApplicationDetailsPage({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 992;
 
+  const [appState, setAppState] = useState(initialApp);
   const [tableSearch, setTableSearch] = useState('');
   const [tablePage, setTablePage] = useState(1);
+  const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
   const {
     app,
@@ -56,7 +60,7 @@ export function ApplicationDetailsPage({
     currentStepIndex,
     variantLabel,
     scheduleSummaryText,
-  } = useApplicationDetailsData(initialApp);
+  } = useApplicationDetailsData(appState);
 
   const filteredApplicants = useMemo(() => {
     if (!tableSearch.trim()) return appApplicants;
@@ -130,6 +134,42 @@ export function ApplicationDetailsPage({
 
         <View style={styles.tabContentList}>
           <ApplicationProgressStepper currentStepIndex={currentStepIndex} />
+
+          <ClientBillingNoticeCard
+            app={app}
+            isDesktop={isDesktop}
+            onProceedToPayment={() => setIsPaymentModalOpen(true)}
+            onViewSoa={() => {
+              const doc = docs.find((d) => d.category === 'SOA' || d.name.toLowerCase().includes('soa') || d.name.toLowerCase().includes('statement'));
+              if (doc) {
+                setPreviewDoc(doc);
+              } else {
+                setPreviewDoc({
+                  id: 'soa-doc-preview',
+                  name: `Statement of Account #${app.soaNumber || app.referenceNumber}`,
+                  type: 'PDF',
+                  category: 'SOA',
+                  size: '145 KB',
+                  uploadedAt: app.submittedAt || new Date().toISOString(),
+                });
+              }
+            }}
+            onViewOp={() => {
+              const doc = docs.find((d) => d.category === 'RECEIPT' || d.name.toLowerCase().includes('order of payment') || d.name.toLowerCase().includes('op'));
+              if (doc) {
+                setPreviewDoc(doc);
+              } else {
+                setPreviewDoc({
+                  id: 'op-doc-preview',
+                  name: `Order of Payment #${app.referenceNumber}`,
+                  type: 'PDF',
+                  category: 'RECEIPT',
+                  size: '128 KB',
+                  uploadedAt: app.submittedAt || new Date().toISOString(),
+                });
+              }
+            }}
+          />
 
           {isBulk ? (
             <BulkApplicantsSection
@@ -212,6 +252,17 @@ export function ApplicationDetailsPage({
               onDownloadDoc(docToDownload);
             }
           }
+        }}
+      />
+      <ClientPaymentSubmissionModal
+        visible={isPaymentModalOpen}
+        app={app}
+        onClose={() => setIsPaymentModalOpen(false)}
+        onSuccess={() => {
+          setAppState((prev) => ({
+            ...prev,
+            remarks: 'Payment submitted via client. Waiting for Cashier verification.',
+          }));
         }}
       />
     </ScrollView>

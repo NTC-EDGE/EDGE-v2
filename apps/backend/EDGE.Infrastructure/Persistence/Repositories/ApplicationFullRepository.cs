@@ -454,11 +454,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
             {
                 if (tab == "pending")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment && a.OrdersOfPayment.Any(op => op.Status == OpStatus.Processing));
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
                 }
             }
             else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))

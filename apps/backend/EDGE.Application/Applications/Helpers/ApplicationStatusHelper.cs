@@ -23,7 +23,7 @@ public static class ApplicationStatusHelper
         if (IsCashierRole(role))
         {
             if (status == ApplicationStatus.PendingPayment) return "pending";
-            if (status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
+            if (status == ApplicationStatus.ForIssuance || status == ApplicationStatus.Completed || status == ApplicationStatus.Approved || status == ApplicationStatus.Returned) return "history";
             return "activity";
         }
 

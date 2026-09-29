@@ -40,6 +40,7 @@ using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
 using EDGE.Application.Applications.Commands.CreateFormSubmission;
 using EDGE.Application.Applications.Commands.UpdateFormSubmissionValues;
 using EDGE.Application.Applications.Commands.IssueApplication;
+using EDGE.Application.Applications.Commands.SubmitPayment;
 using EDGE.Application.Applications.Queries.GenerateNextDocumentNumber;
 
 using EDGE.Domain.Enums;
@@ -211,6 +212,12 @@ public static class ApplicationEndpoints
             .WithName("FinalizeApplicationSubmission")
             .WithSummary("Finalize and submit application")
             .WithDescription("Transitions a draft application to submitted state, locking files and triggering workflows.");
+
+        group.MapPost("/{id:guid}/submit-payment", SubmitPaymentEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("SubmitPayment")
+            .WithSummary("Client payment submission")
+            .WithDescription("Submits client payment reference and details, advancing Order of Payment to Processing for Cashier collection verification.");
 
         group.MapPost("/{id:guid}/applicants/{applicantId:guid}/requirements", UploadApplicantRequirement)
             .WithName("UploadApplicantRequirement")
@@ -682,9 +689,46 @@ public static class ApplicationEndpoints
         var result = await mediator.Send(query, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> SubmitPaymentEndpoint(
+        Guid id,
+        [FromBody] SubmitPaymentRequest request,
+        IValidator<SubmitPaymentCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new SubmitPaymentCommand(
+            id,
+            request.OrderOfPaymentId,
+            request.PaymentMethod,
+            request.ReferenceNumber,
+            request.PayorName,
+            request.AmountPaid,
+            request.Remarks,
+            request.ProofOfPaymentFileId);
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
 }
 
 public record TogglePinRequest(bool? IsPinned);
 public record ToggleArchiveRequest(bool? IsArchived);
 public record EvaluateApplicationRequest(string? Remarks);
+public record SubmitPaymentRequest(
+    Guid? OrderOfPaymentId,
+    PaymentMethod PaymentMethod,
+    string? ReferenceNumber,
+    string? PayorName,
+    decimal? AmountPaid,
+    string? Remarks,
+    Guid? ProofOfPaymentFileId
+);
 

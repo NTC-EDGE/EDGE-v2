@@ -14,6 +14,7 @@ import {
   IssueApplicationRequest,
   IssuedDocumentDetailDto,
   GeneratedDocumentNumbersDto,
+  SubmitPaymentRequest,
 } from '../types';
 
 export const applicationService = {
@@ -295,6 +296,16 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.get<ApiResponse<GeneratedDocumentNumbersDto>>(
         `/api/v2/applications/${id}/next-document-numbers`
+      );
+      return response.data;
+    });
+  },
+
+  async submitPayment(id: string, body: SubmitPaymentRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<boolean>>(
+        `/api/v2/applications/${id}/submit-payment`,
+        body
       );
       return response.data;
     });
