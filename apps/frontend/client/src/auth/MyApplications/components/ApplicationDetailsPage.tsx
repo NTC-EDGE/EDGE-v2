@@ -24,6 +24,7 @@ import { DocumentPreviewSection } from './applicationDetails/DocumentPreviewSect
 import { CustomDocPreviewModal } from './applicationDetails/CustomDocPreviewModal';
 import { ClientBillingNoticeCard } from './applicationDetails/ClientBillingNoticeCard';
 import { ClientPaymentSubmissionModal } from './applicationDetails/ClientPaymentSubmissionModal';
+import { ClientSoaOpPreviewModal, ClientReportTab } from './applicationDetails/ClientSoaOpPreviewModal';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 
 const TABLE_PAGE_SIZE = 6;
@@ -42,6 +43,8 @@ export function ApplicationDetailsPage({
   const [tableSearch, setTableSearch] = useState('');
   const [tablePage, setTablePage] = useState(1);
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
+  const [soaOpModalVisible, setSoaOpModalVisible] = useState(false);
+  const [soaOpInitialTab, setSoaOpInitialTab] = useState<ClientReportTab>('soa');
 
   const {
     app,
@@ -85,6 +88,24 @@ export function ApplicationDetailsPage({
   const [previewDoc, setPreviewDoc] = useState<ApplicationDocument | null>(null);
   const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
   const [previewLoadingId, setPreviewLoadingId] = useState<string | null>(null);
+
+  const handlePreviewDoc = (doc: ApplicationDocument | null) => {
+    if (doc) {
+      const isSoa = doc.category === 'SOA' || doc.name.toLowerCase().includes('soa') || doc.name.toLowerCase().includes('statement');
+      const isOp = doc.category === 'RECEIPT' || doc.name.toLowerCase().includes('order of payment') || doc.name.toLowerCase().includes('op');
+      if (isSoa) {
+        setSoaOpInitialTab('soa');
+        setSoaOpModalVisible(true);
+        return;
+      }
+      if (isOp) {
+        setSoaOpInitialTab('op');
+        setSoaOpModalVisible(true);
+        return;
+      }
+    }
+    setPreviewDoc(doc);
+  };
 
   const { selectedApplicantFormFields, selectedApplicantDocs } = useSelectedBulkApplicant(
     app,
@@ -146,34 +167,12 @@ export function ApplicationDetailsPage({
             isDesktop={isDesktop}
             onProceedToPayment={() => setIsPaymentModalOpen(true)}
             onViewSoa={() => {
-              const doc = docs.find((d) => d.category === 'SOA' || d.name.toLowerCase().includes('soa') || d.name.toLowerCase().includes('statement'));
-              if (doc) {
-                setPreviewDoc(doc);
-              } else {
-                setPreviewDoc({
-                  id: 'soa-doc-preview',
-                  name: `Statement of Account #${app.soaNumber || app.referenceNumber}`,
-                  type: 'PDF',
-                  category: 'SOA',
-                  size: '145 KB',
-                  uploadedAt: app.submittedAt || new Date().toISOString(),
-                });
-              }
+              setSoaOpInitialTab('soa');
+              setSoaOpModalVisible(true);
             }}
             onViewOp={() => {
-              const doc = docs.find((d) => d.category === 'RECEIPT' || d.name.toLowerCase().includes('order of payment') || d.name.toLowerCase().includes('op'));
-              if (doc) {
-                setPreviewDoc(doc);
-              } else {
-                setPreviewDoc({
-                  id: 'op-doc-preview',
-                  name: `Order of Payment #${app.referenceNumber}`,
-                  type: 'PDF',
-                  category: 'RECEIPT',
-                  size: '128 KB',
-                  uploadedAt: app.submittedAt || new Date().toISOString(),
-                });
-              }
+              setSoaOpInitialTab('op');
+              setSoaOpModalVisible(true);
             }}
           />
 
@@ -200,7 +199,7 @@ export function ApplicationDetailsPage({
               variantLabel={variantLabel}
               isDesktop={isDesktop}
               onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
-              onPreviewDoc={setPreviewDoc}
+              onPreviewDoc={handlePreviewDoc}
               onPreviewCustomDoc={handleSetPreviewCustomDoc}
               onDownloadDoc={onDownloadDoc}
               previewLoadingId={previewLoadingId}
@@ -218,7 +217,7 @@ export function ApplicationDetailsPage({
               isDesktop={isDesktop}
               docs={docs}
               onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}
-              onPreviewDoc={setPreviewDoc}
+              onPreviewDoc={handlePreviewDoc}
               onPreviewCustomDoc={handleSetPreviewCustomDoc}
               onDownloadDoc={onDownloadDoc}
               previewLoadingId={previewLoadingId}
@@ -259,6 +258,13 @@ export function ApplicationDetailsPage({
             }
           }
         }}
+      />
+      <ClientSoaOpPreviewModal
+        visible={soaOpModalVisible}
+        app={app}
+        initialTab={soaOpInitialTab}
+        onClose={() => setSoaOpModalVisible(false)}
+        onProceedToPayment={() => setIsPaymentModalOpen(true)}
       />
       <ClientPaymentSubmissionModal
         visible={isPaymentModalOpen}
