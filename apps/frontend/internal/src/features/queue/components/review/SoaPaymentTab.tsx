@@ -326,7 +326,7 @@ export function SoaPaymentTab({
         >
           <Lucide name="check-circle" size={18} color={isDark ? '#34d399' : '#059669'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#d1fae5' : '#065f46', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '700' }}>Go-Signal for Cashier — Payment Submitted:</Text> The applicant has submitted payment reference details. Cashier is authorized to proceed with OR issuance.
+            <Text style={{ fontWeight: '700' }}>Payment Submitted:</Text> Client submitted payment reference. Ready for Cashier OR issuance.
           </Text>
         </View>
       )}
@@ -345,9 +345,9 @@ export function SoaPaymentTab({
             alignItems: 'center',
           }}
         >
-          <Lucide name="clock" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
+          <Lucide name="lock" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#fde68a' : '#92400e', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '700' }}>Cashier Hold — Awaiting Client Payment:</Text> The client has not yet proceeded to payment. Cashier does not have the go-signal to issue the Official Receipt (OR) until client submits payment details or pays over the counter.
+            <Text style={{ fontWeight: '700' }}>Awaiting Payment:</Text> Client has not paid. Cashier cannot issue OR until payment is made.
           </Text>
         </View>
       )}
@@ -863,8 +863,8 @@ export function SoaPaymentTab({
                 }}
               >
                 {isPaymentSubmitted
-                  ? 'Payment Details Submitted (Go-Signal for Cashier)'
-                  : 'Awaiting Client Payment (No Go-Signal Yet)'}
+                  ? 'Payment Submitted'
+                  : 'Awaiting Client Payment'}
               </Text>
               <Text
                 style={{
@@ -874,12 +874,12 @@ export function SoaPaymentTab({
                     ? (isDark ? '#a7f3d0' : '#047857')
                     : (isDark ? '#fde68a' : '#b45309'),
                   marginTop: 2,
-                  lineHeight: 17,
+                  lineHeight: 16,
                 }}
               >
                 {isPaymentSubmitted
-                  ? 'The applicant has submitted payment reference details. Cashier is authorized to collect, verify, and issue the Official Receipt (OR).'
-                  : 'The client has not yet proceeded with payment. Cashier does not have the go-signal to issue an Official Receipt until the applicant submits payment details or settles at the cashier window.'}
+                  ? 'Payment reference submitted. Ready for Cashier OR issuance.'
+                  : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
               </Text>
             </View>
           </View>

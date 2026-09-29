@@ -556,7 +556,7 @@ export function ApplicationReviewScreenContent({
       approveButtonLabel = 'Verify & Issue OR';
       approveButtonIcon = 'credit-card';
     } else {
-      approveButtonLabel = 'Awaiting Client Payment';
+      approveButtonLabel = 'Awaiting Client Payment (Locked)';
       approveButtonIcon = 'play-circle';
     }
   } else if (showAccountantBtn) {
@@ -594,7 +594,8 @@ export function ApplicationReviewScreenContent({
       void handleStartEvaluation();
     } else if (showCashierBtn) {
       if (!isPaymentSubmitted) {
-        toast.info("Awaiting applicant payment submission. You may proceed if collecting payment directly at the cashier counter.");
+        toast.warning("Awaiting client payment. Cannot issue OR until payment is made.");
+        return;
       }
       setShowCashier(true);
     } else if (showIssueBtn) {
@@ -752,7 +753,10 @@ export function ApplicationReviewScreenContent({
         canApprove={canApproveAction}
         canDecline={canDeclineAction}
         canEndorse={canEndorseAction}
-        isApproveDisabled={showForwardBtn && hasIncompleteApplicants}
+        isApproveDisabled={
+          (showForwardBtn && hasIncompleteApplicants) ||
+          (showCashierBtn && !isPaymentSubmitted)
+        }
         approveLabel={approveButtonLabel}
         approveIcon={approveButtonIcon}
         onApprove={handlePrimaryAction}
