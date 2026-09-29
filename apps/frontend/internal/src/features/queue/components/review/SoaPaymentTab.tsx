@@ -31,7 +31,6 @@ export function SoaPaymentTab({
   onPreviewReport,
 }: SoaPaymentTabProps) {
   const { colors, isDark } = useTheme();
-  const [auditOpen, setAuditOpen] = useState(false);
   const [editingOrNumber, setEditingOrNumber] = useState(false);
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [orDraft, setOrDraft] = useState(app.payment.orNumber);
@@ -235,41 +234,6 @@ export function SoaPaymentTab({
             </Pressable>
           )}
         </View>
-
-        {/* Correction Audit Trail */}
-        <Pressable
-          style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], marginTop: SPACING[16] }]}
-          onPress={() => setAuditOpen((p) => !p)}
-        >
-          <View style={styles.auditHeaderLeft}>
-            <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-            <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
-            </Text>
-          </View>
-          <Lucide
-            name={auditOpen ? "chevron-up" : "chevron-down"}
-            size={16}
-            color={isDark ? colors.neutral[500] : colors.neutral[500]}
-          />
-        </Pressable>
-
-        {auditOpen && (
-          <View style={styles.auditList}>
-            {app.correctionAuditTrail.length === 0 ? (
-              <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
-            ) : (
-              app.correctionAuditTrail.map((entry: AuditTrailEntry) => (
-                <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                  <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
-                  <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                    By {entry.staff} • {entry.timestamp}
-                  </Text>
-                </View>
-              ))
-            )}
-          </View>
-        )}
 
         <View style={{ height: 80 }} />
       </ScrollView>
@@ -885,40 +849,6 @@ export function SoaPaymentTab({
           </View>
         )}
       </View>
-
-      <Pressable
-        style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}
-        onPress={() => setAuditOpen((p) => !p)}
-      >
-        <View style={styles.auditHeaderLeft}>
-          <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-          <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
-          </Text>
-        </View>
-        <Lucide
-          name={auditOpen ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={isDark ? colors.neutral[500] : colors.neutral[500]}
-        />
-      </Pressable>
-
-      {auditOpen && (
-        <View style={styles.auditList}>
-          {app.correctionAuditTrail.length === 0 ? (
-            <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No audit trail entries.</Text>
-          ) : (
-            app.correctionAuditTrail.map((entry: AuditTrailEntry) => (
-              <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
-                <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>{entry.action}</Text>
-                <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-                  By {entry.staff} • {entry.timestamp}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
 
       <View style={{ height: 80 }} />
     </ScrollView>
