@@ -30,7 +30,7 @@ public class OrBookletRepository : IOrBookletRepository
     {
         var query = _context.OrBooklets
             .Include(b => b.AssignedUser)
-            .Where(b => b.TenantId == tenantId && b.Status == BookletStatus.Active);
+            .Where(b => (tenantId == Guid.Empty || b.TenantId == tenantId) && b.Status == BookletStatus.Active);
 
         if (assignedUserId.HasValue)
         {
@@ -57,7 +57,7 @@ public class OrBookletRepository : IOrBookletRepository
         var query = _context.OrBooklets
             .AsNoTracking()
             .Include(b => b.AssignedUser)
-            .Where(b => b.TenantId == tenantId);
+            .Where(b => tenantId == Guid.Empty || b.TenantId == tenantId);
 
         if (status.HasValue)
         {
@@ -74,7 +74,7 @@ public class OrBookletRepository : IOrBookletRepository
     public async Task<bool> ExistsBookletNumberAsync(Guid tenantId, string bookletNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OrBooklets
-            .Where(b => b.TenantId == tenantId && b.BookletNumber == bookletNumber);
+            .Where(b => (tenantId == Guid.Empty || b.TenantId == tenantId) && b.BookletNumber == bookletNumber);
 
         if (excludeId.HasValue)
         {

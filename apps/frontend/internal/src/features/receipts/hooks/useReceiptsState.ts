@@ -23,11 +23,9 @@ import { useAuthContext } from '../../auth/context/AuthContext';
 
 export type ReceiptTab = 'pending_payments' | 'receipts' | 'booklets' | 'deposits' | 'accounts' | 'reports';
 
-const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-
 export function useReceiptsState() {
   const { user } = useAuthContext();
-  const tenantId = user?.tenantId ?? DEFAULT_TENANT_ID;
+  const tenantId = user?.tenantId ?? '';
   const currentUserId = user?.id ?? user?.email ?? null;
 
   const [activeTab, setActiveTab] = useState<ReceiptTab>('receipts');

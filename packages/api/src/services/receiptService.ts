@@ -65,6 +65,7 @@ export interface PendingPaymentDto {
   orderOfPaymentId: string;
   applicationId: string;
   statementOfAccountId: string;
+  tenantId: string;
   opNumber: string;
   soaNumber: string;
   applicationNumber: string;
@@ -305,7 +306,7 @@ export const receiptService = {
     });
   },
 
-  getPendingPayments: async (params: { tenantId: string; search?: string }) => {
+  getPendingPayments: async (params?: { tenantId?: string; search?: string }) => {
     return safeAsync(async () => {
       const res = await apiClient.get<{ data: PendingPaymentDto[] }>('/api/v2/receipts/pending-payments', { params });
       return res.data.data;

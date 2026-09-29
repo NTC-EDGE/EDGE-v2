@@ -168,7 +168,7 @@ export function ApplicationReviewScreenContent({
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
 
-  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001');
+  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '');
   const { nextOr, mutate: mutateNextOr } = useNextAvailableOrNumber(
     showCashier || selectedApplication?.status === 'PendingPayment' ? cashierTenantId : null,
     user?.id ?? user?.email ?? null
@@ -197,6 +197,7 @@ export function ApplicationReviewScreenContent({
       orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
       applicationId: itemApp.id,
       statementOfAccountId: itemApp.id,
+      tenantId: itemApp.tenantId || user?.tenantId || '',
       opNumber: itemApp.payment?.opNumber || `OP-${refOrId}`,
       soaNumber: `SOA-${refOrId}`,
       applicationNumber: itemApp.applicationNumber || '',
@@ -210,7 +211,7 @@ export function ApplicationReviewScreenContent({
       remarks: itemApp.note || null,
       lineItems,
     };
-  }, [selectedApplication]);
+  }, [selectedApplication, user?.tenantId]);
 
   useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
   useEffect(() => {

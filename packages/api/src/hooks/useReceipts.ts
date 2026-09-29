@@ -42,8 +42,8 @@ export function useReceiptFeeCatalog(search?: string, enabled = true) {
 }
 
 export function usePendingPayments(tenantId?: string | null, search?: string) {
-  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
-  const key = shouldFetch ? ['/api/v2/receipts/pending-payments', tenantId, search ?? ''] : null;
+  const shouldFetch = tenantId !== null;
+  const key = shouldFetch ? ['/api/v2/receipts/pending-payments', tenantId ?? '', search ?? ''] : null;
 
   const { data, error, isLoading, mutate } = useSWR<PendingPaymentDto[]>(
     key,
@@ -65,8 +65,8 @@ export function usePendingPayments(tenantId?: string | null, search?: string) {
 }
 
 export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) {
-  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
-  const key = shouldFetch ? ['/api/v2/receipts/booklets', tenantId, status ?? 'all'] : null;
+  const shouldFetch = tenantId !== null;
+  const key = shouldFetch ? ['/api/v2/receipts/booklets', tenantId ?? '', status ?? 'all'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<OrBookletDto[]>(
     key,
@@ -88,8 +88,8 @@ export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) 
 }
 
 export function useNextAvailableOrNumber(tenantId?: string | null, cashierUserId?: string | null) {
-  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
-  const key = shouldFetch ? ['/api/v2/receipts/booklets/next-available', tenantId, cashierUserId ?? 'current'] : null;
+  const shouldFetch = tenantId !== null;
+  const key = shouldFetch ? ['/api/v2/receipts/booklets/next-available', tenantId ?? '', cashierUserId ?? 'current'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<NextAvailableOrDto>(
     key,
@@ -119,11 +119,11 @@ export function useOfficialReceipts(params: {
   cashierUserId?: string;
   search?: string;
 }) {
-  const shouldFetch = typeof params.tenantId === 'string' && params.tenantId.length > 0;
+  const shouldFetch = params.tenantId !== null;
   const key = shouldFetch
     ? [
         '/api/v2/receipts',
-        params.tenantId,
+        params.tenantId ?? '',
         params.status ?? 'all',
         params.paymentMethod ?? 'all',
         params.fromDate ?? '',
@@ -158,8 +158,8 @@ export function useOfficialReceipts(params: {
 }
 
 export function useUndepositedReceipts(tenantId?: string | null) {
-  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
-  const key = shouldFetch ? ['/api/v2/receipts/undeposited', tenantId] : null;
+  const shouldFetch = tenantId !== null;
+  const key = shouldFetch ? ['/api/v2/receipts/undeposited', tenantId ?? ''] : null;
 
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
@@ -177,8 +177,8 @@ export function useUndepositedReceipts(tenantId?: string | null) {
 }
 
 export function useAgencyBankAccounts(tenantId?: string | null, activeOnly?: boolean) {
-  const shouldFetch = typeof tenantId === 'string' && tenantId.length > 0;
-  const key = shouldFetch ? ['/api/v2/receipts/bank-accounts', tenantId, activeOnly ? 'active' : 'all'] : null;
+  const shouldFetch = tenantId !== null;
+  const key = shouldFetch ? ['/api/v2/receipts/bank-accounts', tenantId ?? '', activeOnly ? 'active' : 'all'] : null;
 
   const { data, error, isLoading, mutate } = useSWR<AgencyBankAccountDto[]>(
     key,
@@ -206,11 +206,11 @@ export function useBankDeposits(params: {
   fromDate?: string;
   toDate?: string;
 }) {
-  const shouldFetch = typeof params.tenantId === 'string' && params.tenantId.length > 0;
+  const shouldFetch = params.tenantId !== null;
   const key = shouldFetch
     ? [
         '/api/v2/receipts/deposits',
-        params.tenantId,
+        params.tenantId ?? '',
         params.bankAccountId ?? 'all',
         params.status ?? 'all',
         params.fromDate ?? '',
@@ -246,11 +246,11 @@ export function useCashierRcdReport(params: {
   toDate?: string;
   cashierUserId?: string;
 }) {
-  const shouldFetch = typeof params.tenantId === 'string' && params.tenantId.length > 0;
+  const shouldFetch = params.tenantId !== null;
   const key = shouldFetch
     ? [
         '/api/v2/receipts/reports/rcd',
-        params.tenantId,
+        params.tenantId ?? '',
         params.fromDate ?? '',
         params.toDate ?? '',
         params.cashierUserId ?? '',
@@ -279,9 +279,9 @@ export function useCashierRcdReport(params: {
 }
 
 export function useCancelledOrReport(params: { tenantId?: string | null; fromDate?: string; toDate?: string }) {
-  const shouldFetch = typeof params.tenantId === 'string' && params.tenantId.length > 0;
+  const shouldFetch = params.tenantId !== null;
   const key = shouldFetch
-    ? ['/api/v2/receipts/reports/cancelled', params.tenantId, params.fromDate ?? '', params.toDate ?? '']
+    ? ['/api/v2/receipts/reports/cancelled', params.tenantId ?? '', params.fromDate ?? '', params.toDate ?? '']
     : null;
 
   const { data, error, isLoading, mutate } = useSWR<CancelledOrReportDto>(

@@ -32,7 +32,7 @@ public class GetCancelledOrReportQueryHandler : IRequestHandler<GetCancelledOrRe
 
     public async Task<ApiResponse<CancelledOrReportDto>> Handle(GetCancelledOrReportQuery request, CancellationToken cancellationToken)
     {
-        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        var tenant = request.TenantId != Guid.Empty ? await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken) : null;
         var tenantName = tenant?.Name ?? "National Telecommunications Commission";
 
         var fromDate = request.FromDate ?? DateTime.UtcNow.Date.AddDays(-30);

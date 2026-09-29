@@ -70,7 +70,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .Include(r => r.IssuedByUser)
             .Include(r => r.CancelledByUser)
             .Include(r => r.Deposit)
-            .Where(r => r.TenantId == tenantId);
+            .Where(r => tenantId == Guid.Empty || r.TenantId == tenantId);
 
         if (status.HasValue)
         {
@@ -119,7 +119,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .AsNoTracking()
             .Include(r => r.LineItems)
             .Include(r => r.IssuedByUser)
-            .Where(r => r.TenantId == tenantId && r.Status == ReceiptStatus.Issued && r.DepositId == null)
+            .Where(r => (tenantId == Guid.Empty || r.TenantId == tenantId) && r.Status == ReceiptStatus.Issued && r.DepositId == null)
             .OrderBy(r => r.IssuedAt)
             .ToListAsync(cancellationToken);
     }
@@ -173,7 +173,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
     public async Task<bool> ExistsOrNumberAsync(Guid tenantId, string orNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OfficialReceipts
-            .Where(r => r.TenantId == tenantId && r.OfficialReceiptNumber == orNumber);
+            .Where(r => (tenantId == Guid.Empty || r.TenantId == tenantId) && r.OfficialReceiptNumber == orNumber);
 
         if (excludeId.HasValue)
         {

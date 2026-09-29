@@ -42,7 +42,7 @@ public class GetCashierRcdReportQueryHandler : IRequestHandler<GetCashierRcdRepo
 
     public async Task<ApiResponse<CashierRcdReportDto>> Handle(GetCashierRcdReportQuery request, CancellationToken cancellationToken)
     {
-        var tenant = await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken);
+        var tenant = request.TenantId != Guid.Empty ? await _tenantRepository.GetByIdAsync(request.TenantId, cancellationToken) : null;
         var tenantName = tenant?.Name ?? "National Telecommunications Commission";
 
         var fromDate = request.FromDate ?? DateTime.UtcNow.Date;

@@ -157,11 +157,11 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetOrBooklets(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] BookletStatus? status,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetOrBookletsQuery(tenantId, status));
+        var result = await mediator.Send(new GetOrBookletsQuery(tenantId ?? Guid.Empty, status));
         return Results.Ok(result);
     }
 
@@ -211,17 +211,17 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetNextAvailableOrNumber(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetNextAvailableOrNumberQuery(tenantId, cashierUserId));
+        var result = await mediator.Send(new GetNextAvailableOrNumberQuery(tenantId ?? Guid.Empty, cashierUserId));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetOfficialReceipts(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] ReceiptStatus? status,
         [FromQuery] PaymentMethod? paymentMethod,
         [FromQuery] DateTime? fromDate,
@@ -230,16 +230,16 @@ public static class ReceiptEndpoints
         [FromQuery] string? search,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetOfficialReceiptsQuery(tenantId, status, paymentMethod, fromDate, toDate, cashierUserId, search));
+        var result = await mediator.Send(new GetOfficialReceiptsQuery(tenantId ?? Guid.Empty, status, paymentMethod, fromDate, toDate, cashierUserId, search));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReceiptsDeposit)]
     public static async Task<IResult> GetUndepositedReceipts(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetUndepositedReceiptsQuery(tenantId));
+        var result = await mediator.Send(new GetUndepositedReceiptsQuery(tenantId ?? Guid.Empty));
         return Results.Ok(result);
     }
 
@@ -294,11 +294,11 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetAgencyBankAccounts(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] bool? activeOnly,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAgencyBankAccountsQuery(tenantId, activeOnly));
+        var result = await mediator.Send(new GetAgencyBankAccountsQuery(tenantId ?? Guid.Empty, activeOnly));
         return Results.Ok(result);
     }
 
@@ -329,14 +329,14 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsDeposit)]
     public static async Task<IResult> GetBankDeposits(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] Guid? bankAccountId,
         [FromQuery] DepositStatus? status,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetBankDepositsQuery(tenantId, bankAccountId, status, fromDate, toDate));
+        var result = await mediator.Send(new GetBankDepositsQuery(tenantId ?? Guid.Empty, bankAccountId, status, fromDate, toDate));
         return Results.Ok(result);
     }
 
@@ -362,34 +362,34 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.CashierReports)]
     public static async Task<IResult> GetCashierRcdReport(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetCashierRcdReportQuery(tenantId, fromDate, toDate, cashierUserId));
+        var result = await mediator.Send(new GetCashierRcdReportQuery(tenantId ?? Guid.Empty, fromDate, toDate, cashierUserId));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetPendingPayments(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] string? search,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId, search));
+        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId ?? Guid.Empty, search));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.CashierReports)]
     public static async Task<IResult> GetCancelledOrReport(
-        [FromQuery] Guid tenantId,
+        [FromQuery] Guid? tenantId,
         [FromQuery] DateTime? fromDate,
         [FromQuery] DateTime? toDate,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetCancelledOrReportQuery(tenantId, fromDate, toDate));
+        var result = await mediator.Send(new GetCancelledOrReportQuery(tenantId ?? Guid.Empty, fromDate, toDate));
         return Results.Ok(result);
     }
 

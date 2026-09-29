@@ -175,8 +175,12 @@ export function IssueReceiptModal({
         amount: l.amount,
       }));
 
+    const effectiveTenantId = (pendingPayment?.tenantId && pendingPayment.tenantId.length > 0)
+      ? pendingPayment.tenantId
+      : tenantId;
+
     const [res, err] = await receiptService.issueOfficialReceipt({
-      tenantId,
+      tenantId: effectiveTenantId,
       orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
       bookletId: useManualOr ? null : (nextOr?.bookletId ?? null),
       manualOrNumber: useManualOr && manualOrNumber.trim().length > 0 ? manualOrNumber.trim() : null,
