@@ -59,10 +59,12 @@ public class CreateOrBookletCommandHandlerTests
         _mockUserRepo.Setup(u => u.GetByIdAsync(cashier1Id, It.IsAny<CancellationToken>())).ReturnsAsync(cashier1);
         _mockUserRepo.Setup(u => u.GetByIdAsync(cashier2Id, It.IsAny<CancellationToken>())).ReturnsAsync(cashier2);
 
+        var cashierRole = new Role { Id = Guid.NewGuid(), Key = "cashier", Name = "Cashiering Officer" };
+
         _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, cashier1Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = cashier1Id });
+            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = cashier1Id, Role = cashierRole, RoleId = cashierRole.Id });
         _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, cashier2Id, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = cashier2Id });
+            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = cashier2Id, Role = cashierRole, RoleId = cashierRole.Id });
 
         OrBooklet? savedBooklet = null;
         _mockBookletRepo.Setup(b => b.AddAsync(It.IsAny<OrBooklet>(), It.IsAny<CancellationToken>()))
@@ -97,6 +99,42 @@ public class CreateOrBookletCommandHandlerTests
         savedBooklet.AssignedCashiers.Any(c => c.CashierUserId == cashier2Id && !c.IsPrimary).Should().BeTrue();
 
         _mockUnitOfWork.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_NonCashierRole_ReturnsFailure()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var evaluatorUserId = Guid.NewGuid();
+
+        _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, Name = "Region 10" });
+
+        _mockBookletRepo.Setup(b => b.ExistsBookletNumberAsync(tenantId, "BKL-001", null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        var evaluatorUser = new User { Id = evaluatorUserId, FirstName = "Eva", LastName = "Luator" };
+        var evaluatorRole = new Role { Id = Guid.NewGuid(), Key = "evaluator", Name = "Technical Evaluator" };
+
+        _mockUserRepo.Setup(u => u.GetByIdAsync(evaluatorUserId, It.IsAny<CancellationToken>())).ReturnsAsync(evaluatorUser);
+        _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, evaluatorUserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = evaluatorUserId, Role = evaluatorRole, RoleId = evaluatorRole.Id });
+
+        var command = new CreateOrBookletCommand(
+            TenantId: tenantId,
+            BookletNumber: "BKL-001",
+            Prefix: "NTC-",
+            StartNumber: 100001,
+            AssignedUserId: evaluatorUserId
+        );
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().Contain("not authorized to hold Official Receipt booklets");
     }
 
     [Fact]

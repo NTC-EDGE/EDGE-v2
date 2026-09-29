@@ -21,7 +21,9 @@ public record NextAvailableOrDto(
     int TotalCount,
     int IssuedCount,
     int RemainingCount,
-    bool HasActiveBooklet
+    bool HasActiveBooklet,
+    List<string>? AssignedUserNames = null,
+    bool IsShared = false
 );
 
 public record GetNextAvailableOrNumberQuery(
@@ -76,9 +78,23 @@ public class GetNextAvailableOrNumberQueryHandler : IRequestHandler<GetNextAvail
                 0,
                 0,
                 0,
+                false,
+                null,
                 false
             ), "No active OR booklet available.");
         }
+
+        var cashierDisplayNames = booklet.AssignedCashiers
+            .Where(ac => ac.CashierUser != null)
+            .Select(ac => $"{ac.CashierUser!.FirstName} {ac.CashierUser.LastName}".Trim())
+            .ToList();
+
+        if (cashierDisplayNames.Count == 0 && booklet.AssignedUser != null)
+        {
+            cashierDisplayNames.Add($"{booklet.AssignedUser.FirstName} {booklet.AssignedUser.LastName}".Trim());
+        }
+
+        bool isShared = booklet.AssignedCashiers.Count > 1;
 
         return ApiResponse<NextAvailableOrDto>.Success(new NextAvailableOrDto(
             booklet.Id,
@@ -93,7 +109,9 @@ public class GetNextAvailableOrNumberQueryHandler : IRequestHandler<GetNextAvail
             booklet.TotalCount,
             booklet.IssuedCount,
             booklet.RemainingCount,
-            true
+            true,
+            cashierDisplayNames,
+            isShared
         ));
     }
 }

@@ -86,16 +86,30 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
         foreach (var uid in allUserIds)
         {
             var u = await _userRepository.GetByIdAsync(uid, cancellationToken);
-            if (u != null)
+            if (u == null)
             {
-                booklet.AssignedCashiers.Add(new OrBookletCashier
-                {
-                    BookletId = booklet.Id,
-                    CashierUserId = uid,
-                    IsPrimary = uid == request.NewAssignedUserId,
-                    AssignedAt = DateTime.UtcNow
-                });
+                return ApiResponse<OrBookletDto>.Fail($"Cashier user '{uid}' was not found.");
             }
+
+            var mem = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, uid, cancellationToken);
+            if (mem == null && !u.IsSuperAdmin)
+            {
+                return ApiResponse<OrBookletDto>.Fail($"Cashier '{u.FirstName} {u.LastName}' must belong to this regional office / tenant.");
+            }
+
+            if (!EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet.CreateOrBookletCommandHandler.IsAuthorizedCashierRole(u, mem))
+            {
+                var roleDisplayName = mem?.Role?.Name ?? mem?.Position ?? "User";
+                return ApiResponse<OrBookletDto>.Fail($"User '{u.FirstName} {u.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
+            }
+
+            booklet.AssignedCashiers.Add(new OrBookletCashier
+            {
+                BookletId = booklet.Id,
+                CashierUserId = uid,
+                IsPrimary = uid == request.NewAssignedUserId,
+                AssignedAt = DateTime.UtcNow
+            });
         }
 
         if (!string.IsNullOrWhiteSpace(request.TransferReason))

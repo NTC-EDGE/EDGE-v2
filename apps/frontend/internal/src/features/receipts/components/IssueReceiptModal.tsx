@@ -278,6 +278,14 @@ export function IssueReceiptModal({
                           {nextOr.remainingCount} remaining
                         </Text>
                       </View>
+                      {nextOr.isShared && (
+                        <View style={[styles.seriesPill, { backgroundColor: '#E0E7FF' }]}>
+                          <Lucide name="users" size={11} color={colors.brand.primary} />
+                          <Text style={[styles.seriesPillText, { color: colors.brand.primary }]}>
+                            Shared ({nextOr.assignedUserNames?.length ?? 2} Cashiers)
+                          </Text>
+                        </View>
+                      )}
                     </View>
                   )}
 

@@ -72,6 +72,11 @@ public class UpdateOrBookletCommandHandlerTests
         _mockUserRepo.Setup(u => u.GetByIdAsync(cashier1Id, It.IsAny<CancellationToken>())).ReturnsAsync(cashier1);
         _mockUserRepo.Setup(u => u.GetByIdAsync(cashier2Id, It.IsAny<CancellationToken>())).ReturnsAsync(cashier2);
 
+        var cashierRole = new Role { Id = Guid.NewGuid(), Key = "cashier", Name = "Cashiering Officer" };
+
+        _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid tId, Guid uId, CancellationToken ct) => new TenantMember { TenantId = tId, UserId = uId, Role = cashierRole, RoleId = cashierRole.Id });
+
         var command = new UpdateOrBookletCommand(
             Id: bookletId,
             TenantId: tenantId,

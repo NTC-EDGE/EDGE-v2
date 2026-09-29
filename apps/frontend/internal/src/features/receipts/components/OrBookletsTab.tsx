@@ -211,7 +211,7 @@ export function OrBookletsTab({
                         >
                           <Lucide name="repeat" size={15} color={colors.brand.primary} />
                           <Text style={[styles.popoverText, { color: colors.brand.primary, fontWeight: '700' }]}>
-                            Transfer Custody
+                            Add / Transfer Custody
                           </Text>
                         </TouchableOpacity>
                       )}

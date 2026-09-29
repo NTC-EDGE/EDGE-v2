@@ -110,6 +110,13 @@ export function OfficialReceiptsTab({
             <View style={styles.bookletCardHeader}>
               <Lucide name="layers" size={16} color={colors.brand.primary} />
               <Text style={[styles.bookletCardTitle, { color: colors.brand.primary }]}>Active Booklet Series</Text>
+              {nextOr.isShared && (
+                <View style={[styles.sharedBadge, { backgroundColor: colors.brand.indigoLight }]}>
+                  <Text style={[styles.sharedBadgeText, { color: colors.brand.primary }]}>
+                    Shared ({nextOr.assignedUserNames?.length ?? 2})
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={[styles.bookletNextOr, { color: colors.text }]}>
               Next OR: <Text style={{ color: colors.brand.primary, fontWeight: '800' }}>#{nextOr.formattedOrNumber}</Text>
@@ -490,6 +497,11 @@ export function OfficialReceiptsTab({
                         {r.opNumber && (
                           <Text style={[styles.opRef, { color: colors.textMuted }]}>OP: {r.opNumber}</Text>
                         )}
+                        {r.issuedByUserName && (
+                          <Text style={[styles.opRef, { color: colors.brand.primary, fontWeight: '600' }]} numberOfLines={1}>
+                            Cashier: {r.issuedByUserName}
+                          </Text>
+                        )}
                       </View>
 
                       <View style={{ flex: 1.2 }}>
@@ -640,6 +652,16 @@ const styles = StyleSheet.create({
   },
   bookletCardTitle: {
     fontSize: 11,
+    fontWeight: '700',
+  },
+  sharedBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    marginLeft: 6,
+  },
+  sharedBadgeText: {
+    fontSize: 9,
     fontWeight: '700',
   },
   bookletNextOr: {

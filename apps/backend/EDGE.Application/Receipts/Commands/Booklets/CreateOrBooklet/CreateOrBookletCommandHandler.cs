@@ -112,6 +112,12 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
                 return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
             }
 
+            if (!IsAuthorizedCashierRole(user, membership))
+            {
+                var roleDisplayName = membership?.Role?.Name ?? membership?.Position ?? "User";
+                return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
+            }
+
             var fullName = $"{user.FirstName} {user.LastName}".Trim();
             bool isPrimary = userId == primaryUserId;
 
@@ -179,5 +185,31 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             : "Official Receipt booklet registered as unassigned/pooled booklet.";
 
         return ApiResponse<OrBookletDto>.Success(dto, assignmentMessage);
+    }
+
+    public static bool IsAuthorizedCashierRole(User user, TenantMember? membership)
+    {
+        if (user.IsSuperAdmin) return true;
+        if (membership == null) return false;
+
+        var roleKey = membership.Role?.Key?.ToLower() ?? string.Empty;
+        var roleName = membership.Role?.Name?.ToLower() ?? string.Empty;
+        var position = membership.Position?.ToLower() ?? string.Empty;
+        var jobTitle = membership.JobTitle?.ToLower() ?? string.Empty;
+        var designation = membership.Designation?.ToLower() ?? string.Empty;
+
+        return roleKey == "cashier" ||
+               roleKey.Contains("cashier") ||
+               roleName.Contains("cashier") ||
+               position.Contains("cashier") ||
+               jobTitle.Contains("cashier") ||
+               designation.Contains("cashier") ||
+               roleKey.Contains("collect") ||
+               roleName.Contains("collect") ||
+               roleKey.Contains("admin") ||
+               roleKey.Contains("superadmin") ||
+               roleName.Contains("admin") ||
+               roleKey.Contains("director") ||
+               roleName.Contains("director");
     }
 }

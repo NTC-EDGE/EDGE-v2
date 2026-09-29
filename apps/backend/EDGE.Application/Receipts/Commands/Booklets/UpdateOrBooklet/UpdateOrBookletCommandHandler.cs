@@ -124,16 +124,30 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
             foreach (var userId in userIdsToAssign)
             {
                 var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
-                if (user != null)
+                if (user == null)
                 {
-                    booklet.AssignedCashiers.Add(new OrBookletCashier
-                    {
-                        BookletId = booklet.Id,
-                        CashierUserId = userId,
-                        IsPrimary = userId == primaryUserId,
-                        AssignedAt = DateTime.UtcNow
-                    });
+                    return ApiResponse<OrBookletDto>.Fail($"Cashier user '{userId}' was not found.");
                 }
+
+                var mem = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
+                if (mem == null && !user.IsSuperAdmin)
+                {
+                    return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
+                }
+
+                if (!EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet.CreateOrBookletCommandHandler.IsAuthorizedCashierRole(user, mem))
+                {
+                    var roleDisplayName = mem?.Role?.Name ?? mem?.Position ?? "User";
+                    return ApiResponse<OrBookletDto>.Fail($"User '{user.FirstName} {user.LastName}' has the role '{roleDisplayName}' and is not authorized to hold Official Receipt booklets. Only Cashiers can be assigned.");
+                }
+
+                booklet.AssignedCashiers.Add(new OrBookletCashier
+                {
+                    BookletId = booklet.Id,
+                    CashierUserId = userId,
+                    IsPrimary = userId == primaryUserId,
+                    AssignedAt = DateTime.UtcNow
+                });
             }
             booklet.AssignedUserId = primaryUserId != Guid.Empty ? primaryUserId : null;
         }

@@ -74,6 +74,13 @@ export function PendingPaymentsTab({
                   Booklet #{nextOr.bookletNumber}
                 </Text>
               </View>
+              {nextOr.isShared && (
+                <View style={[styles.bookletBadge, { backgroundColor: '#E0E7FF' }]}>
+                  <Text style={[styles.bookletBadgeText, { color: colors.brand.primary }]}>
+                    Shared ({nextOr.assignedUserNames?.length ?? 2} Cashiers)
+                  </Text>
+                </View>
+              )}
             </View>
             <Text style={[styles.bookletBannerSubtitle, { color: colors.neutral[600] }]}>
               Active Series: {nextOr.formattedStartNumber} – {nextOr.formattedEndNumber} • {nextOr.remainingCount} forms remaining in booklet

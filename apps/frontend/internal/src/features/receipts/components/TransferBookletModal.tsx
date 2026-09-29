@@ -38,16 +38,35 @@ export function TransferBookletModal({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const isCashierMember = (m: (typeof members)[0]) => {
+    const roleKey = (m.roleKey || '').toLowerCase();
+    const roleName = (m.roleName || '').toLowerCase();
+    const position = (m.position || '').toLowerCase();
+    const jobTitle = (m.jobTitle || '').toLowerCase();
+    const designation = (m.designation || '').toLowerCase();
+    return (
+      roleKey === 'cashier' ||
+      roleKey.includes('cashier') ||
+      roleName.includes('cashier') ||
+      position.includes('cashier') ||
+      jobTitle.includes('cashier') ||
+      designation.includes('cashier') ||
+      roleKey.includes('collect') ||
+      roleName.includes('collect')
+    );
+  };
+
+  const cashierMembers = members.filter(isCashierMember);
+  const availableCashiers = cashierMembers.length > 0 ? cashierMembers : members.filter((m) => !m.isDeleted);
+
   useEffect(() => {
     if (visible && booklet) {
-      // Filter out current assigned user if possible
-      const otherMembers = members.filter((m) => m.userId !== booklet.assignedUserId);
-      if (otherMembers.length > 0) {
-        setTargetUserId(otherMembers[0].userId);
-      } else {
-        setTargetUserId('');
-      }
-      setAdditionalUserIds([]);
+      // Default primary cashier to existing assignedUserId or first available cashier
+      setTargetUserId(booklet.assignedUserId ?? (availableCashiers.length > 0 ? availableCashiers[0].userId : ''));
+      const coCashierIds = booklet.assignedUserIds
+        ? booklet.assignedUserIds.filter((id) => id !== booklet.assignedUserId)
+        : (booklet.assignedCashiers ? booklet.assignedCashiers.filter((c) => !c.isPrimary).map((c) => c.userId) : []);
+      setAdditionalUserIds(coCashierIds);
       setTransferReason('');
       setErrorMsg(null);
     }
@@ -58,7 +77,7 @@ export function TransferBookletModal({
   const currentAssigneeName = booklet.assignedUserNames && booklet.assignedUserNames.length > 0
     ? booklet.assignedUserNames.join(', ')
     : booklet.assignedUserName || 'All Cashiers (Unassigned)';
-  const targetMember = members.find((m) => m.userId === targetUserId);
+  const targetMember = availableCashiers.find((m) => m.userId === targetUserId);
 
   const toggleAdditionalUser = (userId: string) => {
     if (userId === targetUserId) return;
@@ -69,7 +88,7 @@ export function TransferBookletModal({
 
   const handleSubmit = async () => {
     if (!targetUserId) {
-      setErrorMsg('Please select a target primary cashier / staff member.');
+      setErrorMsg('Please select a primary cashier / custodian.');
       return;
     }
 
@@ -104,9 +123,9 @@ export function TransferBookletModal({
                 <Lucide name="repeat" size={20} color={colors.brand.primary} />
               </View>
               <View>
-                <Text style={[styles.title, { color: colors.text }]}>Transfer Booklet Custody</Text>
+                <Text style={[styles.title, { color: colors.text }]}>Add / Transfer Booklet Custodians</Text>
                 <Text style={[styles.subtitle, { color: colors.textMuted }]}>
-                  Reassign Accountable Form 51 bundle to another cashier
+                  Assign primary custodian, add co-cashiers for booklet sharing, or transfer custody
                 </Text>
               </View>
             </View>
@@ -142,35 +161,34 @@ export function TransferBookletModal({
                 </Text>
               </View>
               <View style={styles.summaryRow}>
-                <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Current Custodian:</Text>
+                <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Current Custodians:</Text>
                 <Text style={[styles.summaryValue, { color: colors.brand.primary, fontWeight: '700' }]}>
                   {currentAssigneeName}
                 </Text>
               </View>
             </View>
 
-            {/* Target Custodian Selector */}
+            {/* Primary Custodian Selector */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Transfer To Cashier / Staff *</Text>
+              <Text style={[styles.label, { color: colors.neutral[700] }]}>Primary Custodian / Cashier *</Text>
               {isLoadingMembers ? (
                 <ActivityIndicator size="small" color={colors.brand.primary} />
-              ) : members.length === 0 ? (
-                <Text style={{ fontSize: 12, color: colors.textMuted }}>No staff members available.</Text>
+              ) : availableCashiers.length === 0 ? (
+                <Text style={{ fontSize: 12, color: colors.textMuted }}>No cashier accounts found in this regional office.</Text>
               ) : (
                 <View style={styles.memberList}>
-                  {members.map((m) => {
+                  {availableCashiers.map((m) => {
                     const isSelected = targetUserId === m.userId;
                     const isCurrent = m.userId === booklet.assignedUserId;
                     return (
                       <TouchableOpacity
                         key={m.id}
-                        onPress={() => !isCurrent && setTargetUserId(m.userId)}
-                        disabled={isCurrent}
+                        activeOpacity={0.7}
+                        onPress={() => setTargetUserId(m.userId)}
                         style={[
                           styles.memberItem,
                           { borderColor: colors.neutral[300], backgroundColor: '#fff' },
                           isSelected && { borderColor: colors.brand.primary, backgroundColor: colors.brand.indigoLight },
-                          isCurrent && { opacity: 0.5, backgroundColor: colors.neutral[100] },
                         ]}
                       >
                         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
@@ -186,12 +204,12 @@ export function TransferBookletModal({
                               {m.userFirstName} {m.userLastName} {m.userId === user?.id ? '(You)' : ''}
                             </Text>
                             <Text style={[styles.memberRole, { color: colors.textMuted }]}>
-                              {m.position || m.roleName || m.userEmail}
+                              {m.roleName || m.position || 'Cashiering Officer'}{m.fieldOfficeName ? ` • ${m.fieldOfficeName}` : ''}
                             </Text>
                           </View>
                         </View>
                         {isCurrent && (
-                          <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: '600' }}>Current Holder</Text>
+                          <Text style={{ fontSize: 10, color: colors.textMuted, fontWeight: '600' }}>Primary Holder</Text>
                         )}
                       </TouchableOpacity>
                     );
@@ -200,13 +218,75 @@ export function TransferBookletModal({
               )}
             </View>
 
+            {/* Additional Co-Assigned Cashiers (Multi-Cashier Checkbox Selection) */}
+            <View style={styles.formGroup}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={[styles.label, { color: colors.neutral[700], marginBottom: 0 }]}>
+                  Co-Assigned Cashiers (Checkboxes)
+                </Text>
+                {additionalUserIds.length > 0 && (
+                  <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '700' }}>
+                    +{additionalUserIds.length} shared
+                  </Text>
+                )}
+              </View>
+              <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 8 }}>
+                Check all additional Cashiers authorized to draw Official Receipts concurrently from this booklet:
+              </Text>
+              <View style={styles.checkboxList}>
+                {availableCashiers
+                  .filter((m) => m.userId !== targetUserId)
+                  .map((m) => {
+                    const isCoSelected = additionalUserIds.includes(m.userId);
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        activeOpacity={0.7}
+                        onPress={() => toggleAdditionalUser(m.userId)}
+                        style={[
+                          styles.checkboxItem,
+                          { borderColor: colors.neutral[300], backgroundColor: '#fff' },
+                          isCoSelected && { borderColor: colors.brand.primary, backgroundColor: colors.brand.indigoLight },
+                        ]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <View
+                            style={[
+                              styles.checkboxSquare,
+                              { borderColor: isCoSelected ? colors.brand.primary : colors.neutral[400] },
+                              isCoSelected && { backgroundColor: colors.brand.primary },
+                            ]}
+                          >
+                            {isCoSelected && <Lucide name="check" size={12} color="#fff" />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.memberName,
+                                { color: colors.text },
+                                isCoSelected && { fontWeight: '700', color: colors.brand.primary },
+                              ]}
+                            >
+                              {m.userFirstName} {m.userLastName} {m.userId === user?.id ? '(You)' : ''}
+                            </Text>
+                            <Text style={[styles.memberRole, { color: colors.textMuted }]}>
+                              {m.roleName || m.position || 'Cashiering Officer'}{m.fieldOfficeName ? ` • ${m.fieldOfficeName}` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
+              </View>
+            </View>
+
             {/* Transfer Reason / Notes */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Transfer Reason / Handover Remarks</Text>
+              <Text style={[styles.label, { color: colors.neutral[700] }]}>Assignment / Handover Remarks (Optional)</Text>
               <TextInput
-                style={[styles.input, { height: 70, textAlignVertical: 'top', borderColor: colors.neutral[300], color: colors.text }]}
+                style={[styles.input, { height: 60, textAlignVertical: 'top', borderColor: colors.neutral[300], color: colors.text }]}
                 multiline
-                placeholder="e.g. Cashier shift handover / Station reassignment"
+                placeholder="e.g. Cashier shift handover / Station sharing / Counter rotation"
                 placeholderTextColor={colors.neutral[400]}
                 value={transferReason}
                 onChangeText={setTransferReason}
@@ -220,19 +300,19 @@ export function TransferBookletModal({
             </TouchableOpacity>
             <TouchableOpacity
               onPress={handleSubmit}
-              disabled={isSubmitting || !targetUserId || targetUserId === booklet.assignedUserId}
+              disabled={isSubmitting || !targetUserId}
               style={[
                 styles.submitBtn,
                 { backgroundColor: colors.brand.primary },
-                (isSubmitting || !targetUserId || targetUserId === booklet.assignedUserId) && { opacity: 0.6 },
+                (isSubmitting || !targetUserId) && { opacity: 0.6 },
               ]}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Lucide name="repeat" size={16} color="#fff" />
-                  <Text style={styles.submitBtnText}>Transfer Booklet</Text>
+                  <Lucide name="save" size={16} color="#fff" />
+                  <Text style={styles.submitBtnText}>Save Custody & Cashiers</Text>
                 </>
               )}
             </TouchableOpacity>
@@ -371,6 +451,27 @@ const styles = StyleSheet.create({
   },
   memberRole: {
     fontSize: 11,
+  },
+  checkboxList: {
+    gap: 6,
+    maxHeight: 180,
+  },
+  checkboxItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  checkboxSquare: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   footer: {
     flexDirection: 'row',

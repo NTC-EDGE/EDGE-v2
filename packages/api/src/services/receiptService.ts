@@ -50,6 +50,8 @@ export interface NextAvailableOrDto {
   issuedCount?: number;
   remainingCount: number;
   hasActiveBooklet: boolean;
+  assignedUserNames?: string[];
+  isShared?: boolean;
 }
 
 export interface PendingPaymentLineItemDto {

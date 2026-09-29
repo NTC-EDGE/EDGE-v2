@@ -71,8 +71,10 @@ public class TransferOrBookletCommandHandlerTests
         _mockUserRepo.Setup(u => u.GetByIdAsync(newPrimaryId, It.IsAny<CancellationToken>())).ReturnsAsync(newPrimaryUser);
         _mockUserRepo.Setup(u => u.GetByIdAsync(coCashierId, It.IsAny<CancellationToken>())).ReturnsAsync(coCashierUser);
 
-        _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, newPrimaryId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new TenantMember { TenantId = tenantId, UserId = newPrimaryId });
+        var cashierRole = new Role { Id = Guid.NewGuid(), Key = "cashier", Name = "Cashiering Officer" };
+
+        _mockTenantMemberRepo.Setup(m => m.GetByTenantAndUserAsync(tenantId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Guid tId, Guid uId, CancellationToken ct) => new TenantMember { TenantId = tId, UserId = uId, Role = cashierRole, RoleId = cashierRole.Id });
 
         var command = new TransferOrBookletCommand(
             Id: bookletId,

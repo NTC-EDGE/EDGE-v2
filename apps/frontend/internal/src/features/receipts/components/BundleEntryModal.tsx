@@ -97,7 +97,28 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
     }
   };
 
-  const selectedMemberNames = members
+  const isCashierMember = (m: (typeof members)[0]) => {
+    const roleKey = (m.roleKey || '').toLowerCase();
+    const roleName = (m.roleName || '').toLowerCase();
+    const position = (m.position || '').toLowerCase();
+    const jobTitle = (m.jobTitle || '').toLowerCase();
+    const designation = (m.designation || '').toLowerCase();
+    return (
+      roleKey === 'cashier' ||
+      roleKey.includes('cashier') ||
+      roleName.includes('cashier') ||
+      position.includes('cashier') ||
+      jobTitle.includes('cashier') ||
+      designation.includes('cashier') ||
+      roleKey.includes('collect') ||
+      roleName.includes('collect')
+    );
+  };
+
+  const cashierMembers = members.filter(isCashierMember);
+  const availableCashiers = cashierMembers.length > 0 ? cashierMembers : members.filter((m) => !m.isDeleted);
+
+  const selectedMemberNames = availableCashiers
     .filter((m) => selectedUserIds.includes(m.userId))
     .map((m) => `${m.userFirstName} ${m.userLastName}${m.userId === user?.id ? ' (You)' : ''}`);
 
@@ -212,59 +233,80 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
               </View>
             )}
 
-            {/* Assigned Custodian / Cashier (Multi-Cashier Sharing) */}
+            {/* Assigned Custodian / Cashier (Multi-Cashier Checkbox Selection) */}
             <View style={styles.formGroup}>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
-                <Text style={[styles.label, { color: colors.neutral[700], marginBottom: 0 }]}>Assigned Cashier(s) *</Text>
-                <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '600' }}>
-                  {selectedUserIds.length > 1 ? `Shared with ${selectedUserIds.length} Cashiers` : 'Single Assignee'}
+                <Text style={[styles.label, { color: colors.neutral[700], marginBottom: 0 }]}>
+                  Assign Cashiers (Checkboxes) *
+                </Text>
+                <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '700' }}>
+                  {selectedUserIds.length > 1
+                    ? `Shared (${selectedUserIds.length} Cashiers Selected)`
+                    : selectedUserIds.length === 1
+                    ? '1 Cashier Selected'
+                    : 'No Cashier Selected'}
                 </Text>
               </View>
-              <View style={[styles.assignedBox, { borderColor: colors.neutral[300], backgroundColor: colors.neutral[50] }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                  <Lucide name="users" size={16} color={colors.brand.primary} />
-                  <Text style={[styles.assignedText, { color: colors.text }]}>
-                    {assignedDisplay}
-                  </Text>
-                </View>
-                {selectedUserIds.length > 1 && (
-                  <View style={[styles.autoBadge, { backgroundColor: colors.brand.indigoLight }]}>
-                    <Text style={[styles.autoBadgeText, { color: colors.brand.primary }]}>Multi-Cashier Shared</Text>
-                  </View>
-                )}
-              </View>
-              {members.length > 0 && (
-                <View style={styles.memberSelector}>
-                  <Text style={[styles.selectorHelp, { color: colors.textMuted }]}>
-                    Click cashiers to assign/unassign (multi-cashier sharing):
-                  </Text>
-                  <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberChips}>
-                    {members.map((m) => {
-                      const isSelected = selectedUserIds.includes(m.userId);
-                      return (
-                        <TouchableOpacity
-                          key={m.id}
-                          onPress={() => toggleUserSelection(m.userId)}
-                          style={[
-                            styles.chip,
-                            { borderColor: colors.neutral[300], backgroundColor: '#fff' },
-                            isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
-                          ]}
-                        >
-                          {isSelected && <Lucide name="check" size={12} color="#fff" style={{ marginRight: 4 }} />}
-                          <Text
+              <Text style={{ fontSize: 11, color: colors.textMuted, marginBottom: 8 }}>
+                Select all Cashiers authorized to draw Official Receipts from this booklet series:
+              </Text>
+
+              {isLoadingMembers ? (
+                <ActivityIndicator size="small" color={colors.brand.primary} />
+              ) : availableCashiers.length === 0 ? (
+                <Text style={{ fontSize: 12, color: colors.textMuted }}>No cashier accounts found in this regional office.</Text>
+              ) : (
+                <View style={styles.checkboxList}>
+                  {availableCashiers.map((m) => {
+                    const isChecked = selectedUserIds.includes(m.userId);
+                    const isPrimary = selectedUserIds[0] === m.userId;
+                    return (
+                      <TouchableOpacity
+                        key={m.id}
+                        activeOpacity={0.7}
+                        onPress={() => toggleUserSelection(m.userId)}
+                        style={[
+                          styles.checkboxItem,
+                          { borderColor: colors.neutral[300], backgroundColor: '#fff' },
+                          isChecked && { borderColor: colors.brand.primary, backgroundColor: colors.brand.indigoLight },
+                        ]}
+                      >
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1 }}>
+                          <View
                             style={[
-                              styles.chipText,
-                              { color: colors.neutral[700] },
-                              isSelected && { color: '#fff', fontWeight: '700' },
+                              styles.checkboxSquare,
+                              { borderColor: isChecked ? colors.brand.primary : colors.neutral[400] },
+                              isChecked && { backgroundColor: colors.brand.primary },
                             ]}
                           >
-                            {m.userFirstName} {m.userLastName} {m.userId === user?.id ? '(You)' : ''}
-                          </Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </ScrollView>
+                            {isChecked && <Lucide name="check" size={12} color="#fff" />}
+                          </View>
+                          <View style={{ flex: 1 }}>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                              <Text
+                                style={[
+                                  styles.memberName,
+                                  { color: colors.text },
+                                  isChecked && { fontWeight: '700', color: colors.brand.primary },
+                                ]}
+                              >
+                                {m.userFirstName} {m.userLastName} {m.userId === user?.id ? '(You)' : ''}
+                              </Text>
+                              {isChecked && isPrimary && (
+                                <View style={[styles.primaryBadge, { backgroundColor: colors.brand.primary }]}>
+                                  <Text style={styles.primaryBadgeText}>Primary</Text>
+                                </View>
+                              )}
+                            </View>
+                            <Text style={[styles.memberRole, { color: colors.textMuted }]}>
+                              {m.roleName || m.position || 'Cashiering Officer'}
+                              {m.fieldOfficeName ? ` • ${m.fieldOfficeName}` : ''}
+                            </Text>
+                          </View>
+                        </View>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               )}
             </View>
@@ -444,15 +486,44 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 2,
   },
-  chip: {
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 6,
-    marginRight: 6,
+  checkboxList: {
+    gap: 6,
+    maxHeight: 220,
   },
-  chipText: {
-    fontSize: 12,
+  checkboxItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    borderWidth: 1,
+    borderRadius: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  checkboxSquare: {
+    width: 18,
+    height: 18,
+    borderRadius: 4,
+    borderWidth: 1.5,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  memberName: {
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  memberRole: {
+    fontSize: 11,
+    marginTop: 1,
+  },
+  primaryBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 4,
+  },
+  primaryBadgeText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#fff',
   },
   footer: {
     flexDirection: 'row',
