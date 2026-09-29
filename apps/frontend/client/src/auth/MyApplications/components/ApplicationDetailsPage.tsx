@@ -133,7 +133,13 @@ export function ApplicationDetailsPage({
         />
 
         <View style={styles.tabContentList}>
-          <ApplicationProgressStepper currentStepIndex={currentStepIndex} />
+          <ApplicationProgressStepper
+            currentStepIndex={currentStepIndex}
+            serviceCategory={app.serviceCategory}
+            serviceName={app.serviceName}
+            status={app.status}
+            remarks={app.remarks}
+          />
 
           <ClientBillingNoticeCard
             app={app}

@@ -329,15 +329,17 @@ export function useApplicationDetailsData(initialApp: Application) {
   [app, isBulk]);
 
   const currentStepIndex = useMemo(() => {
-    switch (normalizeStatus(app.status)) {
-      case 'PENDING': return 1;
-      case 'FOR_EVALUATION': return 2;
-      case 'FOR_APPROVAL': return 3;
-      case 'APPROVED': case 'READY_FOR_PAYMENT': return 4;
-      case 'DECLINED': case 'EXPIRING_SOON': return 2;
-      default: return 3;
+    const rawStatus = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
+
+    if (rawStatus === 'draft' || rawStatus === 'pending') return 1;
+    if (rawStatus === 'submitted' || rawStatus === 'evaluating' || rawStatus === 'for_evaluation' || rawStatus === 'foraccountant') return 2;
+    if (rawStatus === 'pendingpayment' || rawStatus === 'ready_for_payment' || (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)) {
+      return 3;
     }
-  }, [app.status]);
+    if (rawStatus === 'forissuance') return 4;
+    if (rawStatus === 'approved' || rawStatus === 'completed') return 5;
+    return 2;
+  }, [app.status, app.soaNumber]);
 
   return {
     app,
