@@ -391,6 +391,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 (normalizedEmail != null && a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower() == normalizedEmail)));
         }
 
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLowerInvariant();
+            baseQuery = baseQuery.Where(a => a.Office != null && (a.Office.ToLower().Contains(fo) || fo.Contains(a.Office.ToLower())));
+        }
+
         // Global statistics for the user/scope dashboard metrics
         var totalCount = await baseQuery.CountAsync(cancellationToken);
         var singleCount = await baseQuery.CountAsync(a => a.SubmissionMode == SubmissionMode.Single, cancellationToken);
@@ -498,12 +504,6 @@ public class ApplicationFullRepository : IApplicationFullRepository
             {
                 filteredQuery = filteredQuery.Where(a => !string.IsNullOrEmpty(a.Office));
             }
-        }
-
-        if (!string.IsNullOrWhiteSpace(fieldOffice))
-        {
-            var fo = fieldOffice.Trim().ToLowerInvariant();
-            filteredQuery = filteredQuery.Where(a => a.Office != null && a.Office.ToLower().Contains(fo));
         }
 
         if (!string.IsNullOrWhiteSpace(assignedTo))

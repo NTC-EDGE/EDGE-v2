@@ -22,19 +22,25 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
     private readonly IUserRepository _userRepository;
     private readonly IUserAuthorizationService _authService;
     private readonly ITenantContextService _tenantContextService;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly IFieldOfficeRepository _fieldOfficeRepository;
 
     public GetAllApplicationsQueryHandler(
         IApplicationFullRepository repository,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IUserAuthorizationService authService,
-        ITenantContextService tenantContextService)
+        ITenantContextService tenantContextService,
+        ITenantMemberRepository tenantMemberRepository,
+        IFieldOfficeRepository fieldOfficeRepository)
     {
         _repository = repository;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _authService = authService;
         _tenantContextService = tenantContextService;
+        _tenantMemberRepository = tenantMemberRepository;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<ApiResponse<PagedApplicationListDto>> Handle(GetAllApplicationsQuery request, CancellationToken cancellationToken)
@@ -136,6 +142,50 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
             filterTenantId = request.TenantId.Value;
         }
 
+        string? effectiveFieldOffice = request.FieldOffice;
+
+        // Apply field office scoping for regular staff members (Evaluator, Cashier, Accountant)
+        // Regional Directors and Administrators retain full regional visibility across all field offices.
+        if (!shouldFilterByMine && !isSuperAdmin && resolvedUserId.HasValue)
+        {
+            bool isAdministrative = _currentUserService.IsAdminClaim ||
+                                   AdministrativeIdentityPolicy.IsAdministrativeEmail(resolvedEmail) ||
+                                   AdministrativeIdentityPolicy.IsAdministrativeRole(request.Role);
+
+            EDGE.Domain.Entities.TenantMember? currentMembership = null;
+            if (filterTenantId.HasValue && filterTenantId.Value != Guid.Empty)
+            {
+                currentMembership = await _tenantMemberRepository.GetByTenantAndUserAsync(filterTenantId.Value, resolvedUserId.Value, cancellationToken);
+            }
+            else
+            {
+                var memberships = await _tenantMemberRepository.GetMembersByUserAsync(resolvedUserId.Value, cancellationToken);
+                currentMembership = memberships.FirstOrDefault();
+            }
+
+            if (currentMembership?.Role != null &&
+                AdministrativeIdentityPolicy.IsAdministrativeRole(currentMembership.Role.Key ?? currentMembership.Role.Name))
+            {
+                isAdministrative = true;
+            }
+
+            if (!isAdministrative)
+            {
+                if (currentMembership?.FieldOffice != null && !string.IsNullOrWhiteSpace(currentMembership.FieldOffice.Name))
+                {
+                    effectiveFieldOffice = currentMembership.FieldOffice.Name;
+                }
+                else if (currentMembership?.FieldOfficeId.HasValue == true && currentMembership.FieldOfficeId.Value != Guid.Empty)
+                {
+                    var office = await _fieldOfficeRepository.GetByIdAsync(currentMembership.FieldOfficeId.Value, cancellationToken);
+                    if (office != null && !string.IsNullOrWhiteSpace(office.Name))
+                    {
+                        effectiveFieldOffice = office.Name;
+                    }
+                }
+            }
+        }
+
         var pagedResult = await _repository.GetPagedApplicationSummaryDtosAsync(
             request.Status,
             request.QueueTab,
@@ -148,7 +198,7 @@ public class GetAllApplicationsQueryHandler : IRequestHandler<GetAllApplications
             request.Mode,
             filterTenantId,
             filterTenantIds,
-            request.FieldOffice,
+            effectiveFieldOffice,
             request.AssignedTo,
             request.Role,
             cancellationToken);

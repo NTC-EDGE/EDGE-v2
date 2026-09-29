@@ -2397,6 +2397,53 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("OrBooklets", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.OrBookletCashier", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("BookletId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CashierUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsPrimary")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CashierUserId");
+
+                    b.HasIndex("BookletId", "CashierUserId")
+                        .IsUnique();
+
+                    b.ToTable("OrBookletCashiers", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4695,6 +4742,25 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Tenant");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.OrBookletCashier", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.OrBooklet", "Booklet")
+                        .WithMany("AssignedCashiers")
+                        .HasForeignKey("BookletId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.User", "CashierUser")
+                        .WithMany()
+                        .HasForeignKey("CashierUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booklet");
+
+                    b.Navigation("CashierUser");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.OrderOfPayment", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Application", "Application")
@@ -5187,6 +5253,8 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.OrBooklet", b =>
                 {
+                    b.Navigation("AssignedCashiers");
+
                     b.Navigation("Receipts");
                 });
 

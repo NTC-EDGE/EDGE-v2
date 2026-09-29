@@ -19,6 +19,7 @@ public record CreateOrBookletCommand(
     long? EndNumber = null,
     int TotalCount = 50,
     Guid? AssignedUserId = null,
+    List<Guid>? AssignedUserIds = null,
     string? Remarks = null
 ) : IRequest<ApiResponse<OrBookletDto>>;
 
@@ -30,7 +31,6 @@ public class CreateOrBookletCommandValidator : AbstractValidator<CreateOrBooklet
         RuleFor(x => x.BookletNumber).NotEmpty().MaximumLength(100).WithMessage("Booklet number is required.");
         RuleFor(x => x.StartNumber).GreaterThan(0).WithMessage("Start number must be greater than 0.");
         RuleFor(x => x.TotalCount).GreaterThan(0).WithMessage("Total count must be greater than 0.");
-        RuleFor(x => x.AssignedUserId).NotEmpty().WithMessage("Assigned custodian / cashier is required.");
     }
 }
 
@@ -64,25 +64,6 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             return ApiResponse<OrBookletDto>.Fail($"Tenant '{request.TenantId}' was not found.");
         }
 
-        if (!request.AssignedUserId.HasValue || request.AssignedUserId.Value == Guid.Empty)
-        {
-            return ApiResponse<OrBookletDto>.Fail("An assigned custodian / cashier is required for every OR booklet.");
-        }
-
-        // Verify that the assigned user exists and belongs to this tenant
-        var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, request.AssignedUserId.Value, cancellationToken);
-        var user = await _userRepository.GetByIdAsync(request.AssignedUserId.Value, cancellationToken);
-
-        if (user == null)
-        {
-            return ApiResponse<OrBookletDto>.Fail("The assigned custodian user was not found.");
-        }
-
-        if (membership == null && !user.IsSuperAdmin)
-        {
-            return ApiResponse<OrBookletDto>.Fail("The assigned custodian must belong to this regional office / tenant.");
-        }
-
         var exists = await _bookletRepository.ExistsBookletNumberAsync(request.TenantId, request.BookletNumber.Trim(), null, cancellationToken);
         if (exists)
         {
@@ -97,6 +78,52 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             return ApiResponse<OrBookletDto>.Fail("End number cannot be less than start number.");
         }
 
+        // Collect all assigned cashier user IDs (supporting multi-cashier assignment)
+        var userIdsToAssign = new List<Guid>();
+        if (request.AssignedUserIds != null && request.AssignedUserIds.Count > 0)
+        {
+            foreach (var uid in request.AssignedUserIds.Where(id => id != Guid.Empty).Distinct())
+            {
+                userIdsToAssign.Add(uid);
+            }
+        }
+        else if (request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty)
+        {
+            userIdsToAssign.Add(request.AssignedUserId.Value);
+        }
+
+        var assignedCashierList = new List<BookletCashierDto>();
+        var assignedCashierEntities = new List<OrBookletCashier>();
+        Guid? primaryUserId = request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty
+            ? request.AssignedUserId.Value
+            : userIdsToAssign.FirstOrDefault();
+
+        foreach (var userId in userIdsToAssign)
+        {
+            var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+            if (user == null)
+            {
+                return ApiResponse<OrBookletDto>.Fail($"Cashier user '{userId}' was not found.");
+            }
+
+            var membership = await _tenantMemberRepository.GetByTenantAndUserAsync(request.TenantId, userId, cancellationToken);
+            if (membership == null && !user.IsSuperAdmin)
+            {
+                return ApiResponse<OrBookletDto>.Fail($"Cashier '{user.FirstName} {user.LastName}' must belong to this regional office / tenant.");
+            }
+
+            var fullName = $"{user.FirstName} {user.LastName}".Trim();
+            bool isPrimary = userId == primaryUserId;
+
+            assignedCashierList.Add(new BookletCashierDto(userId, fullName, isPrimary));
+            assignedCashierEntities.Add(new OrBookletCashier
+            {
+                CashierUserId = userId,
+                IsPrimary = isPrimary,
+                AssignedAt = DateTime.UtcNow
+            });
+        }
+
         var booklet = new OrBooklet
         {
             TenantId = request.TenantId,
@@ -107,16 +134,19 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             CurrentNumber = request.StartNumber,
             TotalCount = totalCount,
             IssuedCount = 0,
-            AssignedUserId = request.AssignedUserId.Value,
+            AssignedUserId = primaryUserId != Guid.Empty ? primaryUserId : null,
             Status = BookletStatus.Active,
             ReceivedDate = DateTime.UtcNow,
-            Remarks = request.Remarks?.Trim()
+            Remarks = request.Remarks?.Trim(),
+            AssignedCashiers = assignedCashierEntities
         };
 
         await _bookletRepository.AddAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        var assignedUserName = $"{user.FirstName} {user.LastName}".Trim();
+        var primaryCashierName = assignedCashierList.FirstOrDefault(c => c.IsPrimary)?.FullName ?? assignedCashierList.FirstOrDefault()?.FullName;
+        var cashierDisplayNames = assignedCashierList.Select(c => c.FullName).ToList();
+        var cashierIds = assignedCashierList.Select(c => c.UserId).ToList();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -133,12 +163,21 @@ public class CreateOrBookletCommandHandler : IRequestHandler<CreateOrBookletComm
             booklet.FormatOrNumber(booklet.EndNumber),
             booklet.CurrentFormattedOrNumber,
             booklet.AssignedUserId,
-            assignedUserName,
+            primaryCashierName,
             booklet.Status,
             booklet.ReceivedDate,
-            booklet.Remarks
+            booklet.Remarks,
+            cashierIds,
+            cashierDisplayNames,
+            assignedCashierList
         );
 
-        return ApiResponse<OrBookletDto>.Success(dto, $"Official Receipt booklet registered and assigned to {assignedUserName} successfully.");
+        var assignmentMessage = assignedCashierList.Count > 1
+            ? $"Official Receipt booklet registered and shared with {assignedCashierList.Count} cashiers ({string.Join(", ", cashierDisplayNames)})."
+            : assignedCashierList.Count == 1
+            ? $"Official Receipt booklet registered and assigned to {primaryCashierName} successfully."
+            : "Official Receipt booklet registered as unassigned/pooled booklet.";
+
+        return ApiResponse<OrBookletDto>.Success(dto, assignmentMessage);
     }
 }

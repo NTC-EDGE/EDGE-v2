@@ -4,6 +4,12 @@ using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Receipts.Dtos;
 
+public record BookletCashierDto(
+    Guid UserId,
+    string FullName,
+    bool IsPrimary = false
+);
+
 public record OrBookletDto(
     Guid Id,
     Guid TenantId,
@@ -22,7 +28,10 @@ public record OrBookletDto(
     string? AssignedUserName,
     BookletStatus Status,
     DateTime ReceivedDate,
-    string? Remarks
+    string? Remarks,
+    List<Guid>? AssignedUserIds = null,
+    List<string>? AssignedUserNames = null,
+    List<BookletCashierDto>? AssignedCashiers = null
 );
 
 public record OfficialReceiptLineItemDto(

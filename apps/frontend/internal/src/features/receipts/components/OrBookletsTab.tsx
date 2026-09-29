@@ -236,11 +236,22 @@ export function OrBookletsTab({
 
                 {/* Metadata */}
                 <View style={[styles.bookletFooter, { borderTopColor: colors.border }]}>
-                  <View style={styles.metaItem}>
-                    <Lucide name="user" size={14} color={colors.brand.primary} />
-                    <Text style={[styles.metaText, { color: colors.text, fontWeight: '600' }]}>
-                      {b.assignedUserName ?? 'All Cashiers (Unassigned)'}
-                    </Text>
+                  <View style={[styles.metaItem, { flex: 1 }]}>
+                    <Lucide name={b.assignedCashiers && b.assignedCashiers.length > 1 ? 'users' : 'user'} size={14} color={colors.brand.primary} />
+                    <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
+                      <Text style={[styles.metaText, { color: colors.text, fontWeight: '600' }]} numberOfLines={1}>
+                        {b.assignedUserNames && b.assignedUserNames.length > 0
+                          ? b.assignedUserNames.join(', ')
+                          : b.assignedUserName ?? 'All Cashiers (Unassigned)'}
+                      </Text>
+                      {b.assignedCashiers && b.assignedCashiers.length > 1 && (
+                        <View style={{ backgroundColor: colors.brand.indigoLight, paddingHorizontal: 6, paddingVertical: 1, borderRadius: 4 }}>
+                          <Text style={{ fontSize: 9, color: colors.brand.primary, fontWeight: '700' }}>
+                            Shared ({b.assignedCashiers.length})
+                          </Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
                   <View style={styles.metaItem}>
                     <Lucide name="calendar" size={14} color={colors.neutral[500]} />

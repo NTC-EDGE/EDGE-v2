@@ -97,6 +97,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<IssuedDocumentDetail> IssuedDocumentDetails => Set<IssuedDocumentDetail>();
 
     public DbSet<OrBooklet> OrBooklets => Set<OrBooklet>();
+    public DbSet<OrBookletCashier> OrBookletCashiers => Set<OrBookletCashier>();
     public DbSet<OfficialReceipt> OfficialReceipts => Set<OfficialReceipt>();
     public DbSet<OfficialReceiptLineItem> OfficialReceiptLineItems => Set<OfficialReceiptLineItem>();
     public DbSet<AgencyBankAccount> AgencyBankAccounts => Set<AgencyBankAccount>();
@@ -775,6 +776,23 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .WithMany()
                   .HasForeignKey(e => e.AssignedUserId)
                   .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        modelBuilder.Entity<OrBookletCashier>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => new { e.BookletId, e.CashierUserId }).IsUnique();
+            entity.HasIndex(e => e.CashierUserId);
+
+            entity.HasOne(e => e.Booklet)
+                  .WithMany(b => b.AssignedCashiers)
+                  .HasForeignKey(e => e.BookletId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.CashierUser)
+                  .WithMany()
+                  .HasForeignKey(e => e.CashierUserId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OfficialReceipt>(entity =>

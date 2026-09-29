@@ -189,6 +189,8 @@ public static class ReceiptEndpoints
             request.StartNumber,
             request.EndNumber,
             request.TotalCount,
+            request.AssignedUserId,
+            request.AssignedUserIds,
             request.Remarks));
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
@@ -204,6 +206,7 @@ public static class ReceiptEndpoints
             id,
             request.TenantId,
             request.NewAssignedUserId,
+            request.AdditionalUserIds,
             request.TransferReason));
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
@@ -376,9 +379,10 @@ public static class ReceiptEndpoints
     public static async Task<IResult> GetPendingPayments(
         [FromQuery] Guid? tenantId,
         [FromQuery] string? search,
+        [FromQuery] string? fieldOffice,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId ?? Guid.Empty, search));
+        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId ?? Guid.Empty, search, fieldOffice));
         return Results.Ok(result);
     }
 
@@ -410,12 +414,15 @@ public record UpdateOrBookletRequest(
     long StartNumber,
     long? EndNumber = null,
     int TotalCount = 50,
+    Guid? AssignedUserId = null,
+    List<Guid>? AssignedUserIds = null,
     string? Remarks = null
 );
 
 public record TransferOrBookletRequest(
     Guid TenantId,
     Guid NewAssignedUserId,
+    List<Guid>? AdditionalUserIds = null,
     string? TransferReason = null
 );
 

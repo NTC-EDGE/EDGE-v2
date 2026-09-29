@@ -19,6 +19,8 @@ public record UpdateOrBookletCommand(
     long StartNumber,
     long? EndNumber = null,
     int TotalCount = 50,
+    Guid? AssignedUserId = null,
+    List<Guid>? AssignedUserIds = null,
     string? Remarks = null
 ) : IRequest<ApiResponse<OrBookletDto>>;
 
@@ -38,15 +40,18 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
 {
     private readonly IOrBookletRepository _bookletRepository;
     private readonly IUserRepository _userRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public UpdateOrBookletCommandHandler(
         IOrBookletRepository bookletRepository,
         IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
         IUnitOfWork unitOfWork)
     {
         _bookletRepository = bookletRepository;
         _userRepository = userRepository;
+        _tenantMemberRepository = tenantMemberRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -58,10 +63,13 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
             return ApiResponse<OrBookletDto>.Fail("OR Booklet was not found.");
         }
 
-        // Only allow updating if no receipts have been issued from this booklet yet
+        // Only allow updating series numbers if no receipts have been issued from this booklet yet
         if (booklet.IssuedCount > 0 || booklet.CurrentNumber != booklet.StartNumber)
         {
-            return ApiResponse<OrBookletDto>.Fail("Cannot edit booklet series because Official Receipts have already been issued from this booklet.");
+            if (booklet.StartNumber != request.StartNumber || (request.EndNumber.HasValue && booklet.EndNumber != request.EndNumber.Value))
+            {
+                return ApiResponse<OrBookletDto>.Fail("Cannot edit booklet series numbers because Official Receipts have already been issued from this booklet.");
+            }
         }
 
         var exists = await _bookletRepository.ExistsBookletNumberAsync(request.TenantId, request.BookletNumber.Trim(), booklet.Id, cancellationToken);
@@ -80,21 +88,69 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
 
         booklet.BookletNumber = request.BookletNumber.Trim();
         booklet.Prefix = string.IsNullOrWhiteSpace(request.Prefix) ? null : request.Prefix.Trim();
-        booklet.StartNumber = request.StartNumber;
-        booklet.EndNumber = endNumber;
-        booklet.CurrentNumber = request.StartNumber;
-        booklet.TotalCount = totalCount;
+        if (booklet.IssuedCount == 0)
+        {
+            booklet.StartNumber = request.StartNumber;
+            booklet.EndNumber = endNumber;
+            booklet.CurrentNumber = request.StartNumber;
+            booklet.TotalCount = totalCount;
+        }
         booklet.Remarks = request.Remarks?.Trim();
+
+        // Update multi-cashier assignments if provided
+        var userIdsToAssign = new List<Guid>();
+        if (request.AssignedUserIds != null)
+        {
+            foreach (var uid in request.AssignedUserIds.Where(id => id != Guid.Empty).Distinct())
+            {
+                userIdsToAssign.Add(uid);
+            }
+        }
+        else if (request.AssignedUserId.HasValue)
+        {
+            if (request.AssignedUserId.Value != Guid.Empty)
+            {
+                userIdsToAssign.Add(request.AssignedUserId.Value);
+            }
+        }
+
+        if (request.AssignedUserIds != null || request.AssignedUserId.HasValue)
+        {
+            booklet.AssignedCashiers.Clear();
+            Guid? primaryUserId = request.AssignedUserId.HasValue && request.AssignedUserId.Value != Guid.Empty
+                ? request.AssignedUserId.Value
+                : userIdsToAssign.FirstOrDefault();
+
+            foreach (var userId in userIdsToAssign)
+            {
+                var user = await _userRepository.GetByIdAsync(userId, cancellationToken);
+                if (user != null)
+                {
+                    booklet.AssignedCashiers.Add(new OrBookletCashier
+                    {
+                        BookletId = booklet.Id,
+                        CashierUserId = userId,
+                        IsPrimary = userId == primaryUserId,
+                        AssignedAt = DateTime.UtcNow
+                    });
+                }
+            }
+            booklet.AssignedUserId = primaryUserId != Guid.Empty ? primaryUserId : null;
+        }
 
         await _bookletRepository.UpdateAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        string? assignedUserName = null;
-        if (booklet.AssignedUserId.HasValue)
-        {
-            var user = await _userRepository.GetByIdAsync(booklet.AssignedUserId.Value, cancellationToken);
-            assignedUserName = user != null ? $"{user.FirstName} {user.LastName}".Trim() : null;
-        }
+        var assignedCashiers = booklet.AssignedCashiers.Select(ac => new BookletCashierDto(
+            ac.CashierUserId,
+            ac.CashierUser != null ? $"{ac.CashierUser.FirstName} {ac.CashierUser.LastName}".Trim() : string.Empty,
+            ac.IsPrimary
+        )).ToList();
+
+        var primaryCashierName = assignedCashiers.FirstOrDefault(c => c.IsPrimary)?.FullName ??
+                                (booklet.AssignedUser != null ? $"{booklet.AssignedUser.FirstName} {booklet.AssignedUser.LastName}".Trim() : null);
+        var cashierDisplayNames = assignedCashiers.Select(c => c.FullName).ToList();
+        var cashierIds = assignedCashiers.Select(c => c.UserId).ToList();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -111,10 +167,13 @@ public class UpdateOrBookletCommandHandler : IRequestHandler<UpdateOrBookletComm
             booklet.FormatOrNumber(booklet.EndNumber),
             booklet.CurrentFormattedOrNumber,
             booklet.AssignedUserId,
-            assignedUserName,
+            primaryCashierName,
             booklet.Status,
             booklet.ReceivedDate,
-            booklet.Remarks
+            booklet.Remarks,
+            cashierIds,
+            cashierDisplayNames,
+            assignedCashiers
         );
 
         return ApiResponse<OrBookletDto>.Success(dto, "Official Receipt booklet updated successfully.");

@@ -15,6 +15,7 @@ public record TransferOrBookletCommand(
     Guid Id,
     Guid TenantId,
     Guid NewAssignedUserId,
+    List<Guid>? AdditionalUserIds = null,
     string? TransferReason = null
 ) : IRequest<ApiResponse<OrBookletDto>>;
 
@@ -71,6 +72,32 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
         var newUserName = $"{newUser.FirstName} {newUser.LastName}".Trim();
         booklet.AssignedUserId = request.NewAssignedUserId;
 
+        // Collect all users to assign
+        var allUserIds = new List<Guid> { request.NewAssignedUserId };
+        if (request.AdditionalUserIds != null)
+        {
+            foreach (var uid in request.AdditionalUserIds.Where(id => id != Guid.Empty && id != request.NewAssignedUserId).Distinct())
+            {
+                allUserIds.Add(uid);
+            }
+        }
+
+        booklet.AssignedCashiers.Clear();
+        foreach (var uid in allUserIds)
+        {
+            var u = await _userRepository.GetByIdAsync(uid, cancellationToken);
+            if (u != null)
+            {
+                booklet.AssignedCashiers.Add(new OrBookletCashier
+                {
+                    BookletId = booklet.Id,
+                    CashierUserId = uid,
+                    IsPrimary = uid == request.NewAssignedUserId,
+                    AssignedAt = DateTime.UtcNow
+                });
+            }
+        }
+
         if (!string.IsNullOrWhiteSpace(request.TransferReason))
         {
             var auditLog = $"[Transferred to {newUserName} on {DateTime.UtcNow:yyyy-MM-dd HH:mm}: {request.TransferReason.Trim()}]";
@@ -81,6 +108,15 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
 
         await _bookletRepository.UpdateAsync(booklet, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        var assignedCashiers = booklet.AssignedCashiers.Select(ac => new BookletCashierDto(
+            ac.CashierUserId,
+            ac.CashierUser != null ? $"{ac.CashierUser.FirstName} {ac.CashierUser.LastName}".Trim() : (ac.CashierUserId == request.NewAssignedUserId ? newUserName : string.Empty),
+            ac.IsPrimary
+        )).ToList();
+
+        var cashierDisplayNames = assignedCashiers.Select(c => c.FullName).ToList();
+        var cashierIds = assignedCashiers.Select(c => c.UserId).ToList();
 
         var dto = new OrBookletDto(
             booklet.Id,
@@ -100,7 +136,10 @@ public class TransferOrBookletCommandHandler : IRequestHandler<TransferOrBooklet
             newUserName,
             booklet.Status,
             booklet.ReceivedDate,
-            booklet.Remarks
+            booklet.Remarks,
+            cashierIds,
+            cashierDisplayNames,
+            assignedCashiers
         );
 
         return ApiResponse<OrBookletDto>.Success(dto, $"Official Receipt booklet successfully transferred to {newUserName}.");

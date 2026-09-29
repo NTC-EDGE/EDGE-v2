@@ -29,6 +29,7 @@ public class OrBooklet : AuditableEntity
     public string? Remarks { get; set; }
 
     public ICollection<OfficialReceipt> Receipts { get; set; } = new List<OfficialReceipt>();
+    public ICollection<OrBookletCashier> AssignedCashiers { get; set; } = new List<OrBookletCashier>();
 
     public int RemainingCount => Math.Max(0, TotalCount - IssuedCount);
 

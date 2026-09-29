@@ -29,17 +29,29 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
   const [prefix, setPrefix] = useState('NTC-');
   const [startNumber, setStartNumber] = useState('');
   const [totalCount, setTotalCount] = useState('50');
-  const [assignedUserId, setAssignedUserId] = useState<string>('');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [remarks, setRemarks] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // Initialize assignedUserId with current user when opening or when user changes
+  // Initialize selectedUserIds with current user when opening
   useEffect(() => {
     if (visible && user?.id) {
-      setAssignedUserId(user.id);
+      setSelectedUserIds([user.id]);
     }
   }, [visible, user?.id]);
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds((prev) => {
+      if (prev.includes(userId)) {
+        // Don't allow empty if at least 1 is required, or allow toggle
+        const next = prev.filter((id) => id !== userId);
+        return next;
+      } else {
+        return [...prev, userId];
+      }
+    });
+  };
 
   const parsedStart = parseInt(startNumber, 10);
   const parsedCount = parseInt(totalCount, 10) || 50;
@@ -55,11 +67,7 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       return;
     }
 
-    const effectiveAssignedId = assignedUserId.trim().length > 0 ? assignedUserId.trim() : (user?.id ?? null);
-    if (!effectiveAssignedId) {
-      setErrorMsg('An assigned custodian / cashier from this regional office is required.');
-      return;
-    }
+    const effectiveUserIds = selectedUserIds.length > 0 ? selectedUserIds : (user?.id ? [user.id] : []);
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -71,7 +79,8 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
       startNumber: parsedStart,
       endNumber: calculatedEnd,
       totalCount: parsedCount,
-      assignedUserId: effectiveAssignedId,
+      assignedUserId: effectiveUserIds[0] ?? null,
+      assignedUserIds: effectiveUserIds,
       remarks: remarks.trim().length > 0 ? remarks.trim() : null,
     });
 
@@ -88,12 +97,15 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
     }
   };
 
-  const selectedMember = members.find((m) => m.userId === assignedUserId);
-  const assignedDisplay = selectedMember
-    ? `${selectedMember.userFirstName} ${selectedMember.userLastName} (${selectedMember.position || selectedMember.roleName})`
+  const selectedMemberNames = members
+    .filter((m) => selectedUserIds.includes(m.userId))
+    .map((m) => `${m.userFirstName} ${m.userLastName}${m.userId === user?.id ? ' (You)' : ''}`);
+
+  const assignedDisplay = selectedMemberNames.length > 0
+    ? selectedMemberNames.join(', ')
     : user?.name
     ? `${user.name} (You - Current User)`
-    : 'Assigned to Current Cashier';
+    : 'All Cashiers (Unassigned Pool)';
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -200,38 +212,46 @@ export function BundleEntryModal({ visible, tenantId, onClose, onSuccess }: Bund
               </View>
             )}
 
-            {/* Assigned Custodian / Cashier */}
+            {/* Assigned Custodian / Cashier (Multi-Cashier Sharing) */}
             <View style={styles.formGroup}>
-              <Text style={[styles.label, { color: colors.neutral[700] }]}>Assigned Custodian / Cashier *</Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <Text style={[styles.label, { color: colors.neutral[700], marginBottom: 0 }]}>Assigned Cashier(s) *</Text>
+                <Text style={{ fontSize: 11, color: colors.brand.primary, fontWeight: '600' }}>
+                  {selectedUserIds.length > 1 ? `Shared with ${selectedUserIds.length} Cashiers` : 'Single Assignee'}
+                </Text>
+              </View>
               <View style={[styles.assignedBox, { borderColor: colors.neutral[300], backgroundColor: colors.neutral[50] }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
-                  <Lucide name="user-check" size={16} color={colors.brand.primary} />
+                  <Lucide name="users" size={16} color={colors.brand.primary} />
                   <Text style={[styles.assignedText, { color: colors.text }]}>
                     {assignedDisplay}
                   </Text>
                 </View>
-                {user?.name && (
+                {selectedUserIds.length > 1 && (
                   <View style={[styles.autoBadge, { backgroundColor: colors.brand.indigoLight }]}>
-                    <Text style={[styles.autoBadgeText, { color: colors.brand.primary }]}>Creator Auto-Assigned</Text>
+                    <Text style={[styles.autoBadgeText, { color: colors.brand.primary }]}>Multi-Cashier Shared</Text>
                   </View>
                 )}
               </View>
-              {members.length > 1 && (
+              {members.length > 0 && (
                 <View style={styles.memberSelector}>
-                  <Text style={[styles.selectorHelp, { color: colors.textMuted }]}>Assign to another staff member:</Text>
+                  <Text style={[styles.selectorHelp, { color: colors.textMuted }]}>
+                    Click cashiers to assign/unassign (multi-cashier sharing):
+                  </Text>
                   <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.memberChips}>
                     {members.map((m) => {
-                      const isSelected = assignedUserId === m.userId;
+                      const isSelected = selectedUserIds.includes(m.userId);
                       return (
                         <TouchableOpacity
                           key={m.id}
-                          onPress={() => setAssignedUserId(m.userId)}
+                          onPress={() => toggleUserSelection(m.userId)}
                           style={[
                             styles.chip,
                             { borderColor: colors.neutral[300], backgroundColor: '#fff' },
                             isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
                           ]}
                         >
+                          {isSelected && <Lucide name="check" size={12} color="#fff" style={{ marginRight: 4 }} />}
                           <Text
                             style={[
                               styles.chipText,

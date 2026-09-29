@@ -6,6 +6,12 @@ export type ReceiptStatus = 'Issued' | 'Deposited' | 'Cancelled';
 export type PaymentMethod = 'Cash' | 'Check' | 'Online';
 export type DepositStatus = 'Pending' | 'Deposited' | 'Reconciled';
 
+export interface BookletCashierDto {
+  userId: string;
+  fullName: string;
+  isPrimary?: boolean;
+}
+
 export interface OrBookletDto {
   id: string;
   tenantId: string;
@@ -25,6 +31,9 @@ export interface OrBookletDto {
   status: BookletStatus;
   receivedDate: string;
   remarks?: string | null;
+  assignedUserIds?: string[];
+  assignedUserNames?: string[];
+  assignedCashiers?: BookletCashierDto[];
 }
 
 export interface NextAvailableOrDto {
@@ -208,6 +217,7 @@ export interface CreateOrBookletPayload {
   endNumber?: number | null;
   totalCount?: number;
   assignedUserId?: string | null;
+  assignedUserIds?: string[];
   remarks?: string | null;
 }
 
@@ -219,6 +229,8 @@ export interface UpdateOrBookletPayload {
   startNumber: number;
   endNumber?: number | null;
   totalCount?: number;
+  assignedUserId?: string | null;
+  assignedUserIds?: string[];
   remarks?: string | null;
 }
 
@@ -226,6 +238,7 @@ export interface TransferOrBookletPayload {
   id: string;
   tenantId: string;
   newAssignedUserId: string;
+  additionalUserIds?: string[];
   transferReason?: string | null;
 }
 

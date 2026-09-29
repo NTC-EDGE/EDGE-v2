@@ -9,6 +9,11 @@ using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Receipts.Dtos;
 
+using System.Security.Cryptography;
+using System.Text;
+using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
+
 namespace EDGE.Application.Receipts.Queries.PendingPayments;
 
 public record PendingPaymentLineItemDto(
@@ -38,21 +43,124 @@ public record PendingPaymentDto(
 
 public record GetPendingPaymentsQuery(
     Guid TenantId,
-    string? SearchTerm = null
+    string? SearchTerm = null,
+    string? FieldOffice = null
 ) : IRequest<ApiResponse<List<PendingPaymentDto>>>;
 
 public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPaymentsQuery, ApiResponse<List<PendingPaymentDto>>>
 {
     private readonly IOfficialReceiptRepository _receiptRepository;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
+    private readonly ITenantMemberRepository _tenantMemberRepository;
+    private readonly ITenantContextService _tenantContextService;
+    private readonly IFieldOfficeRepository _fieldOfficeRepository;
 
-    public GetPendingPaymentsQueryHandler(IOfficialReceiptRepository receiptRepository)
+    public GetPendingPaymentsQueryHandler(
+        IOfficialReceiptRepository receiptRepository,
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository,
+        ITenantMemberRepository tenantMemberRepository,
+        ITenantContextService tenantContextService,
+        IFieldOfficeRepository fieldOfficeRepository)
     {
         _receiptRepository = receiptRepository;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
+        _tenantMemberRepository = tenantMemberRepository;
+        _tenantContextService = tenantContextService;
+        _fieldOfficeRepository = fieldOfficeRepository;
     }
 
     public async Task<ApiResponse<List<PendingPaymentDto>>> Handle(GetPendingPaymentsQuery request, CancellationToken cancellationToken)
     {
-        var list = await _receiptRepository.GetPendingOrdersOfPaymentAsync(request.TenantId, request.SearchTerm, cancellationToken);
+        var targetTenantId = request.TenantId;
+        var userIdStr = _currentUserService.UserId;
+        Guid? resolvedUserId = null;
+        string? resolvedEmail = null;
+
+        if (!string.IsNullOrEmpty(userIdStr))
+        {
+            if (Guid.TryParse(userIdStr, out var parsedGuid))
+            {
+                resolvedUserId = parsedGuid;
+            }
+            else
+            {
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(userIdStr, cancellationToken);
+                if (dbUser != null)
+                {
+                    resolvedUserId = dbUser.Id;
+                    resolvedEmail = dbUser.Email;
+                }
+                else
+                {
+                    resolvedUserId = CreateGuidFromString(userIdStr);
+                }
+            }
+        }
+
+        if (targetTenantId == Guid.Empty)
+        {
+            if (_tenantContextService.TenantId.HasValue && _tenantContextService.TenantId.Value != Guid.Empty)
+            {
+                targetTenantId = _tenantContextService.TenantId.Value;
+            }
+            else
+            {
+                var activeTenants = await _tenantContextService.GetUserActiveTenantIdsAsync(cancellationToken);
+                if (activeTenants.Count > 0)
+                {
+                    targetTenantId = activeTenants.First();
+                }
+            }
+        }
+
+        string? effectiveFieldOffice = request.FieldOffice;
+        var isSuperAdmin = await _tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
+
+        // Apply field office scoping for regular Cashier/Accountant staff
+        // Regional Directors and Administrators can see all pending payments across all field offices in the region.
+        if (!isSuperAdmin && resolvedUserId.HasValue)
+        {
+            bool isAdministrative = _currentUserService.IsAdminClaim ||
+                                   AdministrativeIdentityPolicy.IsAdministrativeEmail(resolvedEmail);
+
+            TenantMember? currentMembership = null;
+            if (targetTenantId != Guid.Empty)
+            {
+                currentMembership = await _tenantMemberRepository.GetByTenantAndUserAsync(targetTenantId, resolvedUserId.Value, cancellationToken);
+            }
+            else
+            {
+                var memberships = await _tenantMemberRepository.GetMembersByUserAsync(resolvedUserId.Value, cancellationToken);
+                currentMembership = memberships.FirstOrDefault();
+            }
+
+            if (currentMembership?.Role != null &&
+                AdministrativeIdentityPolicy.IsAdministrativeRole(currentMembership.Role.Key ?? currentMembership.Role.Name))
+            {
+                isAdministrative = true;
+            }
+
+            if (!isAdministrative)
+            {
+                if (currentMembership?.FieldOffice != null && !string.IsNullOrWhiteSpace(currentMembership.FieldOffice.Name))
+                {
+                    effectiveFieldOffice = currentMembership.FieldOffice.Name;
+                }
+                else if (currentMembership?.FieldOfficeId.HasValue == true && currentMembership.FieldOfficeId.Value != Guid.Empty)
+                {
+                    var office = await _fieldOfficeRepository.GetByIdAsync(currentMembership.FieldOfficeId.Value, cancellationToken);
+                    if (office != null && !string.IsNullOrWhiteSpace(office.Name))
+                    {
+                        effectiveFieldOffice = office.Name;
+                    }
+                }
+            }
+        }
+
+        var list = await _receiptRepository.GetPendingOrdersOfPaymentAsync(targetTenantId, request.SearchTerm, effectiveFieldOffice, cancellationToken);
 
         var dtos = list.Select(op =>
         {
@@ -106,5 +214,12 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
         }).ToList();
 
         return ApiResponse<List<PendingPaymentDto>>.Success(dtos, "Pending payments retrieved successfully.");
+    }
+
+    private static Guid CreateGuidFromString(string input)
+    {
+        using var md5 = MD5.Create();
+        byte[] hash = md5.ComputeHash(Encoding.UTF8.GetBytes(input));
+        return new Guid(hash);
     }
 }

@@ -33,6 +33,7 @@ export function TransferBookletModal({
   const { members, isLoading: isLoadingMembers } = useTenantMembers(tenantId);
 
   const [targetUserId, setTargetUserId] = useState<string>('');
+  const [additionalUserIds, setAdditionalUserIds] = useState<string[]>([]);
   const [transferReason, setTransferReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -46,6 +47,7 @@ export function TransferBookletModal({
       } else {
         setTargetUserId('');
       }
+      setAdditionalUserIds([]);
       setTransferReason('');
       setErrorMsg(null);
     }
@@ -53,17 +55,21 @@ export function TransferBookletModal({
 
   if (!booklet) return null;
 
-  const currentAssigneeName = booklet.assignedUserName || 'All Cashiers (Unassigned)';
+  const currentAssigneeName = booklet.assignedUserNames && booklet.assignedUserNames.length > 0
+    ? booklet.assignedUserNames.join(', ')
+    : booklet.assignedUserName || 'All Cashiers (Unassigned)';
   const targetMember = members.find((m) => m.userId === targetUserId);
+
+  const toggleAdditionalUser = (userId: string) => {
+    if (userId === targetUserId) return;
+    setAdditionalUserIds((prev) =>
+      prev.includes(userId) ? prev.filter((id) => id !== userId) : [...prev, userId]
+    );
+  };
 
   const handleSubmit = async () => {
     if (!targetUserId) {
-      setErrorMsg('Please select a target cashier / staff member to transfer this booklet to.');
-      return;
-    }
-
-    if (targetUserId === booklet.assignedUserId) {
-      setErrorMsg('Target user is already the current assignee of this booklet.');
+      setErrorMsg('Please select a target primary cashier / staff member.');
       return;
     }
 
@@ -74,6 +80,7 @@ export function TransferBookletModal({
       id: booklet.id,
       tenantId: booklet.tenantId,
       newAssignedUserId: targetUserId,
+      additionalUserIds: additionalUserIds,
       transferReason: transferReason.trim().length > 0 ? transferReason.trim() : null,
     });
 

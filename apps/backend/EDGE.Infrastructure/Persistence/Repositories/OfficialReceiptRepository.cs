@@ -124,7 +124,7 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, CancellationToken cancellationToken = default)
+    public async Task<List<OrderOfPayment>> GetPendingOrdersOfPaymentAsync(Guid tenantId, string? search = null, string? fieldOffice = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OrdersOfPayment
             .AsNoTracking()
@@ -148,6 +148,13 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
                             .ThenInclude(s => s!.ServiceCategory)
             .Where(op => (op.Status == OpStatus.Billed || op.Status == OpStatus.Processing) &&
                          (tenantId == Guid.Empty || op.Application.TenantId == tenantId));
+
+        if (!string.IsNullOrWhiteSpace(fieldOffice))
+        {
+            var fo = fieldOffice.Trim().ToLower();
+            query = query.Where(op => op.Application.Office != null &&
+                (op.Application.Office.ToLower().Contains(fo) || fo.Contains(op.Application.Office.ToLower())));
+        }
 
         if (!string.IsNullOrWhiteSpace(search))
         {
