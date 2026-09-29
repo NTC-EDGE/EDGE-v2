@@ -9,16 +9,15 @@ import {
   Platform,
   StyleSheet,
 } from "react-native";
-import useSWR from "swr";
 import { Icon, COLORS, TYPOGRAPHY, SPACING } from "@edge/ui";
 import {
-  apiClient,
   ApiResponse,
   PagedApplicationListDto,
   ApplicationSummaryDto,
   StatementOfAccountDto,
 } from "@edge/api";
 import { useUser, useAuth } from "@clerk/expo";
+import { useApi } from "../hooks/useApi";
 import { useAppNavigation } from "../../navigation";
 import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
 import { ClientFooter } from "./ClientFooter";
@@ -92,13 +91,11 @@ export function ClientAppLayout({
   const { user: clerkUser } = useUser();
   const { signOut } = useAuth();
 
+  const api = useApi();
+
   // Real-time user application notifications & action counts
-  const { data: myAppsData } = useSWR<ApiResponse<PagedApplicationListDto>>(
+  const { data: myAppsData } = api.useQuery<ApiResponse<PagedApplicationListDto>>(
     clerkUser !== null && clerkUser !== undefined ? "/api/v2/applications/me" : null,
-    async (url: string) => {
-      const res = await apiClient.get<ApiResponse<PagedApplicationListDto>>(url);
-      return res.data;
-    },
     { revalidateOnFocus: true, refreshInterval: 30000 }
   );
 
