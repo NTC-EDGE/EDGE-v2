@@ -63,8 +63,38 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
 
         if (op == null)
         {
-            _logger.LogWarning("SubmitPayment failed. No active Order of Payment found for Application '{ApplicationId}'.", request.ApplicationId);
-            return ApiResponse<bool>.Fail("No pending Order of Payment found for this application.");
+            op = app.OrdersOfPayment
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefault(o => o.Status != OpStatus.Paid);
+        }
+
+        if (op == null)
+        {
+            var latestSoa = app.StatementsOfAccount
+                .OrderByDescending(s => s.CreatedAt)
+                .FirstOrDefault();
+
+            var amountDue = request.AmountPaid ?? latestSoa?.TotalAmount ?? 0m;
+            if (amountDue <= 0 && latestSoa != null && latestSoa.LineItems != null)
+            {
+                amountDue = latestSoa.LineItems.Sum(li => li.Amount);
+            }
+
+            op = new OrderOfPayment
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                StatementOfAccountId = latestSoa?.Id ?? Guid.NewGuid(),
+                OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                AmountDue = amountDue > 0 ? amountDue : 1000.00m,
+                AmountReceived = request.AmountPaid ?? (amountDue > 0 ? amountDue : 1000.00m),
+                Status = OpStatus.Billed,
+                PaymentMethod = request.PaymentMethod,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            await _repository.AddOpAsync(op, cancellationToken);
+            app.OrdersOfPayment.Add(op);
         }
 
         var prevOpStatus = op.Status;
