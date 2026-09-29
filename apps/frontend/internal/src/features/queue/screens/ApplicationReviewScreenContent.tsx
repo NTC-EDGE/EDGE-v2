@@ -529,6 +529,11 @@ export function ApplicationReviewScreenContent({
 
   /** Start evaluation button for Submitted applications */
   const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe;
+  const isPaymentSubmitted = Boolean(
+    (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
+    (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
+    (app.history && app.history.some((h) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+  );
   /** Show Cashier-specific payment verify button */
   const showCashierBtn = isPendingPayment && !isEndorsedAwayFromMe && (currentRole === 'Cashier' || canVerifyCashier || isAdmin);
   /** Show Accountant-specific SOA approve button */
@@ -547,8 +552,13 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = 'Start Evaluation';
     approveButtonIcon = 'play-circle';
   } else if (showCashierBtn) {
-    approveButtonLabel = 'Collect & Issue OR';
-    approveButtonIcon = 'credit-card';
+    if (isPaymentSubmitted) {
+      approveButtonLabel = 'Verify & Issue OR';
+      approveButtonIcon = 'credit-card';
+    } else {
+      approveButtonLabel = 'Awaiting Client Payment';
+      approveButtonIcon = 'play-circle';
+    }
   } else if (showAccountantBtn) {
     approveButtonLabel = 'Approve SOA';
     approveButtonIcon = 'check-circle';
@@ -583,6 +593,9 @@ export function ApplicationReviewScreenContent({
     if (showStartEvalBtn) {
       void handleStartEvaluation();
     } else if (showCashierBtn) {
+      if (!isPaymentSubmitted) {
+        toast.info("Awaiting applicant payment submission. You may proceed if collecting payment directly at the cashier counter.");
+      }
       setShowCashier(true);
     } else if (showIssueBtn) {
       setShowIssueDoc(true);

@@ -277,6 +277,12 @@ export function SoaPaymentTab({
   }
 
   const isForAccountant = app.status === 'ForAccountant';
+  const isPendingPayment = app.status === 'PendingPayment';
+  const isPaymentSubmitted = Boolean(
+    (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
+    (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
+    (app.history && app.history.some((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+  );
   const isSoaReturned = (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) || (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
 
   return (
@@ -299,6 +305,49 @@ export function SoaPaymentTab({
           <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#e0e7ff' : '#3730a3', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
             <Text style={{ fontWeight: '700' }}>SOA Verification:</Text> Verify fee calculations. Click <Text style={{ fontWeight: '700' }}>Approve SOA</Text> to issue Order of Payment, or <Text style={{ fontWeight: '700' }}>Return</Text> if corrections are needed.
+          </Text>
+        </View>
+      )}
+
+      {/* Cashier Payment Status Banner */}
+      {isPendingPayment && isPaymentSubmitted && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+            borderColor: isDark ? '#059669' : '#10b981',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="check-circle" size={18} color={isDark ? '#34d399' : '#059669'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#d1fae5' : '#065f46', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Go-Signal for Cashier — Payment Submitted:</Text> The applicant has submitted payment reference details. Cashier is authorized to proceed with OR issuance.
+          </Text>
+        </View>
+      )}
+
+      {isPendingPayment && !isPaymentSubmitted && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#451a03' : '#fffbeb',
+            borderColor: isDark ? '#b45309' : '#f59e0b',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="clock" size={18} color={isDark ? '#fbbf24' : '#d97706'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#fde68a' : '#92400e', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Cashier Hold — Awaiting Client Payment:</Text> The client has not yet proceeded to payment. Cashier does not have the go-signal to issue the Official Receipt (OR) until client submits payment details or pays over the counter.
           </Text>
         </View>
       )}
@@ -785,35 +834,52 @@ export function SoaPaymentTab({
             style={{
               padding: SPACING[16],
               borderRadius: RADIUS.card,
-              backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+              backgroundColor: isPaymentSubmitted
+                ? (isDark ? '#064e3b' : '#ecfdf5')
+                : (isDark ? '#451a03' : '#fffbeb'),
               borderWidth: 1,
-              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              borderColor: isPaymentSubmitted
+                ? (isDark ? '#059669' : '#10b981')
+                : (isDark ? '#b45309' : '#f59e0b'),
               flexDirection: 'row',
               alignItems: 'center',
               gap: 12,
             }}
           >
-            <Lucide name="clock" size={20} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+            <Lucide
+              name={isPaymentSubmitted ? 'check-circle' : 'lock'}
+              size={22}
+              color={isPaymentSubmitted ? (isDark ? '#34d399' : '#059669') : (isDark ? '#fbbf24' : '#d97706')}
+            />
             <View style={{ flex: 1 }}>
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
                   fontSize: 13,
-                  fontWeight: TYPOGRAPHY.weights.semibold,
-                  color: isDark ? colors.neutral[200] : colors.neutral[800],
+                  fontWeight: TYPOGRAPHY.weights.bold,
+                  color: isPaymentSubmitted
+                    ? (isDark ? '#d1fae5' : '#065f46')
+                    : (isDark ? '#fde68a' : '#92400e'),
                 }}
               >
-                Payment Settlement Pending
+                {isPaymentSubmitted
+                  ? 'Payment Details Submitted (Go-Signal for Cashier)'
+                  : 'Awaiting Client Payment (No Go-Signal Yet)'}
               </Text>
               <Text
                 style={{
                   fontFamily: TYPOGRAPHY.fonts.primary,
                   fontSize: 12,
-                  color: isDark ? colors.neutral[400] : colors.neutral[500],
+                  color: isPaymentSubmitted
+                    ? (isDark ? '#a7f3d0' : '#047857')
+                    : (isDark ? '#fde68a' : '#b45309'),
                   marginTop: 2,
+                  lineHeight: 17,
                 }}
               >
-                Awaiting payment settlement from applicant and Cashier Official Receipt (OR) verification.
+                {isPaymentSubmitted
+                  ? 'The applicant has submitted payment reference details. Cashier is authorized to collect, verify, and issue the Official Receipt (OR).'
+                  : 'The client has not yet proceeded with payment. Cashier does not have the go-signal to issue an Official Receipt until the applicant submits payment details or settles at the cashier window.'}
               </Text>
             </View>
           </View>
