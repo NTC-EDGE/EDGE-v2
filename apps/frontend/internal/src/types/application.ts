@@ -154,6 +154,8 @@ export interface ApplicationData {
   status: ApplicationStatus;
   queueTab: QueueTab;
   createdAt: string;
+  updatedAt?: string;
+  lastModifiedAt?: string;
   dateLabel: string;
   assignedTo: string;
   evaluatingOfficer?: string;

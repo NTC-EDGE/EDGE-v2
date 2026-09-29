@@ -108,7 +108,8 @@ function buildDateGroups(
   >();
 
   for (const app of apps) {
-    const date = new Date(app.createdAt);
+    const dateStr = app.updatedAt ?? app.createdAt;
+    const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
     if (!groupMap.has(dateKey)) {
       groupMap.set(dateKey, { label: app.dateLabel, items: [], ts: date.getTime() });
@@ -123,7 +124,15 @@ function buildDateGroups(
     sortOrder === "newest" ? b.ts - a.ts : a.ts - b.ts,
   );
 
-  return sorted.map(([dateKey, { label, items }]) => ({ label, dateKey, items }));
+  return sorted.map(([dateKey, { label, items }]) => ({
+    label,
+    dateKey,
+    items: [...items].sort((a, b) => {
+      const aTime = new Date(a.updatedAt ?? a.createdAt).getTime();
+      const bTime = new Date(b.updatedAt ?? b.createdAt).getTime();
+      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+    }),
+  }));
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────

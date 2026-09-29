@@ -684,6 +684,8 @@ export interface ApiApplicationDto {
   office?: string;
   remarks?: string;
   createdAt?: string;
+  updatedAt?: string;
+  lastModifiedAt?: string;
   submittedAt?: string;
   serviceName?: string;
   serviceCategory?: string;
@@ -888,7 +890,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const serviceName = dto.serviceName || serviceFromList || dto.remarks || dto.office || 'NTC Service Application';
   const categoryFromList = dto.services && dto.services.length > 0 ? dto.services[0]?.category : undefined;
   const serviceCategory = dto.serviceCategory || categoryFromList || 'General';
-  const submittedAt = dto.createdAt || dto.submittedAt || new Date().toISOString();
+  const submittedAt = dto.updatedAt || dto.lastModifiedAt || dto.createdAt || dto.submittedAt || new Date().toISOString();
 
   const mappedApplicants: BulkApplicant[] = rawApplicants.map((ap, idx) => {
     const apDetails = ap.details || ap;

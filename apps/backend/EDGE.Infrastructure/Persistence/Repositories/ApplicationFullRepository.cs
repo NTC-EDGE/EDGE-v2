@@ -119,7 +119,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
             .Where(a => a.UserId.HasValue && userIds.Contains(a.UserId.Value) && a.Status == ApplicationStatus.Draft)
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -141,7 +141,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         }
 
         return await query
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -209,7 +209,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -268,7 +268,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
             {
                 Id = app.Id,
@@ -282,6 +282,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
                 ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
@@ -520,7 +522,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         var items = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
@@ -536,6 +538,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
                 ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
@@ -661,7 +665,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.CreatedAt)
+            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationDto
             {
                 Id = app.Id,
@@ -680,6 +684,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 IsPinned = app.IsPinned,
                 IsArchived = app.IsArchived,
                 CreatedAt = app.CreatedAt,
+                LastModifiedAt = app.LastModifiedAt,
+                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
                 FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserDto
                 {
                     Id = app.User.Id,
@@ -883,7 +889,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(fs => fs.FieldValues)
                     .ThenInclude(fv => fv.Field)
             .Where(a => a.ApplicationApplicants.Any(aa => aa.ApplicantId == applicantId))
-            .OrderByDescending(a => a.CreatedAt)
+            .OrderByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 

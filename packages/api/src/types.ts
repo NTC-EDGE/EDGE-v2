@@ -1014,6 +1014,8 @@ export interface ApplicationDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  lastModifiedAt?: string;
+  updatedAt?: string;
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
@@ -1107,6 +1109,8 @@ export interface ApplicationSummaryDto {
   isPinned?: boolean;
   isArchived?: boolean;
   createdAt: string;
+  lastModifiedAt?: string;
+  updatedAt?: string;
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;

@@ -528,7 +528,9 @@ export function mapApplicationDtoToUI(
           submissionId: a.submissionId,
         })),
     createdAt: dto.createdAt,
-    dateLabel: formatDateLabel(dto.createdAt),
+    updatedAt: dto.updatedAt || dto.lastModifiedAt || dto.createdAt,
+    lastModifiedAt: dto.lastModifiedAt,
+    dateLabel: formatDateLabel(dto.updatedAt || dto.lastModifiedAt || dto.createdAt),
     assignedTo: (() => {
       if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
         return endorsementState.endorsedTo;
