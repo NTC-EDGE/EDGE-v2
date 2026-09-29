@@ -1390,6 +1390,10 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("TenantId", "Code")
                         .IsUnique();
 
+                    b.HasIndex("TenantId", "Name");
+
+                    b.HasIndex("TenantId", "RegionId");
+
                     b.ToTable("FieldOffices", "public");
                 });
 
@@ -2666,7 +2670,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("TenantId");
+                    b.HasIndex("TenantId", "Key");
+
+                    b.HasIndex("TenantId", "Name");
 
                     b.ToTable("Roles", "public");
                 });
@@ -3839,6 +3845,10 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("RoleId");
 
                     b.HasIndex("UserId");
+
+                    b.HasIndex("TenantId", "FieldOfficeId");
+
+                    b.HasIndex("TenantId", "RoleId");
 
                     b.HasIndex("TenantId", "UserId")
                         .IsUnique();
