@@ -170,11 +170,15 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .OnDelete(DeleteBehavior.SetNull);
 
             entity.HasIndex(e => new { e.TenantId, e.UserId }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.RoleId });
+            entity.HasIndex(e => new { e.TenantId, e.FieldOfficeId });
         });
 
         // Role Configuration
         modelBuilder.Entity<Role>(entity =>
         {
+            entity.HasIndex(r => new { r.TenantId, r.Key });
+            entity.HasIndex(r => new { r.TenantId, r.Name });
             entity.HasOne(r => r.Tenant)
                   .WithMany()
                   .HasForeignKey(r => r.TenantId)
@@ -221,6 +225,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
                   .HasMaxLength(50)
                   .HasDefaultValue(FieldOfficeCategory.Main);
             entity.HasIndex(e => new { e.TenantId, e.Code }).IsUnique();
+            entity.HasIndex(e => new { e.TenantId, e.Name });
+            entity.HasIndex(e => new { e.TenantId, e.RegionId });
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)
