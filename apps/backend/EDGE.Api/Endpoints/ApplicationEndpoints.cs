@@ -39,6 +39,8 @@ using EDGE.Application.Applications.Commands.TogglePinApplication;
 using EDGE.Application.Applications.Commands.ToggleArchiveApplication;
 using EDGE.Application.Applications.Commands.CreateFormSubmission;
 using EDGE.Application.Applications.Commands.UpdateFormSubmissionValues;
+using EDGE.Application.Applications.Commands.IssueApplication;
+using EDGE.Application.Applications.Queries.GenerateNextDocumentNumber;
 
 using EDGE.Domain.Enums;
 using Microsoft.AspNetCore.Mvc;
@@ -182,6 +184,18 @@ public static class ApplicationEndpoints
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
 
+        group.MapPost("/{id:guid}/issue", IssueApplicationEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.IssueApplication))
+            .WithName("IssueApplication")
+            .WithSummary("Issue document and license")
+            .WithDescription("Issues statutory license, certificate, or permit, assigns form/license control numbers, and marks application completed.");
+
+        group.MapGet("/{id:guid}/next-document-numbers", GetNextDocumentNumbersEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.IssueApplication))
+            .WithName("GetNextDocumentNumbers")
+            .WithSummary("Generate recommended document and license numbers")
+            .WithDescription("Generates next sequential form and license numbers based on regional office prefix and service type.");
+
         group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
             .WithName("DeleteMyDraftApplication")
@@ -299,6 +313,8 @@ public static class ApplicationEndpoints
         [FromQuery] string? mode,
         [FromQuery] Guid? tenantId,
         [FromQuery] string? role,
+        [FromQuery] string? assignedTo,
+        [FromQuery] string? fieldOffice,
         IMediator mediator)
     {
         var result = await mediator.Send(new GetAllApplicationsQuery(
@@ -310,6 +326,8 @@ public static class ApplicationEndpoints
             SearchTerm: searchTerm,
             Mode: mode,
             TenantId: tenantId,
+            FieldOffice: fieldOffice,
+            AssignedTo: assignedTo,
             Role: role));
         if (!result.Succeeded && result.Message != null && result.Message.StartsWith("401"))
         {
@@ -632,6 +650,36 @@ public static class ApplicationEndpoints
         CancellationToken cancellationToken)
     {
         var result = await mediator.Send(command with { ApplicationId = id, SubmissionId = submissionId }, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.IssueApplication)]
+    public static async Task<IResult> IssueApplicationEndpoint(
+        Guid id,
+        [FromBody] IssueApplicationCommand command,
+        IValidator<IssueApplicationCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var finalCommand = command with { ApplicationId = id };
+        var validationResult = await validator.ValidateAsync(finalCommand, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(finalCommand, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.IssueApplication)]
+    public static async Task<IResult> GetNextDocumentNumbersEndpoint(
+        Guid id,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var query = new GenerateNextDocumentNumberQuery { ApplicationId = id };
+        var result = await mediator.Send(query, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 }

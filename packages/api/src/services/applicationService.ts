@@ -11,6 +11,9 @@ import {
   ApplicationFormSubmissionDto,
   ApplicantRequirementItemDto,
   FeeCalculationResultDto,
+  IssueApplicationRequest,
+  IssuedDocumentDetailDto,
+  GeneratedDocumentNumbersDto,
 } from '../types';
 
 export const applicationService = {
@@ -273,6 +276,25 @@ export const applicationService = {
       const response = await apiClient.post<ApiResponse<string>>(
         `/api/v2/applications/${applicationId}/applicants/${applicantId}/requirements`,
         payload
+      );
+      return response.data;
+    });
+  },
+
+  async issueApplication(id: string, body: IssueApplicationRequest) {
+    return safeAsync(async () => {
+      const response = await apiClient.post<ApiResponse<IssuedDocumentDetailDto>>(
+        `/api/v2/applications/${id}/issue`,
+        body
+      );
+      return response.data;
+    });
+  },
+
+  async getNextDocumentNumbers(id: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<ApiResponse<GeneratedDocumentNumbersDto>>(
+        `/api/v2/applications/${id}/next-document-numbers`
       );
       return response.data;
     });

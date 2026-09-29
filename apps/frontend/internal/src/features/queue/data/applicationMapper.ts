@@ -46,6 +46,7 @@ function mapBEStatusToFE(status: string): ApplicationStatus {
     Completed: 'Completed',
     ForAccountant: 'ForAccountant',
     PendingPayment: 'PendingPayment',
+    ForIssuance: 'ForIssuance',
   };
   return map[status] ?? 'Submitted';
 }
@@ -63,6 +64,7 @@ function parseBackendQueueTab(tab?: string): QueueTab | null {
   if (!tab || typeof tab !== 'string') return null;
   const trimmed = tab.trim().toLowerCase();
   if (trimmed === 'pending') return 'pending';
+  if (trimmed === 'issuance' || trimmed === 'forissuance') return 'issuance';
   if (trimmed === 'history' || trimmed === 'archived') return 'history';
   if (trimmed === 'activity' || trimmed === 'all') return 'activity';
   return null;
@@ -91,6 +93,10 @@ export function isEvaluatorOrSupervisorRole(role?: string): boolean {
 }
 
 export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
+  if (status === 'ForIssuance') {
+    return 'issuance';
+  }
+
   if (isAccountantRole(role)) {
     if (status === 'ForAccountant') return 'pending';
     if (status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
@@ -548,16 +554,20 @@ export function mapApplicationDtoToUI(
       if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
         return endorsementState.endorsedTo;
       }
-      if (feStatus === 'Evaluating' && 'histories' in dto && Array.isArray(dto.histories) && dto.histories.length > 0) {
+      if ('histories' in dto && Array.isArray(dto.histories) && dto.histories.length > 0) {
         const sorted = [...dto.histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
         const latestEval = [...sorted].reverse().find(
-          (h) => h.toStatus === 'Evaluating' || (h.action && h.action.toLowerCase().includes('evaluat'))
+          (h) =>
+            h.toStatus === 'ForAccountant' ||
+            h.toStatus === 'Evaluating' ||
+            (h.action && (h.action.toLowerCase().includes('evaluat') || h.action.toLowerCase().includes('accountant'))) ||
+            (h.staffRole && h.staffRole.toLowerCase().includes('evaluator'))
         );
         if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
           return latestEval.staffName;
         }
       }
-      if (feStatus === 'Evaluating' && dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
+      if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
         const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
         if (match && match[1]) {
           return match[1].trim();

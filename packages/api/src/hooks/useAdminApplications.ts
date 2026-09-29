@@ -41,6 +41,8 @@ export function useAdminApplications(
     mode?: string;
     tenantId?: string;
     role?: string;
+    assignedTo?: string;
+    fieldOffice?: string;
   },
   options?: UseAdminApplicationsOptions
 ) {
@@ -54,6 +56,8 @@ export function useAdminApplications(
   if (params?.mode) searchParams.set('mode', params.mode);
   if (params?.tenantId) searchParams.set('tenantId', params.tenantId);
   if (params?.role) searchParams.set('role', params.role);
+  if (params?.assignedTo) searchParams.set('assignedTo', params.assignedTo);
+  if (params?.fieldOffice) searchParams.set('fieldOffice', params.fieldOffice);
 
   const queryString = searchParams.toString();
   const key = `/api/v2/applications${queryString ? `?${queryString}` : ''}`;

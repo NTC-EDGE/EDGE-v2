@@ -8,6 +8,11 @@ public static class ApplicationStatusHelper
 {
     public static string DetermineQueueTab(ApplicationStatus status, string? role = null)
     {
+        if (status == ApplicationStatus.ForIssuance)
+        {
+            return "issuance";
+        }
+
         if (IsAccountantRole(role))
         {
             if (status == ApplicationStatus.ForAccountant) return "pending";

@@ -180,9 +180,13 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+            if (tab == "issuance")
             {
-                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                query = query.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (tab == "pending")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.ForIssuance);
             }
             else if (tab == "history")
             {
@@ -235,7 +239,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         if (!string.IsNullOrWhiteSpace(queueTab))
         {
             var tab = queueTab.Trim().ToLowerInvariant();
-            if (tab == "pending")
+            if (tab == "issuance")
+            {
+                query = query.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (tab == "pending")
             {
                 query = query.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
             }
@@ -427,7 +435,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         {
             var tab = queueTab.Trim().ToLowerInvariant();
 
-            if (ApplicationStatusHelper.IsAccountantRole(role))
+            if (tab == "issuance")
+            {
+                filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance);
+            }
+            else if (ApplicationStatusHelper.IsAccountantRole(role))
             {
                 if (tab == "pending")
                 {
@@ -974,6 +986,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default)
     {
         await _context.CompanyDetails.AddAsync(companyDetail, cancellationToken);
+    }
+
+    public async Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default)
+    {
+        await _context.IssuedDocumentDetails.AddAsync(issuedDoc, cancellationToken);
+    }
+
+    public async Task<IssuedDocumentDetail?> GetIssuedDocumentByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken = default)
+    {
+        return await _context.IssuedDocumentDetails
+            .Include(d => d.Application)
+            .Include(d => d.Applicant)
+            .OrderByDescending(d => d.CreatedAt)
+            .FirstOrDefaultAsync(d => d.ApplicationId == applicationId, cancellationToken);
     }
 
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)

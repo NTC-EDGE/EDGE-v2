@@ -247,6 +247,25 @@ describe('applicationMapper', () => {
       expect(completedUi.queueTab).toBe('history');
     });
 
+    it('places ForIssuance in issuance queue tab for dedicated For Issuance column', () => {
+      const issuanceDto: ApplicationSummaryDto = {
+        id: 'issue-1',
+        status: 'ForIssuance',
+        submissionMode: 'Single',
+        createdAt: '2026-09-20T10:00:00Z',
+        applicants: [],
+        services: [],
+      };
+
+      const evalUi = mapApplicationDtoToUI(issuanceDto, 'Evaluator');
+      const chiefUi = mapApplicationDtoToUI(issuanceDto, 'Chief of EOD');
+      const rdUi = mapApplicationDtoToUI(issuanceDto, 'Regional Director');
+
+      expect(evalUi.queueTab).toBe('issuance');
+      expect(chiefUi.queueTab).toBe('issuance');
+      expect(rdUi.queueTab).toBe('issuance');
+    });
+
     it('directly uses backend returned queueTab as the single source of truth when present', () => {
       const backendPendingDto: ApplicationSummaryDto = {
         id: 'be-1',

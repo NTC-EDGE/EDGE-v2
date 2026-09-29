@@ -22,6 +22,7 @@ import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   resolveUserIdentifiers,
   computeOfficerEvaluationState,
+  getApprovingEvaluator,
 } from "../utils/officerEvaluationHelper";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -65,6 +66,7 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (s === "evaluating") return "EVALUATING";
   if (s === "foraccountant") return "FOR SOA";
   if (s === "pendingpayment") return "FOR PAYMENT";
+  if (s === "forissuance") return "FOR ISSUANCE";
   return application.status.toUpperCase();
 }
 
@@ -77,6 +79,7 @@ function getStatusStyle(application: ApplicationData): { bg: string; text: strin
   if (s === "returned")                     return { bg: COLORS.semantic.error,   text: COLORS.neutral.white };
   if (s === "foraccountant")                return { bg: '#0284C7',               text: COLORS.neutral.white };
   if (s === "pendingpayment")               return { bg: '#16A34A',               text: COLORS.neutral.white };
+  if (s === "forissuance")                  return { bg: '#059669',               text: COLORS.neutral.white };
   if (s === "draft")                        return { bg: COLORS.neutral[400],     text: COLORS.neutral.white };
   return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };
 }
@@ -138,6 +141,11 @@ export function ActivityCard({
         isAdmin,
       }),
     [application, currentUserIdentifiers, isAdmin]
+  );
+
+  const approvingEvaluator = useMemo(
+    () => getApprovingEvaluator(application),
+    [application]
   );
 
   const displayFilingName =
@@ -291,7 +299,7 @@ export function ActivityCard({
           </View>
         </View>
 
-        {/* Bottom row: Assignment + Type badges */}
+        {/* Bottom row: Assignment + Evaluator Indicator + Type badges */}
         <View style={styles.bottomRow}>
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
             <Lucide
@@ -314,6 +322,28 @@ export function ActivityCard({
                   : (application.office || application.assignedTo || 'Unassigned')}
             </Text>
           </View>
+          {approvingEvaluator && application.status !== 'Evaluating' && application.status !== 'Submitted' && (
+            <View
+              style={[
+                styles.evaluatorBadge,
+                {
+                  backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
+                  borderColor: isDark ? '#059669' : '#A7F3D0',
+                },
+              ]}
+            >
+              <Lucide name="user-check" size={10} color={isDark ? '#34D399' : '#059669'} />
+              <Text
+                style={[
+                  styles.evaluatorBadgeText,
+                  { color: isDark ? '#34D399' : '#065F46' },
+                ]}
+                numberOfLines={1}
+              >
+                Evaluated by: {approvingEvaluator}
+              </Text>
+            </View>
+          )}
           <View style={styles.badgeRow}>
             {application.isBeingViewed && (
               <View style={[styles.viewingBadge, { backgroundColor: COLORS.semantic.warningBg, borderColor: COLORS.semantic.warningBorder }]}>
@@ -601,6 +631,22 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.caption,
     flexShrink: 1,
+  },
+  evaluatorBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    maxWidth: 220,
+    flexShrink: 1,
+  },
+  evaluatorBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.medium,
   },
   badgeRow: {
     flexDirection: "row",

@@ -1553,6 +1553,116 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("FormSubmissions", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.IssuedDocumentDetail", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ApplicantId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("ApplicationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("CallSign")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DocumentFileUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<DateTime?>("ExpiryDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("FormNumber")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("FrequencyBand")
+                        .HasColumnType("text");
+
+                    b.Property<bool>("IsAlternateIssuer")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("IssueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("IssuedByStaffName")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("IssuedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LicenseNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OfficialReceiptNumber")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<string>("OriginalEvaluatorName")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<Guid?>("OriginalEvaluatorUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("QrVerificationCode")
+                        .HasMaxLength(200)
+                        .HasColumnType("character varying(200)");
+
+                    b.Property<string>("Remarks")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StationClass")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ApplicantId");
+
+                    b.HasIndex("ApplicationId");
+
+                    b.HasIndex("CallSign");
+
+                    b.HasIndex("FormNumber");
+
+                    b.HasIndex("LicenseNumber");
+
+                    b.HasIndex("OfficialReceiptNumber");
+
+                    b.ToTable("IssuedDocumentDetails", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Meeting", b =>
                 {
                     b.Property<Guid>("Id")
@@ -4329,6 +4439,24 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("Form");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.IssuedDocumentDetail", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Applicant", "Applicant")
+                        .WithMany()
+                        .HasForeignKey("ApplicantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("EDGE.Domain.Entities.Application", "Application")
+                        .WithMany("IssuedDocumentDetails")
+                        .HasForeignKey("ApplicationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Applicant");
+
+                    b.Navigation("Application");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.Meeting", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.User", "HostUser")
@@ -4981,6 +5109,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("FormSubmissions");
 
                     b.Navigation("Histories");
+
+                    b.Navigation("IssuedDocumentDetails");
 
                     b.Navigation("OrdersOfPayment");
 

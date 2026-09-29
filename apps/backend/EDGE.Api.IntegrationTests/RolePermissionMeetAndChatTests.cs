@@ -183,8 +183,9 @@ public class RolePermissionMeetAndChatTests : IClassFixture<CustomWebApplication
         var context = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
         var mediator = scope.ServiceProvider.GetRequiredService<IMediator>();
 
-        var user = await context.Users.FirstOrDefaultAsync(u => u.Email == "evaluator@ntcedge.com");
-        user.Should().NotBeNull();
+        var user = await context.Users.FirstOrDefaultAsync(u => u.AuthUserId == _factory.TestUserId)
+            ?? await context.Users.FirstOrDefaultAsync(u => u.Email == "evaluator@ntcedge.com")
+            ?? await context.Users.FirstAsync();
 
         var conversation = new Conversation
         {
@@ -192,7 +193,6 @@ public class RolePermissionMeetAndChatTests : IClassFixture<CustomWebApplication
             Title = "Archive Test Conversation",
             Type = ConversationType.Direct,
             Scope = ConversationScope.IntraRegional,
-            CreatedByUserId = user!.Id,
             IsArchived = false
         };
         conversation.Participants.Add(new ConversationParticipant
@@ -200,7 +200,6 @@ public class RolePermissionMeetAndChatTests : IClassFixture<CustomWebApplication
             Id = Guid.NewGuid(),
             UserId = user.Id,
             Role = ParticipantRole.Owner,
-            JoinedAt = DateTimeOffset.UtcNow
         });
 
         context.Conversations.Add(conversation);

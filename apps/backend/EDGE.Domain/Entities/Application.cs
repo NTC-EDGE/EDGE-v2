@@ -32,6 +32,7 @@ public class Application : AuditableEntity
     
     public ICollection<StatementOfAccount> StatementsOfAccount { get; set; } = new List<StatementOfAccount>();
     public ICollection<OrderOfPayment> OrdersOfPayment { get; set; } = new List<OrderOfPayment>();
+    public ICollection<IssuedDocumentDetail> IssuedDocumentDetails { get; set; } = new List<IssuedDocumentDetail>();
     public ICollection<ApplicationHistory> Histories { get; set; } = new List<ApplicationHistory>();
     public ICollection<CorrectionAuditTrail> CorrectionAuditTrails { get; set; } = new List<CorrectionAuditTrail>();
 }

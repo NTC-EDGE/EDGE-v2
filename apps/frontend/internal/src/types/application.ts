@@ -6,9 +6,10 @@ export type ApplicationStatus =
   | 'Approved'
   | 'Completed'
   | 'ForAccountant'
-  | 'PendingPayment';
+  | 'PendingPayment'
+  | 'ForIssuance';
 
-export type QueueTab = 'activity' | 'pending' | 'history';
+export type QueueTab = 'activity' | 'pending' | 'issuance' | 'history';
 export type ApplicantType = 'Individual' | 'Company';
 export type ApplicationCategory =
   | 'Exams'
