@@ -76,10 +76,10 @@ public class FeeCalculationEngine : IFeeCalculationEngine
         decimal subTotal = 0m;
         decimal surchargeAmount = 0m;
         var formulaExpr = request.FormulaExpression ?? string.Empty;
-        var hasMultiYears = formulaExpr.Contains("YEARS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("YR", StringComparison.OrdinalIgnoreCase);
-        var hasMultiUnits = formulaExpr.Contains("UNITS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("UNIT", StringComparison.OrdinalIgnoreCase);
-        var hasMultiChannels = formulaExpr.Contains("CHANNELS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("CH_UNIT", StringComparison.OrdinalIgnoreCase);
-        var hasMultiPages = formulaExpr.Contains("PAGES", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("COPY", StringComparison.OrdinalIgnoreCase);
+        var hasMultiYears = FeeConstants.FormulaTokens.HasYears(formulaExpr);
+        var hasMultiUnits = FeeConstants.FormulaTokens.HasUnits(formulaExpr);
+        var hasMultiChannels = FeeConstants.FormulaTokens.HasChannels(formulaExpr);
+        var hasMultiPages = FeeConstants.FormulaTokens.HasPages(formulaExpr);
 
         // Process combined component fees (Variant and Element levels)
         var allFees = new List<(string FeeName, string FeeCode, string? Description, decimal Amount)>();

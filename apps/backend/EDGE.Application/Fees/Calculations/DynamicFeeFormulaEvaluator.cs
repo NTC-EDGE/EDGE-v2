@@ -3,13 +3,15 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
 using System.Text.RegularExpressions;
+using EDGE.Domain.Constants;
 
 namespace EDGE.Application.Fees.Calculations;
 
 /// <summary>
 /// Thread-safe arithmetic expression evaluator and multiplier calculator for dynamic administrative fee formulas.
+/// Pure, stateless, and safe for high-concurrency parallel evaluation across multiple threads.
 /// </summary>
-public static class DynamicFeeFormulaEvaluator
+public static partial class DynamicFeeFormulaEvaluator
 {
     /// <summary>
     /// Computes amount using boolean multiplier flags.
@@ -67,47 +69,49 @@ public static class DynamicFeeFormulaEvaluator
             var safeChannels = Math.Max(1, channels);
             var safePages = Math.Max(1, pages);
             var safeNas = Math.Max(0, additionalServices);
+            var rateStr = rate.ToString("F2", CultureInfo.InvariantCulture);
+            var dstStr = dst.ToString("F2", CultureInfo.InvariantCulture);
+            var surStr = surcharge.ToString("F2", CultureInfo.InvariantCulture);
 
-            // Replace bracketed placeholders
+            // Replace bracketed placeholders using centralized FormulaTokens
             var expr = rawExpr
-                .Replace("{RATE}", rate.ToString("F2", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{YEARS}", safeYears.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{YR}", safeYears.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{UNITS}", safeUnits.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{UNIT}", safeUnits.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{CHANNELS}", safeChannels.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{CH_UNIT}", safeChannels.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{PAGES}", safePages.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{COPY}", safePages.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{NAS}", safeNas.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{DST}", dst.ToString("F2", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
-                .Replace("{SUR}", surcharge.ToString("F2", CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase);
+                .Replace(FeeConstants.FormulaTokens.PlaceholderRate, rateStr, StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderYears, safeYears.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderYr, safeYears.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderUnits, safeUnits.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderUnit, safeUnits.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderChannels, safeChannels.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderChUnit, safeChannels.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderPages, safePages.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderCopy, safePages.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderAdditionalServices, safeNas.ToString(CultureInfo.InvariantCulture), StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderDst, dstStr, StringComparison.OrdinalIgnoreCase)
+                .Replace(FeeConstants.FormulaTokens.PlaceholderSurcharge, surStr, StringComparison.OrdinalIgnoreCase);
 
             // Replace word boundary variables
-            expr = Regex.Replace(expr, @"\bRATE\b", rate.ToString("F2", CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bYEARS\b", safeYears.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bYR\b", safeYears.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bUNITS\b", safeUnits.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bUNIT\b", safeUnits.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bCHANNELS\b", safeChannels.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bCH_UNIT\b", safeChannels.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bPAGES\b", safePages.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bCOPY\b", safePages.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bNAS\b", safeNas.ToString(CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bDST\b", dst.ToString("F2", CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
-            expr = Regex.Replace(expr, @"\bSUR\b", surcharge.ToString("F2", CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
+            expr = RateVarRegex().Replace(expr, rateStr);
+            expr = YearsVarRegex().Replace(expr, safeYears.ToString(CultureInfo.InvariantCulture));
+            expr = YrVarRegex().Replace(expr, safeYears.ToString(CultureInfo.InvariantCulture));
+            expr = UnitsVarRegex().Replace(expr, safeUnits.ToString(CultureInfo.InvariantCulture));
+            expr = UnitVarRegex().Replace(expr, safeUnits.ToString(CultureInfo.InvariantCulture));
+            expr = ChannelsVarRegex().Replace(expr, safeChannels.ToString(CultureInfo.InvariantCulture));
+            expr = ChUnitVarRegex().Replace(expr, safeChannels.ToString(CultureInfo.InvariantCulture));
+            expr = PagesVarRegex().Replace(expr, safePages.ToString(CultureInfo.InvariantCulture));
+            expr = CopyVarRegex().Replace(expr, safePages.ToString(CultureInfo.InvariantCulture));
+            expr = NasVarRegex().Replace(expr, safeNas.ToString(CultureInfo.InvariantCulture));
+            expr = DstVarRegex().Replace(expr, dstStr);
+            expr = SurVarRegex().Replace(expr, surStr);
 
             // Replace generic remaining bracketed fee placeholders
-            expr = Regex.Replace(expr, @"\{[A-Za-z0-9_]+\}", rate.ToString("F2", CultureInfo.InvariantCulture));
+            expr = GenericBracketsRegex().Replace(expr, rateStr);
 
             // Replace statutory specific tariff acronyms with rate if present
-            expr = Regex.Replace(expr, @"\b(ROC|LF|PF|PUR|POS|STF|REG|DEMO|PTR|SP|CPF|SUF|ARF1|ARF2|FF|AF|SEM|MOD|DUP|FC|SC)\b",
-                rate.ToString("F2", CultureInfo.InvariantCulture), RegexOptions.IgnoreCase);
+            expr = StatutoryAcronymsRegex().Replace(expr, rateStr);
 
             // Handle implicit multiplication like (180)(3) -> (180)*(3) or 3(2) -> 3*(2) or (3)2 -> (3)*2
-            expr = Regex.Replace(expr, @"\)\s*\(", ")*(");
-            expr = Regex.Replace(expr, @"(\d+)\s*\(", "$1*(");
-            expr = Regex.Replace(expr, @"\)\s*(\d+)", ")*$1");
+            expr = ImplicitParenMultRegex().Replace(expr, ")*(");
+            expr = ImplicitNumOpenParenMultRegex().Replace(expr, "$1*(");
+            expr = ImplicitCloseParenNumMultRegex().Replace(expr, ")*$1");
 
             return EvaluateArithmetic(expr);
         }
@@ -151,7 +155,7 @@ public static class DynamicFeeFormulaEvaluator
                 return (false, "Assignment target on the left side of '=' cannot be empty.");
             }
 
-            if (!Regex.IsMatch(leftTarget, @"^[A-Za-z0-9_]+$"))
+            if (!TargetIdentRegex().IsMatch(leftTarget))
             {
                 return (false, $"Invalid assignment target '{leftTarget}'. Target name must contain only alphanumeric characters or underscores (e.g. 'TOTAL').");
             }
@@ -164,9 +168,9 @@ public static class DynamicFeeFormulaEvaluator
         }
 
         // 2. Character Whitelist: Letters, Digits, _, {}, (), +, -, *, /, ., and spaces
-        if (Regex.IsMatch(rawExpr, @"[^A-Za-z0-9_{}\(\)\+\-\*\/\.\s]"))
+        if (AllowedCharsRegex().IsMatch(rawExpr))
         {
-            var invalidCharMatch = Regex.Match(rawExpr, @"[^A-Za-z0-9_{}\(\)\+\-\*\/\.\s]");
+            var invalidCharMatch = AllowedCharsRegex().Match(rawExpr);
             return (false, $"Formula contains unsupported character '{invalidCharMatch.Value}'. Allowed characters are alphanumeric identifiers, numbers, parentheses (), brackets {{}}, and arithmetic operators (+, -, *, /).");
         }
 
@@ -183,11 +187,11 @@ public static class DynamicFeeFormulaEvaluator
         {
             return (false, "Mismatched bracketed placeholders: every '{' must have a matching '}'.");
         }
-        if (Regex.IsMatch(rawExpr, @"\{[^{}]*\{|\}[^{}]*\}"))
+        if (NestedBracesRegex().IsMatch(rawExpr))
         {
             return (false, "Nested or malformed curly brackets '{}' are not allowed.");
         }
-        if (Regex.IsMatch(rawExpr, @"\{\s*\}"))
+        if (EmptyBracesRegex().IsMatch(rawExpr))
         {
             return (false, "Empty variable placeholder '{}' is not allowed.");
         }
@@ -213,7 +217,7 @@ public static class DynamicFeeFormulaEvaluator
         {
             return (false, $"Unclosed opening parenthesis '(': {parenDepth} unclosed opening parenthesis.");
         }
-        if (Regex.IsMatch(rawExpr, @"\(\s*\)"))
+        if (EmptyParensRegex().IsMatch(rawExpr))
         {
             return (false, "Empty parentheses '()' are not allowed in formula.");
         }
@@ -231,15 +235,15 @@ public static class DynamicFeeFormulaEvaluator
             return (false, "Formula expression cannot end with an arithmetic operator.");
         }
 
-        if (Regex.IsMatch(rawExpr, @"[\+\-\*\/]\s*[\*\/]"))
+        if (InvalidBinaryOpSeqRegex().IsMatch(rawExpr))
         {
             return (false, "Invalid operator sequence: binary operators cannot be immediately followed by '*' or '/'.");
         }
-        if (Regex.IsMatch(rawExpr, @"[\+\*\/]\s*[\+]"))
+        if (DuplicatePlusOpSeqRegex().IsMatch(rawExpr))
         {
             return (false, "Invalid operator sequence: duplicate '+' operators are not allowed.");
         }
-        if (Regex.IsMatch(rawExpr, @"--\s*-"))
+        if (TripleMinusOpSeqRegex().IsMatch(rawExpr))
         {
             return (false, "Invalid operator sequence with multiple consecutive '-' operators.");
         }
@@ -398,4 +402,80 @@ public static class DynamicFeeFormulaEvaluator
 
         return 0m;
     }
+
+    // Precompiled, thread-safe regular expressions for high-throughput evaluation
+    [GeneratedRegex(@"\bRATE\b", RegexOptions.IgnoreCase)]
+    private static partial Regex RateVarRegex();
+
+    [GeneratedRegex(@"\bYEARS\b", RegexOptions.IgnoreCase)]
+    private static partial Regex YearsVarRegex();
+
+    [GeneratedRegex(@"\bYR\b", RegexOptions.IgnoreCase)]
+    private static partial Regex YrVarRegex();
+
+    [GeneratedRegex(@"\bUNITS\b", RegexOptions.IgnoreCase)]
+    private static partial Regex UnitsVarRegex();
+
+    [GeneratedRegex(@"\bUNIT\b", RegexOptions.IgnoreCase)]
+    private static partial Regex UnitVarRegex();
+
+    [GeneratedRegex(@"\bCHANNELS\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ChannelsVarRegex();
+
+    [GeneratedRegex(@"\bCH_UNIT\b", RegexOptions.IgnoreCase)]
+    private static partial Regex ChUnitVarRegex();
+
+    [GeneratedRegex(@"\bPAGES\b", RegexOptions.IgnoreCase)]
+    private static partial Regex PagesVarRegex();
+
+    [GeneratedRegex(@"\bCOPY\b", RegexOptions.IgnoreCase)]
+    private static partial Regex CopyVarRegex();
+
+    [GeneratedRegex(@"\bNAS\b", RegexOptions.IgnoreCase)]
+    private static partial Regex NasVarRegex();
+
+    [GeneratedRegex(@"\bDST\b", RegexOptions.IgnoreCase)]
+    private static partial Regex DstVarRegex();
+
+    [GeneratedRegex(@"\bSUR\b", RegexOptions.IgnoreCase)]
+    private static partial Regex SurVarRegex();
+
+    [GeneratedRegex(@"\{[A-Za-z0-9_]+\}")]
+    private static partial Regex GenericBracketsRegex();
+
+    [GeneratedRegex(@"\b(ROC|LF|PF|PUR|POS|STF|REG|DEMO|PTR|SP|CPF|SUF|ARF1|ARF2|FF|AF|SEM|MOD|DUP|FC|SC)\b", RegexOptions.IgnoreCase)]
+    private static partial Regex StatutoryAcronymsRegex();
+
+    [GeneratedRegex(@"\)\s*\(")]
+    private static partial Regex ImplicitParenMultRegex();
+
+    [GeneratedRegex(@"(\d+)\s*\(")]
+    private static partial Regex ImplicitNumOpenParenMultRegex();
+
+    [GeneratedRegex(@"\)\s*(\d+)")]
+    private static partial Regex ImplicitCloseParenNumMultRegex();
+
+    [GeneratedRegex(@"^[A-Za-z0-9_]+$")]
+    private static partial Regex TargetIdentRegex();
+
+    [GeneratedRegex(@"[^A-Za-z0-9_{}\(\)\+\-\*\/\.\s]")]
+    private static partial Regex AllowedCharsRegex();
+
+    [GeneratedRegex(@"\{[^{}]*\{|\}[^{}]*\}")]
+    private static partial Regex NestedBracesRegex();
+
+    [GeneratedRegex(@"\{\s*\}")]
+    private static partial Regex EmptyBracesRegex();
+
+    [GeneratedRegex(@"\(\s*\)")]
+    private static partial Regex EmptyParensRegex();
+
+    [GeneratedRegex(@"[\+\-\*\/]\s*[\*\/]")]
+    private static partial Regex InvalidBinaryOpSeqRegex();
+
+    [GeneratedRegex(@"[\+\*\/]\s*[\+]")]
+    private static partial Regex DuplicatePlusOpSeqRegex();
+
+    [GeneratedRegex(@"--\s*-")]
+    private static partial Regex TripleMinusOpSeqRegex();
 }
