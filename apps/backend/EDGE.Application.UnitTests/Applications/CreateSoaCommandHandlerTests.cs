@@ -73,10 +73,36 @@ public class CreateSoaCommandHandlerTests
     }
 
     [Fact]
+    public async Task Handle_ShouldReturnFail_WhenApplicationNotEvaluating()
+    {
+        // Arrange
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid(), Status = ApplicationStatus.Submitted };
+        var command = new CreateSoaCommand(
+            app.Id,
+            null,
+            "Individual",
+            "John Doe",
+            "123 Main St",
+            DateTime.UtcNow.AddDays(30),
+            new List<CreateSoaLineItemRequest>());
+
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().Contain("only be generated when the application is under active evaluation");
+    }
+
+    [Fact]
     public async Task Handle_ShouldReturnFail_WhenIssuedToTypeInvalid()
     {
         // Arrange
-        var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid(), Status = ApplicationStatus.Evaluating };
         var command = new CreateSoaCommand(
             app.Id,
             null,
@@ -102,7 +128,7 @@ public class CreateSoaCommandHandlerTests
     public async Task Handle_ShouldCreateSoa_AndRecalculateAmountsServerSide_WhenValidExplicitLineItemsProvided()
     {
         // Arrange
-        var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid(), Status = ApplicationStatus.Evaluating };
         var lineItem1 = new CreateSoaLineItemRequest("Processing Fee", "FEE-01", "Desc", null, null, 1, 2, 500m, 9999m); // client provided wrong amount 9999m
         var lineItem2 = new CreateSoaLineItemRequest("Filing Fee", "FEE-02", "Desc", null, null, 1, 1, 300m, 0m);
 
@@ -156,7 +182,7 @@ public class CreateSoaCommandHandlerTests
         serviceVariant.ServiceVariantElements.Add(new ServiceVariantElement { Code = "1RTG", Description = "1RTG Element" });
 
         var applicant = new Applicant { Service = service, ServiceVariant = serviceVariant };
-        var app = new Domain.Entities.Application { Id = Guid.NewGuid() };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid(), Status = ApplicationStatus.Evaluating };
         app.ApplicationApplicants.Add(new ApplicationApplicant { Applicant = applicant });
 
         var command = new CreateSoaCommand(

@@ -308,7 +308,8 @@ export function ApplicationReviewScreenContent({
     identifiers: currentUserIdentifiers,
   });
 
-  const isEditable = !isEndorsedAwayFromMe && !isEvaluatedByOther && app.queueTab !== "history" && app.status !== "Completed" && app.status !== "Approved" && app.status !== "Returned";
+  const isActivelyEvaluating = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
+  const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
@@ -577,18 +578,19 @@ export function ApplicationReviewScreenContent({
   }
 
   // Primary action button (Approve / Start Evaluation / Verify Payment / Approve SOA / Issue Document)
-  const canApproveAction = isEditable && (showStartEvalBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn);
+  const canApproveAction = !isEndorsedAwayFromMe && (showStartEvalBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn);
 
-  // Return button: Only available when actively evaluating (or endorsed to me), or in Accountant / Cashier / Issuance stage
-  const canDeclineAction = isEditable && (
-    (isEvaluating && (isEvaluatedByMe || isEndorsedToMe || !isEvaluatedByOther)) ||
+  // Return button: Only available when actively evaluating (or endorsed to me), or in Accountant / Cashier / Issuance stage, or rejecting upfront in Submitted
+  const canDeclineAction = !isEndorsedAwayFromMe && (
+    showStartEvalBtn ||
+    isActivelyEvaluating ||
     (isForAccountant && (currentRole === 'Accountant' || canApproveAsAccountant || isAdmin)) ||
     (isPendingPayment && (currentRole === 'Cashier' || canVerifyCashier || isAdmin)) ||
     (isForIssuance && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin))
   );
 
   // Endorse button: ONLY available when actively evaluating (by current evaluator or endorsed officer)
-  const canEndorseAction = isEditable && isEvaluating && (isEvaluatedByMe || isEndorsedToMe || !isEvaluatedByOther) && canEndorse;
+  const canEndorseAction = isActivelyEvaluating && canEndorse && !isEndorsedAwayFromMe;
 
   const handlePrimaryAction = () => {
     if (showStartEvalBtn) {
@@ -699,8 +701,18 @@ export function ApplicationReviewScreenContent({
         </View>
       )}
 
+      {/* Awaiting evaluation banner for Submitted applications */}
+      {isSubmitted && !isEndorsedAwayFromMe && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF', borderBottomColor: isDark ? '#334155' : '#BFDBFE' }]}>
+          <Lucide name="play-circle" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
+            Application is in queue. Click <Text style={{ fontWeight: '700' }}>"Start Evaluation"</Text> to take this application and begin review.
+          </Text>
+        </View>
+      )}
+
       {/* Read-only banner */}
-      {!isEditable && !isEndorsedAwayFromMe && (
+      {!isEditable && !isEndorsedAwayFromMe && !isSubmitted && !isEvaluatedByOther && (
         <View style={[sc.readOnlyBanner, { backgroundColor: colors.brand.yellowLight }]}>
           <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
           <Text style={[sc.readOnlyText, { color: COLORS.semantic.warningText }]}>

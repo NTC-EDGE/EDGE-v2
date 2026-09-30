@@ -38,6 +38,11 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
 
+        if (app.Status != ApplicationStatus.Evaluating)
+        {
+            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating). Please start evaluation first.");
+        }
+
         var targetApplicant = request.ApplicantId.HasValue
             ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
             : app.ApplicationApplicants.FirstOrDefault()?.Applicant;

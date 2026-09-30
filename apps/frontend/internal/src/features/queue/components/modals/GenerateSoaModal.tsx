@@ -178,6 +178,11 @@ export function GenerateSoaModal({
     : (calculatedFees?.totalAmount ?? (app.totalAmountDue > 0 ? app.totalAmountDue : 0));
 
   const handleGenerate = async () => {
+    if (app.status !== 'Evaluating') {
+      toast.warning('You must start evaluation on this application first before generating the Statement of Account.');
+      return;
+    }
+
     if (issuedToName.trim().length === 0) {
       toast.error('Please provide the Payor / Issued To Name.');
       return;
