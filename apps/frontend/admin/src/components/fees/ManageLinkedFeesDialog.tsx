@@ -33,6 +33,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
+import { showToast } from "@/components/ui/toast-notification";
 import { useFeesService } from "@/services/feesService";
 import {
   validateFormula,
@@ -315,8 +316,10 @@ export function ManageLinkedFeesDialog({
         }
       }
       setIsEditingFormula(false);
+      showToast.success("Formula saved successfully", "The statutory calculation formula has been updated.");
     } catch {
       setFormulaError("Failed to update formula. Please try again.");
+      showToast.error("Failed to update formula", "Please check the formula expression and try again.");
     } finally {
       setSavingFormula(false);
     }
