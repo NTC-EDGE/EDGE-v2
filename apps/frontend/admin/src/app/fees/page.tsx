@@ -451,7 +451,6 @@ function FeesNotesContent() {
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-500/30 flex items-center gap-1.5"><CircleDollarSign className="w-3.5 h-3.5" /> Fees & Rate Management</span>
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300 text-xs font-semibold border border-emerald-500/30">Dynamic Formula Engine</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Fees & Rate Configuration</h1>
             <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
@@ -489,19 +488,19 @@ function FeesNotesContent() {
             }`}
           >
             <Coins className="w-3.5 h-3.5" />
-            <span>1. Fee Catalog</span>
+            <span>Fee Catalog</span>
           </button>
 
           <button
             onClick={() => { setActiveTab("service-fees"); setSearchTerm(""); }}
-            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
+            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "service-fees"
                 ? "bg-indigo-600 text-white shadow-sm"
                 : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
             }`}
           >
             <Tag className="w-3.5 h-3.5" />
-            <span>2. Fixed Service Rates</span>
+            <span>Fixed Service Rates</span>
           </button>
 
           <button
@@ -513,10 +512,7 @@ function FeesNotesContent() {
             }`}
           >
             <Scale className="w-3.5 h-3.5 text-indigo-400" />
-            <span>3. Variant Formulas & Rules</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold ${activeTab === "service-variant-fees" ? "bg-white/20 text-white" : "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"}`}>
-              Dynamic Formula
-            </span>
+            <span>Variant Formulas & Rules</span>
           </button>
 
           <button
@@ -528,10 +524,7 @@ function FeesNotesContent() {
             }`}
           >
             <Blocks className="w-3.5 h-3.5 text-indigo-400" />
-            <span>4. Variant Element Formulas</span>
-            <span className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-bold ${activeTab === "service-variant-element-fees" ? "bg-white/20 text-white" : "bg-indigo-100 dark:bg-indigo-900/60 text-indigo-700 dark:text-indigo-300"}`}>
-              Dynamic Formula
-            </span>
+            <span>Variant Element Formulas</span>
           </button>
         </div>
         <div className="relative w-full xl:w-80">
