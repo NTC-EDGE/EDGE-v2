@@ -1,10 +1,10 @@
 using System;
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
 using EDGE.Application.ServiceVariantFees.DTOs;
-using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceVariantElementFees.Commands.UpdateServiceVariantElementFee;
 
@@ -51,15 +51,6 @@ public class UpdateServiceVariantElementFeeCommandHandler : IRequestHandler<Upda
         svef.ElementId = request.ElementId;
         svef.FeeId = request.FeeId;
         svef.Amount = request.Amount;
-        svef.CalculationMode = request.CalculationMode;
-        svef.CalculationFormula = request.CalculationFormula;
-        svef.MultiplyByValidityYears = request.MultiplyByValidityYears;
-        svef.MultiplyByUnits = request.MultiplyByUnits;
-        svef.MultiplyByChannels = request.MultiplyByChannels;
-        svef.MultiplyByPages = request.MultiplyByPages;
-        svef.ApplyLateRenewalSurcharge = request.ApplyLateRenewalSurcharge;
-        svef.IncludeDst = request.IncludeDst;
-        svef.DstAmount = request.DstAmount;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -85,15 +76,7 @@ public class UpdateServiceVariantElementFeeCommandHandler : IRequestHandler<Upda
             updated.Fee?.Code,
             updated.Fee?.Name,
             updated.Amount,
-            updated.CalculationMode,
-            updated.CalculationFormula,
-            updated.MultiplyByValidityYears,
-            updated.MultiplyByUnits,
-            updated.MultiplyByChannels,
-            updated.MultiplyByPages,
-            updated.ApplyLateRenewalSurcharge,
-            updated.IncludeDst,
-            updated.DstAmount,
+            updated.IsActive,
             updated.CreatedAt
         );
     }

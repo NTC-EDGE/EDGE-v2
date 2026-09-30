@@ -172,7 +172,7 @@ export function PendingPaymentsTab({
                       <View style={styles.amountBox}>
                         <Text style={[styles.amountLabel, { color: colors.textMuted }]}>AMOUNT DUE</Text>
                         <Text style={[styles.amountValue, { color: colors.semantic.successText }]}>
-                          ₱{payment.amountDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(payment.amountDue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
                     </View>
@@ -197,17 +197,17 @@ export function PendingPaymentsTab({
                     </View>
 
                     {/* Particulars preview */}
-                    {payment.lineItems.length > 0 && (
+                    {(payment.lineItems ?? []).length > 0 && (
                       <View style={styles.lineItemsBox}>
                         <Text style={[styles.lineItemsTitle, { color: colors.textMuted }]}>PARTICULARS</Text>
-                        {payment.lineItems.map((li, idx) => (
+                        {(payment.lineItems ?? []).map((li, idx) => (
                           <View key={idx} style={styles.lineItemRow}>
                             <Text style={[styles.lineItemCode, { color: colors.textMuted }]}>{li.feeCode}</Text>
                             <Text style={[styles.lineItemDesc, { color: colors.text }]} numberOfLines={1}>
                               {li.description}
                             </Text>
                             <Text style={[styles.lineItemAmt, { color: colors.text }]}>
-                              ₱{li.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ₱{(li.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                           </View>
                         ))}

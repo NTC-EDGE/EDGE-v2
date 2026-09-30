@@ -75,195 +75,95 @@ public class FeeCalculationEngine : IFeeCalculationEngine
         var lineItems = new List<CalculatedFeeLineItemDto>();
         decimal subTotal = 0m;
         decimal surchargeAmount = 0m;
-        var hasDst = false;
-        decimal dstAmount = 30.00m;
-        var formulas = new List<string>();
+        var formulaExpr = request.FormulaExpression ?? string.Empty;
+        var hasMultiYears = formulaExpr.Contains("YEARS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("YR", StringComparison.OrdinalIgnoreCase);
+        var hasMultiUnits = formulaExpr.Contains("UNITS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("UNIT", StringComparison.OrdinalIgnoreCase);
+        var hasMultiChannels = formulaExpr.Contains("CHANNELS", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("CH_UNIT", StringComparison.OrdinalIgnoreCase);
+        var hasMultiPages = formulaExpr.Contains("PAGES", StringComparison.OrdinalIgnoreCase) || formulaExpr.Contains("COPY", StringComparison.OrdinalIgnoreCase);
 
-        // 1. Process Variant-level Fees
+        // Process combined component fees (Variant and Element levels)
+        var allFees = new List<(string FeeName, string FeeCode, string? Description, decimal Amount)>();
         foreach (var vf in activeVariantFees)
         {
-            var feeName = vf.Fee?.Name ?? vf.Fee?.Code ?? "Statutory Fee";
-            var feeCode = vf.Fee?.Code ?? "FEE";
-            var baseRate = vf.Amount;
-
-            var itemAmount = vf.CalculationMode == FeeCalculationMode.CustomFormula && !string.IsNullOrWhiteSpace(vf.CalculationFormula)
-                ? DynamicFeeFormulaEvaluator.Evaluate(
-                    vf.CalculationFormula,
-                    baseRate,
-                    request.ValidityYears,
-                    request.NoOfUnits,
-                    request.NoOfChannels,
-                    request.NoOfCopies,
-                    request.AdditionalServicesCount,
-                    vf.DstAmount)
-                : DynamicFeeFormulaEvaluator.CalculateStandardMultiplier(
-                    baseRate,
-                    vf.MultiplyByValidityYears,
-                    request.ValidityYears,
-                    vf.MultiplyByUnits,
-                    request.NoOfUnits,
-                    vf.MultiplyByChannels,
-                    request.NoOfChannels,
-                    vf.MultiplyByPages,
-                    request.NoOfCopies);
-
-            var valYears = vf.MultiplyByValidityYears ? Math.Max(1, request.ValidityYears) : 1;
-            var units = vf.MultiplyByUnits ? Math.Max(1, request.NoOfUnits) : 1;
-
-            lineItems.Add(new CalculatedFeeLineItemDto(
-                Particular: feeName,
-                ItemCode: feeCode,
-                Description: vf.Fee?.Description ?? feeName,
-                ValidityYears: valYears,
-                NoOfUnits: units,
-                FeeRate: baseRate,
-                Amount: itemAmount,
-                IsSurcharge: false,
-                IsTax: feeCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase)
-            ));
-
-            if (!feeCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase))
-            {
-                subTotal += itemAmount;
-            }
-
-            if (vf.IncludeDst)
-            {
-                hasDst = true;
-                dstAmount = vf.DstAmount;
-            }
-
-            if (vf.ApplyLateRenewalSurcharge && request.ExpirationDate.HasValue)
-            {
-                var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
-                var (surchargeMultiplier, surchargeDesc) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
-                if (surchargeMultiplier > 0)
-                {
-                    var surAmount = Math.Round(itemAmount * surchargeMultiplier, 2, MidpointRounding.AwayFromZero);
-                    surchargeAmount += surAmount;
-                    lineItems.Add(new CalculatedFeeLineItemDto(
-                        Particular: $"{feeName} Surcharge",
-                        ItemCode: FeeConstants.Codes.Surcharge,
-                        Description: surchargeDesc,
-                        ValidityYears: 1,
-                        NoOfUnits: 1,
-                        FeeRate: surAmount,
-                        Amount: surAmount,
-                        IsSurcharge: true
-                    ));
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(vf.CalculationFormula))
-            {
-                formulas.Add(vf.CalculationFormula);
-            }
+            allFees.Add((vf.Fee?.Name ?? vf.Fee?.Code ?? "Statutory Fee", vf.Fee?.Code ?? "FEE", vf.Fee?.Description, vf.Amount));
         }
-
-        // 2. Process Element-level Fees
         foreach (var ef in activeElementFees)
         {
-            var feeName = ef.Fee?.Name ?? (ef.Element != null ? $"{ef.Element.Name} Fee" : "Element Fee");
-            var feeCode = ef.Fee?.Code ?? "FEE";
-            var baseRate = ef.Amount;
+            allFees.Add((ef.Fee?.Name ?? (ef.Element != null ? $"{ef.Element.Name} Fee" : "Element Fee"), ef.Fee?.Code ?? "FEE", ef.Element?.Description ?? ef.Fee?.Description, ef.Amount));
+        }
 
-            var itemAmount = ef.CalculationMode == FeeCalculationMode.CustomFormula && !string.IsNullOrWhiteSpace(ef.CalculationFormula)
-                ? DynamicFeeFormulaEvaluator.Evaluate(
-                    ef.CalculationFormula,
-                    baseRate,
-                    request.ValidityYears,
-                    request.NoOfUnits,
-                    request.NoOfChannels,
-                    request.NoOfCopies,
-                    request.AdditionalServicesCount,
-                    ef.DstAmount)
-                : DynamicFeeFormulaEvaluator.CalculateStandardMultiplier(
-                    baseRate,
-                    ef.MultiplyByValidityYears,
-                    request.ValidityYears,
-                    ef.MultiplyByUnits,
-                    request.NoOfUnits,
-                    ef.MultiplyByChannels,
-                    request.NoOfChannels,
-                    ef.MultiplyByPages,
-                    request.NoOfCopies);
+        foreach (var (feeName, feeCode, description, baseRate) in allFees)
+        {
+            var isDst = feeCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase);
 
-            var valYears = ef.MultiplyByValidityYears ? Math.Max(1, request.ValidityYears) : 1;
-            var units = ef.MultiplyByUnits ? Math.Max(1, request.NoOfUnits) : 1;
+            int valYears = 1;
+            int units = 1;
+            int channels = 1;
+            int pages = 1;
+
+            if (!isDst)
+            {
+                if (!string.IsNullOrWhiteSpace(formulaExpr))
+                {
+                    valYears = hasMultiYears ? Math.Max(1, request.ValidityYears) : 1;
+                    units = hasMultiUnits ? Math.Max(1, request.NoOfUnits) : 1;
+                    channels = hasMultiChannels ? Math.Max(1, request.NoOfChannels) : 1;
+                    pages = hasMultiPages ? Math.Max(1, request.NoOfCopies) : 1;
+                }
+                else
+                {
+                    valYears = feeCode.Equals(FeeConstants.Codes.Roc, StringComparison.OrdinalIgnoreCase) ||
+                               feeCode.Equals(FeeConstants.Codes.License, StringComparison.OrdinalIgnoreCase) ||
+                               feeCode.Equals(FeeConstants.Codes.LicenseFee, StringComparison.OrdinalIgnoreCase)
+                               ? Math.Max(1, request.ValidityYears) : 1;
+                    units = Math.Max(1, request.NoOfUnits);
+                }
+            }
+
+            var itemAmount = baseRate * valYears * units * channels * pages;
 
             lineItems.Add(new CalculatedFeeLineItemDto(
                 Particular: feeName,
                 ItemCode: feeCode,
-                Description: ef.Element?.Description ?? feeName,
+                Description: description ?? feeName,
                 ValidityYears: valYears,
                 NoOfUnits: units,
                 FeeRate: baseRate,
                 Amount: itemAmount,
                 IsSurcharge: false,
-                IsTax: feeCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase)
+                IsTax: isDst
             ));
 
-            if (!feeCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase))
+            if (!isDst)
             {
                 subTotal += itemAmount;
-            }
 
-            if (ef.IncludeDst)
-            {
-                hasDst = true;
-                dstAmount = ef.DstAmount;
-            }
-
-            if (ef.ApplyLateRenewalSurcharge && request.ExpirationDate.HasValue)
-            {
-                var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
-                var (surchargeMultiplier, surchargeDesc) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
-                if (surchargeMultiplier > 0)
+                if (request.ApplyLateRenewalSurcharge && request.ExpirationDate.HasValue)
                 {
-                    var surAmount = Math.Round(itemAmount * surchargeMultiplier, 2, MidpointRounding.AwayFromZero);
-                    surchargeAmount += surAmount;
-                    lineItems.Add(new CalculatedFeeLineItemDto(
-                        Particular: $"{feeName} Surcharge",
-                        ItemCode: FeeConstants.Codes.Surcharge,
-                        Description: surchargeDesc,
-                        ValidityYears: 1,
-                        NoOfUnits: 1,
-                        FeeRate: surAmount,
-                        Amount: surAmount,
-                        IsSurcharge: true
-                    ));
+                    var asOfDate = request.AsOfDate ?? DateTime.UtcNow;
+                    var (surchargeMultiplier, surchargeDesc) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
+                    if (surchargeMultiplier > 0)
+                    {
+                        var surAmount = Math.Round(itemAmount * surchargeMultiplier, 2, MidpointRounding.AwayFromZero);
+                        surchargeAmount += surAmount;
+                        lineItems.Add(new CalculatedFeeLineItemDto(
+                            Particular: $"{feeName} Surcharge",
+                            ItemCode: FeeConstants.Codes.Surcharge,
+                            Description: surchargeDesc,
+                            ValidityYears: 1,
+                            NoOfUnits: 1,
+                            FeeRate: surAmount,
+                            Amount: surAmount,
+                            IsSurcharge: true
+                        ));
+                    }
                 }
             }
-
-            if (!string.IsNullOrWhiteSpace(ef.CalculationFormula))
-            {
-                formulas.Add(ef.CalculationFormula);
-            }
         }
 
-        // 3. Add DST Tax if required and not already present as a line item
-        decimal taxAmount = 0m;
-        if (hasDst && !lineItems.Any(li => li.IsTax || li.ItemCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase)))
-        {
-            taxAmount = dstAmount;
-            lineItems.Add(new CalculatedFeeLineItemDto(
-                Particular: "Documentary Stamp Tax",
-                ItemCode: FeeConstants.Codes.Dst,
-                Description: "Fixed statutory tax per transaction",
-                ValidityYears: 1,
-                NoOfUnits: 1,
-                FeeRate: dstAmount,
-                Amount: dstAmount,
-                IsTax: true
-            ));
-        }
-        else
-        {
-            taxAmount = lineItems.Where(li => li.IsTax || li.ItemCode.Equals(FeeConstants.Codes.Dst, StringComparison.OrdinalIgnoreCase)).Sum(li => li.Amount);
-        }
-
+        var taxAmount = lineItems.Where(li => li.IsTax).Sum(li => li.Amount);
         var totalAmount = subTotal + surchargeAmount + taxAmount;
-        var formulaApplied = formulas.Count > 0 ? string.Join(" | ", formulas.Distinct()) : "DYNAMIC_CONFIG";
+        var formulaApplied = !string.IsNullOrWhiteSpace(formulaExpr) ? formulaExpr : "STATUTORY_DYNAMIC";
 
         return new FeeCalculationResultDto(
             Activity: request.Activity,

@@ -26,8 +26,8 @@ export function UserCard({ user, onView, onEdit, onDelete }: UserCardProps) {
   };
 
   const formattedAmount =
-    user.totalPaidAmount !== undefined && user.totalPaidAmount > 0
-      ? `₱${user.totalPaidAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
+    user.totalPaidAmount !== undefined && user.totalPaidAmount !== null && user.totalPaidAmount > 0
+      ? `₱${(user.totalPaidAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}`
       : null;
 
   return (

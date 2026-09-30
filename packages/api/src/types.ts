@@ -691,6 +691,57 @@ export interface ServiceVariantElementFee {
   createdAt?: string;
 }
 
+export interface ServiceFeeGroup {
+  serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  totalAmount: number;
+  fees: ServiceFee[];
+}
+
+export interface ServiceVariantFeeGroup {
+  serviceVariantId: string;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  variantType?: string | null;
+  totalBaseAmount: number;
+  fees: ServiceVariantFee[];
+  statutoryFormula?: string | null;
+  applyLateRenewalSurcharge?: boolean | null;
+}
+
+export interface ServiceVariantElementFeeGroup {
+  serviceVariantId: string;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  variantType?: string | null;
+  totalBaseAmount: number;
+  elementFees: ServiceVariantElementFee[];
+  statutoryFormula?: string | null;
+  applyLateRenewalSurcharge?: boolean | null;
+}
+
+export interface ServiceVariantFormula {
+  id: string;
+  serviceVariantId: string;
+  formulaExpression: string;
+  description?: string | null;
+  applyLateRenewalSurcharge: boolean;
+  isActive: boolean;
+}
+
+export interface ServiceVariantElementFormula {
+  id: string;
+  serviceVariantId: string;
+  elementId: string;
+  elementCode?: string | null;
+  elementName?: string | null;
+  formulaExpression: string;
+  description?: string | null;
+  applyLateRenewalSurcharge: boolean;
+  isActive: boolean;
+}
+
 export interface ServiceNote {
   id: string;
   notes: string;

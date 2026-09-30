@@ -15,16 +15,7 @@ namespace EDGE.Api.Endpoints;
 public record UpdateServiceVariantFeeRequest(
     Guid ServiceVariantId,
     Guid FeeId,
-    decimal Amount,
-    EDGE.Domain.Enums.FeeCalculationMode CalculationMode = EDGE.Domain.Enums.FeeCalculationMode.StandardMultiplier,
-    string? CalculationFormula = null,
-    bool MultiplyByValidityYears = false,
-    bool MultiplyByUnits = false,
-    bool MultiplyByChannels = false,
-    bool MultiplyByPages = false,
-    bool ApplyLateRenewalSurcharge = false,
-    bool IncludeDst = true,
-    decimal DstAmount = 30.00m
+    decimal Amount
 );
 
 public static class ServiceVariantFeeEndpoints
@@ -37,8 +28,8 @@ public static class ServiceVariantFeeEndpoints
         fees.MapGet("/", GetServiceVariantFees)
             .WithName("GetServiceVariantFees")
             .WithSummary("Get all service variant fees")
-            .WithDescription("Retrieves a list of all service variant fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<PaginatedApiResponse<ServiceVariantFeeDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves a list of all service variant fees grouped and paginated by ServiceVariant.")
+            .Produces<PaginatedApiResponse<ServiceVariantFeeGroupDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantFeeById)
             .WithName("GetServiceVariantFeeById")
@@ -136,16 +127,7 @@ public static class ServiceVariantFeeEndpoints
             id,
             request.ServiceVariantId,
             request.FeeId,
-            request.Amount,
-            request.CalculationMode,
-            request.CalculationFormula,
-            request.MultiplyByValidityYears,
-            request.MultiplyByUnits,
-            request.MultiplyByChannels,
-            request.MultiplyByPages,
-            request.ApplyLateRenewalSurcharge,
-            request.IncludeDst,
-            request.DstAmount
+            request.Amount
         );
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)

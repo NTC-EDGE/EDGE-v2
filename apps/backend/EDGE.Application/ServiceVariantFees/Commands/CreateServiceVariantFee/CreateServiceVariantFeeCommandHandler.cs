@@ -1,9 +1,9 @@
 using System;
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
-using EDGE.Application.ServiceVariantFees.DTOs;
+using MediatR;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Domain.Entities;
 
 namespace EDGE.Application.ServiceVariantFees.Commands.CreateServiceVariantFee;
@@ -37,15 +37,6 @@ public class CreateServiceVariantFeeCommandHandler : IRequestHandler<CreateServi
             ServiceVariantId = request.ServiceVariantId,
             FeeId = request.FeeId,
             Amount = request.Amount,
-            CalculationMode = request.CalculationMode,
-            CalculationFormula = request.CalculationFormula,
-            MultiplyByValidityYears = request.MultiplyByValidityYears,
-            MultiplyByUnits = request.MultiplyByUnits,
-            MultiplyByChannels = request.MultiplyByChannels,
-            MultiplyByPages = request.MultiplyByPages,
-            ApplyLateRenewalSurcharge = request.ApplyLateRenewalSurcharge,
-            IncludeDst = request.IncludeDst,
-            DstAmount = request.DstAmount,
             IsActive = true
         };
 
@@ -71,15 +62,7 @@ public class CreateServiceVariantFeeCommandHandler : IRequestHandler<CreateServi
             created.Fee?.Code,
             created.Fee?.Name,
             created.Amount,
-            created.CalculationMode,
-            created.CalculationFormula,
-            created.MultiplyByValidityYears,
-            created.MultiplyByUnits,
-            created.MultiplyByChannels,
-            created.MultiplyByPages,
-            created.ApplyLateRenewalSurcharge,
-            created.IncludeDst,
-            created.DstAmount,
+            created.IsActive,
             created.CreatedAt
         );
     }

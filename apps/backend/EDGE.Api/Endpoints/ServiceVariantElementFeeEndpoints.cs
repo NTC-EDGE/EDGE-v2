@@ -16,16 +16,7 @@ public record UpdateServiceVariantElementFeeRequest(
     Guid ServiceVariantId,
     Guid ElementId,
     Guid FeeId,
-    decimal Amount,
-    EDGE.Domain.Enums.FeeCalculationMode CalculationMode = EDGE.Domain.Enums.FeeCalculationMode.StandardMultiplier,
-    string? CalculationFormula = null,
-    bool MultiplyByValidityYears = false,
-    bool MultiplyByUnits = false,
-    bool MultiplyByChannels = false,
-    bool MultiplyByPages = false,
-    bool ApplyLateRenewalSurcharge = false,
-    bool IncludeDst = true,
-    decimal DstAmount = 30.00m
+    decimal Amount
 );
 
 public static class ServiceVariantElementFeeEndpoints
@@ -38,8 +29,8 @@ public static class ServiceVariantElementFeeEndpoints
         fees.MapGet("/", GetServiceVariantElementFees)
             .WithName("GetServiceVariantElementFees")
             .WithSummary("Get all service variant element fees")
-            .WithDescription("Retrieves a list of all service variant element fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<PaginatedApiResponse<ServiceVariantElementFeeDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves a list of all service variant element fees grouped and paginated by ServiceVariant.")
+            .Produces<PaginatedApiResponse<ServiceVariantElementFeeGroupDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantElementFeeById)
             .WithName("GetServiceVariantElementFeeById")
@@ -76,13 +67,14 @@ public static class ServiceVariantElementFeeEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantElementFees(
         Guid? serviceVariantId,
+        Guid? elementId,
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
         IValidator<GetServiceVariantElementFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, pageNumber, pageSize, searchTerm);
+        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, elementId, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -138,16 +130,7 @@ public static class ServiceVariantElementFeeEndpoints
             request.ServiceVariantId,
             request.ElementId,
             request.FeeId,
-            request.Amount,
-            request.CalculationMode,
-            request.CalculationFormula,
-            request.MultiplyByValidityYears,
-            request.MultiplyByUnits,
-            request.MultiplyByChannels,
-            request.MultiplyByPages,
-            request.ApplyLateRenewalSurcharge,
-            request.IncludeDst,
-            request.DstAmount
+            request.Amount
         );
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)

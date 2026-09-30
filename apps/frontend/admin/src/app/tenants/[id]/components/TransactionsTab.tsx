@@ -112,7 +112,7 @@ export function TransactionsTab({ currentTenant }: TransactionsTabProps) {
 
               <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-200/80 dark:border-slate-800/60">
                 <span className="text-sm font-extrabold text-slate-900 dark:text-white font-mono">
-                  ₱{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}
+                  ₱{(tx.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}
                 </span>
                 <span className={`px-2 py-0.5 rounded text-[11px] font-semibold ${
                   tx.paymentStatus === "Paid" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"

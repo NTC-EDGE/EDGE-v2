@@ -127,7 +127,7 @@ export function ReceiptPrintPreviewModal({
                       <Text style={[styles.td, { flex: 1.5 }]}>{item.description}</Text>
                       <Text style={[styles.td, { flex: 1, fontFamily: 'monospace' }]}>{item.feeCode}</Text>
                       <Text style={[styles.td, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
-                        ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
                   ))
@@ -136,7 +136,7 @@ export function ReceiptPrintPreviewModal({
                     <Text style={[styles.td, { flex: 1.5 }]}>Payment of Regulatory Fees</Text>
                     <Text style={[styles.td, { flex: 1, fontFamily: 'monospace' }]}>REG-01</Text>
                     <Text style={[styles.td, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
-                      ₱{receipt.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      ₱{(receipt.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </Text>
                   </View>
                 )}
@@ -145,7 +145,7 @@ export function ReceiptPrintPreviewModal({
                 <View style={styles.tableTotalRow}>
                   <Text style={[styles.tableTotalLabel, { flex: 2.5 }]}>TOTAL AMOUNT (in Figures):</Text>
                   <Text style={[styles.tableTotalVal, { flex: 1, textAlign: 'right' }]}>
-                    ₱{receipt.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(receipt.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
               </View>

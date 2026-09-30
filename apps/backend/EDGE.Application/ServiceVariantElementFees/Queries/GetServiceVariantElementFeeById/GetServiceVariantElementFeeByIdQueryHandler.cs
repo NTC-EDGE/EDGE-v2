@@ -1,9 +1,9 @@
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
 using EDGE.Application.ServiceVariantFees.DTOs;
-using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantElementFeeById;
 
@@ -40,15 +40,7 @@ public class GetServiceVariantElementFeeByIdQueryHandler : IRequestHandler<GetSe
             svef.Fee?.Code,
             svef.Fee?.Name,
             svef.Amount,
-            svef.CalculationMode,
-            svef.CalculationFormula,
-            svef.MultiplyByValidityYears,
-            svef.MultiplyByUnits,
-            svef.MultiplyByChannels,
-            svef.MultiplyByPages,
-            svef.ApplyLateRenewalSurcharge,
-            svef.IncludeDst,
-            svef.DstAmount,
+            svef.IsActive,
             svef.CreatedAt
         );
     }

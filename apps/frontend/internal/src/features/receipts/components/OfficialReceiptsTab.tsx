@@ -87,7 +87,7 @@ export function OfficialReceiptsTab({
         <View style={[styles.statBox, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
           <Text style={[styles.statLabel, { color: colors.textMuted }]}>TOTAL REVENUE COLLECTED</Text>
           <Text style={[styles.statValue, { color: colors.text }]}>
-            ₱{totalCollections.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            ₱{(totalCollections ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
           </Text>
           <View style={styles.statBadges}>
             <Text style={[styles.statSubText, { color: colors.neutral[600] }]}>{receipts.length} total receipts</Text>
@@ -290,7 +290,7 @@ export function OfficialReceiptsTab({
                           <View style={styles.amountBox}>
                             <Text style={[styles.amountLabel, { color: colors.textMuted }]}>AMOUNT DUE</Text>
                             <Text style={[styles.amountValue, { color: colors.semantic.successText }]}>
-                              ₱{payment.amountDue.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              ₱{(payment.amountDue ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </Text>
                           </View>
                         </View>
@@ -325,7 +325,7 @@ export function OfficialReceiptsTab({
                                   {li.description}
                                 </Text>
                                 <Text style={[styles.lineItemAmt, { color: colors.text }]}>
-                                  ₱{li.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  ₱{(li.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                 </Text>
                               </View>
                             ))}
@@ -526,7 +526,7 @@ export function OfficialReceiptsTab({
                             isCancelled && styles.textCancelled,
                           ]}
                         >
-                          ₱{r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(r.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Text>
                       </View>
 

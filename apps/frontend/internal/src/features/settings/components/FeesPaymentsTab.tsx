@@ -94,10 +94,12 @@ export function FeesPaymentsTab({
         ) : (
           filteredFees.map((item) => {
             const isExpanded = expandedIds[item.id] !== undefined ? expandedIds[item.id] : true;
-            const formattedTotal = item.totalAmount.toLocaleString('en-PH', {
+            const formattedTotal = (item.totalAmount ?? 0).toLocaleString('en-PH', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
             });
+
+            const safeBreakdown = Array.isArray(item.feeBreakdown) ? item.feeBreakdown : [];
 
             return (
               <View key={item.id} style={[styles.accordionCard, SHADOWS.card]}>
@@ -121,9 +123,9 @@ export function FeesPaymentsTab({
                     </View>
 
                     {/* Quick Formula Highlights */}
-                    {item.feeBreakdown.length > 0 && (
+                    {safeBreakdown.length > 0 && (
                       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
-                        {item.feeBreakdown.map((fb) => (
+                        {safeBreakdown.map((fb) => (
                           <View
                             key={fb.id}
                             style={{
@@ -191,7 +193,7 @@ export function FeesPaymentsTab({
                       </Text>
                     </View>
                     <View style={styles.feeTable}>
-                      {item.feeBreakdown.map((fb, idx) => (
+                      {safeBreakdown.map((fb, idx) => (
                         <View key={fb.id} style={styles.feeTableRow}>
                           <View style={styles.feeLeft}>
                             <View style={styles.feeDot} />
@@ -237,7 +239,7 @@ export function FeesPaymentsTab({
                             </View>
                           </View>
                           <Text style={styles.feeAmount}>
-                            ₱{fb.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                            ₱{(fb.amount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                           </Text>
                         </View>
                       ))}

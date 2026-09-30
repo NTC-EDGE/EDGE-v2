@@ -76,6 +76,7 @@ public class DynamicFeeFormulaEvaluatorTests
 
         var variantId = Guid.NewGuid();
         var fee = new Fee { Id = Guid.NewGuid(), Code = "CUSTOM_FEE", Name = "Custom Admin Tariff", Description = "Dynamic Tariff Test" };
+        var dstFee = new Fee { Id = Guid.NewGuid(), Code = "DST", Name = "Documentary Stamp Tax", Description = "Documentary Stamp Tax" };
 
         var dynamicVariantFee = new ServiceVariantFee
         {
@@ -84,12 +85,16 @@ public class DynamicFeeFormulaEvaluatorTests
             FeeId = fee.Id,
             Fee = fee,
             Amount = 250.00m,
-            CalculationMode = FeeCalculationMode.CustomFormula,
-            CalculationFormula = "{RATE} * {YEARS} * {UNITS}",
-            MultiplyByValidityYears = true,
-            MultiplyByUnits = true,
-            IncludeDst = true,
-            DstAmount = 30.00m,
+            IsActive = true
+        };
+
+        var dstVariantFee = new ServiceVariantFee
+        {
+            Id = Guid.NewGuid(),
+            ServiceVariantId = variantId,
+            FeeId = dstFee.Id,
+            Fee = dstFee,
+            Amount = 30.00m,
             IsActive = true
         };
 
@@ -98,7 +103,8 @@ public class DynamicFeeFormulaEvaluatorTests
             ApplicationType: "Custom Variant",
             ValidityYears: 2,
             NoOfUnits: 3,
-            VariantFees: new List<ServiceVariantFee> { dynamicVariantFee }
+            FormulaExpression: "{RATE} * {YEARS} * {UNITS} + {DST}",
+            VariantFees: new List<ServiceVariantFee> { dynamicVariantFee, dstVariantFee }
         );
 
         var result = engine.Calculate(request);
@@ -111,5 +117,47 @@ public class DynamicFeeFormulaEvaluatorTests
         result.LineItems.Should().HaveCount(2);
         result.LineItems.Should().Contain(li => li.ItemCode == "CUSTOM_FEE" && li.Amount == 1500.00m);
         result.LineItems.Should().Contain(li => li.ItemCode == "DST" && li.Amount == 30.00m);
+    }
+
+    [Theory]
+    [InlineData("{RATE} * {YEARS} * {UNITS}")]
+    [InlineData("TOTAL = (ROC)(YR) + DST")]
+    [InlineData("FEEROC = FF + AF + (ROC)(YR) + DST + SUR")]
+    [InlineData("TOTAL = ({RATE})(YEARS)(UNITS)")]
+    [InlineData("(1RTG)(YR) + (2RTG)(YR) + DST")]
+    [InlineData("RATE * YEARS + (NAS * 1000) + DST")]
+    [InlineData("180 * YR + 30")]
+    [InlineData("(RATE + 50) * 2")]
+    public void Validate_ValidFormulas_ShouldReturnSuccess(string formula)
+    {
+        var (isValid, errorMessage) = DynamicFeeFormulaEvaluator.Validate(formula);
+
+        isValid.Should().BeTrue();
+        errorMessage.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("", "Formula expression cannot be empty.")]
+    [InlineData("   ", "Formula expression cannot be empty.")]
+    [InlineData("TOTAL = ", "Formula expression on the right side of '=' cannot be empty.")]
+    [InlineData("TOTAL = A = B", "Formula cannot contain multiple assignment '=' operators.")]
+    [InlineData("TOTAL$", "Formula contains unsupported character '$'")]
+    [InlineData("RATE % 2", "Formula contains unsupported character '%'")]
+    [InlineData("((RATE + DST)", "Unclosed opening parenthesis '('")]
+    [InlineData("RATE + DST)", "Mismatched closing parenthesis ')'")]
+    [InlineData("RATE + ()", "Empty parentheses '()' are not allowed in formula.")]
+    [InlineData("{RATE", "Mismatched bracketed placeholders: every '{' must have a matching '}'.")]
+    [InlineData("{RATE}}", "Mismatched bracketed placeholders: every '{' must have a matching '}'.")]
+    [InlineData("* RATE", "Formula expression cannot start with multiplication or division operator.")]
+    [InlineData("RATE +", "Formula expression cannot end with an arithmetic operator.")]
+    [InlineData("RATE + + DST", "Invalid operator sequence: duplicate '+' operators are not allowed.")]
+    [InlineData("RATE * / 2", "Invalid operator sequence: binary operators cannot be immediately followed by '*' or '/'.")]
+    public void Validate_InvalidFormulas_ShouldFailWithDescriptiveError(string formula, string expectedErrorSubstring)
+    {
+        var (isValid, errorMessage) = DynamicFeeFormulaEvaluator.Validate(formula);
+
+        isValid.Should().BeFalse();
+        errorMessage.Should().NotBeNull();
+        errorMessage.Should().Contain(expectedErrorSubstring);
     }
 }

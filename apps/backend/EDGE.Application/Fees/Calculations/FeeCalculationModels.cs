@@ -45,5 +45,7 @@ public record FeeCalculationRequest(
     Guid? ServiceVariantId = null,
     Guid? ElementId = null,
     IReadOnlyList<ServiceVariantFee>? VariantFees = null,
-    IReadOnlyList<ServiceVariantElementFee>? ElementFees = null
+    IReadOnlyList<ServiceVariantElementFee>? ElementFees = null,
+    string? FormulaExpression = null,
+    bool ApplyLateRenewalSurcharge = false
 );

@@ -2979,6 +2979,53 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ServiceFees", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceFormula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FormulaExpression")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceId");
+
+                    b.ToTable("ServiceFormulas", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceInformation", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3177,6 +3224,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("FeeId")
                         .HasColumnType("uuid");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -3204,6 +3254,61 @@ namespace EDGE.Infrastructure.Migrations
                     b.ToTable("ServiceVariantElementFees", "public");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantElementFormula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ApplyLateRenewalSurcharge")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<Guid>("ElementId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("FormulaExpression")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ElementId");
+
+                    b.HasIndex("ServiceVariantId");
+
+                    b.ToTable("ServiceVariantElementFormulas", "public");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantFee", b =>
                 {
                     b.Property<Guid>("Id")
@@ -3221,6 +3326,9 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.Property<Guid>("FeeId")
                         .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
 
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
@@ -3245,6 +3353,56 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ServiceVariantId");
 
                     b.ToTable("ServiceVariantFees", "public");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantFormula", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("ApplyLateRenewalSurcharge")
+                        .HasColumnType("boolean");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedBy")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<string>("FormulaExpression")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("IsDeletedBy")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastModifiedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("LastModifiedBy")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ServiceVariantId");
+
+                    b.ToTable("ServiceVariantFormulas", "public");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantRequirement", b =>
@@ -4911,6 +5069,17 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ServiceVariantElement");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceFormula", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Service", "Service")
+                        .WithMany()
+                        .HasForeignKey("ServiceId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Service");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceInformation", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Service", "Service")
@@ -4989,6 +5158,25 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("ServiceVariant");
                 });
 
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantElementFormula", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Element", "Element")
+                        .WithMany()
+                        .HasForeignKey("ElementId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Element");
+
+                    b.Navigation("ServiceVariant");
+                });
+
             modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantFee", b =>
                 {
                     b.HasOne("EDGE.Domain.Entities.Fee", "Fee")
@@ -5004,6 +5192,17 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Fee");
+
+                    b.Navigation("ServiceVariant");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.ServiceVariantFormula", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("ServiceVariant");
                 });

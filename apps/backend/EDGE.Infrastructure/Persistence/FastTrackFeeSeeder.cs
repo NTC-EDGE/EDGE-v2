@@ -346,7 +346,6 @@ public static class FastTrackFeeSeeder
                 if (!allVariantsInDb.Contains(variantId) || !feeMap.TryGetValue(feeCode, out var fee))
                     continue;
 
-                var rule = ResolveFeeCalculationRule(feeCode);
                 var existingRecord = existingVariantFees.FirstOrDefault(vf => vf.ServiceVariantId == variantId && vf.FeeId == fee.Id);
                 if (existingRecord == null)
                 {
@@ -356,30 +355,12 @@ public static class FastTrackFeeSeeder
                         ServiceVariantId = variantId,
                         FeeId = fee.Id,
                         Amount = amount,
-                        CalculationMode = rule.Mode,
-                        CalculationFormula = rule.Formula,
-                        MultiplyByValidityYears = rule.MultiYears,
-                        MultiplyByUnits = rule.MultiUnits,
-                        MultiplyByChannels = rule.MultiChannels,
-                        MultiplyByPages = rule.MultiPages,
-                        ApplyLateRenewalSurcharge = rule.ApplySurcharge,
-                        IncludeDst = true,
-                        DstAmount = 30.00m,
                         IsActive = true
                     });
                 }
                 else
                 {
                     existingRecord.Amount = amount;
-                    existingRecord.CalculationMode = rule.Mode;
-                    existingRecord.CalculationFormula = rule.Formula;
-                    existingRecord.MultiplyByValidityYears = rule.MultiYears;
-                    existingRecord.MultiplyByUnits = rule.MultiUnits;
-                    existingRecord.MultiplyByChannels = rule.MultiChannels;
-                    existingRecord.MultiplyByPages = rule.MultiPages;
-                    existingRecord.ApplyLateRenewalSurcharge = rule.ApplySurcharge;
-                    existingRecord.IncludeDst = true;
-                    existingRecord.DstAmount = 30.00m;
                     existingRecord.IsActive = true;
                     if (existingRecord.IsDeleted)
                     {
@@ -476,7 +457,6 @@ public static class FastTrackFeeSeeder
                     allDbElements.Add(el);
                 }
 
-                var rule = ResolveFeeCalculationRule(feeCode);
                 var existingVef = existingElementFees.FirstOrDefault(vef => vef.ServiceVariantId == variantId && vef.ElementId == el.Id && vef.FeeId == fee.Id);
                 if (existingVef == null)
                 {
@@ -487,30 +467,12 @@ public static class FastTrackFeeSeeder
                         ElementId = el.Id,
                         FeeId = fee.Id,
                         Amount = amount,
-                        CalculationMode = rule.Mode,
-                        CalculationFormula = rule.Formula,
-                        MultiplyByValidityYears = rule.MultiYears,
-                        MultiplyByUnits = rule.MultiUnits,
-                        MultiplyByChannels = rule.MultiChannels,
-                        MultiplyByPages = rule.MultiPages,
-                        ApplyLateRenewalSurcharge = rule.ApplySurcharge,
-                        IncludeDst = true,
-                        DstAmount = 30.00m,
                         IsActive = true
                     });
                 }
                 else
                 {
                     existingVef.Amount = amount;
-                    existingVef.CalculationMode = rule.Mode;
-                    existingVef.CalculationFormula = rule.Formula;
-                    existingVef.MultiplyByValidityYears = rule.MultiYears;
-                    existingVef.MultiplyByUnits = rule.MultiUnits;
-                    existingVef.MultiplyByChannels = rule.MultiChannels;
-                    existingVef.MultiplyByPages = rule.MultiPages;
-                    existingVef.ApplyLateRenewalSurcharge = rule.ApplySurcharge;
-                    existingVef.IncludeDst = true;
-                    existingVef.DstAmount = 30.00m;
                     existingVef.IsActive = true;
                     if (existingVef.IsDeleted)
                     {
@@ -528,43 +490,133 @@ public static class FastTrackFeeSeeder
             {
                 logger?.LogWarning(ex, "Concurrent update detected while seeding ServiceVariantElementFees.");
             }
+
+            // 4. Seed ServiceVariantFormulas
+            var variantFormulasToSeed = new List<(Guid VariantId, string Formula, bool ApplySurcharge)>
+            {
+                (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocAirNew, FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocAirRen, FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocAirMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocPilotNew, "FEEROC = ROC + DST", false),
+                (CertificatesCategorySeederData.VarRocPilotMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Formulas.GovRocNew, false),
+                (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Formulas.GovRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocGovMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Formulas.LandMobileRocNew, false),
+                (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Formulas.LandMobileRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocLandMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Formulas.SpecialRocNew, false),
+                (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Formulas.SpecialRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocSpecMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarAmaRocNew, FeeConstants.Formulas.AmateurRocNew, false),
+                (CertificatesCategorySeederData.VarAmaRocRen, FeeConstants.Formulas.AmateurRocRenewal, true),
+                (CertificatesCategorySeederData.VarAmaRocMod, FeeConstants.Formulas.AmateurModification, false),
+                (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Formulas.AmateurLifetime, false),
+                (CertificatesCategorySeederData.VarTvroComm, FeeConstants.Formulas.TvroRegistration, false),
+                (CertificatesCategorySeederData.VarTvroNonComm, FeeConstants.Formulas.TvroRegistration, false),
+                (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Formulas.VasRenewalWithSurcharge, true),
+                (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Formulas.CertifiedTrueCopy, false),
+                (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Formulas.DuplicateCopy, false),
+            };
+
+            var existingVariantFormulas = await context.ServiceVariantFormulas.IgnoreQueryFilters().ToListAsync();
+            foreach (var (variantId, formula, applySur) in variantFormulasToSeed)
+            {
+                if (!allVariantsInDb.Contains(variantId)) continue;
+                var existingF = existingVariantFormulas.FirstOrDefault(f => f.ServiceVariantId == variantId);
+                if (existingF == null)
+                {
+                    context.ServiceVariantFormulas.Add(new ServiceVariantFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceVariantId = variantId,
+                        FormulaExpression = formula,
+                        Description = formula,
+                        ApplyLateRenewalSurcharge = applySur,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingF.FormulaExpression = formula;
+                    existingF.Description = formula;
+                    existingF.ApplyLateRenewalSurcharge = applySur;
+                    existingF.IsActive = true;
+                }
+            }
+
+            // 5. Seed ServiceVariantElementFormulas
+            var elementFormulasToSeed = new List<(Guid VariantId, string ElementCode, string Formula, bool ApplySurcharge)>
+            {
+                // Commercial ROC New
+                (CertificatesCategorySeederData.VarRocCommNew, "1RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "2RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "3RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "1PHN", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "2PHN", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "3PHN", FeeConstants.Formulas.RocNew, false),
+
+                // Commercial ROC Renewal
+                (CertificatesCategorySeederData.VarRocCommRen, "1RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "2RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "3RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "1PHN", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "2PHN", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "3PHN", FeeConstants.Formulas.RocRenewal, true),
+
+                // RFID Devices
+                (CertificatesCategorySeederData.VarRfidDealers, "RFID HIGH POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidDealers, "RFID LOW POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidDealers, "SRD/WDN", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Formulas.RfidRegistration, false),
+            };
+
+            var existingElementFormulas = await context.ServiceVariantElementFormulas.IgnoreQueryFilters().ToListAsync();
+            foreach (var (variantId, elementCode, formula, applySur) in elementFormulasToSeed)
+            {
+                if (!allVariantsInDb.Contains(variantId)) continue;
+                var el = allDbElements.FirstOrDefault(e => e.Code.Equals(elementCode, StringComparison.OrdinalIgnoreCase) || e.Name.Equals(elementCode, StringComparison.OrdinalIgnoreCase));
+                if (el == null) continue;
+
+                var existingEf = existingElementFormulas.FirstOrDefault(f => f.ServiceVariantId == variantId && f.ElementId == el.Id);
+                if (existingEf == null)
+                {
+                    context.ServiceVariantElementFormulas.Add(new ServiceVariantElementFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceVariantId = variantId,
+                        ElementId = el.Id,
+                        FormulaExpression = formula,
+                        Description = formula,
+                        ApplyLateRenewalSurcharge = applySur,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingEf.FormulaExpression = formula;
+                    existingEf.Description = formula;
+                    existingEf.ApplyLateRenewalSurcharge = applySur;
+                    existingEf.IsActive = true;
+                }
+            }
+
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                logger?.LogWarning(ex, "Concurrent update detected while seeding Formulas.");
+            }
         }
         catch (Exception ex)
         {
             logger?.LogError(ex, "Unexpected error during FastTrack fee seeding execution.");
             throw;
         }
-    }
-
-    private static (FeeCalculationMode Mode, string Formula, bool MultiYears, bool MultiUnits, bool MultiChannels, bool MultiPages, bool ApplySurcharge) ResolveFeeCalculationRule(string feeCode)
-    {
-        return feeCode switch
-        {
-            FeeConstants.Codes.License or FeeConstants.Codes.LicenseFee or FeeConstants.Codes.Roc or FeeConstants.Codes.SpectrumUsage or FeeConstants.Codes.AnnualRegistration1 or FeeConstants.Codes.AnnualRegistration2 =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE} * {YEARS} * {UNITS}", true, true, false, false, true),
-
-            FeeConstants.Codes.InspectionFee =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE} * {YEARS} * {UNITS}", true, true, false, false, false),
-
-            FeeConstants.Codes.Permit or FeeConstants.Codes.PermitFee or FeeConstants.Codes.Purchase or FeeConstants.Codes.Possess or FeeConstants.Codes.SellTransfer or FeeConstants.Codes.PossessPermit or FeeConstants.Codes.Registration or FeeConstants.Codes.ConstructionPermit or FeeConstants.Codes.SpecialPermit or FeeConstants.Codes.PermitToTransport =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE} * {UNITS}", false, true, false, false, false),
-
-            FeeConstants.Codes.SucceedingCopies =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE} * {PAGES}", false, false, false, true, false),
-
-            FeeConstants.Codes.FirstCopy =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
-
-            FeeConstants.Codes.Duplicate =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
-
-            FeeConstants.Codes.Dst =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
-
-            FeeConstants.Codes.FilingFee or FeeConstants.Codes.ApplicationFee or FeeConstants.Codes.Modification or FeeConstants.Codes.Seminar or FeeConstants.Codes.Demo or FeeConstants.Codes.Exam or FeeConstants.Codes.Accreditation or FeeConstants.Codes.Request =>
-                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
-
-            _ => (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false)
-        };
     }
 }

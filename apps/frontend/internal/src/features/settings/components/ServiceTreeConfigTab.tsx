@@ -605,12 +605,15 @@ export function ServiceTreeConfigTab() {
 
   // Render Right Workspace Content Helper
   const renderWorkspaceContent = () => {
-    const totalFees = activeElement ? activeElement.fees.reduce((acc, f) => acc + f.amount, 0) : 0;
+    const totalFees = activeElement && Array.isArray(activeElement.fees)
+      ? activeElement.fees.reduce((acc, f) => acc + (typeof f.amount === 'number' ? f.amount : 0), 0)
+      : 0;
     const variantContextKey = activeService && activeVariant ? `${activeService.id}:${activeVariant.id}` : null;
     const activeNotes = variantContextKey ? notesMap[variantContextKey] || [] : [];
     const activeRequirements = variantContextKey ? requirementsMap[variantContextKey] || [] : [];
 
     if (selectedElementId && activeElement && activeService && activeVariant) {
+      const safeElementFees = Array.isArray(activeElement.fees) ? activeElement.fees : [];
       return (
         <View style={{ gap: SPACING[16] }}>
           {/* Breadcrumb Navigation Header */}
@@ -646,7 +649,7 @@ export function ServiceTreeConfigTab() {
             <View style={styles.totalFeeCard}>
               <Text style={styles.totalFeeLabel}>Total Element Fee</Text>
               <Text style={styles.totalFeeAmount}>
-                ₱{totalFees.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                ₱{(totalFees ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
               </Text>
             </View>
           </View>
@@ -665,14 +668,14 @@ export function ServiceTreeConfigTab() {
             </Pressable>
           </View>
 
-          {activeElement.fees.length === 0 ? (
+          {safeElementFees.length === 0 ? (
             <View style={styles.emptyState}>
               <Lucide name="dollar-sign" size={24} color={COLORS.neutral[300]} />
               <Text style={styles.emptyText}>No fee breakdown items configured for this element yet.</Text>
             </View>
           ) : (
             <View style={styles.feeItemsTable}>
-              {activeElement.fees.map((fee, idx) => (
+              {safeElementFees.map((fee, idx) => (
                 <View key={fee.id} style={styles.feeTableRow}>
                   <View style={styles.feeRowInfo}>
                     <View style={styles.feeIndexBadge}>
@@ -686,7 +689,7 @@ export function ServiceTreeConfigTab() {
 
                   <View style={styles.feeRowActions}>
                     <Text style={styles.feeAmountText}>
-                      ₱{fee.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      ₱{(fee.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                     </Text>
                     <Pressable
                       style={styles.deleteIconBtn}
@@ -1256,7 +1259,8 @@ export function ServiceTreeConfigTab() {
             ) : (
               <View style={styles.elementsList}>
                 {currentElements.map((element) => {
-                  const elementTotalFees = element.fees.reduce((acc, f) => acc + f.amount, 0);
+                  const safeFees = Array.isArray(element.fees) ? element.fees : [];
+                  const elementTotalFees = safeFees.reduce((acc, f) => acc + (typeof f.amount === 'number' ? f.amount : 0), 0);
                   return (
                     <View key={element.id} style={[styles.elementCardItem, { backgroundColor: isDark ? colors.neutral[800] : colors.cardBg, borderColor: colors.border }]}>
                       <View style={styles.elementMainInfo}>
@@ -1274,9 +1278,9 @@ export function ServiceTreeConfigTab() {
 
                       <View style={styles.elementRightControl}>
                         <View style={styles.elementStatColumn}>
-                          <Text style={[styles.elementFeeCountText, { color: colors.textMuted }]}>{element.fees.length} Fee Items</Text>
+                          <Text style={[styles.elementFeeCountText, { color: colors.textMuted }]}>{safeFees.length} Fee Items</Text>
                           <Text style={[styles.elementTotalFeeText, { color: isDark ? colors.brand[400] : colors.brand.primary }]}>
-                            ₱{elementTotalFees.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                            ₱{(elementTotalFees ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2 })}
                           </Text>
                         </View>
 

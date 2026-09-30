@@ -62,6 +62,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
     public DbSet<ServiceFee> ServiceFees => Set<ServiceFee>();
     public DbSet<ServiceVariantFee> ServiceVariantFees => Set<ServiceVariantFee>();
     public DbSet<ServiceVariantElementFee> ServiceVariantElementFees => Set<ServiceVariantElementFee>();
+    public DbSet<ServiceFormula> ServiceFormulas => Set<ServiceFormula>();
+    public DbSet<ServiceVariantFormula> ServiceVariantFormulas => Set<ServiceVariantFormula>();
+    public DbSet<ServiceVariantElementFormula> ServiceVariantElementFormulas => Set<ServiceVariantElementFormula>();
     public DbSet<Element> Elements => Set<Element>();
     public DbSet<ServiceCategory> ServiceCategories => Set<ServiceCategory>();
     public DbSet<Service> Services => Set<Service>();
@@ -607,9 +610,6 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantFee>(entity =>
         {
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.DstAmount).HasColumnType("decimal(18,2)").HasDefaultValue(30.00m);
-            entity.Property(e => e.CalculationMode).HasConversion<string>().HasMaxLength(50);
-            entity.Property(e => e.CalculationFormula).HasMaxLength(500);
             entity.HasOne(d => d.Fee)
                   .WithMany()
                   .HasForeignKey(d => d.FeeId)
@@ -625,14 +625,49 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantElementFee>(entity =>
         {
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
-            entity.Property(e => e.DstAmount).HasColumnType("decimal(18,2)").HasDefaultValue(30.00m);
-            entity.Property(e => e.CalculationMode).HasConversion<string>().HasMaxLength(50);
-            entity.Property(e => e.CalculationFormula).HasMaxLength(500);
             entity.HasOne(d => d.Fee)
                   .WithMany()
                   .HasForeignKey(d => d.FeeId)
                   .OnDelete(DeleteBehavior.Restrict);
 
+            entity.HasOne(d => d.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(d => d.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(d => d.Element)
+                  .WithMany()
+                  .HasForeignKey(d => d.ElementId)
+                  .OnDelete(DeleteBehavior.Restrict);
+        });
+
+        // ServiceFormula entity configuration
+        modelBuilder.Entity<ServiceFormula>(entity =>
+        {
+            entity.Property(e => e.FormulaExpression).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.HasOne(d => d.Service)
+                  .WithMany()
+                  .HasForeignKey(d => d.ServiceId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ServiceVariantFormula entity configuration
+        modelBuilder.Entity<ServiceVariantFormula>(entity =>
+        {
+            entity.Property(e => e.FormulaExpression).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
+            entity.HasOne(d => d.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(d => d.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ServiceVariantElementFormula entity configuration
+        modelBuilder.Entity<ServiceVariantElementFormula>(entity =>
+        {
+            entity.Property(e => e.FormulaExpression).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(500);
             entity.HasOne(d => d.ServiceVariant)
                   .WithMany()
                   .HasForeignKey(d => d.ServiceVariantId)

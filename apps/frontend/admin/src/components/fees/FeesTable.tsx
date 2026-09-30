@@ -21,19 +21,22 @@ export interface FeesTableProps {
 }
 
 export function FeesTable({
-  fees,
+  fees = [],
   totalCount,
   currentPage,
   pageSize,
   onPageChange,
   onPageSizeChange,
-  serviceFees,
+  serviceFees = [],
   loading,
   canManage,
   onEdit,
   onDelete,
   onToggleStatus,
 }: FeesTableProps) {
+  const safeServiceFees = Array.isArray(serviceFees) ? serviceFees : [];
+  const safeFees = Array.isArray(fees) ? fees : [];
+
   const columns: ColumnDef<Fee>[] = [
     {
       key: "code",
@@ -48,7 +51,7 @@ export function FeesTable({
       key: "name",
       header: "Fee Name",
       cell: (item) => {
-        const mappedServices = serviceFees.filter((sf) => sf.feeId === item.id && sf.isActive !== false);
+        const mappedServices = safeServiceFees.filter((sf) => sf.feeId === item.id && sf.isActive !== false);
         return (
           <div className="flex flex-col">
             <span className="font-semibold text-slate-900 dark:text-slate-200">{item.name}</span>

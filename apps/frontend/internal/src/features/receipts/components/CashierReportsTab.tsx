@@ -168,28 +168,28 @@ export function CashierReportsTab({
                 <View style={[styles.sumCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <Text style={[styles.sumCardLabel, { color: colors.textMuted }]}>CASH COLLECTIONS</Text>
                   <Text style={[styles.sumCardVal, { color: colors.text }]}>
-                    ₱{rcdReport.summary.totalCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(rcdReport.summary.totalCash ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
 
                 <View style={[styles.sumCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <Text style={[styles.sumCardLabel, { color: colors.textMuted }]}>CHECK COLLECTIONS</Text>
                   <Text style={[styles.sumCardVal, { color: colors.text }]}>
-                    ₱{rcdReport.summary.totalCheck.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(rcdReport.summary.totalCheck ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
 
                 <View style={[styles.sumCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <Text style={[styles.sumCardLabel, { color: colors.textMuted }]}>TOTAL REMITTED / DEPOSITED</Text>
                   <Text style={[styles.sumCardVal, { color: colors.semantic.success }]}>
-                    ₱{rcdReport.summary.totalDeposited.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(rcdReport.summary.totalDeposited ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
 
                 <View style={[styles.sumCard, { borderColor: '#FCD34D', backgroundColor: '#FFFBEB' }]}>
                   <Text style={[styles.sumCardLabel, { color: '#92400E' }]}>UNDEPOSITED CASH ON HAND</Text>
                   <Text style={[styles.sumCardVal, { color: '#B45309' }]}>
-                    ₱{rcdReport.summary.netUndepositedCashOnHand.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(rcdReport.summary.netUndepositedCashOnHand ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
               </View>
@@ -218,7 +218,7 @@ export function CashierReportsTab({
                       <Text style={[styles.td, { flex: 2, color: colors.text }]}>{c.payorName}</Text>
                       <Text style={[styles.td, { flex: 1, color: colors.text }]}>{c.paymentMethod}</Text>
                       <Text style={[styles.td, { flex: 1.2, textAlign: 'right', fontWeight: '700', color: colors.text }]}>
-                        ₱{c.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₱{(c.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
                   ))
@@ -247,7 +247,7 @@ export function CashierReportsTab({
                       <Text style={[styles.td, { flex: 2, color: colors.text }]}>{d.bankName} (Acct #{d.accountNumber})</Text>
                       <Text style={[styles.td, { flex: 1.2, color: colors.text }]}>{new Date(d.depositDate).toLocaleDateString()}</Text>
                       <Text style={[styles.td, { flex: 1.2, textAlign: 'right', fontWeight: '700', color: colors.semantic.success }]}>
-                        ₱{d.totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₱{(d.totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
                   ))
@@ -290,7 +290,7 @@ export function CashierReportsTab({
                 <View style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
                   <Text style={[styles.statLabel, { color: colors.textMuted }]}>TOTAL VOID VALUE</Text>
                   <Text style={[styles.statNumber, { color: colors.semantic.error }]}>
-                    ₱{cancelledReport.totalCancelledAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(cancelledReport.totalCancelledAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                 </View>
               </View>
@@ -315,7 +315,7 @@ export function CashierReportsTab({
                       </Text>
                       <Text style={[styles.td, { flex: 1.5, color: colors.text }]}>{i.payorName}</Text>
                       <Text style={[styles.td, { flex: 1, textAlign: 'right', color: colors.text }]}>
-                        ₱{i.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₱{(i.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                       <Text style={[styles.td, { flex: 1.2, color: colors.text }]}>
                         {i.cancelledAt ? new Date(i.cancelledAt).toLocaleDateString() : '-'}

@@ -96,7 +96,7 @@ export default function ErrorLogsPage() {
             {
               key: "timestamp",
               header: "Timestamp",
-              cell: (log) => <span className="whitespace-nowrap text-xs font-mono text-slate-600 dark:text-slate-400">{new Date(log.loggedAt).toLocaleString()}</span>,
+              cell: (log) => <span className="whitespace-nowrap text-xs font-mono text-slate-600 dark:text-slate-400">{log?.loggedAt ? new Date(log.loggedAt).toLocaleString() : "—"}</span>,
             },
             {
               key: "level",
