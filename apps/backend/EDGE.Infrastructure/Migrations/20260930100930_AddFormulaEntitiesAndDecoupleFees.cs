@@ -11,8 +11,33 @@ namespace EDGE.Infrastructure.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.Sql(@"ALTER TABLE public.""ServiceVariantFees"" ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true;");
-            migrationBuilder.Sql(@"ALTER TABLE public.""ServiceVariantElementFees"" ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true;");
+            migrationBuilder.Sql(@"
+                ALTER TABLE public.""ServiceVariantFees"" 
+                    ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true,
+                    DROP COLUMN IF EXISTS ""CalculationMode"",
+                    DROP COLUMN IF EXISTS ""CalculationFormula"",
+                    DROP COLUMN IF EXISTS ""MultiplyByValidityYears"",
+                    DROP COLUMN IF EXISTS ""MultiplyByUnits"",
+                    DROP COLUMN IF EXISTS ""MultiplyByChannels"",
+                    DROP COLUMN IF EXISTS ""MultiplyByPages"",
+                    DROP COLUMN IF EXISTS ""ApplyLateRenewalSurcharge"",
+                    DROP COLUMN IF EXISTS ""IncludeDst"",
+                    DROP COLUMN IF EXISTS ""DstAmount"";
+            ");
+
+            migrationBuilder.Sql(@"
+                ALTER TABLE public.""ServiceVariantElementFees"" 
+                    ADD COLUMN IF NOT EXISTS ""IsActive"" boolean NOT NULL DEFAULT true,
+                    DROP COLUMN IF EXISTS ""CalculationMode"",
+                    DROP COLUMN IF EXISTS ""CalculationFormula"",
+                    DROP COLUMN IF EXISTS ""MultiplyByValidityYears"",
+                    DROP COLUMN IF EXISTS ""MultiplyByUnits"",
+                    DROP COLUMN IF EXISTS ""MultiplyByChannels"",
+                    DROP COLUMN IF EXISTS ""MultiplyByPages"",
+                    DROP COLUMN IF EXISTS ""ApplyLateRenewalSurcharge"",
+                    DROP COLUMN IF EXISTS ""IncludeDst"",
+                    DROP COLUMN IF EXISTS ""DstAmount"";
+            ");
 
             migrationBuilder.CreateTable(
                 name: "ServiceFormulas",
