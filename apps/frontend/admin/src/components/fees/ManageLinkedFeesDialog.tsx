@@ -424,16 +424,16 @@ export function ManageLinkedFeesDialog({
             <div className="mt-4 px-4 py-3.5 rounded-2xl bg-indigo-500/10 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800/80 shadow-sm space-y-3">
               {!isEditingFormula ? (
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
-                  <div className="flex items-center gap-2.5 flex-wrap">
-                    <span className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider bg-indigo-100 dark:bg-indigo-900/80 px-2 py-0.5 rounded-md">
+                  <div className="flex items-center gap-2.5 flex-wrap min-w-0 flex-1">
+                    <span className="text-[11px] font-bold text-indigo-800 dark:text-indigo-300 uppercase tracking-wider bg-indigo-100 dark:bg-indigo-900/80 px-2 py-0.5 rounded-md shrink-0">
                       Statutory Formula
                     </span>
-                    <span className="font-mono font-bold text-xs sm:text-sm text-indigo-950 dark:text-indigo-100">
+                    <span className="font-mono font-bold text-xs sm:text-sm text-indigo-950 dark:text-indigo-100 break-words whitespace-normal break-all">
                       {compositeFormula}
                     </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 shrink-0">
                     {hasAnySurcharge && (
                       <span className="px-2.5 py-1 rounded-lg bg-amber-500/15 text-amber-700 dark:text-amber-300 text-[11px] font-semibold border border-amber-500/30 w-fit shrink-0">
                         + Late Renewal Surcharge
@@ -445,7 +445,7 @@ export function ManageLinkedFeesDialog({
                         size="sm"
                         variant="ghost"
                         onClick={handleStartEditFormula}
-                        className="h-7 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-2.5 rounded-lg flex items-center gap-1"
+                        className="h-7 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 px-2.5 rounded-lg flex items-center gap-1 shrink-0"
                       >
                         <Edit2 className="w-3 h-3" />
                         <span>Edit Formula</span>
@@ -653,17 +653,17 @@ export function ManageLinkedFeesDialog({
                 <table className="w-full text-left border-collapse text-xs">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/70 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                      {isElement && <th className="py-3 px-4">Billing Element</th>}
-                      <th className="py-3 px-4">Component Fee</th>
-                      <th className="py-3 px-4">Base Rate</th>
+                      {isElement && <th className="py-3 px-4 min-w-[130px] whitespace-normal">Billing Element</th>}
+                      <th className="py-3 px-4 min-w-[140px] whitespace-normal">Component Fee</th>
+                      <th className="py-3 px-4 min-w-[110px] whitespace-normal">Base Rate</th>
                       {!isService && (
-                        <th className="py-3 px-4">Rate Multiplier</th>
+                        <th className="py-3 px-4 min-w-[130px] whitespace-normal">Rate Multiplier</th>
                       )}
                       {!isService && (
-                        <th className="py-3 px-4">Surcharge Rule</th>
+                        <th className="py-3 px-4 min-w-[130px] whitespace-normal">Surcharge Rule</th>
                       )}
                       {canManage && (
-                        <th className="py-3 px-4 text-right">Actions</th>
+                        <th className="py-3 px-4 text-right min-w-[80px]">Actions</th>
                       )}
                     </tr>
                   </thead>
@@ -677,17 +677,17 @@ export function ManageLinkedFeesDialog({
                             key={item.id}
                             className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
                           >
-                            <td className="py-3 px-4">
-                              <div className="flex flex-col">
-                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                            <td className="py-3 px-4 min-w-[150px] max-w-sm break-words whitespace-normal">
+                              <div className="flex flex-col gap-0.5 min-w-0 break-words">
+                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 break-words">
                                   {item.feeCode ?? "UNKNOWN"}
                                 </span>
-                                <span className="text-xs text-slate-600 dark:text-slate-400">
+                                <span className="text-xs text-slate-600 dark:text-slate-400 break-words leading-relaxed">
                                   {item.feeName ?? "Unknown Fee"}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-[110px] whitespace-nowrap">
                               <span className="font-mono font-bold text-slate-900 dark:text-white text-xs bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
                                 ₱
                                 {(item.amount ?? 0).toLocaleString(undefined, {
@@ -718,17 +718,17 @@ export function ManageLinkedFeesDialog({
                             key={item.id}
                             className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
                           >
-                            <td className="py-3 px-4">
-                              <div className="flex flex-col">
-                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                            <td className="py-3 px-4 min-w-[150px] max-w-sm break-words whitespace-normal">
+                              <div className="flex flex-col gap-0.5 min-w-0 break-words">
+                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 break-words">
                                   {item.feeCode ?? "UNKNOWN"}
                                 </span>
-                                <span className="text-xs text-slate-600 dark:text-slate-400">
+                                <span className="text-xs text-slate-600 dark:text-slate-400 break-words leading-relaxed">
                                   {item.feeName ?? "Unknown Fee"}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-[110px] whitespace-nowrap">
                               <span className="font-mono font-bold text-slate-900 dark:text-white text-xs bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
                                 ₱
                                 {(item.amount ?? 0).toLocaleString(undefined, {
@@ -737,14 +737,14 @@ export function ManageLinkedFeesDialog({
                                 })}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
-                              <span className="font-medium text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2.5 py-1 rounded-md w-fit block">
+                            <td className="py-3 px-4 min-w-[130px] break-words whitespace-normal">
+                              <span className="font-medium text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2.5 py-1 rounded-md w-fit block break-words">
                                 {multiplierLabel}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-[130px] break-words whitespace-normal">
                               {item.applyLateRenewalSurcharge === true ? (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-medium border border-amber-500/20">
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-medium border border-amber-500/20 break-words inline-block">
                                   + Late Surcharge (50%–100%)
                                 </span>
                               ) : (
@@ -775,27 +775,27 @@ export function ManageLinkedFeesDialog({
                             key={item.id}
                             className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors"
                           >
-                            <td className="py-3 px-4">
-                              <div className="flex flex-col">
-                                <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400">
+                            <td className="py-3 px-4 min-w-[130px] max-w-xs break-words whitespace-normal">
+                              <div className="flex flex-col gap-0.5 min-w-0 break-words">
+                                <span className="font-mono font-bold text-xs text-indigo-600 dark:text-indigo-400 break-words">
                                   {item.elementCode ?? "UNKNOWN"}
                                 </span>
-                                <span className="text-xs text-slate-700 dark:text-slate-300">
+                                <span className="text-xs text-slate-700 dark:text-slate-300 break-words leading-relaxed">
                                   {item.elementName ?? "Unknown Element"}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
-                              <div className="flex flex-col">
-                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400">
+                            <td className="py-3 px-4 min-w-[150px] max-w-sm break-words whitespace-normal">
+                              <div className="flex flex-col gap-0.5 min-w-0 break-words">
+                                <span className="font-mono font-bold text-xs text-emerald-600 dark:text-emerald-400 break-words">
                                   {item.feeCode ?? "UNKNOWN"}
                                 </span>
-                                <span className="text-xs text-slate-600 dark:text-slate-400">
+                                <span className="text-xs text-slate-600 dark:text-slate-400 break-words leading-relaxed">
                                   {item.feeName ?? "Unknown Fee"}
                                 </span>
                               </div>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-[110px] whitespace-nowrap">
                               <span className="font-mono font-bold text-slate-900 dark:text-white text-xs bg-slate-50 dark:bg-slate-950/70 border border-slate-200 dark:border-slate-800 px-2.5 py-1 rounded-lg">
                                 ₱
                                 {(item.amount ?? 0).toLocaleString(undefined, {
@@ -804,14 +804,14 @@ export function ManageLinkedFeesDialog({
                                 })}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
-                              <span className="font-medium text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2.5 py-1 rounded-md w-fit block">
+                            <td className="py-3 px-4 min-w-[130px] break-words whitespace-normal">
+                              <span className="font-medium text-xs bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-800 dark:text-slate-200 px-2.5 py-1 rounded-md w-fit block break-words">
                                 {multiplierLabel}
                               </span>
                             </td>
-                            <td className="py-3 px-4">
+                            <td className="py-3 px-4 min-w-[130px] break-words whitespace-normal">
                               {item.applyLateRenewalSurcharge === true ? (
-                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-medium border border-amber-500/20">
+                                <span className="px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-600 dark:text-amber-400 text-[11px] font-medium border border-amber-500/20 break-words inline-block">
                                   + Late Surcharge (50%–100%)
                                 </span>
                               ) : (

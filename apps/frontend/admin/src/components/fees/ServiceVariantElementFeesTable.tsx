@@ -89,41 +89,56 @@ export function ServiceVariantElementFeesTable({
                     className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
                     onClick={() => onManageFees(group)}
                   >
-                    <td className="py-4 px-6">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60">
+                    <td className="py-4 px-6 min-w-[200px] max-w-sm break-words whitespace-normal">
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
                           <Blocks className="w-4 h-4" />
                         </div>
-                        <div>
-                          <span className="font-bold text-sm text-slate-900 dark:text-white">
+                        <div className="min-w-0 flex-1">
+                          <span className="font-bold text-sm text-slate-900 dark:text-white break-words block">
                             {group.serviceName ?? "Unknown Service"}
                           </span>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">
                             Variant Billing Element Rates & Formula Mappings
                           </p>
                         </div>
                       </div>
                     </td>
 
-                    <td className="py-4 px-6">
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700">
+                    <td className="py-4 px-6 min-w-[140px] break-words whitespace-normal">
+                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 break-words inline-block">
                         {group.variantType ?? "Standard Variant"}
                       </span>
                     </td>
 
-                    <td className="py-4 px-6">
-                      <span className="font-mono font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60 inline-block">
+                    <td className="py-4 px-6 min-w-[180px] max-w-xs break-words whitespace-normal">
+                      <span className="font-mono font-bold text-xs bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 px-2.5 py-1 rounded-lg border border-indigo-200 dark:border-indigo-800/60 break-words whitespace-normal break-all inline-block">
                         {formula}
                       </span>
                     </td>
 
-                    <td className="py-4 px-6">
-                      <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700">
-                        {feeCount} {feeCount === 1 ? "Element Fee" : "Element Fees"}
-                      </span>
+                    <td className="py-4 px-6 min-w-[160px] max-w-xs break-words whitespace-normal">
+                      <div className="flex flex-col gap-1.5 min-w-0 break-words">
+                        <span className="px-2.5 py-1 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-semibold border border-slate-200 dark:border-slate-700 w-fit shrink-0 break-words">
+                          {feeCount} {feeCount === 1 ? "Element Fee" : "Element Fees"}
+                        </span>
+                        {group.elementFees && group.elementFees.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-0.5">
+                            {group.elementFees.map((f) => (
+                              <span
+                                key={f.id}
+                                className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-slate-50 dark:bg-slate-950 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-800 break-words whitespace-normal"
+                                title={f.feeName ?? undefined}
+                              >
+                                {f.feeCode}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </td>
 
-                    <td className="py-4 px-6">
+                    <td className="py-4 px-6 min-w-[130px] whitespace-nowrap">
                       <span className="px-3 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold inline-flex items-center gap-1.5">
                         <Coins className="w-3.5 h-3.5" />
                         ₱
