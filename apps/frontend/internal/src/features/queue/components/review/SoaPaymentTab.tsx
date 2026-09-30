@@ -54,15 +54,11 @@ export function SoaPaymentTab({
   const amountWords = amountToWords(app.totalAmountDue);
 
   const hasIncompleteApplicants = app.applicantsList?.some((a: ApplicantItem) => a.status === 'Incomplete') ?? false;
-  const isEvaluationApproved =
-    (app.status === 'Approved' ||
-      app.status === 'Evaluating' ||
-      ((app.applicantsList?.length ?? 0) > 0 && !hasIncompleteApplicants)) &&
-    !hasIncompleteApplicants &&
-    app.status !== 'Draft' &&
-    app.status !== 'Returned';
+  const isEvaluationReady =
+    (app.status === 'Evaluating' || app.status === 'Approved') &&
+    !hasIncompleteApplicants;
 
-  const canGenerateSoa = isEditable && isEvaluationApproved && app.status !== 'ForAccountant' && app.status !== 'PendingPayment' && app.status !== 'Completed';
+  const canGenerateSoa = isEditable && isEvaluationReady;
 
   if (!hasSoa) {
     return (
@@ -84,7 +80,7 @@ export function SoaPaymentTab({
               width: 52,
               height: 52,
               borderRadius: 26,
-              backgroundColor: isEvaluationApproved
+              backgroundColor: isEvaluationReady
                 ? (isDark ? colors.brand[900] : colors.brand[50])
                 : (isDark ? '#451a03' : '#fef3c7'),
               alignItems: 'center',
@@ -92,9 +88,9 @@ export function SoaPaymentTab({
             }}
           >
             <Lucide
-              name={isEvaluationApproved ? "file-plus" : "lock"}
+              name={isEvaluationReady ? "file-plus" : "lock"}
               size={26}
-              color={isEvaluationApproved ? (isDark ? colors.brand[400] : colors.brand[600]) : (isDark ? '#fbbf24' : '#d97706')}
+              color={isEvaluationReady ? (isDark ? colors.brand[400] : colors.brand[600]) : (isDark ? '#fbbf24' : '#d97706')}
             />
           </View>
 
@@ -108,7 +104,9 @@ export function SoaPaymentTab({
               },
             ]}
           >
-            {isEvaluationApproved
+            {app.status === 'Submitted'
+              ? 'Statement of Account (Evaluation Not Started)'
+              : isEvaluationReady
               ? 'Generate Statement of Account'
               : 'Statement of Account (Evaluation Required)'}
           </Text>
@@ -124,7 +122,9 @@ export function SoaPaymentTab({
               },
             ]}
           >
-            {isEvaluationApproved
+            {app.status === 'Submitted'
+              ? 'You must take and start evaluation on this application first before generating the Statement of Account.'
+              : isEvaluationReady
               ? 'Generate the SOA to compute statutory fees before forwarding to the Accountant.'
               : 'Complete applicant evaluation to generate the SOA.'}
           </Text>
@@ -165,11 +165,11 @@ export function SoaPaymentTab({
                 paddingHorizontal: 10,
                 paddingVertical: 5,
                 borderRadius: RADIUS.xs,
-                backgroundColor: isEvaluationApproved
+                backgroundColor: isEvaluationReady
                   ? (isDark ? '#064e3b' : '#ecfdf5')
                   : (isDark ? '#451a03' : '#fffbeb'),
                 borderWidth: 1,
-                borderColor: isEvaluationApproved
+                borderColor: isEvaluationReady
                   ? (isDark ? '#059669' : '#10b981')
                   : (isDark ? '#b45309' : '#f59e0b'),
               }}
@@ -178,13 +178,13 @@ export function SoaPaymentTab({
                 style={{
                   fontSize: 11,
                   fontWeight: TYPOGRAPHY.weights.bold,
-                  color: isEvaluationApproved
+                  color: isEvaluationReady
                     ? (isDark ? '#34d399' : '#059669')
                     : (isDark ? '#fbbf24' : '#d97706'),
                   fontFamily: TYPOGRAPHY.fonts.primary,
                 }}
               >
-                {isEvaluationApproved ? '✓ Evaluation Approved' : '⚠ Evaluation Pending'}
+                {isEvaluationReady ? '✓ Evaluation Active & Ready' : app.status === 'Submitted' ? '⚠ Evaluation Not Started' : '⚠ Evaluation Pending'}
               </Text>
             </View>
           </View>
@@ -229,7 +229,11 @@ export function SoaPaymentTab({
                   },
                 ]}
               >
-                {canGenerateSoa ? 'Generate Statement of Account' : 'Evaluation Required to Generate SOA'}
+                {canGenerateSoa
+                  ? 'Generate Statement of Account'
+                  : app.status === 'Submitted'
+                  ? 'Start Evaluation First to Generate SOA'
+                  : 'Evaluation Required to Generate SOA'}
               </Text>
             </Pressable>
           )}

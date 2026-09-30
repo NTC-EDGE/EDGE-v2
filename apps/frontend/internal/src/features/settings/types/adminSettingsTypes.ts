@@ -55,6 +55,15 @@ export interface FeePaymentItem {
     id: string;
     name: string;
     amount: number;
+    calculationMode?: 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix';
+    formula?: string;
+    multiplyByValidityYears?: boolean;
+    multiplyByUnits?: boolean;
+    multiplyByChannels?: boolean;
+    multiplyByPages?: boolean;
+    applyLateRenewalSurcharge?: boolean;
+    includeDst?: boolean;
+    dstAmount?: number;
   }[];
 }
 

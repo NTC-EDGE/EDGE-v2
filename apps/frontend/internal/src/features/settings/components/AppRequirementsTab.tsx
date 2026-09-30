@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { ApplicationRequirementItem } from '../data/mockAdminSettings';
+import { ApplicationRequirementItem } from '../types/adminSettingsTypes';
 
 interface AppRequirementsTabProps {
   requirements: ApplicationRequirementItem[];

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Persistence.SeederData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -353,12 +354,14 @@ public static class FastTrackFeeSeeder
                         Id = Guid.NewGuid(),
                         ServiceVariantId = variantId,
                         FeeId = fee.Id,
-                        Amount = amount
+                        Amount = amount,
+                        IsActive = true
                     });
                 }
                 else
                 {
                     existingRecord.Amount = amount;
+                    existingRecord.IsActive = true;
                     if (existingRecord.IsDeleted)
                     {
                         existingRecord.IsDeleted = false;
@@ -463,12 +466,14 @@ public static class FastTrackFeeSeeder
                         ServiceVariantId = variantId,
                         ElementId = el.Id,
                         FeeId = fee.Id,
-                        Amount = amount
+                        Amount = amount,
+                        IsActive = true
                     });
                 }
                 else
                 {
                     existingVef.Amount = amount;
+                    existingVef.IsActive = true;
                     if (existingVef.IsDeleted)
                     {
                         existingVef.IsDeleted = false;
@@ -484,6 +489,128 @@ public static class FastTrackFeeSeeder
             catch (DbUpdateException ex)
             {
                 logger?.LogWarning(ex, "Concurrent update detected while seeding ServiceVariantElementFees.");
+            }
+
+            // 4. Seed ServiceVariantFormulas
+            var variantFormulasToSeed = new List<(Guid VariantId, string Formula, bool ApplySurcharge)>
+            {
+                (CertificatesCategorySeederData.VarRocCommMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocAirNew, FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocAirRen, FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocAirMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocPilotNew, "FEEROC = ROC + DST", false),
+                (CertificatesCategorySeederData.VarRocPilotMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocGovNew, FeeConstants.Formulas.GovRocNew, false),
+                (CertificatesCategorySeederData.VarRocGovRen, FeeConstants.Formulas.GovRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocGovMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocLandNew, FeeConstants.Formulas.LandMobileRocNew, false),
+                (CertificatesCategorySeederData.VarRocLandRen, FeeConstants.Formulas.LandMobileRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocLandMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarRocSpecNew, FeeConstants.Formulas.SpecialRocNew, false),
+                (CertificatesCategorySeederData.VarRocSpecRen, FeeConstants.Formulas.SpecialRocRenewal, true),
+                (CertificatesCategorySeederData.VarRocSpecMod, FeeConstants.Formulas.RocModification, false),
+                (CertificatesCategorySeederData.VarAmaRocNew, FeeConstants.Formulas.AmateurRocNew, false),
+                (CertificatesCategorySeederData.VarAmaRocRen, FeeConstants.Formulas.AmateurRocRenewal, true),
+                (CertificatesCategorySeederData.VarAmaRocMod, FeeConstants.Formulas.AmateurModification, false),
+                (CertificatesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Formulas.AmateurLifetime, false),
+                (CertificatesCategorySeederData.VarTvroComm, FeeConstants.Formulas.TvroRegistration, false),
+                (CertificatesCategorySeederData.VarTvroNonComm, FeeConstants.Formulas.TvroRegistration, false),
+                (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Formulas.VasRenewalWithSurcharge, true),
+                (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Formulas.CertifiedTrueCopy, false),
+                (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Formulas.DuplicateCopy, false),
+            };
+
+            var existingVariantFormulas = await context.ServiceVariantFormulas.IgnoreQueryFilters().ToListAsync();
+            foreach (var (variantId, formula, applySur) in variantFormulasToSeed)
+            {
+                if (!allVariantsInDb.Contains(variantId)) continue;
+                var existingF = existingVariantFormulas.FirstOrDefault(f => f.ServiceVariantId == variantId);
+                if (existingF == null)
+                {
+                    context.ServiceVariantFormulas.Add(new ServiceVariantFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceVariantId = variantId,
+                        FormulaExpression = formula,
+                        Description = formula,
+                        ApplyLateRenewalSurcharge = applySur,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingF.FormulaExpression = formula;
+                    existingF.Description = formula;
+                    existingF.ApplyLateRenewalSurcharge = applySur;
+                    existingF.IsActive = true;
+                }
+            }
+
+            // 5. Seed ServiceVariantElementFormulas
+            var elementFormulasToSeed = new List<(Guid VariantId, string ElementCode, string Formula, bool ApplySurcharge)>
+            {
+                // Commercial ROC New
+                (CertificatesCategorySeederData.VarRocCommNew, "1RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "2RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "3RTG", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "1PHN", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "2PHN", FeeConstants.Formulas.RocNew, false),
+                (CertificatesCategorySeederData.VarRocCommNew, "3PHN", FeeConstants.Formulas.RocNew, false),
+
+                // Commercial ROC Renewal
+                (CertificatesCategorySeederData.VarRocCommRen, "1RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "2RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "3RTG", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "1PHN", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "2PHN", FeeConstants.Formulas.RocRenewal, true),
+                (CertificatesCategorySeederData.VarRocCommRen, "3PHN", FeeConstants.Formulas.RocRenewal, true),
+
+                // RFID Devices
+                (CertificatesCategorySeederData.VarRfidDealers, "RFID HIGH POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidDealers, "RFID LOW POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidDealers, "SRD/WDN", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", FeeConstants.Formulas.RfidRegistration, false),
+                (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Formulas.RfidRegistration, false),
+            };
+
+            var existingElementFormulas = await context.ServiceVariantElementFormulas.IgnoreQueryFilters().ToListAsync();
+            foreach (var (variantId, elementCode, formula, applySur) in elementFormulasToSeed)
+            {
+                if (!allVariantsInDb.Contains(variantId)) continue;
+                var el = allDbElements.FirstOrDefault(e => e.Code.Equals(elementCode, StringComparison.OrdinalIgnoreCase) || e.Name.Equals(elementCode, StringComparison.OrdinalIgnoreCase));
+                if (el == null) continue;
+
+                var existingEf = existingElementFormulas.FirstOrDefault(f => f.ServiceVariantId == variantId && f.ElementId == el.Id);
+                if (existingEf == null)
+                {
+                    context.ServiceVariantElementFormulas.Add(new ServiceVariantElementFormula
+                    {
+                        Id = Guid.NewGuid(),
+                        ServiceVariantId = variantId,
+                        ElementId = el.Id,
+                        FormulaExpression = formula,
+                        Description = formula,
+                        ApplyLateRenewalSurcharge = applySur,
+                        IsActive = true
+                    });
+                }
+                else
+                {
+                    existingEf.FormulaExpression = formula;
+                    existingEf.Description = formula;
+                    existingEf.ApplyLateRenewalSurcharge = applySur;
+                    existingEf.IsActive = true;
+                }
+            }
+
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException ex)
+            {
+                logger?.LogWarning(ex, "Concurrent update detected while seeding Formulas.");
             }
         }
         catch (Exception ex)

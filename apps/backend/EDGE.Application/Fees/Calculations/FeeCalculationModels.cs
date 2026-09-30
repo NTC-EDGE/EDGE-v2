@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Fees.Calculations;
@@ -40,5 +41,11 @@ public record FeeCalculationRequest(
     int NoOfCopies = 1,
     int NoOfChannels = 1,
     DateTime? AsOfDate = null,
-    ServiceCategoryType? Category = null
+    ServiceCategoryType? Category = null,
+    Guid? ServiceVariantId = null,
+    Guid? ElementId = null,
+    IReadOnlyList<ServiceVariantFee>? VariantFees = null,
+    IReadOnlyList<ServiceVariantElementFee>? ElementFees = null,
+    string? FormulaExpression = null,
+    bool ApplyLateRenewalSurcharge = false
 );

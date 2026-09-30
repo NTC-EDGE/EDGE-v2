@@ -153,7 +153,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
             </div>
             <div className="text-center px-2 sm:px-3 border-r border-slate-200 dark:border-slate-800 min-w-0">
               <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 truncate">Clients</p>
-              <p className="text-base sm:text-lg font-extrabold text-purple-600 dark:text-purple-400 truncate">{clientCount.toLocaleString()}</p>
+              <p className="text-base sm:text-lg font-extrabold text-purple-600 dark:text-purple-400 truncate">{(clientCount ?? 0).toLocaleString()}</p>
             </div>
             <div className="text-center px-2 sm:px-3 min-w-0">
               <p className="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400 truncate">Offices</p>
@@ -168,7 +168,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
           <Users className="w-4 h-4 text-sky-500 dark:text-sky-400" /> Employees ({staffCount})
         </button>
         <button onClick={() => handleTabChange("external_users")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "external_users" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
-          <UserCheck className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Clients ({clientCount.toLocaleString()})
+          <UserCheck className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Clients ({(clientCount ?? 0).toLocaleString()})
         </button>
         <button onClick={() => handleTabChange("field_offices")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "field_offices" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
           <Building2 className="w-4 h-4 text-emerald-500 dark:text-emerald-400" /> Offices ({officesCount})
@@ -180,7 +180,7 @@ function TenantDetailContent({ currentTenant, tenantId }: TenantDetailContentPro
           <KeyRound className="w-4 h-4 text-purple-500 dark:text-purple-400" /> Roles
         </button>
         <button onClick={() => handleTabChange("transactions")} className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shrink-0 transition-all ${activeTab === "transactions" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800/60"}`}>
-          <Receipt className="w-4 h-4 text-teal-500 dark:text-teal-400" /> Transactions ({transactionCount.toLocaleString()})
+          <Receipt className="w-4 h-4 text-teal-500 dark:text-teal-400" /> Transactions ({(transactionCount ?? 0).toLocaleString()})
         </button>
       </div>
 

@@ -1,8 +1,8 @@
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
-using EDGE.Application.ServiceVariantFees.DTOs;
+using MediatR;
 using EDGE.Application.Common.Interfaces;
+using EDGE.Application.ServiceVariantFees.DTOs;
 
 namespace EDGE.Application.ServiceVariantFees.Queries.GetServiceVariantFeeById;
 
@@ -36,6 +36,7 @@ public class GetServiceVariantFeeByIdQueryHandler : IRequestHandler<GetServiceVa
             svf.Fee?.Code,
             svf.Fee?.Name,
             svf.Amount,
+            svf.IsActive,
             svf.CreatedAt
         );
     }

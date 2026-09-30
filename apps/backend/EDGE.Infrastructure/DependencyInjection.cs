@@ -107,6 +107,7 @@ public static class DependencyInjection
         services.AddScoped<IElementRepository, ElementRepository>();
         services.AddScoped<IServiceVariantFeeRepository, ServiceVariantFeeRepository>();
         services.AddScoped<IServiceVariantElementFeeRepository, ServiceVariantElementFeeRepository>();
+        services.AddScoped<IServiceVariantFormulaRepository, ServiceVariantFormulaRepository>();
         services.AddScoped<IServiceVariantRepository, ServiceVariantRepository>();
         services.AddScoped<IServiceInformationRepository, ServiceInformationRepository>();
         services.AddScoped<IConversationRepository, ConversationRepository>();

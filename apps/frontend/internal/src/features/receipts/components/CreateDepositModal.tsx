@@ -218,7 +218,7 @@ export function CreateDepositModal({
                           </Text>
                         </View>
                         <Text style={[styles.orAmount, { color: colors.text }]}>
-                          ₱{r.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          ₱{(r.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -232,19 +232,19 @@ export function CreateDepositModal({
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Cash Collections:</Text>
                 <Text style={[styles.summaryVal, { color: colors.text }]}>
-                  ₱{totalCash.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱{(totalCash ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={styles.summaryRow}>
                 <Text style={[styles.summaryLabel, { color: colors.textMuted }]}>Check Collections:</Text>
                 <Text style={[styles.summaryVal, { color: colors.text }]}>
-                  ₱{totalChecks.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱{(totalChecks ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
               <View style={[styles.summaryRow, styles.totalSummaryRow, { borderTopColor: colors.neutral[300] }]}>
                 <Text style={[styles.totalSummaryLabel, { color: colors.text }]}>TOTAL DEPOSIT AMOUNT:</Text>
                 <Text style={[styles.totalSummaryVal, { color: colors.semantic.successText }]}>
-                  ₱{totalDepositAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱{(totalDepositAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>

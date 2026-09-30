@@ -12,7 +12,11 @@ using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
-public record UpdateServiceVariantFeeRequest(Guid ServiceVariantId, Guid FeeId, decimal Amount);
+public record UpdateServiceVariantFeeRequest(
+    Guid ServiceVariantId,
+    Guid FeeId,
+    decimal Amount
+);
 
 public static class ServiceVariantFeeEndpoints
 {
@@ -24,8 +28,8 @@ public static class ServiceVariantFeeEndpoints
         fees.MapGet("/", GetServiceVariantFees)
             .WithName("GetServiceVariantFees")
             .WithSummary("Get all service variant fees")
-            .WithDescription("Retrieves a list of all service variant fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<PaginatedApiResponse<ServiceVariantFeeDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves a list of all service variant fees grouped and paginated by ServiceVariant.")
+            .Produces<PaginatedApiResponse<ServiceVariantFeeGroupDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantFeeById)
             .WithName("GetServiceVariantFeeById")
@@ -119,7 +123,12 @@ public static class ServiceVariantFeeEndpoints
         IValidator<UpdateServiceVariantFeeCommand> validator,
         IMediator mediator)
     {
-        var command = new UpdateServiceVariantFeeCommand(id, request.ServiceVariantId, request.FeeId, request.Amount);
+        var command = new UpdateServiceVariantFeeCommand(
+            id,
+            request.ServiceVariantId,
+            request.FeeId,
+            request.Amount
+        );
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

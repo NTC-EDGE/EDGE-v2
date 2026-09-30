@@ -1,5 +1,18 @@
 import { useApi } from './api';
-import { Fee, ServiceFee, Note, ServiceNote, SoaNote, Element, ServiceVariant, ServiceVariantFee, ServiceVariantElementFee } from '@edge/api';
+import {
+  Fee,
+  ServiceFee,
+  Note,
+  ServiceNote,
+  SoaNote,
+  Element,
+  ServiceVariant,
+  ServiceVariantFee,
+  ServiceVariantElementFee,
+  ServiceFeeGroup,
+  ServiceVariantFeeGroup,
+  ServiceVariantElementFeeGroup,
+} from '@edge/api';
 
 export interface ServiceCatalogItem {
   id: string;
@@ -71,19 +84,24 @@ export function useFeesService() {
   };
 
   // --- SERVICE FEES CRUD ---
-  const useServiceFees = (pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceFees = (serviceId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
+      if (serviceId) params.append('serviceId', serviceId);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.fees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -143,10 +161,14 @@ export function useFeesService() {
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-variant-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceVariantFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceVariantFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.fees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -165,20 +187,25 @@ export function useFeesService() {
   };
 
   // --- SERVICE VARIANT ELEMENT FEES CRUD ---
-  const useServiceVariantElementFees = (serviceVariantId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceVariantElementFees = (serviceVariantId?: string, elementId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      if (elementId) params.append('elementId', elementId);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-variant-element-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceVariantElementFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceVariantElementFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.elementFees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -312,6 +339,37 @@ export function useFeesService() {
     await del<void>(`/api/v2/service-variant-elements/${id}`);
   };
 
+  const updateVariantFormula = async (
+    variantId: string,
+    data: { formulaExpression: string; description?: string | null; applyLateRenewalSurcharge?: boolean }
+  ): Promise<boolean> => {
+    const res = await put<{ succeeded: boolean; data: boolean }, { formulaExpression: string; description?: string | null; applyLateRenewalSurcharge: boolean }>(
+      `/api/v2/service-variants/${variantId}/formula`,
+      {
+        formulaExpression: data.formulaExpression,
+        description: data.description ?? null,
+        applyLateRenewalSurcharge: data.applyLateRenewalSurcharge ?? false,
+      }
+    );
+    return res.succeeded;
+  };
+
+  const updateVariantElementFormula = async (
+    data: { serviceVariantId: string; elementId: string; formulaExpression: string; description?: string | null; applyLateRenewalSurcharge?: boolean }
+  ): Promise<boolean> => {
+    const res = await put<{ succeeded: boolean; data: boolean }, { serviceVariantId: string; elementId: string; formulaExpression: string; description?: string | null; applyLateRenewalSurcharge: boolean }>(
+      '/api/v2/service-variant-elements/formula',
+      {
+        serviceVariantId: data.serviceVariantId,
+        elementId: data.elementId,
+        formulaExpression: data.formulaExpression,
+        description: data.description ?? null,
+        applyLateRenewalSurcharge: data.applyLateRenewalSurcharge ?? false,
+      }
+    );
+    return res.succeeded;
+  };
+
   return {
     useFees,
     createFee,
@@ -330,6 +388,8 @@ export function useFeesService() {
     createServiceVariantFee,
     updateServiceVariantFee,
     deleteServiceVariantFee,
+    updateVariantFormula,
+    updateVariantElementFormula,
     useServiceVariantElementFees,
     createServiceVariantElementFee,
     updateServiceVariantElementFee,

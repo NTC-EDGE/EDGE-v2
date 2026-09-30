@@ -19,6 +19,7 @@ export function ActionMenu({ items }: ActionMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const buttonRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -32,23 +33,47 @@ export function ActionMenu({ items }: ActionMenuProps) {
       const menuWidth = 200;
       const estimatedMenuHeight = items.length * 36 + 16;
 
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const openUpwards = spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight;
+      const dialog = buttonRef.current.closest<HTMLElement>("[role='dialog']");
+      if (dialog !== null) {
+        const dialogRect = dialog.getBoundingClientRect();
+        const spaceBelow = dialogRect.bottom - rect.bottom;
+        const openUpwards = spaceBelow < estimatedMenuHeight && (rect.top - dialogRect.top) > estimatedMenuHeight;
 
-      const top = openUpwards
-        ? rect.top - estimatedMenuHeight - 4
-        : rect.bottom + 4;
+        const top = openUpwards
+          ? rect.top - dialogRect.top - estimatedMenuHeight - 4
+          : rect.bottom - dialogRect.top + 4;
 
-      let left = rect.right - menuWidth;
-      if (left < 10) left = 10;
+        let left = rect.right - dialogRect.left - menuWidth;
+        if (left < 10) left = 10;
 
-      setMenuStyle({
-        position: "fixed",
-        top: `${top}px`,
-        left: `${left}px`,
-        width: `${menuWidth}px`,
-        zIndex: 9999,
-      });
+        setMenuStyle({
+          position: "absolute",
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${menuWidth}px`,
+          zIndex: 9999,
+        });
+        setPortalTarget(dialog);
+      } else {
+        const spaceBelow = window.innerHeight - rect.bottom;
+        const openUpwards = spaceBelow < estimatedMenuHeight && rect.top > estimatedMenuHeight;
+
+        const top = openUpwards
+          ? rect.top - estimatedMenuHeight - 4
+          : rect.bottom + 4;
+
+        let left = rect.right - menuWidth;
+        if (left < 10) left = 10;
+
+        setMenuStyle({
+          position: "fixed",
+          top: `${top}px`,
+          left: `${left}px`,
+          width: `${menuWidth}px`,
+          zIndex: 9999,
+        });
+        setPortalTarget(document.body);
+      }
     }
   };
 
@@ -68,14 +93,15 @@ export function ActionMenu({ items }: ActionMenuProps) {
     }
 
     function handleClickOutside(event: MouseEvent) {
-      const target = event.target as Node;
-      if (
-        menuRef.current !== null &&
-        !menuRef.current.contains(target) &&
-        buttonRef.current !== null &&
-        !buttonRef.current.contains(target)
-      ) {
-        setIsOpen(false);
+      if (event.target instanceof Node) {
+        if (
+          menuRef.current !== null &&
+          !menuRef.current.contains(event.target) &&
+          buttonRef.current !== null &&
+          !buttonRef.current.contains(event.target)
+        ) {
+          setIsOpen(false);
+        }
       }
     }
 
@@ -102,7 +128,7 @@ export function ActionMenu({ items }: ActionMenuProps) {
         <MoreVertical className="w-4 h-4" />
       </button>
 
-      {isOpen && mounted && typeof document !== "undefined" && createPortal(
+      {isOpen && mounted && portalTarget !== null && createPortal(
         <div
           ref={menuRef}
           style={menuStyle}
@@ -114,6 +140,10 @@ export function ActionMenu({ items }: ActionMenuProps) {
             return (
               <button
                 key={index}
+                type="button"
+                onPointerDown={(e) => {
+                  e.stopPropagation();
+                }}
                 onClick={(e) => {
                   e.stopPropagation();
                   setIsOpen(false);
@@ -133,7 +163,7 @@ export function ActionMenu({ items }: ActionMenuProps) {
             );
           })}
         </div>,
-        document.body
+        portalTarget
       )}
     </div>
   );

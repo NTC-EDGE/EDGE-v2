@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
-import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../data/mockAdminSettings';
+import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../types/adminSettingsTypes';
 import { DeleteAdminItemModal } from './DeleteAdminItemModal';
 
 interface RegionalConfigTabProps {

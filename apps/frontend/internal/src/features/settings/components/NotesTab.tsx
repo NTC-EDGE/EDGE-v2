@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { NoteItem } from '../data/mockAdminSettings';
+import { NoteItem } from '../types/adminSettingsTypes';
 
 interface NotesTabProps {
   notes: NoteItem[];

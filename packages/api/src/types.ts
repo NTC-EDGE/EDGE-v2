@@ -646,6 +646,8 @@ export interface ServiceVariantDetail {
   type?: string | null;
 }
 
+export type FeeCalculationMode = 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix' | number;
+
 export interface ServiceVariantFee {
   id: string;
   serviceVariantId: string;
@@ -654,6 +656,15 @@ export interface ServiceVariantFee {
   feeCode?: string | null;
   feeName?: string | null;
   amount: number;
+  calculationMode?: FeeCalculationMode;
+  calculationFormula?: string | null;
+  multiplyByValidityYears?: boolean;
+  multiplyByUnits?: boolean;
+  multiplyByChannels?: boolean;
+  multiplyByPages?: boolean;
+  applyLateRenewalSurcharge?: boolean;
+  includeDst?: boolean;
+  dstAmount?: number;
   createdAt?: string;
 }
 
@@ -668,7 +679,67 @@ export interface ServiceVariantElementFee {
   feeCode?: string | null;
   feeName?: string | null;
   amount: number;
+  calculationMode?: FeeCalculationMode;
+  calculationFormula?: string | null;
+  multiplyByValidityYears?: boolean;
+  multiplyByUnits?: boolean;
+  multiplyByChannels?: boolean;
+  multiplyByPages?: boolean;
+  applyLateRenewalSurcharge?: boolean;
+  includeDst?: boolean;
+  dstAmount?: number;
   createdAt?: string;
+}
+
+export interface ServiceFeeGroup {
+  serviceId: string;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  totalAmount: number;
+  fees: ServiceFee[];
+}
+
+export interface ServiceVariantFeeGroup {
+  serviceVariantId: string;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  variantType?: string | null;
+  totalBaseAmount: number;
+  fees: ServiceVariantFee[];
+  statutoryFormula?: string | null;
+  applyLateRenewalSurcharge?: boolean | null;
+}
+
+export interface ServiceVariantElementFeeGroup {
+  serviceVariantId: string;
+  serviceId?: string | null;
+  serviceName?: string | null;
+  variantType?: string | null;
+  totalBaseAmount: number;
+  elementFees: ServiceVariantElementFee[];
+  statutoryFormula?: string | null;
+  applyLateRenewalSurcharge?: boolean | null;
+}
+
+export interface ServiceVariantFormula {
+  id: string;
+  serviceVariantId: string;
+  formulaExpression: string;
+  description?: string | null;
+  applyLateRenewalSurcharge: boolean;
+  isActive: boolean;
+}
+
+export interface ServiceVariantElementFormula {
+  id: string;
+  serviceVariantId: string;
+  elementId: string;
+  elementCode?: string | null;
+  elementName?: string | null;
+  formulaExpression: string;
+  description?: string | null;
+  applyLateRenewalSurcharge: boolean;
+  isActive: boolean;
 }
 
 export interface ServiceNote {

@@ -42,6 +42,78 @@ public static class FeeConstants
         public const string SpectrumUsage = "SUF";
     }
 
+    /// <summary>
+    /// Statutory fee formula variable tokens, placeholders, keywords, and helper inspection methods.
+    /// </summary>
+    public static class FormulaTokens
+    {
+        // Bracketed Placeholders
+        public const string PlaceholderRate = "{RATE}";
+        public const string PlaceholderYears = "{YEARS}";
+        public const string PlaceholderYr = "{YR}";
+        public const string PlaceholderUnits = "{UNITS}";
+        public const string PlaceholderUnit = "{UNIT}";
+        public const string PlaceholderChannels = "{CHANNELS}";
+        public const string PlaceholderChUnit = "{CH_UNIT}";
+        public const string PlaceholderPages = "{PAGES}";
+        public const string PlaceholderCopy = "{COPY}";
+        public const string PlaceholderAdditionalServices = "{NAS}";
+        public const string PlaceholderDst = "{DST}";
+        public const string PlaceholderSurcharge = "{SUR}";
+
+        // Unbracketed Variable Identifiers
+        public const string VarRate = "RATE";
+        public const string VarYears = "YEARS";
+        public const string VarYr = "YR";
+        public const string VarUnits = "UNITS";
+        public const string VarUnit = "UNIT";
+        public const string VarChannels = "CHANNELS";
+        public const string VarChUnit = "CH_UNIT";
+        public const string VarPages = "PAGES";
+        public const string VarCopy = "COPY";
+        public const string VarAdditionalServices = "NAS";
+        public const string VarDst = "DST";
+        public const string VarSurcharge = "SUR";
+
+        // Standard Assignment Target
+        public const string DefaultTarget = "TOTAL";
+
+        // Recognized Statutory Acronyms
+        public static readonly IReadOnlyList<string> KnownFeeAcronyms = new[]
+        {
+            Codes.Roc, Codes.LicenseFee, Codes.PermitFee, Codes.Purchase, Codes.Possess,
+            Codes.SellTransfer, Codes.Registration, Codes.Demo, Codes.PermitToTransport,
+            Codes.SpecialPermit, Codes.ConstructionPermit, Codes.SpectrumUsage,
+            Codes.AnnualRegistration1, Codes.AnnualRegistration2, Codes.FilingFee,
+            Codes.ApplicationFee, Codes.Seminar, Codes.Modification, Codes.Duplicate,
+            Codes.FirstCopy, Codes.SucceedingCopies
+        };
+
+        public static bool HasYears(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            (formula.Contains(VarYears, StringComparison.OrdinalIgnoreCase) || formula.Contains(VarYr, StringComparison.OrdinalIgnoreCase));
+
+        public static bool HasUnits(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            (formula.Contains(VarUnits, StringComparison.OrdinalIgnoreCase) || formula.Contains(VarUnit, StringComparison.OrdinalIgnoreCase));
+
+        public static bool HasChannels(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            (formula.Contains(VarChannels, StringComparison.OrdinalIgnoreCase) || formula.Contains(VarChUnit, StringComparison.OrdinalIgnoreCase));
+
+        public static bool HasPages(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            (formula.Contains(VarPages, StringComparison.OrdinalIgnoreCase) || formula.Contains(VarCopy, StringComparison.OrdinalIgnoreCase));
+
+        public static bool HasSurcharge(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            formula.Contains(VarSurcharge, StringComparison.OrdinalIgnoreCase);
+
+        public static bool HasDst(string? formula) =>
+            !string.IsNullOrWhiteSpace(formula) &&
+            formula.Contains(VarDst, StringComparison.OrdinalIgnoreCase);
+    }
+
     public static class Amounts
     {
         // Common Taxes & Base Fees

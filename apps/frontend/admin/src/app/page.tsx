@@ -417,7 +417,7 @@ export default function Dashboard() {
                     <Loader2 className="w-3.5 h-3.5 animate-spin text-slate-500" />
                   ) : (
                     <span className={`font-mono text-sm font-bold ${stat.textColor}`}>
-                      {stat.count.toLocaleString()}
+                      {(stat.count ?? 0).toLocaleString()}
                     </span>
                   )}
                   <ArrowRight className="w-3 h-3 text-slate-400 dark:text-slate-600 group-hover:text-slate-700 dark:group-hover:text-slate-300 transition-colors" />

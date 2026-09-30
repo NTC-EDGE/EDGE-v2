@@ -406,7 +406,7 @@ export function ExternalUsersTab({ currentTenant, getRegionName, getRegionCode }
                           </span>
                         </div>
                         <div className="text-right">
-                          <span className="font-bold text-slate-900 dark:text-white font-mono block">₱{tx.amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                          <span className="font-bold text-slate-900 dark:text-white font-mono block">₱{(tx.amount ?? 0).toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
                           <span className={`text-[10px] font-semibold px-1.5 py-0.2 rounded ${tx.status === "Paid" ? "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400" : "bg-amber-500/10 text-amber-600 dark:text-amber-400"}`}>
                             {tx.status}
                           </span>

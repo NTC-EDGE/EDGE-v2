@@ -110,7 +110,7 @@ export function FeeSuggestionsDropdown({
 
                 <View style={styles.itemRight}>
                   <Text style={[styles.amountText, { color: colors.semantic.successText }]}>
-                    ₱{fee.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    ₱{(fee.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </Text>
                   <Text style={[styles.selectHint, { color: colors.brand.primary }]}>Select ↵</Text>
                 </View>

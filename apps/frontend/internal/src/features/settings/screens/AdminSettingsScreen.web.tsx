@@ -31,7 +31,7 @@ import {
 import {
   RegionalConfigCard,
   BranchOffice,
-} from '../data/mockAdminSettings';
+} from '../types/adminSettingsTypes';
 import { RegionalConfigTab } from '../components/RegionalConfigTab';
 import { ServiceTreeConfigTab } from '../components/ServiceTreeConfigTab';
 import {

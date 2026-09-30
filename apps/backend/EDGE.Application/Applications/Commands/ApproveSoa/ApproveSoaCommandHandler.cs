@@ -36,6 +36,13 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         if (soa == null) return ApiResponse<Guid>.Fail("SOA not found.");
         if (soa.Status != SoaStatus.Pending) return ApiResponse<Guid>.Fail("SOA must be Pending to approve.");
 
+        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
+        if (app.Status != ApplicationStatus.ForAccountant)
+        {
+            return ApiResponse<Guid>.Fail("Statement of Account can only be approved when the application is in 'ForAccountant' status.");
+        }
+
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
 
         soa.Status = SoaStatus.Approved;
@@ -78,36 +85,32 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Timestamp = DateTime.UtcNow
         });
 
-        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
-        if (app != null && app.Status == ApplicationStatus.ForAccountant)
+        app.Status = ApplicationStatus.PendingPayment;
+        app.Remarks = "SOA approved by Accountant. Ready for payment.";
+        await _repository.UpdateAsync(app, cancellationToken);
+
+        await _repository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
         {
-            app.Status = ApplicationStatus.PendingPayment;
-            app.Remarks = "SOA approved by Accountant. Ready for payment.";
-            await _repository.UpdateAsync(app, cancellationToken);
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            Status = ApplicationStatus.PendingPayment,
+            Remarks = "SOA approved by Accountant. Ready for payment.",
+            Timestamp = DateTime.UtcNow,
+            UserId = userContext.UserId
+        }, cancellationToken);
 
-            await _repository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
-            {
-                Id = Guid.NewGuid(),
-                ApplicationId = app.Id,
-                Status = ApplicationStatus.PendingPayment,
-                Remarks = "SOA approved by Accountant. Ready for payment.",
-                Timestamp = DateTime.UtcNow,
-                UserId = userContext.UserId
-            }, cancellationToken);
-
-            await _repository.AddApplicationHistoryAsync(new ApplicationHistory
-            {
-                Id = Guid.NewGuid(),
-                ApplicationId = app.Id,
-                Action = "SOA Approved by Accountant",
-                ToStatus = ApplicationStatus.PendingPayment,
-                PerformedByUserId = userContext.UserId,
-                StaffName = userContext.StaffName,
-                StaffRole = userContext.StaffRole,
-                Remarks = request.Remarks ?? "SOA approved by Accountant. Order of Payment generated.",
-                Timestamp = DateTime.UtcNow
-            }, cancellationToken);
-        }
+        await _repository.AddApplicationHistoryAsync(new ApplicationHistory
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            Action = "SOA Approved by Accountant",
+            ToStatus = ApplicationStatus.PendingPayment,
+            PerformedByUserId = userContext.UserId,
+            StaffName = userContext.StaffName,
+            StaffRole = userContext.StaffRole,
+            Remarks = request.Remarks ?? "SOA approved by Accountant. Order of Payment generated.",
+            Timestamp = DateTime.UtcNow
+        }, cancellationToken);
 
         await _repository.AddOpAsync(op, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);

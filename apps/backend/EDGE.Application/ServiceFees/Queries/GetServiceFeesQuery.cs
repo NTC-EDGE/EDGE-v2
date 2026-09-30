@@ -1,8 +1,9 @@
-using MediatR;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
 using EDGE.Application.ServiceFees.DTOs;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -16,9 +17,9 @@ public record GetServiceFeesQuery(
     int? PageNumber = null,
     int? PageSize = null,
     string? SearchTerm = null
-) : IRequest<PaginatedApiResponse<ServiceFeeDto>>;
+) : IRequest<PaginatedApiResponse<ServiceFeeGroupDto>>;
 
-public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, PaginatedApiResponse<ServiceFeeDto>>
+public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, PaginatedApiResponse<ServiceFeeGroupDto>>
 {
     private readonly IServiceFeeRepository _serviceFeeRepository;
 
@@ -27,7 +28,7 @@ public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, P
         _serviceFeeRepository = serviceFeeRepository;
     }
 
-    public async Task<PaginatedApiResponse<ServiceFeeDto>> Handle(GetServiceFeesQuery request, CancellationToken cancellationToken)
+    public async Task<PaginatedApiResponse<ServiceFeeGroupDto>> Handle(GetServiceFeesQuery request, CancellationToken cancellationToken)
     {
         var serviceFees = await _serviceFeeRepository.GetAllAsync(
             request.ServiceId,
@@ -47,14 +48,7 @@ public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, P
             ).ToList();
         }
 
-        int totalCount = serviceFees.Count;
-        int pageNumber = request.PageNumber ?? 1;
-        int pageSize = request.PageSize ?? 10;
-        if (pageSize <= 0) pageSize = 1;
-
-        var paginated = serviceFees.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
-
-        var dtos = paginated.Select(sf => new ServiceFeeDto(
+        var allDtos = serviceFees.Select(sf => new ServiceFeeDto(
             sf.Id,
             sf.ServiceId,
             sf.Service?.Name,
@@ -67,6 +61,24 @@ public class GetServiceFeesQueryHandler : IRequestHandler<GetServiceFeesQuery, P
             sf.CreatedAt
         )).ToList();
 
-        return new PaginatedApiResponse<ServiceFeeDto>(dtos, pageNumber, pageSize, totalCount);
+        var groups = allDtos
+            .GroupBy(sf => new { sf.ServiceId, sf.ServiceName, sf.ServiceCode })
+            .Select(g => new ServiceFeeGroupDto(
+                g.Key.ServiceId,
+                g.Key.ServiceName,
+                g.Key.ServiceCode,
+                g.Sum(x => x.Amount),
+                g.ToList()
+            ))
+            .ToList();
+
+        int totalCount = groups.Count;
+        int pageNumber = request.PageNumber ?? 1;
+        int pageSize = request.PageSize ?? 10;
+        if (pageSize <= 0) pageSize = 1;
+
+        var paginatedGroups = groups.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+
+        return new PaginatedApiResponse<ServiceFeeGroupDto>(paginatedGroups, pageNumber, pageSize, totalCount);
     }
 }

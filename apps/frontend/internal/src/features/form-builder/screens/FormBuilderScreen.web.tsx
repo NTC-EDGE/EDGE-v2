@@ -3,7 +3,7 @@ import { StyleSheet, View, Text, Pressable, ScrollView } from 'react-native';
 import { COLORS, useTheme, PageHeader, AnimatedCard, Button, SkeletonLoader, EmptyState, Icon as Lucide, SPACING } from '@edge/ui';
 import { useAdminForms } from '@edge/api';
 import { FormBuilderTab } from '../../settings/components/FormBuilderTab';
-import { FormBuilderItem } from '../../settings/data/mockAdminSettings';
+import { FormBuilderItem } from '../../settings/types/adminSettingsTypes';
 import { VisualFormBuilderModal } from '../../settings/components/VisualFormBuilderModal';
 import { DeleteAdminItemModal } from '../../settings/components/DeleteAdminItemModal';
 import {

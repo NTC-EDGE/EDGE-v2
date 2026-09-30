@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, SkeletonLoader } from '@edge/ui';
 import { useAdminFeedback, FeedbackDto } from '@edge/api';
-import { FeedbackItem } from '../data/mockAdminSettings';
+import { FeedbackItem } from '../types/adminSettingsTypes';
 
 interface FeedbackTabProps {
   feedback?: FeedbackItem[];

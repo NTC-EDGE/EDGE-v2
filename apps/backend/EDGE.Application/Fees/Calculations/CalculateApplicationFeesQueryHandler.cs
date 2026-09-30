@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +13,22 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceVariantFeeRepository? _variantFeeRepository;
+    private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
+    private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CalculateApplicationFeesQueryHandler(
         IApplicationFullRepository repository,
-        IFeeCalculationEngine calculationEngine)
+        IFeeCalculationEngine calculationEngine,
+        IServiceVariantFeeRepository? variantFeeRepository = null,
+        IServiceVariantElementFeeRepository? elementFeeRepository = null,
+        IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _repository = repository;
         _calculationEngine = calculationEngine;
+        _variantFeeRepository = variantFeeRepository;
+        _elementFeeRepository = elementFeeRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateApplicationFeesQuery request, CancellationToken cancellationToken)
@@ -47,6 +57,31 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         var units = request.NoOfUnits ?? applicantsCount;
         var years = request.ValidityYears ?? 1;
 
+        var variantFees = _variantFeeRepository != null && primaryVariant != null
+            ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+            : null;
+
+        var elementFees = _elementFeeRepository != null && primaryVariant != null
+            ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+            : null;
+
+        string? formulaExpression = null;
+        if (_formulaRepository != null && primaryVariant != null)
+        {
+            var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+            if (primaryElement != null)
+            {
+                var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                formulaExpression = elemFormula?.FormulaExpression;
+            }
+
+            if (string.IsNullOrWhiteSpace(formulaExpression))
+            {
+                var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                formulaExpression = variantFormula?.FormulaExpression;
+            }
+        }
+
         var calculationRequest = new FeeCalculationRequest(
             Activity: activity,
             ApplicationType: appType,
@@ -57,7 +92,11 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
             NoOfCopies: request.NoOfCopies ?? 1,
             AsOfDate: DateTime.UtcNow,
-            Category: primaryService?.ServiceCategory?.Type
+            Category: primaryService?.ServiceCategory?.Type,
+            ServiceVariantId: primaryVariant?.Id,
+            VariantFees: variantFees,
+            ElementFees: elementFees,
+            FormulaExpression: formulaExpression
         );
 
         var result = _calculationEngine.Calculate(calculationRequest);

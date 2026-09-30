@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { AlertCircle, Plus, Trash2 } from "lucide-react";
-import { Fee, Element } from "@edge/api";
+import { Fee, Element, FeeCalculationMode } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,7 +12,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ServiceCatalogItem, ServiceCategoryItem, useFeesService } from "@/services/feesService";
+import { ServiceCatalogItem, useFeesService } from "@/services/feesService";
 
 type TabType = "fees" | "service-fees" | "service-variant-fees" | "service-variant-element-fees";
 
@@ -23,6 +23,9 @@ export interface CreateRecordDialogProps {
   fees: Fee[];
   elements: Element[];
   services: ServiceCatalogItem[];
+  initialServiceId?: string | null;
+  initialServiceVariantId?: string | null;
+  initialElementId?: string | null;
   onSubmit: (
     tab: TabType,
     data: {
@@ -34,6 +37,15 @@ export interface CreateRecordDialogProps {
       elementId: string;
       feeId: string;
       amount: number;
+      calculationMode?: FeeCalculationMode;
+      calculationFormula?: string | null;
+      multiplyByValidityYears?: boolean;
+      multiplyByUnits?: boolean;
+      multiplyByChannels?: boolean;
+      multiplyByPages?: boolean;
+      applyLateRenewalSurcharge?: boolean;
+      includeDst?: boolean;
+      dstAmount?: number;
       serviceFees?: { feeId: string; amount: number }[];
       notes: string;
       serviceCategoryId: string;
@@ -48,6 +60,9 @@ export function CreateRecordDialog({
   fees,
   elements,
   services,
+  initialServiceId,
+  initialServiceVariantId,
+  initialElementId,
   onSubmit,
 }: CreateRecordDialogProps) {
   const { useServiceVariants } = useFeesService();
@@ -66,6 +81,12 @@ export function CreateRecordDialog({
   const [amount, setAmount] = useState(0);
   const [feeEntries, setFeeEntries] = useState<{ feeId: string; amount: number }[]>([]);
 
+  // Multiplier & Surcharge states
+  const [multiplierType, setMultiplierType] = useState<"years" | "fixed" | "units" | "pages">("years");
+  const [applyLateRenewalSurcharge, setApplyLateRenewalSurcharge] = useState(false);
+  const [includeDst, setIncludeDst] = useState(true);
+  const [dstAmount, setDstAmount] = useState(30);
+
   // Query variants dynamically based on selected serviceId
   const { data: variants = [] } = useServiceVariants(serviceId);
 
@@ -80,27 +101,35 @@ export function CreateRecordDialog({
         setName("");
         setDescription("");
         
-        const defaultServiceId = services[0]?.id ?? "";
+        const defaultServiceId = (initialServiceId !== null && initialServiceId !== undefined && initialServiceId !== "")
+          ? initialServiceId
+          : (services[0]?.id ?? "");
         setServiceId(defaultServiceId);
-        setServiceVariantId("");
-        setElementId(elements[0]?.id ?? "");
+        setServiceVariantId(initialServiceVariantId !== null && initialServiceVariantId !== undefined ? initialServiceVariantId : "");
+        setElementId((initialElementId !== null && initialElementId !== undefined && initialElementId !== "") ? initialElementId : (elements[0]?.id ?? ""));
         setFeeId(fees[0]?.id ?? "");
         setAmount(0);
         setFeeEntries([{ feeId: fees[0]?.id ?? "", amount: 0 }]);
         
+        // Multiplier defaults
+        setMultiplierType("years");
+        setApplyLateRenewalSurcharge(false);
+        setIncludeDst(true);
+        setDstAmount(30);
+
         hasInitialized.current = true;
       } else {
         if (fees.length > 0) {
-          setFeeId((prev) => prev || (fees[0]?.id ?? ""));
+          setFeeId((prev) => (prev !== "" ? prev : (fees[0]?.id ?? "")));
         }
         if (elements.length > 0) {
-          setElementId((prev) => prev || (elements[0]?.id ?? ""));
+          setElementId((prev) => (prev !== "" ? prev : (elements[0]?.id ?? "")));
         }
       }
     } else {
       hasInitialized.current = false;
     }
-  }, [open, activeTab, fees, elements, services]);
+  }, [open, activeTab, fees, elements, services, initialServiceId, initialServiceVariantId, initialElementId]);
 
   // Sync selected variant when variants load
   useEffect(() => {
@@ -123,7 +152,7 @@ export function CreateRecordDialog({
     setFeeEntries(feeEntries.filter((_, i) => i !== index));
   };
 
-  const handleUpdateFeeEntry = (index: number, field: "feeId" | "amount", value: any) => {
+  const handleUpdateFeeEntry = (index: number, field: "feeId" | "amount", value: string | number) => {
     setFeeEntries(
       feeEntries.map((entry, i) =>
         i === index ? { ...entry, [field]: value } : entry
@@ -152,6 +181,15 @@ export function CreateRecordDialog({
     }
 
     try {
+      const formula =
+        multiplierType === "years"
+          ? "{RATE} * {YEARS}"
+          : multiplierType === "units"
+          ? "{RATE} * {UNITS}"
+          : multiplierType === "pages"
+          ? "{RATE} * {PAGES}"
+          : "{RATE}";
+
       await onSubmit(activeTab, {
         code,
         name,
@@ -161,12 +199,21 @@ export function CreateRecordDialog({
         elementId,
         feeId: activeTab === "service-fees" ? (feeEntries[0]?.feeId ?? "") : feeId,
         amount: activeTab === "service-fees" ? (feeEntries[0]?.amount ?? 0) : amount,
+        calculationMode: 1,
+        calculationFormula: formula,
+        multiplyByValidityYears: multiplierType === "years",
+        multiplyByUnits: multiplierType === "units",
+        multiplyByChannels: false,
+        multiplyByPages: multiplierType === "pages",
+        applyLateRenewalSurcharge,
+        includeDst,
+        dstAmount,
         serviceFees: feeEntries,
         notes: "",
         serviceCategoryId: "",
       });
       onOpenChange(false);
-    } catch (err: unknown) {
+    } catch {
       setErrorMsg("Failed to save changes. Please try again.");
     } finally {
       setSubmitting(false);
@@ -175,7 +222,7 @@ export function CreateRecordDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+      <DialogContent className="sm:max-w-xl max-h-[90vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
         <DialogHeader>
           <DialogTitle className="text-lg font-bold text-slate-900 dark:text-white">
             {activeTab === "fees" && "Register New Fee Code"}
@@ -203,7 +250,7 @@ export function CreateRecordDialog({
                 <input
                   type="text"
                   required
-                  placeholder={activeTab === "fees" ? "e.g. FILING_FEE" : "e.g. ELEM_TRANS"}
+                  placeholder="e.g. FILING_FEE"
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -214,7 +261,7 @@ export function CreateRecordDialog({
                 <input
                   type="text"
                   required
-                  placeholder={activeTab === "fees" ? "e.g. Licensing Application Filing Fee" : "e.g. Transmitter Element"}
+                  placeholder="e.g. Licensing Application Filing Fee"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
@@ -316,39 +363,41 @@ export function CreateRecordDialog({
 
           {(activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && (
             <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Standard *</label>
-                <select
-                  value={serviceId}
-                  onChange={(e) => handleServiceChange(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      {s.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Variant Type *</label>
-                <select
-                  value={serviceVariantId}
-                  onChange={(e) => setServiceVariantId(e.target.value)}
-                  required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  {variants.length === 0 ? (
-                    <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">No variants available for this service</option>
-                  ) : (
-                    variants.map((v) => (
-                      <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                        {v.type} {v.description ? `(${v.description})` : ""}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Standard *</label>
+                  <select
+                    value={serviceId}
+                    onChange={(e) => handleServiceChange(e.target.value)}
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {services.map((s) => (
+                      <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
+                        {s.name}
                       </option>
-                    ))
-                  )}
-                </select>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Service Variant Type *</label>
+                  <select
+                    value={serviceVariantId}
+                    onChange={(e) => setServiceVariantId(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {variants.length === 0 ? (
+                      <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">No variants available for this service</option>
+                    ) : (
+                      variants.map((v) => (
+                        <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
+                          {v.type} {v.description ? `(${v.description})` : ""}
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </div>
 
               {activeTab === "service-variant-element-fees" && (
@@ -369,36 +418,170 @@ export function CreateRecordDialog({
                 </div>
               )}
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
-                <select
-                  value={feeId}
-                  onChange={(e) => setFeeId(e.target.value)}
-                  required
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
-                >
-                  {fees.map((f) => (
-                    <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      [{f.code}] {f.name}
-                    </option>
-                  ))}
-                </select>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
+                  <select
+                    value={feeId}
+                    onChange={(e) => setFeeId(e.target.value)}
+                    required
+                    className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
+                  >
+                    {fees.map((f) => (
+                      <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
+                        [{f.code}] {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Base Rate / Amount *</label>
+                  <div className="relative">
+                    <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      required
+                      placeholder="0.00"
+                      value={amount}
+                      onChange={(e) => setAmount(Number(e.target.value))}
+                      className="w-full pl-8 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    />
+                  </div>
+                </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Amount *</label>
-                <div className="relative">
-                  <span className="absolute left-3.5 top-2.5 text-slate-400 text-sm font-semibold pointer-events-none">₱</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    required
-                    placeholder="0.00"
-                    value={amount}
-                    onChange={(e) => setAmount(Number(e.target.value))}
-                    className="w-full pl-8 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+              {/* Rate Multiplier & Surcharge Configuration */}
+              <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-950/80 border border-slate-200 dark:border-slate-800 space-y-4">
+                <div className="border-b border-slate-200 dark:border-slate-800 pb-2.5">
+                  <h4 className="text-xs font-bold text-slate-900 dark:text-slate-100 uppercase tracking-wider">
+                    Rate Multiplier & Surcharge Rules
+                  </h4>
+                  <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                    Specify how this component fee scales (per year, per unit, or fixed) and if late renewal surcharges apply.
+                  </p>
+                </div>
+
+                {/* Multiplier Selection */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 block">
+                    Rate Multiplier Rule *
+                  </label>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <label
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        multiplierType === "years"
+                          ? "bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="multiplierType"
+                        value="years"
+                        checked={multiplierType === "years"}
+                        onChange={() => setMultiplierType("years")}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">Per Validity Year</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Multiplies base rate by license validity years (e.g. ₱60/yr × 3 yrs)
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        multiplierType === "fixed"
+                          ? "bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="multiplierType"
+                        value="fixed"
+                        checked={multiplierType === "fixed"}
+                        onChange={() => setMultiplierType("fixed")}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">Fixed Flat Amount</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          One-time flat rate per transaction (e.g. ₱10 filing fee)
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        multiplierType === "units"
+                          ? "bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="multiplierType"
+                        value="units"
+                        checked={multiplierType === "units"}
+                        onChange={() => setMultiplierType("units")}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">Per Equipment Unit</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Multiplies by number of registered devices / stations
+                        </span>
+                      </div>
+                    </label>
+
+                    <label
+                      className={`flex items-start gap-2.5 p-3 rounded-xl border cursor-pointer transition-all ${
+                        multiplierType === "pages"
+                          ? "bg-indigo-50/80 dark:bg-indigo-950/60 border-indigo-400 dark:border-indigo-600 text-indigo-900 dark:text-indigo-200 shadow-sm"
+                          : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:border-slate-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="multiplierType"
+                        value="pages"
+                        checked={multiplierType === "pages"}
+                        onChange={() => setMultiplierType("pages")}
+                        className="mt-0.5 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <div className="flex flex-col">
+                        <span className="text-xs font-bold">Per Copy / Page</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Multiplies by number of copy pages authenticated
+                        </span>
+                      </div>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Surcharges */}
+                <div className="pt-2">
+                  <label className="flex items-center gap-2.5 p-3 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 cursor-pointer hover:border-amber-400">
+                    <input
+                      type="checkbox"
+                      checked={applyLateRenewalSurcharge}
+                      onChange={(e) => setApplyLateRenewalSurcharge(e.target.checked)}
+                      className="rounded border-slate-300 text-amber-600 focus:ring-amber-500"
+                    />
+                    <div className="flex flex-col">
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">
+                        Subject to Late Renewal Surcharge (SUR)
+                      </span>
+                      <span className="text-[10px] text-slate-500">
+                        Imposes statutory late filing surcharge (50% for 1d–6m, 100% for 6m–1y, +50% thereafter)
+                      </span>
+                    </div>
+                  </label>
                 </div>
               </div>
             </>

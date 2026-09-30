@@ -477,7 +477,7 @@ export function IssueReceiptModal({
                         </Text>
                       </View>
                       <Text style={[styles.readOnlyAmountText, { color: colors.semantic.successText }]}>
-                        ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </Text>
                     </View>
                   ))}
@@ -549,7 +549,7 @@ export function IssueReceiptModal({
               <View style={[styles.totalBanner, { backgroundColor: colors.neutral[100], borderColor: colors.border }]}>
                 <Text style={[styles.totalBannerLabel, { color: colors.neutral[700] }]}>TOTAL AMOUNT RECEIVED:</Text>
                 <Text style={[styles.totalBannerValue, { color: colors.semantic.successText }]}>
-                  ₱{totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  ₱{(totalAmount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </Text>
               </View>
             </View>

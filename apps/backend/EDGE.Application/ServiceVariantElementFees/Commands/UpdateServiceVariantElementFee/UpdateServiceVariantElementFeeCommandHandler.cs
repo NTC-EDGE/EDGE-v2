@@ -1,10 +1,10 @@
 using System;
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
 using EDGE.Application.ServiceVariantFees.DTOs;
-using EDGE.Application.Common.Interfaces;
 
 namespace EDGE.Application.ServiceVariantElementFees.Commands.UpdateServiceVariantElementFee;
 
@@ -76,6 +76,7 @@ public class UpdateServiceVariantElementFeeCommandHandler : IRequestHandler<Upda
             updated.Fee?.Code,
             updated.Fee?.Name,
             updated.Amount,
+            updated.IsActive,
             updated.CreatedAt
         );
     }

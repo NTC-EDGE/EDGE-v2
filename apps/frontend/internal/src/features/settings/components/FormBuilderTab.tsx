@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
-import { FormBuilderItem } from '../data/mockAdminSettings';
+import { FormBuilderItem } from '../types/adminSettingsTypes';
 
 interface FormBuilderTabProps {
   forms: FormBuilderItem[];

@@ -10,5 +10,6 @@ public record ServiceVariantFeeDto(
     string? FeeCode,
     string? FeeName,
     decimal Amount,
+    bool IsActive,
     DateTime CreatedAt
 );

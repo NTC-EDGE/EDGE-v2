@@ -207,7 +207,7 @@ export function UserDetailsScreen({
             <View style={styles.statContent}>
               <Text style={styles.statLabel}>Total Paid in Tenant</Text>
               <Text style={styles.statValue}>
-                ₱{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                ₱{(totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
               </Text>
             </View>
           </View>
@@ -352,7 +352,7 @@ export function UserDetailsScreen({
                       <View style={styles.txAmountGroup}>
                         <Text style={styles.txAmountLabel}>Fee Amount</Text>
                         <Text style={styles.txAmountValue}>
-                          ₱{tx.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                          ₱{(tx.amount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                         </Text>
                       </View>
                     </View>
@@ -524,14 +524,14 @@ export function UserDetailsScreen({
               <View style={styles.billingSummaryItem}>
                 <Text style={styles.billingSummaryLabel}>Total Regulatory Billing</Text>
                 <Text style={styles.billingSummaryValue}>
-                  ₱{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  ₱{(totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
 
               <View style={styles.billingSummaryItem}>
                 <Text style={styles.billingSummaryLabel}>Total Payments Collected</Text>
                 <Text style={[styles.billingSummaryValue, { color: COLORS.semantic.success }]}>
-                  ₱{totalAmount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                  ₱{(totalAmount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                 </Text>
               </View>
 
@@ -557,7 +557,7 @@ export function UserDetailsScreen({
                   </View>
                   <View style={styles.receiptAmountGroup}>
                     <Text style={styles.receiptAmount}>
-                      ₱{tx.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
+                      ₱{(tx.amount ?? 0).toLocaleString('en-PH', { minimumFractionDigits: 2 })}
                     </Text>
                     <Text style={styles.receiptStatusText}>Verified Paid</Text>
                   </View>

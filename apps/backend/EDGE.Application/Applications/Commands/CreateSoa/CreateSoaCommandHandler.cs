@@ -18,25 +18,39 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceVariantFeeRepository? _variantFeeRepository;
+    private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
+    private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        IFeeCalculationEngine calculationEngine)
+        IFeeCalculationEngine calculationEngine,
+        IServiceVariantFeeRepository? variantFeeRepository = null,
+        IServiceVariantElementFeeRepository? elementFeeRepository = null,
+        IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _calculationEngine = calculationEngine;
+        _variantFeeRepository = variantFeeRepository;
+        _elementFeeRepository = elementFeeRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
     {
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
+
+        if (app.Status != ApplicationStatus.Evaluating)
+        {
+            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating). Please start evaluation first.");
+        }
 
         var targetApplicant = request.ApplicantId.HasValue
             ? app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId.Value)?.Applicant
@@ -145,6 +159,31 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var years = request.ValidityYears ?? 1;
             var nowUtc = DateTime.UtcNow;
 
+            var variantFees = _variantFeeRepository != null && primaryVariant != null
+                ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+                : null;
+
+            var elementFees = _elementFeeRepository != null && primaryVariant != null
+                ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+                : null;
+
+            string? formulaExpression = null;
+            if (_formulaRepository != null && primaryVariant != null)
+            {
+                var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                if (primaryElement != null)
+                {
+                    var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                    formulaExpression = elemFormula?.FormulaExpression;
+                }
+
+                if (string.IsNullOrWhiteSpace(formulaExpression))
+                {
+                    var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                    formulaExpression = variantFormula?.FormulaExpression;
+                }
+            }
+
             var calculationResult = _calculationEngine.Calculate(new FeeCalculationRequest(
                 Activity: activity,
                 ApplicationType: appType,
@@ -155,7 +194,11 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
                 NoOfCopies: request.NoOfCopies ?? 1,
                 AsOfDate: nowUtc,
-                Category: primaryService?.ServiceCategory?.Type
+                Category: primaryService?.ServiceCategory?.Type,
+                ServiceVariantId: primaryVariant?.Id,
+                VariantFees: variantFees,
+                ElementFees: elementFees,
+                FormulaExpression: formulaExpression
             ));
 
             foreach (var calculatedItem in calculationResult.LineItems)
