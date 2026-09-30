@@ -12,7 +12,21 @@ using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
-public record UpdateServiceVariantElementFeeRequest(Guid ServiceVariantId, Guid ElementId, Guid FeeId, decimal Amount);
+public record UpdateServiceVariantElementFeeRequest(
+    Guid ServiceVariantId,
+    Guid ElementId,
+    Guid FeeId,
+    decimal Amount,
+    EDGE.Domain.Enums.FeeCalculationMode CalculationMode = EDGE.Domain.Enums.FeeCalculationMode.StandardMultiplier,
+    string? CalculationFormula = null,
+    bool MultiplyByValidityYears = false,
+    bool MultiplyByUnits = false,
+    bool MultiplyByChannels = false,
+    bool MultiplyByPages = false,
+    bool ApplyLateRenewalSurcharge = false,
+    bool IncludeDst = true,
+    decimal DstAmount = 30.00m
+);
 
 public static class ServiceVariantElementFeeEndpoints
 {
@@ -119,7 +133,22 @@ public static class ServiceVariantElementFeeEndpoints
         IValidator<UpdateServiceVariantElementFeeCommand> validator,
         IMediator mediator)
     {
-        var command = new UpdateServiceVariantElementFeeCommand(id, request.ServiceVariantId, request.ElementId, request.FeeId, request.Amount);
+        var command = new UpdateServiceVariantElementFeeCommand(
+            id,
+            request.ServiceVariantId,
+            request.ElementId,
+            request.FeeId,
+            request.Amount,
+            request.CalculationMode,
+            request.CalculationFormula,
+            request.MultiplyByValidityYears,
+            request.MultiplyByUnits,
+            request.MultiplyByChannels,
+            request.MultiplyByPages,
+            request.ApplyLateRenewalSurcharge,
+            request.IncludeDst,
+            request.DstAmount
+        );
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

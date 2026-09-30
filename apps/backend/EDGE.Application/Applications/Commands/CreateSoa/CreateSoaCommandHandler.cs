@@ -18,19 +18,25 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceVariantFeeRepository? _variantFeeRepository;
+    private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        IFeeCalculationEngine calculationEngine)
+        IFeeCalculationEngine calculationEngine,
+        IServiceVariantFeeRepository? variantFeeRepository = null,
+        IServiceVariantElementFeeRepository? elementFeeRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _calculationEngine = calculationEngine;
+        _variantFeeRepository = variantFeeRepository;
+        _elementFeeRepository = elementFeeRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -150,6 +156,14 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var years = request.ValidityYears ?? 1;
             var nowUtc = DateTime.UtcNow;
 
+            var variantFees = _variantFeeRepository != null && primaryVariant != null
+                ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+                : null;
+
+            var elementFees = _elementFeeRepository != null && primaryVariant != null
+                ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+                : null;
+
             var calculationResult = _calculationEngine.Calculate(new FeeCalculationRequest(
                 Activity: activity,
                 ApplicationType: appType,
@@ -160,7 +174,10 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
                 NoOfCopies: request.NoOfCopies ?? 1,
                 AsOfDate: nowUtc,
-                Category: primaryService?.ServiceCategory?.Type
+                Category: primaryService?.ServiceCategory?.Type,
+                ServiceVariantId: primaryVariant?.Id,
+                VariantFees: variantFees,
+                ElementFees: elementFees
             ));
 
             foreach (var calculatedItem in calculationResult.LineItems)

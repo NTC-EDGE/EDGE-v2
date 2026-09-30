@@ -6,7 +6,6 @@ using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
 using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
-
 using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantElementFees;
@@ -62,6 +61,15 @@ public class GetServiceVariantElementFeesQueryHandler : IRequestHandler<GetServi
             svef.Fee?.Code,
             svef.Fee?.Name,
             svef.Amount,
+            svef.CalculationMode,
+            svef.CalculationFormula,
+            svef.MultiplyByValidityYears,
+            svef.MultiplyByUnits,
+            svef.MultiplyByChannels,
+            svef.MultiplyByPages,
+            svef.ApplyLateRenewalSurcharge,
+            svef.IncludeDst,
+            svef.DstAmount,
             svef.CreatedAt
         )).ToList();
 

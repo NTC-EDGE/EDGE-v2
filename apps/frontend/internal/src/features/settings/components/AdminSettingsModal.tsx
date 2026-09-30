@@ -35,6 +35,15 @@ export interface FeeBreakdownItemInput {
   id: string;
   name: string;
   amount: number;
+  calculationMode?: 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix';
+  formula?: string;
+  multiplyByValidityYears?: boolean;
+  multiplyByUnits?: boolean;
+  multiplyByChannels?: boolean;
+  multiplyByPages?: boolean;
+  applyLateRenewalSurcharge?: boolean;
+  includeDst?: boolean;
+  dstAmount?: number;
 }
 
 export interface ModalInitialData {
@@ -389,6 +398,15 @@ export function AdminSettingsModal({
       id: `fb-${Date.now()}`,
       name: 'Filing Fee',
       amount: 0,
+      calculationMode: 'StandardMultiplier',
+      formula: '{RATE}',
+      multiplyByValidityYears: false,
+      multiplyByUnits: false,
+      multiplyByChannels: false,
+      multiplyByPages: false,
+      applyLateRenewalSurcharge: false,
+      includeDst: true,
+      dstAmount: 30.00,
     };
     setFeeBreakdowns((prev) => [...prev, newFeeItem]);
   };
@@ -403,6 +421,45 @@ export function AdminSettingsModal({
     const parsed = parseFloat(val);
     setFeeBreakdowns((prev) =>
       prev.map((fb) => (fb.id === id ? { ...fb, amount: isNaN(parsed) ? 0 : parsed } : fb))
+    );
+  };
+
+  const handleUpdateFeeMode = (id: string, mode: 'StandardMultiplier' | 'CustomFormula') => {
+    setFeeBreakdowns((prev) =>
+      prev.map((fb) => (fb.id === id ? { ...fb, calculationMode: mode } : fb))
+    );
+  };
+
+  const handleUpdateFeeFormula = (id: string, formula: string) => {
+    setFeeBreakdowns((prev) =>
+      prev.map((fb) => (fb.id === id ? { ...fb, formula } : fb))
+    );
+  };
+
+  const handleToggleFeeMultiplier = (
+    id: string,
+    field: 'years' | 'units' | 'channels' | 'pages' | 'surcharge' | 'dst'
+  ) => {
+    setFeeBreakdowns((prev) =>
+      prev.map((fb) => {
+        if (fb.id !== id) return fb;
+        switch (field) {
+          case 'years':
+            return { ...fb, multiplyByValidityYears: !fb.multiplyByValidityYears };
+          case 'units':
+            return { ...fb, multiplyByUnits: !fb.multiplyByUnits };
+          case 'channels':
+            return { ...fb, multiplyByChannels: !fb.multiplyByChannels };
+          case 'pages':
+            return { ...fb, multiplyByPages: !fb.multiplyByPages };
+          case 'surcharge':
+            return { ...fb, applyLateRenewalSurcharge: !fb.applyLateRenewalSurcharge };
+          case 'dst':
+            return { ...fb, includeDst: !fb.includeDst };
+          default:
+            return fb;
+        }
+      })
     );
   };
 
@@ -1126,76 +1183,263 @@ export function AdminSettingsModal({
                     {feeBreakdowns.map((fb, idx) => {
                       const isDropdownOpen = activeFeeDropdownId === fb.id;
                       const rowZIndex = isDropdownOpen ? 9999 : (feeBreakdowns.length - idx) * 10;
+                      const isCustom = fb.calculationMode === 'CustomFormula';
 
                       return (
                         <View
                           key={fb.id}
                           style={[styles.feeRowCard, { zIndex: rowZIndex }]}
                         >
-                          <Text style={styles.docIndexText}>#{idx + 1}</Text>
+                          {/* Top Row: Fee Name & Base Amount */}
+                          <View style={styles.feeTopRow}>
+                            <Text style={styles.docIndexText}>#{idx + 1}</Text>
 
-                          {/* Fee Name Dropdown / Input */}
-                          <View style={styles.feeTypeBox}>
-                            <Pressable
-                              style={styles.feeTypeTrigger}
-                              onPress={() =>
-                                setActiveFeeDropdownId(
-                                  activeFeeDropdownId === fb.id ? null : fb.id
-                                )
-                              }
-                            >
-                              <Text style={styles.feeTypeTriggerText}>{fb.name}</Text>
-                              <Lucide
-                                name={activeFeeDropdownId === fb.id ? 'chevron-up' : 'chevron-down'}
-                                size={16}
-                                color={COLORS.neutral[400]}
+                            {/* Fee Name Dropdown / Input */}
+                            <View style={styles.feeTypeBox}>
+                              <Pressable
+                                style={styles.feeTypeTrigger}
+                                onPress={() =>
+                                  setActiveFeeDropdownId(
+                                    activeFeeDropdownId === fb.id ? null : fb.id
+                                  )
+                                }
+                              >
+                                <Text style={styles.feeTypeTriggerText}>{fb.name}</Text>
+                                <Lucide
+                                  name={activeFeeDropdownId === fb.id ? 'chevron-up' : 'chevron-down'}
+                                  size={16}
+                                  color={COLORS.neutral[400]}
+                                />
+                              </Pressable>
+
+                              {activeFeeDropdownId === fb.id && (
+                                <View style={styles.feeDropdownMenu}>
+                                  {FEE_TYPE_OPTIONS.map((opt) => (
+                                    <Pressable
+                                      key={opt}
+                                      style={[
+                                        styles.dropdownOption,
+                                        fb.name === opt && styles.dropdownOptionActive,
+                                      ]}
+                                      onPress={() => {
+                                        handleUpdateFeeName(fb.id, opt);
+                                        setActiveFeeDropdownId(null);
+                                      }}
+                                    >
+                                      <Text style={styles.dropdownOptionText}>{opt}</Text>
+                                      {fb.name === opt && (
+                                        <Lucide name="check" size={14} color={COLORS.brand.indigo} />
+                                      )}
+                                    </Pressable>
+                                  ))}
+                                </View>
+                              )}
+                            </View>
+
+                            {/* Peso Currency Prefix & Amount Input */}
+                            <View style={styles.amountInputBox}>
+                              <Text style={styles.currencySymbol}>₱</Text>
+                              <TextInput
+                                style={styles.feeAmountInput}
+                                value={String(fb.amount)}
+                                onChangeText={(val) => handleUpdateFeeAmount(fb.id, val)}
+                                keyboardType="numeric"
+                                placeholder="0"
+                                placeholderTextColor={COLORS.neutral[400]}
                               />
+                            </View>
+
+                            {/* Delete Row Trash Icon */}
+                            <Pressable
+                              style={styles.docDeleteBtn}
+                              onPress={() => handleDeleteFeeItem(fb.id)}
+                            >
+                              <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
+                            </Pressable>
+                          </View>
+
+                          {/* Middle Row: Calculation Mode Toggle */}
+                          <View style={styles.calculationModeRow}>
+                            <Pressable
+                              style={[
+                                styles.calcModeBtn,
+                                !isCustom && styles.calcModeBtnActive,
+                              ]}
+                              onPress={() => handleUpdateFeeMode(fb.id, 'StandardMultiplier')}
+                            >
+                              <Lucide
+                                name="sliders"
+                                size={12}
+                                color={!isCustom ? COLORS.brand.indigo : COLORS.neutral[500]}
+                              />
+                              <Text
+                                style={[
+                                  styles.calcModeBtnText,
+                                  !isCustom && styles.calcModeBtnTextActive,
+                                ]}
+                              >
+                                Standard Multipliers
+                              </Text>
                             </Pressable>
 
-                            {activeFeeDropdownId === fb.id && (
-                              <View style={styles.feeDropdownMenu}>
-                                {FEE_TYPE_OPTIONS.map((opt) => (
-                                  <Pressable
-                                    key={opt}
+                            <Pressable
+                              style={[
+                                styles.calcModeBtn,
+                                isCustom && styles.calcModeBtnActive,
+                              ]}
+                              onPress={() => handleUpdateFeeMode(fb.id, 'CustomFormula')}
+                            >
+                              <Lucide
+                                name="code"
+                                size={12}
+                                color={isCustom ? COLORS.brand.indigo : COLORS.neutral[500]}
+                              />
+                              <Text
+                                style={[
+                                  styles.calcModeBtnText,
+                                  isCustom && styles.calcModeBtnTextActive,
+                                ]}
+                              >
+                                Custom Formula
+                              </Text>
+                            </Pressable>
+                          </View>
+
+                          {/* Bottom Settings: Standard Multiplier Chips OR Custom Formula Input */}
+                          {!isCustom ? (
+                            <View style={styles.multipliersContainer}>
+                              <Text style={styles.multiplierSectionLabel}>Active Multipliers & Taxes:</Text>
+                              <View style={styles.multiplierChipsRow}>
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.multiplyByValidityYears && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'years')}
+                                >
+                                  <Text
                                     style={[
-                                      styles.dropdownOption,
-                                      fb.name === opt && styles.dropdownOptionActive,
+                                      styles.multiplierChipText,
+                                      fb.multiplyByValidityYears && styles.multiplierChipTextActive,
                                     ]}
+                                  >
+                                    × Validity Years
+                                  </Text>
+                                </Pressable>
+
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.multiplyByUnits && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'units')}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.multiplierChipText,
+                                      fb.multiplyByUnits && styles.multiplierChipTextActive,
+                                    ]}
+                                  >
+                                    × Units / Stations
+                                  </Text>
+                                </Pressable>
+
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.multiplyByChannels && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'channels')}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.multiplierChipText,
+                                      fb.multiplyByChannels && styles.multiplierChipTextActive,
+                                    ]}
+                                  >
+                                    × Channels
+                                  </Text>
+                                </Pressable>
+
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.multiplyByPages && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'pages')}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.multiplierChipText,
+                                      fb.multiplyByPages && styles.multiplierChipTextActive,
+                                    ]}
+                                  >
+                                    × Pages / Copies
+                                  </Text>
+                                </Pressable>
+
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.applyLateRenewalSurcharge && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'surcharge')}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.multiplierChipText,
+                                      fb.applyLateRenewalSurcharge && styles.multiplierChipTextActive,
+                                    ]}
+                                  >
+                                    + Late Surcharge
+                                  </Text>
+                                </Pressable>
+
+                                <Pressable
+                                  style={[
+                                    styles.multiplierChip,
+                                    fb.includeDst && styles.multiplierChipActive,
+                                  ]}
+                                  onPress={() => handleToggleFeeMultiplier(fb.id, 'dst')}
+                                >
+                                  <Text
+                                    style={[
+                                      styles.multiplierChipText,
+                                      fb.includeDst && styles.multiplierChipTextActive,
+                                    ]}
+                                  >
+                                    + DST (₱30)
+                                  </Text>
+                                </Pressable>
+                              </View>
+                            </View>
+                          ) : (
+                            <View style={styles.customFormulaContainer}>
+                              <Text style={styles.multiplierSectionLabel}>Formula Expression:</Text>
+                              <TextInput
+                                style={styles.formulaInput}
+                                value={fb.formula ?? '{RATE} * {YEARS} * {UNITS}'}
+                                onChangeText={(val) => handleUpdateFeeFormula(fb.id, val)}
+                                placeholder="{RATE} * {YEARS} * {UNITS}"
+                                placeholderTextColor={COLORS.neutral[400]}
+                              />
+                              <View style={styles.formulaTokensRow}>
+                                <Text style={styles.tokenHintLabel}>Insert Token:</Text>
+                                {['{RATE}', '{YEARS}', '{UNITS}', '{CHANNELS}', '{PAGES}', 'DST', 'SUR'].map((tok) => (
+                                  <Pressable
+                                    key={tok}
+                                    style={styles.formulaTokenBadge}
                                     onPress={() => {
-                                      handleUpdateFeeName(fb.id, opt);
-                                      setActiveFeeDropdownId(null);
+                                      const currentFormula = fb.formula ?? '{RATE}';
+                                      handleUpdateFeeFormula(fb.id, `${currentFormula} * ${tok}`);
                                     }}
                                   >
-                                    <Text style={styles.dropdownOptionText}>{opt}</Text>
-                                    {fb.name === opt && (
-                                      <Lucide name="check" size={14} color={COLORS.brand.indigo} />
-                                    )}
+                                    <Text style={styles.formulaTokenBadgeText}>{tok}</Text>
                                   </Pressable>
                                 ))}
                               </View>
-                            )}
-                          </View>
-
-                          {/* Peso Currency Prefix & Amount Input */}
-                          <View style={styles.amountInputBox}>
-                            <Text style={styles.currencySymbol}>₱</Text>
-                            <TextInput
-                              style={styles.feeAmountInput}
-                              value={String(fb.amount)}
-                              onChangeText={(val) => handleUpdateFeeAmount(fb.id, val)}
-                              keyboardType="numeric"
-                              placeholder="0"
-                              placeholderTextColor={COLORS.neutral[400]}
-                            />
-                          </View>
-
-                          {/* Delete Row Trash Icon */}
-                          <Pressable
-                            style={styles.docDeleteBtn}
-                            onPress={() => handleDeleteFeeItem(fb.id)}
-                          >
-                            <Lucide name="trash-2" size={14} color={COLORS.semantic.error} />
-                          </Pressable>
+                            </View>
+                          )}
                         </View>
                       );
                     })}
@@ -1925,5 +2169,124 @@ const styles = StyleSheet.create({
   },
   errorDismissBtn: {
     padding: 2,
+  },
+  feeTopRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+  },
+  calculationModeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 6,
+    paddingTop: 6,
+    borderTopWidth: 1,
+    borderTopColor: COLORS.neutral[200],
+  },
+  calcModeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    backgroundColor: COLORS.neutral[100],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  calcModeBtnActive: {
+    backgroundColor: COLORS.brand.indigoLight,
+    borderColor: COLORS.brand.indigo,
+  },
+  calcModeBtnText: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.neutral[600],
+  },
+  calcModeBtnTextActive: {
+    color: COLORS.brand.indigo,
+    fontWeight: '700',
+  },
+  multipliersContainer: {
+    gap: 4,
+    marginTop: 4,
+  },
+  multiplierSectionLabel: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: COLORS.neutral[500],
+    textTransform: 'uppercase',
+  },
+  multiplierChipsRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  multiplierChip: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    backgroundColor: COLORS.neutral[100],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  multiplierChipActive: {
+    backgroundColor: COLORS.brand[600],
+    borderColor: COLORS.brand[600],
+  },
+  multiplierChipText: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.neutral[600],
+  },
+  multiplierChipTextActive: {
+    color: COLORS.neutral.white,
+    fontWeight: '700',
+  },
+  customFormulaContainer: {
+    gap: 6,
+    marginTop: 4,
+  },
+  formulaInput: {
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    fontSize: 12,
+    fontFamily: 'monospace',
+    color: COLORS.brand.indigo,
+    fontWeight: '700',
+  },
+  formulaTokensRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  tokenHintLabel: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.neutral[400],
+  },
+  formulaTokenBadge: {
+    backgroundColor: COLORS.neutral[100],
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+  },
+  formulaTokenBadgeText: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: COLORS.brand.indigo,
   },
 });

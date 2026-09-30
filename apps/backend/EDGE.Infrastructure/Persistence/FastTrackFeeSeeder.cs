@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Persistence.SeederData;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -345,6 +346,7 @@ public static class FastTrackFeeSeeder
                 if (!allVariantsInDb.Contains(variantId) || !feeMap.TryGetValue(feeCode, out var fee))
                     continue;
 
+                var rule = ResolveFeeCalculationRule(feeCode);
                 var existingRecord = existingVariantFees.FirstOrDefault(vf => vf.ServiceVariantId == variantId && vf.FeeId == fee.Id);
                 if (existingRecord == null)
                 {
@@ -353,12 +355,32 @@ public static class FastTrackFeeSeeder
                         Id = Guid.NewGuid(),
                         ServiceVariantId = variantId,
                         FeeId = fee.Id,
-                        Amount = amount
+                        Amount = amount,
+                        CalculationMode = rule.Mode,
+                        CalculationFormula = rule.Formula,
+                        MultiplyByValidityYears = rule.MultiYears,
+                        MultiplyByUnits = rule.MultiUnits,
+                        MultiplyByChannels = rule.MultiChannels,
+                        MultiplyByPages = rule.MultiPages,
+                        ApplyLateRenewalSurcharge = rule.ApplySurcharge,
+                        IncludeDst = true,
+                        DstAmount = 30.00m,
+                        IsActive = true
                     });
                 }
                 else
                 {
                     existingRecord.Amount = amount;
+                    existingRecord.CalculationMode = rule.Mode;
+                    existingRecord.CalculationFormula = rule.Formula;
+                    existingRecord.MultiplyByValidityYears = rule.MultiYears;
+                    existingRecord.MultiplyByUnits = rule.MultiUnits;
+                    existingRecord.MultiplyByChannels = rule.MultiChannels;
+                    existingRecord.MultiplyByPages = rule.MultiPages;
+                    existingRecord.ApplyLateRenewalSurcharge = rule.ApplySurcharge;
+                    existingRecord.IncludeDst = true;
+                    existingRecord.DstAmount = 30.00m;
+                    existingRecord.IsActive = true;
                     if (existingRecord.IsDeleted)
                     {
                         existingRecord.IsDeleted = false;
@@ -454,6 +476,7 @@ public static class FastTrackFeeSeeder
                     allDbElements.Add(el);
                 }
 
+                var rule = ResolveFeeCalculationRule(feeCode);
                 var existingVef = existingElementFees.FirstOrDefault(vef => vef.ServiceVariantId == variantId && vef.ElementId == el.Id && vef.FeeId == fee.Id);
                 if (existingVef == null)
                 {
@@ -463,12 +486,32 @@ public static class FastTrackFeeSeeder
                         ServiceVariantId = variantId,
                         ElementId = el.Id,
                         FeeId = fee.Id,
-                        Amount = amount
+                        Amount = amount,
+                        CalculationMode = rule.Mode,
+                        CalculationFormula = rule.Formula,
+                        MultiplyByValidityYears = rule.MultiYears,
+                        MultiplyByUnits = rule.MultiUnits,
+                        MultiplyByChannels = rule.MultiChannels,
+                        MultiplyByPages = rule.MultiPages,
+                        ApplyLateRenewalSurcharge = rule.ApplySurcharge,
+                        IncludeDst = true,
+                        DstAmount = 30.00m,
+                        IsActive = true
                     });
                 }
                 else
                 {
                     existingVef.Amount = amount;
+                    existingVef.CalculationMode = rule.Mode;
+                    existingVef.CalculationFormula = rule.Formula;
+                    existingVef.MultiplyByValidityYears = rule.MultiYears;
+                    existingVef.MultiplyByUnits = rule.MultiUnits;
+                    existingVef.MultiplyByChannels = rule.MultiChannels;
+                    existingVef.MultiplyByPages = rule.MultiPages;
+                    existingVef.ApplyLateRenewalSurcharge = rule.ApplySurcharge;
+                    existingVef.IncludeDst = true;
+                    existingVef.DstAmount = 30.00m;
+                    existingVef.IsActive = true;
                     if (existingVef.IsDeleted)
                     {
                         existingVef.IsDeleted = false;
@@ -491,5 +534,37 @@ public static class FastTrackFeeSeeder
             logger?.LogError(ex, "Unexpected error during FastTrack fee seeding execution.");
             throw;
         }
+    }
+
+    private static (FeeCalculationMode Mode, string Formula, bool MultiYears, bool MultiUnits, bool MultiChannels, bool MultiPages, bool ApplySurcharge) ResolveFeeCalculationRule(string feeCode)
+    {
+        return feeCode switch
+        {
+            FeeConstants.Codes.License or FeeConstants.Codes.LicenseFee or FeeConstants.Codes.Roc or FeeConstants.Codes.SpectrumUsage or FeeConstants.Codes.AnnualRegistration1 or FeeConstants.Codes.AnnualRegistration2 =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE} * {YEARS} * {UNITS}", true, true, false, false, true),
+
+            FeeConstants.Codes.InspectionFee =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE} * {YEARS} * {UNITS}", true, true, false, false, false),
+
+            FeeConstants.Codes.Permit or FeeConstants.Codes.PermitFee or FeeConstants.Codes.Purchase or FeeConstants.Codes.Possess or FeeConstants.Codes.SellTransfer or FeeConstants.Codes.PossessPermit or FeeConstants.Codes.Registration or FeeConstants.Codes.ConstructionPermit or FeeConstants.Codes.SpecialPermit or FeeConstants.Codes.PermitToTransport =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE} * {UNITS}", false, true, false, false, false),
+
+            FeeConstants.Codes.SucceedingCopies =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE} * {PAGES}", false, false, false, true, false),
+
+            FeeConstants.Codes.FirstCopy =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
+
+            FeeConstants.Codes.Duplicate =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
+
+            FeeConstants.Codes.Dst =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
+
+            FeeConstants.Codes.FilingFee or FeeConstants.Codes.ApplicationFee or FeeConstants.Codes.Modification or FeeConstants.Codes.Seminar or FeeConstants.Codes.Demo or FeeConstants.Codes.Exam or FeeConstants.Codes.Accreditation or FeeConstants.Codes.Request =>
+                (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false),
+
+            _ => (FeeCalculationMode.StandardMultiplier, "{RATE}", false, false, false, false, false)
+        };
     }
 }

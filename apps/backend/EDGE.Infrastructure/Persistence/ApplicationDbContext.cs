@@ -607,6 +607,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantFee>(entity =>
         {
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DstAmount).HasColumnType("decimal(18,2)").HasDefaultValue(30.00m);
+            entity.Property(e => e.CalculationMode).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.CalculationFormula).HasMaxLength(500);
             entity.HasOne(d => d.Fee)
                   .WithMany()
                   .HasForeignKey(d => d.FeeId)
@@ -622,6 +625,9 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<ServiceVariantElementFee>(entity =>
         {
             entity.Property(e => e.Amount).HasColumnType("decimal(18,2)");
+            entity.Property(e => e.DstAmount).HasColumnType("decimal(18,2)").HasDefaultValue(30.00m);
+            entity.Property(e => e.CalculationMode).HasConversion<string>().HasMaxLength(50);
+            entity.Property(e => e.CalculationFormula).HasMaxLength(500);
             entity.HasOne(d => d.Fee)
                   .WithMany()
                   .HasForeignKey(d => d.FeeId)

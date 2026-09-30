@@ -26,7 +26,7 @@ import {
   FeePaymentItem,
   NoteItem,
   BranchOffice,
-} from "../data/mockAdminSettings";
+} from "../types/adminSettingsTypes";
 import { RegionalConfigTab } from "../components/RegionalConfigTab";
 import { ServiceTreeConfigTab } from "../components/ServiceTreeConfigTab";
 import {

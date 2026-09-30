@@ -36,6 +36,15 @@ public class GetServiceVariantFeeByIdQueryHandler : IRequestHandler<GetServiceVa
             svf.Fee?.Code,
             svf.Fee?.Name,
             svf.Amount,
+            svf.CalculationMode,
+            svf.CalculationFormula,
+            svf.MultiplyByValidityYears,
+            svf.MultiplyByUnits,
+            svf.MultiplyByChannels,
+            svf.MultiplyByPages,
+            svf.ApplyLateRenewalSurcharge,
+            svf.IncludeDst,
+            svf.DstAmount,
             svf.CreatedAt
         );
     }

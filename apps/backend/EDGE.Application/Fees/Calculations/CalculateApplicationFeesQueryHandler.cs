@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -12,13 +13,19 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
 {
     private readonly IApplicationFullRepository _repository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceVariantFeeRepository? _variantFeeRepository;
+    private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
 
     public CalculateApplicationFeesQueryHandler(
         IApplicationFullRepository repository,
-        IFeeCalculationEngine calculationEngine)
+        IFeeCalculationEngine calculationEngine,
+        IServiceVariantFeeRepository? variantFeeRepository = null,
+        IServiceVariantElementFeeRepository? elementFeeRepository = null)
     {
         _repository = repository;
         _calculationEngine = calculationEngine;
+        _variantFeeRepository = variantFeeRepository;
+        _elementFeeRepository = elementFeeRepository;
     }
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateApplicationFeesQuery request, CancellationToken cancellationToken)
@@ -47,6 +54,14 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
         var units = request.NoOfUnits ?? applicantsCount;
         var years = request.ValidityYears ?? 1;
 
+        var variantFees = _variantFeeRepository != null && primaryVariant != null
+            ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+            : null;
+
+        var elementFees = _elementFeeRepository != null && primaryVariant != null
+            ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
+            : null;
+
         var calculationRequest = new FeeCalculationRequest(
             Activity: activity,
             ApplicationType: appType,
@@ -57,7 +72,10 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             AdditionalServicesCount: request.AdditionalServicesCount ?? 0,
             NoOfCopies: request.NoOfCopies ?? 1,
             AsOfDate: DateTime.UtcNow,
-            Category: primaryService?.ServiceCategory?.Type
+            Category: primaryService?.ServiceCategory?.Type,
+            ServiceVariantId: primaryVariant?.Id,
+            VariantFees: variantFees,
+            ElementFees: elementFees
         );
 
         var result = _calculationEngine.Calculate(calculationRequest);

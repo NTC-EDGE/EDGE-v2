@@ -5,7 +5,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using EDGE.Application.ServiceVariantFees.DTOs;
 using EDGE.Application.Common.Interfaces;
-
 using EDGE.Application.Common.Models;
 
 namespace EDGE.Application.ServiceVariantFees.Queries.GetServiceVariantFees;
@@ -56,6 +55,15 @@ public class GetServiceVariantFeesQueryHandler : IRequestHandler<GetServiceVaria
             svf.Fee?.Code,
             svf.Fee?.Name,
             svf.Amount,
+            svf.CalculationMode,
+            svf.CalculationFormula,
+            svf.MultiplyByValidityYears,
+            svf.MultiplyByUnits,
+            svf.MultiplyByChannels,
+            svf.MultiplyByPages,
+            svf.ApplyLateRenewalSurcharge,
+            svf.IncludeDst,
+            svf.DstAmount,
             svf.CreatedAt
         )).ToList();
 

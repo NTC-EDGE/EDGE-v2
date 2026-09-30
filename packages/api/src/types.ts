@@ -646,6 +646,8 @@ export interface ServiceVariantDetail {
   type?: string | null;
 }
 
+export type FeeCalculationMode = 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix' | number;
+
 export interface ServiceVariantFee {
   id: string;
   serviceVariantId: string;
@@ -654,6 +656,15 @@ export interface ServiceVariantFee {
   feeCode?: string | null;
   feeName?: string | null;
   amount: number;
+  calculationMode?: FeeCalculationMode;
+  calculationFormula?: string | null;
+  multiplyByValidityYears?: boolean;
+  multiplyByUnits?: boolean;
+  multiplyByChannels?: boolean;
+  multiplyByPages?: boolean;
+  applyLateRenewalSurcharge?: boolean;
+  includeDst?: boolean;
+  dstAmount?: number;
   createdAt?: string;
 }
 
@@ -668,6 +679,15 @@ export interface ServiceVariantElementFee {
   feeCode?: string | null;
   feeName?: string | null;
   amount: number;
+  calculationMode?: FeeCalculationMode;
+  calculationFormula?: string | null;
+  multiplyByValidityYears?: boolean;
+  multiplyByUnits?: boolean;
+  multiplyByChannels?: boolean;
+  multiplyByPages?: boolean;
+  applyLateRenewalSurcharge?: boolean;
+  includeDst?: boolean;
+  dstAmount?: number;
   createdAt?: string;
 }
 

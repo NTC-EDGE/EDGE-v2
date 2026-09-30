@@ -40,6 +40,15 @@ public class GetServiceVariantElementFeeByIdQueryHandler : IRequestHandler<GetSe
             svef.Fee?.Code,
             svef.Fee?.Name,
             svef.Amount,
+            svef.CalculationMode,
+            svef.CalculationFormula,
+            svef.MultiplyByValidityYears,
+            svef.MultiplyByUnits,
+            svef.MultiplyByChannels,
+            svef.MultiplyByPages,
+            svef.ApplyLateRenewalSurcharge,
+            svef.IncludeDst,
+            svef.DstAmount,
             svef.CreatedAt
         );
     }

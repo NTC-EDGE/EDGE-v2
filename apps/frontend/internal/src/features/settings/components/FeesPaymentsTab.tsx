@@ -8,7 +8,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { FeePaymentItem } from '../data/mockAdminSettings';
+import { FeePaymentItem } from '../types/adminSettingsTypes';
 
 interface FeesPaymentsTabProps {
   fees: FeePaymentItem[];
@@ -27,7 +27,7 @@ export function FeesPaymentsTab({
   const isMobile = width < 768;
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [expandedIds, setExpandedIds] = useState<Record<string, boolean>>({});
 
   // Filter fees based on search
   const filteredFees = useMemo(() => {
@@ -37,7 +37,10 @@ export function FeesPaymentsTab({
   }, [fees, searchQuery]);
 
   const toggleExpand = (id: string) => {
-    setExpandedId((prev) => (prev === id ? null : id));
+    setExpandedIds((prev) => {
+      const current = prev[id] !== undefined ? prev[id] : true;
+      return { ...prev, [id]: !current };
+    });
   };
 
   return (
@@ -90,7 +93,7 @@ export function FeesPaymentsTab({
           </View>
         ) : (
           filteredFees.map((item) => {
-            const isExpanded = expandedId === item.id;
+            const isExpanded = expandedIds[item.id] !== undefined ? expandedIds[item.id] : true;
             const formattedTotal = item.totalAmount.toLocaleString('en-PH', {
               minimumFractionDigits: 2,
               maximumFractionDigits: 2,
@@ -112,10 +115,36 @@ export function FeesPaymentsTab({
                       {/* Total Amount Badge */}
                       <View style={[styles.pillBadge, styles.badgeGreen]}>
                         <Text style={[styles.badgeText, styles.badgeTextGreen]}>
-                          Total: ₱{formattedTotal}
+                          Base: ₱{formattedTotal}
                         </Text>
                       </View>
                     </View>
+
+                    {/* Quick Formula Highlights */}
+                    {item.feeBreakdown.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 6 }}>
+                        {item.feeBreakdown.map((fb) => (
+                          <View
+                            key={fb.id}
+                            style={{
+                              flexDirection: 'row',
+                              alignItems: 'center',
+                              gap: 4,
+                              backgroundColor: '#EEF2FF',
+                              paddingHorizontal: 8,
+                              paddingVertical: 3,
+                              borderRadius: 6,
+                              borderWidth: 1,
+                              borderColor: '#C7D2FE',
+                            }}
+                          >
+                            <Text style={{ fontSize: 11, fontWeight: '700', color: '#4338CA', fontFamily: 'monospace' }}>
+                              {fb.name}: {fb.formula || '{RATE}'}
+                            </Text>
+                          </View>
+                        ))}
+                      </View>
+                    )}
                   </View>
 
                   {/* Right Actions */}
@@ -166,7 +195,46 @@ export function FeesPaymentsTab({
                         <View key={fb.id} style={styles.feeTableRow}>
                           <View style={styles.feeLeft}>
                             <View style={styles.feeDot} />
-                            <Text style={styles.feeName}>{fb.name}</Text>
+                            <View style={styles.feeNameCol}>
+                              <Text style={styles.feeName}>{fb.name}</Text>
+                              <View style={styles.feeTagsRow}>
+                                {fb.formula && (
+                                  <View style={styles.formulaPill}>
+                                    <Text style={styles.formulaPillText}>{fb.formula}</Text>
+                                  </View>
+                                )}
+                                {fb.multiplyByValidityYears && (
+                                  <View style={styles.multiplierTag}>
+                                    <Text style={styles.multiplierTagText}>× Years</Text>
+                                  </View>
+                                )}
+                                {fb.multiplyByUnits && (
+                                  <View style={styles.multiplierTag}>
+                                    <Text style={styles.multiplierTagText}>× Units</Text>
+                                  </View>
+                                )}
+                                {fb.multiplyByChannels && (
+                                  <View style={styles.multiplierTag}>
+                                    <Text style={styles.multiplierTagText}>× Channels</Text>
+                                  </View>
+                                )}
+                                {fb.multiplyByPages && (
+                                  <View style={styles.multiplierTag}>
+                                    <Text style={styles.multiplierTagText}>× Pages</Text>
+                                  </View>
+                                )}
+                                {fb.applyLateRenewalSurcharge && (
+                                  <View style={styles.multiplierTagSurcharge}>
+                                    <Text style={styles.multiplierTagSurchargeText}>+ Surcharge</Text>
+                                  </View>
+                                )}
+                                {fb.includeDst && (
+                                  <View style={styles.multiplierTagDst}>
+                                    <Text style={styles.multiplierTagDstText}>+ DST ₱30</Text>
+                                  </View>
+                                )}
+                              </View>
+                            </View>
                           </View>
                           <Text style={styles.feeAmount}>
                             ₱{fb.amount.toLocaleString('en-PH', { minimumFractionDigits: 2 })}
@@ -592,5 +660,70 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  feeNameCol: {
+    gap: 3,
+  },
+  feeTagsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 4,
+  },
+  formulaPill: {
+    backgroundColor: 'rgba(99, 102, 241, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 6,
+    paddingVertical: 1.5,
+    borderWidth: 1,
+    borderColor: 'rgba(99, 102, 241, 0.25)',
+  },
+  formulaPillText: {
+    fontSize: 10,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+    color: COLORS.brand.indigo,
+  },
+  multiplierTag: {
+    backgroundColor: COLORS.neutral[100],
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[300],
+  },
+  multiplierTagText: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '600',
+    color: COLORS.neutral[600],
+  },
+  multiplierTagSurcharge: {
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.3)',
+  },
+  multiplierTagSurchargeText: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#b45309',
+  },
+  multiplierTagDst: {
+    backgroundColor: 'rgba(16, 185, 129, 0.1)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 1,
+    borderColor: 'rgba(16, 185, 129, 0.3)',
+  },
+  multiplierTagDstText: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: '700',
+    color: '#047857',
   },
 });

@@ -40,6 +40,15 @@ public class UpdateServiceVariantFeeCommandHandler : IRequestHandler<UpdateServi
         svf.ServiceVariantId = request.ServiceVariantId;
         svf.FeeId = request.FeeId;
         svf.Amount = request.Amount;
+        svf.CalculationMode = request.CalculationMode;
+        svf.CalculationFormula = request.CalculationFormula;
+        svf.MultiplyByValidityYears = request.MultiplyByValidityYears;
+        svf.MultiplyByUnits = request.MultiplyByUnits;
+        svf.MultiplyByChannels = request.MultiplyByChannels;
+        svf.MultiplyByPages = request.MultiplyByPages;
+        svf.ApplyLateRenewalSurcharge = request.ApplyLateRenewalSurcharge;
+        svf.IncludeDst = request.IncludeDst;
+        svf.DstAmount = request.DstAmount;
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -62,6 +71,15 @@ public class UpdateServiceVariantFeeCommandHandler : IRequestHandler<UpdateServi
             updated.Fee?.Code,
             updated.Fee?.Name,
             updated.Amount,
+            updated.CalculationMode,
+            updated.CalculationFormula,
+            updated.MultiplyByValidityYears,
+            updated.MultiplyByUnits,
+            updated.MultiplyByChannels,
+            updated.MultiplyByPages,
+            updated.ApplyLateRenewalSurcharge,
+            updated.IncludeDst,
+            updated.DstAmount,
             updated.CreatedAt
         );
     }
