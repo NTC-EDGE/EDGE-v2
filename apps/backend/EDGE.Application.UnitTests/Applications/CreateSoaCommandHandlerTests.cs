@@ -21,6 +21,9 @@ public class CreateSoaCommandHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly Mock<IServiceVariantFeeRepository> _variantFeeRepositoryMock = new();
+    private readonly Mock<IServiceVariantElementFeeRepository> _elementFeeRepositoryMock = new();
+    private readonly Mock<IServiceVariantFormulaRepository> _formulaRepositoryMock = new();
     private readonly FeeCalculationEngine _calculationEngine = new(new IFeeCalculationStrategy[]
     {
         new CertificateFeeCalculationStrategy(),
@@ -44,7 +47,10 @@ public class CreateSoaCommandHandlerTests
             _unitOfWorkMock.Object,
             _currentUserServiceMock.Object,
             _userRepositoryMock.Object,
-            _calculationEngine);
+            _calculationEngine,
+            _variantFeeRepositoryMock.Object,
+            _elementFeeRepositoryMock.Object,
+            _formulaRepositoryMock.Object);
     }
 
     [Fact]
@@ -217,5 +223,64 @@ public class CreateSoaCommandHandlerTests
         savedSoa.LineItems.Should().HaveCount(2);
         savedSoa.LineItems.Any(li => li.ItemCode == "ROC" && li.Amount == 360.00m).Should().BeTrue();
         savedSoa.LineItems.Any(li => li.ItemCode == "DST" && li.Amount == 30.00m).Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Handle_ShouldComputeSoa_UsingConfiguredDynamicFormula_WhenVariantFeesAndFormulaExist()
+    {
+        // Arrange
+        var variantId = Guid.NewGuid();
+        var serviceCategory = new ServiceCategory { Name = "Licenses", Code = "LIC", Type = ServiceCategoryType.License };
+        var service = new Service { Name = "COMMERCIAL RADIO STATION LICENSES", ServiceCategory = serviceCategory };
+        var serviceVariant = new ServiceVariant { Id = variantId, Description = "Base Station License", Type = ServiceVariantType.New };
+        var statutoryFee = new Fee { Name = "Filing Fee", Code = "FF", Description = "Filing Fee" };
+        var variantFee = new ServiceVariantFee { Id = Guid.NewGuid(), ServiceVariantId = variantId, FeeId = statutoryFee.Id, Fee = statutoryFee, Amount = 180.00m, IsActive = true };
+
+        var applicant = new Applicant { Service = service, ServiceVariant = serviceVariant };
+        var app = new Domain.Entities.Application { Id = Guid.NewGuid(), Status = ApplicationStatus.Evaluating };
+        app.ApplicationApplicants.Add(new ApplicationApplicant { Applicant = applicant });
+
+        var command = new CreateSoaCommand(
+            ApplicationId: app.Id,
+            ApplicantId: null,
+            IssuedToType: "Individual",
+            IssuedToName: "Test Licensee",
+            IssuedToAddress: "456 Station Road",
+            DueDate: DateTime.UtcNow.AddDays(30),
+            LineItems: null,
+            ValidityYears: 3,
+            NoOfUnits: 2
+        );
+
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        _variantFeeRepositoryMock
+            .Setup(r => r.GetByServiceVariantIdAsync(variantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ServiceVariantFee> { variantFee });
+
+        _formulaRepositoryMock
+            .Setup(r => r.GetByServiceVariantIdAsync(variantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ServiceVariantFormula { ServiceVariantId = variantId, FormulaExpression = "TOTAL = {RATE} * {YEARS} * {UNITS}" });
+
+        StatementOfAccount? savedSoa = null;
+        _repositoryMock
+            .Setup(r => r.AddSoaAsync(It.IsAny<StatementOfAccount>(), It.IsAny<CancellationToken>()))
+            .Callback<StatementOfAccount, CancellationToken>((s, _) => savedSoa = s)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        savedSoa.Should().NotBeNull();
+        // 180 * 3 years * 2 units = 1080
+        savedSoa!.TotalAmount.Should().Be(1080.00m);
+        savedSoa.LineItems.Should().HaveCount(1);
+        savedSoa.LineItems.First().Amount.Should().Be(1080.00m);
+        savedSoa.LineItems.First().ValidityYears.Should().Be(3);
+        savedSoa.LineItems.First().NoOfUnits.Should().Be(2);
     }
 }

@@ -15,17 +15,20 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
     private readonly IFeeCalculationEngine _calculationEngine;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
+    private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CalculateApplicationFeesQueryHandler(
         IApplicationFullRepository repository,
         IFeeCalculationEngine calculationEngine,
         IServiceVariantFeeRepository? variantFeeRepository = null,
-        IServiceVariantElementFeeRepository? elementFeeRepository = null)
+        IServiceVariantElementFeeRepository? elementFeeRepository = null,
+        IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _repository = repository;
         _calculationEngine = calculationEngine;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateApplicationFeesQuery request, CancellationToken cancellationToken)
@@ -62,6 +65,23 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
             : null;
 
+        string? formulaExpression = null;
+        if (_formulaRepository != null && primaryVariant != null)
+        {
+            var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+            if (primaryElement != null)
+            {
+                var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                formulaExpression = elemFormula?.FormulaExpression;
+            }
+
+            if (string.IsNullOrWhiteSpace(formulaExpression))
+            {
+                var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                formulaExpression = variantFormula?.FormulaExpression;
+            }
+        }
+
         var calculationRequest = new FeeCalculationRequest(
             Activity: activity,
             ApplicationType: appType,
@@ -75,7 +95,8 @@ public class CalculateApplicationFeesQueryHandler : IRequestHandler<CalculateApp
             Category: primaryService?.ServiceCategory?.Type,
             ServiceVariantId: primaryVariant?.Id,
             VariantFees: variantFees,
-            ElementFees: elementFees
+            ElementFees: elementFees,
+            FormulaExpression: formulaExpression
         );
 
         var result = _calculationEngine.Calculate(calculationRequest);

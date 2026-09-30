@@ -20,6 +20,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IFeeCalculationEngine _calculationEngine;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
+    private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -28,7 +29,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         IUserRepository userRepository,
         IFeeCalculationEngine calculationEngine,
         IServiceVariantFeeRepository? variantFeeRepository = null,
-        IServiceVariantElementFeeRepository? elementFeeRepository = null)
+        IServiceVariantElementFeeRepository? elementFeeRepository = null,
+        IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -37,6 +39,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _calculationEngine = calculationEngine;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -164,6 +167,23 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 ? await _elementFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
                 : null;
 
+            string? formulaExpression = null;
+            if (_formulaRepository != null && primaryVariant != null)
+            {
+                var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                if (primaryElement != null)
+                {
+                    var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                    formulaExpression = elemFormula?.FormulaExpression;
+                }
+
+                if (string.IsNullOrWhiteSpace(formulaExpression))
+                {
+                    var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                    formulaExpression = variantFormula?.FormulaExpression;
+                }
+            }
+
             var calculationResult = _calculationEngine.Calculate(new FeeCalculationRequest(
                 Activity: activity,
                 ApplicationType: appType,
@@ -177,7 +197,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 Category: primaryService?.ServiceCategory?.Type,
                 ServiceVariantId: primaryVariant?.Id,
                 VariantFees: variantFees,
-                ElementFees: elementFees
+                ElementFees: elementFees,
+                FormulaExpression: formulaExpression
             ));
 
             foreach (var calculatedItem in calculationResult.LineItems)

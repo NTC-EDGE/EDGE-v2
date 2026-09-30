@@ -13,21 +13,25 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
     private readonly IFeeCalculationEngine _calculationEngine;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
+    private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CalculateFeesQueryHandler(
         IFeeCalculationEngine calculationEngine,
         IServiceVariantFeeRepository? variantFeeRepository = null,
-        IServiceVariantElementFeeRepository? elementFeeRepository = null)
+        IServiceVariantElementFeeRepository? elementFeeRepository = null,
+        IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _calculationEngine = calculationEngine;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
+        _formulaRepository = formulaRepository;
     }
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateFeesQuery request, CancellationToken cancellationToken)
     {
         IReadOnlyList<ServiceVariantFee>? variantFees = null;
         IReadOnlyList<ServiceVariantElementFee>? elementFees = null;
+        string? formulaExpression = null;
 
         if (request.ServiceVariantId.HasValue)
         {
@@ -38,6 +42,20 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
             if (_elementFeeRepository != null)
             {
                 elementFees = await _elementFeeRepository.GetByServiceVariantIdAsync(request.ServiceVariantId.Value, cancellationToken);
+            }
+            if (_formulaRepository != null)
+            {
+                if (request.ElementId.HasValue)
+                {
+                    var elemFormula = await _formulaRepository.GetElementFormulaAsync(request.ServiceVariantId.Value, request.ElementId.Value, cancellationToken);
+                    formulaExpression = elemFormula?.FormulaExpression;
+                }
+
+                if (string.IsNullOrWhiteSpace(formulaExpression))
+                {
+                    var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(request.ServiceVariantId.Value, cancellationToken);
+                    formulaExpression = variantFormula?.FormulaExpression;
+                }
             }
         }
 
@@ -56,7 +74,8 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
             ServiceVariantId: request.ServiceVariantId,
             ElementId: request.ElementId,
             VariantFees: variantFees,
-            ElementFees: elementFees
+            ElementFees: elementFees,
+            FormulaExpression: formulaExpression
         );
 
         var result = _calculationEngine.Calculate(calculationRequest);
