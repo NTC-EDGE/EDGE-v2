@@ -58,7 +58,7 @@ function groupLinks(
 }
 
 function readCollapsedFromStorage(): boolean {
-  if (Platform.OS !== 'web') return false;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
   try {
     return window.localStorage.getItem(STORAGE_KEY) === 'true';
   } catch {
@@ -67,7 +67,7 @@ function readCollapsedFromStorage(): boolean {
 }
 
 function writeCollapsedToStorage(value: boolean): void {
-  if (Platform.OS !== 'web') return;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, String(value));
   } catch {

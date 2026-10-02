@@ -8,6 +8,7 @@ import { Header } from "./Header";
 import { StandardScreenWrapper } from "./StandardScreenWrapper";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
+import { acceptIncomingCall } from "../../meet/utils/meetingNavigationHelper";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -107,8 +108,8 @@ export function AppLayout({
 
       {/* Incoming Call Ringing Modal */}
       <IncomingCallModal
-        onAccept={(_code) => {
-          handleLinkPress('Meet');
+        onAccept={(code) => {
+          acceptIncomingCall(code, handleLinkPress);
         }}
       />
 

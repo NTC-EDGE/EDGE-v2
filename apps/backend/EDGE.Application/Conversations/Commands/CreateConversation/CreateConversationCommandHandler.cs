@@ -13,6 +13,7 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
     private readonly ITenantMemberRepository _tenantMemberRepository;
     private readonly ITenantRepository _tenantRepository;
     private readonly ICurrentUserService _currentUserService;
+    private readonly IChatNotificationService _chatNotificationService;
     private readonly IUnitOfWork _unitOfWork;
 
     public CreateConversationCommandHandler(
@@ -21,6 +22,7 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
         ITenantMemberRepository tenantMemberRepository,
         ITenantRepository tenantRepository,
         ICurrentUserService currentUserService,
+        IChatNotificationService chatNotificationService,
         IUnitOfWork unitOfWork)
     {
         _conversationRepository = conversationRepository;
@@ -28,6 +30,7 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
         _tenantMemberRepository = tenantMemberRepository;
         _tenantRepository = tenantRepository;
         _currentUserService = currentUserService;
+        _chatNotificationService = chatNotificationService;
         _unitOfWork = unitOfWork;
     }
 
@@ -83,11 +86,23 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
             });
         }
 
+        // If participants span across multiple distinct tenants, mark scope as InterRegional
+        var distinctParticipantTenants = conversation.Participants
+            .Where(p => p.TenantId.HasValue && p.TenantId.Value != Guid.Empty)
+            .Select(p => p.TenantId!.Value)
+            .Distinct()
+            .ToList();
+
+        if (distinctParticipantTenants.Count > 1 && conversation.Scope != ConversationScope.InterRegional)
+        {
+            conversation.Scope = ConversationScope.InterRegional;
+        }
+
         await _conversationRepository.AddConversationAsync(conversation, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var created = await _conversationRepository.GetByIdAsync(conversation.Id, cancellationToken);
-        return new ConversationDto
+        var dto = new ConversationDto
         {
             Id = created!.Id,
             Title = created.Title,
@@ -111,5 +126,10 @@ public class CreateConversationCommandHandler : IRequestHandler<CreateConversati
                 LastReadAt = p.LastReadAt
             }).ToList()
         };
+
+        var participantUserIds = created.Participants.Where(p => !p.HasLeft).Select(p => p.UserId).ToList();
+        await _chatNotificationService.NotifyConversationUpdatedAsync(created.Id, participantUserIds, cancellationToken);
+
+        return dto;
     }
 }

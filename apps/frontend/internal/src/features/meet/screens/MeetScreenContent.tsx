@@ -13,6 +13,7 @@ import { CreateDirectMeetingModal } from '../forms/CreateDirectMeetingModal';
 import { InviteParticipantModal } from '../forms/InviteParticipantModal';
 import { JoinMeetingModal } from '../forms/JoinMeetingModal';
 import { CreateMeetingFormValues, CreateDirectMeetingFormValues, JoinMeetingFormValues } from '../schemas/meetSchemas';
+import { isCustomEventWithCode, JOIN_MEETING_EVENT_NAME } from '../utils/meetingNavigationHelper';
 
 const FILTER_TABS: { id: MeetingFilter; label: string }[] = [
   { id: 'All', label: 'All' },
@@ -128,6 +129,30 @@ export const MeetScreenContent: React.FC = () => {
         }
       })();
     }
+  }, []);
+
+  // Listen to direct call accepted event while MeetScreenContent is already active
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+
+    const handleDirectJoinEvent = (event: Event) => {
+      if (isCustomEventWithCode(event)) {
+        const codeToJoin = event.detail.code;
+        if (codeToJoin.length > 0) {
+          void (async () => {
+            const [meeting, err] = await safeAsync(meetService.getMeetingByCode(codeToJoin));
+            if (meeting !== null && err === null && meeting.status !== 'Ended' && meeting.status !== 'Cancelled') {
+              handleJoinMeeting(meeting);
+            }
+          })();
+        }
+      }
+    };
+
+    window.addEventListener(JOIN_MEETING_EVENT_NAME, handleDirectJoinEvent);
+    return () => {
+      window.removeEventListener(JOIN_MEETING_EVENT_NAME, handleDirectJoinEvent);
+    };
   }, []);
 
   const handleCreateMeeting = async (values: CreateMeetingFormValues) => {
