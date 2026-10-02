@@ -172,7 +172,22 @@ export function AppLayout({
 
       {/* Incoming Call Ringing Modal */}
       <IncomingCallModal
-        onAccept={(_code) => {
+        onAccept={(code) => {
+          if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+            try {
+              if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
+                window.sessionStorage.setItem('edge_active_meeting_code', code);
+              }
+              if (window.location !== undefined && typeof window.location.href === 'string') {
+                const url = new URL(window.location.href);
+                url.searchParams.set('code', code);
+                window.history.replaceState(null, '', url.toString());
+              }
+              window.dispatchEvent(new CustomEvent('edge_join_meeting', { detail: { code } }));
+            } catch {
+              // ignore
+            }
+          }
           handleLinkPress('Meet');
         }}
       />

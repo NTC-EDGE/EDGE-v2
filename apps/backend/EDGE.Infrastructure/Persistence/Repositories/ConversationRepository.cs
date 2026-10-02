@@ -38,7 +38,9 @@ public class ConversationRepository : IConversationRepository
 
         if (tenantId.HasValue)
         {
-            query = query.Where(c => c.TenantId == tenantId || c.Scope == Domain.Enums.ConversationScope.InterRegional);
+            query = query.Where(c => c.TenantId == tenantId 
+                                  || c.Scope == Domain.Enums.ConversationScope.InterRegional 
+                                  || c.Type == Domain.Enums.ConversationType.Direct);
         }
 
         var normalizedFilter = filter?.Trim().ToLowerInvariant();

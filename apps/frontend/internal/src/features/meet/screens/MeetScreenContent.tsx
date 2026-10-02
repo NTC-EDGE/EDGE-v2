@@ -21,6 +21,14 @@ const FILTER_TABS: { id: MeetingFilter; label: string }[] = [
   { id: 'History', label: 'Meet History' },
 ];
 
+function isCustomEventWithCode(event: Event): event is CustomEvent<{ code: string }> {
+  if ('detail' in event && typeof event.detail === 'object' && event.detail !== null) {
+    const detailObj = event.detail;
+    return 'code' in detailObj && typeof Reflect.get(detailObj, 'code') === 'string';
+  }
+  return false;
+}
+
 export const MeetScreenContent: React.FC = () => {
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
@@ -128,6 +136,30 @@ export const MeetScreenContent: React.FC = () => {
         }
       })();
     }
+  }, []);
+
+  // Listen to direct call accepted event while MeetScreenContent is already active
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof window.addEventListener !== 'function') return;
+
+    const handleDirectJoinEvent = (event: Event) => {
+      if (isCustomEventWithCode(event)) {
+        const codeToJoin = event.detail.code;
+        if (codeToJoin.length > 0) {
+          void (async () => {
+            const [meeting, err] = await safeAsync(meetService.getMeetingByCode(codeToJoin));
+            if (meeting !== null && err === null && meeting.status !== 'Ended' && meeting.status !== 'Cancelled') {
+              handleJoinMeeting(meeting);
+            }
+          })();
+        }
+      }
+    };
+
+    window.addEventListener('edge_join_meeting', handleDirectJoinEvent);
+    return () => {
+      window.removeEventListener('edge_join_meeting', handleDirectJoinEvent);
+    };
   }, []);
 
   const handleCreateMeeting = async (values: CreateMeetingFormValues) => {

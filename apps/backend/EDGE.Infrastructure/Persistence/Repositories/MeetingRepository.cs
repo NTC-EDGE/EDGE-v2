@@ -50,7 +50,10 @@ public class MeetingRepository : IMeetingRepository
 
         if (tenantId.HasValue)
         {
-            query = query.Where(m => m.TenantId == tenantId || m.Scope == Domain.Enums.ConversationScope.InterRegional);
+            query = query.Where(m => m.TenantId == tenantId 
+                                  || m.Scope == Domain.Enums.ConversationScope.InterRegional 
+                                  || m.Participants.Any(p => p.UserId == userId) 
+                                  || m.HostUserId == userId);
         }
 
         var normalizedFilter = filter?.Trim().ToLowerInvariant();
