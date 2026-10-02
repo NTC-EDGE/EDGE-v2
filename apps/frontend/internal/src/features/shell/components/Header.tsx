@@ -34,7 +34,7 @@ import { openQueueApplication } from '../../queue/data/internalApplicationNaviga
 const NOTIF_STORAGE_PREFIX = 'edge_internal_read_notifications';
 
 function getStoredReadNotifs(userId?: string): Set<string> {
-  if (Platform.OS !== 'web') return new Set();
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return new Set();
   try {
     const key = userId !== undefined && userId !== '' ? `${NOTIF_STORAGE_PREFIX}_${userId}` : NOTIF_STORAGE_PREFIX;
     const raw = window.localStorage.getItem(key);
@@ -51,7 +51,7 @@ function getStoredReadNotifs(userId?: string): Set<string> {
 }
 
 function saveStoredReadNotifs(set: Set<string>, userId?: string): void {
-  if (Platform.OS !== 'web') return;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
   try {
     const key = userId !== undefined && userId !== '' ? `${NOTIF_STORAGE_PREFIX}_${userId}` : NOTIF_STORAGE_PREFIX;
     window.localStorage.setItem(key, JSON.stringify(Array.from(set)));

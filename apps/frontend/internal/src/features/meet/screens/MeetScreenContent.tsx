@@ -13,6 +13,7 @@ import { CreateDirectMeetingModal } from '../forms/CreateDirectMeetingModal';
 import { InviteParticipantModal } from '../forms/InviteParticipantModal';
 import { JoinMeetingModal } from '../forms/JoinMeetingModal';
 import { CreateMeetingFormValues, CreateDirectMeetingFormValues, JoinMeetingFormValues } from '../schemas/meetSchemas';
+import { isCustomEventWithCode, JOIN_MEETING_EVENT_NAME } from '../utils/meetingNavigationHelper';
 
 const FILTER_TABS: { id: MeetingFilter; label: string }[] = [
   { id: 'All', label: 'All' },
@@ -20,14 +21,6 @@ const FILTER_TABS: { id: MeetingFilter; label: string }[] = [
   { id: 'Live', label: 'Live' },
   { id: 'History', label: 'Meet History' },
 ];
-
-function isCustomEventWithCode(event: Event): event is CustomEvent<{ code: string }> {
-  if ('detail' in event && typeof event.detail === 'object' && event.detail !== null) {
-    const detailObj = event.detail;
-    return 'code' in detailObj && typeof Reflect.get(detailObj, 'code') === 'string';
-  }
-  return false;
-}
 
 export const MeetScreenContent: React.FC = () => {
   const { colors, isDark } = useTheme();
@@ -156,9 +149,9 @@ export const MeetScreenContent: React.FC = () => {
       }
     };
 
-    window.addEventListener('edge_join_meeting', handleDirectJoinEvent);
+    window.addEventListener(JOIN_MEETING_EVENT_NAME, handleDirectJoinEvent);
     return () => {
-      window.removeEventListener('edge_join_meeting', handleDirectJoinEvent);
+      window.removeEventListener(JOIN_MEETING_EVENT_NAME, handleDirectJoinEvent);
     };
   }, []);
 

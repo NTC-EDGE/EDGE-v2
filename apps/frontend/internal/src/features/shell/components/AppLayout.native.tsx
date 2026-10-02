@@ -15,6 +15,7 @@ import { Header } from "./Header";
 import { MobileBottomTabBar } from "./MobileBottomTabBar";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
+import { acceptIncomingCall } from "../../meet/utils/meetingNavigationHelper";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -157,22 +158,7 @@ export function AppLayout({
         {/* Incoming Call Ringing Modal */}
         <IncomingCallModal
           onAccept={(code) => {
-            if (typeof window !== 'undefined' && typeof document !== 'undefined') {
-              try {
-                if ('sessionStorage' in window && window.sessionStorage !== null && window.sessionStorage !== undefined) {
-                  window.sessionStorage.setItem('edge_active_meeting_code', code);
-                }
-                if (window.location !== undefined && typeof window.location.href === 'string') {
-                  const url = new URL(window.location.href);
-                  url.searchParams.set('code', code);
-                  window.history.replaceState(null, '', url.toString());
-                }
-                window.dispatchEvent(new CustomEvent('edge_join_meeting', { detail: { code } }));
-              } catch {
-                // ignore
-              }
-            }
-            handleLinkPress('Meet');
+            acceptIncomingCall(code, handleLinkPress);
           }}
         />
 
