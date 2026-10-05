@@ -97,6 +97,7 @@ export function computeOfficerEvaluationState(params: {
   const isEndorsedAwayFromMe = isEndorsed && !isEndorsedToMe && !isAdmin;
 
   const isEvaluatedByMe = isEvaluating && (
+    isAdmin ||
     isEndorsedToMe ||
     isGenericOfficer(evaluatingOfficer, application.office) ||
     matchesUserIdentifier(evaluatingOfficer, identifiers) ||

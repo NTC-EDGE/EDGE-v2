@@ -170,39 +170,19 @@ export function GeneralWizardSteps({
           }}
           companyName={activeApplicant.companyName || ""}
           onCompanyNameChange={(name: string) => {
-            setApplicants((prev) =>
-              prev.map((app) => ({
-                ...app,
-                companyName: name,
-              }))
-            );
+            updateActiveApplicant({ companyName: name });
           }}
           dtiSecRegistration={activeApplicant.dtiSecRegistration || ""}
           onDtiSecRegistrationChange={(val: string) => {
-            setApplicants((prev) =>
-              prev.map((app) => ({
-                ...app,
-                dtiSecRegistration: val,
-              }))
-            );
+            updateActiveApplicant({ dtiSecRegistration: val });
           }}
           representativeName={activeApplicant.representativeName || ""}
           onRepresentativeNameChange={(val: string) => {
-            setApplicants((prev) =>
-              prev.map((app) => ({
-                ...app,
-                representativeName: val,
-              }))
-            );
+            updateActiveApplicant({ representativeName: val });
           }}
           representativePosition={activeApplicant.representativePosition || ""}
           onRepresentativePositionChange={(val: string) => {
-            setApplicants((prev) =>
-              prev.map((app) => ({
-                ...app,
-                representativePosition: val,
-              }))
-            );
+            updateActiveApplicant({ representativePosition: val });
           }}
           companyContactNo={activeApplicant.contactNo || ""}
           onCompanyContactNoChange={(val: string) => {

@@ -83,6 +83,20 @@ export function GeneralBulkApplicationFlow({
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const prevTrigger = React.useRef(triggerOpenApplicant);
 
+  const clearFieldError = React.useCallback((...fieldKeys: string[]) => {
+    setFormErrors((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const k of fieldKeys) {
+        if (next[k]) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   // React to left-panel applicant selection
   React.useEffect(() => {
     if (triggerOpenApplicant !== prevTrigger.current) {
@@ -144,6 +158,24 @@ export function GeneralBulkApplicationFlow({
       }
       return updated;
     });
+    if (typeof fields !== "function") {
+      const keysToClear: string[] = [];
+      for (const [key, val] of Object.entries(fields)) {
+        if (val !== undefined && val !== null && val !== "") {
+          keysToClear.push(key);
+        }
+      }
+      if (Array.isArray(fields.formFieldValues)) {
+        for (const fv of fields.formFieldValues) {
+          if (fv.value && fv.value.trim() !== "") {
+            keysToClear.push(fv.fieldId);
+          }
+        }
+      }
+      if (keysToClear.length > 0) {
+        clearFieldError(...keysToClear);
+      }
+    }
   };
 
   const completeCount = applicants.filter((app) =>

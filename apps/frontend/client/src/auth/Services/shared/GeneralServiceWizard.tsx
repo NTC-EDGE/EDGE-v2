@@ -98,6 +98,20 @@ export function GeneralServiceWizard({
   const [dynamicRequiredFieldIds, setDynamicRequiredFieldIds] = useState<string[]>([]);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
+  const clearFieldError = React.useCallback((...fieldKeys: string[]) => {
+    setFormErrors((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const k of fieldKeys) {
+        if (next[k]) {
+          delete next[k];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, []);
+
   const bulkMethod = propBulkMethod !== undefined ? propBulkMethod : localBulkMethod;
   const setBulkMethod = propSetBulkMethod !== undefined ? propSetBulkMethod : setLocalBulkMethod;
   const isFileUploaded = propIsFileUploaded !== undefined ? propIsFileUploaded : localIsFileUploaded;
@@ -184,6 +198,7 @@ export function GeneralServiceWizard({
   };
 
   const handleBack = () => {
+    setFormErrors({});
     handleWizardBack({
       step,
       setStep,
@@ -194,7 +209,47 @@ export function GeneralServiceWizard({
     });
   };
 
+  const handleSelectRegion = (id: string) => {
+    setSelectedRegionId(id);
+    clearFieldError("selectedRegionId", "region");
+  };
+
+  const handleSelectOffice = (id: string) => {
+    setSelectedOfficeId(id);
+    clearFieldError("selectedOfficeId", "office");
+  };
+
+  const handleSelectSchedule = (id: string | null) => {
+    setSelectedScheduleId(id);
+    clearFieldError("selectedScheduleId", "schedule");
+  };
+
+  const handleUpdateActiveApplicant = (
+    fields: Partial<GeneralApplicantData> | ((prev: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => {
+    updateActiveApplicant(fields);
+    if (typeof fields !== "function") {
+      const keysToClear: string[] = [];
+      for (const [key, val] of Object.entries(fields)) {
+        if (val !== undefined && val !== null && val !== "") {
+          keysToClear.push(key);
+        }
+      }
+      if (Array.isArray(fields.formFieldValues)) {
+        for (const fv of fields.formFieldValues) {
+          if (fv.value && fv.value.trim() !== "") {
+            keysToClear.push(fv.fieldId);
+          }
+        }
+      }
+      if (keysToClear.length > 0) {
+        clearFieldError(...keysToClear);
+      }
+    }
+  };
+
   const handleSelectVariant = (variantId: string, variantName: string) => {
+    clearFieldError("selectedVariantId", "variant");
     const isRenewal = variantName.toUpperCase().includes("RENEWAL");
     const isModification = variantName.toUpperCase().includes("MODIFICATION");
 
@@ -284,16 +339,16 @@ export function GeneralServiceWizard({
           selectedVariantId={activeApplicant.selectedVariantId}
           onSelectVariant={handleSelectVariant}
           selectedRegionId={selectedRegionId}
-          setSelectedRegionId={setSelectedRegionId}
+          setSelectedRegionId={handleSelectRegion}
           selectedOfficeId={selectedOfficeId}
-          setSelectedOfficeId={setSelectedOfficeId}
+          setSelectedOfficeId={handleSelectOffice}
           tenants={tenants}
           offices={offices}
           isExamService={isExamService}
           schedules={schedules}
           loadingSchedules={loadingSchedules}
           selectedScheduleId={selectedScheduleId}
-          onSelectSchedule={setSelectedScheduleId}
+          onSelectSchedule={handleSelectSchedule}
           appMode={appMode}
           setAppMode={setAppMode}
           bulkMethod={bulkMethod}
@@ -307,7 +362,7 @@ export function GeneralServiceWizard({
           currentApplicantIndex={currentApplicantIndex}
           setCurrentApplicantIndex={setCurrentApplicantIndex}
           activeApplicant={activeApplicant}
-          updateActiveApplicant={updateActiveApplicant}
+          updateActiveApplicant={handleUpdateActiveApplicant}
           isWeb={isWeb}
 
           onUploadPress={(req: string, file: { name: string; uri: string }) => {
