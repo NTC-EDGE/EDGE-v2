@@ -19,7 +19,7 @@ import {
   SkeletonLoader,
 } from "@edge/ui";
 import { useMyTenantMemberships, parseApiError } from "@edge/api";
-import { useAuth } from "@clerk/expo";
+import { useAuth, useUser } from "@clerk/expo";
 import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
 
 interface RegionSelectionModalProps {
@@ -37,6 +37,17 @@ export function RegionSelectionModal({
   const { width } = useWindowDimensions();
   const isMobile = width < 640;
   const clerkAuth = useAuth();
+  const { user: clerkUser } = useUser();
+
+  const isSuperAdminUser = Boolean(
+    (clerkUser?.primaryEmailAddress?.emailAddress &&
+      (clerkUser.primaryEmailAddress.emailAddress.toLowerCase().includes("superadmin") ||
+       clerkUser.primaryEmailAddress.emailAddress.toLowerCase() === "superadmin@ntcedge.com")) ||
+    (typeof clerkUser?.publicMetadata === "object" &&
+      clerkUser.publicMetadata !== null &&
+      (Reflect.get(clerkUser.publicMetadata, "is_super_admin") === true ||
+       Reflect.get(clerkUser.publicMetadata, "role") === "superadmin"))
+  );
 
   const [token, setToken] = useState<string | null>(null);
   const [selectedRegion, setSelectedRegion] = useState<string>("");
@@ -109,9 +120,21 @@ export function RegionSelectionModal({
               <Lucide name="map-pin" size={22} color={isDark ? colors.brand.primary : colors.brand[800]} />
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={[styles.modalTitle, { color: colors.text }]}>Select Regional Office</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <Text style={[styles.modalTitle, { color: colors.text }]}>Select Regional Office</Text>
+                {isSuperAdminUser ? (
+                  <View style={[styles.superAdminBadge, { backgroundColor: isDark ? "rgba(59, 130, 246, 0.2)" : "rgba(37, 99, 235, 0.1)" }]}>
+                    <Lucide name="shield" size={12} color={isDark ? colors.brand.primary : colors.brand[800]} />
+                    <Text style={[styles.superAdminBadgeText, { color: isDark ? colors.brand.primary : colors.brand[800] }]}>
+                      SuperAdmin
+                    </Text>
+                  </View>
+                ) : null}
+              </View>
               <Text style={[styles.modalSubtitle, { color: colors.textMuted }]}>
-                Choose which regional portal session you want to open.
+                {isSuperAdminUser
+                  ? "Select any regional portal session to enter with global authority."
+                  : "Choose which regional portal session you want to open."}
               </Text>
             </View>
           </View>
@@ -171,7 +194,9 @@ export function RegionSelectionModal({
                 </View>
               ) : null}
 
-              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>Your Authorized Regional Offices</Text>
+              <Text style={[styles.fieldLabel, { color: colors.textMuted }]}>
+                {isSuperAdminUser ? "All Regional Offices (Global SuperAdmin Access)" : "Your Authorized Regional Offices"}
+              </Text>
 
               <TouchableOpacity
                 style={[styles.dropdownSelector, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}
@@ -293,6 +318,19 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 20,
     fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  superAdminBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 12,
+  },
+  superAdminBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   modalSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
