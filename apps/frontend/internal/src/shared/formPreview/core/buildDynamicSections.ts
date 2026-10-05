@@ -38,6 +38,7 @@ export function buildDynamicSections(
     isVasCertService = false,
     skipFieldIds = [],
     skipFieldLabels = [],
+    showApplicantCard = true,
   } = options;
 
   const renderedIds = new Set<string>();
@@ -87,7 +88,7 @@ export function buildDynamicSections(
         }
 
         if (
-          isApplicantParticularField(fieldLabel) || isApplicantParticularField(fieldId) ||
+          (showApplicantCard && (isApplicantParticularField(fieldLabel) || isApplicantParticularField(fieldId))) ||
           isSignatureOrDeclarationField(fieldLabel) || isSignatureOrDeclarationField(fieldId) ||
           isJurisdictionOrVariantField(fieldLabel) || isJurisdictionOrVariantField(fieldId) ||
           isRepeaterSubField(fieldLabel, fieldId)
@@ -149,7 +150,7 @@ export function buildDynamicSections(
       return false;
     }
 
-    if (isApplicantParticularField(label) || isApplicantParticularField(fieldId)) return false;
+    if (showApplicantCard && (isApplicantParticularField(label) || isApplicantParticularField(fieldId))) return false;
     if (isSignatureOrDeclarationField(label) || isSignatureOrDeclarationField(fieldId)) return false;
     if (isJurisdictionOrVariantField(label) || isJurisdictionOrVariantField(fieldId)) return false;
     if (isRepeaterSubField(label, fieldId)) return false;
@@ -164,3 +165,4 @@ export function buildDynamicSections(
 
   return { dynamicSectionsToRender, remainingFields };
 }
+

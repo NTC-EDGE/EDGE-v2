@@ -18,82 +18,27 @@
 export const isUnrelatedSection = (titleOrKey: string): boolean => {
   const lower = titleOrKey.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
-    lower.includes('payment') ||
-    lower.includes('fee') ||
     lower.includes('office use') ||
     lower.includes('official use') ||
     lower.includes('ntc use') ||
-    lower.includes('evaluation') ||
+    lower.includes('for ntc use') ||
+    lower.includes('for official use') ||
+    lower.includes('evaluation note') ||
+    lower.includes('evaluation remark') ||
     lower.includes('processing note') ||
-    lower.includes('personal information') ||
-    lower.includes('personal detail') ||
-    lower.includes('personal data') ||
-    lower.includes('personal particular') ||
-    lower.includes('personal info') ||
-    lower.includes('applicant information') ||
-    lower.includes('applicant detail') ||
-    lower.includes('applicant particular') ||
-    lower.includes('applicant person') ||
-    lower.includes('applicant contact') ||
-    lower.includes('applicant address') ||
-    lower.includes('applicantperson') ||
-    lower.includes('applicantinfo') ||
-    lower.includes('applicant / company details') ||
-    lower.includes('applicant company details') ||
-    lower.includes('applicant & company details') ||
-    lower.includes('applicant details') ||
-    lower.includes('applicants details') ||
-    lower.includes('company details') ||
-    lower.includes('company / corporation details') ||
-    lower.includes('company information') ||
-    lower.includes('corporate details') ||
-    lower.includes('representative details') ||
-    lower.includes('authorized representative') ||
-    lower.includes('basic information') ||
-    lower.includes('basic detail') ||
-    lower.includes('contact information') ||
-    lower.includes('contact detail') ||
-    lower.includes('contact particular') ||
-    lower === 'applicant' ||
-    lower === 'applicantaddress' ||
-    lower === 'representative' ||
-    lower === 'companydetails' ||
-    lower === 'declaration' ||
-    lower === 'declaration of applicant' ||
-    lower === 'acknowledgement' ||
-    lower === 'acknowledgement & applicant signature' ||
-    lower === 'signature' ||
-    lower === 'typeofcertificate' ||
-    lower === 'permittype' ||
-    lower === 'apptype' ||
-    lower === 'applicationtype' ||
-    lower === 'typeofapplication' ||
-    lower === 'type of certificate / application' ||
-    lower === 'type of application & permit category' ||
-    lower === 'type of application & category' ||
-    lower === 'type of certificate' ||
-    lower === 'type of application' ||
-    lower === 'application type' ||
-    lower === 'permit type / application type' ||
-    lower === 'permit type' ||
-    lower === 'permit category'
+    lower.includes('cashier use') ||
+    lower.includes('accounting use')
   );
 };
 
 /**
- * Returns true for amateur-cert-specific sections that should be skipped
- * (employment, class of station, club, equipment).
+ * Formerly dropped amateur-cert-specific sections. Preserved as false
+ * so all equipment, station, club, and permit sections are displayed.
  */
-export const isRemovedAmateurSection = (titleOrKey: string): boolean => {
-  const lower = titleOrKey.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
-  return (
-    lower.includes('employment') ||
-    lower.includes('class of station') ||
-    lower.includes('classofstation') ||
-    lower.includes('club') ||
-    lower.includes('equipment')
-  );
+export const isRemovedAmateurSection = (_titleOrKey: string): boolean => {
+  return false;
 };
+
 
 // ─── Field-level predicates ───────────────────────────────────────────────────
 
@@ -119,7 +64,7 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     return true;
   }
 
-  // These keywords indicate service-specific (non-applicant) content — don't suppress
+  // These keywords indicate service-specific / technical / equipment / address details — don't suppress
   if (
     lower.includes('dealer') ||
     lower.includes('seller') ||
@@ -138,7 +83,30 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('seminar') ||
     lower.includes('known') ||
     lower.includes('trade') ||
-    lower.includes('specify')
+    lower.includes('specify') ||
+    lower.includes('frequency') ||
+    lower.includes('power') ||
+    lower.includes('serial') ||
+    lower.includes('model') ||
+    lower.includes('make') ||
+    lower.includes('call sign') ||
+    lower.includes('callsign') ||
+    lower.includes('class') ||
+    lower.includes('license') ||
+    lower.includes('permit') ||
+    lower.includes('certificate') ||
+    lower.includes('antenna') ||
+    lower.includes('emission') ||
+    lower.includes('bandwidth') ||
+    lower.includes('remarks') ||
+    lower.includes('street') ||
+    lower.includes('barangay') ||
+    lower.includes('city') ||
+    lower.includes('municipality') ||
+    lower.includes('province') ||
+    lower.includes('region') ||
+    lower.includes('zip') ||
+    lower.includes('postal')
   ) {
     return false;
   }
@@ -179,20 +147,7 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower === 'sex' ||
     lower === 'gender' ||
     lower.includes('sex / gender') ||
-    lower.includes('gender') ||
-    lower.includes('address') ||
-    lower.includes('street') ||
-    lower.includes('barangay') ||
-    lower.includes('city') ||
-    lower.includes('municipality') ||
-    lower.includes('province') ||
-    lower.includes('region') ||
-    lower.includes('zip') ||
-    lower.includes('postal') ||
-    lower.includes('sec / dti') ||
-    lower.includes('sec/dti') ||
-    lower.includes('dti') ||
-    lower.includes('sec')
+    lower.includes('gender')
   );
 };
 
@@ -235,57 +190,12 @@ export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
 
 // ─── Amateur / VAS / Exam-specific predicates ─────────────────────────────────
 
-export const isRemovedAmateurField = (label: string, fieldId: string): boolean => {
-  const lbl = label.toLowerCase();
-  const id = fieldId.toLowerCase();
-  return (
-    lbl.includes('employment') ||
-    lbl.includes('class of station') ||
-    lbl.includes('classofstation') ||
-    lbl.includes('club') ||
-    lbl.includes('equipment') ||
-    lbl.includes('permit') ||
-    lbl.includes('license type') ||
-    lbl.includes('certificate type') ||
-    lbl.includes('nationality') ||
-    lbl.includes('citizenship') ||
-    lbl.includes('civil status') ||
-    lbl.includes('civilstatus') ||
-    id.includes('employment') ||
-    id.includes('classofstation') ||
-    id.includes('club') ||
-    id.includes('equipment') ||
-    id.includes('permittype') ||
-    id.includes('nationality') ||
-    id.includes('civilstatus')
-  );
+export const isRemovedAmateurField = (_label: string, _fieldId: string): boolean => {
+  return false;
 };
 
-export const isRemovedVasField = (label: string, fieldId: string): boolean => {
-  const lbl = label.toLowerCase();
-  const id = fieldId.toLowerCase();
-  return (
-    lbl.includes('radio operator') ||
-    lbl.includes('employment') ||
-    lbl.includes('class of station') ||
-    lbl.includes('classofstation') ||
-    lbl.includes('club') ||
-    lbl.includes('equipment') ||
-    lbl.includes('permit') ||
-    lbl.includes('license type') ||
-    lbl.includes('certificate type') ||
-    lbl.includes('exam') ||
-    lbl.includes('rating') ||
-    lbl.includes('seminar') ||
-    lbl.includes('invoice') ||
-    lbl.includes('device') ||
-    id.includes('radiooperator') ||
-    id.includes('employment') ||
-    id.includes('classofstation') ||
-    id.includes('club') ||
-    id.includes('equipment') ||
-    id.includes('permittype')
-  );
+export const isRemovedVasField = (_label: string, _fieldId: string): boolean => {
+  return false;
 };
 
 export const isExamEducationField = (label: string, fieldId: string): boolean => {
@@ -326,46 +236,13 @@ export const isExamAssistanceField = (label: string, fieldId: string): boolean =
 // ─── Repeater subfield predicate ──────────────────────────────────────────────
 
 /**
- * Returns true for individual device/antenna/serial number fields that are
- * rendered inside a repeater table and should not appear as standalone rows.
+ * Returns false so that individual device/antenna/serial number fields that are
+ * entered by the applicant are preserved and rendered in the preview summary.
  */
-export const isRepeaterSubField = (label: string, fieldId: string): boolean => {
-  const lbl = label.toLowerCase().trim();
-  const id = fieldId.toLowerCase().trim();
-  return (
-    id === 'fd000000-0000-0000-0000-000000000084' ||
-    id === 'fd000000-0000-0000-0000-000000000085' ||
-    id === 'fd000000-0000-0000-0000-000000000087' ||
-    id === 'serialnumber' ||
-    id === 'serial_number' ||
-    id === 'serialnumbers' ||
-    id === 'frequencyrange' ||
-    id === 'frequency_range' ||
-    id === 'poweroutput' ||
-    id === 'power_output' ||
-    id === 'make' ||
-    id === 'model' ||
-    id === 'typemodel' ||
-    id === 'maketypemodel' ||
-    id === 'devicetype' ||
-    id.includes('devicesdetails') ||
-    id.includes('equipmentdetails') ||
-    id.includes('antennadetails') ||
-    id.includes('radioofficers') ||
-    lbl === 'serial number' ||
-    lbl === 'serial numbers' ||
-    lbl === 'serial number(s)' ||
-    lbl === 'frequency range' ||
-    lbl === 'power output' ||
-    lbl === 'make' ||
-    lbl === 'type/model' ||
-    lbl === 'make / type / model' ||
-    lbl === 'device / equipment type' ||
-    lbl === 'device type' ||
-    lbl.includes('registered devices') ||
-    lbl.includes('devices details')
-  );
+export const isRepeaterSubField = (_label: string, _fieldId: string): boolean => {
+  return false;
 };
+
 
 // ─── Value filter ─────────────────────────────────────────────────────────────
 

@@ -117,8 +117,9 @@ export function BaseApplicationPreview({
       isVasCertService: isVas,
       skipFieldIds: extension?.skipFieldIds,
       skipFieldLabels: extension?.skipFieldLabels,
+      showApplicantCard,
     });
-  }, [form, formFieldValues, isAmateur, isVas, extension]);
+  }, [form, formFieldValues, isAmateur, isVas, extension, showApplicantCard]);
 
   const examEducationFields = useMemo(() => {
     if (!isExam) return [];
@@ -131,13 +132,14 @@ export function BaseApplicationPreview({
   }, [isExam, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
-    if (isExam) return [];
+    if (!isExam) return remainingFields;
     return remainingFields.filter(
       (f) =>
-        !examEducationFields.some((ef) => ef.fieldId === f.fieldId) &&
-        !examAssistanceFields.some((af) => af.fieldId === f.fieldId)
+        !examEducationFields.some((ef) => ef.fieldId === f.fieldId || ef.fieldLabel === f.fieldLabel) &&
+        !examAssistanceFields.some((af) => af.fieldId === f.fieldId || af.fieldLabel === f.fieldLabel)
     );
   }, [isExam, remainingFields, examEducationFields, examAssistanceFields]);
+
 
   const resolvedSig =
     signatureEntry ||

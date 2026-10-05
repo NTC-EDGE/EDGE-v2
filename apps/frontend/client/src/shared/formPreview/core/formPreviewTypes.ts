@@ -124,9 +124,11 @@ export interface BuildDynamicSectionsOptions {
   isVasCertService?: boolean;
   skipFieldIds?: string[];
   skipFieldLabels?: string[];
+  showApplicantCard?: boolean;
 }
 
 export interface BuildDynamicSectionsResult {
   dynamicSectionsToRender: DynamicSectionGroup[];
   remainingFields: FormFieldValue[];
 }
+
