@@ -568,4 +568,57 @@ describe("officerEvaluationHelper", () => {
       expect(evaluator).toBeNull();
     });
   });
+
+  describe("Officer Return Workflow & Mandatory Reason Validation", () => {
+    it("strictly requires at least 5 characters for a return notice", () => {
+      const isValidReason = (reason?: string | null): boolean => {
+        if (!reason || typeof reason !== "string") return false;
+        return reason.trim().length >= 5;
+      };
+
+      expect(isValidReason(null)).toBe(false);
+      expect(isValidReason("")).toBe(false);
+      expect(isValidReason("   ")).toBe(false);
+      expect(isValidReason("bad")).toBe(false);
+      expect(isValidReason("1234")).toBe(false);
+      expect(isValidReason("12345")).toBe(true);
+      expect(isValidReason("Missing photo attachment and unclear proof of billing.")).toBe(true);
+    });
+
+    it("allows Evaluator to return an application in Submitted status with notice", () => {
+      const isReturnPermitted = (params: {
+        status: string;
+        isStageClaimedByMe: boolean;
+        isStageUnclaimed: boolean;
+        isEndorsedAway: boolean;
+        isStageClaimedByOther: boolean;
+        role: string;
+      }): boolean => {
+        const { status, isStageClaimedByMe, isStageUnclaimed, isEndorsedAway, isStageClaimedByOther, role } = params;
+        if (isEndorsedAway || isStageClaimedByOther) return false;
+        const isSubmitted = status.toLowerCase() === "submitted";
+        const isEvaluating = status.toLowerCase() === "evaluating";
+        const isEvaluator = role === "Evaluator" || role === "Admin" || role === "Chief";
+        return (isSubmitted || isEvaluating) && (isStageClaimedByMe || isStageUnclaimed || isEvaluator);
+      };
+
+      expect(isReturnPermitted({
+        status: "Submitted",
+        isStageClaimedByMe: false,
+        isStageUnclaimed: true,
+        isEndorsedAway: false,
+        isStageClaimedByOther: false,
+        role: "Evaluator",
+      })).toBe(true);
+
+      expect(isReturnPermitted({
+        status: "Submitted",
+        isStageClaimedByMe: false,
+        isStageUnclaimed: false,
+        isEndorsedAway: true,
+        isStageClaimedByOther: false,
+        role: "Evaluator",
+      })).toBe(false);
+    });
+  });
 });

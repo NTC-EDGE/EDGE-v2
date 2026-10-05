@@ -23,6 +23,7 @@ export interface ConfirmationModalProps {
   confirmText?: string;
   cancelText?: string;
   isLoading?: boolean;
+  confirmDisabled?: boolean;
   children?: React.ReactNode;
   onConfirm: () => void | Promise<void>;
   onCancel: () => void;
@@ -38,6 +39,7 @@ export function ConfirmationModal({
   confirmText = 'Confirm',
   cancelText = 'Cancel',
   isLoading = false,
+  confirmDisabled = false,
   children,
   onConfirm,
   onCancel,
@@ -46,6 +48,8 @@ export function ConfirmationModal({
   const { colors, isDark } = useTheme();
 
   if (!visible) return null;
+
+  const isActionDisabled = isLoading || confirmDisabled;
 
   const defaultIcon: keyof typeof Lucide.glyphMap =
     icon ??
@@ -135,14 +139,14 @@ export function ConfirmationModal({
             </Pressable>
 
             <Pressable
-              disabled={isLoading}
+              disabled={isActionDisabled}
               style={[
                 styles.confirmBtn,
-                { backgroundColor: accentColor },
-                isLoading && { opacity: 0.7 },
-                Platform.select({ web: { cursor: isLoading ? 'auto' : 'pointer' } }),
+                { backgroundColor: confirmDisabled ? (isDark ? colors.neutral[700] : colors.neutral[300]) : accentColor },
+                isActionDisabled && { opacity: 0.6 },
+                Platform.select({ web: { cursor: isActionDisabled ? 'not-allowed' : 'pointer' } as object }),
               ]}
-              onPress={onConfirm}
+              onPress={isActionDisabled ? undefined : onConfirm}
             >
               {isLoading ? (
                 <ActivityIndicator size="small" color={COLORS.neutral.white} />

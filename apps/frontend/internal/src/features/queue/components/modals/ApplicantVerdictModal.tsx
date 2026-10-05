@@ -23,15 +23,33 @@ export function ApplicantVerdictModal({
 }: ApplicantVerdictModalProps) {
   const { colors, isDark } = useTheme();
   const [remarks, setRemarks] = useState(initialRemarks);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setRemarks(initialRemarks);
+    setErrorMessage(null);
   }, [initialRemarks, visible]);
 
   if (!visible || targetVerdict === null) return null;
 
   const isComplete = targetVerdict === 'Complete';
   const isIncomplete = targetVerdict === 'Incomplete';
+  const trimmed = remarks.trim();
+  const canConfirm = !isIncomplete || trimmed.length >= 5;
+
+  const handleConfirm = () => {
+    if (isIncomplete && trimmed.length < 5) {
+      setErrorMessage('Please provide a deficiency or discrepancy reason (minimum 5 characters).');
+      return;
+    }
+    setErrorMessage(null);
+    onConfirm(targetVerdict, trimmed);
+  };
+
+  const handleCancel = () => {
+    setErrorMessage(null);
+    onCancel();
+  };
 
   const title = isComplete
     ? 'Mark Applicant as Complete'
@@ -59,8 +77,9 @@ export function ApplicantVerdictModal({
       subtitle={subtitle}
       variant={variant}
       confirmText={confirmText}
-      onConfirm={() => onConfirm(targetVerdict, remarks.trim())}
-      onCancel={onCancel}
+      confirmDisabled={!canConfirm}
+      onConfirm={handleConfirm}
+      onCancel={handleCancel}
     >
       <View style={styles.inputWrapper}>
         <Text style={[styles.inputLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
@@ -72,7 +91,11 @@ export function ApplicantVerdictModal({
             {
               color: isDark ? colors.neutral[100] : colors.neutral[900],
               backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-              borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+              borderColor: errorMessage !== null
+                ? COLORS.semantic.error
+                : isDark
+                ? colors.neutral[700]
+                : colors.neutral[300],
             },
           ]}
           multiline
@@ -84,9 +107,17 @@ export function ApplicantVerdictModal({
           }
           placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
           value={remarks}
-          onChangeText={setRemarks}
+          onChangeText={(text) => {
+            setRemarks(text);
+            if (errorMessage !== null && (!isIncomplete || text.trim().length >= 5)) {
+              setErrorMessage(null);
+            }
+          }}
           textAlignVertical="top"
         />
+        {errorMessage !== null ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
       </View>
     </ConfirmationModal>
   );
