@@ -209,10 +209,6 @@ export interface SerializedApplicantPayload {
   formFieldValues: FormFieldValuePayload[];
 }
 
-export function isApplicantBiographicalOrSubmissionField(_fieldIdOrLabel: string): boolean {
-  return false;
-}
-
 export function serializeCertificateApplicant(
   app: GeneralApplicantData,
   _service: NTCService,
