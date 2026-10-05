@@ -14,6 +14,8 @@ import {
   ServiceVariantInfo,
   ServiceVariantElementInfo,
   initialGeneralApplicant,
+  isRequirementMandatory,
+  isRequirementUploaded,
 } from "../hooks/useGeneralServiceWizard";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
@@ -152,6 +154,79 @@ export function GeneralBulkApplicationFlow({
   // ── Validation ─────────────────────────────────────────────────────────────
   const handleFilingDetailsNext = () => {
     const errors: Record<string, string> = {};
+
+    // 1. Validate Standard Applicant Particulars (ApplicantInformationFormSection)
+    const isCompany = activeApplicant?.applicantType === "company";
+
+    if (isCompany) {
+      if (!activeApplicant?.companyName || activeApplicant.companyName.trim() === "") {
+        errors.companyName = "Registered Business / Company Name is required.";
+      }
+      if (!activeApplicant?.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") {
+        errors.representativeFirstName = "Representative First Name is required.";
+      }
+      if (!activeApplicant?.representativeLastName || activeApplicant.representativeLastName.trim() === "") {
+        errors.representativeLastName = "Representative Last Name is required.";
+      }
+      if (!activeApplicant?.representativePosition || activeApplicant.representativePosition.trim() === "") {
+        errors.representativePosition = "Representative Position is required.";
+      }
+    } else {
+      if (!activeApplicant?.firstName || activeApplicant.firstName.trim() === "") {
+        errors.firstName = "First Name is required.";
+      }
+      if (!activeApplicant?.lastName || activeApplicant.lastName.trim() === "") {
+        errors.lastName = "Last Name is required.";
+      }
+      if (!activeApplicant?.birthMonth || activeApplicant.birthMonth.trim() === "") {
+        errors.birthMonth = "Birth Month is required.";
+      }
+      if (!activeApplicant?.birthDay || activeApplicant.birthDay.trim() === "") {
+        errors.birthDay = "Birth Day is required.";
+      }
+      if (!activeApplicant?.birthYear || activeApplicant.birthYear.trim() === "") {
+        errors.birthYear = "Birth Year is required.";
+      }
+      if (!activeApplicant?.sex || activeApplicant.sex.trim() === "") {
+        errors.sex = "Sex is required.";
+      }
+      if (!activeApplicant?.civilStatus || activeApplicant.civilStatus.trim() === "") {
+        errors.civilStatus = "Civil Status is required.";
+      }
+    }
+
+    const emailErr = validateEmailAddress(activeApplicant?.email);
+    if (emailErr) {
+      errors.email = emailErr;
+    }
+
+    const contactErr = validateContactNumber(activeApplicant?.contactNo);
+    if (contactErr) {
+      errors.contactNo = contactErr;
+    }
+
+    if (!activeApplicant?.region || activeApplicant.region.trim() === "") {
+      errors.region = "Region is required.";
+    }
+    if (!activeApplicant?.province || activeApplicant.province.trim() === "") {
+      errors.province = "Province is required.";
+    }
+    if (!activeApplicant?.city || activeApplicant.city.trim() === "") {
+      errors.city = "City / Municipality is required.";
+    }
+    if (!activeApplicant?.barangay || activeApplicant.barangay.trim() === "") {
+      errors.barangay = "Barangay is required.";
+    }
+    const streetAddr = (activeApplicant?.street || activeApplicant?.address || "").trim();
+    if (streetAddr === "") {
+      errors.street = "Street Address / Unit No. is required.";
+      errors.address = "Street Address / Unit No. is required.";
+    }
+
+    if (!activeApplicant?.signatureUrl || activeApplicant.signatureUrl.trim() === "") {
+      errors.signatureUrl = "Digital Signature is required.";
+      errors.signature = "Digital Signature is required.";
+    }
 
     if (dynamicRequiredFieldIds && dynamicRequiredFieldIds.length > 0) {
       const fieldValues = activeApplicant?.formFieldValues || [];
@@ -384,15 +459,6 @@ export function GeneralBulkApplicationFlow({
           }
         }
       });
-    } else {
-      if (!activeApplicant?.firstName || activeApplicant.firstName.trim() === "") errors.firstName = "First Name is required.";
-      if (!activeApplicant?.lastName || activeApplicant.lastName.trim() === "") errors.lastName = "Last Name is required.";
-
-      const emailErr = validateEmailAddress(activeApplicant?.email);
-      if (emailErr) errors.email = emailErr;
-
-      const contactErr = validateContactNumber(activeApplicant?.contactNo);
-      if (contactErr) errors.contactNo = contactErr;
     }
 
     if (Object.keys(errors).length > 0) {
@@ -408,6 +474,45 @@ export function GeneralBulkApplicationFlow({
   };
 
   const handleDocumentUploadNext = () => {
+    const effectiveRequirements: Array<ServiceRequirementItem | string> =
+      variantRequirements && variantRequirements.length > 0
+        ? variantRequirements
+        : service.requirements && service.requirements.length > 0
+        ? service.requirements
+        : [];
+
+    const mandatoryList = effectiveRequirements
+      .map((req, idx) => ({ req, idx }))
+      .filter(({ req }) => isRequirementMandatory(req));
+
+    if (mandatoryList.length > 0) {
+      const missingMandatory = mandatoryList.filter(
+        ({ req, idx }) => !isRequirementUploaded(req, idx, activeApplicant.uploads)
+      );
+
+      if (missingMandatory.length > 0) {
+        const step4Errors: Record<string, string> = {};
+        const missingTitles = missingMandatory.map(({ req, idx }) => {
+          const title = typeof req === "string" ? req.replace(/\*$/, "").trim() : (req.name || req.label || req.title || `Requirement #${idx + 1}`).replace(/\*$/, "").trim();
+          const reqId = typeof req === "object" && req !== null && req.id ? String(req.id).trim() : "";
+          const primaryKey = reqId ? `req-${reqId}` : `req-${idx}`;
+          step4Errors[primaryKey] = `${title} is required.`;
+          if (reqId) step4Errors[reqId] = `${title} is required.`;
+          step4Errors[`req-${idx}`] = `${title} is required.`;
+          step4Errors[title] = `${title} is required.`;
+          return title;
+        });
+
+        setFormErrors(step4Errors);
+        Alert.alert(
+          "Mandatory Attachment(s) Required",
+          `Please attach the following required document(s) before proceeding:\n\n• ${missingTitles.join("\n• ")}`
+        );
+        return;
+      }
+    }
+
+    setFormErrors({});
     onSaveDraft?.();
     if (currentApplicantIndex < applicants.length - 1) {
       setCurrentApplicantIndex(currentApplicantIndex + 1);
@@ -532,6 +637,7 @@ export function GeneralBulkApplicationFlow({
               delete cur[req];
               updateActiveApplicant({ uploads: cur });
             }}
+            errors={formErrors}
           />
         )}
       </ScrollView>

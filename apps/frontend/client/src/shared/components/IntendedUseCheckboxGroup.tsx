@@ -116,7 +116,7 @@ export function IntendedUseCheckboxGroup({
     selectedList.some((s) => s.startsWith('Others:') || (!AVAILABLE_INTENDED_USES.includes(s) && !s.startsWith('Storage at')));
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, error !== undefined && error.length > 0 ? styles.cardContainerError : null]}>
       <View style={styles.headerRow}>
         <Text style={styles.headerLabel}>
           {label} {required && <Text style={styles.requiredAsterisk}>*</Text>}
@@ -190,6 +190,10 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
     width: '100%',
+  },
+  cardContainerError: {
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
   },
   headerRow: {
     flexDirection: 'row',

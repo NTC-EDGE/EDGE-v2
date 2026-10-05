@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
@@ -7,6 +7,7 @@ import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRe
 import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
@@ -32,6 +33,7 @@ export function GeneralFilingDetailsStep({
   applicants = [],
   currentApplicantIndex = 0,
   setCurrentApplicantIndex,
+  onRequiredFieldsChange,
   errors = {},
   variants = [],
   variantElements = [],
@@ -54,6 +56,87 @@ export function GeneralFilingDetailsStep({
       if (fv.fieldLabel) dynamicValuesRecord[fv.fieldLabel] = fv.value;
     });
   }
+
+  useEffect(() => {
+    if (!form || !form.sections || form.sections.length === 0) {
+      onRequiredFieldsChange?.([]);
+      return;
+    }
+
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const matchedElementItem = variantElements.find((e) => String(e.id) === String(activeApplicant.selectedElementId));
+
+    const evaluationContext: FormEvaluationContext = {
+      variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
+      variantId: activeApplicant.selectedVariantId,
+      variantDescription: matchedVariantItem?.description || matchedVariantItem?.name,
+      elementCodes: matchedElementItem?.code
+        ? [matchedElementItem.code]
+        : variantElements
+            .map((e) => (typeof e.code === "string" ? e.code : undefined))
+            .filter((c): c is string => Boolean(c)),
+      applicantType: activeApplicant.applicantType,
+      formValues: dynamicValuesRecord,
+    };
+
+    const requiredFieldIds: string[] = [];
+
+    form.sections.forEach((sec) => {
+      if (!sec) return;
+      const k = (sec.key || sec.id || "").trim().toLowerCase();
+      const t = (sec.title || "").trim().toLowerCase();
+      if (
+        k === "declaration" ||
+        t.includes("declaration") ||
+        k === "payment" ||
+        t.includes("payment") ||
+        k === "applicant" ||
+        k === "applicantperson" ||
+        k === "applicantparticulars" ||
+        k === "applicantaddress" ||
+        k === "applicantcontact"
+      ) {
+        return;
+      }
+
+      if (!evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext)) {
+        return;
+      }
+
+      (sec.fields || []).forEach((field) => {
+        if (!field || !field.isRequired) return;
+
+        const rawTargetId = field.fieldId || field.id;
+        const labelLower = (field.label || "").toLowerCase();
+        if (
+          rawTargetId?.toLowerCase().includes("declaration") ||
+          labelLower.includes("declaration") ||
+          labelLower.includes("i hereby declare") ||
+          rawTargetId?.toLowerCase().includes("payment") ||
+          labelLower.includes("official receipt") ||
+          labelLower.includes("amount paid")
+        ) {
+          return;
+        }
+
+        if (!evaluateVisibilityCondition(field.visibilityCondition, evaluationContext)) {
+          return;
+        }
+
+        if (rawTargetId) {
+          requiredFieldIds.push(rawTargetId);
+        }
+      });
+    });
+
+    onRequiredFieldsChange?.(requiredFieldIds);
+  }, [
+    form,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedElementId,
+    activeApplicant.applicantType,
+    onRequiredFieldsChange,
+  ]);
 
   const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
     updateActiveApplicant((prevApp) => {

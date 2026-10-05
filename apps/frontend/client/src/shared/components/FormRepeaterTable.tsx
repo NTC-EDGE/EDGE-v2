@@ -72,7 +72,13 @@ export function FormRepeaterTable({
   const btnLabel = addButtonLabel || (isPurchaseClassOnly ? "Add Class of Station" : isDeviceTable ? "Add Another Equipment Device Group" : isEquipmentsTable ? "Add Another Equipment (Make/Type/Model)" : `Add ${cleanLabel}`);
 
   return (
-    <View style={[styles.container, isEquipmentsTable && styles.containerMinimal]}>
+    <View
+      style={[
+        styles.container,
+        isEquipmentsTable && styles.containerMinimal,
+        error !== undefined && error.length > 0 ? styles.containerError : null,
+      ]}
+    >
       <View style={styles.headerRow}>
         <View style={styles.titleWrapper}>
           <View style={styles.iconBadge}>

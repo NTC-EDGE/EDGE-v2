@@ -95,9 +95,12 @@ export function handleWizardNext({
   setFormErrors,
 }: NavigationContext) {
   if (step === 1) {
-    if (!selectedRegionId || !selectedOfficeId) {
-      Alert.alert("Warning", "Please select a region and field office.");
-      return;
+    const step1Errors: Record<string, string> = {};
+    if (!selectedRegionId) {
+      step1Errors.selectedRegionId = "Please select an NTC Region.";
+    }
+    if (!selectedOfficeId) {
+      step1Errors.selectedOfficeId = "Please select an NTC Field Office.";
     }
     if (isExamService) {
       if (schedules.length === 0) {
@@ -108,17 +111,21 @@ export function handleWizardNext({
         return;
       }
       if (!selectedScheduleId) {
-        Alert.alert(
-          "Exam Schedule Required",
-          "Please select an Exam Schedule date before you can proceed with the application."
-        );
-        return;
+        step1Errors.selectedScheduleId = "Please select an Exam Schedule date.";
       }
     }
+    if (Object.keys(step1Errors).length > 0) {
+      setFormErrors?.(step1Errors);
+      Alert.alert("Required Fields Missing", "Please select all required fields highlighted in red before proceeding.");
+      return;
+    }
+    setFormErrors?.({});
     setStep(2);
     return;
   }
   if (step === 2) {
+    const step2Errors: Record<string, string> = {};
+
     const serviceTitle = (service.title || "").toLowerCase();
     const isCompanyCertService =
       serviceTitle.includes("tvro") ||
@@ -142,44 +149,43 @@ export function handleWizardNext({
       ));
 
     const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-    const isIndividualVar = matchedVariant?.isIndividual !== undefined ? matchedVariant.isIndividual : !isCompanyCertService;
 
     if (activeApplicant.applicantType === "company") {
       if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
-        Alert.alert("Required Field", "Please enter the Company / Organization Name before proceeding.");
-        return;
+        step2Errors.companyName = "Please enter the Company / Organization Name.";
       }
       if (
         (!activeApplicant.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") &&
         (!activeApplicant.representativeLastName || activeApplicant.representativeLastName.trim() === "") &&
         (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "")
       ) {
-        Alert.alert("Required Field", "Please enter the Authorized Representative Details (First Name and Last Name) before proceeding.");
-        return;
-      }
-      if (!activeApplicant.representativeFirstName && !activeApplicant.representativeName) {
-        Alert.alert("Required Field", "Please enter the Authorized Representative First Name before proceeding.");
-        return;
-      }
-      if (!activeApplicant.representativeLastName && !activeApplicant.representativeName) {
-        Alert.alert("Required Field", "Please enter the Authorized Representative Last Name before proceeding.");
-        return;
+        step2Errors.representativeFirstName = "Please enter the Authorized Representative First Name.";
+        step2Errors.representativeLastName = "Please enter the Authorized Representative Last Name.";
+      } else {
+        if (!activeApplicant.representativeFirstName && !activeApplicant.representativeName) {
+          step2Errors.representativeFirstName = "Please enter the Authorized Representative First Name.";
+        }
+        if (!activeApplicant.representativeLastName && !activeApplicant.representativeName) {
+          step2Errors.representativeLastName = "Please enter the Authorized Representative Last Name.";
+        }
       }
     }
 
     if (variants && variants.length > 0 && (!activeApplicant.selectedVariantId || activeApplicant.selectedVariantId.trim() === "")) {
-      Alert.alert("Required Selection", "Please select an Application Variant / Service Type before proceeding.");
-      return;
+      step2Errors.selectedVariantId = "Please select an Application Variant / Service Type.";
     }
     const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
     const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
 
     // Require selection of service variant element if the variant has available elements
     if (variantElements && variantElements.length > 0 && !isLifetimeSupplementary && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
-      Alert.alert(
-        "Required Selection",
-        "Please select a Station Class / Radio Element for the chosen service variant before proceeding."
-      );
+      step2Errors.selectedElementId = "Please select a Station Class / Radio Element.";
+    }
+
+    if (Object.keys(step2Errors).length > 0) {
+      setFormErrors?.(step2Errors);
+      const firstError = Object.values(step2Errors)[0];
+      Alert.alert("Required Selection Missing", firstError || "Please fill in all required fields highlighted in red before proceeding.");
       return;
     }
 
@@ -188,14 +194,88 @@ export function handleWizardNext({
       Alert.alert("Warning", "Please select an application mode.");
       return;
     }
+    setFormErrors?.({});
     setStep(3);
     return;
   }
   if (step === 3) {
+    const fieldErrors: Record<string, string> = {};
+
+    // 1. Validate Standard Applicant Particulars (ApplicantInformationFormSection)
+    const isCompany = activeApplicant.applicantType === "company";
+
+    if (isCompany) {
+      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+        fieldErrors.companyName = "Registered Business / Company Name is required.";
+      }
+      if (!activeApplicant.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") {
+        fieldErrors.representativeFirstName = "Representative First Name is required.";
+      }
+      if (!activeApplicant.representativeLastName || activeApplicant.representativeLastName.trim() === "") {
+        fieldErrors.representativeLastName = "Representative Last Name is required.";
+      }
+      if (!activeApplicant.representativePosition || activeApplicant.representativePosition.trim() === "") {
+        fieldErrors.representativePosition = "Representative Position is required.";
+      }
+    } else {
+      if (!activeApplicant.firstName || activeApplicant.firstName.trim() === "") {
+        fieldErrors.firstName = "First Name is required.";
+      }
+      if (!activeApplicant.lastName || activeApplicant.lastName.trim() === "") {
+        fieldErrors.lastName = "Last Name is required.";
+      }
+      if (!activeApplicant.birthMonth || activeApplicant.birthMonth.trim() === "") {
+        fieldErrors.birthMonth = "Birth Month is required.";
+      }
+      if (!activeApplicant.birthDay || activeApplicant.birthDay.trim() === "") {
+        fieldErrors.birthDay = "Birth Day is required.";
+      }
+      if (!activeApplicant.birthYear || activeApplicant.birthYear.trim() === "") {
+        fieldErrors.birthYear = "Birth Year is required.";
+      }
+      if (!activeApplicant.sex || activeApplicant.sex.trim() === "") {
+        fieldErrors.sex = "Sex is required.";
+      }
+      if (!activeApplicant.civilStatus || activeApplicant.civilStatus.trim() === "") {
+        fieldErrors.civilStatus = "Civil Status is required.";
+      }
+    }
+
+    const emailErr = validateEmailAddress(activeApplicant.email);
+    if (emailErr) {
+      fieldErrors.email = emailErr;
+    }
+
+    const contactErr = validateContactNumber(activeApplicant.contactNo);
+    if (contactErr) {
+      fieldErrors.contactNo = contactErr;
+    }
+
+    if (!activeApplicant.region || activeApplicant.region.trim() === "") {
+      fieldErrors.region = "Region is required.";
+    }
+    if (!activeApplicant.province || activeApplicant.province.trim() === "") {
+      fieldErrors.province = "Province is required.";
+    }
+    if (!activeApplicant.city || activeApplicant.city.trim() === "") {
+      fieldErrors.city = "City / Municipality is required.";
+    }
+    if (!activeApplicant.barangay || activeApplicant.barangay.trim() === "") {
+      fieldErrors.barangay = "Barangay is required.";
+    }
+    const streetAddr = (activeApplicant.street || activeApplicant.address || "").trim();
+    if (streetAddr === "") {
+      fieldErrors.street = "Street Address / Unit No. is required.";
+      fieldErrors.address = "Street Address / Unit No. is required.";
+    }
+
+    if (!activeApplicant.signatureUrl || activeApplicant.signatureUrl.trim() === "") {
+      fieldErrors.signatureUrl = "Digital Signature is required.";
+      fieldErrors.signature = "Digital Signature is required.";
+    }
+
     const hasDynamicForm =
       dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
-
-    const fieldErrors: Record<string, string> = {};
 
     if (hasDynamicForm) {
       const fieldValues = activeApplicant.formFieldValues || [];
@@ -568,15 +648,6 @@ export function handleWizardNext({
           }
         }
       });
-    } else {
-      if (!activeApplicant.firstName || activeApplicant.firstName.trim() === "") fieldErrors.firstName = "First Name is required.";
-      if (!activeApplicant.lastName || activeApplicant.lastName.trim() === "") fieldErrors.lastName = "Last Name is required.";
-      
-      const emailErr = validateEmailAddress(activeApplicant.email);
-      if (emailErr) fieldErrors.email = emailErr;
-
-      const contactErr = validateContactNumber(activeApplicant.contactNo);
-      if (contactErr) fieldErrors.contactNo = contactErr;
     }
 
     if (Object.keys(fieldErrors).length > 0) {
@@ -617,10 +688,19 @@ export function handleWizardNext({
     );
 
     if (missingMandatory.length > 0) {
+      const step4Errors: Record<string, string> = {};
       const missingTitles = missingMandatory.map(({ req, idx }) => {
-        if (typeof req === "string") return req.replace(/\*$/, "").trim();
-        return (req.name || req.label || req.title || `Requirement #${idx + 1}`).replace(/\*$/, "").trim();
+        const title = typeof req === "string" ? req.replace(/\*$/, "").trim() : (req.name || req.label || req.title || `Requirement #${idx + 1}`).replace(/\*$/, "").trim();
+        const reqId = typeof req === "object" && req !== null && req.id ? String(req.id).trim() : "";
+        const primaryKey = reqId ? `req-${reqId}` : `req-${idx}`;
+        step4Errors[primaryKey] = `${title} is required.`;
+        if (reqId) step4Errors[reqId] = `${title} is required.`;
+        step4Errors[`req-${idx}`] = `${title} is required.`;
+        step4Errors[title] = `${title} is required.`;
+        return title;
       });
+
+      setFormErrors?.(step4Errors);
 
       Alert.alert(
         "Mandatory Attachment(s) Required",
@@ -629,6 +709,7 @@ export function handleWizardNext({
       return;
     }
 
+    setFormErrors?.({});
     setStep(5);
     return;
   }

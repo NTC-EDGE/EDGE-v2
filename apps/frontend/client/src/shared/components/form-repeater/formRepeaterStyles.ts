@@ -11,6 +11,10 @@ export const styles = StyleSheet.create({
     padding: 16,
     marginBottom: 16,
   },
+  containerError: {
+    borderColor: "#EF4444",
+    borderWidth: 1.5,
+  },
   containerMinimal: {
     backgroundColor: "transparent",
     borderWidth: 0,

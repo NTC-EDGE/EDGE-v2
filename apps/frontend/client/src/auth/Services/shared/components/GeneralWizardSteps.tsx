@@ -112,6 +112,7 @@ export function GeneralWizardSteps({
           loadingSchedules={loadingSchedules}
           selectedScheduleId={selectedScheduleId}
           onSelectSchedule={onSelectSchedule}
+          errors={errors}
         />
       );
     case 2:
@@ -238,6 +239,7 @@ export function GeneralWizardSteps({
             setApplicants(newApps);
             setCurrentApplicantIndex(0);
           }}
+          errors={errors}
         />
       );
     case 3:
@@ -269,6 +271,7 @@ export function GeneralWizardSteps({
           isWeb={isWeb}
           onUploadPress={onUploadPress}
           onRemoveUpload={onRemoveUpload}
+          errors={errors}
         />
       );
     case 5:

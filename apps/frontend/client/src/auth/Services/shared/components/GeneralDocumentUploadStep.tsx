@@ -23,6 +23,7 @@ interface GeneralDocumentUploadStepProps {
   isWeb: boolean;
   onUploadPress: (req: string, file: { name: string; uri: string }) => void;
   onRemoveUpload: (req: string) => void;
+  errors?: Record<string, string>;
 }
 
 export function GeneralDocumentUploadStep({
@@ -36,6 +37,7 @@ export function GeneralDocumentUploadStep({
   isWeb,
   onUploadPress,
   onRemoveUpload,
+  errors = {},
 }: GeneralDocumentUploadStepProps) {
   const isLifetime =
     (service.title || "").toUpperCase().includes("LIFETIME AMATEUR") ||
@@ -203,6 +205,7 @@ export function GeneralDocumentUploadStep({
         onUpload={onUploadPress}
         onRemove={onRemoveUpload}
         isWeb={isWeb}
+        errors={errors}
       />
     </View>
   );

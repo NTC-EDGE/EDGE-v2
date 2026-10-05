@@ -16,6 +16,7 @@ interface GeneralRegionOfficeStepProps {
   loadingSchedules?: boolean;
   selectedScheduleId?: string | null;
   onSelectSchedule?: (id: string) => void;
+  errors?: Record<string, string>;
 }
 
 export function GeneralRegionOfficeStep({
@@ -30,6 +31,7 @@ export function GeneralRegionOfficeStep({
   loadingSchedules = false,
   selectedScheduleId = null,
   onSelectSchedule,
+  errors = {},
 }: GeneralRegionOfficeStepProps) {
   return (
     <View
@@ -84,6 +86,7 @@ export function GeneralRegionOfficeStep({
         <Select
           placeholder="Select NTC Region..."
           value={selectedRegionId}
+          error={errors?.["selectedRegionId"] || errors?.["region"]}
           onValueChange={(val: string) => {
             setSelectedRegionId(val);
             setSelectedOfficeId("");
@@ -114,6 +117,7 @@ export function GeneralRegionOfficeStep({
         <Select
           placeholder={selectedRegionId ? "Select NTC Field Office..." : "Select Region first..."}
           value={selectedOfficeId}
+          error={errors?.["selectedOfficeId"] || errors?.["office"]}
           onValueChange={setSelectedOfficeId}
           options={offices.map((o) => ({ label: o.name, value: o.id }))}
           iconName="home"
@@ -128,9 +132,9 @@ export function GeneralRegionOfficeStep({
             padding: 16,
             borderRadius: 10,
             borderWidth: 1,
-            borderColor: "#E2E8F0",
+            borderColor: errors?.["selectedScheduleId"] || errors?.["schedule"] ? "#EF4444" : "#E2E8F0",
             borderLeftWidth: 3,
-            borderLeftColor: "#10B981",
+            borderLeftColor: errors?.["selectedScheduleId"] || errors?.["schedule"] ? "#EF4444" : "#10B981",
           }}
         >
           <View
@@ -338,6 +342,12 @@ export function GeneralRegionOfficeStep({
                 );
               })}
             </View>
+          )}
+
+          {(errors?.["selectedScheduleId"] || errors?.["schedule"]) && (
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#EF4444", marginTop: 8 }}>
+              {errors?.["selectedScheduleId"] || errors?.["schedule"]}
+            </Text>
           )}
         </View>
       )}

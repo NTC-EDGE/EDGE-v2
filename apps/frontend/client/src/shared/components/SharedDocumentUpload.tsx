@@ -26,6 +26,7 @@ interface SharedDocumentUploadProps {
   onUpload: (key: string, file: { name: string; uri: string }) => void;
   onRemove: (key: string) => void;
   isWeb: boolean;
+  errors?: Record<string, string>;
 }
 
 export function SharedDocumentUpload({
@@ -34,6 +35,7 @@ export function SharedDocumentUpload({
   onUpload,
   onRemove,
   isWeb,
+  errors = {},
 }: SharedDocumentUploadProps) {
   const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
@@ -218,6 +220,14 @@ export function SharedDocumentUpload({
               const uploadData = safeUploads[req.key];
               const isUploaded = !!uploadData;
               const isSelected = i === activeIndex;
+              const hasReqError = Boolean(
+                !isUploaded &&
+                  errors &&
+                  (errors[req.key] ||
+                    errors[req.label] ||
+                    errors[`req-${i}`] ||
+                    errors[req.label.replace(/\*$/, "").trim()])
+              );
 
               return (
                 <TouchableOpacity
@@ -226,21 +236,23 @@ export function SharedDocumentUpload({
                   style={[
                     styles.reqTab,
                     isSelected && styles.reqTabSelected,
+                    hasReqError && styles.reqTabError,
                   ]}
                 >
                   <Text
                     style={[
                       styles.reqTabText,
                       isSelected && styles.reqTabTextSelected,
+                      hasReqError && styles.reqTabTextError,
                     ]}
                   >
                     {i + 1}. {req.label}
                     {req.required && <Text style={styles.asterisk}>*</Text>}
                   </Text>
                   <Icon
-                    name={isUploaded ? "check-circle" : "circle"}
+                    name={isUploaded ? "check-circle" : hasReqError ? "alert-circle" : "circle"}
                     size={18}
-                    color={isUploaded ? COLORS.semantic.success : COLORS.neutral[300]}
+                    color={isUploaded ? COLORS.semantic.success : hasReqError ? COLORS.semantic.error : COLORS.neutral[300]}
                   />
                 </TouchableOpacity>
               );
@@ -266,6 +278,24 @@ export function SharedDocumentUpload({
                 extraHint.toLowerCase() === activeReq.label.toLowerCase() ||
                 activeReq.label.toLowerCase().includes(extraHint.toLowerCase()) ||
                 extraHint.toLowerCase().includes(activeReq.label.toLowerCase());
+
+              const hasActiveReqError = Boolean(
+                activeReq &&
+                  !uploadData &&
+                  errors &&
+                  (errors[activeReq.key] ||
+                    errors[activeReq.label] ||
+                    errors[`req-${activeIndex}`] ||
+                    errors[activeReq.label.replace(/\*$/, "").trim()])
+              );
+              const activeErrorMessage =
+                hasActiveReqError && errors
+                  ? errors[activeReq.key] ||
+                    errors[activeReq.label] ||
+                    errors[`req-${activeIndex}`] ||
+                    errors[activeReq.label.replace(/\*$/, "").trim()] ||
+                    "This document is required."
+                  : "";
 
               return (
                 <View style={styles.dropzoneContainer}>
@@ -333,59 +363,76 @@ export function SharedDocumentUpload({
                       </View>
                     </View>
                   ) : (
-                    <TouchableOpacity
-                      ref={dropzoneRef}
-                      onPress={() => triggerUpload(activeReq.key)}
-                      style={[
-                        styles.dashedDropzone,
-                        isDraggingOver && styles.dashedDropzoneDragOver,
-                      ]}
-                      activeOpacity={0.85}
-                      {...({
-                        onDragOver: (e: any) => {
-                          if (e?.preventDefault) e.preventDefault();
-                          if (e?.stopPropagation) e.stopPropagation();
-                          if (e?.dataTransfer) e.dataTransfer.dropEffect = "copy";
-                          setIsDraggingOver(true);
-                        },
-                        onDragEnter: (e: any) => {
-                          if (e?.preventDefault) e.preventDefault();
-                          if (e?.stopPropagation) e.stopPropagation();
-                          setIsDraggingOver(true);
-                        },
-                        onDragLeave: (e: any) => {
-                          if (e?.preventDefault) e.preventDefault();
-                          if (e?.stopPropagation) e.stopPropagation();
-                          setIsDraggingOver(false);
-                        },
-                        onDrop: (e: any) => {
-                          if (e?.preventDefault) e.preventDefault();
-                          if (e?.stopPropagation) e.stopPropagation();
-                          setIsDraggingOver(false);
-                          if (e?.dataTransfer?.files) {
-                            handleFileDrop(e.dataTransfer.files, activeReq.key);
-                          }
-                        },
-                      } as any)}
-                    >
-                      <Icon
-                        name={isDraggingOver ? "download-cloud" : "upload-cloud"}
-                        size={48}
-                        color={isDraggingOver ? "#2563EB" : COLORS.brand[700]}
-                        style={{ marginBottom: 12 }}
-                      />
-                      <Text
+                    <>
+                      <TouchableOpacity
+                        ref={dropzoneRef}
+                        onPress={() => triggerUpload(activeReq.key)}
                         style={[
-                          styles.uploadTitleText,
-                          isDraggingOver && { color: "#1D4ED8" },
+                          styles.dashedDropzone,
+                          isDraggingOver && styles.dashedDropzoneDragOver,
+                          hasActiveReqError && styles.dashedDropzoneError,
                         ]}
+                        activeOpacity={0.85}
+                        {...({
+                          onDragOver: (e: any) => {
+                            if (e?.preventDefault) e.preventDefault();
+                            if (e?.stopPropagation) e.stopPropagation();
+                            if (e?.dataTransfer) e.dataTransfer.dropEffect = "copy";
+                            setIsDraggingOver(true);
+                          },
+                          onDragEnter: (e: any) => {
+                            if (e?.preventDefault) e.preventDefault();
+                            if (e?.stopPropagation) e.stopPropagation();
+                            setIsDraggingOver(true);
+                          },
+                          onDragLeave: (e: any) => {
+                            if (e?.preventDefault) e.preventDefault();
+                            if (e?.stopPropagation) e.stopPropagation();
+                            setIsDraggingOver(false);
+                          },
+                          onDrop: (e: any) => {
+                            if (e?.preventDefault) e.preventDefault();
+                            if (e?.stopPropagation) e.stopPropagation();
+                            setIsDraggingOver(false);
+                            if (e?.dataTransfer?.files) {
+                              handleFileDrop(e.dataTransfer.files, activeReq.key);
+                            }
+                          },
+                        } as any)}
                       >
-                        {isDraggingOver ? "Release to drop file here" : "Drag & drop or Click to upload"}
-                      </Text>
-                      <Text style={styles.uploadSubtext}>
-                        Supports scanned PDFs, JPEGs, PNGs, or WEBP
-                      </Text>
-                    </TouchableOpacity>
+                        <Icon
+                          name={isDraggingOver ? "download-cloud" : "upload-cloud"}
+                          size={48}
+                          color={hasActiveReqError ? COLORS.semantic.error : isDraggingOver ? "#2563EB" : COLORS.brand[700]}
+                          style={{ marginBottom: 12 }}
+                        />
+                        <Text
+                          style={[
+                            styles.uploadTitleText,
+                            isDraggingOver && { color: "#1D4ED8" },
+                            hasActiveReqError && { color: COLORS.semantic.error },
+                          ]}
+                        >
+                          {isDraggingOver ? "Release to drop file here" : "Drag & drop or Click to upload"}
+                        </Text>
+                        <Text
+                          style={[
+                            styles.uploadSubtext,
+                            hasActiveReqError && { color: COLORS.semantic.error },
+                          ]}
+                        >
+                          Supports scanned PDFs, JPEGs, PNGs, or WEBP
+                        </Text>
+                      </TouchableOpacity>
+                      {hasActiveReqError && activeErrorMessage !== "" && (
+                        <View style={styles.errorBanner}>
+                          <Icon name="alert-circle" size={14} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
+                          <Text style={styles.errorText}>
+                            {activeErrorMessage}
+                          </Text>
+                        </View>
+                      )}
+                    </>
                   )}
                 </View>
               );
@@ -413,9 +460,38 @@ export function SharedDocumentUpload({
               req.label.toLowerCase().includes(extraHint.toLowerCase()) ||
               extraHint.toLowerCase().includes(req.label.toLowerCase());
 
+            const isUploaded = !!uploadData;
+            const hasMobileReqError = Boolean(
+              !isUploaded &&
+                errors &&
+                (errors[req.key] ||
+                  errors[req.label] ||
+                  errors[`req-${i}`] ||
+                  errors[req.label.replace(/\*$/, "").trim()])
+            );
+            const mobileErrorMessage =
+              hasMobileReqError && errors
+                ? errors[req.key] ||
+                  errors[req.label] ||
+                  errors[`req-${i}`] ||
+                  errors[req.label.replace(/\*$/, "").trim()] ||
+                  "This document is required."
+                : "";
+
             return (
-              <View key={req.key} style={styles.mobileCard}>
-                <Text style={styles.mobileCardTitle}>
+              <View
+                key={req.key}
+                style={[
+                  styles.mobileCard,
+                  hasMobileReqError && styles.mobileCardError,
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.mobileCardTitle,
+                    hasMobileReqError && { color: COLORS.semantic.error },
+                  ]}
+                >
                   {i + 1}. {req.label}
                   {req.required && <Text style={styles.asterisk}>*</Text>}
                 </Text>
@@ -478,15 +554,38 @@ export function SharedDocumentUpload({
                     </TouchableOpacity>
                   </View>
                 ) : (
-                  <TouchableOpacity
-                    onPress={() => triggerUpload(req.key)}
-                    style={styles.mobileDashedBtn}
-                  >
-                    <Icon name="upload-cloud" size={18} color={COLORS.brand[700]} style={{ marginRight: 8 }} />
-                    <Text style={styles.mobileDashedBtnText}>
-                      Upload scanned document
-                    </Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      onPress={() => triggerUpload(req.key)}
+                      style={[
+                        styles.mobileDashedBtn,
+                        hasMobileReqError && styles.mobileDashedBtnError,
+                      ]}
+                    >
+                      <Icon
+                        name="upload-cloud"
+                        size={18}
+                        color={hasMobileReqError ? COLORS.semantic.error : COLORS.brand[700]}
+                        style={{ marginRight: 8 }}
+                      />
+                      <Text
+                        style={[
+                          styles.mobileDashedBtnText,
+                          hasMobileReqError && styles.mobileDashedBtnTextError,
+                        ]}
+                      >
+                        Upload scanned document
+                      </Text>
+                    </TouchableOpacity>
+                    {hasMobileReqError && mobileErrorMessage !== "" && (
+                      <View style={styles.mobileErrorRow}>
+                        <Icon name="alert-circle" size={13} color={COLORS.semantic.error} style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileErrorText}>
+                          {mobileErrorMessage}
+                        </Text>
+                      </View>
+                    )}
+                  </>
                 )}
               </View>
             );
@@ -785,5 +884,59 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     color: "#475569",
     lineHeight: 16,
+  },
+  reqTabError: {
+    borderColor: COLORS.semantic.error,
+    borderWidth: 1.5,
+    backgroundColor: "#FEF2F2",
+  },
+  reqTabTextError: {
+    color: COLORS.semantic.error,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  dashedDropzoneError: {
+    borderColor: COLORS.semantic.error,
+    borderWidth: 2,
+    backgroundColor: "#FEF2F2",
+  },
+  errorBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FCA5A5",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 12,
+    width: "100%",
+  },
+  errorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.semantic.error,
+    flex: 1,
+  },
+  mobileCardError: {
+    borderColor: COLORS.semantic.error,
+    borderWidth: 1.5,
+    backgroundColor: "#FFF5F5",
+  },
+  mobileDashedBtnError: {
+    borderColor: COLORS.semantic.error,
+    backgroundColor: "#FEF2F2",
+  },
+  mobileDashedBtnTextError: {
+    color: COLORS.semantic.error,
+  },
+  mobileErrorRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginTop: 8,
+  },
+  mobileErrorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.semantic.error,
+    flex: 1,
   },
 });

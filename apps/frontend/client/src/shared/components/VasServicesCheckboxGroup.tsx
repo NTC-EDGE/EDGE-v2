@@ -76,7 +76,7 @@ export function VasServicesCheckboxGroup({
   const hasOthersSelected = selectedList.includes('Others') || selectedList.some((s) => !AVAILABLE_VAS_SERVICES.includes(s));
 
   return (
-    <View style={styles.cardContainer}>
+    <View style={[styles.cardContainer, error !== undefined && error.length > 0 ? styles.cardContainerError : null]}>
       <View style={styles.headerRow}>
         <View style={styles.titleWithIcon}>
           <View style={styles.iconCircle}>
@@ -141,6 +141,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     gap: 12,
+  },
+  cardContainerError: {
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
   },
   headerRow: {
     flexDirection: 'row',
