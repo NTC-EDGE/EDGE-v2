@@ -442,6 +442,11 @@ export function mapApplicationDtoToUI(
         occupation: '',
       } : undefined),
       requirements: [],
+      formFieldValues: formFields.map((f) => ({
+        fieldId: f.fieldId || '',
+        fieldLabel: f.fieldLabel || '',
+        value: f.value || '',
+      })),
     };
   });
 
@@ -501,11 +506,17 @@ export function mapApplicationDtoToUI(
     queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
+    serviceId: dto.serviceId ?? dto.services?.[0]?.serviceId ?? '',
     serviceName: resolvedServiceName,
     serviceCategory: resolvedCategory,
     serviceVariantName: dto.serviceVariantName ?? '',
     office: dto.office ?? '',
     applicantsList,
+    formFieldValues: (dto.applicants?.[0]?.formFieldValues ?? applicantsList[0]?.formFieldValues ?? []).map((f) => ({
+      fieldId: f.fieldId || '',
+      fieldLabel: f.fieldLabel || '',
+      value: f.value || '',
+    })),
     services: dto.services?.length
       ? dto.services.map((s) => ({
           id: s.id,

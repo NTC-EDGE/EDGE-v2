@@ -768,7 +768,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ESignature = aa.Applicant.ApplicantDetail.ESignature
                     } : null,
                     FormFieldValues = app.FormSubmissions
-                        .Where(fs => aa.Applicant != null && fs.ApplicantId == aa.Applicant.Id)
+                        .Where(fs => aa.Applicant != null && (fs.ApplicantId == aa.Applicant.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id))))
                         .SelectMany(fs => fs.FieldValues)
                         .Select(fv => new EDGE.Application.Applicants.Dtos.FormFieldValueDto
                         {

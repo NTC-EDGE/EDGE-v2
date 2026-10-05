@@ -121,6 +121,7 @@ export interface ApplicantItem {
   };
   requirements?: RequirementDocument[];
   history?: AuditTrailEntry[];
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
 }
 
 export interface FormSubmissionSummaryItem {
@@ -168,6 +169,7 @@ export interface ApplicationData {
   isUrgent: boolean;
   isPinned: boolean;
   isArchived?: boolean;
+  serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
@@ -223,5 +225,6 @@ export interface ApplicationData {
     contactNumber: string;
     email: string;
   };
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   note: string;
 }

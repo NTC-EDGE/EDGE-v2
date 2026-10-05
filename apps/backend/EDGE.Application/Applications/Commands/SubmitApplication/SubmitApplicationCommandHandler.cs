@@ -200,29 +200,53 @@ public class SubmitApplicationCommandHandler
         if (service != null)
         {
             form = await _formRepository.GetFormByServiceIdAsync(service.Id, cancellationToken);
-            if (form != null && !request.IsDraft)
+            if (!request.IsDraft)
             {
-                var validFieldIds = form.Sections
-                    .SelectMany(s => s.SectionFields)
-                    .Select(sf => sf.FieldId)
-                    .ToHashSet();
+                var submittedFieldIds = request.Applicants
+                    .SelectMany(a => a.FormFieldValues)
+                    .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty)
+                    .Select(fv => fv.FieldId!.Value)
+                    .Distinct()
+                    .ToList();
 
-                foreach (var applicantDto in request.Applicants)
+                var existingFieldsInDb = submittedFieldIds.Count > 0
+                    ? await _formRepository.GetFieldsByIdsAsync(submittedFieldIds, cancellationToken)
+                    : null;
+                var validFieldIds = (existingFieldsInDb ?? Enumerable.Empty<Field>()).Select(f => f.Id).ToHashSet();
+
+                if (form != null)
                 {
-                    var invalidFields = applicantDto.FormFieldValues
-                        .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value))
-                        .ToList();
-
-                    if (invalidFields.Count > 0)
+                    foreach (var sf in form.Sections.SelectMany(s => s.SectionFields))
                     {
-                        _logger.LogWarning(
-                            "Sanitizing submitted form for applicant: {Count} FormFieldValue(s) with unknown FieldIds for Form '{FormId}' (Service '{ServiceId}') were removed. Potential client schema mismatch. Removed FieldIds: {RemovedFieldIds}",
-                            invalidFields.Count,
-                            form.Id,
-                            service.Id,
-                            string.Join(", ", invalidFields.Select(f => f.FieldId)));
+                        validFieldIds.Add(sf.FieldId);
+                    }
+                }
 
-                        applicantDto.FormFieldValues.RemoveAll(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value));
+                // If form repository has no fields registered for this service and DB lookup yielded no results,
+                // do not sanitize to avoid wiping out fields in mock or pre-seeder test environments.
+                if (validFieldIds.Count == 0 && form == null)
+                {
+                    // keep all submitted fields
+                }
+                else
+                {
+                    foreach (var applicantDto in request.Applicants)
+                    {
+                        var invalidFields = applicantDto.FormFieldValues
+                            .Where(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value))
+                            .ToList();
+
+                        if (invalidFields.Count > 0)
+                        {
+                            _logger.LogWarning(
+                                "Sanitizing submitted form for applicant: {Count} FormFieldValue(s) with non-existent FieldIds were removed to prevent database foreign key violation. Form '{FormId}', Service '{ServiceId}'. Removed FieldIds: {RemovedFieldIds}",
+                                invalidFields.Count,
+                                form?.Id ?? Guid.Empty,
+                                service.Id,
+                                string.Join(", ", invalidFields.Select(f => f.FieldId)));
+
+                            applicantDto.FormFieldValues.RemoveAll(fv => fv.FieldId.HasValue && fv.FieldId.Value != Guid.Empty && !validFieldIds.Contains(fv.FieldId.Value));
+                        }
                     }
                 }
             }
@@ -368,6 +392,27 @@ public class SubmitApplicationCommandHandler
                     MiddleName = dto.MiddleName,
                     LastName = string.IsNullOrWhiteSpace(dto.LastName) ? (request.IsDraft ? "Applicant" : "") : dto.LastName,
                     Suffix = dto.Suffix,
+                    Sex = !string.IsNullOrWhiteSpace(dto.Sex)
+                        ? dto.Sex
+                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("sex") || (fv.FieldLabel ?? "").ToLower().Contains("gender"))?.Value ?? ""),
+                    Nationality = !string.IsNullOrWhiteSpace(dto.Nationality)
+                        ? dto.Nationality
+                        : (dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("nationality") || (fv.FieldLabel ?? "").ToLower().Contains("citizenship"))?.Value ?? "Filipino"),
+                    Height = dto.Height,
+                    Weight = dto.Weight,
+                    ZipCode = !string.IsNullOrWhiteSpace(dto.ZipCode)
+                        ? dto.ZipCode
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("zip") || (fv.FieldLabel ?? "").ToLower().Contains("postal"))?.Value,
+                    SchoolAttended = !string.IsNullOrWhiteSpace(dto.SchoolAttended)
+                        ? dto.SchoolAttended
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("school") || (fv.FieldLabel ?? "").ToLower().Contains("university"))?.Value,
+                    CourseTaken = !string.IsNullOrWhiteSpace(dto.CourseTaken)
+                        ? dto.CourseTaken
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("course") || (fv.FieldLabel ?? "").ToLower().Contains("degree"))?.Value,
+                    YearGraduated = !string.IsNullOrWhiteSpace(dto.YearGraduated)
+                        ? dto.YearGraduated
+                        : dto.FormFieldValues.FirstOrDefault(fv => (fv.FieldLabel ?? "").ToLower().Contains("graduat"))?.Value,
+                    BarangayId = dto.BarangayId,
                     EmailAddress = string.IsNullOrWhiteSpace(dto.Email) ? (request.IsDraft ? "draft@example.com" : null) : dto.Email,
                     ContactNumber = dto.ContactNumber ?? "",
                     Address = dto.Address ?? "",

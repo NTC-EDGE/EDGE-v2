@@ -198,6 +198,13 @@ export interface SerializedApplicantPayload {
   contactNumber: string;
   address: string;
   birthDate: string;
+  sex?: string;
+  civilStatus?: string;
+  nationality?: string;
+  zipCode?: string;
+  schoolAttended?: string;
+  courseTaken?: string;
+  yearGraduated?: string;
   eSignature?: string;
   formFieldValues: FormFieldValuePayload[];
 }
@@ -241,6 +248,11 @@ export function serializeCertificateApplicant(
     }
   });
 
+  // Also include all standard system field GUIDs from FIELD_GUID_MAP
+  Object.values(FIELD_GUID_MAP).forEach((guid) => {
+    validFieldIdSet.add(guid.toLowerCase().trim());
+  });
+
   const finalFieldValues: FormFieldValuePayload[] = [];
   const processedFieldIds = new Set<string>();
 
@@ -248,7 +260,7 @@ export function serializeCertificateApplicant(
     const cleanId = (fv.fieldId || '').trim();
     const idLower = cleanId.toLowerCase();
 
-    // If a DB form schema with valid field IDs is provided, only include fields present in the schema
+    // If validFieldIdSet has registered IDs, only include recognized fields to avoid bogus GUIDs
     if (validFieldIdSet.size > 0 && !validFieldIdSet.has(idLower)) {
       return;
     }
@@ -334,6 +346,13 @@ export function serializeCertificateApplicant(
     contactNumber: contactVal,
     address: addressVal,
     birthDate,
+    sex: app.sex || undefined,
+    civilStatus: app.civilStatus || undefined,
+    nationality: app.nationality || undefined,
+    zipCode: app.zipCode || undefined,
+    schoolAttended: app.schoolName || undefined,
+    courseTaken: app.courseDegree || undefined,
+    yearGraduated: app.yearGraduated || undefined,
     eSignature: app.signatureUrl || undefined,
     formFieldValues: finalFieldValues,
   };

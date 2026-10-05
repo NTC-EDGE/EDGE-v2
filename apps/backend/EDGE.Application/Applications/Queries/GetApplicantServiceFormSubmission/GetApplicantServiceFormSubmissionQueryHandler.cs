@@ -41,19 +41,30 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
 
         // 1. Locate specified Applicant
         var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
+        if (appApplicant == null && (request.ApplicantId == app.Id || app.ApplicationApplicants.Count == 1))
+        {
+            appApplicant = app.ApplicationApplicants.FirstOrDefault();
+        }
         var applicant = appApplicant?.Applicant;
 
-        if (applicant == null || !applicant.ServiceId.HasValue)
+        if (applicant == null)
         {
             return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Applicant '{request.ApplicantId}' was not found under Application '{request.ApplicationId}'.");
         }
 
-        var serviceId = applicant.ServiceId.Value;
-        var service = await _serviceRepository.GetByIdAsync(serviceId, cancellationToken);
+        var serviceId = applicant.ServiceId ?? app.ApplicationApplicants.FirstOrDefault(aa => aa.Applicant?.ServiceId != null)?.Applicant?.ServiceId;
+        if (!serviceId.HasValue || serviceId.Value == Guid.Empty)
+        {
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Service ID for Applicant '{request.ApplicantId}' was not found under Application '{request.ApplicationId}'.");
+        }
+
+        var service = await _serviceRepository.GetByIdAsync(serviceId.Value, cancellationToken);
 
         // 2. Locate exact FormSubmission for this Applicant
         var submission = applicant.FormSubmission
-            ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
+            ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == applicant.Id)
+            ?? app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId)
+            ?? app.FormSubmissions.FirstOrDefault();
 
         // 3. Resolve Form layout schema
         Form? form = null;
@@ -62,11 +73,11 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
             form = await _formRepository.GetByIdAsync(submission.FormId, cancellationToken);
         }
 
-        form ??= await _formRepository.GetFormByServiceIdAsync(serviceId, cancellationToken);
+        form ??= await _formRepository.GetFormByServiceIdAsync(serviceId.Value, cancellationToken);
 
         if (form == null)
         {
-            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Form layout schema for Service ID '{serviceId}' was not found.");
+            return ApiResponse<ApplicationFormSubmissionDto>.Fail($"Form layout schema for Service ID '{serviceId.Value}' was not found.");
         }
 
         var valueMap = submission?.FieldValues
@@ -109,6 +120,40 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
                         }).ToList()
                 }).ToList()
         };
+
+        // 4. Preserve any submitted fields that are not part of the form's defined sections
+        var sectionFieldIds = form.Sections
+            .SelectMany(s => s.SectionFields)
+            .Select(sf => sf.FieldId)
+            .ToHashSet();
+
+        var extraFields = (submission?.FieldValues ?? Enumerable.Empty<FormFieldValue>())
+            .Where(fv => !sectionFieldIds.Contains(fv.FieldId) && !string.IsNullOrWhiteSpace(fv.Value))
+            .GroupBy(fv => fv.FieldId)
+            .Select(g => g.First())
+            .Select((fv, idx) => new ApplicationFormFieldValueDto
+            {
+                FieldId = fv.FieldId,
+                Label = fv.Field?.Label ?? (!string.IsNullOrWhiteSpace(fv.CustomLabel) ? fv.CustomLabel : "Field"),
+                Type = fv.Field?.FieldType ?? "text",
+                IsRequired = false,
+                OrderIndex = 1000 + idx,
+                ValidationRules = fv.Field?.ValidationRules,
+                Value = fv.Value
+            })
+            .ToList();
+
+        if (extraFields.Count > 0)
+        {
+            dto.Sections.Add(new ApplicationFormSectionDto
+            {
+                Key = "additionalParticulars",
+                Title = "Application Particulars & Technical Specifications",
+                Required = false,
+                OrderIndex = form.Sections.Count + 1,
+                Fields = extraFields
+            });
+        }
 
         return ApiResponse<ApplicationFormSubmissionDto>.Success(dto);
     }

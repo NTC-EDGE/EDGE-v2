@@ -82,6 +82,8 @@ export interface ActiveApplicantSnapshot {
   email?: string;
   contactNo?: string;
   address?: string;
+  street?: string;
+  streetAddress?: string;
   barangay?: string;
   city?: string;
   province?: string;

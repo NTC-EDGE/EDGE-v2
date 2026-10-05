@@ -60,6 +60,7 @@ export function ApplicantRecordTab({
       basicInfo: app.basicInfo,
       companyDetails: app.companyDetails,
       requirements: app.requirements,
+      formFieldValues: app.formFieldValues,
     }];
   }, [app]);
 
@@ -85,21 +86,37 @@ export function ApplicantRecordTab({
   }, [toastState]);
 
   const flatFormValues = useMemo(() => {
-    if (!formData || !formData.sections) return [];
-    return formData.sections.flatMap((sec) =>
+    const valuesFromForm = (formData?.sections ?? []).flatMap((sec) =>
       sec.fields.map((f) => ({ fieldId: f.fieldId, fieldLabel: f.label, value: f.value ?? '' }))
     );
-  }, [formData]);
+    const applicantFvs = activeApplicant?.formFieldValues ?? [];
+
+    const map = new Map<string, { fieldId: string; fieldLabel: string; value: string }>();
+    for (const fv of applicantFvs) {
+      if (fv.fieldId) map.set(fv.fieldId.toLowerCase(), fv);
+      if (fv.fieldLabel) map.set(fv.fieldLabel.toLowerCase().trim(), fv);
+    }
+    for (const fv of valuesFromForm) {
+      const keyId = fv.fieldId ? fv.fieldId.toLowerCase() : '';
+      const keyLabel = fv.fieldLabel ? fv.fieldLabel.toLowerCase().trim() : '';
+      const existing = (keyId && map.get(keyId)) || (keyLabel && map.get(keyLabel));
+      if (!existing || (!existing.value && fv.value)) {
+        if (keyId) map.set(keyId, fv);
+        if (keyLabel) map.set(keyLabel, fv);
+      }
+    }
+    return Array.from(new Set(map.values()));
+  }, [formData, activeApplicant]);
 
   const hasFormValues = useMemo(() => {
-    if (!formData || !formData.sections || formData.sections.length === 0) return false;
+    if (flatFormValues.length === 0) return false;
     return flatFormValues.some((fv) => {
       const val = fv.value;
       if (!val || typeof val !== 'string') return false;
       const trimmed = val.trim();
       return trimmed.length > 0 && trimmed !== 'null' && trimmed !== 'undefined' && trimmed !== '[]' && trimmed !== '{}';
     });
-  }, [formData, flatFormValues]);
+  }, [flatFormValues]);
 
   const applicantHistory = useMemo<AuditTrailEntry[]>(
     () => resolveApplicantAuditHistory(app, activeApplicant),
@@ -182,11 +199,29 @@ export function ApplicantRecordTab({
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                   <SkeletonLoader height={32} style={{ marginBottom: 8, width: '100%' }} />
                 </View>
-              ) : formData && formData.sections.length > 0 ? (
+              ) : (formData && formData.sections.length > 0) || flatFormValues.length > 0 ? (
                 <BaseApplicationPreview
-                  service={{ title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
+                  service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
                   form={formData}
                   formFieldValues={flatFormValues}
+                  activeApplicant={activeApplicant ? {
+                    applicantType: activeApplicant.applicantType,
+                    companyName: activeApplicant.companyDetails?.name,
+                    email: activeApplicant.email,
+                    contactNo: activeApplicant.contactNumber,
+                    address: activeApplicant.address,
+                    street: activeApplicant.streetAddress,
+                    barangay: activeApplicant.barangay,
+                    city: activeApplicant.city,
+                    province: activeApplicant.province,
+                    region: activeApplicant.region,
+                    zipCode: activeApplicant.zipCode,
+                    birthDate: activeApplicant.basicInfo?.dob,
+                    sex: activeApplicant.basicInfo?.sex,
+                    civilStatus: activeApplicant.basicInfo?.civilStatus,
+                    nationality: activeApplicant.basicInfo?.nationality,
+                    notes: activeApplicant.evaluationRemarks,
+                  } : undefined}
                   showApplicantCard={false}
                   showSignatureCard={true}
                   onPreviewFile={onPreviewFile}
