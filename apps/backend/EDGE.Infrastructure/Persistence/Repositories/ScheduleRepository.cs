@@ -48,6 +48,7 @@ public class ScheduleRepository : IScheduleRepository
         var query = _context.Schedules
             .AsNoTracking()
             .Include(s => s.Service)
+            .Include(s => s.Tenant)
             .AsQueryable();
 
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)

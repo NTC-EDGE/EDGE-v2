@@ -160,6 +160,13 @@ export interface ApplicationData {
   dateLabel: string;
   assignedTo: string;
   evaluatingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  issuingOfficer?: string;
+  soaId?: string;
+  statementOfAccountId?: string;
+  soaNumber?: string;
+  soaStatus?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

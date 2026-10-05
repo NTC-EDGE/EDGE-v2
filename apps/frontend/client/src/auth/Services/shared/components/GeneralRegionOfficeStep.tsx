@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { TenantInfo, OfficeInfo, ExamScheduleItem } from "../hooks/useGeneralServiceWizard";
+import { ExamScheduleCard } from "./ExamScheduleCard";
 
 interface GeneralRegionOfficeStepProps {
   selectedRegionId: string;
@@ -33,6 +34,8 @@ export function GeneralRegionOfficeStep({
   onSelectSchedule,
   errors = {},
 }: GeneralRegionOfficeStepProps) {
+  const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
+
   return (
     <View
       style={{
@@ -237,110 +240,16 @@ export function GeneralRegionOfficeStep({
               </View>
             </View>
           ) : (
-            <View style={{ gap: 10 }}>
-              {schedules.map((sched, index) => {
-                const isSelected = selectedScheduleId === sched.id;
-                return (
-                  <TouchableOpacity
-                    key={sched.id || index}
-                    onPress={() => onSelectSchedule?.(sched.id)}
-                    activeOpacity={0.7}
-                    style={{
-                      backgroundColor: isSelected ? "#EFF6FF" : "#FFFFFF",
-                      borderWidth: isSelected ? 2 : 1,
-                      borderColor: isSelected ? "#0F2C59" : "#CBD5E1",
-                      borderRadius: 10,
-                      padding: 14,
-                    }}
-                  >
-                    <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 6 }}>
-                      <View style={{ flexDirection: "row", alignItems: "center", gap: 8, flex: 1 }}>
-                        <View
-                          style={{
-                            width: 20,
-                            height: 20,
-                            borderRadius: 10,
-                            borderWidth: 2,
-                            borderColor: isSelected ? "#0F2C59" : "#94A3B8",
-                            justifyContent: "center",
-                            alignItems: "center",
-                            backgroundColor: isSelected ? "#0F2C59" : "transparent",
-                          }}
-                        >
-                          {isSelected && (
-                            <View
-                              style={{
-                                width: 8,
-                                height: 8,
-                                borderRadius: 4,
-                                backgroundColor: "#FFFFFF",
-                              }}
-                            />
-                          )}
-                        </View>
-                        <Text
-                          style={{
-                            fontFamily: TYPOGRAPHY.fonts.primary,
-                            fontSize: 14,
-                            fontWeight: "700",
-                            color: isSelected ? "#0F2C59" : "#1E293B",
-                          }}
-                        >
-                          {sched.scheduledDate}
-                        </Text>
-                      </View>
-
-                      {sched.availableSlots !== undefined || sched.maximumSlots !== undefined ? (
-                        <View
-                          style={{
-                            backgroundColor: isSelected ? "#DBEAFE" : "#F1F5F9",
-                            paddingHorizontal: 8,
-                            paddingVertical: 2,
-                            borderRadius: 6,
-                          }}
-                        >
-                          <Text
-                            style={{
-                              fontFamily: TYPOGRAPHY.fonts.primary,
-                              fontSize: 11,
-                              fontWeight: "600",
-                              color: isSelected ? "#1D4ED8" : "#475569",
-                            }}
-                          >
-                            {sched.availableSlots !== undefined
-                              ? `${sched.availableSlots} Slots Available`
-                              : `${sched.maximumSlots} Max Slots`}
-                          </Text>
-                        </View>
-                      ) : null}
-                    </View>
-
-                    <View style={{ paddingLeft: 28, gap: 4 }}>
-                      {(sched.startTime || sched.endTime) && (
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <Icon name="clock" size={12} color="#64748B" />
-                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B" }}>
-                            {[sched.startTime, sched.endTime].filter(Boolean).join(" - ")}
-                          </Text>
-                        </View>
-                      )}
-                      {sched.venue && (
-                        <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                          <Icon name="map-pin" size={12} color="#64748B" />
-                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#64748B" }}>
-                            {sched.venue}
-                          </Text>
-                        </View>
-                      )}
-                      {sched.description && (
-                        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11.5, color: "#94A3B8", marginTop: 2 }}>
-                          {sched.description}
-                        </Text>
-                      )}
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
+            <View style={{ gap: 4 }}>
+              {schedules.map((sched, index) => (
+                <ExamScheduleCard
+                  key={sched.id || String(index)}
+                  schedule={sched}
+                  isSelected={selectedScheduleId === sched.id}
+                  onSelect={(id) => onSelectSchedule?.(id)}
+                  fallbackRegionName={selectedRegionName}
+                />
+              ))}
             </View>
           )}
 

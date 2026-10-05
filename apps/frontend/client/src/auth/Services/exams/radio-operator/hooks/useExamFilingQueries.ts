@@ -227,34 +227,57 @@ export function useExamFilingQueries({
           ? data
           : (data.items || data.data || []);
 
-        const mappedSchedules: ScheduleItem[] = rawItems.map((item: any) => {
-          if (item.scheduledDate && item.startTime && item.endTime) {
-            return item;
-          }
-          const startD = item.startDate ? new Date(item.startDate) : new Date();
-          const endD = item.endDate ? new Date(item.endDate) : new Date();
-          const scheduledDate = startD.toLocaleDateString("en-US", {
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-          });
-          const startTime = startD.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
-          const endTime = endD.toLocaleTimeString("en-US", {
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-          });
+        const mappedSchedules: ScheduleItem[] = rawItems.map((rawItem: unknown) => {
+          const item = typeof rawItem === "object" && rawItem !== null ? (rawItem as Record<string, unknown>) : {};
+          const startD = typeof item.startDate === "string" ? new Date(item.startDate) : new Date();
+          const endD = typeof item.endDate === "string" ? new Date(item.endDate) : new Date();
+          const scheduledDate = typeof item.scheduledDate === "string" && item.scheduledDate.length > 0
+            ? item.scheduledDate
+            : !isNaN(startD.getTime())
+            ? startD.toLocaleDateString("en-US", {
+                weekday: "short",
+                year: "numeric",
+                month: "long",
+                day: "numeric",
+              })
+            : "TBA";
+          const startTime = typeof item.startTime === "string" && item.startTime.length > 0
+            ? item.startTime
+            : !isNaN(startD.getTime())
+            ? startD.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "08:00 AM";
+          const endTime = typeof item.endTime === "string" && item.endTime.length > 0
+            ? item.endTime
+            : !isNaN(endD.getTime())
+            ? endD.toLocaleTimeString("en-US", {
+                hour: "numeric",
+                minute: "2-digit",
+                hour12: true,
+              })
+            : "12:00 PM";
           return {
-            id: item.id,
+            id: String(item.id || ""),
             scheduledDate,
             startTime,
             endTime,
-            venue: item.venue || "NTC Regional Examination Center",
-            maximumSlots: item.maximumSlots,
+            venue: typeof item.venue === "string" ? item.venue : "NTC Regional Examination Center",
+            maximumSlots: typeof item.maximumSlots === "number" ? item.maximumSlots : null,
+            availableSlots: typeof item.availableSlots === "number" ? item.availableSlots : null,
+            startDate: typeof item.startDate === "string" ? item.startDate : null,
+            endDate: typeof item.endDate === "string" ? item.endDate : null,
+            startApplication: typeof item.startApplication === "string" ? item.startApplication : null,
+            endApplication: typeof item.endApplication === "string" ? item.endApplication : typeof item.applicationDeadline === "string" ? item.applicationDeadline : null,
+            applicationDeadline: typeof item.applicationDeadline === "string" ? item.applicationDeadline : typeof item.endApplication === "string" ? item.endApplication : null,
+            regionName: typeof item.regionName === "string" ? item.regionName : typeof item.tenantName === "string" ? item.tenantName : null,
+            tenantName: typeof item.tenantName === "string" ? item.tenantName : typeof item.regionName === "string" ? item.regionName : null,
+            serviceName: typeof item.serviceName === "string" ? item.serviceName : null,
+            title: typeof item.title === "string" ? item.title : null,
+            remarks: typeof item.remarks === "string" ? item.remarks : typeof item.description === "string" ? item.description : null,
+            description: typeof item.description === "string" ? item.description : typeof item.remarks === "string" ? item.remarks : null,
           };
         });
         setSchedules(mappedSchedules);

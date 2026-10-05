@@ -82,7 +82,8 @@ public class GetSchedulesQueryHandler : IRequestHandler<GetSchedulesQuery, Pagin
             s.Remarks,
             s.CreatedAt,
             s.StartTime,
-            s.EndTime
+            s.EndTime,
+            s.Tenant?.Name
         )).ToList();
 
         return new PaginatedApiResponse<ScheduleDto>(scheduleDtos, pageNumber, pageSize, totalCount);

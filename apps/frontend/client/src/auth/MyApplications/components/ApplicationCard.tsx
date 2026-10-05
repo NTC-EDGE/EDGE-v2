@@ -57,6 +57,10 @@ export function ApplicationCard({
     (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : undefined) ||
     (app.element !== 'New' ? app.element : '');
 
+  const isReadyForPayment =
+    app.status === 'READY_FOR_PAYMENT' ||
+    (typeof app.rawStatus === 'string' && app.rawStatus.toUpperCase().includes('PAYMENT'));
+
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -152,10 +156,18 @@ export function ApplicationCard({
           </Text>
         </View>
 
-        <View style={styles.viewDetailsBtn}>
-          <Text style={styles.viewDetailsBtnText}>View Details</Text>
-          <Icon name="chevron-right" size={14} color="#FFFFFF" />
-        </View>
+        {isReadyForPayment ? (
+          <View style={styles.payNowBtn}>
+            <Icon name="credit-card" size={13} color="#FFFFFF" />
+            <Text style={styles.payNowBtnText}>Proceed to Payment</Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
+        ) : (
+          <View style={styles.viewDetailsBtn}>
+            <Text style={styles.viewDetailsBtnText}>View Details</Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
+        )}
       </View>
     </TouchableOpacity>
   );
@@ -389,6 +401,21 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#FFFFFF',
+  },
+  payNowBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#16A34A',
+    gap: 6,
+  },
+  payNowBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: '#FFFFFF',
   },
 });

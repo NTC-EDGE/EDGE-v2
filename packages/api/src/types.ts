@@ -142,6 +142,8 @@ export interface ExamSchedule {
   endDate?: string | null;
   startApplication?: string | null;
   endApplication?: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
 }
 
 export interface CreateExamScheduleCommand {
