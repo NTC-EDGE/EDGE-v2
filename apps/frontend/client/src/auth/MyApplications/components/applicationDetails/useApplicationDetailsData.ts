@@ -4,6 +4,7 @@ import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRe
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
 import { RawApplicantHolder, RawApplicantDetails, normalizeStatus } from './applicationDetailsTypes';
 import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
+import { synthesizeAllApplicantFieldValues } from '../../../Services/shared/helpers/applicantFieldSynthesizer';
 
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
@@ -181,18 +182,61 @@ export function useApplicationDetailsData(initialApp: Application) {
   const variantLabel = useMemo(() => app.serviceVariantName || app.variant || app.element || singleApplicant?.examineeType || 'Standard', [app, singleApplicant]);
 
   const formFieldValues = useMemo(() => {
-    if (app.formFieldValues && app.formFieldValues.length > 0) return app.formFieldValues;
-    const rawList = app.applicants || app.Applicants || [];
-    if (rawList.length > 0) {
-      const first = rawList[0];
-      if (first.formFieldValues && first.formFieldValues.length > 0) return first.formFieldValues;
-      if (first.details && 'formFieldValues' in first.details) {
-        const dF = (first.details as { formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }> }).formFieldValues;
-        if (dF && dF.length > 0) return dF;
+    let baseValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+    if (app.formFieldValues && app.formFieldValues.length > 0) {
+      baseValues = app.formFieldValues;
+    } else {
+      const rawList = app.applicants || app.Applicants || [];
+      if (rawList.length > 0) {
+        const first = rawList[0];
+        if (first.formFieldValues && first.formFieldValues.length > 0) {
+          baseValues = first.formFieldValues;
+        } else if (first.details && 'formFieldValues' in first.details) {
+          const dF = (first.details as { formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }> }).formFieldValues;
+          if (dF && dF.length > 0) {
+            baseValues = dF;
+          }
+        }
       }
     }
-    return [];
-  }, [app]);
+
+    if (singleApplicant) {
+      const sexVal = singleApplicant.sex === 'Male' || singleApplicant.sex === 'Female' ? singleApplicant.sex : undefined;
+      const civilStatusVal = typeof singleApplicant.civilStatus === 'string' && singleApplicant.civilStatus !== 'N/A'
+        ? singleApplicant.civilStatus
+        : undefined;
+      const birthDateVal = typeof singleApplicant.birthDate === 'string' ? singleApplicant.birthDate : undefined;
+
+      return synthesizeAllApplicantFieldValues(
+        {
+          firstName: singleApplicant.applicantName ? singleApplicant.applicantName.split(' ')[0] : undefined,
+          lastName: singleApplicant.applicantName ? singleApplicant.applicantName.split(' ').slice(1).join(' ') : undefined,
+          email: singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined,
+          contactNo: singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined,
+          sex: sexVal,
+          civilStatus: civilStatusVal,
+          nationality: singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : undefined,
+          birthDate: birthDateVal,
+          street: singleApplicant.streetAddress !== 'N/A' ? singleApplicant.streetAddress : undefined,
+          barangay: singleApplicant.barangay || undefined,
+          city: singleApplicant.cityMunicipality !== 'N/A' ? singleApplicant.cityMunicipality : undefined,
+          province: singleApplicant.province !== 'N/A' ? singleApplicant.province : undefined,
+          region: singleApplicant.region !== 'N/A' ? singleApplicant.region : undefined,
+          zipCode: singleApplicant.zipCode || undefined,
+          companyName: singleApplicant.companyName ?? undefined,
+          representativeName: singleApplicant.representativeName ?? undefined,
+          notes: singleApplicant.notes ?? undefined,
+          examineeType: singleApplicant.examineeType || undefined,
+          formFieldValues: baseValues,
+        },
+        null
+      );
+    }
+
+
+    return baseValues;
+  }, [app, singleApplicant]);
+
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {
     const rawApplicants = app.applicants || app.Applicants || [];

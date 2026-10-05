@@ -82,6 +82,8 @@ export interface ActiveApplicantSnapshot {
   email?: string;
   contactNo?: string;
   address?: string;
+  street?: string;
+  streetAddress?: string;
   barangay?: string;
   city?: string;
   province?: string;
@@ -124,9 +126,11 @@ export interface BuildDynamicSectionsOptions {
   isVasCertService?: boolean;
   skipFieldIds?: string[];
   skipFieldLabels?: string[];
+  showApplicantCard?: boolean;
 }
 
 export interface BuildDynamicSectionsResult {
   dynamicSectionsToRender: DynamicSectionGroup[];
   remainingFields: FormFieldValue[];
 }
+

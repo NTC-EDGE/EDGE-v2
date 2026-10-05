@@ -11,6 +11,7 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "../../../../shared/spreadsheet";
+import { ExamScheduleCard } from "../../../../shared/components/ExamScheduleCard";
 
 interface ExamSteps1To2Props {
   step: number;
@@ -63,6 +64,7 @@ export function ExamSteps1To2({
   handleMockCSVUpload,
   setExamApplicants,
 }: ExamSteps1To2Props) {
+  const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
   const [uploadLoading, setUploadLoading] = useState(false);
 
   const examService = {
@@ -278,51 +280,17 @@ export function ExamSteps1To2({
               </View>
             </View>
           ) : (
-            schedules.map((sched, index) => {
-              const isSelected = selectedScheduleId === sched.id;
-              const d = new Date(sched.scheduledDate);
-              const dateStr = !isNaN(d.getTime())
-                ? d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })
-                : sched.scheduledDate;
-
-              return (
-                <TouchableOpacity
-                  key={sched.id || index}
-                  onPress={() => setSelectedScheduleId(sched.id)}
-                  style={[
-                    styles.dateCard,
-                    isSelected && styles.dateCardSelected,
-                    isSelected && { borderColor: "#0F2C59", borderWidth: 2, backgroundColor: "#F0F7FF" }
-                  ]}
-                >
-                  <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 6 }}>
-                    <View style={styles.dateItem}>
-                      <Icon name="calendar" size={16} color={isSelected ? "#0F2C59" : COLORS.brand[600]} />
-                      <Text style={[styles.dateText, isSelected && { fontWeight: "700", color: "#0F2C59" }]}>DATE: {dateStr}</Text>
-                    </View>
-                    {isSelected && (
-                      <View style={{ backgroundColor: "#0F2C59", borderRadius: 10, paddingHorizontal: 6, paddingVertical: 2 }}>
-                        <Text style={{ color: "#FFFFFF", fontSize: 10, fontWeight: "700" }}>SELECTED</Text>
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.dateItem}>
-                    <Icon name="clock" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>TIME: {sched.startTime || 'TBA'} - {sched.endTime || 'TBA'}</Text>
-                  </View>
-                  <View style={styles.dateItem}>
-                    <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>VENUE: {sched.venue || "NTC Office"}</Text>
-                  </View>
-                  {sched.maximumSlots !== null && sched.maximumSlots !== undefined && (
-                    <View style={styles.dateItem}>
-                      <Icon name="users" size={16} color={COLORS.brand[600]} />
-                      <Text style={styles.dateText}>SLOTS: {sched.maximumSlots} Maximum Slots</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              );
-            })
+            <View style={{ gap: 4 }}>
+              {schedules.map((sched, index) => (
+                <ExamScheduleCard
+                  key={sched.id || String(index)}
+                  schedule={sched}
+                  isSelected={selectedScheduleId === sched.id}
+                  onSelect={(id) => setSelectedScheduleId(id)}
+                  fallbackRegionName={selectedRegionName}
+                />
+              ))}
+            </View>
           )}
         </View>
       </View>

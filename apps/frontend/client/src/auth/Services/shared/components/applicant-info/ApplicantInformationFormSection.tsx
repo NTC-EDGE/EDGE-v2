@@ -301,6 +301,7 @@ export function ApplicantInformationFormSection({
               options={birthMonthOptions}
               value={applicant.birthMonth || "January"}
               onValueChange={(val) => onChange({ birthMonth: val })}
+              error={errors["birthMonth"] || errors["birthDate"]}
             />
           </FormCol>
           <FormCol span={3}>
@@ -310,6 +311,7 @@ export function ApplicantInformationFormSection({
               options={birthDayOptions}
               value={applicant.birthDay || "1"}
               onValueChange={(val) => onChange({ birthDay: val })}
+              error={errors["birthDay"] || errors["birthDate"]}
             />
           </FormCol>
           <FormCol span={3}>
@@ -319,6 +321,7 @@ export function ApplicantInformationFormSection({
               options={birthYearOptions}
               value={applicant.birthYear || "2000"}
               onValueChange={(val) => onChange({ birthYear: val })}
+              error={errors["birthYear"] || errors["birthDate"]}
             />
           </FormCol>
           <FormCol span={3}>
@@ -328,6 +331,7 @@ export function ApplicantInformationFormSection({
               options={SEX_OPTIONS}
               value={applicant.sex || ""}
               onValueChange={(val) => onChange({ sex: val })}
+              error={errors["sex"]}
             />
           </FormCol>
           <FormCol span={6}>
@@ -337,6 +341,7 @@ export function ApplicantInformationFormSection({
               options={CIVIL_STATUS_OPTIONS}
               value={applicant.civilStatus || ""}
               onValueChange={(val) => onChange({ civilStatus: val })}
+              error={errors["civilStatus"]}
             />
           </FormCol>
           <FormCol span={6}>
@@ -386,6 +391,7 @@ export function ApplicantInformationFormSection({
               required
               options={regionOptions}
               value={applicant.region || ""}
+              error={errors["region"]}
               onValueChange={(val) => {
                 onChange({ region: val, province: "", city: "", barangay: "" });
                 const found = regions.find((r) => r.name.toLowerCase() === val.toLowerCase() || r.id === val);
@@ -401,6 +407,7 @@ export function ApplicantInformationFormSection({
               required
               options={provinceOptions}
               value={applicant.province || ""}
+              error={errors["province"]}
               onValueChange={(val) => {
                 onChange({ province: val, city: "", barangay: "" });
                 const found = provinces.find((p) => p.name.toLowerCase() === val.toLowerCase() || p.id === val);
@@ -415,6 +422,7 @@ export function ApplicantInformationFormSection({
               required
               options={municipalityOptions}
               value={applicant.city || ""}
+              error={errors["city"] || errors["cityMunicipality"]}
               onValueChange={(val) => {
                 onChange({ city: val, barangay: "" });
                 const found = municipalities.find((m) => m.name.toLowerCase() === val.toLowerCase() || m.id === val);
@@ -428,6 +436,7 @@ export function ApplicantInformationFormSection({
               required
               options={barangayOptions}
               value={applicant.barangay || ""}
+              error={errors["barangay"]}
               onValueChange={(val) => onChange({ barangay: val })}
             />
           </FormCol>
@@ -498,7 +507,7 @@ export function ApplicantInformationFormSection({
               ? applicant.representativeName || applicant.companyName || "Representative"
               : `${applicant.firstName || ""} ${applicant.lastName || ""}`.trim() || "Applicant"
           }
-          error={errors["signatureUrl"]}
+          error={errors["signatureUrl"] || errors["signature"]}
         />
       </View>
     </View>

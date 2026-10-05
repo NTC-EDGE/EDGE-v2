@@ -7,6 +7,8 @@ using MediatR;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.TenantMembers.DTOs;
+using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
 
 namespace EDGE.Application.TenantMembers.Queries;
 
@@ -37,36 +39,77 @@ public class GetMyTenantMembershipsQueryHandler : IRequestHandler<GetMyTenantMem
         CancellationToken cancellationToken)
     {
         var rawUserId = _currentUserService.UserId;
-        var allRegions = await _geographicRepository.GetRegionsAsync(activeOnly: true, cancellationToken);
-        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken);
+        var allRegions = await _geographicRepository.GetRegionsAsync(activeOnly: true, cancellationToken) ?? new List<Region>();
+        var allTenants = await _tenantRepository.GetAllAsync(cancellationToken) ?? new List<Tenant>();
 
         var list = new List<TenantRegionMembershipDto>();
 
+        User? user = null;
         if (!string.IsNullOrEmpty(rawUserId))
         {
-            var user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
+            user = await _userRepository.ResolveCurrentUserAsync(_currentUserService, cancellationToken);
+            if (user == null)
+            {
+                user = await _userRepository.GetByAuthUserIdAsync(rawUserId, cancellationToken);
+            }
             if (user == null && Guid.TryParse(rawUserId, out var parsedUserId))
             {
                 user = await _userRepository.GetByIdAsync(parsedUserId, cancellationToken);
             }
+        }
 
-            if (user != null)
+        var isSuperAdmin = _currentUserService.IsSuperAdminClaim ||
+                           AdministrativeIdentityPolicy.IsSuperAdminEmail(_currentUserService.Email) ||
+                           (user != null && (user.IsSuperAdmin || AdministrativeIdentityPolicy.IsSuperAdminEmail(user.Email)));
+
+        if (isSuperAdmin)
+        {
+            // SuperAdmins are granted access across all active Regional Offices / Tenants
+            var candidateTenants = allTenants.Where(t => t.IsActive).ToList();
+            if (candidateTenants.Count == 0 && allTenants.Count > 0)
             {
-                var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken);
-                foreach (var mem in userMemberships)
+                candidateTenants = allTenants.ToList();
+            }
+
+            foreach (var tenant in candidateTenants)
+            {
+                var region = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
+                var regionCode = region?.Code ?? (!string.IsNullOrWhiteSpace(tenant.Code) ? tenant.Code : "NCR");
+                var regionName = region?.Name ?? tenant.Name;
+
+                list.Add(new TenantRegionMembershipDto(
+                    TenantId: tenant.Id,
+                    TenantName: tenant.Name,
+                    RegionId: region?.Id ?? Guid.Empty,
+                    RegionCode: regionCode,
+                    RegionName: regionName
+                ));
+            }
+
+            list = list
+                .OrderBy(m => m.RegionCode.Equals("NCR", StringComparison.OrdinalIgnoreCase) ? 0 : 1)
+                .ThenBy(m => m.RegionCode)
+                .ToList();
+
+            return ApiResponse<List<TenantRegionMembershipDto>>.Success(list, "SuperAdmin access: all regional offices retrieved successfully.");
+        }
+
+        if (user != null)
+        {
+            var userMemberships = await _tenantMemberRepository.GetMembersByUserAsync(user.Id, cancellationToken) ?? new List<TenantMember>();
+            foreach (var mem in userMemberships)
+            {
+                var tenant = allTenants.FirstOrDefault(t => t.Id == mem.TenantId);
+                if (tenant != null && tenant.IsActive)
                 {
-                    var tenant = allTenants.FirstOrDefault(t => t.Id == mem.TenantId);
-                    if (tenant != null && tenant.IsActive)
-                    {
-                        var region = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
-                        list.Add(new TenantRegionMembershipDto(
-                            TenantId: tenant.Id,
-                            TenantName: tenant.Name,
-                            RegionId: region?.Id ?? Guid.Empty,
-                            RegionCode: region?.Code ?? "NCR",
-                            RegionName: region?.Name ?? "National Capital Region"
-                        ));
-                    }
+                    var region = allRegions.FirstOrDefault(r => r.Id == tenant.RegionId);
+                    list.Add(new TenantRegionMembershipDto(
+                        TenantId: tenant.Id,
+                        TenantName: tenant.Name,
+                        RegionId: region?.Id ?? Guid.Empty,
+                        RegionCode: region?.Code ?? "NCR",
+                        RegionName: region?.Name ?? "National Capital Region"
+                    ));
                 }
             }
         }

@@ -31,11 +31,11 @@ export function DynamicFormSectionsReview({
         </SectionCard>
       ))}
 
-      {!isExamService && remainingFields.length > 0 ? (
+      {remainingFields.length > 0 ? (
         <SectionCard icon="file-text" title="Application Particulars & Technical Details" accentColor="#0284C7">
           {remainingFields.map((fv) => (
             <SummaryRow
-              key={fv.fieldId}
+              key={fv.fieldId || fv.fieldLabel}
               label={fv.fieldLabel}
               value={fv.value}
               onPreviewFile={onPreviewFile}
@@ -43,6 +43,7 @@ export function DynamicFormSectionsReview({
           ))}
         </SectionCard>
       ) : null}
+
     </>
   );
 }

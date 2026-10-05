@@ -77,6 +77,10 @@ export interface OfficerEvaluationState {
   isEndorsedAwayFromMe: boolean;
   isEvaluatedByMe: boolean;
   isEvaluatedByOther: boolean;
+  currentStageOfficer?: string;
+  isStageClaimedByMe: boolean;
+  isStageClaimedByOther: boolean;
+  isStageUnclaimed: boolean;
 }
 
 export function computeOfficerEvaluationState(params: {
@@ -93,6 +97,7 @@ export function computeOfficerEvaluationState(params: {
   const isEndorsedAwayFromMe = isEndorsed && !isEndorsedToMe && !isAdmin;
 
   const isEvaluatedByMe = isEvaluating && (
+    isAdmin ||
     isEndorsedToMe ||
     isGenericOfficer(evaluatingOfficer, application.office) ||
     matchesUserIdentifier(evaluatingOfficer, identifiers) ||
@@ -105,6 +110,56 @@ export function computeOfficerEvaluationState(params: {
     !isEvaluatedByMe
   );
 
+  const statusLower = application.status.toLowerCase();
+  let currentStageOfficer: string | undefined;
+  let isStageClaimedByMe = false;
+  let isStageClaimedByOther = false;
+  let isStageUnclaimed = false;
+
+  if (statusLower === "submitted") {
+    isStageUnclaimed = true;
+  } else if (statusLower === "evaluating") {
+    currentStageOfficer = evaluatingOfficer;
+    isStageClaimedByMe = isEvaluatedByMe;
+    isStageClaimedByOther = isEvaluatedByOther;
+    isStageUnclaimed = !isEvaluatedByMe && !isEvaluatedByOther;
+  } else if (statusLower === "foraccountant") {
+    currentStageOfficer = application.accountingOfficer || (
+      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
+    );
+    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+      isStageClaimedByMe = true;
+    } else {
+      isStageClaimedByOther = true;
+    }
+  } else if (statusLower === "pendingpayment") {
+    currentStageOfficer = application.cashierOfficer || (
+      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
+    );
+    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+      isStageClaimedByMe = true;
+    } else {
+      isStageClaimedByOther = true;
+    }
+  } else if (statusLower === "forissuance") {
+    currentStageOfficer = application.issuingOfficer || (
+      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
+    );
+    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+      isStageClaimedByMe = true;
+    } else {
+      isStageClaimedByOther = true;
+    }
+  } else {
+    isStageClaimedByMe = true;
+  }
+
   return {
     isEvaluating,
     evaluatingOfficer,
@@ -113,6 +168,10 @@ export function computeOfficerEvaluationState(params: {
     isEndorsedAwayFromMe,
     isEvaluatedByMe,
     isEvaluatedByOther,
+    currentStageOfficer,
+    isStageClaimedByMe,
+    isStageClaimedByOther,
+    isStageUnclaimed,
   };
 }
 

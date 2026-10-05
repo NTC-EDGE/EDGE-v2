@@ -16,5 +16,6 @@ public record ScheduleDto(
     string? Remarks,
     DateTime CreatedAt,
     string? StartTime = null,
-    string? EndTime = null
+    string? EndTime = null,
+    string? RegionName = null
 );

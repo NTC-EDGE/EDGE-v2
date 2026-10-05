@@ -93,20 +93,20 @@ export function isEvaluatorOrSupervisorRole(role?: string): boolean {
 }
 
 export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
-  if (status === 'ForIssuance') {
-    return 'issuance';
-  }
-
   if (isAccountantRole(role)) {
     if (status === 'ForAccountant') return 'pending';
-    if (status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
+    if (status === 'PendingPayment' || status === 'ForIssuance' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
     return 'activity';
   }
 
   if (isCashierRole(role)) {
     if (status === 'PendingPayment') return 'pending';
-    if (status === 'Completed' || status === 'Approved' || status === 'Returned') return 'history';
+    if (status === 'ForIssuance' || status === 'Completed' || status === 'Approved' || status === 'Returned') return 'history';
     return 'activity';
+  }
+
+  if (status === 'ForIssuance') {
+    return 'issuance';
   }
 
   if (isEvaluatorOrSupervisorRole(role)) {
@@ -442,6 +442,11 @@ export function mapApplicationDtoToUI(
         occupation: '',
       } : undefined),
       requirements: [],
+      formFieldValues: formFields.map((f) => ({
+        fieldId: f.fieldId || '',
+        fieldLabel: f.fieldLabel || '',
+        value: f.value || '',
+      })),
     };
   });
 
@@ -487,6 +492,98 @@ export function mapApplicationDtoToUI(
 
   const endorsementState = parseEndorsementState(dto);
 
+  const histories = 'histories' in dto && Array.isArray(dto.histories) ? dto.histories : [];
+  const sortedHistories = [...histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+  const reversedHistories = [...sortedHistories].reverse();
+
+  const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
+    ? [...dto.statementsOfAccount].sort((a, b) => {
+        const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+        const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
+        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
+        return timeB - timeA;
+      })[0]
+    : undefined;
+
+  const accountingOfficer = (() => {
+    const claim = reversedHistories.find(
+      (h) => (h.action && h.action.toLowerCase().includes('financial review')) ||
+             (h.remarks && h.remarks.toLowerCase().includes('financial review started'))
+    );
+    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+    return undefined;
+  })();
+
+  const cashierOfficer = (() => {
+    const claim = reversedHistories.find(
+      (h) => (h.action && h.action.toLowerCase().includes('payment verification')) ||
+             (h.remarks && h.remarks.toLowerCase().includes('payment verification started'))
+    );
+    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+    return undefined;
+  })();
+
+  const issuingOfficer = (() => {
+    const claim = reversedHistories.find(
+      (h) => (h.action && (h.action.toLowerCase().includes('document issuance started') || h.action.toLowerCase().includes('issuance started'))) ||
+             (h.remarks && h.remarks.toLowerCase().includes('document release process started'))
+    );
+    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+    return undefined;
+  })();
+
+  const evaluatingOfficer = (() => {
+    if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
+      return endorsementState.endorsedTo;
+    }
+    const latestEval = reversedHistories.find(
+      (h) =>
+        h.toStatus === 'ForAccountant' ||
+        h.toStatus === 'Evaluating' ||
+        (h.action && (h.action.toLowerCase().includes('evaluat') || h.action.toLowerCase().includes('accountant'))) ||
+        (h.staffRole && h.staffRole.toLowerCase().includes('evaluator'))
+    );
+    if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
+      return latestEval.staffName.trim();
+    }
+    if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
+      const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
+      if (match && match[1]) {
+        return match[1].trim();
+      }
+    }
+    return undefined;
+  })();
+
+  const assignedTo = (() => {
+    if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
+      return endorsementState.endorsedTo;
+    }
+    if (feStatus === 'Evaluating') {
+      const latestEval = reversedHistories.find(
+        (h) => h.toStatus === 'Evaluating' || (h.action && h.action.toLowerCase().includes('evaluat'))
+      );
+      if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
+        return latestEval.staffName.trim();
+      }
+      if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
+        const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
+        if (match && match[1]) return match[1].trim();
+      }
+    }
+    if (feStatus === 'ForAccountant' && accountingOfficer) {
+      return accountingOfficer;
+    }
+    if (feStatus === 'PendingPayment' && cashierOfficer) {
+      return cashierOfficer;
+    }
+    if (feStatus === 'ForIssuance' && issuingOfficer) {
+      return issuingOfficer;
+    }
+    return dto.office ?? '';
+  })();
+
   return {
     id: dto.id,
     tenantId: dto.tenantId,
@@ -501,11 +598,17 @@ export function mapApplicationDtoToUI(
     queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
+    serviceId: dto.serviceId ?? dto.services?.[0]?.serviceId ?? '',
     serviceName: resolvedServiceName,
     serviceCategory: resolvedCategory,
     serviceVariantName: dto.serviceVariantName ?? '',
     office: dto.office ?? '',
     applicantsList,
+    formFieldValues: (dto.applicants?.[0]?.formFieldValues ?? applicantsList[0]?.formFieldValues ?? []).map((f) => ({
+      fieldId: f.fieldId || '',
+      fieldLabel: f.fieldLabel || '',
+      value: f.value || '',
+    })),
     services: dto.services?.length
       ? dto.services.map((s) => ({
           id: s.id,
@@ -531,52 +634,15 @@ export function mapApplicationDtoToUI(
     updatedAt: dto.updatedAt || dto.lastModifiedAt || dto.createdAt,
     lastModifiedAt: dto.lastModifiedAt,
     dateLabel: formatDateLabel(dto.updatedAt || dto.lastModifiedAt || dto.createdAt),
-    assignedTo: (() => {
-      if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
-        return endorsementState.endorsedTo;
-      }
-      if (feStatus === 'Evaluating' && 'histories' in dto && Array.isArray(dto.histories) && dto.histories.length > 0) {
-        const sorted = [...dto.histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-        const latestEval = [...sorted].reverse().find(
-          (h) => h.toStatus === 'Evaluating' || (h.action && h.action.toLowerCase().includes('evaluat'))
-        );
-        if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
-          return latestEval.staffName;
-        }
-      }
-      if (feStatus === 'Evaluating' && dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
-        const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
-        if (match && match[1]) {
-          return match[1].trim();
-        }
-      }
-      return dto.office ?? '';
-    })(),
-    evaluatingOfficer: (() => {
-      if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
-        return endorsementState.endorsedTo;
-      }
-      if ('histories' in dto && Array.isArray(dto.histories) && dto.histories.length > 0) {
-        const sorted = [...dto.histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-        const latestEval = [...sorted].reverse().find(
-          (h) =>
-            h.toStatus === 'ForAccountant' ||
-            h.toStatus === 'Evaluating' ||
-            (h.action && (h.action.toLowerCase().includes('evaluat') || h.action.toLowerCase().includes('accountant'))) ||
-            (h.staffRole && h.staffRole.toLowerCase().includes('evaluator'))
-        );
-        if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
-          return latestEval.staffName;
-        }
-      }
-      if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
-        const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
-        if (match && match[1]) {
-          return match[1].trim();
-        }
-      }
-      return undefined;
-    })(),
+    assignedTo,
+    evaluatingOfficer,
+    accountingOfficer,
+    cashierOfficer,
+    issuingOfficer,
+    soaId: activeSoa?.id,
+    statementOfAccountId: activeSoa?.id,
+    soaNumber: activeSoa?.soaNumber,
+    soaStatus: activeSoa?.status,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
@@ -620,53 +686,17 @@ export function mapApplicationDtoToUI(
     },
     requirements: [],
     forms: [],
-    soaItems: (() => {
-      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
-        ? [...dto.statementsOfAccount].sort((a, b) => {
-            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
-            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
-            return timeB - timeA;
-          })[0]
-        : undefined;
-
-      return activeSoa?.lineItems?.map((item) => ({
-        particular: item.particular,
-        validityYears: item.validityYears,
-        percentage: 0,
-        noOfUnits: item.noOfUnits,
-        fees: item.feeRate,
-        amount: item.amount,
-        code: item.itemCode,
-      })) ?? [];
-    })(),
-    totalAmountDue: (() => {
-      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
-        ? [...dto.statementsOfAccount].sort((a, b) => {
-            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
-            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
-            return timeB - timeA;
-          })[0]
-        : undefined;
-
-      return activeSoa?.totalAmount ?? 0;
-    })(),
-    dueDate: (() => {
-      const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
-        ? [...dto.statementsOfAccount].sort((a, b) => {
-            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
-            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
-            return timeB - timeA;
-          })[0]
-        : undefined;
-
-      return activeSoa?.dueDate ?? '';
-    })(),
+    soaItems: activeSoa?.lineItems?.map((item) => ({
+      particular: item.particular,
+      validityYears: item.validityYears,
+      percentage: 0,
+      noOfUnits: item.noOfUnits,
+      fees: item.feeRate,
+      amount: item.amount,
+      code: item.itemCode,
+    })) ?? [],
+    totalAmountDue: activeSoa?.totalAmount ?? 0,
+    dueDate: activeSoa?.dueDate ?? '',
     payment: (() => {
       const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
         ? [...dto.ordersOfPayment].sort((a, b) => {

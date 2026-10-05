@@ -232,6 +232,200 @@ describe("officerEvaluationHelper", () => {
       });
       expect(adminState.isEndorsedAwayFromMe).toBe(false);
     });
+
+    describe("Concurrent access & stage authority locking scenarios", () => {
+      const officerAIdentifiers = ["officer-a@ntc.gov.ph", "engr. alice santos", "alice santos"];
+      const officerBIdentifiers = ["officer-b@ntc.gov.ph", "engr. bob reyes", "bob reyes"];
+      const adminIdentifiers = ["admin@ntc.gov.ph", "system administrator"];
+
+      it("allows both Officer A and Officer B to see an application as unclaimed in Submitted state", () => {
+        const submittedApp = createMockApp({
+          status: "Submitted",
+          assignedTo: "Authorized Officer",
+          evaluatingOfficer: "Authorized Officer",
+        });
+
+        const stateA = computeOfficerEvaluationState({
+          application: submittedApp,
+          identifiers: officerAIdentifiers,
+          isAdmin: false,
+        });
+
+        const stateB = computeOfficerEvaluationState({
+          application: submittedApp,
+          identifiers: officerBIdentifiers,
+          isAdmin: false,
+        });
+
+        expect(stateA.isStageUnclaimed).toBe(true);
+        expect(stateA.isStageClaimedByMe).toBe(false);
+        expect(stateA.isStageClaimedByOther).toBe(false);
+
+        expect(stateB.isStageUnclaimed).toBe(true);
+        expect(stateB.isStageClaimedByMe).toBe(false);
+        expect(stateB.isStageClaimedByOther).toBe(false);
+      });
+
+      it("locks out Officer B when Officer A claims the Evaluating stage", () => {
+        // Officer A claims the application
+        const claimedApp = createMockApp({
+          status: "Evaluating",
+          assignedTo: "Engr. Alice Santos",
+          evaluatingOfficer: "Engr. Alice Santos",
+        });
+
+        // Officer A's perspective
+        const stateA = computeOfficerEvaluationState({
+          application: claimedApp,
+          identifiers: officerAIdentifiers,
+          isAdmin: false,
+        });
+        expect(stateA.isStageClaimedByMe).toBe(true);
+        expect(stateA.isStageClaimedByOther).toBe(false);
+        expect(stateA.isStageUnclaimed).toBe(false);
+        expect(stateA.currentStageOfficer).toBe("Engr. Alice Santos");
+
+        // Officer B concurrently views the same application
+        const stateB = computeOfficerEvaluationState({
+          application: claimedApp,
+          identifiers: officerBIdentifiers,
+          isAdmin: false,
+        });
+        expect(stateB.isStageClaimedByMe).toBe(false);
+        expect(stateB.isStageClaimedByOther).toBe(true);
+        expect(stateB.isStageUnclaimed).toBe(false);
+        expect(stateB.currentStageOfficer).toBe("Engr. Alice Santos");
+      });
+
+      it("enforces stage locking during ForAccountant review", () => {
+        const accountantA = ["accountant.ann@ntc.gov.ph", "ann accountant"];
+        const accountantB = ["accountant.ben@ntc.gov.ph", "ben accountant"];
+
+        // Unclaimed accountant review
+        const unclaimedAcctApp = createMockApp({
+          status: "ForAccountant",
+          accountingOfficer: undefined,
+          assignedTo: "Authorized Officer",
+        });
+        const unAcctState = computeOfficerEvaluationState({
+          application: unclaimedAcctApp,
+          identifiers: accountantA,
+        });
+        expect(unAcctState.isStageUnclaimed).toBe(true);
+        expect(unAcctState.isStageClaimedByMe).toBe(false);
+        expect(unAcctState.isStageClaimedByOther).toBe(false);
+
+        // Accountant A claims it
+        const claimedAcctApp = createMockApp({
+          status: "ForAccountant",
+          accountingOfficer: "Ann Accountant",
+          assignedTo: "Ann Accountant",
+        });
+
+        const stateAcctA = computeOfficerEvaluationState({
+          application: claimedAcctApp,
+          identifiers: accountantA,
+        });
+        expect(stateAcctA.isStageClaimedByMe).toBe(true);
+        expect(stateAcctA.isStageClaimedByOther).toBe(false);
+
+        const stateAcctB = computeOfficerEvaluationState({
+          application: claimedAcctApp,
+          identifiers: accountantB,
+        });
+        expect(stateAcctB.isStageClaimedByMe).toBe(false);
+        expect(stateAcctB.isStageClaimedByOther).toBe(true);
+        expect(stateAcctB.currentStageOfficer).toBe("Ann Accountant");
+      });
+
+      it("enforces stage locking during PendingPayment / Cashier review", () => {
+        const cashierA = ["cashier.cathy@ntc.gov.ph", "cathy cashier"];
+        const cashierB = ["cashier.dan@ntc.gov.ph", "dan cashier"];
+
+        const claimedCashierApp = createMockApp({
+          status: "PendingPayment",
+          cashierOfficer: "Cathy Cashier",
+          assignedTo: "Cathy Cashier",
+        });
+
+        const stateCashierA = computeOfficerEvaluationState({
+          application: claimedCashierApp,
+          identifiers: cashierA,
+        });
+        expect(stateCashierA.isStageClaimedByMe).toBe(true);
+        expect(stateCashierA.isStageClaimedByOther).toBe(false);
+
+        const stateCashierB = computeOfficerEvaluationState({
+          application: claimedCashierApp,
+          identifiers: cashierB,
+        });
+        expect(stateCashierB.isStageClaimedByMe).toBe(false);
+        expect(stateCashierB.isStageClaimedByOther).toBe(true);
+        expect(stateCashierB.currentStageOfficer).toBe("Cathy Cashier");
+      });
+
+      it("enforces stage locking during ForIssuance / Releasing stage", () => {
+        const issuerA = ["issuer.irene@ntc.gov.ph", "irene issuer"];
+        const issuerB = ["issuer.ian@ntc.gov.ph", "ian issuer"];
+
+        const claimedIssuanceApp = createMockApp({
+          status: "ForIssuance",
+          issuingOfficer: "Irene Issuer",
+          assignedTo: "Irene Issuer",
+        });
+
+        const stateIssuerA = computeOfficerEvaluationState({
+          application: claimedIssuanceApp,
+          identifiers: issuerA,
+        });
+        expect(stateIssuerA.isStageClaimedByMe).toBe(true);
+        expect(stateIssuerA.isStageClaimedByOther).toBe(false);
+
+        const stateIssuerB = computeOfficerEvaluationState({
+          application: claimedIssuanceApp,
+          identifiers: issuerB,
+        });
+        expect(stateIssuerB.isStageClaimedByMe).toBe(false);
+        expect(stateIssuerB.isStageClaimedByOther).toBe(true);
+        expect(stateIssuerB.currentStageOfficer).toBe("Irene Issuer");
+      });
+
+      it("allows administrators to override stage locks held by other officers", () => {
+        const lockedApp = createMockApp({
+          status: "Evaluating",
+          assignedTo: "Engr. Alice Santos",
+          evaluatingOfficer: "Engr. Alice Santos",
+        });
+
+        const adminState = computeOfficerEvaluationState({
+          application: lockedApp,
+          identifiers: adminIdentifiers,
+          isAdmin: true,
+        });
+
+        expect(adminState.isStageClaimedByMe).toBe(true);
+        expect(adminState.isStageClaimedByOther).toBe(false);
+      });
+
+      it("returns application to unclaimed state if officer releases authority back to queue", () => {
+        const releasedApp = createMockApp({
+          status: "Evaluating",
+          assignedTo: "Authorized Officer",
+          evaluatingOfficer: "Authorized Officer",
+        });
+
+        const stateA = computeOfficerEvaluationState({
+          application: releasedApp,
+          identifiers: officerAIdentifiers,
+          isAdmin: false,
+        });
+
+        expect(stateA.isStageUnclaimed).toBe(false);
+        // Generic officer allows current viewing officer to evaluate
+        expect(stateA.isStageClaimedByMe).toBe(true);
+        expect(stateA.isStageClaimedByOther).toBe(false);
+      });
+    });
   });
 
   describe("resolveApplicantAuditHistory", () => {

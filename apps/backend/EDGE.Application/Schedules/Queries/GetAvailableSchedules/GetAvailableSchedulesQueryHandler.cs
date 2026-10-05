@@ -65,7 +65,8 @@ public class GetAvailableSchedulesQueryHandler : IRequestHandler<GetAvailableSch
             s.MaximumSlots,
             s.Remarks,
             s.StartTime,
-            s.EndTime
+            s.EndTime,
+            tenant.Name
         )).ToList();
 
         return new PaginatedApiResponse<ClientScheduleDto>(clientScheduleDtos, pageNumber, pageSize, totalCount);

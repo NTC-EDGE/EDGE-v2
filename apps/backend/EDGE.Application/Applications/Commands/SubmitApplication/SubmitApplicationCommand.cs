@@ -38,6 +38,16 @@ public record ApplicantSubmissionDto
     public string ContactNumber { get; init; } = "";
     public string Address { get; init; } = "";
     public DateOnly? BirthDate { get; init; }
+    public string? Sex { get; init; }
+    public string? CivilStatus { get; init; }
+    public string? Nationality { get; init; }
+    public double? Height { get; init; }
+    public double? Weight { get; init; }
+    public string? ZipCode { get; init; }
+    public string? SchoolAttended { get; init; }
+    public string? CourseTaken { get; init; }
+    public string? YearGraduated { get; init; }
+    public Guid? BarangayId { get; init; }
     public string? ESignature { get; init; }
 
     public List<FormFieldValueSubmissionDto> FormFieldValues { get; init; } = new();

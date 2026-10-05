@@ -121,6 +121,7 @@ export interface ApplicantItem {
   };
   requirements?: RequirementDocument[];
   history?: AuditTrailEntry[];
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
 }
 
 export interface FormSubmissionSummaryItem {
@@ -159,6 +160,13 @@ export interface ApplicationData {
   dateLabel: string;
   assignedTo: string;
   evaluatingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  issuingOfficer?: string;
+  soaId?: string;
+  statementOfAccountId?: string;
+  soaNumber?: string;
+  soaStatus?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';
@@ -168,6 +176,7 @@ export interface ApplicationData {
   isUrgent: boolean;
   isPinned: boolean;
   isArchived?: boolean;
+  serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
@@ -223,5 +232,6 @@ export interface ApplicationData {
     contactNumber: string;
     email: string;
   };
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   note: string;
 }

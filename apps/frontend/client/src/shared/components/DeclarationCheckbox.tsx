@@ -38,7 +38,11 @@ export function DeclarationCheckbox({
       <TouchableOpacity
         onPress={handleToggle}
         activeOpacity={0.8}
-        style={[styles.boxCard, isChecked && styles.boxCardChecked]}
+        style={[
+          styles.boxCard,
+          isChecked && styles.boxCardChecked,
+          error !== undefined && error.length > 0 ? styles.boxCardError : null,
+        ]}
       >
         <View style={[styles.checkboxSquare, isChecked && styles.checkboxSquareChecked]}>
           {isChecked && <Icon name="check" size={14} color="#FFFFFF" />}
@@ -80,6 +84,11 @@ const styles = StyleSheet.create({
   boxCardChecked: {
     backgroundColor: "#F0FDF4",
     borderColor: "#86EFAC",
+  },
+  boxCardError: {
+    borderColor: "#EF4444",
+    borderWidth: 1.5,
+    backgroundColor: "#FEF2F2",
   },
   checkboxSquare: {
     width: 20,

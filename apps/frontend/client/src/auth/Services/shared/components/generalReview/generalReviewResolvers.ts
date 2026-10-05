@@ -42,9 +42,13 @@ export function resolveServiceCategoryFlags(service: NTCService) {
   return { isExamService, isLicenseService, isPermitService, isCertificateService, isAmateurCertService };
 }
 
-export function resolveApplicantParticulars(activeApplicant: GeneralApplicantData) {
-  const formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }> =
-    activeApplicant.formFieldValues ?? [];
+import { synthesizeAllApplicantFieldValues, SchemaRef, SchemaFieldRef } from '../../helpers/applicantFieldSynthesizer';
+
+export function resolveApplicantParticulars(
+  activeApplicant: GeneralApplicantData,
+  formOrFields?: SchemaRef | SchemaFieldRef[] | null
+) {
+  const formFieldValues = synthesizeAllApplicantFieldValues(activeApplicant, formOrFields);
 
   const resolvedFullName =
     [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix]

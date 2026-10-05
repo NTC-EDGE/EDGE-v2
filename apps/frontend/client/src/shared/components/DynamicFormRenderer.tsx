@@ -139,7 +139,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         field={field}
         targetId={rawTargetId}
         val={val}
-        err={errors?.[rawTargetId]}
+        err={
+          errors?.[rawTargetId] ||
+          errors?.[field.label] ||
+          (field.id !== undefined ? errors?.[field.id] : undefined) ||
+          (field.fieldId !== undefined ? errors?.[field.fieldId] : undefined)
+        }
         displayLabel={field.label}
         isRequired={isFieldRequired}
         span={span}

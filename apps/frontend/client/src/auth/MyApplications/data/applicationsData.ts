@@ -128,6 +128,7 @@ export interface SingleApplication {
   companyName?: string;
   companyDetail?: { name?: string };
   company?: { name?: string };
+  rawStatus?: string;
   Company?: { Name?: string };
   representativeName?: string;
   requirements?: RawRequirement[];
@@ -261,6 +262,7 @@ export interface BulkApplication {
   submittedAt: string;
   applicants: BulkApplicant[];
   soaNumber: string | null;
+  rawStatus?: string;
 
   // SOA & Billing
   soa?: SoaData;

@@ -414,7 +414,7 @@ export function FormSignatureInput({
         </View>
       ) : (
         /* Signature Creation State */
-        <View style={styles.creatorCard}>
+        <View style={[styles.creatorCard, error !== undefined && error.length > 0 ? styles.creatorCardError : null]}>
           {isEditing && hasSignature && (
             <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12, paddingBottom: 10, borderBottomWidth: 1, borderBottomColor: "#E2E8F0" }}>
               <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
@@ -677,6 +677,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#CBD5E1",
     padding: 16,
+  },
+  creatorCardError: {
+    borderColor: "#EF4444",
+    borderWidth: 1.5,
   },
   tabRow: {
     flexDirection: "row",

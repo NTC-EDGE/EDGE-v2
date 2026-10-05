@@ -67,6 +67,7 @@ interface GeneralFilingModeStepProps {
   uploadedFileName?: string;
   setUploadedFileName?: (name: string) => void;
   onApplicantsImported?: (applicants: GeneralApplicantData[]) => void;
+  errors?: Record<string, string>;
 }
 
 const SUFFIX_OPTIONS = [
@@ -117,6 +118,7 @@ export function GeneralFilingModeStep({
   uploadedFileName,
   setUploadedFileName,
   onApplicantsImported,
+  errors = {},
 }: GeneralFilingModeStepProps) {
   const [loading, setLoading] = useState(false);
   const [localSelectedClassId, setLocalSelectedClassId] = useState<string>("");
@@ -459,6 +461,7 @@ export function GeneralFilingModeStep({
           label="Application Variant / Service Type*"
           placeholder="Select Application Variant..."
           value={activeVariantId}
+          error={errors?.["selectedVariantId"] || errors?.["variant"]}
           onValueChange={handleVariantDropdownChange}
           options={variantDropdownOptions}
           iconName="file-text"
@@ -500,9 +503,9 @@ export function GeneralFilingModeStep({
           borderRadius: 14,
           padding: 20,
           borderWidth: 1,
-          borderColor: "#CBD5E1",
+          borderColor: errors?.["selectedElementId"] || errors?.["element"] ? "#EF4444" : "#CBD5E1",
           borderLeftWidth: 5,
-          borderLeftColor: "#3B82F6",
+          borderLeftColor: errors?.["selectedElementId"] || errors?.["element"] ? "#EF4444" : "#3B82F6",
           shadowColor: "#3B82F6",
           shadowOffset: { width: 0, height: 2 },
           shadowOpacity: 0.05,
@@ -573,6 +576,12 @@ export function GeneralFilingModeStep({
             );
           })}
         </View>
+
+        {(errors?.["selectedElementId"] || errors?.["element"]) && (
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: "#EF4444", marginTop: 8 }}>
+            {errors?.["selectedElementId"] || errors?.["element"]}
+          </Text>
+        )}
       </View>
       )}
 
@@ -810,6 +819,7 @@ export function GeneralFilingModeStep({
                     required={true}
                     placeholder="e.g., Juan"
                     value={activeApplicant?.representativeFirstName ?? ""}
+                    error={errors?.["representativeFirstName"]}
                     onChangeText={(text) => {
                       const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
                       const currentLast = activeApplicant?.representativeLastName ?? "";
@@ -847,6 +857,7 @@ export function GeneralFilingModeStep({
                     required={true}
                     placeholder="e.g., Dela Cruz"
                     value={activeApplicant?.representativeLastName ?? ""}
+                    error={errors?.["representativeLastName"]}
                     onChangeText={(text) => {
                       const currentFirst = activeApplicant?.representativeFirstName ?? "";
                       const currentMiddle = activeApplicant?.representativeMiddleName ?? "";
@@ -886,6 +897,7 @@ export function GeneralFilingModeStep({
                     label="Representative Position / Designation"
                     placeholder="e.g., Authorized Representative / Manager / Trustee / Liaison Officer"
                     value={activeApplicant?.representativePosition ?? representativePosition}
+                    error={errors?.["representativePosition"]}
                     onChangeText={(text) => {
                       onRepresentativePositionChange?.(text);
                       updateActiveApplicant?.({ representativePosition: text });
@@ -945,6 +957,7 @@ export function GeneralFilingModeStep({
                     required={true}
                     placeholder="e.g., Globe Telecom Inc., Smart Communications, Inc."
                     value={activeApplicant?.companyName ?? companyName}
+                    error={errors?.["companyName"]}
                     onChangeText={(text) => {
                       onCompanyNameChange?.(text);
                       updateActiveApplicant?.({ companyName: text });

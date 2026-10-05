@@ -171,15 +171,20 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 if (a != null)
                 {
                     var formSubmissionsForApplicant = app.FormSubmissions
-                        .Where(fs => fs.ApplicantId == a.Id)
+                        .Where(fs => fs.ApplicantId == a.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id)))
                         .ToList();
+
+                    if (formSubmissionsForApplicant.Count == 0 && app.ApplicationApplicants.Count == 1)
+                    {
+                        formSubmissionsForApplicant = app.FormSubmissions.ToList();
+                    }
 
                     applicantDto.FormFieldValues = formSubmissionsForApplicant
                         .SelectMany(fs => fs.FieldValues)
                         .Select(fv => new FormFieldValueDto
                         {
                             FieldId = fv.FieldId,
-                            FieldLabel = fv.Field?.Label ?? string.Empty,
+                            FieldLabel = !string.IsNullOrWhiteSpace(fv.Field?.Label) ? fv.Field.Label : (!string.IsNullOrWhiteSpace(fv.CustomLabel) ? fv.CustomLabel : "Field"),
                             Value = fv.Value
                         })
                         .ToList();

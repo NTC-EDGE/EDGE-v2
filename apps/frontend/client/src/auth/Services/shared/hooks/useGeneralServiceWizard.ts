@@ -61,6 +61,16 @@ export interface ExamScheduleItem {
   maximumSlots?: number;
   availableSlots?: number;
   description?: string;
+  startDate?: string;
+  endDate?: string;
+  startApplication?: string;
+  endApplication?: string;
+  applicationDeadline?: string;
+  regionName?: string;
+  tenantName?: string;
+  serviceName?: string;
+  remarks?: string;
+  title?: string;
   [key: string]: unknown;
 }
 
@@ -493,52 +503,56 @@ export function useGeneralServiceWizard(
           const itemStart = typeof item.startTime === "string" ? item.startTime : undefined;
           const itemEnd = typeof item.endTime === "string" ? item.endTime : undefined;
 
-          if (itemDate && itemStart && itemEnd) {
-            return {
-              id: String(item.id || ""),
-              scheduledDate: itemDate,
-              startTime: itemStart,
-              endTime: itemEnd,
-              venue: typeof item.venue === "string" ? item.venue : undefined,
-              maximumSlots: typeof item.maximumSlots === "number" ? item.maximumSlots : undefined,
-              availableSlots: typeof item.availableSlots === "number" ? item.availableSlots : undefined,
-              description: typeof item.description === "string" ? item.description : undefined,
-            };
-          }
           const startD = typeof item.startDate === "string" ? new Date(item.startDate) : new Date();
           const endD = typeof item.endDate === "string" ? new Date(item.endDate) : new Date();
-          const scheduledDate = !isNaN(startD.getTime())
+          const scheduledDate = itemDate && itemDate.length > 0
+            ? itemDate
+            : !isNaN(startD.getTime())
             ? startD.toLocaleDateString("en-US", {
                 weekday: "short",
                 month: "short",
                 day: "numeric",
                 year: "numeric",
               })
-            : itemDate || "TBA";
-          const startTime = !isNaN(startD.getTime())
+            : "TBA";
+          const startTime = itemStart && itemStart.length > 0
+            ? itemStart
+            : !isNaN(startD.getTime())
             ? startD.toLocaleTimeString("en-US", {
                 hour: "numeric",
                 minute: "2-digit",
                 hour12: true,
               })
-            : itemStart || "";
-          const endTime = !isNaN(endD.getTime())
+            : "08:00 AM";
+          const endTime = itemEnd && itemEnd.length > 0
+            ? itemEnd
+            : !isNaN(endD.getTime())
             ? endD.toLocaleTimeString("en-US", {
                 hour: "numeric",
                 minute: "2-digit",
                 hour12: true,
               })
-            : itemEnd || "";
+            : "12:00 PM";
 
           return {
             id: String(item.id || ""),
             scheduledDate,
             startTime,
             endTime,
-            venue: typeof item.venue === "string" ? item.venue : undefined,
+            venue: typeof item.venue === "string" ? item.venue : "NTC Regional Examination Center",
             maximumSlots: typeof item.maximumSlots === "number" ? item.maximumSlots : undefined,
             availableSlots: typeof item.availableSlots === "number" ? item.availableSlots : undefined,
-            description: typeof item.description === "string" ? item.description : undefined,
+            description: typeof item.description === "string" ? item.description : typeof item.remarks === "string" ? item.remarks : undefined,
+            startDate: typeof item.startDate === "string" ? item.startDate : undefined,
+            endDate: typeof item.endDate === "string" ? item.endDate : undefined,
+            startApplication: typeof item.startApplication === "string" ? item.startApplication : undefined,
+            endApplication: typeof item.endApplication === "string" ? item.endApplication : typeof item.applicationDeadline === "string" ? item.applicationDeadline : undefined,
+            applicationDeadline: typeof item.applicationDeadline === "string" ? item.applicationDeadline : typeof item.endApplication === "string" ? item.endApplication : undefined,
+            regionName: typeof item.regionName === "string" ? item.regionName : typeof item.tenantName === "string" ? item.tenantName : undefined,
+            tenantName: typeof item.tenantName === "string" ? item.tenantName : typeof item.regionName === "string" ? item.regionName : undefined,
+            serviceName: typeof item.serviceName === "string" ? item.serviceName : undefined,
+            title: typeof item.title === "string" ? item.title : undefined,
+            remarks: typeof item.remarks === "string" ? item.remarks : typeof item.description === "string" ? item.description : undefined,
           };
         });
         setSchedules(mappedSchedules);

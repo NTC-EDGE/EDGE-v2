@@ -67,4 +67,16 @@ export interface ScheduleItem {
   endTime: string;
   venue: string;
   maximumSlots?: number | null;
+  availableSlots?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  applicationDeadline?: string | null;
+  regionName?: string | null;
+  tenantName?: string | null;
+  serviceName?: string | null;
+  title?: string | null;
+  remarks?: string | null;
+  description?: string | null;
 }

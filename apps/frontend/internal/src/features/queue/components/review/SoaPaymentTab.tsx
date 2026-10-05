@@ -354,7 +354,7 @@ export function SoaPaymentTab({
 
           {/* Action buttons toolbar for SOA & OP */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || app.status === 'Submitted' || isSoaReturned || app.status === 'Draft') ? (
+            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || isSoaReturned) ? (
               <Pressable
                 style={[
                   styles.soaActionBtn,

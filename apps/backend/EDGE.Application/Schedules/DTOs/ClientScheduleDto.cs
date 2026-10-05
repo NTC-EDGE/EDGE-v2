@@ -13,5 +13,6 @@ public record ClientScheduleDto(
     int? MaximumSlots,
     string? Remarks,
     string? StartTime = null,
-    string? EndTime = null
+    string? EndTime = null,
+    string? RegionName = null
 );
