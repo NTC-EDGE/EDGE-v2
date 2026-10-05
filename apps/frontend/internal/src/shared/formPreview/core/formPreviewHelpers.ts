@@ -124,3 +124,96 @@ export function isPreviewFileObject(file: unknown): file is { name: string; uri?
   const candidate = file as { name: unknown };
   return typeof candidate.name === 'string';
 }
+
+// ─── Address formatting helpers ───────────────────────────────────────────────
+
+export interface AddressComponentsInput {
+  street?: string | null;
+  address?: string | null;
+  streetAddress?: string | null;
+  barangay?: string | null;
+  barangayName?: string | null;
+  city?: string | null;
+  cityMunicipality?: string | null;
+  province?: string | null;
+  region?: string | null;
+  zipCode?: string | null;
+}
+
+/**
+ * Safely sanitizes an address segment, returning null if empty or a placeholder token.
+ */
+export function sanitizeAddressSegment(val?: string | null): string | null {
+  if (!val || typeof val !== 'string') return null;
+  const trimmed = val.trim();
+  if (
+    trimmed === '' ||
+    trimmed.toUpperCase() === 'N/A' ||
+    trimmed.toUpperCase() === 'NA' ||
+    trimmed === '-' ||
+    trimmed === '[]' ||
+    trimmed === '{}'
+  ) {
+    return null;
+  }
+  return trimmed;
+}
+
+/**
+ * Builds a clean, comma-separated full address string from granular location components.
+ * Handles missing optional segments (e.g., missing barangay, region, or zip) gracefully
+ * without trailing/double commas or layout shifts.
+ */
+export function formatCompositeAddress(components?: AddressComponentsInput | null): string | null {
+  if (!components) return null;
+
+  const street = sanitizeAddressSegment(components.streetAddress || components.street);
+  const rawAddress = sanitizeAddressSegment(components.address);
+
+  // Determine base street/building segment without duplicate repetition
+  let primaryStreet: string | null = null;
+  if (street && rawAddress && street !== rawAddress) {
+    primaryStreet = rawAddress.toLowerCase().includes(street.toLowerCase())
+      ? rawAddress
+      : `${street}, ${rawAddress}`;
+  } else {
+    primaryStreet = street || rawAddress;
+  }
+
+  const barangay = sanitizeAddressSegment(components.barangay || components.barangayName);
+  const city = sanitizeAddressSegment(components.cityMunicipality || components.city);
+  const province = sanitizeAddressSegment(components.province);
+  const region = sanitizeAddressSegment(components.region);
+  const zip = sanitizeAddressSegment(components.zipCode);
+
+  const parts: string[] = [];
+
+  if (primaryStreet) {
+    parts.push(primaryStreet);
+  }
+
+  if (barangay) {
+    const lowerB = barangay.toLowerCase();
+    parts.push(lowerB.startsWith('brgy') || lowerB.startsWith('barangay') ? barangay : `Brgy. ${barangay}`);
+  }
+
+  if (city) {
+    parts.push(city);
+  }
+
+  if (province && (!city || city.toLowerCase() !== province.toLowerCase())) {
+    parts.push(province);
+  }
+
+  if (region) {
+    parts.push(`(${region})`);
+  }
+
+  if (zip) {
+    const cleanZip = zip.replace(/zip/i, '').trim();
+    parts.push(`ZIP ${cleanZip}`);
+  }
+
+  return parts.length > 0 ? parts.join(', ') : null;
+}
+

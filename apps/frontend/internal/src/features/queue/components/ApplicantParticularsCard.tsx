@@ -1,5 +1,5 @@
 import React from 'react';
-import { ApplicantDetailsReviewCard } from '../../../shared/formPreview/components/ApplicantDetailsReviewCard';
+import { ApplicantDetailsReviewCard, formatCompositeAddress } from '../../../shared/formPreview';
 
 export interface ApplicantParticularsData {
   applicantName?: string | null;
@@ -38,30 +38,14 @@ interface ApplicantParticularsCardProps {
 export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCardProps) {
   if (!applicant) return null;
 
-  const street = (applicant.streetAddress || '').trim();
-  const rawBrgy = (applicant.barangay || '').trim();
-  const brgy = rawBrgy
-    ? (rawBrgy.toLowerCase().startsWith('brgy') || rawBrgy.toLowerCase().startsWith('barangay') ? rawBrgy : `Brgy. ${rawBrgy}`)
-    : '';
-  const city = (applicant.cityMunicipality || applicant.city || '').trim();
-  const prov = (applicant.province || '').trim();
-  const reg = applicant.region && applicant.region !== 'N/A' ? `(${applicant.region.trim()})` : '';
-  const zip = (applicant.zipCode || '').trim();
-
-  let fullAddress = street;
-  if (brgy || city || prov || zip) {
-    const parts = [
-      street && (!rawBrgy || !street.toLowerCase().includes(rawBrgy.toLowerCase())) ? street : (street || undefined),
-      brgy && (!street || !street.toLowerCase().includes(rawBrgy.toLowerCase())) ? brgy : undefined,
-      city && (!street || !street.toLowerCase().includes(city.toLowerCase())) ? city : undefined,
-      prov && (!street || !street.toLowerCase().includes(prov.toLowerCase())) ? prov : undefined,
-      reg && (!street || !street.toLowerCase().includes(reg.toLowerCase())) ? reg : undefined,
-      zip && (!street || !street.includes(zip)) ? zip : undefined,
-    ].filter((p): p is string => Boolean(p && p.trim()));
-    if (parts.length > 0) {
-      fullAddress = parts.join(', ');
-    }
-  }
+  const fullAddress = formatCompositeAddress({
+    streetAddress: applicant.streetAddress,
+    barangay: applicant.barangay,
+    cityMunicipality: applicant.cityMunicipality || applicant.city,
+    province: applicant.province,
+    region: applicant.region,
+    zipCode: applicant.zipCode,
+  });
 
   const fullName = applicant.applicantName || applicant.name || null;
   const email = applicant.email || '';
@@ -89,7 +73,7 @@ export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCard
       resolvedFullName={fullName}
       resolvedEmail={email}
       resolvedContactNo={contactNo}
-      resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
+      resolvedAddress={fullAddress}
       resolvedBirthDate={applicant.birthDate || null}
       resolvedSex={applicant.sex || null}
       resolvedCivilStatus={applicant.civilStatus || null}

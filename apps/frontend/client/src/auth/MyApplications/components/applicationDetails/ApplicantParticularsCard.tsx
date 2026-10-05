@@ -1,5 +1,5 @@
 import React from 'react';
-import { ApplicantDetailsReviewCard } from '../../../../shared/formPreview/components/ApplicantDetailsReviewCard';
+import { ApplicantDetailsReviewCard, formatCompositeAddress } from '../../../../shared/formPreview';
 
 interface ApplicantParticularsCardProps {
   singleApplicant: {
@@ -32,15 +32,14 @@ interface ApplicantParticularsCardProps {
 export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticularsCardProps) {
   if (!singleApplicant) return null;
 
-  const addressComponents = [
-    singleApplicant.streetAddress,
-    singleApplicant.barangay ? `Brgy. ${singleApplicant.barangay}` : '',
-    singleApplicant.cityMunicipality,
-    singleApplicant.province,
-    singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : '',
-    singleApplicant.zipCode,
-  ].filter(Boolean);
-  const fullAddress = addressComponents.join(', ');
+  const fullAddress = formatCompositeAddress({
+    streetAddress: singleApplicant.streetAddress,
+    barangay: singleApplicant.barangay,
+    cityMunicipality: singleApplicant.cityMunicipality,
+    province: singleApplicant.province,
+    region: singleApplicant.region,
+    zipCode: singleApplicant.zipCode,
+  });
 
   return (
     <ApplicantDetailsReviewCard
@@ -57,13 +56,13 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
         notes: singleApplicant.notes,
       }}
       resolvedFullName={singleApplicant.applicantName || null}
-      resolvedEmail={singleApplicant.email || ''}
-      resolvedContactNo={singleApplicant.mobileNumber || ''}
-      resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
-      resolvedBirthDate={singleApplicant.birthDate || null}
-      resolvedSex={singleApplicant.sex || null}
-      resolvedCivilStatus={singleApplicant.civilStatus || null}
-      resolvedNationality={singleApplicant.nationality || null}
+      resolvedEmail={singleApplicant.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : ''}
+      resolvedContactNo={singleApplicant.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : ''}
+      resolvedAddress={fullAddress}
+      resolvedBirthDate={singleApplicant.birthDate && singleApplicant.birthDate !== 'N/A' ? singleApplicant.birthDate : null}
+      resolvedSex={singleApplicant.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
+      resolvedCivilStatus={singleApplicant.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
+      resolvedNationality={singleApplicant.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
     />
   );
 }

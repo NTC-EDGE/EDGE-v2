@@ -3,7 +3,7 @@ import { useApi } from '../../../../shared/hooks/useApi';
 import { useServiceForm } from '../../../Services/shared/hooks/useServiceForm';
 import { Application } from '../../data/applicationsData';
 import { isGuid } from './applicationDetailsTypes';
-import { BaseApplicationPreview } from '../../../../shared/formPreview';
+import { BaseApplicationPreview, formatCompositeAddress } from '../../../../shared/formPreview';
 
 export interface SubmittedApplicantData {
   applicantName?: string;
@@ -70,17 +70,18 @@ export function SubmittedFormStructuredView({
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
   const applicantName = singleApplicant?.applicantName || singleApplicant?.name || primaryName;
-  const addressComponents = singleApplicant
-    ? [
-        singleApplicant.streetAddress,
-        singleApplicant.barangay ? `Brgy. ${singleApplicant.barangay}` : '',
-        singleApplicant.cityMunicipality,
-        singleApplicant.province,
-        singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : '',
-        singleApplicant.zipCode,
-      ].filter(Boolean)
-    : [];
-  const fullAddress = addressComponents.join(', ');
+  const fullAddress = formatCompositeAddress(
+    singleApplicant
+      ? {
+          streetAddress: singleApplicant.streetAddress,
+          barangay: singleApplicant.barangay,
+          cityMunicipality: singleApplicant.cityMunicipality,
+          province: singleApplicant.province,
+          region: singleApplicant.region,
+          zipCode: singleApplicant.zipCode,
+        }
+      : null
+  );
 
   return (
     <BaseApplicationPreview
@@ -92,13 +93,13 @@ export function SubmittedFormStructuredView({
       form={form}
       formFieldValues={formFieldValues}
       resolvedFullName={applicantName}
-      resolvedEmail={singleApplicant?.email}
-      resolvedContactNo={singleApplicant?.mobileNumber}
-      resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
-      resolvedBirthDate={singleApplicant?.birthDate}
-      resolvedSex={singleApplicant?.sex}
-      resolvedCivilStatus={singleApplicant?.civilStatus}
-      resolvedNationality={singleApplicant?.nationality}
+      resolvedEmail={singleApplicant?.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined}
+      resolvedContactNo={singleApplicant?.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined}
+      resolvedAddress={fullAddress}
+      resolvedBirthDate={singleApplicant?.birthDate && singleApplicant.birthDate !== 'N/A' ? singleApplicant.birthDate : null}
+      resolvedSex={singleApplicant?.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
+      resolvedCivilStatus={singleApplicant?.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
+      resolvedNationality={singleApplicant?.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
       companyName={singleApplicant?.companyName}
       representativeName={singleApplicant?.representativeName}
       notes={singleApplicant?.notes}

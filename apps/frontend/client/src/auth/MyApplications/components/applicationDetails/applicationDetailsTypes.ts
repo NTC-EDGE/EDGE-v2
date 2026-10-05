@@ -31,12 +31,14 @@ export interface RawApplicantDetails {
   birthDay?: string;
   birthYear?: string;
   civilStatus?: string;
-  sex?: 'Male' | 'Female';
+  sex?: 'Male' | 'Female' | string;
   nationality?: string;
   streetAddress?: string;
   address?: string;
   barangay?: string;
+  barangayName?: string;
   cityMunicipality?: string;
+  city?: string;
   province?: string;
   region?: string;
   zipCode?: string;

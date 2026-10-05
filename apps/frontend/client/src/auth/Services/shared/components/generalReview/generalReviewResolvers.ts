@@ -1,7 +1,7 @@
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
-import { isApplicantParticularField } from '../../../../../shared/formPreview';
+import { isApplicantParticularField, formatCompositeAddress } from '../../../../../shared/formPreview';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
@@ -42,34 +42,34 @@ export function resolveServiceCategoryFlags(service: NTCService) {
   return { isExamService, isLicenseService, isPermitService, isCertificateService, isAmateurCertService };
 }
 
-import { synthesizeAllApplicantFieldValues, SchemaRef, SchemaFieldRef } from '../../helpers/applicantFieldSynthesizer';
-
 export function resolveApplicantParticulars(
-  activeApplicant: GeneralApplicantData,
-  formOrFields?: SchemaRef | SchemaFieldRef[] | null
+  activeApplicant: GeneralApplicantData
 ) {
-  const formFieldValues = synthesizeAllApplicantFieldValues(activeApplicant, formOrFields);
+  const formFieldValues = activeApplicant.formFieldValues || [];
 
-  const resolvedFullName =
-    [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix]
-      .filter(Boolean)
-      .join(' ') ||
-    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => isApplicantParticularField(fv.fieldId) && fv.fieldLabel.toLowerCase().includes('name'))?.value ||
-    null;
-
-  const addressParts = [
-    activeApplicant.address,
-    activeApplicant.barangay,
-    activeApplicant.city,
-    activeApplicant.province,
-    activeApplicant.region,
-    activeApplicant.zipCode ? `ZIP ${activeApplicant.zipCode}` : null,
+  const fullNameParts = [
+    activeApplicant.firstName,
+    activeApplicant.middleName,
+    activeApplicant.lastName,
+    activeApplicant.suffix,
   ].filter(Boolean);
 
+  const resolvedFullName =
+    fullNameParts.length > 0
+      ? fullNameParts.join(' ')
+      : formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => isApplicantParticularField(fv.fieldId) && fv.fieldLabel.toLowerCase().includes('name'))?.value ||
+        null;
+
   const resolvedAddress =
-    addressParts.length > 0
-      ? addressParts.join(', ')
-      : formFieldValues.find(
+    formatCompositeAddress({
+      street: activeApplicant.street,
+      address: activeApplicant.address,
+      barangay: activeApplicant.barangay,
+      city: activeApplicant.city,
+      province: activeApplicant.province,
+      region: activeApplicant.region,
+      zipCode: activeApplicant.zipCode,
+    }) || formFieldValues.find(
           (fv: { fieldId: string; fieldLabel: string; value: string }) =>
             (fv.fieldId === 'address' ||
               fv.fieldId === FIELD_ID_ADDRESS ||
@@ -88,32 +88,32 @@ export function resolveApplicantParticulars(
   const resolvedBirthDate =
     activeApplicant.birthMonth && activeApplicant.birthDay && activeApplicant.birthYear
       ? `${activeApplicant.birthMonth} ${activeApplicant.birthDay}, ${activeApplicant.birthYear}`
-      : activeApplicant.birthDate ||
+      : (activeApplicant.birthDate && activeApplicant.birthDate !== 'N/A' ? activeApplicant.birthDate : null) ||
         formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'birthDate' || fv.fieldLabel.toLowerCase().includes('birth'))?.value ||
         null;
 
   const resolvedEmail =
-    activeApplicant.email ||
+    (activeApplicant.email && activeApplicant.email !== 'N/A' ? activeApplicant.email : '') ||
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'email' || fv.fieldLabel.toLowerCase().includes('email'))?.value ||
     '';
 
   const resolvedContactNo =
-    activeApplicant.contactNo ||
+    (activeApplicant.contactNo && activeApplicant.contactNo !== 'N/A' ? activeApplicant.contactNo : '') ||
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'contactNo' || fv.fieldId === 'contactNumber' || fv.fieldLabel.toLowerCase().includes('contact') || fv.fieldLabel.toLowerCase().includes('phone') || fv.fieldLabel.toLowerCase().includes('mobile'))?.value ||
     '';
 
   const resolvedSex =
-    activeApplicant.sex ||
+    (activeApplicant.sex && activeApplicant.sex !== 'N/A' ? activeApplicant.sex : null) ||
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'sex' || fv.fieldLabel.toLowerCase().includes('sex') || fv.fieldLabel.toLowerCase().includes('gender'))?.value ||
     null;
 
   const resolvedCivilStatus =
-    activeApplicant.civilStatus ||
+    (activeApplicant.civilStatus && activeApplicant.civilStatus !== 'N/A' ? activeApplicant.civilStatus : null) ||
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'civilStatus' || fv.fieldLabel.toLowerCase().includes('civil') || fv.fieldLabel.toLowerCase().includes('marital'))?.value ||
     null;
 
   const resolvedNationality =
-    activeApplicant.nationality ||
+    (activeApplicant.nationality && activeApplicant.nationality !== 'N/A' ? activeApplicant.nationality : null) ||
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'nationality' || fv.fieldLabel.toLowerCase().includes('nationality') || fv.fieldLabel.toLowerCase().includes('citizenship'))?.value ||
     null;
 

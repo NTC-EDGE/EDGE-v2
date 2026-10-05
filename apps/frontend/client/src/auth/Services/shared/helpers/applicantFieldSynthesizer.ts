@@ -1,5 +1,5 @@
 import { GeneralApplicantData } from '../hooks/useGeneralServiceWizard';
-import { isSuppressedValue } from '../../../../shared/formPreview';
+import { isSuppressedValue, formatCompositeAddress } from '../../../../shared/formPreview';
 
 /**
  * Static GUID registry — mirrors FastTrackSeederData.cs / CommonSeederData.cs GetFieldsPool().
@@ -523,15 +523,7 @@ export function synthesizeAllApplicantFieldValues(
   if (applicant.region) addField(undefined, 'Region', applicant.region);
   if (applicant.zipCode) addField(undefined, 'Zip / Postal Code', applicant.zipCode);
 
-  const compositeAddress = [
-    applicant.address,
-    applicant.street,
-    applicant.barangay ? `Brgy. ${applicant.barangay}` : null,
-    applicant.city,
-    applicant.province,
-    applicant.region,
-    applicant.zipCode
-  ].filter(Boolean).join(', ');
+  const compositeAddress = formatCompositeAddress(applicant);
   if (compositeAddress) addField(undefined, 'Complete Address', compositeAddress);
 
   if (applicant.schoolName) addField(undefined, 'School / University Attended', applicant.schoolName);
