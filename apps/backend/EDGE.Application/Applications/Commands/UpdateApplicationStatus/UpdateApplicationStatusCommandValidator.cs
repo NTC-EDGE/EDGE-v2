@@ -18,7 +18,13 @@ public class UpdateApplicationStatusCommandValidator : AbstractValidator<UpdateA
             .WithMessage($"Status must be one of: {string.Join(", ", Enum.GetNames<ApplicationStatus>())}.");
 
         RuleFor(x => x.Remarks)
-            .MaximumLength(500)
-            .WithMessage("Remarks cannot exceed 500 characters.");
+            .NotEmpty()
+            .When(x => string.Equals(x.Status, nameof(ApplicationStatus.Returned), StringComparison.OrdinalIgnoreCase) ||
+                       (!string.IsNullOrWhiteSpace(x.Action) && x.Action.StartsWith("Returned", StringComparison.OrdinalIgnoreCase)))
+            .WithMessage("A return reason or remarks must be provided when returning an application.");
+
+        RuleFor(x => x.Remarks)
+            .MaximumLength(2000)
+            .WithMessage("Remarks cannot exceed 2000 characters.");
     }
 }

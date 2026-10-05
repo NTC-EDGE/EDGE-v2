@@ -461,12 +461,17 @@ export function ApplicationReviewScreenContent({
 
   /** Return / decline — multi-tier return in background based on workflow stage or endorsement */
   const handleDecline = async (notice: string) => {
+    const trimmedNotice = notice.trim();
+    if (!trimmedNotice || trimmedNotice.length < 5) {
+      toast.error('A return reason must be provided (minimum 5 characters).');
+      return;
+    }
+
     if (!canDeclineAction) {
-      toast.warning('You must take the application and start evaluation before you can return it.');
+      toast.warning('You do not have authority to return this application at this stage.');
       return;
     }
     setShowDecline(false);
-    const trimmedNotice = notice.trim() || 'Application returned with notice.';
 
     let targetStatus: ApplicationStatus = 'Returned';
     let successMessage = 'Application returned to applicant with notice.';
@@ -512,7 +517,13 @@ export function ApplicationReviewScreenContent({
       staffRole: currentRole || 'Officer',
       remarks: auditRemarks,
     });
-    if (err !== null) { toast.error('Failed to return application.'); return; }
+    if (err !== null) {
+      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+        ? String(Reflect.get(err, 'message'))
+        : 'Please try again.';
+      toast.error(`Failed to return application: ${errMsg}`);
+      return;
+    }
     if (isEndorsedToMe && app.endorsedBy) {
       await updateApplication(app.id, {
         assignedTo: app.endorsedBy,
@@ -642,13 +653,14 @@ export function ApplicationReviewScreenContent({
     showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn
   );
 
-  // Return button: Evaluators CANNOT return if they have not taken the application.
-  // Return is ONLY enabled when actively claimed/taken by the current officer (Evaluator in 'Evaluating', Accountant in 'ForAccountant', Cashier in 'PendingPayment', or Releasing Officer in 'ForIssuance').
+  // Return button: Enabled for authorized officers reviewing an application across workflow stages.
+  // Officers can return applications with a mandatory reason / notice of discrepancy back to the applicant
+  // (from Submitted or Evaluating) or to the previous touch officer (Accountant -> Evaluator, Cashier -> Accountant, Releasing -> Evaluator).
   const canDeclineAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
-    (isEvaluating && isStageClaimedByMe) ||
-    (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
-    (isPendingPayment && canActAsCashier && isStageClaimedByMe) ||
-    (isForIssuance && canActAsReleasing && isStageClaimedByMe)
+    ((isSubmitted || isEvaluating) && (isStageClaimedByMe || isStageUnclaimed || isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
+    (isForAccountant && canActAsAccountant && (isStageClaimedByMe || isStageUnclaimed)) ||
+    (isPendingPayment && canActAsCashier && (isStageClaimedByMe || isStageUnclaimed)) ||
+    (isForIssuance && canActAsReleasing && (isStageClaimedByMe || isStageUnclaimed))
   );
 
   const showReturnBtn = canDecline && !isEndorsedAwayFromMe && !isStageClaimedByOther && app.queueTab !== "history";
@@ -785,6 +797,16 @@ export function ApplicationReviewScreenContent({
           <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
           <Text style={[sc.readOnlyText, { color: COLORS.semantic.warningText }]}>
             Read-only (Processed / History)
+          </Text>
+        </View>
+      )}
+
+      {/* Returned application notice banner */}
+      {app.status === 'Returned' && (
+        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3F1A1A' : '#FEF2F2', borderBottomColor: isDark ? '#991B1B' : '#F87171' }]}>
+          <Lucide name="rotate-ccw" size={14} color={isDark ? '#F87171' : '#DC2626'} />
+          <Text style={[sc.lockedText, { color: isDark ? '#FECACA' : '#991B1B' }]}>
+            Returned Application Notice: <Text style={{ fontWeight: '700' }}>{app.note || 'Returned to applicant with notice of discrepancy.'}</Text>
           </Text>
         </View>
       )}

@@ -9,7 +9,8 @@ interface DeclineModalProps {
   confirmText?: string;
   reasonLabel?: string;
   placeholder?: string;
-  onConfirm: (noticeText: string) => void;
+  isLoading?: boolean;
+  onConfirm: (noticeText: string) => void | Promise<void>;
   onCancel: () => void;
 }
 
@@ -20,22 +21,41 @@ export function DeclineModal({
   confirmText = 'Confirm Return',
   reasonLabel = 'Reason / Notice of Discrepancy',
   placeholder = 'Describe the reason for returning this application...',
+  isLoading = false,
   onConfirm,
   onCancel,
 }: DeclineModalProps) {
   const { colors, isDark } = useTheme();
   const [noticeText, setNoticeText] = useState('');
-  const canSubmit = noticeText.trim().length > 5;
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmittingInternal, setIsSubmittingInternal] = useState(false);
 
-  const handleConfirm = () => {
-    if (canSubmit) {
-      onConfirm(noticeText);
+  const trimmed = noticeText.trim();
+  const canSubmit = trimmed.length >= 5;
+  const isBusy = isLoading || isSubmittingInternal;
+
+  const handleConfirm = async () => {
+    if (!trimmed) {
+      setErrorMessage('A return reason or notice of discrepancy is required.');
+      return;
+    }
+    if (trimmed.length < 5) {
+      setErrorMessage(`Please provide at least 5 characters (${5 - trimmed.length} more required).`);
+      return;
+    }
+    setErrorMessage(null);
+    setIsSubmittingInternal(true);
+    try {
+      await onConfirm(trimmed);
       setNoticeText('');
+    } finally {
+      setIsSubmittingInternal(false);
     }
   };
 
   const handleCancel = () => {
     setNoticeText('');
+    setErrorMessage(null);
     onCancel();
   };
 
@@ -45,6 +65,8 @@ export function DeclineModal({
       title={title}
       variant="danger"
       confirmText={confirmText}
+      confirmDisabled={!canSubmit || isBusy}
+      isLoading={isBusy}
       subtitle={
         <Text
           style={{
@@ -80,7 +102,11 @@ export function DeclineModal({
             {
               color: isDark ? colors.neutral[100] : COLORS.neutral[800],
               backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral[50],
-              borderColor: isDark ? colors.neutral[700] : COLORS.neutral[300],
+              borderColor: errorMessage
+                ? COLORS.semantic.error
+                : isDark
+                ? colors.neutral[700]
+                : COLORS.neutral[300],
             },
           ]}
           multiline
@@ -88,14 +114,27 @@ export function DeclineModal({
           placeholder={placeholder}
           placeholderTextColor={isDark ? colors.neutral[500] : COLORS.neutral[400]}
           value={noticeText}
-          onChangeText={setNoticeText}
+          onChangeText={(text) => {
+            setNoticeText(text);
+            if (errorMessage !== null && text.trim().length >= 5) {
+              setErrorMessage(null);
+            }
+          }}
           textAlignVertical="top"
         />
-        <Text style={[styles.charHint, { color: isDark ? colors.neutral[500] : COLORS.neutral[400] }]}>
-          {noticeText.trim().length < 5
-            ? `${5 - noticeText.trim().length} more characters required`
-            : `${noticeText.trim().length} characters`}
-        </Text>
+        {errorMessage !== null ? (
+          <Text style={styles.errorText}>{errorMessage}</Text>
+        ) : null}
+        <View style={styles.hintRow}>
+          <Text style={styles.mandatoryHint}>
+            * Reason is required to submit return
+          </Text>
+          <Text style={[styles.charHint, { color: isDark ? colors.neutral[500] : COLORS.neutral[400] }]}>
+            {trimmed.length < 5
+              ? `${5 - trimmed.length} more characters required`
+              : `${trimmed.length} characters`}
+          </Text>
+        </View>
       </View>
     </ConfirmationModal>
   );
@@ -123,10 +162,27 @@ const styles = StyleSheet.create({
     minHeight: 100,
     lineHeight: 20,
   },
+  errorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.semantic.error,
+    marginTop: SPACING[4],
+  },
+  hintRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: SPACING[4],
+  },
+  mandatoryHint: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: COLORS.semantic.error,
+  },
   charHint: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    marginTop: SPACING[4],
     textAlign: 'right',
   },
 });
+

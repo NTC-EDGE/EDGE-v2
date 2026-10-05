@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { View, TouchableOpacity, ScrollView, Text, useWindowDimensions } from 'react-native';
-import { Icon, SPACING } from '@edge/ui';
+import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   ApplicationDocument,
   BulkApplicant,
@@ -153,6 +153,53 @@ export function ApplicationDetailsPage({
           primaryName={primaryName}
           docsCount={docs.length}
         />
+
+        {/* Returned for Correction Alert Banner */}
+        {(app.status === 'DECLINED' ||
+          (typeof app.rawStatus === 'string' && app.rawStatus.toLowerCase().includes('return')) ||
+          (typeof app.remarks === 'string' && (
+            app.remarks.toLowerCase().includes('notice of discrepancy') ||
+            app.remarks.toLowerCase().includes('returned')
+          ))) && (
+          <View
+            style={{
+              backgroundColor: '#FEF2F2',
+              borderColor: '#F87171',
+              borderWidth: 1,
+              borderRadius: 12,
+              padding: 16,
+              marginBottom: 16,
+              flexDirection: 'row',
+              alignItems: 'flex-start',
+              gap: 12,
+            }}
+          >
+            <Icon name="alert-triangle" size={20} color="#DC2626" />
+            <View style={{ flex: 1 }}>
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 15,
+                  fontWeight: TYPOGRAPHY.weights.bold,
+                  color: '#991B1B',
+                  marginBottom: 4,
+                }}
+              >
+                Application Returned for Correction
+              </Text>
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 13,
+                  color: '#7F1D1D',
+                  lineHeight: 18,
+                }}
+              >
+                {app.remarks || 'The evaluating officer has returned this application. Please review the deficiency notice.'}
+              </Text>
+            </View>
+          </View>
+        )}
 
         <View style={styles.tabContentList}>
           <ApplicationProgressStepper
