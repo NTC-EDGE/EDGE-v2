@@ -1,6 +1,7 @@
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../../shared/hooks/useGeneralServiceWizard";
 import { synthesizeAllApplicantFieldValues } from "../../shared/helpers/applicantFieldSynthesizer";
+import { formatCompositeAddress } from "../../../../shared/formPreview";
 
 /**
  * Static GUID registry — mirrors FastTrackSeederData.cs GetFieldsPool().
@@ -325,14 +326,10 @@ export function serializeCertificateApplicant(
     ? app.representativeSuffix || app.suffix
     : app.suffix;
 
-  const compositeAddress = [
-    app.street || app.address,
-    app.barangay ? `Brgy. ${app.barangay}` : null,
-    app.city,
-    app.province,
-    app.region && app.region !== 'N/A' ? `(${app.region})` : null,
-    app.zipCode ? `ZIP ${app.zipCode}` : null,
-  ].filter(Boolean).join(', ');
+  const emailVal = app.email || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "applicant@example.com";
+  const contactVal = app.contactNo || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value || "";
+
+  const compositeAddress = formatCompositeAddress(app);
 
   const addressVal = compositeAddress || app.address || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "Philippines";
 

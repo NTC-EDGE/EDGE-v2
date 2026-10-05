@@ -3,7 +3,7 @@ import { useApi } from '../../../../shared/hooks/useApi';
 import { useServiceForm } from '../../../Services/shared/hooks/useServiceForm';
 import { Application } from '../../data/applicationsData';
 import { isGuid } from './applicationDetailsTypes';
-import { BaseApplicationPreview } from '../../../../shared/formPreview';
+import { BaseApplicationPreview, formatCompositeAddress } from '../../../../shared/formPreview';
 
 export interface SubmittedApplicantData {
   applicantName?: string;
@@ -70,17 +70,18 @@ export function SubmittedFormStructuredView({
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
   const applicantName = singleApplicant?.applicantName || singleApplicant?.name || primaryName;
-  const addressComponents = singleApplicant
-    ? [
-        singleApplicant.streetAddress && singleApplicant.streetAddress !== 'N/A' ? singleApplicant.streetAddress : null,
-        singleApplicant.barangay && singleApplicant.barangay !== 'N/A' ? `Brgy. ${singleApplicant.barangay}` : null,
-        singleApplicant.cityMunicipality && singleApplicant.cityMunicipality !== 'N/A' ? singleApplicant.cityMunicipality : null,
-        singleApplicant.province && singleApplicant.province !== 'N/A' ? singleApplicant.province : null,
-        singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : null,
-        singleApplicant.zipCode && singleApplicant.zipCode !== 'N/A' ? `ZIP ${singleApplicant.zipCode}` : null,
-      ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== ''))
-    : [];
-  const fullAddress = addressComponents.join(', ');
+  const fullAddress = formatCompositeAddress(
+    singleApplicant
+      ? {
+          streetAddress: singleApplicant.streetAddress,
+          barangay: singleApplicant.barangay,
+          cityMunicipality: singleApplicant.cityMunicipality,
+          province: singleApplicant.province,
+          region: singleApplicant.region,
+          zipCode: singleApplicant.zipCode,
+        }
+      : null
+  );
 
   return (
     <BaseApplicationPreview
@@ -94,7 +95,7 @@ export function SubmittedFormStructuredView({
       resolvedFullName={applicantName}
       resolvedEmail={singleApplicant?.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined}
       resolvedContactNo={singleApplicant?.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined}
-      resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
+      resolvedAddress={fullAddress}
       resolvedBirthDate={singleApplicant?.birthDate && singleApplicant.birthDate !== 'N/A' ? singleApplicant.birthDate : null}
       resolvedSex={singleApplicant?.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
       resolvedCivilStatus={singleApplicant?.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}

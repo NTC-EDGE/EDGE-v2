@@ -149,7 +149,7 @@ export function useApplicationDetailsData(initialApp: Application) {
 
     const resolvedSex =
       (details?.sex && details.sex !== 'N/A' ? details.sex : null) ||
-      (app.sex && app.sex !== 'N/A' ? app.sex : null) ||
+      (app.sex || null) ||
       findField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) ||
       '';
 

@@ -1,7 +1,7 @@
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
-import { isApplicantParticularField } from '../../../../../shared/formPreview';
+import { isApplicantParticularField, formatCompositeAddress } from '../../../../../shared/formPreview';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
@@ -60,22 +60,16 @@ export function resolveApplicantParticulars(
       : formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => isApplicantParticularField(fv.fieldId) && fv.fieldLabel.toLowerCase().includes('name'))?.value ||
         null;
 
-  const streetOrAddress = activeApplicant.street || activeApplicant.address;
-  const addressParts = [
-    activeApplicant.street && activeApplicant.address && activeApplicant.street !== activeApplicant.address
-      ? `${activeApplicant.street}, ${activeApplicant.address}`
-      : streetOrAddress,
-    activeApplicant.barangay ? `Brgy. ${activeApplicant.barangay}` : null,
-    activeApplicant.city,
-    activeApplicant.province,
-    activeApplicant.region && activeApplicant.region !== 'N/A' ? `(${activeApplicant.region})` : null,
-    activeApplicant.zipCode ? `ZIP ${activeApplicant.zipCode}` : null,
-  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== '' && p.trim() !== 'N/A'));
-
   const resolvedAddress =
-    addressParts.length > 0
-      ? addressParts.join(', ')
-      : formFieldValues.find(
+    formatCompositeAddress({
+      street: activeApplicant.street,
+      address: activeApplicant.address,
+      barangay: activeApplicant.barangay,
+      city: activeApplicant.city,
+      province: activeApplicant.province,
+      region: activeApplicant.region,
+      zipCode: activeApplicant.zipCode,
+    }) || formFieldValues.find(
           (fv: { fieldId: string; fieldLabel: string; value: string }) =>
             (fv.fieldId === 'address' ||
               fv.fieldId === FIELD_ID_ADDRESS ||
