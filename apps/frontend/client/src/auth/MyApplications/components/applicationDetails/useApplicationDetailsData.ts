@@ -4,7 +4,6 @@ import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRe
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
 import { RawApplicantHolder, RawApplicantDetails, normalizeStatus } from './applicationDetailsTypes';
 import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
-import { synthesizeAllApplicantFieldValues } from '../../../Services/shared/helpers/applicantFieldSynthesizer';
 
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
@@ -140,23 +139,96 @@ export function useApplicationDetailsData(initialApp: Application) {
       fieldId?: string; fieldLabel?: string; value?: string;
     }>;
 
+    const findField = (predicate: (label: string, id: string) => boolean) => {
+      return rawFormFields.find((fv) => {
+        const l = (fv.fieldLabel || '').toLowerCase();
+        const id = (fv.fieldId || '').toLowerCase();
+        return predicate(l, id);
+      })?.value;
+    };
+
+    const resolvedSex =
+      (details?.sex && details.sex !== 'N/A' ? details.sex : null) ||
+      (app.sex && app.sex !== 'N/A' ? app.sex : null) ||
+      findField((l) => l === 'sex' || l === 'gender' || l.includes('sex / gender')) ||
+      '';
+
+    const resolvedNationality =
+      (details?.nationality && details.nationality !== 'N/A' ? details.nationality : null) ||
+      (app.nationality && app.nationality !== 'N/A' ? app.nationality : null) ||
+      findField((l) => l.includes('nationality') || l.includes('citizenship')) ||
+      'Filipino';
+
+    const resolvedStreet =
+      (details?.streetAddress && details.streetAddress !== 'N/A' ? details.streetAddress : null) ||
+      (details?.address && details.address !== 'N/A' ? details.address : null) ||
+      (app.streetAddress && app.streetAddress !== 'N/A' ? app.streetAddress : null) ||
+      findField((l) => l.includes('street') || l === 'address') ||
+      '';
+
+    const resolvedBarangay =
+      (details?.barangay && details.barangay !== 'N/A' ? details.barangay : null) ||
+      (details?.barangayName && details.barangayName !== 'N/A' ? details.barangayName : null) ||
+      (app.barangay && app.barangay !== 'N/A' ? app.barangay : null) ||
+      findField((l) => l.includes('barangay')) ||
+      '';
+
+    const resolvedCity =
+      (details?.cityMunicipality && details.cityMunicipality !== 'N/A' ? details.cityMunicipality : null) ||
+      (details?.city && details.city !== 'N/A' ? details.city : null) ||
+      (app.cityMunicipality && app.cityMunicipality !== 'N/A' ? app.cityMunicipality : null) ||
+      findField((l) => l.includes('city') || l.includes('municipality')) ||
+      '';
+
+    const resolvedProvince =
+      (details?.province && details.province !== 'N/A' ? details.province : null) ||
+      (app.province && app.province !== 'N/A' ? app.province : null) ||
+      findField((l) => l.includes('province')) ||
+      '';
+
+    const resolvedRegion =
+      (details?.region && details.region !== 'N/A' ? details.region : null) ||
+      (app.region && app.region !== 'N/A' ? app.region : null) ||
+      findField((l) => l.includes('region')) ||
+      '';
+
+    const resolvedZip =
+      (details?.zipCode && details.zipCode !== 'N/A' ? details.zipCode : null) ||
+      (app.zipCode && app.zipCode !== 'N/A' ? app.zipCode : null) ||
+      findField((l) => l.includes('zip') || l.includes('postal')) ||
+      '';
+
+    const resolvedMobile =
+      (details?.mobileNumber && details.mobileNumber !== 'N/A' ? details.mobileNumber : null) ||
+      (details?.contactNumber && details.contactNumber !== 'N/A' ? details.contactNumber : null) ||
+      (app.mobileNumber && app.mobileNumber !== 'N/A' ? app.mobileNumber : null) ||
+      findField((l) => l.includes('contact') || l.includes('mobile') || l.includes('phone')) ||
+      '';
+
+    const resolvedEmail =
+      (details?.email && details.email !== 'N/A' ? details.email : null) ||
+      (details?.emailAddress && details.emailAddress !== 'N/A' ? details.emailAddress : null) ||
+      (app.email && app.email !== 'N/A' ? app.email : null) ||
+      findField((l) => l.includes('email')) ||
+      '';
+
     return {
       applicantName,
-      sex: details?.sex || app.sex || 'N/A',
-      nationality: details?.nationality || app.nationality || 'Filipino',
-      streetAddress: details?.streetAddress || details?.address || app.streetAddress || 'N/A',
-      barangay: details?.barangay || app.barangay || '',
-      cityMunicipality: details?.cityMunicipality || app.cityMunicipality || 'N/A',
-      province: details?.province || app.province || 'N/A',
-      region: details?.region || app.region || 'N/A',
-      zipCode: details?.zipCode || app.zipCode || '',
-      mobileNumber: details?.mobileNumber || details?.contactNumber || app.mobileNumber || 'N/A',
-      email: details?.email || details?.emailAddress || app.email || 'N/A',
+      sex: resolvedSex,
+      nationality: resolvedNationality,
+      streetAddress: resolvedStreet,
+      barangay: resolvedBarangay,
+      cityMunicipality: resolvedCity,
+      province: resolvedProvince,
+      region: resolvedRegion,
+      zipCode: resolvedZip,
+      mobileNumber: resolvedMobile,
+      email: resolvedEmail,
       examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
       birthDate: resolveBirthDate(details, rawFormFields),
       civilStatus: resolveCivilStatus(details, rawFormFields),
       companyName: details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null,
-      representativeName: details?.representativeName || (app.representativeName as string) || rawFormFields.find((fv) => (fv.fieldLabel || '').toLowerCase().includes('representative'))?.value || null,
+      representativeName: details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null,
       notes: details?.notes || app.remarks || null,
     };
   }, [app]);
@@ -199,43 +271,8 @@ export function useApplicationDetailsData(initialApp: Application) {
         }
       }
     }
-
-    if (singleApplicant) {
-      const sexVal = singleApplicant.sex === 'Male' || singleApplicant.sex === 'Female' ? singleApplicant.sex : undefined;
-      const civilStatusVal = typeof singleApplicant.civilStatus === 'string' && singleApplicant.civilStatus !== 'N/A'
-        ? singleApplicant.civilStatus
-        : undefined;
-      const birthDateVal = typeof singleApplicant.birthDate === 'string' ? singleApplicant.birthDate : undefined;
-
-      return synthesizeAllApplicantFieldValues(
-        {
-          firstName: singleApplicant.applicantName ? singleApplicant.applicantName.split(' ')[0] : undefined,
-          lastName: singleApplicant.applicantName ? singleApplicant.applicantName.split(' ').slice(1).join(' ') : undefined,
-          email: singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined,
-          contactNo: singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined,
-          sex: sexVal,
-          civilStatus: civilStatusVal,
-          nationality: singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : undefined,
-          birthDate: birthDateVal,
-          street: singleApplicant.streetAddress !== 'N/A' ? singleApplicant.streetAddress : undefined,
-          barangay: singleApplicant.barangay || undefined,
-          city: singleApplicant.cityMunicipality !== 'N/A' ? singleApplicant.cityMunicipality : undefined,
-          province: singleApplicant.province !== 'N/A' ? singleApplicant.province : undefined,
-          region: singleApplicant.region !== 'N/A' ? singleApplicant.region : undefined,
-          zipCode: singleApplicant.zipCode || undefined,
-          companyName: singleApplicant.companyName ?? undefined,
-          representativeName: singleApplicant.representativeName ?? undefined,
-          notes: singleApplicant.notes ?? undefined,
-          examineeType: singleApplicant.examineeType || undefined,
-          formFieldValues: baseValues,
-        },
-        null
-      );
-    }
-
-
     return baseValues;
-  }, [app, singleApplicant]);
+  }, [app]);
 
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {

@@ -325,9 +325,16 @@ export function serializeCertificateApplicant(
     ? app.representativeSuffix || app.suffix
     : app.suffix;
 
-  const emailVal = app.email || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "applicant@example.com";
-  const contactVal = app.contactNo || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value || "";
-  const addressVal = app.address || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "Philippines";
+  const compositeAddress = [
+    app.street || app.address,
+    app.barangay ? `Brgy. ${app.barangay}` : null,
+    app.city,
+    app.province,
+    app.region && app.region !== 'N/A' ? `(${app.region})` : null,
+    app.zipCode ? `ZIP ${app.zipCode}` : null,
+  ].filter(Boolean).join(', ');
+
+  const addressVal = compositeAddress || app.address || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "Philippines";
 
   return {
     applicantType: app.applicantType || "individual",

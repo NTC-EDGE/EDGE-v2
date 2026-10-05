@@ -150,7 +150,7 @@ export function buildDynamicSections(
       return false;
     }
 
-    if (showApplicantCard && (isApplicantParticularField(label) || isApplicantParticularField(fieldId))) return false;
+    if (isApplicantParticularField(label) || isApplicantParticularField(fieldId)) return false;
     if (isSignatureOrDeclarationField(label) || isSignatureOrDeclarationField(fieldId)) return false;
     if (isJurisdictionOrVariantField(label) || isJurisdictionOrVariantField(fieldId)) return false;
     if (isRepeaterSubField(label, fieldId)) return false;

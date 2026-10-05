@@ -47,7 +47,7 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     return true;
   }
 
-  // These keywords indicate service-specific / technical / equipment / address details — don't suppress
+  // These keywords indicate service-specific / technical / equipment details — don't suppress
   if (
     lower.includes('dealer') ||
     lower.includes('seller') ||
@@ -81,15 +81,7 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('antenna') ||
     lower.includes('emission') ||
     lower.includes('bandwidth') ||
-    lower.includes('remarks') ||
-    lower.includes('street') ||
-    lower.includes('barangay') ||
-    lower.includes('city') ||
-    lower.includes('municipality') ||
-    lower.includes('province') ||
-    lower.includes('region') ||
-    lower.includes('zip') ||
-    lower.includes('postal')
+    lower.includes('remarks')
   ) {
     return false;
   }
@@ -114,6 +106,9 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('business name') ||
     lower.includes('corporate name') ||
     lower.includes('representative name') ||
+    lower.includes('representative position') ||
+    lower.includes('representative email') ||
+    lower.includes('representative contact') ||
     lower.includes('email') ||
     lower.includes('contact') ||
     lower.includes('phone') ||
@@ -130,7 +125,16 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower === 'sex' ||
     lower === 'gender' ||
     lower.includes('sex / gender') ||
-    lower.includes('gender')
+    lower.includes('gender') ||
+    lower.includes('address') ||
+    lower.includes('street') ||
+    lower.includes('barangay') ||
+    lower.includes('city') ||
+    lower.includes('municipality') ||
+    lower.includes('province') ||
+    lower.includes('region') ||
+    lower.includes('zip') ||
+    lower.includes('postal')
   );
 };
 

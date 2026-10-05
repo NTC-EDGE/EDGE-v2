@@ -33,13 +33,13 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
   if (!singleApplicant) return null;
 
   const addressComponents = [
-    singleApplicant.streetAddress,
-    singleApplicant.barangay ? `Brgy. ${singleApplicant.barangay}` : '',
-    singleApplicant.cityMunicipality,
-    singleApplicant.province,
-    singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : '',
-    singleApplicant.zipCode,
-  ].filter(Boolean);
+    singleApplicant.streetAddress && singleApplicant.streetAddress !== 'N/A' ? singleApplicant.streetAddress : null,
+    singleApplicant.barangay && singleApplicant.barangay !== 'N/A' ? `Brgy. ${singleApplicant.barangay}` : null,
+    singleApplicant.cityMunicipality && singleApplicant.cityMunicipality !== 'N/A' ? singleApplicant.cityMunicipality : null,
+    singleApplicant.province && singleApplicant.province !== 'N/A' ? singleApplicant.province : null,
+    singleApplicant.region && singleApplicant.region !== 'N/A' ? `(${singleApplicant.region})` : null,
+    singleApplicant.zipCode && singleApplicant.zipCode !== 'N/A' ? `ZIP ${singleApplicant.zipCode}` : null,
+  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== ''));
   const fullAddress = addressComponents.join(', ');
 
   return (
@@ -57,13 +57,13 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
         notes: singleApplicant.notes,
       }}
       resolvedFullName={singleApplicant.applicantName || null}
-      resolvedEmail={singleApplicant.email || ''}
-      resolvedContactNo={singleApplicant.mobileNumber || ''}
+      resolvedEmail={singleApplicant.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : ''}
+      resolvedContactNo={singleApplicant.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : ''}
       resolvedAddress={fullAddress.length > 0 ? fullAddress : null}
-      resolvedBirthDate={singleApplicant.birthDate || null}
-      resolvedSex={singleApplicant.sex || null}
-      resolvedCivilStatus={singleApplicant.civilStatus || null}
-      resolvedNationality={singleApplicant.nationality || null}
+      resolvedBirthDate={singleApplicant.birthDate && singleApplicant.birthDate !== 'N/A' ? singleApplicant.birthDate : null}
+      resolvedSex={singleApplicant.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
+      resolvedCivilStatus={singleApplicant.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
+      resolvedNationality={singleApplicant.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
     />
   );
 }
