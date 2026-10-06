@@ -55,6 +55,10 @@ public class SystemConfigRepository : ISystemConfigRepository
 
     public void Update(SystemConfig config)
     {
-        _context.SystemConfigs.Update(config);
+        var entry = _context.Entry(config);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.SystemConfigs.Update(config);
+        }
     }
 }

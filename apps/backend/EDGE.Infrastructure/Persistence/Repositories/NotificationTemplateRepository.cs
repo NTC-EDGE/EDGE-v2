@@ -44,6 +44,10 @@ public class NotificationTemplateRepository : INotificationTemplateRepository
 
     public void Update(NotificationTemplate template)
     {
-        _context.NotificationTemplates.Update(template);
+        var entry = _context.Entry(template);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.NotificationTemplates.Update(template);
+        }
     }
 }

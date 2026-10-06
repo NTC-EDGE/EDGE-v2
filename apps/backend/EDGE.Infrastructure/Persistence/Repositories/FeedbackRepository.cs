@@ -51,7 +51,11 @@ public class FeedbackRepository : IFeedbackRepository
 
     public void Update(FeedbackEntity feedback)
     {
-        _context.Feedbacks.Update(feedback);
+        var entry = _context.Entry(feedback);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Feedbacks.Update(feedback);
+        }
     }
 
     public void Delete(FeedbackEntity feedback)

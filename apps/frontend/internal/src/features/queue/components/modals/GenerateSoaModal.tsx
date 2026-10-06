@@ -221,7 +221,7 @@ export function GenerateSoaModal({
       }));
     }
 
-    const resolvedDue = dueDate.trim() || normalizeYmd(app.soaDueDate || app.dueDate) || new Date().toISOString().split('T')[0]!;
+    const resolvedDue = dueDate.trim() || normalizeYmd(app.soaDueDate || app.dueDate) || (new Date().toISOString().split('T')[0] ?? '');
 
     const [res, err] = await applicationService.createSoa(app.id, {
       issuedToType,

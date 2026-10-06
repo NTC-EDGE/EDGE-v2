@@ -41,7 +41,11 @@ public class DocumentTypeRepository : IDocumentTypeRepository
 
     public void Update(DocumentType docType)
     {
-        _context.DocumentTypes.Update(docType);
+        var entry = _context.Entry(docType);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.DocumentTypes.Update(docType);
+        }
     }
 
     public void Delete(DocumentType docType)
