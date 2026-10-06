@@ -369,9 +369,9 @@ export function SoaPaymentTab({
                 ]}
                 onPress={onOpenGenerateSoa}
               >
-                <Lucide name="refresh-cw" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
+                <Lucide name="edit-3" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
                 <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
-                  {isSoaReturned ? 'Edit SOA' : 'Recalculate / Edit SOA'}
+                  Edit / Recalculate SOA
                 </Text>
               </Pressable>
             ) : hasPayment ? (
@@ -700,14 +700,14 @@ export function SoaPaymentTab({
                 ]}
                 onPress={onOpenGenerateSoa}
               >
-                <Lucide name="refresh-cw" size={13} color={COLORS.neutral.white} />
+                <Lucide name="edit-3" size={13} color={COLORS.neutral.white} />
                 <Text
                   style={[
                     styles.soaActionBtnText,
                     { color: COLORS.neutral.white, fontSize: 12, fontWeight: TYPOGRAPHY.weights.bold },
                   ]}
                 >
-                  Recalculate Fees
+                  Edit / Recalculate Fees
                 </Text>
               </Pressable>
             )}

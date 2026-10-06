@@ -747,6 +747,10 @@ export function mapApplicationDtoToUI(
     statementOfAccountId: activeSoa?.id,
     soaNumber: activeSoa?.soaNumber,
     soaStatus: activeSoa?.status,
+    soaIssuedToName: activeSoa?.issuedToName,
+    soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
+    soaIssuedToType: activeSoa?.issuedToType === 'Company' ? 'Company' : 'Individual',
+    soaDueDate: activeSoa?.dueDate,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
@@ -792,15 +796,17 @@ export function mapApplicationDtoToUI(
     forms: [],
     soaItems: activeSoa?.lineItems?.map((item) => ({
       particular: item.particular,
-      validityYears: item.validityYears,
+      validityYears: item.validityYears || 1,
       percentage: 0,
-      noOfUnits: item.noOfUnits,
+      noOfUnits: item.noOfUnits || 1,
       fees: item.feeRate,
       amount: item.amount,
       code: item.itemCode,
     })) ?? [],
     totalAmountDue: activeSoa?.totalAmount ?? 0,
-    dueDate: activeSoa?.dueDate ?? '',
+    dueDate: activeSoa?.dueDate
+      ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
+      : '',
     payment: (() => {
       const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
         ? [...dto.ordersOfPayment].sort((a, b) => {

@@ -28,7 +28,7 @@ import {
   IssuedToTypeDto,
   FeeCalculationResultDto,
 } from '@edge/api';
-import { ApplicationData } from '../../../../types/application';
+import { ApplicationData, SoaItem } from '../../../../types/application';
 
 interface GenerateSoaModalProps {
   visible: boolean;
@@ -50,6 +50,54 @@ interface EditableLineItem {
   isSurcharge?: boolean;
 }
 
+const normalizeYmd = (dateStr?: string | null): string => {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  const trimmed = dateStr.trim();
+  if (!trimmed) return '';
+  if (trimmed.includes('T')) return trimmed.split('T')[0] ?? '';
+  if (trimmed.includes(' ')) return trimmed.split(' ')[0] ?? '';
+  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
+  const d = new Date(trimmed);
+  if (!isNaN(d.getTime())) {
+    try {
+      return d.toISOString().split('T')[0] ?? '';
+    } catch {
+      return trimmed.substring(0, 10);
+    }
+  }
+  return trimmed.substring(0, 10);
+};
+
+const resolveInitialAddress = (app: ApplicationData): string => {
+  if (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0) {
+    return app.soaIssuedToAddress.trim();
+  }
+  const parts = [
+    app.address?.streetAddress || app.address?.address,
+    app.address?.barangay,
+    app.address?.city,
+    app.address?.province,
+  ].filter(Boolean);
+
+  if (parts.length > 0) {
+    return parts.join(', ');
+  }
+  return app.filingUser?.company?.address || '';
+};
+
+const resolveInitialName = (app: ApplicationData): string => {
+  if (app.soaIssuedToName && app.soaIssuedToName.trim().length > 0) {
+    return app.soaIssuedToName.trim();
+  }
+  return app.applicant || app.companyDetails?.name || app.filingUser?.name || '';
+};
+
+const resolveInitialType = (app: ApplicationData): IssuedToTypeDto => {
+  if (app.soaIssuedToType === 'Company') return 'Company';
+  if (app.soaIssuedToType === 'Individual') return 'Individual';
+  return app.applicantType === 'Company' ? 'Company' : 'Individual';
+};
+
 export function GenerateSoaModal({
   visible,
   app,
@@ -58,21 +106,17 @@ export function GenerateSoaModal({
 }: GenerateSoaModalProps) {
   const { colors, isDark } = useTheme();
 
-  const defaultDueDate = (() => {
-    if (app.dueDate && app.dueDate.trim().length > 0) return app.dueDate;
-    const d = new Date();
-    d.setDate(d.getDate() + 30);
-    return d.toISOString().split('T')[0] ?? '';
-  })();
+  const isExistingSoa = Boolean(
+    (app.soaItems && app.soaItems.length > 0) ||
+    app.totalAmountDue > 0 ||
+    app.soaNumber ||
+    app.soaId
+  );
 
-  const [issuedToName, setIssuedToName] = useState(app.applicant || '');
-  const [issuedToType, setIssuedToType] = useState<IssuedToTypeDto>(
-    app.applicantType === 'Company' ? 'Company' : 'Individual'
-  );
-  const [issuedToAddress, setIssuedToAddress] = useState(
-    app.address?.streetAddress || app.address?.address || app.address?.city || ''
-  );
-  const [dueDate, setDueDate] = useState(defaultDueDate);
+  const [issuedToName, setIssuedToName] = useState('');
+  const [issuedToType, setIssuedToType] = useState<IssuedToTypeDto>('Individual');
+  const [issuedToAddress, setIssuedToAddress] = useState('');
+  const [dueDate, setDueDate] = useState('');
 
   // Calculation state from backend calculation engine
   const [calculatedFees, setCalculatedFees] = useState<FeeCalculationResultDto | null>(null);
@@ -104,9 +148,69 @@ export function GenerateSoaModal({
     const calcData = res.data;
     setCalculatedFees(calcData);
 
-    // Populate default custom line items from calculated result
-    const mappedItems: EditableLineItem[] = calcData.lineItems.map((item, idx) => ({
-      id: `item-${idx}-${Date.now()}`,
+    // If new SOA (not existing), populate default custom line items from calculated result
+    if (!isExistingSoa) {
+      const mappedItems: EditableLineItem[] = calcData.lineItems.map((item, idx) => ({
+        id: `calc-${idx}-${Date.now()}`,
+        particular: item.particular,
+        itemCode: item.itemCode,
+        description: item.description ?? undefined,
+        validityYears: item.validityYears > 0 ? item.validityYears : 1,
+        noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
+        feeRate: item.feeRate,
+        amount: item.amount,
+        isTax: item.isTax,
+        isSurcharge: item.isSurcharge,
+      }));
+      setCustomLineItems(mappedItems);
+    }
+  }, [app.id, isExistingSoa]);
+
+  useEffect(() => {
+    if (visible) {
+      setIssuedToName(resolveInitialName(app));
+      setIssuedToType(resolveInitialType(app));
+      setIssuedToAddress(resolveInitialAddress(app));
+
+      const rawDue = normalizeYmd(app.soaDueDate || app.dueDate);
+      const computedDue = rawDue || (() => {
+        const d = new Date();
+        d.setDate(d.getDate() + 30);
+        return d.toISOString().split('T')[0] ?? '';
+      })();
+      setDueDate(computedDue);
+
+      if (isExistingSoa && app.soaItems && app.soaItems.length > 0) {
+        // Pre-populate existing SOA line items so custom edits & payments are preserved
+        const existingItems: EditableLineItem[] = app.soaItems.map((item: SoaItem, idx: number) => ({
+          id: `existing-${idx}-${Date.now()}`,
+          particular: item.particular,
+          itemCode: item.code || 'FEE',
+          validityYears: item.validityYears > 0 ? item.validityYears : 1,
+          noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
+          feeRate: item.fees,
+          amount: item.amount,
+          isTax: item.code?.toUpperCase() === 'DST',
+          isSurcharge: item.particular?.toLowerCase().includes('surcharge') || item.code?.toUpperCase() === 'SUR',
+        }));
+        setCustomLineItems(existingItems);
+        setIsManualMode(true);
+      } else {
+        setIsManualMode(false);
+      }
+
+      fetchBackendCalculatedFees();
+    }
+  }, [visible, app, isExistingSoa, fetchBackendCalculatedFees]);
+
+  // Apply statutory calculated fees to the editable lines
+  const handleApplyStatutoryFees = () => {
+    if (!calculatedFees || !calculatedFees.lineItems || calculatedFees.lineItems.length === 0) {
+      fetchBackendCalculatedFees();
+      return;
+    }
+    const mappedItems: EditableLineItem[] = calculatedFees.lineItems.map((item, idx) => ({
+      id: `calc-applied-${idx}-${Date.now()}`,
       particular: item.particular,
       itemCode: item.itemCode,
       description: item.description ?? undefined,
@@ -118,18 +222,9 @@ export function GenerateSoaModal({
       isSurcharge: item.isSurcharge,
     }));
     setCustomLineItems(mappedItems);
-  }, [app.id]);
-
-  useEffect(() => {
-    if (visible) {
-      setIssuedToName(app.applicant || '');
-      setIssuedToType(app.applicantType === 'Company' ? 'Company' : 'Individual');
-      setIssuedToAddress(app.address?.streetAddress || app.address?.address || app.address?.city || '');
-      setDueDate(defaultDueDate);
-      setIsManualMode(false);
-      fetchBackendCalculatedFees();
-    }
-  }, [visible, app, defaultDueDate, fetchBackendCalculatedFees]);
+    setIsManualMode(true);
+    toast.success('Statutory fee calculation applied to SOA items.');
+  };
 
   // Handle custom line item updates (manual mode)
   const handleUpdateItem = (
@@ -141,10 +236,12 @@ export function GenerateSoaModal({
       prev.map((item) => {
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
-        if (field === 'noOfUnits' || field === 'feeRate') {
-          const u = typeof updated.noOfUnits === 'number' ? updated.noOfUnits : Number(updated.noOfUnits) || 0;
+        if (field === 'noOfUnits' || field === 'feeRate' || field === 'validityYears') {
+          const y = typeof updated.validityYears === 'number' ? updated.validityYears : Number(updated.validityYears) || 1;
+          const u = typeof updated.noOfUnits === 'number' ? updated.noOfUnits : Number(updated.noOfUnits) || 1;
           const r = typeof updated.feeRate === 'number' ? updated.feeRate : Number(updated.feeRate) || 0;
-          updated.amount = u * r;
+          const isDst = (updated.itemCode || '').toUpperCase() === 'DST';
+          updated.amount = isDst ? r : y * u * r;
         }
         return updated;
       })
@@ -154,8 +251,8 @@ export function GenerateSoaModal({
   const handleAddItem = () => {
     const newItem: EditableLineItem = {
       id: `item-new-${Date.now()}`,
-      particular: 'Additional Regulatory Assessment Fee',
-      itemCode: 'NTC-MISC',
+      particular: 'Additional Assessment Fee',
+      itemCode: 'FEE',
       validityYears: 1,
       noOfUnits: 1,
       feeRate: 100,
@@ -209,23 +306,24 @@ export function GenerateSoaModal({
       }));
     }
 
+    const resolvedDue = dueDate.trim() || normalizeYmd(app.soaDueDate || app.dueDate) || new Date().toISOString().split('T')[0]!;
+
     const [res, err] = await applicationService.createSoa(app.id, {
       issuedToType,
       issuedToName: issuedToName.trim(),
       issuedToAddress: issuedToAddress.trim(),
-      dueDate: dueDate.trim() || defaultDueDate,
+      dueDate: resolvedDue,
       lineItems: lineItemRequests,
     });
 
     setSubmitting(false);
 
     if (err !== null) {
-      toast.error('Failed to generate SOA.');
+      toast.error('Failed to generate Statement of Account.');
       return;
     }
 
-    const isExistingSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
-    const successMsg = isExistingSoa ? 'SOA updated.' : 'SOA generated.';
+    const successMsg = isExistingSoa ? 'Statement of Account updated.' : 'Statement of Account generated.';
     toast.success(successMsg);
     await mutateApplications(app.id);
     if (onSuccess) {
@@ -233,8 +331,6 @@ export function GenerateSoaModal({
     }
     onClose();
   };
-
-  const isExistingSoa = app.soaItems.length > 0 || app.totalAmountDue > 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -263,7 +359,7 @@ export function GenerateSoaModal({
                 ]}
               >
                 <Lucide
-                  name={isExistingSoa ? "refresh-cw" : "file-text"}
+                  name={isExistingSoa ? "edit-3" : "file-text"}
                   size={20}
                   color={isDark ? colors.brand[400] : colors.brand[600]}
                 />
@@ -275,7 +371,7 @@ export function GenerateSoaModal({
                     { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                   ]}
                 >
-                  {isExistingSoa ? 'Recalculate SOA' : 'Generate SOA'}
+                  {isExistingSoa ? 'Edit Statement of Account' : 'Generate Statement of Account'}
                 </Text>
                 <Text
                   style={[
@@ -302,7 +398,7 @@ export function GenerateSoaModal({
             contentContainerStyle={styles.bodyContent}
             showsVerticalScrollIndicator={false}
           >
-            {/* ── Automated Calculation Banner ── */}
+            {/* ── Statutory Calculation Banner ── */}
             <View
               style={[
                 styles.computationBanner,
@@ -325,7 +421,7 @@ export function GenerateSoaModal({
                       { color: isDark ? colors.brand[300] : colors.brand[800] },
                     ]}
                   >
-                    Statutory Fee Calculation
+                    Statutory Fee Calculation &amp; Schedule
                   </Text>
                 </View>
 
@@ -381,9 +477,43 @@ export function GenerateSoaModal({
                         fontFamily: TYPOGRAPHY.fonts.primary,
                       }}
                     >
-                      {isCalculating ? 'Computing...' : 'Recalculate'}
+                      {isCalculating ? 'Computing...' : 'Recalculate Schedule'}
                     </Text>
                   </Pressable>
+
+                  {isManualMode && (
+                    <Pressable
+                      disabled={isCalculating}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 4,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor: isDark ? colors.brand[800] : colors.brand[100],
+                        borderWidth: 1,
+                        borderColor: isDark ? colors.brand[600] : colors.brand[400],
+                      }}
+                      onPress={handleApplyStatutoryFees}
+                    >
+                      <Lucide
+                        name="check"
+                        size={11}
+                        color={isDark ? colors.brand[200] : colors.brand[900]}
+                      />
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: TYPOGRAPHY.weights.bold,
+                          color: isDark ? colors.brand[200] : colors.brand[900],
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                        }}
+                      >
+                        Apply Schedule Fees
+                      </Text>
+                    </Pressable>
+                  )}
                 </View>
               </View>
 
@@ -393,7 +523,7 @@ export function GenerateSoaModal({
                   { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                 ]}
               >
-                Statutory regulatory fees, surcharges, and DST are calculated automatically.
+                Statutory regulatory fees, surcharges, and DST are evaluated dynamically. You can review the calculated schedule or customize each line item below.
               </Text>
 
               {/* Service & Category Metadata Tag */}
@@ -577,8 +707,8 @@ export function GenerateSoaModal({
                     ]}
                   >
                     {isManualMode
-                      ? 'Manual item override active. Custom items will be submitted.'
-                      : 'Computed dynamically by NTC statutory fee schedule.'}
+                      ? 'Editable line items active. Modify particulars, rates, and units below.'
+                      : 'Showing automated statutory fee schedule.'}
                   </Text>
                 </View>
 
@@ -606,7 +736,7 @@ export function GenerateSoaModal({
                       { color: isDark ? colors.neutral[200] : colors.neutral[800] },
                     ]}
                   >
-                    {isManualMode ? 'Automated Mode' : 'Custom Override'}
+                    {isManualMode ? 'Switch to Schedule View' : 'Edit Items & Particulars'}
                   </Text>
                 </Pressable>
               </View>
@@ -833,14 +963,14 @@ export function GenerateSoaModal({
                           />
                         </View>
 
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 0.9 }}>
                           <Text
                             style={[
                               styles.miniLabel,
                               { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                             ]}
                           >
-                            Fee Code
+                            Code
                           </Text>
                           <TextInput
                             style={[
@@ -857,7 +987,34 @@ export function GenerateSoaModal({
                           />
                         </View>
 
-                        <View style={{ flex: 0.8 }}>
+                        <View style={{ flex: 0.7 }}>
+                          <Text
+                            style={[
+                              styles.miniLabel,
+                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                            ]}
+                          >
+                            Years
+                          </Text>
+                          <TextInput
+                            style={[
+                              styles.inputSm,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                textAlign: 'center',
+                              },
+                            ]}
+                            keyboardType="numeric"
+                            value={String(item.validityYears || 1)}
+                            onChangeText={(v) =>
+                              handleUpdateItem(item.id, 'validityYears', Number(v) || 1)
+                            }
+                          />
+                        </View>
+
+                        <View style={{ flex: 0.7 }}>
                           <Text
                             style={[
                               styles.miniLabel,
@@ -911,7 +1068,7 @@ export function GenerateSoaModal({
                           />
                         </View>
 
-                        <View style={{ flex: 1 }}>
+                        <View style={{ flex: 1.1 }}>
                           <Text
                             style={[
                               styles.miniLabel,
@@ -1030,7 +1187,7 @@ export function GenerateSoaModal({
                   <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
                   <Text style={styles.submitBtnText}>
                     {isExistingSoa
-                      ? (isManualMode ? 'Update Custom SOA' : 'Recalculate & Update SOA')
+                      ? (isManualMode ? 'Save Statement of Account' : 'Update & Recalculate SOA')
                       : (isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account')}
                   </Text>
                 </>
@@ -1341,6 +1498,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: SPACING[8],
+    flexWrap: 'wrap',
   },
   miniLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
