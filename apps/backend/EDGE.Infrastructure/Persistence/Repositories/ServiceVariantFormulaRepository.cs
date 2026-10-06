@@ -67,4 +67,11 @@ public class ServiceVariantFormulaRepository : IServiceVariantFormulaRepository
     {
         _context.ServiceVariantElementFormulas.Remove(formula);
     }
+
+    public async Task<ServiceFormula?> GetServiceFormulaAsync(Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        return await _context.ServiceFormulas
+            .Include(f => f.Service)
+            .FirstOrDefaultAsync(f => f.ServiceId == serviceId && f.IsActive, cancellationToken);
+    }
 }

@@ -21,8 +21,11 @@ public class FeeCalculationEngine : IFeeCalculationEngine
     public FeeCalculationResultDto Calculate(FeeCalculationRequest request)
     {
         // 1. Try to evaluate dynamic fee configuration from Database if provided
-        if ((request.VariantFees != null && request.VariantFees.Count > 0) ||
-            (request.ElementFees != null && request.ElementFees.Count > 0))
+        var hasServiceFees = request.ServiceFees != null && request.ServiceFees.Any(sf => sf.IsActive && !sf.IsDeleted);
+        var hasVariantFees = request.VariantFees != null && request.VariantFees.Any(vf => vf.IsActive && !vf.IsDeleted);
+        var hasElementFees = request.ElementFees != null && request.ElementFees.Any(ef => ef.IsActive && !ef.IsDeleted);
+
+        if (hasServiceFees || hasVariantFees || hasElementFees)
         {
             var dynamicResult = CalculateDynamicFees(request);
             if (dynamicResult != null)
@@ -44,6 +47,10 @@ public class FeeCalculationEngine : IFeeCalculationEngine
 
     private static FeeCalculationResultDto? CalculateDynamicFees(FeeCalculationRequest request)
     {
+        var activeServiceFees = request.ServiceFees?
+            .Where(sf => sf.IsActive && !sf.IsDeleted)
+            .ToList() ?? new List<ServiceFee>();
+
         var activeVariantFees = request.VariantFees?
             .Where(vf => vf.IsActive && !vf.IsDeleted)
             .ToList() ?? new List<ServiceVariantFee>();
@@ -67,7 +74,7 @@ public class FeeCalculationEngine : IFeeCalculationEngine
             }
         }
 
-        if (activeVariantFees.Count == 0 && activeElementFees.Count == 0)
+        if (activeServiceFees.Count == 0 && activeVariantFees.Count == 0 && activeElementFees.Count == 0)
         {
             return null;
         }
@@ -81,8 +88,12 @@ public class FeeCalculationEngine : IFeeCalculationEngine
         var hasMultiChannels = FeeConstants.FormulaTokens.HasChannels(formulaExpr);
         var hasMultiPages = FeeConstants.FormulaTokens.HasPages(formulaExpr);
 
-        // Process combined component fees (Variant and Element levels)
+        // Process combined component fees (Service, Variant, and Element levels)
         var allFees = new List<(string FeeName, string FeeCode, string? Description, decimal Amount)>();
+        foreach (var sf in activeServiceFees)
+        {
+            allFees.Add((sf.Fee?.Name ?? sf.Fee?.Code ?? "Service Fee", sf.Fee?.Code ?? "FEE", sf.Fee?.Description, sf.Amount));
+        }
         foreach (var vf in activeVariantFees)
         {
             allFees.Add((vf.Fee?.Name ?? vf.Fee?.Code ?? "Statutory Fee", vf.Fee?.Code ?? "FEE", vf.Fee?.Description, vf.Amount));

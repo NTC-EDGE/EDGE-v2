@@ -17,6 +17,7 @@ public record CalculateFeesQuery(
     int NoOfChannels = 1,
     DateTime? AsOfDate = null,
     ServiceCategoryType? Category = null,
+    Guid? ServiceId = null,
     Guid? ServiceVariantId = null,
     Guid? ElementId = null
 ) : IRequest<ApiResponse<FeeCalculationResultDto>>;

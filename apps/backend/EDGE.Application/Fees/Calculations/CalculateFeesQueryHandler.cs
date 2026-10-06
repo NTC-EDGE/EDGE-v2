@@ -11,17 +11,20 @@ namespace EDGE.Application.Fees.Calculations;
 public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, ApiResponse<FeeCalculationResultDto>>
 {
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceFeeRepository? _serviceFeeRepository;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
 
     public CalculateFeesQueryHandler(
         IFeeCalculationEngine calculationEngine,
+        IServiceFeeRepository? serviceFeeRepository = null,
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
         IServiceVariantFormulaRepository? formulaRepository = null)
     {
         _calculationEngine = calculationEngine;
+        _serviceFeeRepository = serviceFeeRepository;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
@@ -29,9 +32,15 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
 
     public async Task<ApiResponse<FeeCalculationResultDto>> Handle(CalculateFeesQuery request, CancellationToken cancellationToken)
     {
+        IReadOnlyList<ServiceFee>? serviceFees = null;
         IReadOnlyList<ServiceVariantFee>? variantFees = null;
         IReadOnlyList<ServiceVariantElementFee>? elementFees = null;
         string? formulaExpression = null;
+
+        if (request.ServiceId.HasValue && _serviceFeeRepository != null)
+        {
+            serviceFees = await _serviceFeeRepository.GetAllAsync(serviceId: request.ServiceId.Value, activeOnly: true, cancellationToken: cancellationToken);
+        }
 
         if (request.ServiceVariantId.HasValue)
         {
@@ -59,6 +68,12 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
             }
         }
 
+        if (string.IsNullOrWhiteSpace(formulaExpression) && request.ServiceId.HasValue && _formulaRepository != null)
+        {
+            var serviceFormula = await _formulaRepository.GetServiceFormulaAsync(request.ServiceId.Value, cancellationToken);
+            formulaExpression = serviceFormula?.FormulaExpression;
+        }
+
         var calculationRequest = new FeeCalculationRequest(
             Activity: request.Activity,
             ApplicationType: request.ApplicationType,
@@ -71,8 +86,10 @@ public class CalculateFeesQueryHandler : IRequestHandler<CalculateFeesQuery, Api
             NoOfChannels: request.NoOfChannels,
             AsOfDate: request.AsOfDate,
             Category: request.Category,
+            ServiceId: request.ServiceId,
             ServiceVariantId: request.ServiceVariantId,
             ElementId: request.ElementId,
+            ServiceFees: serviceFees,
             VariantFees: variantFees,
             ElementFees: elementFees,
             FormulaExpression: formulaExpression

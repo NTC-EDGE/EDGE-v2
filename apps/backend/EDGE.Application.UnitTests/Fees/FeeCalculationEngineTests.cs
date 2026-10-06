@@ -1,10 +1,12 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using Xunit;
 using EDGE.Application.Fees.Calculations;
 using EDGE.Application.Fees.Calculations.Strategies;
 using EDGE.Domain.Constants;
+using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 
 namespace EDGE.Application.UnitTests.Fees;
@@ -1017,6 +1019,70 @@ public class FeeCalculationEngineTests
             result.FormulaApplied.Should().NotBe("FEE = (RATE)(YR)(UNIT) + DST", $"Category {category} should have a dedicated statutory formula, not default fallback");
         }
     }
+
+    #region Dynamic Database-Configured Fee Calculation Tests
+
+    [Fact]
+    public void Calculate_WithServiceFeeOnly_ShouldComputeExclusivelyFromDatabaseConfiguredFees()
+    {
+        // Example: Exam service with a single configured ServiceFee of 100 PHP (no hardcoded AF or DST injected)
+        var examFee = new Fee { Code = "EXAM", Name = "Examination Fee", Description = "Radio Operator Exam Fee" };
+        var serviceFee = new ServiceFee
+        {
+            Id = Guid.NewGuid(),
+            Fee = examFee,
+            FeeId = examFee.Id,
+            Amount = 100.00m,
+            IsActive = true
+        };
+
+        var request = new FeeCalculationRequest(
+            Activity: "RADIO OPERATORS EXAMINATION",
+            ApplicationType: "Commercial Exam Admission",
+            Category: ServiceCategoryType.Exam,
+            ServiceFees: new List<ServiceFee> { serviceFee }
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.Should().NotBeNull();
+        result.SubTotal.Should().Be(100.00m);
+        result.TaxAmount.Should().Be(0m);
+        result.TotalAmount.Should().Be(100.00m);
+        result.LineItems.Should().HaveCount(1);
+        result.LineItems[0].Particular.Should().Be("Examination Fee");
+        result.LineItems[0].FeeRate.Should().Be(100.00m);
+        result.LineItems[0].Amount.Should().Be(100.00m);
+    }
+
+    [Fact]
+    public void Calculate_WithServiceVariantFeeAndFormula_ShouldEvaluateDynamicFormula()
+    {
+        var rocFee = new Fee { Code = "ROC", Name = "ROC Fee" };
+        var dstFee = new Fee { Code = "DST", Name = "Documentary Stamp Tax" };
+        var variantFee1 = new ServiceVariantFee { Fee = rocFee, FeeId = rocFee.Id, Amount = 180.00m, IsActive = true };
+        var variantFee2 = new ServiceVariantFee { Fee = dstFee, FeeId = dstFee.Id, Amount = 30.00m, IsActive = true };
+
+        var request = new FeeCalculationRequest(
+            Activity: "RADIO OPERATOR CERTIFICATES (ROC)",
+            ApplicationType: "New",
+            ValidityYears: 3,
+            NoOfUnits: 2,
+            FormulaExpression: "(ROC)(YR)(UNIT) + DST",
+            VariantFees: new List<ServiceVariantFee> { variantFee1, variantFee2 }
+        );
+
+        var result = _engine.Calculate(request);
+
+        result.Should().NotBeNull();
+        // ROC: 180 * 3 * 2 = 1080. DST: 30. Total = 1110.
+        result.SubTotal.Should().Be(1080.00m);
+        result.TaxAmount.Should().Be(30.00m);
+        result.TotalAmount.Should().Be(1110.00m);
+        result.LineItems.Should().HaveCount(2);
+    }
+
+    #endregion
 }
 
 

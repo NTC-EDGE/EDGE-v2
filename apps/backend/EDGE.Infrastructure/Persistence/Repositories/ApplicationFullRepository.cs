@@ -63,6 +63,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.ServiceVariant)
+                        .ThenInclude(sv => sv!.ServiceVariantElements)
             .Include(a => a.ApplicationApplicants)
                 .ThenInclude(aa => aa.Applicant)
                     .ThenInclude(app => app!.FormSubmission)

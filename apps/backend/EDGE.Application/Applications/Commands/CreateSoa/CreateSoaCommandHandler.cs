@@ -18,6 +18,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceFeeRepository? _serviceFeeRepository;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
@@ -28,6 +29,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IFeeCalculationEngine calculationEngine,
+        IServiceFeeRepository? serviceFeeRepository = null,
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
         IServiceVariantFormulaRepository? formulaRepository = null)
@@ -37,6 +39,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _calculationEngine = calculationEngine;
+        _serviceFeeRepository = serviceFeeRepository;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
@@ -159,6 +162,10 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var years = request.ValidityYears ?? 1;
             var nowUtc = DateTime.UtcNow;
 
+            var serviceFees = _serviceFeeRepository != null && primaryService != null
+                ? await _serviceFeeRepository.GetAllAsync(serviceId: primaryService.Id, activeOnly: true, cancellationToken: cancellationToken)
+                : null;
+
             var variantFees = _variantFeeRepository != null && primaryVariant != null
                 ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
                 : null;
@@ -168,19 +175,28 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 : null;
 
             string? formulaExpression = null;
-            if (_formulaRepository != null && primaryVariant != null)
+            if (_formulaRepository != null)
             {
-                var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
-                if (primaryElement != null)
+                if (primaryVariant != null)
                 {
-                    var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
-                    formulaExpression = elemFormula?.FormulaExpression;
+                    var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                    if (primaryElement != null)
+                    {
+                        var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                        formulaExpression = elemFormula?.FormulaExpression;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(formulaExpression))
+                    {
+                        var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                        formulaExpression = variantFormula?.FormulaExpression;
+                    }
                 }
 
-                if (string.IsNullOrWhiteSpace(formulaExpression))
+                if (string.IsNullOrWhiteSpace(formulaExpression) && primaryService != null)
                 {
-                    var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
-                    formulaExpression = variantFormula?.FormulaExpression;
+                    var serviceFormula = await _formulaRepository.GetServiceFormulaAsync(primaryService.Id, cancellationToken);
+                    formulaExpression = serviceFormula?.FormulaExpression;
                 }
             }
 
@@ -195,7 +211,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 NoOfCopies: request.NoOfCopies ?? 1,
                 AsOfDate: nowUtc,
                 Category: primaryService?.ServiceCategory?.Type,
+                ServiceId: primaryService?.Id,
                 ServiceVariantId: primaryVariant?.Id,
+                ServiceFees: serviceFees,
                 VariantFees: variantFees,
                 ElementFees: elementFees,
                 FormulaExpression: formulaExpression

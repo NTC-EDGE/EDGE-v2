@@ -17,4 +17,6 @@ public interface IServiceVariantFormulaRepository
     Task<List<ServiceVariantElementFormula>> GetAllElementFormulasAsync(CancellationToken cancellationToken = default);
     Task AddElementFormulaAsync(ServiceVariantElementFormula formula, CancellationToken cancellationToken = default);
     void DeleteElementFormula(ServiceVariantElementFormula formula);
+
+    Task<ServiceFormula?> GetServiceFormulaAsync(Guid serviceId, CancellationToken cancellationToken = default);
 }
