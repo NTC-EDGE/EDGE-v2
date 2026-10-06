@@ -47,7 +47,11 @@ public class StoredFileRepository : IStoredFileRepository
 
     public void Update(StoredFile storedFile)
     {
-        _context.StoredFiles.Update(storedFile);
+        var entry = _context.Entry(storedFile);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.StoredFiles.Update(storedFile);
+        }
     }
 
     public void Delete(StoredFile storedFile)

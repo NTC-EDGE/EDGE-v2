@@ -167,6 +167,10 @@ export interface ApplicationData {
   statementOfAccountId?: string;
   soaNumber?: string;
   soaStatus?: string;
+  soaIssuedToName?: string;
+  soaIssuedToAddress?: string;
+  soaIssuedToType?: ApplicantType;
+  soaDueDate?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

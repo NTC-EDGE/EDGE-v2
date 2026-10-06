@@ -100,7 +100,11 @@ public class OrBookletRepository : IOrBookletRepository
 
     public Task UpdateAsync(OrBooklet booklet, CancellationToken cancellationToken = default)
     {
-        _context.OrBooklets.Update(booklet);
+        var entry = _context.Entry(booklet);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.OrBooklets.Update(booklet);
+        }
         return Task.CompletedTask;
     }
 }

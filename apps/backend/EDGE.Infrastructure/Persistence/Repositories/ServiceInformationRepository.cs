@@ -106,7 +106,11 @@ public class ServiceInformationRepository : IServiceInformationRepository
 
     public void Update(ServiceInformation entity)
     {
-        _context.ServiceInformations.Update(entity);
+        var entry = _context.Entry(entity);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.ServiceInformations.Update(entity);
+        }
     }
 
     public void Delete(ServiceInformation entity)

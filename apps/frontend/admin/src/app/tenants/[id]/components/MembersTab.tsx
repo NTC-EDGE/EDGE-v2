@@ -28,7 +28,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Tenant, TenantMember, Role, FieldOffice } from "@edge/api";
+import { Tenant, TenantMember, Role, FieldOffice, User } from "@edge/api";
 import { useTenantMemberService } from "@/services/tenantMemberService";
 import { useFieldOfficeService } from "@/services/fieldOfficeService";
 import { useRoleService } from "@/services/roleService";
@@ -39,6 +39,47 @@ interface MembersTabProps {
   currentTenant: Tenant;
   fieldOfficesList: FieldOffice[];
   showToast?: (msg: string) => void;
+}
+
+interface NewEmployeeFormData {
+  email: string;
+  firstName: string;
+  lastName: string;
+  middleName: string;
+  suffix: string;
+  contactNumber: string;
+  roleId: string;
+  fieldOfficeId: string;
+  jobTitle: string;
+  level: string;
+  division: string;
+  position: string;
+  designation: string;
+  provisioningMethod: "email" | "manual";
+  password: string;
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+function isUser(val: unknown): val is User {
+  return isRecord(val) && typeof val.id === "string";
+}
+
+function extractUsers(response: unknown): User[] {
+  if (Array.isArray(response)) {
+    return response.filter(isUser);
+  }
+  if (isRecord(response)) {
+    if (Array.isArray(response.data)) {
+      return response.data.filter(isUser);
+    }
+    if (Array.isArray(response.items)) {
+      return response.items.filter(isUser);
+    }
+  }
+  return [];
 }
 
 export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps) {
@@ -81,7 +122,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
   };
 
   // Form state for creating a new employee account (with automatic tenant membership)
-  const [newEmployeeData, setNewEmployeeData] = useState({
+  const [newEmployeeData, setNewEmployeeData] = useState<NewEmployeeFormData>({
     email: "",
     firstName: "",
     lastName: "",
@@ -95,7 +136,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
     division: "",
     position: "",
     designation: "",
-    provisioningMethod: "email" as "email" | "manual",
+    provisioningMethod: "email",
     password: "",
   });
 
@@ -112,11 +153,11 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
   });
 
   const tenantMembersList: TenantMember[] = fetchedMembers ?? [];
+  const userList: User[] = useMemo(() => extractUsers(allUsers), [allUsers]);
 
   // Form options
   const userOptions: SelectOption[] = useMemo(() => {
-    if (!allUsers) return [];
-    return allUsers.map((u) => {
+    return userList.map((u) => {
       const isAlreadyMember = tenantMembersList.some((tm) => tm.userId === u.id);
       const fullName = `${u.firstName || ""} ${u.lastName || ""}`.trim() || "Platform User";
       return {
@@ -127,7 +168,7 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
         disabled: isAlreadyMember,
       };
     });
-  }, [allUsers, tenantMembersList]);
+  }, [userList, tenantMembersList]);
 
   const roleOptions: SelectOption[] = useMemo(() => {
     return rolesList.map((r) => ({
@@ -1078,9 +1119,11 @@ export function MembersTab({ currentTenant, fieldOfficesList }: MembersTabProps)
               <span className="text-xs font-semibold">Fetching details from API...</span>
             </div>
           ) : (memberDetails !== undefined && memberDetails !== null) || (viewingMemberId !== null && tenantMembersList.find((m) => m.id === viewingMemberId) !== undefined) ? (() => {
-            const displayedMember = memberDetails !== undefined && memberDetails !== null
+            const fallbackMember = viewingMemberId !== null ? tenantMembersList.find((m) => m.id === viewingMemberId) : undefined;
+            const displayedMember = (memberDetails !== undefined && memberDetails !== null)
               ? memberDetails
-              : (tenantMembersList.find((m) => m.id === viewingMemberId) as TenantMember);
+              : fallbackMember;
+            if (!displayedMember) return null;
             return (
               <div className="space-y-6 pt-4">
                 {/* Header profile details */}

@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
+import { PaginatedApiResponse } from '../types';
 
 export interface CreateUserApiRequest {
   email: string;
@@ -63,6 +64,10 @@ export interface UpdateUserApiRequest {
   isSuperAdmin?: boolean;
 }
 
+function isCreateUserApiResponse(item: unknown): item is CreateUserApiResponse {
+  return typeof item === 'object' && item !== null && 'id' in item;
+}
+
 export const userService = {
   /**
    * Create a new employee / staff user via Clerk and sync database records
@@ -101,8 +106,20 @@ export const userService = {
    */
   async getUsers() {
     return safeAsync(async () => {
-      const response = await apiClient.get<CreateUserApiResponse[]>('/api/v2/users');
-      return response.data;
+      const response = await apiClient.get<PaginatedApiResponse<CreateUserApiResponse> | CreateUserApiResponse[]>('/api/v2/users?pageSize=100');
+      const data = response.data;
+      if (Array.isArray(data)) {
+        return data.filter(isCreateUserApiResponse);
+      }
+      if (typeof data === 'object' && data !== null) {
+        if ('data' in data && Array.isArray(data.data)) {
+          return data.data.filter(isCreateUserApiResponse);
+        }
+        if ('items' in data && Array.isArray(data.items)) {
+          return data.items.filter(isCreateUserApiResponse);
+        }
+      }
+      return [];
     }, 'Failed to fetch users');
   },
 

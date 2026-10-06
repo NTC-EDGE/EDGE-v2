@@ -55,6 +55,7 @@ import {
   resolveUserIdentifiers,
   matchesUserIdentifier,
   computeOfficerEvaluationState,
+  getApprovingEvaluator,
 } from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
@@ -291,6 +292,7 @@ export function ApplicationReviewScreenContent({
   const app = selectedApplication;
 
   const isSubmitted = app.status === "Submitted";
+  const isReturned = app.status === "Returned";
   const isForAccountant = app.status === "ForAccountant";
   const isPendingPayment = app.status === "PendingPayment";
   const isForIssuance = app.status === "ForIssuance";
@@ -313,35 +315,36 @@ export function ApplicationReviewScreenContent({
     isAdmin,
   });
 
-  const isActivelyEvaluating = isEvaluating && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
+  const isActivelyEvaluating = (isEvaluating || isReturned) && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
   const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
-  /** Evaluator starts evaluation -> changes status from Submitted to Evaluating */
+  /** Evaluator starts/resumes evaluation -> changes status from Submitted/Returned to Evaluating */
   const handleStartEvaluation = async () => {
+    const isReturning = isReturned;
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'Evaluating',
-      action: 'Evaluating',
+      action: isReturning ? 'Evaluation Resumed' : 'Evaluating',
       staffName: officerName,
       staffRole: currentRole || 'Evaluator',
-      remarks: `Evaluation started by ${officerName}.`,
+      remarks: isReturning ? `Evaluation resumed by ${officerName}.` : `Evaluation started by ${officerName}.`,
     });
     if (err !== null) {
-      toast.error('Failed to start evaluation.');
+      toast.error(isReturning ? 'Failed to resume evaluation.' : 'Failed to start evaluation.');
       return;
     }
     await updateApplication(app.id, {
       assignedTo: officerName,
     });
-    toast.success('Evaluation started. Application status changed to Evaluating.');
+    toast.success(isReturning ? 'Evaluation resumed. Application status changed to Evaluating.' : 'Evaluation started. Application status changed to Evaluating.');
     await mutateApplications(app.id);
     await refetch();
   };
 
   /** Officer claims exclusive authority over this application at the current stage */
   const handleClaimAuthority = async () => {
-    if (isSubmitted) {
+    if (isSubmitted || isReturned) {
       void handleStartEvaluation();
       return;
     }
@@ -411,39 +414,39 @@ export function ApplicationReviewScreenContent({
     setShowApprove(false);
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'ForAccountant',
-      action: 'Approved & Forwarded to Accountant',
+      action: isReturned ? 'Evaluation Re-submitted to Accountant' : 'Approved & Forwarded to Accountant',
       staffName: officerName,
       staffRole: currentRole || 'Evaluator',
-      remarks: 'Evaluation approved. Forwarded to Accountant.',
+      remarks: isReturned ? 'Evaluation re-submitted. Forwarded to Accountant.' : 'Evaluation approved. Forwarded to Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
-    toast.success('Evaluation approved and forwarded to Accountant.');
+    toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved and forwarded to Accountant.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
   };
 
-  /** Accountant → Approves SOA, background advances to PendingPayment (visible on client portal) */
+  /** Accountant → Approves Application, background advances to PendingPayment (visible on client portal) */
   const handleAccountantApprove = async () => {
     setShowApprove(false);
     const targetSoaId = app.soaId || app.statementOfAccountId;
     if (targetSoaId) {
-      const [, soaErr] = await applicationService.approveSoa(targetSoaId, 'SOA approved by Accountant.');
+      const [, soaErr] = await applicationService.approveSoa(targetSoaId, 'Application and SOA approved by Accountant.');
       if (soaErr !== null) {
-        toast.error('Failed to approve Statement of Account.');
+        toast.error('Failed to approve application.');
         return;
       }
     } else {
       const [, err] = await applicationService.updateStatus(app.id, {
         status: 'PendingPayment',
-        action: 'SOA Approved by Accountant',
+        action: 'Application Approved by Accountant',
         staffName: officerName,
         staffRole: currentRole || 'Accountant',
-        remarks: 'SOA approved by Accountant.',
+        remarks: 'Application approved by Accountant.',
       });
-      if (err !== null) { toast.error('Failed to approve SOA.'); return; }
+      if (err !== null) { toast.error('Failed to approve application.'); return; }
     }
-    toast.success('SOA approved. Order of Payment generated and forwarded for payment collection.');
+    toast.success('Application approved. Order of Payment generated and forwarded for payment collection.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -497,11 +500,18 @@ export function ApplicationReviewScreenContent({
       auditRemarks = `Returned by Cashier to Accountant: ${trimmedNotice}`;
       actionTitle = 'Returned to Accountant';
     } else if (app.status === 'ForAccountant') {
-      // Accountant returns -> goes back to Evaluator (previous touch)
-      targetStatus = 'Evaluating';
-      successMessage = 'Application returned to Evaluator for review.';
-      auditRemarks = `Returned by Accountant to Evaluator: ${trimmedNotice}`;
-      actionTitle = 'Returned to Evaluator';
+      // Accountant returns -> goes back to Evaluator (previous touch) with status Returned
+      const prevEvaluator = getApprovingEvaluator(app);
+      targetStatus = 'Returned';
+      successMessage = prevEvaluator
+        ? `Application returned to ${prevEvaluator} for review.`
+        : 'Application returned to Evaluator for review.';
+      auditRemarks = prevEvaluator
+        ? `Returned by Accountant to ${prevEvaluator}: ${trimmedNotice}`
+        : `Returned by Accountant to Evaluator: ${trimmedNotice}`;
+      actionTitle = prevEvaluator
+        ? `Application Returned to ${prevEvaluator}`
+        : 'Application Returned to Evaluator';
     } else {
       // Evaluator / Chief / Director returns -> goes back to Applicant
       targetStatus = 'Returned';
@@ -510,24 +520,44 @@ export function ApplicationReviewScreenContent({
       actionTitle = 'Returned with Notice';
     }
 
-    const [, err] = await applicationService.updateStatus(app.id, {
-      status: targetStatus,
-      action: actionTitle,
-      staffName: officerName,
-      staffRole: currentRole || 'Officer',
-      remarks: auditRemarks,
-    });
-    if (err !== null) {
-      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
-        ? String(Reflect.get(err, 'message'))
-        : 'Please try again.';
-      toast.error(`Failed to return application: ${errMsg}`);
-      return;
+    const targetSoaId = app.soaId || app.statementOfAccountId;
+    if (app.status === 'ForAccountant' && targetSoaId) {
+      const [, soaErr] = await applicationService.returnSoa(targetSoaId, trimmedNotice);
+      if (soaErr !== null) {
+        const errMsg = typeof soaErr === 'object' && soaErr !== null && Reflect.has(soaErr, 'message')
+          ? String(Reflect.get(soaErr, 'message'))
+          : 'Please try again.';
+        toast.error(`Failed to return SOA: ${errMsg}`);
+        return;
+      }
+    } else {
+      const [, err] = await applicationService.updateStatus(app.id, {
+        status: targetStatus,
+        action: actionTitle,
+        staffName: officerName,
+        staffRole: currentRole || 'Officer',
+        remarks: auditRemarks,
+      });
+      if (err !== null) {
+        const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+          ? String(Reflect.get(err, 'message'))
+          : 'Please try again.';
+        toast.error(`Failed to return application: ${errMsg}`);
+        return;
+      }
     }
+
     if (isEndorsedToMe && app.endorsedBy) {
       await updateApplication(app.id, {
         assignedTo: app.endorsedBy,
       });
+    } else if (app.status === 'ForAccountant' || app.status === 'ForIssuance') {
+      const prevEvaluator = getApprovingEvaluator(app);
+      if (prevEvaluator) {
+        await updateApplication(app.id, {
+          assignedTo: prevEvaluator,
+        });
+      }
     }
     toast.success(successMessage);
     await mutateApplications(app.id);
@@ -602,6 +632,7 @@ export function ApplicationReviewScreenContent({
   /** Claim button for unclaimed stages */
   const showClaimBtn = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
     showStartEvalBtn ||
+    ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
     (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
     (isPendingPayment && isStageUnclaimed && canActAsCashier) ||
     (isForIssuance && isStageUnclaimed && canActAsReleasing)
@@ -614,7 +645,7 @@ export function ApplicationReviewScreenContent({
   /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
   const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing && isStageClaimedByMe;
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
-  const showForwardBtn = isEvaluating && isStageClaimedByMe && !isEndorsedAwayFromMe;
+  const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe;
 
   const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
 
@@ -622,7 +653,7 @@ export function ApplicationReviewScreenContent({
   let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
 
   if (showClaimBtn) {
-    approveButtonLabel = showStartEvalBtn ? 'Start Evaluation' : 'Take Application';
+    approveButtonLabel = showStartEvalBtn ? 'Start Evaluation' : isReturned ? 'Resume Evaluation' : 'Take Application';
     approveButtonIcon = 'play-circle';
   } else if (showCashierBtn) {
     if (isPaymentSubmitted) {
@@ -633,7 +664,7 @@ export function ApplicationReviewScreenContent({
       approveButtonIcon = 'play-circle';
     }
   } else if (showAccountantBtn) {
-    approveButtonLabel = 'Approve SOA';
+    approveButtonLabel = 'Approve';
     approveButtonIcon = 'check-circle';
   } else if (showIssueBtn) {
     approveButtonLabel = 'Issue Document & License';
@@ -643,7 +674,7 @@ export function ApplicationReviewScreenContent({
       approveButtonLabel = 'Generate SOA';
       approveButtonIcon = 'play-circle';
     } else {
-      approveButtonLabel = 'Approve Evaluation';
+      approveButtonLabel = 'Approve';
       approveButtonIcon = 'check-circle';
     }
   }
@@ -654,13 +685,14 @@ export function ApplicationReviewScreenContent({
   );
 
   // Return button: Enabled for authorized officers reviewing an application across workflow stages.
-  // Officers can return applications with a mandatory reason / notice of discrepancy back to the applicant
-  // (from Submitted or Evaluating) or to the previous touch officer (Accountant -> Evaluator, Cashier -> Accountant, Releasing -> Evaluator).
-  const canDeclineAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
-    ((isSubmitted || isEvaluating) && (isStageClaimedByMe || isStageUnclaimed || isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
-    (isForAccountant && canActAsAccountant && (isStageClaimedByMe || isStageUnclaimed)) ||
-    (isPendingPayment && canActAsCashier && (isStageClaimedByMe || isStageUnclaimed)) ||
-    (isForIssuance && canActAsReleasing && (isStageClaimedByMe || isStageUnclaimed))
+  // Enforces the rule: "No one can transact an application without taking/claiming it first".
+  // The Return button is ONLY enabled once the officer has claimed authority (or started evaluation).
+  // On unclaimed applications (showClaimBtn is true), only Start Evaluation / Take Application is enabled.
+  const canDeclineAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && !showClaimBtn && (
+    ((isEvaluating || isReturned) && isStageClaimedByMe) ||
+    (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
+    (isPendingPayment && canActAsCashier && isStageClaimedByMe) ||
+    (isForIssuance && canActAsReleasing && isStageClaimedByMe)
   );
 
   const showReturnBtn = canDecline && !isEndorsedAwayFromMe && !isStageClaimedByOther && app.queueTab !== "history";
@@ -875,27 +907,13 @@ export function ApplicationReviewScreenContent({
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
-        title={
-          showAccountantBtn
-            ? "Approve SOA"
-            : showForwardBtn
-              ? "Forward to Accountant"
-              : isAdmin
-                ? "Approve Application (Admin)"
-                : "Approve Application"
-        }
-        confirmText={
-          showAccountantBtn
-            ? "Approve SOA"
-            : showForwardBtn
-              ? "Forward to Accountant"
-              : "Confirm Approval"
-        }
+        title="Approve Application"
+        confirmText="Approve"
         subtitleText={
           showAccountantBtn
-            ? `Approve SOA and issue Order of Payment for ${app.applicant}.`
+            ? `Approve application and issue Order of Payment for ${app.applicant}.`
             : showForwardBtn
-              ? `Forward evaluation and SOA for ${app.applicant} to Accountant.`
+              ? `Approve application for ${app.applicant} and forward to Accountant.`
               : undefined
         }
         onConfirm={

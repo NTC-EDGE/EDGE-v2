@@ -36,7 +36,16 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
         if (soa.Status != SoaStatus.Pending) return ApiResponse<bool>.Fail("SOA must be Pending to return.");
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
+        Guid? validUserId = null;
+        if (userContext.UserId.HasValue && await _repository.UserExistsAsync(userContext.UserId.Value, cancellationToken))
+        {
+            validUserId = userContext.UserId.Value;
+        }
 
+        var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Accountant";
+        var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Accountant";
+
+        var prevSoaStatus = soa.Status;
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
 
@@ -45,19 +54,20 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
             Action = $"SOA returned. Reason: {request.Remarks}",
-            FromStatus = SoaStatus.Pending,
+            FromStatus = prevSoaStatus,
             ToStatus = SoaStatus.Returned,
-            PerformedByUserId = userContext.UserId,
-            StaffName = userContext.StaffName,
-            StaffRole = userContext.StaffRole,
+            PerformedByUserId = validUserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
 
-        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
-        if (app != null && app.Status == ApplicationStatus.ForAccountant)
+        var app = soa.Application ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        if (app != null)
         {
-            app.Status = ApplicationStatus.Evaluating;
+            var prevAppStatus = app.Status;
+            app.Status = ApplicationStatus.Returned;
             app.Remarks = $"SOA returned by Accountant: {request.Remarks}";
             await _repository.UpdateAsync(app, cancellationToken);
 
@@ -65,10 +75,10 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             {
                 Id = Guid.NewGuid(),
                 ApplicationId = app.Id,
-                Status = ApplicationStatus.Evaluating,
+                Status = ApplicationStatus.Returned,
                 Remarks = $"SOA returned by Accountant: {request.Remarks}",
                 Timestamp = DateTime.UtcNow,
-                UserId = userContext.UserId
+                UserId = validUserId
             }, cancellationToken);
 
             await _repository.AddApplicationHistoryAsync(new ApplicationHistory
@@ -76,10 +86,11 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
                 Id = Guid.NewGuid(),
                 ApplicationId = app.Id,
                 Action = "SOA Returned to Evaluator",
-                ToStatus = ApplicationStatus.Evaluating,
-                PerformedByUserId = userContext.UserId,
-                StaffName = userContext.StaffName,
-                StaffRole = userContext.StaffRole,
+                FromStatus = prevAppStatus,
+                ToStatus = ApplicationStatus.Returned,
+                PerformedByUserId = validUserId,
+                StaffName = staffName,
+                StaffRole = staffRole,
                 Remarks = request.Remarks,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);

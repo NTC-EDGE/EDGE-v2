@@ -18,6 +18,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IFeeCalculationEngine _calculationEngine;
+    private readonly IServiceFeeRepository? _serviceFeeRepository;
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
@@ -28,6 +29,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
         IFeeCalculationEngine calculationEngine,
+        IServiceFeeRepository? serviceFeeRepository = null,
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
         IServiceVariantFormulaRepository? formulaRepository = null)
@@ -37,6 +39,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _calculationEngine = calculationEngine;
+        _serviceFeeRepository = serviceFeeRepository;
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
@@ -47,9 +50,16 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
 
-        if (app.Status != ApplicationStatus.Evaluating)
+        if (app.Status != ApplicationStatus.Evaluating && app.Status != ApplicationStatus.Returned)
         {
-            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating). Please start evaluation first.");
+            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating or Returned). Please start or resume evaluation first.");
+        }
+
+        if (app.Status == ApplicationStatus.Returned)
+        {
+            app.Status = ApplicationStatus.Evaluating;
+            app.Remarks = "Evaluation resumed. Statement of Account updated.";
+            await _repository.UpdateAsync(app, cancellationToken);
         }
 
         var targetApplicant = request.ApplicantId.HasValue
@@ -159,6 +169,10 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             var years = request.ValidityYears ?? 1;
             var nowUtc = DateTime.UtcNow;
 
+            var serviceFees = _serviceFeeRepository != null && primaryService != null
+                ? await _serviceFeeRepository.GetAllAsync(serviceId: primaryService.Id, activeOnly: true, cancellationToken: cancellationToken)
+                : null;
+
             var variantFees = _variantFeeRepository != null && primaryVariant != null
                 ? await _variantFeeRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken)
                 : null;
@@ -168,19 +182,28 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 : null;
 
             string? formulaExpression = null;
-            if (_formulaRepository != null && primaryVariant != null)
+            if (_formulaRepository != null)
             {
-                var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
-                if (primaryElement != null)
+                if (primaryVariant != null)
                 {
-                    var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
-                    formulaExpression = elemFormula?.FormulaExpression;
+                    var primaryElement = primaryVariant.ServiceVariantElements?.FirstOrDefault();
+                    if (primaryElement != null)
+                    {
+                        var elemFormula = await _formulaRepository.GetElementFormulaAsync(primaryVariant.Id, primaryElement.Id, cancellationToken);
+                        formulaExpression = elemFormula?.FormulaExpression;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(formulaExpression))
+                    {
+                        var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
+                        formulaExpression = variantFormula?.FormulaExpression;
+                    }
                 }
 
-                if (string.IsNullOrWhiteSpace(formulaExpression))
+                if (string.IsNullOrWhiteSpace(formulaExpression) && primaryService != null)
                 {
-                    var variantFormula = await _formulaRepository.GetByServiceVariantIdAsync(primaryVariant.Id, cancellationToken);
-                    formulaExpression = variantFormula?.FormulaExpression;
+                    var serviceFormula = await _formulaRepository.GetServiceFormulaAsync(primaryService.Id, cancellationToken);
+                    formulaExpression = serviceFormula?.FormulaExpression;
                 }
             }
 
@@ -195,7 +218,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 NoOfCopies: request.NoOfCopies ?? 1,
                 AsOfDate: nowUtc,
                 Category: primaryService?.ServiceCategory?.Type,
+                ServiceId: primaryService?.Id,
                 ServiceVariantId: primaryVariant?.Id,
+                ServiceFees: serviceFees,
                 VariantFees: variantFees,
                 ElementFees: elementFees,
                 FormulaExpression: formulaExpression
@@ -224,6 +249,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         // Calculate total SOA amount on the server from validated line items
         soa.TotalAmount = soa.LineItems.Sum(li => li.Amount);
 
+        var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Evaluator";
+        var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Evaluator";
+
         soa.Histories.Add(new SoaHistory
         {
             Id = Guid.NewGuid(),
@@ -231,8 +259,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             Action = "SOA created by Evaluator",
             ToStatus = SoaStatus.Pending,
             PerformedByUserId = userContext.UserId,
-            StaffName = userContext.StaffName,
-            StaffRole = userContext.StaffRole,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
         });
 

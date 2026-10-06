@@ -109,7 +109,11 @@ public class ScheduleRepository : IScheduleRepository
 
     public void Update(Schedule schedule)
     {
-        _context.Schedules.Update(schedule);
+        var entry = _context.Entry(schedule);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Schedules.Update(schedule);
+        }
     }
 
     public void Delete(Schedule schedule)

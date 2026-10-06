@@ -104,7 +104,11 @@ public class BankDepositRepository : IBankDepositRepository
 
     public Task UpdateAsync(BankDeposit deposit, CancellationToken cancellationToken = default)
     {
-        _context.BankDeposits.Update(deposit);
+        var entry = _context.Entry(deposit);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.BankDeposits.Update(deposit);
+        }
         return Task.CompletedTask;
     }
 }

@@ -1,5 +1,5 @@
 import { useApi } from './api';
-import { User } from '@edge/api';
+import { User, PaginatedApiResponse } from '@edge/api';
 
 export interface AdminUpdateUserRequest {
   id: string;
@@ -65,7 +65,7 @@ export function useUserService() {
   const { useQuery, post, put, patch, del } = useApi();
 
   const useUsers = (enabled: boolean = true) => {
-    return useQuery<User[]>(enabled ? '/api/v2/users' : null);
+    return useQuery<PaginatedApiResponse<User> | User[]>(enabled ? '/api/v2/users?pageSize=100' : null);
   };
 
   const useUser = (id: string | null) => {

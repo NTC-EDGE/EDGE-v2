@@ -55,7 +55,7 @@ export function SoaPaymentTab({
 
   const hasIncompleteApplicants = app.applicantsList?.some((a: ApplicantItem) => a.status === 'Incomplete') ?? false;
   const isEvaluationReady =
-    (app.status === 'Evaluating' || app.status === 'Approved') &&
+    (app.status === 'Evaluating' || app.status === 'Approved' || app.status === 'Returned') &&
     !hasIncompleteApplicants;
 
   const canGenerateSoa = isEditable && isEvaluationReady;
@@ -251,7 +251,11 @@ export function SoaPaymentTab({
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
     (app.history && app.history.some((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
   );
-  const isSoaReturned = (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) || (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
+  const isSoaReturned =
+    app.status === 'Returned' ||
+    app.soaStatus === 'Returned' ||
+    (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) ||
+    (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -352,9 +356,9 @@ export function SoaPaymentTab({
             </Text>
           </View>
 
-          {/* Action buttons toolbar for SOA & OP */}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || isSoaReturned) ? (
+          {/* Consolidated Action buttons toolbar */}
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || app.status === 'Returned' || isSoaReturned) ? (
               <Pressable
                 style={[
                   styles.soaActionBtn,
@@ -365,9 +369,9 @@ export function SoaPaymentTab({
                 ]}
                 onPress={onOpenGenerateSoa}
               >
-                <Lucide name="refresh-cw" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
+                <Lucide name="edit-3" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
                 <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700] }]}>
-                  {isSoaReturned ? 'Edit SOA' : 'Recalculate / Edit SOA'}
+                  Edit / Recalculate SOA
                 </Text>
               </Pressable>
             ) : hasPayment ? (
@@ -391,14 +395,30 @@ export function SoaPaymentTab({
               style={[
                 styles.soaActionBtn,
                 {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                },
+              ]}
+              onPress={() => onPreviewReport('soa')}
+            >
+              <Lucide name="eye" size={13} color={isDark ? colors.neutral[200] : colors.neutral[700]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
+                Preview & Print
+              </Text>
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.soaActionBtn,
+                {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
                   borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
                 },
               ]}
               onPress={onPrintSoa}
             >
-              <Lucide name="printer" size={13} color={isDark ? colors.neutral[200] : colors.neutral[800]} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+              <Lucide name="printer" size={13} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
                 Print SOA
               </Text>
             </Pressable>
@@ -407,31 +427,15 @@ export function SoaPaymentTab({
               style={[
                 styles.soaActionBtn,
                 {
-                  backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
-                  borderColor: isDark ? '#059669' : '#10b981',
+                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
                 },
               ]}
               onPress={onPrintOp}
             >
-              <Lucide name="credit-card" size={13} color={isDark ? '#34d399' : '#059669'} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? '#34d399' : '#059669' }]}>
+              <Lucide name="file-text" size={13} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
                 Print OP
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.soaActionBtn,
-                {
-                  backgroundColor: isDark ? '#312e81' : '#eef2ff',
-                  borderColor: isDark ? '#6366f1' : '#818cf8',
-                },
-              ]}
-              onPress={() => onPreviewReport('soa')}
-            >
-              <Lucide name="eye" size={13} color={isDark ? '#a5b4fc' : '#4f46e5'} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? '#a5b4fc' : '#4f46e5' }]}>
-                Preview Report
               </Text>
             </Pressable>
           </View>
@@ -635,80 +639,6 @@ export function SoaPaymentTab({
             </View>
           </View>
         </View>
-
-        {/* Unpaid SOA Recalculation Alert Banner */}
-        {!hasPayment && (
-          <View
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: SPACING[12],
-              marginTop: SPACING[12],
-              borderRadius: RADIUS.card,
-              backgroundColor: isDark ? colors.neutral[900] : colors.brand[50],
-              borderColor: isDark ? colors.brand[900] : colors.brand[200],
-              borderWidth: 1,
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, flex: 1, minWidth: 240 }}>
-              <Lucide
-                name="refresh-cw"
-                size={18}
-                color={isDark ? colors.brand[400] : colors.brand[700]}
-              />
-              <View style={{ flex: 1 }}>
-                <Text
-                  style={{
-                    fontSize: 12,
-                    fontWeight: TYPOGRAPHY.weights.semibold,
-                    color: isDark ? colors.neutral[100] : colors.brand[900],
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                  }}
-                >
-                  Unpaid Statement of Account
-                </Text>
-                <Text
-                  style={{
-                    fontSize: 11,
-                    color: isDark ? colors.neutral[400] : colors.neutral[600],
-                    marginTop: 2,
-                    fontFamily: TYPOGRAPHY.fonts.primary,
-                  }}
-                >
-                  Statutory fees can be recalculated if applicant parameters, units, or validity periods have changed before payment.
-                </Text>
-              </View>
-            </View>
-
-            {isEditable && (
-              <Pressable
-                style={[
-                  styles.soaActionBtn,
-                  {
-                    backgroundColor: isDark ? colors.brand[500] : colors.brand[700],
-                    borderColor: isDark ? colors.brand[400] : colors.brand[800],
-                    paddingHorizontal: 14,
-                    paddingVertical: 8,
-                  },
-                ]}
-                onPress={onOpenGenerateSoa}
-              >
-                <Lucide name="refresh-cw" size={13} color={COLORS.neutral.white} />
-                <Text
-                  style={[
-                    styles.soaActionBtnText,
-                    { color: COLORS.neutral.white, fontSize: 12, fontWeight: TYPOGRAPHY.weights.bold },
-                  ]}
-                >
-                  Recalculate Fees
-                </Text>
-              </Pressable>
-            )}
-          </View>
-        )}
       </View>
 
       <View style={[styles.paymentSection, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>

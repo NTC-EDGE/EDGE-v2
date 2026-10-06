@@ -47,6 +47,29 @@ export function DatePickerInput({
   const hasError = error !== undefined && error !== null && error.length > 0;
   const stringValue = typeof value === "string" ? value : "";
 
+  const normalizedDateValue = (() => {
+    if (!stringValue || stringValue.trim().length === 0) return "";
+    const trimmed = stringValue.trim();
+    if (trimmed.includes("T")) {
+      return trimmed.split("T")[0] ?? "";
+    }
+    if (trimmed.includes(" ")) {
+      return trimmed.split(" ")[0] ?? "";
+    }
+    if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
+      return trimmed;
+    }
+    const d = new Date(trimmed);
+    if (!isNaN(d.getTime())) {
+      try {
+        return d.toISOString().split("T")[0] ?? "";
+      } catch {
+        return trimmed.substring(0, 10);
+      }
+    }
+    return trimmed.substring(0, 10);
+  })();
+
   const dynamicWrapperStyle = {
     borderColor: hasError
       ? colors.semantic.error
@@ -132,7 +155,7 @@ export function DatePickerInput({
           />
           <input
             type="date"
-            value={stringValue}
+            value={normalizedDateValue}
             min={minDate}
             max={maxDate}
             disabled={disabled}
@@ -177,10 +200,10 @@ export function DatePickerInput({
           <Text
             style={[
               styles.textValue,
-              { color: stringValue ? (isDark ? colors.neutral[100] : colors.neutral[900]) : colors.neutral[400] },
+              { color: normalizedDateValue ? (isDark ? colors.neutral[100] : colors.neutral[900]) : colors.neutral[400] },
             ]}
           >
-            {stringValue || placeholder}
+            {normalizedDateValue || placeholder}
           </Text>
         </TouchableOpacity>
       )}

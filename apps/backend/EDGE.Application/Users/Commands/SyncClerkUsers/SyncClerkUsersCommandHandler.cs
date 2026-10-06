@@ -92,8 +92,8 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
             var (metaIsSuperAdmin, metaRoleKey, metaTenantId) = ExtractMetadata(clerkUser.PublicMetadata);
 
             // Match existing user by AuthUserId or Email
-            var localUser = allLocalUsers.FirstOrDefault(u => u.AuthUserId == clerkUser.Id)
-                            ?? allLocalUsers.FirstOrDefault(u => u.Email.Trim().Equals(primaryEmail, StringComparison.OrdinalIgnoreCase));
+            var localUser = allLocalUsers.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u.AuthUserId) && u.AuthUserId.Equals(clerkUser.Id, StringComparison.OrdinalIgnoreCase))
+                            ?? allLocalUsers.FirstOrDefault(u => !string.IsNullOrWhiteSpace(u.Email) && u.Email.Trim().Equals(primaryEmail, StringComparison.OrdinalIgnoreCase));
 
             var userAction = "synced";
 
@@ -106,7 +106,9 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
                     Email = primaryEmail,
                     FirstName = !string.IsNullOrWhiteSpace(clerkUser.FirstName) ? clerkUser.FirstName.Trim() : "Clerk",
                     LastName = !string.IsNullOrWhiteSpace(clerkUser.LastName) ? clerkUser.LastName.Trim() : "User",
-                    IsSuperAdmin = metaIsSuperAdmin
+                    IsSuperAdmin = metaIsSuperAdmin,
+                    IsDeleted = false,
+                    IsDeletedBy = string.Empty
                 };
 
                 await _userRepository.AddAsync(localUser, cancellationToken);
@@ -117,19 +119,32 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
             else
             {
                 var wasModified = false;
+                if (localUser.IsDeleted)
+                {
+                    localUser.IsDeleted = false;
+                    localUser.IsDeletedBy = string.Empty;
+                    wasModified = true;
+                }
+
                 if (localUser.AuthUserId != clerkUser.Id)
                 {
                     localUser.AuthUserId = clerkUser.Id;
                     wasModified = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(localUser.FirstName) && !string.IsNullOrWhiteSpace(clerkUser.FirstName))
+                if (!string.Equals(localUser.Email?.Trim(), primaryEmail, StringComparison.OrdinalIgnoreCase))
+                {
+                    localUser.Email = primaryEmail;
+                    wasModified = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(clerkUser.FirstName) && !string.Equals(localUser.FirstName, clerkUser.FirstName.Trim()))
                 {
                     localUser.FirstName = clerkUser.FirstName.Trim();
                     wasModified = true;
                 }
 
-                if (string.IsNullOrWhiteSpace(localUser.LastName) && !string.IsNullOrWhiteSpace(clerkUser.LastName))
+                if (!string.IsNullOrWhiteSpace(clerkUser.LastName) && !string.Equals(localUser.LastName, clerkUser.LastName.Trim()))
                 {
                     localUser.LastName = clerkUser.LastName.Trim();
                     wasModified = true;
@@ -183,17 +198,47 @@ public class SyncClerkUsersCommandHandler : IRequestHandler<SyncClerkUsersComman
                         RoleId = targetRole.Id,
                         JobTitle = targetRole.Name,
                         Position = targetRole.Name,
-                        Division = "Operations"
+                        Division = "Operations",
+                        IsDeleted = false,
+                        IsDeletedBy = string.Empty
                     };
 
                     await _tenantMemberRepository.AddAsync(newMember, cancellationToken);
                     membershipsCreated++;
                 }
-                else if (existingMembership.RoleId != targetRole.Id)
+                else
                 {
-                    existingMembership.RoleId = targetRole.Id;
-                    if (string.IsNullOrWhiteSpace(existingMembership.JobTitle)) existingMembership.JobTitle = targetRole.Name;
-                    if (string.IsNullOrWhiteSpace(existingMembership.Position)) existingMembership.Position = targetRole.Name;
+                    var memberModified = false;
+                    if (existingMembership.IsDeleted)
+                    {
+                        existingMembership.IsDeleted = false;
+                        existingMembership.IsDeletedBy = string.Empty;
+                        memberModified = true;
+                    }
+
+                    if (existingMembership.RoleId != targetRole.Id)
+                    {
+                        existingMembership.RoleId = targetRole.Id;
+                        memberModified = true;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(existingMembership.JobTitle) || existingMembership.JobTitle != targetRole.Name)
+                    {
+                        existingMembership.JobTitle = targetRole.Name;
+                        memberModified = true;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(existingMembership.Position) || existingMembership.Position != targetRole.Name)
+                    {
+                        existingMembership.Position = targetRole.Name;
+                        memberModified = true;
+                    }
+
+                    if (memberModified && userAction == "synced")
+                    {
+                        userAction = "updated";
+                        updatedCount++;
+                    }
                 }
             }
 

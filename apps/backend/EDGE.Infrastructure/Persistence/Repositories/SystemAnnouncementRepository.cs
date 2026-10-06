@@ -46,7 +46,11 @@ public class SystemAnnouncementRepository : ISystemAnnouncementRepository
 
     public void Update(SystemAnnouncement announcement)
     {
-        _context.SystemAnnouncements.Update(announcement);
+        var entry = _context.Entry(announcement);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.SystemAnnouncements.Update(announcement);
+        }
     }
 
     public void Delete(SystemAnnouncement announcement)

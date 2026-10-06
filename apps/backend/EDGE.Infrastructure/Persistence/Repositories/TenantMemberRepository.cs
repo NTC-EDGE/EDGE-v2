@@ -20,6 +20,10 @@ public class TenantMemberRepository : ITenantMemberRepository
 
     public async Task<TenantMember?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var local = _context.TenantMembers.Local
+            .FirstOrDefault(m => m.Id == id);
+        if (local != null) return local;
+
         return await _context.TenantMembers
             .Include(m => m.Tenant)
             .Include(m => m.User)
@@ -31,6 +35,10 @@ public class TenantMemberRepository : ITenantMemberRepository
 
     public async Task<TenantMember?> GetByTenantAndUserAsync(Guid tenantId, Guid userId, CancellationToken cancellationToken = default)
     {
+        var local = _context.TenantMembers.Local
+            .FirstOrDefault(m => m.TenantId == tenantId && m.UserId == userId);
+        if (local != null) return local;
+
         return await _context.TenantMembers
             .IgnoreQueryFilters()
             .Include(m => m.Tenant)

@@ -72,7 +72,11 @@ public class FormRepository : IFormRepository
 
     public void Update(Form form)
     {
-        _context.Forms.Update(form);
+        var entry = _context.Entry(form);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Forms.Update(form);
+        }
     }
 
     public void Delete(Form form)

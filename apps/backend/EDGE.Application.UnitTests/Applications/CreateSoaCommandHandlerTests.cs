@@ -21,6 +21,7 @@ public class CreateSoaCommandHandlerTests
     private readonly Mock<IUnitOfWork> _unitOfWorkMock = new();
     private readonly Mock<ICurrentUserService> _currentUserServiceMock = new();
     private readonly Mock<IUserRepository> _userRepositoryMock = new();
+    private readonly Mock<IServiceFeeRepository> _serviceFeeRepositoryMock = new();
     private readonly Mock<IServiceVariantFeeRepository> _variantFeeRepositoryMock = new();
     private readonly Mock<IServiceVariantElementFeeRepository> _elementFeeRepositoryMock = new();
     private readonly Mock<IServiceVariantFormulaRepository> _formulaRepositoryMock = new();
@@ -48,6 +49,7 @@ public class CreateSoaCommandHandlerTests
             _currentUserServiceMock.Object,
             _userRepositoryMock.Object,
             _calculationEngine,
+            _serviceFeeRepositoryMock.Object,
             _variantFeeRepositoryMock.Object,
             _elementFeeRepositoryMock.Object,
             _formulaRepositoryMock.Object);
