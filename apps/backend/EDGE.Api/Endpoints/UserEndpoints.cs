@@ -187,6 +187,11 @@ public static class UserEndpoints
 
                 if (existingUser is not null)
                 {
+                    if (existingUser.IsDeleted)
+                    {
+                        existingUser.IsDeleted = false;
+                        existingUser.IsDeletedBy = string.Empty;
+                    }
                     existingUser.AuthUserId = authUserId;
                     if (isSuperAdmin) existingUser.IsSuperAdmin = true;
                     await unitOfWork.SaveChangesAsync();

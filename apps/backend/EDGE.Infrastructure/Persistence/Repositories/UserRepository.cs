@@ -22,7 +22,13 @@ public class UserRepository : IUserRepository
     {
         if (string.IsNullOrWhiteSpace(email)) return null;
         var cleanEmail = email.Trim().ToLowerInvariant();
+
+        var local = _context.Users.Local
+            .FirstOrDefault(x => x.Email != null && x.Email.Trim().ToLowerInvariant() == cleanEmail);
+        if (local != null) return local;
+
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
@@ -31,7 +37,14 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByAuthUserIdAsync(string authUserId, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrWhiteSpace(authUserId)) return null;
+
+        var local = _context.Users.Local
+            .FirstOrDefault(x => x.AuthUserId != null && x.AuthUserId.Equals(authUserId, StringComparison.OrdinalIgnoreCase));
+        if (local != null) return local;
+
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
@@ -45,7 +58,12 @@ public class UserRepository : IUserRepository
 
     public async Task<User?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
+        var local = _context.Users.Local
+            .FirstOrDefault(x => x.Id == id);
+        if (local != null) return local;
+
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(x => x.CompanyDetail)
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
@@ -55,6 +73,7 @@ public class UserRepository : IUserRepository
     public async Task<List<User>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.Users
+            .IgnoreQueryFilters()
             .Include(x => x.TenantMemberships)
                 .ThenInclude(tm => tm.Role)
             .Include(x => x.TenantMemberships)
