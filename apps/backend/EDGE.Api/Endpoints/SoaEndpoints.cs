@@ -72,18 +72,38 @@ public static class SoaEndpoints
     }
 
     [HasPermission(Permissions.ApproveSoa)]
-    public static async Task<IResult> ApproveSoa(Guid soaId, ApproveSoaRequest? request, IMediator mediator)
+    public static async Task<IResult> ApproveSoa(
+        Guid soaId,
+        ApproveSoaRequest? request,
+        FluentValidation.IValidator<ApproveSoaCommand> validator,
+        IMediator mediator)
     {
         var command = new ApproveSoaCommand(soaId, request?.Remarks);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReturnSoa)]
-    public static async Task<IResult> ReturnSoa(Guid soaId, ReturnSoaRequest request, IMediator mediator)
+    public static async Task<IResult> ReturnSoa(
+        Guid soaId,
+        ReturnSoaRequest request,
+        FluentValidation.IValidator<ReturnSoaCommand> validator,
+        IMediator mediator)
     {
-        var command = new ReturnSoaCommand(soaId, request.Remarks);
+        var command = new ReturnSoaCommand(soaId, request?.Remarks ?? string.Empty);
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);

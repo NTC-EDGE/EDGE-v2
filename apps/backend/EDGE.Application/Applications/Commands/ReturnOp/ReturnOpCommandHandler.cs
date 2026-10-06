@@ -73,6 +73,45 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
             }, cancellationToken);
         }
 
+        var app = await _repository.GetByIdAsync(op.ApplicationId, cancellationToken);
+        if (app != null)
+        {
+            var targetAppStatus = request.ReturnTo == ReturnTarget.Evaluator
+                ? ApplicationStatus.Returned
+                : ApplicationStatus.ForAccountant;
+
+            var actionName = request.ReturnTo == ReturnTarget.Evaluator
+                ? "OP Returned to Evaluator"
+                : "OP Returned to Accountant";
+
+            app.Status = targetAppStatus;
+            app.Remarks = $"Order of Payment returned by Cashier: {request.Remarks}";
+            await _repository.UpdateAsync(app, cancellationToken);
+
+            await _repository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Status = targetAppStatus,
+                Remarks = $"Order of Payment returned by Cashier: {request.Remarks}",
+                Timestamp = DateTime.UtcNow,
+                UserId = userContext.UserId
+            }, cancellationToken);
+
+            await _repository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Action = actionName,
+                ToStatus = targetAppStatus,
+                PerformedByUserId = userContext.UserId,
+                StaffName = userContext.StaffName,
+                StaffRole = userContext.StaffRole,
+                Remarks = request.Remarks,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return ApiResponse<bool>.Success(true);
     }

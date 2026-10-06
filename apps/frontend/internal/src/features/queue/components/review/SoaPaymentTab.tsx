@@ -55,7 +55,7 @@ export function SoaPaymentTab({
 
   const hasIncompleteApplicants = app.applicantsList?.some((a: ApplicantItem) => a.status === 'Incomplete') ?? false;
   const isEvaluationReady =
-    (app.status === 'Evaluating' || app.status === 'Approved') &&
+    (app.status === 'Evaluating' || app.status === 'Approved' || app.status === 'Returned') &&
     !hasIncompleteApplicants;
 
   const canGenerateSoa = isEditable && isEvaluationReady;
@@ -251,7 +251,11 @@ export function SoaPaymentTab({
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
     (app.history && app.history.some((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
   );
-  const isSoaReturned = (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) || (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
+  const isSoaReturned =
+    app.status === 'Returned' ||
+    app.soaStatus === 'Returned' ||
+    (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant'))) ||
+    (app.status === 'Evaluating' && app.correctionAuditTrail.some(c => c.action.includes('Returned by Accountant') || c.action.includes('SOA Returned')));
 
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
@@ -354,7 +358,7 @@ export function SoaPaymentTab({
 
           {/* Action buttons toolbar for SOA & OP */}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
-            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || isSoaReturned) ? (
+            {isEditable && !hasPayment && !isForAccountant && (app.status === 'Evaluating' || app.status === 'Returned' || isSoaReturned) ? (
               <Pressable
                 style={[
                   styles.soaActionBtn,

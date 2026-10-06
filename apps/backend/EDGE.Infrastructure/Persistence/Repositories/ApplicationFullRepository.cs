@@ -455,7 +455,18 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                    filteredQuery = filteredQuery.Where(a =>
+                        a.Status != ApplicationStatus.ForAccountant && (
+                            a.StatementsOfAccount.Any() ||
+                            a.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))) ||
+                            (a.Remarks != null && a.Remarks.Contains("Accountant")) ||
+                            a.Status == ApplicationStatus.PendingPayment ||
+                            a.Status == ApplicationStatus.ForIssuance ||
+                            a.Status == ApplicationStatus.Approved ||
+                            a.Status == ApplicationStatus.Completed ||
+                            a.Status == ApplicationStatus.Returned
+                        )
+                    );
                 }
             }
             else if (ApplicationStatusHelper.IsCashierRole(role))
@@ -466,29 +477,39 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned);
+                    filteredQuery = filteredQuery.Where(a =>
+                        a.Status != ApplicationStatus.PendingPayment && (
+                            a.OrdersOfPayment.Any(op => op.Status == OpStatus.Paid || op.Status == OpStatus.Returned) ||
+                            a.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier"))) ||
+                            (a.Remarks != null && a.Remarks.Contains("Cashier")) ||
+                            a.Status == ApplicationStatus.ForIssuance ||
+                            a.Status == ApplicationStatus.Completed ||
+                            a.Status == ApplicationStatus.Approved ||
+                            a.Status == ApplicationStatus.Returned
+                        )
+                    );
                 }
             }
             else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))
             {
                 if (tab == "pending")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned);
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Returned);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
                 }
             }
             else
             {
                 if (tab == "pending")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment);
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Returned || a.Status == ApplicationStatus.Completed);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
                 }
             }
         }
@@ -520,100 +541,116 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var page = pageNumber < 1 ? 1 : pageNumber;
         var size = pageSize <= 0 ? 10 : pageSize;
 
-        var items = await filteredQuery
+        var rawList = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
-            .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
+            .Select(app => new
             {
-                Id = app.Id,
-                ApplicationNumber = app.ApplicationNumber,
-                ReferenceNumber = app.ReferenceNumber,
-                Status = app.Status.ToString(),
-                SubmissionMode = app.SubmissionMode.ToString(),
-                Office = app.Office,
-                Remarks = app.Remarks,
-                IsGuest = app.IsGuest,
-                IsPinned = app.IsPinned,
-                IsArchived = app.IsArchived,
-                CreatedAt = app.CreatedAt,
-                LastModifiedAt = app.LastModifiedAt,
-                UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
-                ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
-                ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
-                ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
-                ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
-                ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
-                FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
+                Dto = new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
                 {
-                    Id = app.User.Id,
-                    Name = (app.User.FirstName + " " + app.User.LastName).Trim(),
-                    Email = app.User.Email,
-                    AccountType = app.User.AccountType.ToString(),
-                    Company = app.User.CompanyDetail != null ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                    Id = app.Id,
+                    ApplicationNumber = app.ApplicationNumber,
+                    ReferenceNumber = app.ReferenceNumber,
+                    Status = app.Status.ToString(),
+                    SubmissionMode = app.SubmissionMode.ToString(),
+                    Office = app.Office,
+                    Remarks = app.Remarks,
+                    IsGuest = app.IsGuest,
+                    IsPinned = app.IsPinned,
+                    IsArchived = app.IsArchived,
+                    CreatedAt = app.CreatedAt,
+                    LastModifiedAt = app.LastModifiedAt,
+                    UpdatedAt = app.LastModifiedAt ?? app.CreatedAt,
+                    ServiceId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceId : null).FirstOrDefault(),
+                    ServiceName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null).FirstOrDefault(),
+                    ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
+                    ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
+                    ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                     {
-                        Id = app.User.CompanyDetail.Id,
-                        BarangayId = app.User.CompanyDetail.BarangayId,
-                        Address = app.User.CompanyDetail.Address,
-                        Name = app.User.CompanyDetail.Name,
-                        RegistrationNumber = app.User.CompanyDetail.RegistrationNumber,
-                        ContactNumber = app.User.CompanyDetail.ContactNumber,
-                        Email = app.User.CompanyDetail.Email,
-                        EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
-                    } : null
-                } : null,
-                Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applications.Dtos.ApplicantSummaryDto
-                {
-                    Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
-                    ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
-                    ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
-                    ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
-                    ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
-                    SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
-                        ? (Guid?)aa.Applicant.FormSubmission.Id
-                        : null,
-                    ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
-                    Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
-                    Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
-                        ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
-                        : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
-                    Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
-                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                        Id = app.User.Id,
+                        Name = (app.User.FirstName + " " + app.User.LastName).Trim(),
+                        Email = app.User.Email,
+                        AccountType = app.User.AccountType.ToString(),
+                        Company = app.User.CompanyDetail != null ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
                         {
-                            Id = aa.Applicant.CompanyDetail.Id,
-                            BarangayId = aa.Applicant.CompanyDetail.BarangayId,
-                            Address = aa.Applicant.CompanyDetail.Address,
-                            Name = aa.Applicant.CompanyDetail.Name,
-                            RegistrationNumber = aa.Applicant.CompanyDetail.RegistrationNumber,
-                            ContactNumber = aa.Applicant.CompanyDetail.ContactNumber,
-                            Email = aa.Applicant.CompanyDetail.Email,
-                            EntityType = aa.Applicant.CompanyDetail.EntityType != null ? aa.Applicant.CompanyDetail.EntityType.Value.ToString() : null
-                        }
-                        : (aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.CompanyDetail != null)
-                        ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
-                        {
-                            Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
-                            BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
-                            Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
-                            Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
-                            RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
-                            ContactNumber = aa.Applicant.ApplicantDetail.CompanyDetail.ContactNumber,
-                            Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
-                            EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
-                        }
-                        : null
-                }).ToList()
+                            Id = app.User.CompanyDetail.Id,
+                            BarangayId = app.User.CompanyDetail.BarangayId,
+                            Address = app.User.CompanyDetail.Address,
+                            Name = app.User.CompanyDetail.Name,
+                            RegistrationNumber = app.User.CompanyDetail.RegistrationNumber,
+                            ContactNumber = app.User.CompanyDetail.ContactNumber,
+                            Email = app.User.CompanyDetail.Email,
+                            EntityType = app.User.CompanyDetail.EntityType != null ? app.User.CompanyDetail.EntityType.Value.ToString() : null
+                        } : null
+                    } : null,
+                    Applicants = app.ApplicationApplicants.Select(aa => new EDGE.Application.Applications.Dtos.ApplicantSummaryDto
+                    {
+                        Id = aa.Applicant != null ? aa.Applicant.Id : Guid.Empty,
+                        ServiceId = aa.Applicant != null ? aa.Applicant.ServiceId : null,
+                        ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
+                        ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
+                        ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                        SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
+                            ? (Guid?)aa.Applicant.FormSubmission.Id
+                            : null,
+                        ApplicantType = aa.Applicant != null ? aa.Applicant.ApplicantType.ToString() : "Individual",
+                        Status = aa.Applicant != null ? aa.Applicant.Status.ToString() : "Incomplete",
+                        Name = aa.Applicant != null && aa.Applicant.ApplicantDetail != null
+                            ? (aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).Trim()
+                            : (aa.Applicant != null && aa.Applicant.CompanyDetail != null ? aa.Applicant.CompanyDetail.Name : "Applicant"),
+                        Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
+                            ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                            {
+                                Id = aa.Applicant.CompanyDetail.Id,
+                                BarangayId = aa.Applicant.CompanyDetail.BarangayId,
+                                Address = aa.Applicant.CompanyDetail.Address,
+                                Name = aa.Applicant.CompanyDetail.Name,
+                                RegistrationNumber = aa.Applicant.CompanyDetail.RegistrationNumber,
+                                ContactNumber = aa.Applicant.CompanyDetail.ContactNumber,
+                                Email = aa.Applicant.CompanyDetail.Email,
+                                EntityType = aa.Applicant.CompanyDetail.EntityType != null ? aa.Applicant.CompanyDetail.EntityType.Value.ToString() : null
+                            }
+                            : (aa.Applicant != null && aa.Applicant.ApplicantDetail != null && aa.Applicant.ApplicantDetail.CompanyDetail != null)
+                            ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
+                            {
+                                Id = aa.Applicant.ApplicantDetail.CompanyDetail.Id,
+                                BarangayId = aa.Applicant.ApplicantDetail.CompanyDetail.BarangayId,
+                                Address = aa.Applicant.ApplicantDetail.CompanyDetail.Address,
+                                Name = aa.Applicant.ApplicantDetail.CompanyDetail.Name,
+                                RegistrationNumber = aa.Applicant.ApplicantDetail.CompanyDetail.RegistrationNumber,
+                                ContactNumber = aa.Applicant.ApplicantDetail.CompanyDetail.ContactNumber,
+                                Email = aa.Applicant.ApplicantDetail.CompanyDetail.Email,
+                                EntityType = aa.Applicant.ApplicantDetail.CompanyDetail.EntityType != null ? aa.Applicant.ApplicantDetail.CompanyDetail.EntityType.Value.ToString() : null
+                            }
+                            : null
+                    }).ToList()
+                },
+                HasSoa = app.StatementsOfAccount.Any(),
+                HasOp = app.OrdersOfPayment.Any(),
+                HasAccountantHistory = app.Histories.Any(h => h.StaffRole == "Accountant" || (h.Action != null && h.Action.Contains("Accountant")) || (h.Remarks != null && h.Remarks.Contains("Accountant"))),
+                HasCashierHistory = app.Histories.Any(h => h.StaffRole == "Cashier" || (h.Action != null && h.Action.Contains("Cashier")) || (h.Remarks != null && h.Remarks.Contains("Cashier")))
             })
             .ToListAsync(cancellationToken);
 
-        foreach (var item in items)
+        var items = rawList.Select(x =>
         {
+            var item = x.Dto;
             if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
             {
-                item.QueueTab = ApplicationStatusHelper.DetermineQueueTab(parsedStatus, role);
+                item.QueueTab = ApplicationStatusHelper.DetermineQueueTab(
+                    parsedStatus,
+                    role,
+                    hasSoa: x.HasSoa,
+                    hasOp: x.HasOp,
+                    remarks: item.Remarks,
+                    hasAccountantHistory: x.HasAccountantHistory,
+                    hasCashierHistory: x.HasCashierHistory);
             }
-        }
+            return item;
+        }).ToList();
 
         return new EDGE.Application.Applications.Dtos.PagedApplicationListDto
         {

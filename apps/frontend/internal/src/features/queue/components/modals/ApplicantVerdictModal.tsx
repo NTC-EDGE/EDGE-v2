@@ -142,4 +142,10 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
   },
+  errorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.semantic.error,
+    marginTop: 4,
+  },
 });

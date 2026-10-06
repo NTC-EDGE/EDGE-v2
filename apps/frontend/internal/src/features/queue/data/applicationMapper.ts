@@ -51,6 +51,22 @@ function mapBEStatusToFE(status: string): ApplicationStatus {
   return map[status] ?? 'Submitted';
 }
 
+function isGenericOfficer(name?: string | null, office?: string | null): boolean {
+  if (!name) return true;
+  const n = name.trim().toLowerCase();
+  return (
+    n.length === 0 ||
+    n === 'unassigned' ||
+    n === 'authorized officer' ||
+    n === 'officer' ||
+    n === 'evaluating officer' ||
+    n === 'ntc officer' ||
+    n === 'admin' ||
+    n === 'system admin' ||
+    n === (office ?? '').toLowerCase()
+  );
+}
+
 function formatDateLabel(isoDate: string): string {
   const date = new Date(isoDate);
   return new Intl.DateTimeFormat('en-US', {
@@ -92,16 +108,43 @@ export function isEvaluatorOrSupervisorRole(role?: string): boolean {
   );
 }
 
-export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueTab {
+export function deriveQueueTab(
+  status: ApplicationStatus,
+  role?: string,
+  context?: {
+    hasSoa?: boolean;
+    hasOp?: boolean;
+    hasAccountantHistory?: boolean;
+    hasCashierHistory?: boolean;
+    remarks?: string;
+  }
+): QueueTab {
   if (isAccountantRole(role)) {
     if (status === 'ForAccountant') return 'pending';
-    if (status === 'PendingPayment' || status === 'ForIssuance' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
+    const hasAccountantTouch =
+      context?.hasSoa === true ||
+      context?.hasAccountantHistory === true ||
+      (typeof context?.remarks === 'string' && context.remarks.toLowerCase().includes('accountant')) ||
+      status === 'PendingPayment' ||
+      status === 'ForIssuance' ||
+      status === 'Approved' ||
+      status === 'Completed' ||
+      status === 'Returned';
+    if (hasAccountantTouch) return 'history';
     return 'activity';
   }
 
   if (isCashierRole(role)) {
     if (status === 'PendingPayment') return 'pending';
-    if (status === 'ForIssuance' || status === 'Completed' || status === 'Approved' || status === 'Returned') return 'history';
+    const hasCashierTouch =
+      context?.hasOp === true ||
+      context?.hasCashierHistory === true ||
+      (typeof context?.remarks === 'string' && context.remarks.toLowerCase().includes('cashier')) ||
+      status === 'ForIssuance' ||
+      status === 'Completed' ||
+      status === 'Approved' ||
+      status === 'Returned';
+    if (hasCashierTouch) return 'history';
     return 'activity';
   }
 
@@ -110,15 +153,15 @@ export function deriveQueueTab(status: ApplicationStatus, role?: string): QueueT
   }
 
   if (isEvaluatorOrSupervisorRole(role)) {
-    if (status === 'Submitted' || status === 'Evaluating') return 'pending';
-    if (status === 'ForAccountant' || status === 'PendingPayment' || status === 'Approved' || status === 'Completed' || status === 'Returned') return 'history';
+    if (status === 'Submitted' || status === 'Evaluating' || status === 'Returned') return 'pending';
+    if (status === 'ForAccountant' || status === 'PendingPayment' || status === 'Approved' || status === 'Completed') return 'history';
     return 'activity';
   }
 
-  if (status === 'Submitted' || status === 'Evaluating' || status === 'ForAccountant' || status === 'PendingPayment') {
+  if (status === 'Submitted' || status === 'Evaluating' || status === 'Returned' || status === 'ForAccountant' || status === 'PendingPayment') {
     return 'pending';
   }
-  if (status === 'Approved' || status === 'Returned' || status === 'Completed') {
+  if (status === 'Approved' || status === 'Completed') {
     return 'history';
   }
   return 'activity';
@@ -537,22 +580,74 @@ export function mapApplicationDtoToUI(
     if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
       return endorsementState.endorsedTo;
     }
-    const latestEval = reversedHistories.find(
-      (h) =>
-        h.toStatus === 'ForAccountant' ||
-        h.toStatus === 'Evaluating' ||
-        (h.action && (h.action.toLowerCase().includes('evaluat') || h.action.toLowerCase().includes('accountant'))) ||
-        (h.staffRole && h.staffRole.toLowerCase().includes('evaluator'))
-    );
+
+    // Find the latest evaluation entry by an Evaluator (excluding downstream return entries by accountant/cashier)
+    const latestEval = reversedHistories.find((h) => {
+      const roleLower = (h.staffRole || '').toLowerCase();
+      const actionLower = (h.action || '').toLowerCase();
+      const remLower = (h.remarks || '').toLowerCase();
+
+      // Exclude return actions performed by accountant/cashier/releasing
+      const isReturnByDownstream =
+        roleLower.includes('accountant') ||
+        roleLower.includes('cashier') ||
+        actionLower.includes('soa return') ||
+        actionLower.includes('returned by accountant') ||
+        actionLower.includes('returned by cashier') ||
+        remLower.includes('returned by accountant') ||
+        remLower.includes('returned by cashier');
+
+      if (isReturnByDownstream) return false;
+
+      const isEvaluatorRole =
+        roleLower.includes('evaluat') ||
+        roleLower.includes('engineer') ||
+        roleLower.includes('chief') ||
+        roleLower.includes('director');
+
+      const isEvaluationAction =
+        actionLower.includes('evaluation started') ||
+        actionLower.includes('approved & forwarded') ||
+        actionLower.includes('forwarded to accountant') ||
+        actionLower.includes('evaluated');
+
+      const isForAccountantHandoff = h.toStatus === 'ForAccountant';
+      const isEvaluatingState = h.toStatus === 'Evaluating' && !actionLower.includes('return');
+
+      return (
+        (isForAccountantHandoff || isEvaluatingState || isEvaluationAction || isEvaluatorRole) &&
+        Boolean(h.staffName && h.staffName.trim().length > 0 && !isGenericOfficer(h.staffName, dto.office))
+      );
+    });
+
     if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
       return latestEval.staffName.trim();
     }
+
     if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
       const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
       if (match && match[1]) {
         return match[1].trim();
       }
     }
+
+    // Secondary fallback in history: any evaluator entry with a staff name that isn't generic
+    const anyEvaluator = reversedHistories.find((h) => {
+      const roleLower = (h.staffRole || '').toLowerCase();
+      const actionLower = (h.action || '').toLowerCase();
+      return (
+        (roleLower.includes('evaluat') || actionLower.includes('evaluat')) &&
+        !roleLower.includes('accountant') &&
+        !roleLower.includes('cashier') &&
+        !(actionLower.includes('return') && roleLower.includes('accountant')) &&
+        Boolean(h.staffName && h.staffName.trim().length > 0 && !isGenericOfficer(h.staffName, dto.office))
+      );
+    });
+
+    if (anyEvaluator?.staffName && anyEvaluator.staffName.trim().length > 0) {
+      return anyEvaluator.staffName.trim();
+    }
+
     return undefined;
   })();
 
@@ -560,26 +655,29 @@ export function mapApplicationDtoToUI(
     if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
       return endorsementState.endorsedTo;
     }
-    if (feStatus === 'Evaluating') {
-      const latestEval = reversedHistories.find(
-        (h) => h.toStatus === 'Evaluating' || (h.action && h.action.toLowerCase().includes('evaluat'))
-      );
-      if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
-        return latestEval.staffName.trim();
+    if (feStatus === 'Evaluating' || feStatus === 'Returned') {
+      if (evaluatingOfficer && !isGenericOfficer(evaluatingOfficer, dto.office)) {
+        return evaluatingOfficer;
       }
-      if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
-        const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
-        if (match && match[1]) return match[1].trim();
+      return dto.office ?? '';
+    }
+    if (feStatus === 'ForAccountant') {
+      if (accountingOfficer && !isGenericOfficer(accountingOfficer, dto.office)) {
+        return accountingOfficer;
       }
+      return dto.office ?? '';
     }
-    if (feStatus === 'ForAccountant' && accountingOfficer) {
-      return accountingOfficer;
+    if (feStatus === 'PendingPayment') {
+      if (cashierOfficer && !isGenericOfficer(cashierOfficer, dto.office)) {
+        return cashierOfficer;
+      }
+      return dto.office ?? '';
     }
-    if (feStatus === 'PendingPayment' && cashierOfficer) {
-      return cashierOfficer;
-    }
-    if (feStatus === 'ForIssuance' && issuingOfficer) {
-      return issuingOfficer;
+    if (feStatus === 'ForIssuance') {
+      if (issuingOfficer && !isGenericOfficer(issuingOfficer, dto.office)) {
+        return issuingOfficer;
+      }
+      return dto.office ?? '';
     }
     return dto.office ?? '';
   })();
@@ -595,7 +693,13 @@ export function mapApplicationDtoToUI(
     permitTitle: resolvedServiceName,
     category: resolvedCategory,
     status: feStatus,
-    queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role),
+    queueTab: parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role, {
+      hasSoa: Boolean(activeSoa || (dto.statementsOfAccount && dto.statementsOfAccount.length > 0)),
+      hasOp: Boolean(dto.ordersOfPayment && dto.ordersOfPayment.length > 0),
+      hasAccountantHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('accountant') || (h.action || '').toLowerCase().includes('accountant') || (h.remarks || '').toLowerCase().includes('accountant')),
+      hasCashierHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('cashier') || (h.action || '').toLowerCase().includes('cashier') || (h.remarks || '').toLowerCase().includes('cashier')),
+      remarks: dto.remarks ?? undefined,
+    }),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
     serviceId: dto.serviceId ?? dto.services?.[0]?.serviceId ?? '',

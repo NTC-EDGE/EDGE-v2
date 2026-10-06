@@ -6,6 +6,7 @@ public class ReturnSoaCommandValidator : AbstractValidator<ReturnSoaCommand>
 {
     public ReturnSoaCommandValidator()
     {
+        RuleFor(x => x.SoaId).NotEmpty().WithMessage("SOA ID is required.");
         RuleFor(x => x.Remarks).NotEmpty().WithMessage("Remarks cannot be empty.");
     }
 }

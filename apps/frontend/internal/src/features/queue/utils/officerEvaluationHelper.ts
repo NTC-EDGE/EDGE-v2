@@ -90,21 +90,20 @@ export function computeOfficerEvaluationState(params: {
 }): OfficerEvaluationState {
   const { application, identifiers, isAdmin = false } = params;
   const isEvaluating = application.status.toLowerCase() === "evaluating";
-  const evaluatingOfficer = application.evaluatingOfficer || (isEvaluating ? application.assignedTo : undefined);
+  const isReturned = application.status.toLowerCase() === "returned";
+  const evaluatingOfficer = application.evaluatingOfficer || ((isEvaluating || isReturned) ? application.assignedTo : undefined);
 
   const isEndorsed = Boolean(application.endorsedTo && application.endorsedTo.trim().length > 0);
   const isEndorsedToMe = Boolean(isEndorsed && matchesUserIdentifier(application.endorsedTo, identifiers));
   const isEndorsedAwayFromMe = isEndorsed && !isEndorsedToMe && !isAdmin;
 
-  const isEvaluatedByMe = isEvaluating && (
-    isAdmin ||
+  const isEvaluatedByMe = (isEvaluating || isReturned) && Boolean(
     isEndorsedToMe ||
-    isGenericOfficer(evaluatingOfficer, application.office) ||
-    matchesUserIdentifier(evaluatingOfficer, identifiers) ||
-    matchesUserIdentifier(application.assignedTo, identifiers)
+    (evaluatingOfficer && !isGenericOfficer(evaluatingOfficer, application.office) && matchesUserIdentifier(evaluatingOfficer, identifiers)) ||
+    (!isGenericOfficer(application.assignedTo, application.office) && matchesUserIdentifier(application.assignedTo, identifiers))
   );
 
-  const isEvaluatedByOther = isEvaluating && !isEndorsedToMe && !isAdmin && Boolean(
+  const isEvaluatedByOther = (isEvaluating || isReturned) && !isEndorsedToMe && Boolean(
     evaluatingOfficer &&
     !isGenericOfficer(evaluatingOfficer, application.office) &&
     !isEvaluatedByMe
@@ -118,40 +117,38 @@ export function computeOfficerEvaluationState(params: {
 
   if (statusLower === "submitted") {
     isStageUnclaimed = true;
-  } else if (statusLower === "evaluating") {
-    currentStageOfficer = evaluatingOfficer;
-    isStageClaimedByMe = isEvaluatedByMe;
-    isStageClaimedByOther = isEvaluatedByOther;
-    isStageUnclaimed = !isEvaluatedByMe && !isEvaluatedByOther;
-  } else if (statusLower === "foraccountant") {
-    currentStageOfficer = application.accountingOfficer || (
-      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
-    );
+  } else if (statusLower === "evaluating" || statusLower === "returned") {
+    currentStageOfficer = evaluatingOfficer || (!isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined);
     if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
-    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+    } else if (isEvaluatedByMe) {
+      isStageClaimedByMe = true;
+    } else {
+      isStageClaimedByOther = true;
+    }
+  } else if (statusLower === "foraccountant") {
+    currentStageOfficer = application.accountingOfficer;
+    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+      isStageUnclaimed = true;
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
     } else {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "pendingpayment") {
-    currentStageOfficer = application.cashierOfficer || (
-      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
-    );
+    currentStageOfficer = application.cashierOfficer;
     if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
-    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
     } else {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "forissuance") {
-    currentStageOfficer = application.issuingOfficer || (
-      !isGenericOfficer(application.assignedTo, application.office) ? application.assignedTo : undefined
-    );
+    currentStageOfficer = application.issuingOfficer;
     if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
-    } else if (matchesUserIdentifier(currentStageOfficer, identifiers) || isAdmin) {
+    } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;
     } else {
       isStageClaimedByOther = true;
@@ -294,18 +291,30 @@ export function getApprovingEvaluator(application: ApplicationData): string | nu
       const stat = (h.status || '').toLowerCase();
       const role = (h.role || '').toLowerCase();
 
+      // Exclude return entries and accountant/cashier entries
+      const isDownstreamReturn =
+        role.includes('accountant') ||
+        role.includes('cashier') ||
+        act.includes('soa return') ||
+        act.includes('returned by accountant') ||
+        act.includes('returned by cashier') ||
+        rem.includes('returned by accountant') ||
+        rem.includes('returned by cashier');
+
+      if (isDownstreamReturn) return false;
+
       const isAccountantHandoff =
-        act.includes('accountant') ||
-        stat === 'foraccountant' ||
-        rem.includes('accountant');
+        (act.includes('forwarded to accountant') || act.includes('approved & forwarded') || stat === 'foraccountant') &&
+        !act.includes('returned');
 
       const isEvaluationAction =
         act.includes('evaluated') ||
         act.includes('evaluation complete') ||
         act.includes('approved evaluation') ||
-        act.includes('technical evaluation');
+        act.includes('technical evaluation') ||
+        act.includes('evaluation started');
 
-      const isEvaluatorRole = role.includes('evaluator') || role.includes('engineer');
+      const isEvaluatorRole = role.includes('evaluator') || role.includes('engineer') || role.includes('chief') || role.includes('director');
 
       return (
         (isAccountantHandoff || isEvaluationAction || (isEvaluatorRole && (act.includes('forwarded') || act.includes('approved') || act.includes('evaluat')))) &&
@@ -317,10 +326,12 @@ export function getApprovingEvaluator(application: ApplicationData): string | nu
       return matchingEntry.staff.trim();
     }
 
-    // Secondary fallback in history: any entry with a staff name that isn't generic
+    // Secondary fallback in history: any entry with an evaluator role that isn't generic and not a return
     const anyEvaluatorEntry = [...application.history].reverse().find(
       (h) =>
+        !((h.role || '').toLowerCase().includes('accountant') || (h.role || '').toLowerCase().includes('cashier')) &&
         ((h.role || '').toLowerCase().includes('evaluat') || (h.action || '').toLowerCase().includes('evaluat')) &&
+        !(h.action || '').toLowerCase().includes('return') &&
         Boolean(h.staff && h.staff.trim().length > 0 && !isGenericOfficer(h.staff, application.office))
     );
     if (anyEvaluatorEntry && anyEvaluatorEntry.staff && anyEvaluatorEntry.staff.trim().length > 0) {

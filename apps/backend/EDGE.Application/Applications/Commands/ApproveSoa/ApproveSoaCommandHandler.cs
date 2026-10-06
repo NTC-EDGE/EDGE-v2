@@ -36,7 +36,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         if (soa == null) return ApiResponse<Guid>.Fail("SOA not found.");
         if (soa.Status != SoaStatus.Pending) return ApiResponse<Guid>.Fail("SOA must be Pending to approve.");
 
-        var app = await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        var app = soa.Application ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
         if (app.Status != ApplicationStatus.ForAccountant)
         {
@@ -44,9 +44,14 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         }
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
+        Guid? validUserId = null;
+        if (userContext.UserId.HasValue && await _repository.UserExistsAsync(userContext.UserId.Value, cancellationToken))
+        {
+            validUserId = userContext.UserId.Value;
+        }
 
         soa.Status = SoaStatus.Approved;
-        soa.ApprovedByUserId = userContext.UserId;
+        soa.ApprovedByUserId = validUserId;
         soa.ApprovedAt = DateTime.UtcNow;
 
         var op = new OrderOfPayment
@@ -66,7 +71,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Action = "SOA approved by Accountant. Order of Payment generated.",
             FromStatus = SoaStatus.Pending,
             ToStatus = SoaStatus.Approved,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = userContext.StaffName,
             StaffRole = userContext.StaffRole,
             Remarks = request.Remarks,
@@ -79,7 +84,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             OrderOfPaymentId = op.Id,
             Action = "Order of Payment issued.",
             ToStatus = OpStatus.Billed,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = userContext.StaffName,
             StaffRole = userContext.StaffRole,
             Timestamp = DateTime.UtcNow
@@ -96,7 +101,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Status = ApplicationStatus.PendingPayment,
             Remarks = "SOA approved by Accountant. Ready for payment.",
             Timestamp = DateTime.UtcNow,
-            UserId = userContext.UserId
+            UserId = validUserId
         }, cancellationToken);
 
         await _repository.AddApplicationHistoryAsync(new ApplicationHistory
@@ -104,8 +109,9 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
             Action = "SOA Approved by Accountant",
+            FromStatus = ApplicationStatus.ForAccountant,
             ToStatus = ApplicationStatus.PendingPayment,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = userContext.StaffName,
             StaffRole = userContext.StaffRole,
             Remarks = request.Remarks ?? "SOA approved by Accountant. Order of Payment generated.",

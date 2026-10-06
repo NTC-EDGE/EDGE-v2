@@ -195,7 +195,7 @@ describe("officerEvaluationHelper", () => {
       expect(state.isEvaluatedByOther).toBe(true);
     });
 
-    it("allows any officer to evaluate generic/unassigned evaluating officer", () => {
+    it("treats generic/unassigned evaluating officer as unclaimed so officer must take application first", () => {
       const genericApp = createMockApp({
         assignedTo: "Authorized Officer",
         evaluatingOfficer: "Authorized Officer",
@@ -207,7 +207,8 @@ describe("officerEvaluationHelper", () => {
       });
 
       expect(state.isEvaluating).toBe(true);
-      expect(state.isEvaluatedByMe).toBe(true);
+      expect(state.isStageUnclaimed).toBe(true);
+      expect(state.isEvaluatedByMe).toBe(false);
       expect(state.isEvaluatedByOther).toBe(false);
     });
 
@@ -315,6 +316,22 @@ describe("officerEvaluationHelper", () => {
         expect(unAcctState.isStageClaimedByMe).toBe(false);
         expect(unAcctState.isStageClaimedByOther).toBe(false);
 
+        // Previous application where assignedTo holds the previous evaluator/admin, but accountingOfficer is unassigned
+        const legacyForAccountantApp = createMockApp({
+          status: "ForAccountant",
+          accountingOfficer: undefined,
+          assignedTo: "Admin User",
+          evaluatingOfficer: "Admin User",
+        });
+        const legacyAdminState = computeOfficerEvaluationState({
+          application: legacyForAccountantApp,
+          identifiers: ["admin user", "admin@ntc.gov.ph"],
+          isAdmin: true,
+        });
+        expect(legacyAdminState.isStageUnclaimed).toBe(true);
+        expect(legacyAdminState.isStageClaimedByMe).toBe(false);
+        expect(legacyAdminState.isStageClaimedByOther).toBe(false);
+
         // Accountant A claims it
         const claimedAcctApp = createMockApp({
           status: "ForAccountant",
@@ -336,6 +353,32 @@ describe("officerEvaluationHelper", () => {
         expect(stateAcctB.isStageClaimedByMe).toBe(false);
         expect(stateAcctB.isStageClaimedByOther).toBe(true);
         expect(stateAcctB.currentStageOfficer).toBe("Ann Accountant");
+      });
+
+      it("marks Returned status as claimed by its designated evaluating officer", () => {
+        const returnedApp = createMockApp({
+          status: "Returned",
+          assignedTo: "Engr. Maria Santos",
+          evaluatingOfficer: "Engr. Maria Santos",
+        });
+
+        const stateMaria = computeOfficerEvaluationState({
+          application: returnedApp,
+          identifiers: ["engr. maria santos", "maria santos"],
+        });
+
+        expect(stateMaria.isStageUnclaimed).toBe(false);
+        expect(stateMaria.isStageClaimedByMe).toBe(true);
+        expect(stateMaria.isStageClaimedByOther).toBe(false);
+
+        const stateOther = computeOfficerEvaluationState({
+          application: returnedApp,
+          identifiers: ["engr. bob reyes", "bob reyes"],
+        });
+
+        expect(stateOther.isStageUnclaimed).toBe(false);
+        expect(stateOther.isStageClaimedByMe).toBe(false);
+        expect(stateOther.isStageClaimedByOther).toBe(true);
       });
 
       it("enforces stage locking during PendingPayment / Cashier review", () => {
@@ -390,7 +433,7 @@ describe("officerEvaluationHelper", () => {
         expect(stateIssuerB.currentStageOfficer).toBe("Irene Issuer");
       });
 
-      it("allows administrators to override stage locks held by other officers", () => {
+      it("recognizes stage locks held by other officers until claimed", () => {
         const lockedApp = createMockApp({
           status: "Evaluating",
           assignedTo: "Engr. Alice Santos",
@@ -403,8 +446,8 @@ describe("officerEvaluationHelper", () => {
           isAdmin: true,
         });
 
-        expect(adminState.isStageClaimedByMe).toBe(true);
-        expect(adminState.isStageClaimedByOther).toBe(false);
+        expect(adminState.isStageClaimedByMe).toBe(false);
+        expect(adminState.isStageClaimedByOther).toBe(true);
       });
 
       it("returns application to unclaimed state if officer releases authority back to queue", () => {
@@ -420,9 +463,8 @@ describe("officerEvaluationHelper", () => {
           isAdmin: false,
         });
 
-        expect(stateA.isStageUnclaimed).toBe(false);
-        // Generic officer allows current viewing officer to evaluate
-        expect(stateA.isStageClaimedByMe).toBe(true);
+        expect(stateA.isStageUnclaimed).toBe(true);
+        expect(stateA.isStageClaimedByMe).toBe(false);
         expect(stateA.isStageClaimedByOther).toBe(false);
       });
     });
@@ -567,6 +609,69 @@ describe("officerEvaluationHelper", () => {
       const evaluator = getApprovingEvaluator(app);
       expect(evaluator).toBeNull();
     });
+
+    it("correctly ignores downstream Accountant return entries and resolves the original evaluating officer", () => {
+      const app = createMockApp({
+        status: "Evaluating",
+        evaluatingOfficer: "Engr. Maria Santos",
+        history: [
+          {
+            id: "h-1",
+            action: "Application Submitted",
+            staff: "Applicant Name",
+            role: "Filing Submitter",
+            status: "Submitted",
+            timestamp: "Sep 20, 2026, 10:00 AM",
+          },
+          {
+            id: "h-2",
+            action: "Evaluation Started by Engr. Maria Santos",
+            staff: "Engr. Maria Santos",
+            role: "Evaluating Officer",
+            status: "Evaluating",
+            timestamp: "Sep 20, 2026, 10:30 AM",
+          },
+          {
+            id: "h-3",
+            action: "Approved & Forwarded to Accountant",
+            staff: "Engr. Maria Santos",
+            role: "Evaluating Officer",
+            status: "ForAccountant",
+            timestamp: "Sep 20, 2026, 11:00 AM",
+          },
+          {
+            id: "h-4",
+            action: "SOA Returned to Evaluator",
+            staff: "John Accountant",
+            role: "Accountant",
+            status: "Evaluating",
+            remarks: "Returned by Accountant to Evaluator: Fee mismatch",
+            timestamp: "Sep 20, 2026, 11:30 AM",
+          },
+        ],
+      });
+
+      const evaluator = getApprovingEvaluator(app);
+      expect(evaluator).toBe("Engr. Maria Santos");
+
+      // Verify that when Maria Santos logs in, evaluation is claimed by her and unblocked
+      const mariaState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["engr. maria santos", "maria santos", "maria.santos@ntc.gov.ph"],
+        isAdmin: false,
+      });
+      expect(mariaState.isEvaluatedByMe).toBe(true);
+      expect(mariaState.isEvaluatedByOther).toBe(false);
+
+      // Verify that when John Accountant views it, it is claimed by other
+      const acctState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["john accountant", "john.accountant@ntc.gov.ph"],
+        isAdmin: false,
+      });
+      expect(acctState.isEvaluatedByMe).toBe(false);
+      expect(acctState.isEvaluatedByOther).toBe(true);
+    });
   });
 
   describe("Officer Return Workflow & Mandatory Reason Validation", () => {
@@ -619,6 +724,75 @@ describe("officerEvaluationHelper", () => {
         isStageClaimedByOther: false,
         role: "Evaluator",
       })).toBe(false);
+    });
+
+    it("correctly evaluates evaluation state when application status is Returned", () => {
+      const app = createMockApp({
+        status: "Returned",
+        evaluatingOfficer: "Engr. Carlos Santos",
+        assignedTo: "Engr. Carlos Santos",
+        office: "National Capital Region",
+        history: [
+          {
+            id: "h-1",
+            action: "Evaluation Started by Engr. Carlos Santos",
+            staff: "Engr. Carlos Santos",
+            role: "Evaluating Officer",
+            status: "Evaluating",
+            timestamp: "Sep 20, 2026, 10:30 AM",
+          },
+          {
+            id: "h-2",
+            action: "Approved & Forwarded to Accountant",
+            staff: "Engr. Carlos Santos",
+            role: "Evaluating Officer",
+            status: "ForAccountant",
+            timestamp: "Sep 20, 2026, 11:00 AM",
+          },
+          {
+            id: "h-3",
+            action: "SOA Returned to Evaluator",
+            staff: "Accountant Jane",
+            role: "Accountant",
+            status: "Returned",
+            remarks: "Returned by Accountant to Evaluator: Fee calculation check",
+            timestamp: "Sep 20, 2026, 11:30 AM",
+          },
+        ],
+      });
+
+      // 1. Carlos Santos (original evaluator) views the returned application -> claimed and unlocked
+      const carlosState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["engr. carlos santos", "carlos santos", "carlos@ntc.gov.ph"],
+        isAdmin: false,
+      });
+      expect(carlosState.isEvaluatedByMe).toBe(true);
+      expect(carlosState.isEvaluatedByOther).toBe(false);
+      expect(carlosState.isStageClaimedByMe).toBe(true);
+      expect(carlosState.isStageClaimedByOther).toBe(false);
+
+      // 2. Another evaluator (e.g. Maria) views the returned application -> designated to Carlos, not Maria
+      const mariaState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["engr. maria santos", "maria santos", "maria@ntc.gov.ph"],
+        isAdmin: false,
+      });
+      expect(mariaState.isEvaluatedByMe).toBe(false);
+      expect(mariaState.isEvaluatedByOther).toBe(true);
+      expect(mariaState.isStageClaimedByMe).toBe(false);
+      expect(mariaState.isStageClaimedByOther).toBe(true);
+
+      // 3. Admin views the returned application -> designated to Carlos until Admin claims/takes it
+      const adminState = computeOfficerEvaluationState({
+        application: app,
+        identifiers: ["admin", "admin@ntc.gov.ph"],
+        isAdmin: true,
+      });
+      expect(adminState.isEvaluatedByMe).toBe(false);
+      expect(adminState.isEvaluatedByOther).toBe(true);
+      expect(adminState.isStageClaimedByMe).toBe(false);
+      expect(adminState.isStageClaimedByOther).toBe(true);
     });
   });
 });
