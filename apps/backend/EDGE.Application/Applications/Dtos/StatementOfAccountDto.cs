@@ -15,6 +15,7 @@ public class StatementOfAccountDto
     public string? IssuedToAddress { get; set; }
     public decimal TotalAmount { get; set; }
     public DateTime DueDate { get; set; }
+    public DateTime CreatedAt { get; set; }
     public Guid? PreparedByUserId { get; set; }
     public Guid? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAt { get; set; }

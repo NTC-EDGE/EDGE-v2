@@ -72,17 +72,29 @@ public class ApplicantRepository : IApplicantRepository
 
     public void UpdateApplicant(Applicant applicant)
     {
-        _context.Applicants.Update(applicant);
+        var entry = _context.Entry(applicant);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Applicants.Update(applicant);
+        }
     }
 
     public void UpdateApplicantDetail(ApplicantDetail detail)
     {
-        _context.ApplicantDetails.Update(detail);
+        var entry = _context.Entry(detail);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.ApplicantDetails.Update(detail);
+        }
     }
 
     public void UpdateCompanyDetail(CompanyDetail company)
     {
-        _context.CompanyDetails.Update(company);
+        var entry = _context.Entry(company);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.CompanyDetails.Update(company);
+        }
     }
 
     public void DeleteApplicant(Applicant applicant)

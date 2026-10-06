@@ -541,11 +541,14 @@ export function mapApplicationDtoToUI(
 
   const activeSoa = dto.statementsOfAccount && dto.statementsOfAccount.length > 0
     ? [...dto.statementsOfAccount].sort((a, b) => {
+        const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        if (timeA !== timeB) return timeB - timeA;
         const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
         const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
-        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
-        return timeB - timeA;
+        const hTimeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : 0;
+        const hTimeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : 0;
+        return hTimeB - hTimeA;
       })[0]
     : undefined;
 

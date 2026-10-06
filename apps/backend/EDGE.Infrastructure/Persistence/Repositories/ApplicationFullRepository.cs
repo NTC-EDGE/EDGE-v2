@@ -827,6 +827,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     IssuedToAddress = s.IssuedToAddress,
                     TotalAmount = s.TotalAmount,
                     DueDate = s.DueDate,
+                    CreatedAt = s.CreatedAt,
                     PreparedByUserId = s.PreparedByUserId,
                     ApprovedByUserId = s.ApprovedByUserId,
                     ApprovedAt = s.ApprovedAt,
@@ -935,7 +936,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
     public Task UpdateAsync(Domain.Entities.Application application, CancellationToken cancellationToken = default)
     {
-        _context.Applications.Update(application);
+        var entry = _context.Entry(application);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Applications.Update(application);
+        }
         return Task.CompletedTask;
     }
 
@@ -957,7 +962,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
     public Task UpdateApplicationRequirementAsync(ApplicationRequirement appRequirement, CancellationToken cancellationToken = default)
     {
-        _context.ApplicationRequirements.Update(appRequirement);
+        var entry = _context.Entry(appRequirement);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.ApplicationRequirements.Update(appRequirement);
+        }
         return Task.CompletedTask;
     }
 

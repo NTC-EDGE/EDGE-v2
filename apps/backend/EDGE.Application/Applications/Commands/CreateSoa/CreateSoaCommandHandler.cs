@@ -50,9 +50,16 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var app = await _repository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
         if (app == null) return ApiResponse<Guid>.Fail("Application not found.");
 
-        if (app.Status != ApplicationStatus.Evaluating)
+        if (app.Status != ApplicationStatus.Evaluating && app.Status != ApplicationStatus.Returned)
         {
-            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating). Please start evaluation first.");
+            return ApiResponse<Guid>.Fail("Statement of Account (SOA) can only be generated when the application is under active evaluation (Status: Evaluating or Returned). Please start or resume evaluation first.");
+        }
+
+        if (app.Status == ApplicationStatus.Returned)
+        {
+            app.Status = ApplicationStatus.Evaluating;
+            app.Remarks = "Evaluation resumed. Statement of Account updated.";
+            await _repository.UpdateAsync(app, cancellationToken);
         }
 
         var targetApplicant = request.ApplicantId.HasValue
@@ -242,6 +249,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         // Calculate total SOA amount on the server from validated line items
         soa.TotalAmount = soa.LineItems.Sum(li => li.Amount);
 
+        var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Evaluator";
+        var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Evaluator";
+
         soa.Histories.Add(new SoaHistory
         {
             Id = Guid.NewGuid(),
@@ -249,8 +259,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             Action = "SOA created by Evaluator",
             ToStatus = SoaStatus.Pending,
             PerformedByUserId = userContext.UserId,
-            StaffName = userContext.StaffName,
-            StaffRole = userContext.StaffRole,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
         });
 

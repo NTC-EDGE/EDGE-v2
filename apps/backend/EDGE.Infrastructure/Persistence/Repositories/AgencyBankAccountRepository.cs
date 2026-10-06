@@ -61,7 +61,11 @@ public class AgencyBankAccountRepository : IAgencyBankAccountRepository
 
     public Task UpdateAsync(AgencyBankAccount account, CancellationToken cancellationToken = default)
     {
-        _context.AgencyBankAccounts.Update(account);
+        var entry = _context.Entry(account);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.AgencyBankAccounts.Update(account);
+        }
         return Task.CompletedTask;
     }
 }

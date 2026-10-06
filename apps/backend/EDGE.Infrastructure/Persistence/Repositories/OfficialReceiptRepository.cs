@@ -197,7 +197,11 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
 
     public Task UpdateAsync(OfficialReceipt receipt, CancellationToken cancellationToken = default)
     {
-        _context.OfficialReceipts.Update(receipt);
+        var entry = _context.Entry(receipt);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.OfficialReceipts.Update(receipt);
+        }
         return Task.CompletedTask;
     }
 }

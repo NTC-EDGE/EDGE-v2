@@ -42,6 +42,9 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             validUserId = userContext.UserId.Value;
         }
 
+        var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Accountant";
+        var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Accountant";
+
         var prevSoaStatus = soa.Status;
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
@@ -54,8 +57,8 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             FromStatus = prevSoaStatus,
             ToStatus = SoaStatus.Returned,
             PerformedByUserId = validUserId,
-            StaffName = userContext.StaffName,
-            StaffRole = userContext.StaffRole,
+            StaffName = staffName,
+            StaffRole = staffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
         });
@@ -86,8 +89,8 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
                 FromStatus = prevAppStatus,
                 ToStatus = ApplicationStatus.Returned,
                 PerformedByUserId = validUserId,
-                StaffName = userContext.StaffName,
-                StaffRole = userContext.StaffRole,
+                StaffName = staffName,
+                StaffRole = staffRole,
                 Remarks = request.Remarks,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);
