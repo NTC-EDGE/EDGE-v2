@@ -1,236 +1,89 @@
-import { ApplicationDto, ApplicationSummaryDto, SYSTEM_ROLES } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
 import {
   ApplicationData,
-  ApplicationStatus,
   ApplicationCategory,
-  QueueTab,
-  AuditTrailEntry,
 } from '../../../types/application';
+import {
+  parseApplicationCategory,
+  mapBEStatusToFE,
+  isGenericOfficer,
+  formatDateLabel,
+  parseBackendQueueTab,
+  isAccountantRole,
+  isCashierRole,
+  isEvaluatorOrSupervisorRole,
+  deriveQueueTab,
+  parseEndorsementState,
+  resolveEvaluatingOfficer,
+  resolveAccountingOfficer,
+  resolveCashierOfficer,
+  resolveIssuingOfficer,
+  resolveAssignedTo,
+} from './officerResolutionHelpers';
+import { buildAuditTrailList } from './auditTrailHelpers';
 
-function parseApplicationCategory(cat?: string, serviceName?: string): ApplicationCategory {
-  const valid: ApplicationCategory[] = ['Exams', 'Permits', 'Licenses', 'Accreditations', 'Certificates', 'Complaints and Request'];
-  if (cat && typeof cat === 'string') {
-    const trimmed = cat.trim();
-    const exact = valid.find((c) => c.toLowerCase() === trimmed.toLowerCase());
-    if (exact) return exact;
+// Re-export utility functions to maintain backwards compatibility
+export {
+  parseApplicationCategory,
+  mapBEStatusToFE,
+  isGenericOfficer,
+  formatDateLabel,
+  parseBackendQueueTab,
+  isAccountantRole,
+  isCashierRole,
+  isEvaluatorOrSupervisorRole,
+  deriveQueueTab,
+};
 
-    const lower = trimmed.toLowerCase();
-    if (lower.includes('cert') || lower.includes('roc') || lower.includes('goc')) return 'Certificates';
-    if (lower.includes('licen') || lower.includes('rsl') || lower.includes('amateur')) return 'Licenses';
-    if (lower.includes('exam') || lower.includes('admission') || lower.includes('operator examination')) return 'Exams';
-    if (lower.includes('accredit') || lower.includes('dealer') || lower.includes('manufacturer') || lower.includes('service center')) return 'Accreditations';
-    if (lower.includes('permit') || lower.includes('purchase') || lower.includes('possess') || lower.includes('import')) return 'Permits';
-    if (lower.includes('complaint') || lower.includes('request')) return 'Complaints and Request';
-  }
+const GENERIC_NAMES = new Set([
+  'applicant details',
+  'applicant detail',
+  'applicant',
+  'unnamed applicant',
+  'unnamed',
+  'n/a',
+  'na',
+  'none',
+  'juan dela cruz',
+]);
 
-  if (serviceName && typeof serviceName === 'string') {
-    const s = serviceName.trim().toLowerCase();
-    if (s.includes('cert') || s.includes('roc') || s.includes('goc') || s.includes('radio operator')) return 'Certificates';
-    if (s.includes('license') || s.includes('rsl') || s.includes('amateur radio')) return 'Licenses';
-    if (s.includes('exam') || s.includes('admission') || s.includes('operator examination')) return 'Exams';
-    if (s.includes('accredit') || s.includes('dealer') || s.includes('manufacturer') || s.includes('service center')) return 'Accreditations';
-    if (s.includes('permit') || s.includes('purchase') || s.includes('possess') || s.includes('import')) return 'Permits';
-    if (s.includes('complaint') || s.includes('request')) return 'Complaints and Request';
-  }
-
-  return 'Permits';
+function isValidName(val?: string | null): val is string {
+  if (!val || typeof val !== 'string') return false;
+  const trimmed = val.trim().toLowerCase();
+  if (!trimmed) return false;
+  if (GENERIC_NAMES.has(trimmed)) return false;
+  if (/^applicant(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+  if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
+  return true;
 }
 
-function mapBEStatusToFE(status: string): ApplicationStatus {
-  const map: Record<string, ApplicationStatus> = {
-    Draft: 'Draft',
-    Submitted: 'Submitted',
-    Evaluating: 'Evaluating',
-    Returned: 'Returned',
-    Approved: 'Approved',
-    Completed: 'Completed',
-    ForAccountant: 'ForAccountant',
-    PendingPayment: 'PendingPayment',
-    ForIssuance: 'ForIssuance',
-  };
-  return map[status] ?? 'Submitted';
-}
+function formatProperName(name?: string | null): string {
+  if (!name || typeof name !== 'string') return '';
+  const trimmed = name.trim();
+  if (!trimmed) return '';
 
-function isGenericOfficer(name?: string | null, office?: string | null): boolean {
-  if (!name) return true;
-  const n = name.trim().toLowerCase();
-  return (
-    n.length === 0 ||
-    n === 'unassigned' ||
-    n === 'authorized officer' ||
-    n === 'officer' ||
-    n === 'evaluating officer' ||
-    n === 'ntc officer' ||
-    n === 'admin' ||
-    n === 'system admin' ||
-    n === (office ?? '').toLowerCase()
-  );
-}
-
-function formatDateLabel(isoDate: string): string {
-  const date = new Date(isoDate);
-  return new Intl.DateTimeFormat('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  }).format(date);
-}
-
-function parseBackendQueueTab(tab?: string): QueueTab | null {
-  if (!tab || typeof tab !== 'string') return null;
-  const trimmed = tab.trim().toLowerCase();
-  if (trimmed === 'pending') return 'pending';
-  if (trimmed === 'issuance' || trimmed === 'forissuance') return 'issuance';
-  if (trimmed === 'history' || trimmed === 'archived') return 'history';
-  if (trimmed === 'activity' || trimmed === 'all') return 'activity';
-  return null;
-}
-
-export function isAccountantRole(role?: string): boolean {
-  if (!role) return false;
-  const lower = role.trim().toLowerCase();
-  return lower === SYSTEM_ROLES.Accountant.toLowerCase();
-}
-
-export function isCashierRole(role?: string): boolean {
-  if (!role) return false;
-  const lower = role.trim().toLowerCase();
-  return lower === SYSTEM_ROLES.Cashier.toLowerCase();
-}
-
-export function isEvaluatorOrSupervisorRole(role?: string): boolean {
-  if (!role) return false;
-  const lower = role.trim().toLowerCase();
-  return (
-    lower === SYSTEM_ROLES.Evaluator.toLowerCase() ||
-    lower === SYSTEM_ROLES.ChiefOfEod.toLowerCase() ||
-    lower === SYSTEM_ROLES.RegionalDirector.toLowerCase()
-  );
-}
-
-export function deriveQueueTab(
-  status: ApplicationStatus,
-  role?: string,
-  context?: {
-    hasSoa?: boolean;
-    hasOp?: boolean;
-    hasAccountantHistory?: boolean;
-    hasCashierHistory?: boolean;
-    remarks?: string;
-  }
-): QueueTab {
-  if (isAccountantRole(role)) {
-    if (status === 'ForAccountant') return 'pending';
-    const hasAccountantTouch =
-      context?.hasSoa === true ||
-      context?.hasAccountantHistory === true ||
-      (typeof context?.remarks === 'string' && context.remarks.toLowerCase().includes('accountant')) ||
-      status === 'PendingPayment' ||
-      status === 'ForIssuance' ||
-      status === 'Approved' ||
-      status === 'Completed' ||
-      status === 'Returned';
-    if (hasAccountantTouch) return 'history';
-    return 'activity';
-  }
-
-  if (isCashierRole(role)) {
-    if (status === 'PendingPayment') return 'pending';
-    const hasCashierTouch =
-      context?.hasOp === true ||
-      context?.hasCashierHistory === true ||
-      (typeof context?.remarks === 'string' && context.remarks.toLowerCase().includes('cashier')) ||
-      status === 'ForIssuance' ||
-      status === 'Completed' ||
-      status === 'Approved' ||
-      status === 'Returned';
-    if (hasCashierTouch) return 'history';
-    return 'activity';
-  }
-
-  if (status === 'ForIssuance') {
-    return 'issuance';
-  }
-
-  if (isEvaluatorOrSupervisorRole(role)) {
-    if (status === 'Submitted' || status === 'Evaluating' || status === 'Returned') return 'pending';
-    if (status === 'ForAccountant' || status === 'PendingPayment' || status === 'Approved' || status === 'Completed') return 'history';
-    return 'activity';
-  }
-
-  if (status === 'Submitted' || status === 'Evaluating' || status === 'Returned' || status === 'ForAccountant' || status === 'PendingPayment') {
-    return 'pending';
-  }
-  if (status === 'Approved' || status === 'Completed') {
-    return 'history';
-  }
-  return 'activity';
-}
-
-function parseEndorsementState(dto: ApplicationDto | ApplicationSummaryDto): {
-  endorsedTo?: string;
-  endorsedBy?: string;
-  isActivelyEndorsed: boolean;
-} {
-  const histories = 'histories' in dto && Array.isArray(dto.histories) ? dto.histories : [];
-  if (histories.length > 0) {
-    const sorted = [...histories].sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
-    const reversed = [...sorted].reverse();
-    const latestEndorseIdx = reversed.findIndex(
-      (h) => (h.action && h.action.toLowerCase().includes('endorsed to')) || (h.remarks && h.remarks.toLowerCase().includes('endorsed to'))
-    );
-
-    if (latestEndorseIdx !== -1) {
-      const subsequentEntries = reversed.slice(0, latestEndorseIdx);
-      const wasReturnedOrAdvanced = subsequentEntries.some(
-        (h) =>
-          (h.action && (h.action.toLowerCase().includes('returned') || h.action.toLowerCase().includes('approved') || h.action.toLowerCase().includes('forwarded'))) ||
-          (h.remarks && h.remarks.toLowerCase().includes('returned')) ||
-          h.toStatus === 'Returned' ||
-          h.toStatus === 'ForAccountant' ||
-          h.toStatus === 'PendingPayment' ||
-          h.toStatus === 'Completed' ||
-          h.toStatus === 'Approved'
-      );
-
-      if (!wasReturnedOrAdvanced) {
-        const endorseEntry = reversed[latestEndorseIdx];
-        const endorsedBy = endorseEntry.staffName || undefined;
-
-        let endorsedTo: string | undefined = undefined;
-        if (endorseEntry.action && endorseEntry.action.toLowerCase().includes('endorsed to')) {
-          const match = endorseEntry.action.match(/endorsed to\s+([^,.(]+)/i);
-          if (match && match[1]) {
-            endorsedTo = match[1].trim();
-          }
-        }
-        if (!endorsedTo && endorseEntry.remarks && endorseEntry.remarks.toLowerCase().includes('endorsed to')) {
-          const match = endorseEntry.remarks.match(/endorsed to\s+([^,(.]+)/i);
-          if (match && match[1]) {
-            endorsedTo = match[1].trim();
-          }
-        }
-
-        if (endorsedTo) {
-          return { endorsedTo, endorsedBy, isActivelyEndorsed: true };
-        }
+  return trimmed
+    .split(/\s+/)
+    .map((word) => {
+      if (!word) return '';
+      if (word.includes('-')) {
+        return word
+          .split('-')
+          .map((part) => {
+            if (!part) return '';
+            if (part === part.toLowerCase()) {
+              return part.charAt(0).toUpperCase() + part.slice(1);
+            }
+            return part;
+          })
+          .join('-');
       }
-    }
-  }
-
-  // Fallback: Check dto.remarks if histories not populated or in summary DTO
-  if (dto.remarks && dto.remarks.toLowerCase().includes('endorsed to') && !dto.remarks.toLowerCase().includes('returned')) {
-    const match = dto.remarks.match(/endorsed to\s+([^,(.]+)/i);
-    if (match && match[1]) {
-      return {
-        endorsedTo: match[1].trim(),
-        endorsedBy: undefined,
-        isActivelyEndorsed: true,
-      };
-    }
-  }
-
-  return { endorsedTo: undefined, endorsedBy: undefined, isActivelyEndorsed: false };
+      if (word === word.toLowerCase()) {
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      }
+      return word;
+    })
+    .join(' ');
 }
 
 export function mapApplicationDtoToUI(
@@ -238,56 +91,6 @@ export function mapApplicationDtoToUI(
   role?: string
 ): ApplicationData {
   const rawFilingUser = dto.filingUser;
-  const GENERIC_NAMES = new Set([
-    'applicant details',
-    'applicant detail',
-    'applicant',
-    'unnamed applicant',
-    'unnamed',
-    'n/a',
-    'na',
-    'none',
-    'juan dela cruz',
-  ]);
-
-  const isValidName = (val?: string | null): val is string => {
-    if (!val || typeof val !== 'string') return false;
-    const trimmed = val.trim().toLowerCase();
-    if (!trimmed) return false;
-    if (GENERIC_NAMES.has(trimmed)) return false;
-    if (/^applicant(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
-    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(trimmed)) return false;
-    return true;
-  };
-
-  const formatProperName = (name?: string | null): string => {
-    if (!name || typeof name !== 'string') return '';
-    const trimmed = name.trim();
-    if (!trimmed) return '';
-
-    return trimmed
-      .split(/\s+/)
-      .map((word) => {
-        if (!word) return '';
-        if (word.includes('-')) {
-          return word
-            .split('-')
-            .map((part) => {
-              if (!part) return '';
-              if (part === part.toLowerCase()) {
-                return part.charAt(0).toUpperCase() + part.slice(1);
-              }
-              return part;
-            })
-            .join('-');
-        }
-        if (word === word.toLowerCase()) {
-          return word.charAt(0).toUpperCase() + word.slice(1);
-        }
-        return word;
-      })
-      .join(' ');
-  };
 
   const primaryApplicant = dto.applicants?.[0];
   const primaryDetail = primaryApplicant?.details;
@@ -448,55 +251,30 @@ export function mapApplicationDtoToUI(
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
       address: ad?.address ?? '',
-      streetAddress: ad?.address ?? '',
-      barangay: brgyFromFv ?? '',
-      city: cityFromFv ?? '',
-      province: provFromFv ?? '',
-      region: regFromFv ?? '',
-      zipCode: ad?.zipCode ?? zipFromFv ?? '',
-      companyDetails: itemCompanyDetails,
-      basicInfo: ad ? {
-        lastName: ad.lastName ?? '',
-        firstName: ad.firstName ?? '',
-        middleName: ad.middleName ?? '',
-        extensionName: ad.suffix ?? '',
-        dob: ad.birthDate ?? dobFromFv ?? '',
-        placeOfBirth: '',
-        sex: ad.sex ?? sexFromFv ?? '',
-        weight: ad.weight ?? 0,
-        height: ad.height ?? 0,
-        nationality: ad.nationality ?? natFromFv ?? 'Filipino',
-        civilStatus: civilFromFv ?? '',
-        employmentStatus: '',
-        occupation: '',
-      } : (dobFromFv || sexFromFv || natFromFv || civilFromFv ? {
-        lastName: '',
-        firstName: '',
-        middleName: '',
-        extensionName: '',
-        dob: dobFromFv ?? '',
-        placeOfBirth: '',
-        sex: sexFromFv ?? '',
-        weight: 0,
-        height: 0,
-        nationality: natFromFv ?? 'Filipino',
-        civilStatus: civilFromFv ?? '',
-        employmentStatus: '',
-        occupation: '',
-      } : undefined),
-      requirements: [],
+      company: itemCompanyDetails,
       formFieldValues: formFields.map((f) => ({
         fieldId: f.fieldId || '',
         fieldLabel: f.fieldLabel || '',
         value: f.value || '',
       })),
+      barangay: brgyFromFv ?? ad?.barangay ?? '',
+      city: cityFromFv ?? ad?.city ?? '',
+      province: provFromFv ?? ad?.province ?? '',
+      region: regFromFv ?? ad?.region ?? '',
+      zipCode: zipFromFv ?? ad?.zipCode ?? '',
+      dob: dobFromFv ?? ad?.birthDate ?? '',
+      sex: sexFromFv ?? ad?.sex ?? '',
+      nationality: natFromFv ?? ad?.nationality ?? 'Filipino',
+      civilStatus: civilFromFv ?? '',
+      documents: appItem.documents ?? [],
     };
   });
 
   const feStatus = mapBEStatusToFE(dto.status);
+
   const isBulk =
-    dto.submissionMode?.toUpperCase() === 'BULK' ||
-    (Array.isArray(dto.applicants) && dto.applicants.length > 1) ||
+    dto.submissionMode === 'Bulk' ||
+    (dto.applicationNumber?.startsWith('BULK-') ?? false) ||
     applicantsList.length > 1;
 
   let applicantServiceName: string | undefined;
@@ -552,138 +330,19 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const accountingOfficer = (() => {
-    const claim = reversedHistories.find(
-      (h) => (h.action && h.action.toLowerCase().includes('financial review')) ||
-             (h.remarks && h.remarks.toLowerCase().includes('financial review started'))
-    );
-    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
-    return undefined;
-  })();
-
-  const cashierOfficer = (() => {
-    const claim = reversedHistories.find(
-      (h) => (h.action && h.action.toLowerCase().includes('payment verification')) ||
-             (h.remarks && h.remarks.toLowerCase().includes('payment verification started'))
-    );
-    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
-    return undefined;
-  })();
-
-  const issuingOfficer = (() => {
-    const claim = reversedHistories.find(
-      (h) => (h.action && (h.action.toLowerCase().includes('document issuance started') || h.action.toLowerCase().includes('issuance started'))) ||
-             (h.remarks && h.remarks.toLowerCase().includes('document release process started'))
-    );
-    if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
-    return undefined;
-  })();
-
-  const evaluatingOfficer = (() => {
-    if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
-      return endorsementState.endorsedTo;
-    }
-
-    // Find the latest evaluation entry by an Evaluator (excluding downstream return entries by accountant/cashier)
-    const latestEval = reversedHistories.find((h) => {
-      const roleLower = (h.staffRole || '').toLowerCase();
-      const actionLower = (h.action || '').toLowerCase();
-      const remLower = (h.remarks || '').toLowerCase();
-
-      // Exclude return actions performed by accountant/cashier/releasing
-      const isReturnByDownstream =
-        roleLower.includes('accountant') ||
-        roleLower.includes('cashier') ||
-        actionLower.includes('soa return') ||
-        actionLower.includes('returned by accountant') ||
-        actionLower.includes('returned by cashier') ||
-        remLower.includes('returned by accountant') ||
-        remLower.includes('returned by cashier');
-
-      if (isReturnByDownstream) return false;
-
-      const isEvaluatorRole =
-        roleLower.includes('evaluat') ||
-        roleLower.includes('engineer') ||
-        roleLower.includes('chief') ||
-        roleLower.includes('director');
-
-      const isEvaluationAction =
-        actionLower.includes('evaluation started') ||
-        actionLower.includes('approved & forwarded') ||
-        actionLower.includes('forwarded to accountant') ||
-        actionLower.includes('evaluated');
-
-      const isForAccountantHandoff = h.toStatus === 'ForAccountant';
-      const isEvaluatingState = h.toStatus === 'Evaluating' && !actionLower.includes('return');
-
-      return (
-        (isForAccountantHandoff || isEvaluatingState || isEvaluationAction || isEvaluatorRole) &&
-        Boolean(h.staffName && h.staffName.trim().length > 0 && !isGenericOfficer(h.staffName, dto.office))
-      );
-    });
-
-    if (latestEval?.staffName && latestEval.staffName.trim().length > 0) {
-      return latestEval.staffName.trim();
-    }
-
-    if (dto.remarks && dto.remarks.toLowerCase().includes('evaluation started by')) {
-      const match = dto.remarks.match(/evaluation started by\s+([^,.(]+)/i);
-      if (match && match[1]) {
-        return match[1].trim();
-      }
-    }
-
-    // Secondary fallback in history: any evaluator entry with a staff name that isn't generic
-    const anyEvaluator = reversedHistories.find((h) => {
-      const roleLower = (h.staffRole || '').toLowerCase();
-      const actionLower = (h.action || '').toLowerCase();
-      return (
-        (roleLower.includes('evaluat') || actionLower.includes('evaluat')) &&
-        !roleLower.includes('accountant') &&
-        !roleLower.includes('cashier') &&
-        !(actionLower.includes('return') && roleLower.includes('accountant')) &&
-        Boolean(h.staffName && h.staffName.trim().length > 0 && !isGenericOfficer(h.staffName, dto.office))
-      );
-    });
-
-    if (anyEvaluator?.staffName && anyEvaluator.staffName.trim().length > 0) {
-      return anyEvaluator.staffName.trim();
-    }
-
-    return undefined;
-  })();
-
-  const assignedTo = (() => {
-    if (endorsementState.isActivelyEndorsed && endorsementState.endorsedTo) {
-      return endorsementState.endorsedTo;
-    }
-    if (feStatus === 'Evaluating' || feStatus === 'Returned') {
-      if (evaluatingOfficer && !isGenericOfficer(evaluatingOfficer, dto.office)) {
-        return evaluatingOfficer;
-      }
-      return dto.office ?? '';
-    }
-    if (feStatus === 'ForAccountant') {
-      if (accountingOfficer && !isGenericOfficer(accountingOfficer, dto.office)) {
-        return accountingOfficer;
-      }
-      return dto.office ?? '';
-    }
-    if (feStatus === 'PendingPayment') {
-      if (cashierOfficer && !isGenericOfficer(cashierOfficer, dto.office)) {
-        return cashierOfficer;
-      }
-      return dto.office ?? '';
-    }
-    if (feStatus === 'ForIssuance') {
-      if (issuingOfficer && !isGenericOfficer(issuingOfficer, dto.office)) {
-        return issuingOfficer;
-      }
-      return dto.office ?? '';
-    }
-    return dto.office ?? '';
-  })();
+  const accountingOfficer = resolveAccountingOfficer(reversedHistories);
+  const cashierOfficer = resolveCashierOfficer(reversedHistories);
+  const issuingOfficer = resolveIssuingOfficer(reversedHistories);
+  const evaluatingOfficer = resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+  const assignedTo = resolveAssignedTo(
+    feStatus,
+    evaluatingOfficer,
+    accountingOfficer,
+    cashierOfficer,
+    issuingOfficer,
+    endorsementState,
+    dto.office
+  );
 
   return {
     id: dto.id,
@@ -837,85 +496,7 @@ export function mapApplicationDtoToUI(
       staff: c.correctedByStaff,
       timestamp: c.correctedAt,
     })) ?? [],
-    history: (() => {
-      const list: AuditTrailEntry[] = [];
-      const hasInitialSubmission = dto.histories?.some(
-        (h) => h.toStatus === 'Submitted' || (h.action !== null && h.action !== undefined && h.action.toLowerCase().includes('submit'))
-      );
-
-      if (hasInitialSubmission !== true && dto.createdAt) {
-        const submitter =
-          filingUser?.name ||
-          applicantName ||
-          'Applicant';
-        const modeText = dto.submissionMode ? ` (${dto.submissionMode})` : '';
-        list.push({
-          id: `init-${dto.id}`,
-          action: `Application Submitted${modeText}`,
-          staff: submitter,
-          role: 'Filing Submitter',
-          status: 'Submitted',
-          timestamp: new Date(dto.createdAt).toLocaleString('en-US', {
-            month: 'short',
-            day: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            hour12: true,
-          }),
-        });
-      }
-
-      if (dto.histories && dto.histories.length > 0) {
-        for (const h of dto.histories) {
-          const rawAction = h.action && h.action.trim().length > 0
-            ? h.action
-            : (h.toStatus ? `Status: ${h.toStatus}` : 'Application Event');
-
-          let derivedRole = h.staffRole || '';
-          const actionLower = rawAction.toLowerCase();
-          const toStatusLower = (h.toStatus || '').toLowerCase();
-          if (!derivedRole) {
-            if (actionLower.includes('approve') || toStatusLower.includes('approve')) {
-              derivedRole = 'Approving Officer';
-            } else if (actionLower.includes('return') || actionLower.includes('decline') || toStatusLower.includes('return') || toStatusLower.includes('decline')) {
-              derivedRole = 'Return Officer';
-            } else if (actionLower.includes('accountant') || toStatusLower.includes('accountant')) {
-              derivedRole = 'Accountant / Assessor';
-            } else if (actionLower.includes('cashier') || actionLower.includes('payment') || toStatusLower.includes('payment')) {
-              derivedRole = 'Cashiering Officer';
-            } else if (actionLower.includes('evaluat') || toStatusLower.includes('evaluat')) {
-              derivedRole = 'Evaluating Officer';
-            } else if (actionLower.includes('submit')) {
-              derivedRole = 'Filing Submitter';
-            } else {
-              derivedRole = 'Processing Officer';
-            }
-          }
-
-          list.push({
-            id: h.id,
-            action: rawAction,
-            staff: h.staffName || 'Authorized Officer',
-            role: derivedRole,
-            remarks: h.remarks || undefined,
-            status: h.toStatus || undefined,
-            timestamp: h.timestamp
-              ? new Date(h.timestamp).toLocaleString('en-US', {
-                  month: 'short',
-                  day: '2-digit',
-                  year: 'numeric',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                  hour12: true,
-                })
-              : '',
-          });
-        }
-      }
-
-      return list;
-    })(),
+    history: buildAuditTrailList(dto, filingUser?.name || applicantName || 'Applicant'),
     note: dto.remarks ?? '',
   };
 }

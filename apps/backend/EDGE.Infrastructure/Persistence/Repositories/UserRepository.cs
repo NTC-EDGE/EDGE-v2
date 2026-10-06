@@ -178,6 +178,12 @@ public class UserRepository : IUserRepository
 
                 return new StaffUserContext(user.Id, staffName, staffRole);
             }
+
+            _logger?.LogWarning("Staff user context lookup failed for '{UserIdStr}'. Falling back to default role '{DefaultRole}'.", userIdStr, defaultRole);
+        }
+        else
+        {
+            _logger?.LogWarning("Staff user context requested with null/empty user ID. Falling back to default role '{DefaultRole}'.", defaultRole);
         }
 
         return new StaffUserContext(null, "System Staff", defaultRole);

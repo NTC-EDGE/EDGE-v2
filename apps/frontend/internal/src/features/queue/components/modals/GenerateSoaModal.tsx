@@ -29,6 +29,16 @@ import {
   FeeCalculationResultDto,
 } from '@edge/api';
 import { ApplicationData, SoaItem } from '../../../../types/application';
+import {
+  EditableLineItem,
+  normalizeYmd,
+  resolveInitialAddress,
+  resolveInitialName,
+  resolveInitialType,
+  mapCalculatedFeesToEditableItems,
+  mapExistingSoaItemsToEditableItems,
+  calculateLineItemAmount,
+} from '../../utils/soaModalHelpers';
 
 interface GenerateSoaModalProps {
   visible: boolean;
@@ -36,67 +46,6 @@ interface GenerateSoaModalProps {
   onClose: () => void;
   onSuccess?: () => void;
 }
-
-interface EditableLineItem {
-  id: string;
-  particular: string;
-  itemCode: string;
-  description?: string;
-  validityYears: number;
-  noOfUnits: number;
-  feeRate: number;
-  amount: number;
-  isTax?: boolean;
-  isSurcharge?: boolean;
-}
-
-const normalizeYmd = (dateStr?: string | null): string => {
-  if (!dateStr || typeof dateStr !== 'string') return '';
-  const trimmed = dateStr.trim();
-  if (!trimmed) return '';
-  if (trimmed.includes('T')) return trimmed.split('T')[0] ?? '';
-  if (trimmed.includes(' ')) return trimmed.split(' ')[0] ?? '';
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) return trimmed;
-  const d = new Date(trimmed);
-  if (!isNaN(d.getTime())) {
-    try {
-      return d.toISOString().split('T')[0] ?? '';
-    } catch {
-      return trimmed.substring(0, 10);
-    }
-  }
-  return trimmed.substring(0, 10);
-};
-
-const resolveInitialAddress = (app: ApplicationData): string => {
-  if (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0) {
-    return app.soaIssuedToAddress.trim();
-  }
-  const parts = [
-    app.address?.streetAddress || app.address?.address,
-    app.address?.barangay,
-    app.address?.city,
-    app.address?.province,
-  ].filter(Boolean);
-
-  if (parts.length > 0) {
-    return parts.join(', ');
-  }
-  return app.filingUser?.company?.address || '';
-};
-
-const resolveInitialName = (app: ApplicationData): string => {
-  if (app.soaIssuedToName && app.soaIssuedToName.trim().length > 0) {
-    return app.soaIssuedToName.trim();
-  }
-  return app.applicant || app.companyDetails?.name || app.filingUser?.name || '';
-};
-
-const resolveInitialType = (app: ApplicationData): IssuedToTypeDto => {
-  if (app.soaIssuedToType === 'Company') return 'Company';
-  if (app.soaIssuedToType === 'Individual') return 'Individual';
-  return app.applicantType === 'Company' ? 'Company' : 'Individual';
-};
 
 export function GenerateSoaModal({
   visible,
@@ -150,19 +99,7 @@ export function GenerateSoaModal({
 
     // If new SOA (not existing), populate default custom line items from calculated result
     if (!isExistingSoa) {
-      const mappedItems: EditableLineItem[] = calcData.lineItems.map((item, idx) => ({
-        id: `calc-${idx}-${Date.now()}`,
-        particular: item.particular,
-        itemCode: item.itemCode,
-        description: item.description ?? undefined,
-        validityYears: item.validityYears > 0 ? item.validityYears : 1,
-        noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
-        feeRate: item.feeRate,
-        amount: item.amount,
-        isTax: item.isTax,
-        isSurcharge: item.isSurcharge,
-      }));
-      setCustomLineItems(mappedItems);
+      setCustomLineItems(mapCalculatedFeesToEditableItems(calcData.lineItems, 'calc'));
     }
   }, [app.id, isExistingSoa]);
 
@@ -182,18 +119,7 @@ export function GenerateSoaModal({
 
       if (isExistingSoa && app.soaItems && app.soaItems.length > 0) {
         // Pre-populate existing SOA line items so custom edits & payments are preserved
-        const existingItems: EditableLineItem[] = app.soaItems.map((item: SoaItem, idx: number) => ({
-          id: `existing-${idx}-${Date.now()}`,
-          particular: item.particular,
-          itemCode: item.code || 'FEE',
-          validityYears: item.validityYears > 0 ? item.validityYears : 1,
-          noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
-          feeRate: item.fees,
-          amount: item.amount,
-          isTax: item.code?.toUpperCase() === 'DST',
-          isSurcharge: item.particular?.toLowerCase().includes('surcharge') || item.code?.toUpperCase() === 'SUR',
-        }));
-        setCustomLineItems(existingItems);
+        setCustomLineItems(mapExistingSoaItemsToEditableItems(app.soaItems));
         setIsManualMode(true);
       } else {
         setIsManualMode(false);
@@ -209,19 +135,7 @@ export function GenerateSoaModal({
       fetchBackendCalculatedFees();
       return;
     }
-    const mappedItems: EditableLineItem[] = calculatedFees.lineItems.map((item, idx) => ({
-      id: `calc-applied-${idx}-${Date.now()}`,
-      particular: item.particular,
-      itemCode: item.itemCode,
-      description: item.description ?? undefined,
-      validityYears: item.validityYears > 0 ? item.validityYears : 1,
-      noOfUnits: item.noOfUnits > 0 ? item.noOfUnits : 1,
-      feeRate: item.feeRate,
-      amount: item.amount,
-      isTax: item.isTax,
-      isSurcharge: item.isSurcharge,
-    }));
-    setCustomLineItems(mappedItems);
+    setCustomLineItems(mapCalculatedFeesToEditableItems(calculatedFees.lineItems, 'calc-applied'));
     setIsManualMode(true);
     toast.success('Statutory fee calculation applied to SOA items.');
   };
@@ -237,11 +151,12 @@ export function GenerateSoaModal({
         if (item.id !== id) return item;
         const updated = { ...item, [field]: value };
         if (field === 'noOfUnits' || field === 'feeRate' || field === 'validityYears') {
-          const y = typeof updated.validityYears === 'number' ? updated.validityYears : Number(updated.validityYears) || 1;
-          const u = typeof updated.noOfUnits === 'number' ? updated.noOfUnits : Number(updated.noOfUnits) || 1;
-          const r = typeof updated.feeRate === 'number' ? updated.feeRate : Number(updated.feeRate) || 0;
-          const isDst = (updated.itemCode || '').toUpperCase() === 'DST';
-          updated.amount = isDst ? r : y * u * r;
+          updated.amount = calculateLineItemAmount(
+            updated.validityYears,
+            updated.noOfUnits,
+            updated.feeRate,
+            updated.itemCode
+          );
         }
         return updated;
       })
