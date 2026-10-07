@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   TextInput,
+  Platform,
 } from 'react-native';
 import {
   COLORS,
@@ -17,6 +18,7 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
+import { useAuthContext } from '../../auth/context/AuthContext';
 import {
   PaperSize,
   PrintOutputMode,
@@ -24,77 +26,111 @@ import {
   PAPER_DIMENSIONS,
   ACCOUNTABLE_FORM_TEMPLATES,
   AccountableFormTemplate,
+  REPORT_PRINT_PROFILES,
+  ReportPrintProfile,
+  loadUserReportPrintConfig,
+  saveUserReportPrintConfig,
 } from '../../queue/types/documentPrintTypes';
 import {
   generateAlignmentTestSheetHtml,
   openDocumentPrintWindow,
 } from '../../queue/utils/documentPrintGenerator';
 
-const STORAGE_CALIBRATION_KEY = 'ntc_edge_printer_calibration_prefs';
-
 export function PrintSettingsTab() {
   const { colors, isDark } = useTheme();
+  const { user, clerkUser } = useAuthContext();
+  const activeUserId = user?.id ?? clerkUser?.id ?? null;
+  const activeUserName = user?.name || clerkUser?.fullName || user?.email || 'Officer';
 
-  const [defaultPaperSize, setDefaultPaperSize] = useState<PaperSize>('letter');
-  const [defaultOutputMode, setDefaultOutputMode] = useState<PrintOutputMode>('plain_paper');
-  const [defaultOrientation, setDefaultOrientation] = useState<PageOrientation>('portrait');
+  const [selectedProfileId, setSelectedProfileId] = useState<string>(REPORT_PRINT_PROFILES[0]?.id ?? 'AF-51');
+  const activeProfile = useMemo<ReportPrintProfile>(() => {
+    return REPORT_PRINT_PROFILES.find((p) => p.id === selectedProfileId) ?? REPORT_PRINT_PROFILES[0] ?? {
+      id: 'AF-51',
+      name: 'Official Receipt',
+      category: 'Cashier',
+      description: 'Collecting Officer receipts',
+      defaultPaperSize: 'letter',
+      defaultOutputMode: 'accountable_form',
+      defaultOrientation: 'portrait',
+    };
+  }, [selectedProfileId]);
+
+  const [paperSize, setPaperSize] = useState<PaperSize>(activeProfile.defaultPaperSize);
+  const [outputMode, setOutputMode] = useState<PrintOutputMode>(activeProfile.defaultOutputMode);
+  const [orientation, setOrientation] = useState<PageOrientation>(activeProfile.defaultOrientation);
+  const [customWidthMm, setCustomWidthMm] = useState<string>('215.9');
+  const [customHeightMm, setCustomHeightMm] = useState<string>('279.4');
   const [offsetXmm, setOffsetXmm] = useState<number>(0);
   const [offsetYmm, setOffsetYmm] = useState<number>(0);
-  const [selectedTemplate, setSelectedTemplate] = useState<AccountableFormTemplate>(
-    ACCOUNTABLE_FORM_TEMPLATES[0] ?? ACCOUNTABLE_FORM_TEMPLATES[0]
-  );
 
+  // Load saved configuration whenever selectedProfileId or activeUserId changes
   useEffect(() => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STORAGE_CALIBRATION_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (typeof parsed.offsetXmm === 'number') setOffsetXmm(parsed.offsetXmm);
-          if (typeof parsed.offsetYmm === 'number') setOffsetYmm(parsed.offsetYmm);
-          if (parsed.paperSize) setDefaultPaperSize(parsed.paperSize);
-          if (parsed.outputMode) setDefaultOutputMode(parsed.outputMode);
-        }
-      } catch {
-        // ignore
-      }
+    const saved = loadUserReportPrintConfig(selectedProfileId, activeUserId);
+    if (saved) {
+      if (saved.paperSize) setPaperSize(saved.paperSize);
+      if (saved.outputMode) setOutputMode(saved.outputMode);
+      if (saved.orientation) setOrientation(saved.orientation);
+      if (typeof saved.customWidthMm === 'number') setCustomWidthMm(String(saved.customWidthMm));
+      if (typeof saved.customHeightMm === 'number') setCustomHeightMm(String(saved.customHeightMm));
+      if (typeof saved.calibration?.offsetXmm === 'number') setOffsetXmm(saved.calibration.offsetXmm);
+      if (typeof saved.calibration?.offsetYmm === 'number') setOffsetYmm(saved.calibration.offsetYmm);
+    } else {
+      setPaperSize(activeProfile.defaultPaperSize);
+      setOutputMode(activeProfile.defaultOutputMode);
+      setOrientation(activeProfile.defaultOrientation);
+      setCustomWidthMm(String(activeProfile.defaultCustomWidthMm ?? 215.9));
+      setCustomHeightMm(String(activeProfile.defaultCustomHeightMm ?? 279.4));
+      setOffsetXmm(0);
+      setOffsetYmm(0);
     }
-  }, []);
+  }, [selectedProfileId, activeUserId, activeProfile]);
 
-  const handleSave = () => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(
-          STORAGE_CALIBRATION_KEY,
-          JSON.stringify({
-            offsetXmm,
-            offsetYmm,
-            paperSize: defaultPaperSize,
-            outputMode: defaultOutputMode,
-            orientation: defaultOrientation,
-            updatedAt: new Date().toISOString(),
-          })
-        );
-        toast.success('Workstation print & accountable form settings saved.');
-      } catch {
-        toast.error('Failed to save printing settings.');
-      }
+  const associatedTemplate = useMemo<AccountableFormTemplate | undefined>(() => {
+    if (activeProfile.associatedTemplateId) {
+      return ACCOUNTABLE_FORM_TEMPLATES.find((t) => t.id === activeProfile.associatedTemplateId);
     }
+    return undefined;
+  }, [activeProfile.associatedTemplateId]);
+
+  const handleSaveProfile = () => {
+    const widthNum = parseFloat(customWidthMm);
+    const heightNum = parseFloat(customHeightMm);
+
+    saveUserReportPrintConfig(
+      selectedProfileId,
+      {
+        paperSize,
+        outputMode,
+        orientation,
+        customWidthMm: Number.isNaN(widthNum) ? 215.9 : widthNum,
+        customHeightMm: Number.isNaN(heightNum) ? 279.4 : heightNum,
+        offsetXmm,
+        offsetYmm,
+      },
+      activeUserId
+    );
+
+    toast.success(`Print settings saved for ${activeProfile.name}!`);
   };
 
   const handleTestPrint = () => {
+    const widthNum = parseFloat(customWidthMm);
+    const heightNum = parseFloat(customHeightMm);
+
     const html = generateAlignmentTestSheetHtml(
       {
-        paperSize: defaultPaperSize,
+        paperSize,
         outputMode: 'alignment_test',
-        orientation: defaultOrientation,
+        orientation,
+        customWidthMm: Number.isNaN(widthNum) ? undefined : widthNum,
+        customHeightMm: Number.isNaN(heightNum) ? undefined : heightNum,
         calibration: {
           offsetXmm,
           offsetYmm,
           scalePercent: 100,
         },
       },
-      selectedTemplate
+      associatedTemplate
     );
     openDocumentPrintWindow(html);
   };
@@ -116,11 +152,27 @@ export function PrintSettingsTab() {
             <Lucide name="printer" size={24} color={isDark ? colors.brand[400] : colors.brand[600]} />
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.headerTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-              Printing Sizes &amp; Accountable Forms Configuration
-            </Text>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+              <Text style={[styles.headerTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                Printing Sizes &amp; Accountable Forms Configuration
+              </Text>
+              <View
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: RADIUS.xs,
+                  backgroundColor: isDark ? '#1E293B' : '#EFF6FF',
+                  borderWidth: 1,
+                  borderColor: isDark ? '#3B82F6' : '#93C5FD',
+                }}
+              >
+                <Text style={{ fontSize: 10.5, fontWeight: '700', color: isDark ? '#93C5FD' : '#1D4ED8' }}>
+                  User: {activeUserName}
+                </Text>
+              </View>
+            </View>
             <Text style={[styles.headerSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-              Manage default paper stock sizes, output modes (Plain Bond vs Pre-printed Accountable Stationery), and workstation printer tray calibration offsets.
+              Customize paper stock sizes, output modes, and workstation printer tray calibration per report type and user workstation.
             </Text>
           </View>
         </View>
@@ -129,6 +181,91 @@ export function PrintSettingsTab() {
           <Lucide name="crosshair" size={16} color="#FFFFFF" />
           <Text style={styles.testPrintBtnText}>Test Alignment Sheet</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Profile Selector Section */}
+      <View
+        style={[
+          styles.profileSelectorCard,
+          {
+            backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+          },
+        ]}
+      >
+        <View style={styles.profileCardHeader}>
+          <Lucide name="layers" size={17} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text style={[styles.cardTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+            Select Report / Service to Configure
+          </Text>
+        </View>
+        <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+          Each document type (e.g. Cashier Official Receipt, Radio Station License, Operator Certificate, SOA) retains its own independent paper size and printer tray offsets.
+        </Text>
+
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.profilePillsContainer}>
+          {REPORT_PRINT_PROFILES.map((profile) => {
+            const isSelected = selectedProfileId === profile.id;
+            const categoryBadgeColor =
+              profile.category === 'Cashier' ? '#059669' :
+              profile.category === 'Licensing' ? '#2563EB' :
+              profile.category === 'Permits' ? '#7C3AED' :
+              profile.category === 'Billing' ? '#D97706' : '#475569';
+
+            return (
+              <TouchableOpacity
+                key={profile.id}
+                onPress={() => setSelectedProfileId(profile.id)}
+                style={[
+                  styles.profilePill,
+                  isSelected && styles.profilePillActive,
+                  {
+                    backgroundColor: isSelected
+                      ? (isDark ? colors.brand[900] : '#EFF6FF')
+                      : (isDark ? colors.neutral[800] : colors.neutral[50]),
+                    borderColor: isSelected
+                      ? (isDark ? colors.brand[400] : colors.brand[600])
+                      : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <View
+                    style={{
+                      paddingHorizontal: 6,
+                      paddingVertical: 1,
+                      borderRadius: 4,
+                      backgroundColor: `${categoryBadgeColor}18`,
+                    }}
+                  >
+                    <Text style={{ fontSize: 9.5, fontWeight: '800', color: categoryBadgeColor }}>
+                      {profile.category.toUpperCase()}
+                    </Text>
+                  </View>
+                </View>
+                <Text
+                  style={[
+                    styles.profilePillTitle,
+                    isSelected && { color: isDark ? colors.brand[300] : colors.brand[700], fontWeight: '700' },
+                    { color: isDark ? colors.neutral[200] : colors.neutral[800] },
+                  ]}
+                >
+                  {profile.name}
+                </Text>
+                <Text
+                  style={[
+                    styles.profilePillDesc,
+                    { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                  ]}
+                  numberOfLines={1}
+                >
+                  {profile.description}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {/* Grid Settings Layout */}
@@ -146,21 +283,21 @@ export function PrintSettingsTab() {
           <View style={styles.cardHeader}>
             <Lucide name="file" size={18} color={colors.brand[600]} />
             <Text style={[styles.cardTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-              Default Agency Paper Sizes
+              Paper Stock Dimensions for {activeProfile.name}
             </Text>
           </View>
           <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            Choose standard paper dimensions used by your office printers.
+            Choose the physical paper stock size or specify custom dimensions in millimeters.
           </Text>
 
           <View style={styles.pillsWrap}>
-            {(['letter', 'a4', 'folio', 'legal'] as PaperSize[]).map((sizeKey) => {
-              const isSelected = defaultPaperSize === sizeKey;
+            {(['letter', 'a4', 'folio', 'legal', 'custom'] as PaperSize[]).map((sizeKey) => {
+              const isSelected = paperSize === sizeKey;
               const dim = PAPER_DIMENSIONS[sizeKey];
               return (
                 <TouchableOpacity
                   key={sizeKey}
-                  onPress={() => setDefaultPaperSize(sizeKey)}
+                  onPress={() => setPaperSize(sizeKey)}
                   style={[
                     styles.sizePill,
                     isSelected && styles.sizePillActive,
@@ -187,6 +324,91 @@ export function PrintSettingsTab() {
               );
             })}
           </View>
+
+          {paperSize === 'custom' && (
+            <View style={styles.customDimBox}>
+              <View style={styles.customDimCol}>
+                <Text style={[styles.dimLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  Width (mm):
+                </Text>
+                <TextInput
+                  value={customWidthMm}
+                  onChangeText={setCustomWidthMm}
+                  keyboardType="numeric"
+                  placeholder="215.9"
+                  style={[
+                    styles.dimInput,
+                    {
+                      color: isDark ? colors.neutral[100] : colors.neutral[900],
+                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    },
+                  ]}
+                />
+              </View>
+              <View style={styles.customDimCol}>
+                <Text style={[styles.dimLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  Height (mm):
+                </Text>
+                <TextInput
+                  value={customHeightMm}
+                  onChangeText={setCustomHeightMm}
+                  keyboardType="numeric"
+                  placeholder="279.4"
+                  style={[
+                    styles.dimInput,
+                    {
+                      color: isDark ? colors.neutral[100] : colors.neutral[900],
+                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    },
+                  ]}
+                />
+              </View>
+            </View>
+          )}
+
+          {/* Page Orientation */}
+          <View style={{ marginTop: SPACING[16] }}>
+            <Text style={[styles.dimLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+              Print Orientation:
+            </Text>
+            <View style={styles.orientationWrap}>
+              <TouchableOpacity
+                onPress={() => setOrientation('portrait')}
+                style={[
+                  styles.orientationBtn,
+                  orientation === 'portrait' && styles.orientationBtnActive,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                    borderColor: orientation === 'portrait' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
+                  },
+                ]}
+              >
+                <Lucide name="file" size={15} color={orientation === 'portrait' ? colors.brand[600] : colors.neutral[400]} />
+                <Text style={[styles.orientationBtnText, orientation === 'portrait' && { color: colors.brand[600], fontWeight: '700' }]}>
+                  Portrait
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => setOrientation('landscape')}
+                style={[
+                  styles.orientationBtn,
+                  orientation === 'landscape' && styles.orientationBtnActive,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                    borderColor: orientation === 'landscape' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
+                  },
+                ]}
+              >
+                <Lucide name="layout" size={15} color={orientation === 'landscape' ? colors.brand[600] : colors.neutral[400]} />
+                <Text style={[styles.orientationBtnText, orientation === 'landscape' && { color: colors.brand[600], fontWeight: '700' }]}>
+                  Landscape
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
         </View>
 
         {/* Section 2: Default Output Mode */}
@@ -206,52 +428,52 @@ export function PrintSettingsTab() {
             </Text>
           </View>
           <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            Select whether documents print as full layouts or data overlays by default.
+            Choose whether {activeProfile.name} prints as a full plain-paper statutory certificate or precision overlay on physical pre-printed stationery.
           </Text>
 
           <View style={styles.modeOptionGroup}>
             <TouchableOpacity
-              onPress={() => setDefaultOutputMode('plain_paper')}
+              onPress={() => setOutputMode('plain_paper')}
               style={[
                 styles.modeRow,
-                defaultOutputMode === 'plain_paper' && styles.modeRowActive,
+                outputMode === 'plain_paper' && styles.modeRowActive,
                 {
                   backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: defaultOutputMode === 'plain_paper' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
+                  borderColor: outputMode === 'plain_paper' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
                 },
               ]}
               activeOpacity={0.8}
             >
-              <Lucide name="file-text" size={18} color={defaultOutputMode === 'plain_paper' ? colors.brand[600] : colors.neutral[400]} />
+              <Lucide name="file-text" size={18} color={outputMode === 'plain_paper' ? colors.brand[600] : colors.neutral[400]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modeRowTitle, defaultOutputMode === 'plain_paper' && { color: colors.brand[600] }]}>
-                  Plain Bond Paper (Full Document)
+                <Text style={[styles.modeRowTitle, outputMode === 'plain_paper' && { color: colors.brand[600] }]}>
+                  Plain Bond Paper (Full Statutory Document)
                 </Text>
                 <Text style={[styles.modeRowDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                  Generates Republic of the Philippines seal, NTC letterhead, decorative borders, and filled data.
+                  Generates Republic seal watermark, NTC header, security double-borders, filled tables, and upper-right QR code.
                 </Text>
               </View>
             </TouchableOpacity>
 
             <TouchableOpacity
-              onPress={() => setDefaultOutputMode('accountable_form')}
+              onPress={() => setOutputMode('accountable_form')}
               style={[
                 styles.modeRow,
-                defaultOutputMode === 'accountable_form' && styles.modeRowActive,
+                outputMode === 'accountable_form' && styles.modeRowActive,
                 {
                   backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: defaultOutputMode === 'accountable_form' ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
+                  borderColor: outputMode === 'accountable_form' ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
                 },
               ]}
               activeOpacity={0.8}
             >
-              <Lucide name="layers" size={18} color={defaultOutputMode === 'accountable_form' ? '#D97706' : colors.neutral[400]} />
+              <Lucide name="layers" size={18} color={outputMode === 'accountable_form' ? '#D97706' : colors.neutral[400]} />
               <View style={{ flex: 1 }}>
-                <Text style={[styles.modeRowTitle, defaultOutputMode === 'accountable_form' && { color: '#D97706' }]}>
-                  Pre-Printed Accountable Form (Data Overlay)
+                <Text style={[styles.modeRowTitle, outputMode === 'accountable_form' && { color: '#D97706' }]}>
+                  Pre-Printed Accountable Form (Precision Overlay)
                 </Text>
                 <Text style={[styles.modeRowDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                  Suppresses static background graphics and prints ONLY dynamic fields on physical pre-printed forms.
+                  Suppresses background graphics and prints ONLY dynamic values (Name, Call Sign, Fees, OR #) directly onto designated stationery boxes.
                 </Text>
               </View>
             </TouchableOpacity>
@@ -275,7 +497,7 @@ export function PrintSettingsTab() {
             </Text>
           </View>
           <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            Fine-tune physical margin shifts so text lands accurately inside accountable form boxes on this specific computer.
+            Fine-tune physical margin shifts so text lands accurately inside the printer tray feeder for {activeProfile.name}.
           </Text>
 
           <View style={styles.calibrationGrid}>
@@ -319,72 +541,77 @@ export function PrintSettingsTab() {
           </View>
         </View>
 
-        {/* Section 4: Accountable Form Templates Catalog */}
-        <View
-          style={[
-            styles.card,
-            {
-              backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
-              borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-            },
-          ]}
-        >
-          <View style={styles.cardHeader}>
-            <Lucide name="book-open" size={18} color="#7C3AED" />
-            <Text style={[styles.cardTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-              Official Accountable Form Templates
+        {/* Section 4: Accountable Form Template Coordinates Inspector */}
+        {associatedTemplate && (
+          <View
+            style={[
+              styles.card,
+              {
+                backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              },
+            ]}
+          >
+            <View style={styles.cardHeader}>
+              <Lucide name="map-pin" size={18} color="#7C3AED" />
+              <Text style={[styles.cardTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                Form Box Layout ({associatedTemplate.code})
+              </Text>
+            </View>
+            <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+              {associatedTemplate.title} — {associatedTemplate.fields.length} dynamic field coordinates mapped.
             </Text>
-          </View>
-          <Text style={[styles.cardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-            Pre-calibrated coordinate configurations for official statutory forms.
-          </Text>
 
-          <View style={{ gap: 8 }}>
-            {ACCOUNTABLE_FORM_TEMPLATES.map((tmpl) => {
-              const isSelected = selectedTemplate.id === tmpl.id;
-              return (
-                <TouchableOpacity
-                  key={tmpl.id}
-                  onPress={() => setSelectedTemplate(tmpl)}
+            <View style={styles.coordTable}>
+              <View style={[styles.coordHeader, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Text style={[styles.coordCell, { flex: 1.5, fontWeight: 'bold' }]}>Field Name</Text>
+                <Text style={[styles.coordCell, { flex: 1, fontWeight: 'bold' }]}>Top (Y)</Text>
+                <Text style={[styles.coordCell, { flex: 1, fontWeight: 'bold' }]}>Left (X)</Text>
+                <Text style={[styles.coordCell, { flex: 1, fontWeight: 'bold' }]}>Width</Text>
+                <Text style={[styles.coordCell, { flex: 1, fontWeight: 'bold' }]}>Font</Text>
+              </View>
+
+              {associatedTemplate.fields.map((f) => (
+                <View
+                  key={f.id}
                   style={[
-                    styles.tmplCard,
-                    isSelected && styles.tmplCardActive,
-                    {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                      borderColor: isSelected ? '#7C3AED' : isDark ? colors.neutral[700] : colors.neutral[200],
-                    },
+                    styles.coordRow,
+                    { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200] },
                   ]}
-                  activeOpacity={0.7}
                 >
-                  <View style={{ flex: 1 }}>
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                      <Text style={[styles.tmplCode, { color: isSelected ? '#7C3AED' : isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-                        {tmpl.code}
-                      </Text>
-                      <View style={styles.tmplBadge}>
-                        <Text style={styles.tmplBadgeText}>{tmpl.category}</Text>
-                      </View>
-                    </View>
-                    <Text style={[styles.tmplTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                      {tmpl.title}
-                    </Text>
-                    <Text style={[styles.tmplFieldsCount, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      {tmpl.fields.length} calibrated field coordinates • {tmpl.dimensions.widthMm} x {tmpl.dimensions.heightMm} mm
-                    </Text>
-                  </View>
-                  <Lucide name="chevron-right" size={16} color={isSelected ? '#7C3AED' : colors.neutral[400]} />
-                </TouchableOpacity>
-              );
-            })}
+                  <Text style={[styles.coordCell, { flex: 1.5, color: isDark ? colors.neutral[200] : colors.neutral[800], fontWeight: '600' }]}>
+                    {f.label}
+                  </Text>
+                  <Text style={[styles.coordCell, { flex: 1, color: isDark ? colors.neutral[400] : colors.neutral[600], fontFamily: 'monospace' }]}>
+                    {f.topMm + offsetYmm} mm
+                  </Text>
+                  <Text style={[styles.coordCell, { flex: 1, color: isDark ? colors.neutral[400] : colors.neutral[600], fontFamily: 'monospace' }]}>
+                    {f.leftMm + offsetXmm} mm
+                  </Text>
+                  <Text style={[styles.coordCell, { flex: 1, color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
+                    {f.widthMm ? `${f.widthMm}mm` : 'Auto'}
+                  </Text>
+                  <Text style={[styles.coordCell, { flex: 1, color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
+                    {f.fontSizePt ?? 10}pt {f.fontWeight ?? ''}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
-        </View>
+        )}
       </View>
 
-      {/* Save Button Bar */}
+      {/* Save Button */}
       <View style={styles.saveButtonBar}>
-        <TouchableOpacity onPress={handleSave} style={[styles.saveBtn, { backgroundColor: colors.brand[600] }]} activeOpacity={0.8}>
-          <Lucide name="check" size={16} color="#FFFFFF" />
-          <Text style={styles.saveBtnText}>Save Printing &amp; Calibration Settings</Text>
+        <TouchableOpacity
+          onPress={handleSaveProfile}
+          style={[styles.saveBtn, { backgroundColor: colors.brand[600] }]}
+          activeOpacity={0.8}
+        >
+          <Lucide name="save" size={16} color="#FFFFFF" />
+          <Text style={styles.saveBtnText}>
+            Save Configuration for {activeProfile.name}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
@@ -446,6 +673,45 @@ const styles = StyleSheet.create({
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#FFFFFF',
   },
+  profileSelectorCard: {
+    padding: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    marginBottom: SPACING[20],
+    ...SHADOWS.card,
+  },
+  profileCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    marginBottom: 4,
+  },
+  profilePillsContainer: {
+    flexDirection: 'row',
+    gap: SPACING[10],
+    paddingVertical: SPACING[10],
+  },
+  profilePill: {
+    padding: SPACING[12],
+    borderRadius: RADIUS.card,
+    borderWidth: 1.5,
+    minWidth: 190,
+    maxWidth: 240,
+  },
+  profilePillActive: {
+    borderWidth: 2,
+  },
+  profilePillTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginBottom: 2,
+  },
+  profilePillDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    lineHeight: 13,
+  },
   grid: {
     gap: SPACING[16],
   },
@@ -458,33 +724,33 @@ const styles = StyleSheet.create({
   cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: SPACING[8],
     marginBottom: 4,
   },
   cardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14.5,
+    fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
   },
   cardDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 11.5,
     marginBottom: SPACING[12],
   },
   pillsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING[10],
+    gap: SPACING[8],
   },
   sizePill: {
-    flex: 1,
+    paddingVertical: SPACING[10],
+    paddingHorizontal: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1.5,
     minWidth: 140,
-    padding: SPACING[10],
-    borderRadius: RADIUS.sm,
-    borderWidth: 1.2,
   },
   sizePillActive: {
-    backgroundColor: '#EFF6FF',
+    backgroundColor: '#FAF5FF',
   },
   sizePillTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -493,46 +759,91 @@ const styles = StyleSheet.create({
   },
   sizePillDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10.5,
+    fontSize: 10,
     marginTop: 2,
+  },
+  customDimBox: {
+    flexDirection: 'row',
+    gap: SPACING[16],
+    marginTop: SPACING[12],
+  },
+  customDimCol: {
+    flex: 1,
+  },
+  dimLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    marginBottom: 4,
+  },
+  dimInput: {
+    borderWidth: 1,
+    borderRadius: RADIUS.card,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+    fontFamily: 'monospace',
+    fontSize: 13,
+  },
+  orientationWrap: {
+    flexDirection: 'row',
+    gap: SPACING[10],
+    marginTop: 4,
+  },
+  orientationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[16],
+    borderRadius: RADIUS.card,
+    borderWidth: 1.5,
+  },
+  orientationBtnActive: {
+    backgroundColor: '#EFF6FF',
+  },
+  orientationBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
   },
   modeOptionGroup: {
     gap: SPACING[10],
   },
   modeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     gap: SPACING[12],
     padding: SPACING[12],
-    borderRadius: RADIUS.sm,
-    borderWidth: 1.2,
+    borderRadius: RADIUS.card,
+    borderWidth: 1.5,
   },
   modeRowActive: {
-    backgroundColor: '#FAF5FF',
+    borderWidth: 2,
   },
   modeRowTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
+    marginBottom: 2,
   },
   modeRowDesc: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     lineHeight: 15,
-    marginTop: 2,
   },
   calibrationGrid: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: SPACING[16],
   },
   calibItem: {
     flex: 1,
+    minWidth: 200,
   },
   calibLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
-    marginBottom: SPACING[6],
+    marginBottom: 6,
   },
   calibInputWrap: {
     flexDirection: 'row',
@@ -540,14 +851,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   calibBtn: {
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#E2E8F0',
     paddingVertical: 6,
     paddingHorizontal: 10,
     borderRadius: 4,
   },
   calibBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11.5,
-    fontWeight: '700',
+    fontWeight: 'bold',
     color: '#334155',
   },
   calibBox: {
@@ -555,50 +867,36 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderRadius: 4,
     paddingVertical: 6,
+    paddingHorizontal: 10,
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
   },
   calibText: {
     fontFamily: 'monospace',
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 'bold',
   },
-  tmplCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    padding: SPACING[12],
-    borderRadius: RADIUS.sm,
+  coordTable: {
     borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
+    marginTop: 4,
   },
-  tmplCardActive: {
-    backgroundColor: '#FAF5FF',
+  coordHeader: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
   },
-  tmplCode: {
+  coordRow: {
+    flexDirection: 'row',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderBottomWidth: 1,
+  },
+  coordCell: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12.5,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  tmplBadge: {
-    backgroundColor: '#EDE9FE',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  tmplBadgeText: {
-    fontSize: 9.5,
-    fontWeight: 'bold',
-    color: '#6D28D9',
-  },
-  tmplTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    marginTop: 2,
-  },
-  tmplFieldsCount: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10.5,
-    marginTop: 2,
+    fontSize: 11,
   },
   saveButtonBar: {
     marginTop: SPACING[20],

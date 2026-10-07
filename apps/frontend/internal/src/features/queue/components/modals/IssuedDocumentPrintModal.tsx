@@ -20,6 +20,7 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
+import { useAuthContext } from '../../../auth/context/AuthContext';
 import { ApplicationData } from '../../../../types/application';
 import {
   PaperSize,
@@ -29,6 +30,8 @@ import {
   PAPER_DIMENSIONS,
   ACCOUNTABLE_FORM_TEMPLATES,
   AccountableFormTemplate,
+  loadUserReportPrintConfig,
+  saveUserReportPrintConfig,
 } from '../../types/documentPrintTypes';
 import {
   findMatchingTemplate,
@@ -56,6 +59,8 @@ export function IssuedDocumentPrintModal({
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 992;
+  const { user, clerkUser } = useAuthContext();
+  const activeUserId = user?.id ?? clerkUser?.id ?? null;
 
   const defaultTemplate = useMemo(() => findMatchingTemplate(app), [app]);
 
@@ -82,24 +87,20 @@ export function IssuedDocumentPrintModal({
   const [customWidthMm, setCustomWidthMm] = useState<string>('215.9');
   const [customHeightMm, setCustomHeightMm] = useState<string>('279.4');
 
-  // Load workstation saved preferences
+  // Load workstation saved preferences for this specific report/template and user
   useEffect(() => {
     if (!visible) return;
-    if (typeof localStorage !== 'undefined') {
-      try {
-        const saved = localStorage.getItem(STORAGE_CALIBRATION_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (typeof parsed.offsetXmm === 'number') setOffsetXmm(parsed.offsetXmm);
-          if (typeof parsed.offsetYmm === 'number') setOffsetYmm(parsed.offsetYmm);
-          if (parsed.paperSize) setPaperSize(parsed.paperSize);
-          if (parsed.outputMode) setOutputMode(parsed.outputMode);
-        }
-      } catch {
-        // ignore
-      }
+    const saved = loadUserReportPrintConfig(selectedTemplateId, activeUserId);
+    if (saved) {
+      if (saved.paperSize) setPaperSize(saved.paperSize);
+      if (saved.outputMode) setOutputMode(saved.outputMode);
+      if (saved.orientation) setOrientation(saved.orientation);
+      if (typeof saved.customWidthMm === 'number') setCustomWidthMm(String(saved.customWidthMm));
+      if (typeof saved.customHeightMm === 'number') setCustomHeightMm(String(saved.customHeightMm));
+      if (typeof saved.calibration?.offsetXmm === 'number') setOffsetXmm(saved.calibration.offsetXmm);
+      if (typeof saved.calibration?.offsetYmm === 'number') setOffsetYmm(saved.calibration.offsetYmm);
     }
-  }, [visible]);
+  }, [visible, selectedTemplateId, activeUserId]);
 
   const activeTemplate = useMemo(() => {
     return ACCOUNTABLE_FORM_TEMPLATES.find((t) => t.id === selectedTemplateId) || defaultTemplate;
@@ -145,23 +146,24 @@ export function IssuedDocumentPrintModal({
   };
 
   const handleSavePreferences = () => {
-    if (typeof localStorage !== 'undefined') {
-      try {
-        localStorage.setItem(
-          STORAGE_CALIBRATION_KEY,
-          JSON.stringify({
-            offsetXmm,
-            offsetYmm,
-            paperSize,
-            outputMode,
-            lastSavedAt: new Date().toISOString(),
-          })
-        );
-        toast.success('Workstation printer calibration saved.');
-      } catch {
-        toast.error('Failed to save printer calibration.');
-      }
-    }
+    const widthNum = parseFloat(customWidthMm);
+    const heightNum = parseFloat(customHeightMm);
+
+    saveUserReportPrintConfig(
+      selectedTemplateId,
+      {
+        paperSize,
+        outputMode,
+        orientation,
+        customWidthMm: Number.isNaN(widthNum) ? 215.9 : widthNum,
+        customHeightMm: Number.isNaN(heightNum) ? 279.4 : heightNum,
+        offsetXmm,
+        offsetYmm,
+      },
+      activeUserId
+    );
+
+    toast.success(`Print settings saved for ${activeTemplate.title}!`);
   };
 
   const handleResetCalibration = () => {

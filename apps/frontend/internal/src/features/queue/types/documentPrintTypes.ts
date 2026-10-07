@@ -193,3 +193,142 @@ export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
     ],
   },
 ];
+
+export interface ReportPrintProfile {
+  id: string;
+  name: string;
+  category: 'Cashier' | 'Licensing' | 'Permits' | 'Billing' | 'General';
+  description: string;
+  defaultPaperSize: PaperSize;
+  defaultOutputMode: PrintOutputMode;
+  defaultOrientation: PageOrientation;
+  defaultCustomWidthMm?: number;
+  defaultCustomHeightMm?: number;
+  associatedTemplateId?: string;
+}
+
+export const REPORT_PRINT_PROFILES: ReportPrintProfile[] = [
+  {
+    id: 'AF-51',
+    name: 'Official Receipt (Accountable Form 51)',
+    category: 'Cashier',
+    description: 'Cashier & Collection Officer receipts for verified payments',
+    defaultPaperSize: 'letter',
+    defaultOutputMode: 'accountable_form',
+    defaultOrientation: 'portrait',
+    associatedTemplateId: 'AF-51',
+  },
+  {
+    id: 'NTC-FORM-101',
+    name: 'Radio Station License (RSL - Form 101)',
+    category: 'Licensing',
+    description: 'Commercial & Amateur Radio Station Licenses (Folio Long Bond)',
+    defaultPaperSize: 'folio',
+    defaultOutputMode: 'accountable_form',
+    defaultOrientation: 'portrait',
+    associatedTemplateId: 'NTC-FORM-101',
+  },
+  {
+    id: 'NTC-FORM-102',
+    name: 'Radio Operator Certificate (Form 102)',
+    category: 'Licensing',
+    description: 'Commercial & Amateur Radio Operator Certificate of Authority',
+    defaultPaperSize: 'letter',
+    defaultOutputMode: 'accountable_form',
+    defaultOrientation: 'portrait',
+    associatedTemplateId: 'NTC-FORM-102',
+  },
+  {
+    id: 'NTC-FORM-301',
+    name: 'Permits & Certificates of Registration (Form 301)',
+    category: 'Permits',
+    description: 'Equipment registration, dealer permits, and clearances',
+    defaultPaperSize: 'letter',
+    defaultOutputMode: 'accountable_form',
+    defaultOrientation: 'portrait',
+    associatedTemplateId: 'NTC-FORM-301',
+  },
+  {
+    id: 'soa',
+    name: 'Statement of Account (SOA)',
+    category: 'Billing',
+    description: 'Official statutory fee calculation and billing assessment slip',
+    defaultPaperSize: 'a4',
+    defaultOutputMode: 'plain_paper',
+    defaultOrientation: 'portrait',
+  },
+  {
+    id: 'op',
+    name: 'Order of Payment (OP)',
+    category: 'Billing',
+    description: 'Order of Payment voucher for cashier collection',
+    defaultPaperSize: 'letter',
+    defaultOutputMode: 'plain_paper',
+    defaultOrientation: 'portrait',
+  },
+  {
+    id: 'general_statutory',
+    name: 'General Statutory License (Plain Bond Paper)',
+    category: 'General',
+    description: 'Full statutory document layout with official seal watermark & QR',
+    defaultPaperSize: 'folio',
+    defaultOutputMode: 'plain_paper',
+    defaultOrientation: 'portrait',
+  },
+];
+
+const STORAGE_PROFILE_PREFIX = 'ntc_edge_printer_profile_';
+
+export function getReportProfileStorageKey(profileId: string, userId?: string | null): string {
+  const userSegment = userId && userId.trim() ? `${userId.trim()}_` : '';
+  return `${STORAGE_PROFILE_PREFIX}${userSegment}${profileId}`;
+}
+
+export function loadUserReportPrintConfig(
+  profileId: string,
+  userId?: string | null
+): Partial<DocumentPrintOptions> | null {
+  if (typeof localStorage === 'undefined') return null;
+  try {
+    const key = getReportProfileStorageKey(profileId, userId);
+    const saved = localStorage.getItem(key);
+    if (saved) {
+      return JSON.parse(saved);
+    }
+    if (userId) {
+      const globalSaved = localStorage.getItem(getReportProfileStorageKey(profileId));
+      if (globalSaved) return JSON.parse(globalSaved);
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+export function saveUserReportPrintConfig(
+  profileId: string,
+  options: {
+    paperSize: PaperSize;
+    outputMode: PrintOutputMode;
+    orientation: PageOrientation;
+    customWidthMm?: number;
+    customHeightMm?: number;
+    offsetXmm: number;
+    offsetYmm: number;
+  },
+  userId?: string | null
+): void {
+  if (typeof localStorage === 'undefined') return;
+  try {
+    const key = getReportProfileStorageKey(profileId, userId);
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        ...options,
+        updatedAt: new Date().toISOString(),
+      })
+    );
+  } catch {
+    // ignore
+  }
+}
