@@ -228,12 +228,15 @@ export function MyApplications() {
     if (selectedMode === "ASSESSMENT") {
       list = list.filter((a) => a.isAssessmentOnly || a.intent === "AssessmentOnly");
     }
+    if (selectedStatus !== "ALL") {
+      list = list.filter((a) => a.status === selectedStatus);
+    }
     return list.sort((a, b) => {
       const timeA = new Date(a.submittedAt).getTime();
       const timeB = new Date(b.submittedAt).getTime();
       return sortOrder === "NEWEST" ? timeB - timeA : timeA - timeB;
     });
-  }, [applications, selectedMode, sortOrder]);
+  }, [applications, selectedMode, selectedStatus, sortOrder]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -529,11 +532,13 @@ export function MyApplications() {
                       {(
                         [
                           ["ALL", "All Statuses"],
-                          ["FOR_APPROVAL", "For Approval"],
+                          ["PENDING", "Submitted"],
                           ["FOR_EVALUATION", "For Evaluation"],
-                          ["APPROVED", "Approved"],
+                          ["READY_FOR_PAYMENT", "Ready for Payment"],
+                          ["FOR_APPROVAL", "For Issuance"],
+                          ["APPROVED", "Issued"],
+                          ["DECLINED", "Returned"],
                           ["EXPIRING_SOON", "Expiring Soon"],
-                          ["PENDING", "Pending"],
                         ] as [StatusFilterOption, string][]
                       ).map(([val, label]) => (
                         <TouchableOpacity

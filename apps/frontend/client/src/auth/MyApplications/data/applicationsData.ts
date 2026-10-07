@@ -13,7 +13,7 @@ export type ApplicationStatus =
 
 export type ApplicationMode = 'SINGLE' | 'BULK';
 export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK' | 'ASSESSMENT';
-export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'PENDING';
+export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'READY_FOR_PAYMENT' | 'DECLINED' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
 export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
 
@@ -360,36 +360,36 @@ export type Application = SingleApplication | BulkApplication;
 
 export function getStatusLabel(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return 'For Approval';
+    case 'FOR_APPROVAL':     return 'For Issuance';
     case 'FOR_EVALUATION':   return 'For Evaluation';
-    case 'APPROVED':         return 'Approved';
-    case 'DECLINED':         return 'Declined';
+    case 'APPROVED':         return 'Issued';
+    case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
     case 'READY_FOR_PAYMENT':return 'Ready For Payment';
-    case 'PENDING':          return 'Pending';
+    case 'PENDING':          return 'Submitted';
   }
 }
 
 export function getStatusColor(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return '#2F56E8';
+    case 'FOR_APPROVAL':     return '#2563EB';
     case 'FOR_EVALUATION':   return '#D97706';
     case 'APPROVED':         return '#16A34A';
     case 'DECLINED':         return '#DC2626';
     case 'EXPIRING_SOON':    return '#EA580C';
-    case 'READY_FOR_PAYMENT':return '#16A34A';
-    case 'PENDING':          return '#94A3B8';
+    case 'READY_FOR_PAYMENT':return '#059669';
+    case 'PENDING':          return '#64748B';
   }
 }
 
 export function getStatusBgColor(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return '#EEF2FF';
+    case 'FOR_APPROVAL':     return '#EFF6FF';
     case 'FOR_EVALUATION':   return '#FEF3C7';
     case 'APPROVED':         return '#DCFCE7';
     case 'DECLINED':         return '#FEE2E2';
     case 'EXPIRING_SOON':    return '#FFF7ED';
-    case 'READY_FOR_PAYMENT':return '#DCFCE7';
+    case 'READY_FOR_PAYMENT':return '#D1FAE5';
     case 'PENDING':          return '#F1F5F9';
   }
 }
@@ -599,17 +599,14 @@ export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: stri
 
 export function normalizeApplicationStatus(rawStatus: string | undefined | null): ApplicationStatus {
   if (!rawStatus) return 'PENDING';
-  const s = rawStatus.toUpperCase().replace(/\s+/g, '_');
-  if (s.includes('FOR_APP') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
-  if (s.includes('EVALUAT') || s.includes('UNDER_EVALUATION')) return 'FOR_EVALUATION';
-  if (s.includes('APPROV')) return 'APPROVED';
-  if (s.includes('DECLIN') || s.includes('REJECT')) return 'DECLINED';
-  if (s.includes('RETURN')) return 'DECLINED';
-  if (s.includes('COMPLET')) return 'APPROVED';
-  if (s.includes('DRAFT')) return 'PENDING';
-  if (s.includes('PAYMENT')) return 'READY_FOR_PAYMENT';
+  const s = rawStatus.toUpperCase().replace(/\s+/g, '_').replace(/_/g, '');
+  if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
+  if (s.includes('EVALUAT') || s.includes('UNDEREVALUATION') || s.includes('FORACCOUNTANT')) return 'FOR_EVALUATION';
+  if (s.includes('APPROV') || s.includes('COMPLET') || s.includes('ISSUED')) return 'APPROVED';
+  if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
+  if (s.includes('PAYMENT') || s.includes('READYFORPAYMENT') || s.includes('PENDINGPAYMENT') || s.includes('FORPAYMENT')) return 'READY_FOR_PAYMENT';
   if (s.includes('EXPIR')) return 'EXPIRING_SOON';
-  if (s.includes('SUBMIT')) return 'PENDING';
+  if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
   return 'PENDING';
 }
 
@@ -1190,6 +1187,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       histories: mappedHistories,
       history: mappedHistories,
       filingUser: dto.filingUser,
+      rawStatus,
     };
     return bulkApp;
   }
@@ -1247,6 +1245,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     opNumber: resolvedOpNumber,
     histories: mappedHistories,
     history: mappedHistories,
+    rawStatus,
   };
   return singleApp;
 }

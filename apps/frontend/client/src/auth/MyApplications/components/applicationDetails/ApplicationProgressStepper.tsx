@@ -52,8 +52,8 @@ export function ApplicationProgressStepper({
     { step: 1, label: 'Submitted', subLabel: 'Application received' },
     { step: 2, label: 'Evaluation', subLabel: 'Technical review' },
     { step: 3, label: 'Payment', subLabel: paymentSubLabel },
-    { step: 4, label: 'Issuance', subLabel: `${docLabel} processing` },
-    { step: 5, label: 'Completed', subLabel: `${docLabel} ready` },
+    { step: 4, label: 'Issuance', subLabel: currentStepIndex > 4 ? `${docLabel} issued` : `${docLabel} processing` },
+    { step: 5, label: 'Issued', subLabel: `${docLabel} ready` },
   ];
 
   return (
@@ -61,8 +61,8 @@ export function ApplicationProgressStepper({
       <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
       <View style={styles.stepperRow}>
         {STEPS.map((s, idx) => {
-          const isDone = currentStepIndex > s.step;
-          const isActive = currentStepIndex === s.step;
+          const isDone = currentStepIndex > s.step || (s.step === 5 && currentStepIndex === 5);
+          const isActive = currentStepIndex === s.step && currentStepIndex < 5;
           const isLineDone = currentStepIndex >= s.step;
 
           return (
@@ -102,7 +102,11 @@ export function ApplicationProgressStepper({
                 <Text
                   style={[
                     styles.stepLabel,
-                    isActive ? { color: '#1D4ED8' } : null,
+                    isDone
+                      ? { color: '#15803D', fontWeight: '700' }
+                      : isActive
+                        ? { color: '#1D4ED8', fontWeight: '700' }
+                        : null,
                   ]}
                 >
                   {s.label}

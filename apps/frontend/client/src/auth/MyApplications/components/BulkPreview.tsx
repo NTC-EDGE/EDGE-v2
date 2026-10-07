@@ -63,7 +63,7 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
   // Derived metrics
   const totalSubmitted = app.applicants.length;
   const approvedCount = app.applicants.filter((a) => a.status === 'APPROVED').length;
-  const pendingCount = app.applicants.filter((a) => a.status === 'PENDING' || a.status === 'FOR_APPROVAL' || a.status === 'FOR_EVALUATION').length;
+  const pendingCount = app.applicants.filter((a) => a.status === 'PENDING' || a.status === 'FOR_APPROVAL' || a.status === 'FOR_EVALUATION' || a.status === 'READY_FOR_PAYMENT').length;
   const declinedCount = app.applicants.filter((a) => a.status === 'DECLINED').length;
 
   // Filter batch applicants
