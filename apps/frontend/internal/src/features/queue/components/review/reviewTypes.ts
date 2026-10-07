@@ -1,5 +1,5 @@
 import { DocumentPreviewFile } from "../../../../shared/components/DocumentPreviewModal";
-import { ApplicationData, ApplicantItem } from "../../../../types/application";
+import { ApplicationData, ApplicantItem, ApplicationFormAttachment } from "../../../../types/application";
 
 export type InnerTab = "details" | "applicant-record" | "soa";
 
@@ -39,6 +39,7 @@ export interface ApplicationDetailsTabProps {
   onSelectApplicantIndex?: (index: number) => void;
   onInspectApplicant?: (index: number) => void;
   onPreviewFile?: (file: DocumentPreviewFile | string, label?: string) => void;
+  onPrintAccountableForm?: (form?: ApplicationFormAttachment) => void;
 }
 
 export interface ApplicantRecordTabProps {

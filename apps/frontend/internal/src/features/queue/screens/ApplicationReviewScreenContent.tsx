@@ -46,6 +46,9 @@ import {
 import { UserRole } from "../../shell/context/RoleContext";
 import { CustomDocPreviewModal } from "../../../shared/components/CustomDocPreviewModal";
 import { DocumentPreviewFile } from "../../../shared/components/DocumentPreviewModal";
+import { IssuedDocumentPrintModal } from "../components/modals/IssuedDocumentPrintModal";
+import { DocumentPrintOptions } from "../types/documentPrintTypes";
+import { ApplicationFormAttachment } from "../../../types/application";
 import { ApplicationReviewSkeleton } from "../components/review/ApplicationReviewSkeleton";
 import { ApplicationDetailsTab } from "../components/review/ApplicationDetailsTab";
 import { ApplicantRecordTab } from "../components/review/ApplicantRecordTab";
@@ -165,6 +168,8 @@ export function ApplicationReviewScreenContent({
   const [showReportPreview, setShowReportPreview] = useState(false);
   const [reportPreviewInitialDoc, setReportPreviewInitialDoc] = useState<ReportDocumentType>("soa");
   const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
+  const [showIssuedPrintModal, setShowIssuedPrintModal] = useState(false);
+  const [issuedPrintInitialOptions, setIssuedPrintInitialOptions] = useState<Partial<DocumentPrintOptions> | undefined>(undefined);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
@@ -256,6 +261,27 @@ export function ApplicationReviewScreenContent({
   const handlePreviewReport = useCallback((docType: ReportDocumentType) => {
     setReportPreviewInitialDoc(docType);
     setShowReportPreview(true);
+  }, []);
+
+  const handlePrintAccountableForm = useCallback((form?: ApplicationFormAttachment) => {
+    let templateId: string | undefined;
+    if (form?.name) {
+      const nameLower = form.name.toLowerCase();
+      if (nameLower.includes('101') || nameLower.includes('radio station') || nameLower.includes('rsl')) {
+        templateId = 'NTC-FORM-101';
+      } else if (nameLower.includes('102') || nameLower.includes('operator') || nameLower.includes('amateur')) {
+        templateId = 'NTC-FORM-102';
+      } else if (nameLower.includes('301') || nameLower.includes('permit') || nameLower.includes('registration')) {
+        templateId = 'NTC-FORM-301';
+      } else if (nameLower.includes('51') || nameLower.includes('receipt') || nameLower.includes('official receipt')) {
+        templateId = 'AF-51';
+      }
+    }
+    setIssuedPrintInitialOptions({
+      outputMode: form?.section === 'ACCOUNTABLE FORM' ? 'accountable_form' : 'plain_paper',
+      selectedTemplateId: templateId,
+    });
+    setShowIssuedPrintModal(true);
   }, []);
 
   const handleCloseAnimated = () => {
@@ -738,6 +764,13 @@ export function ApplicationReviewScreenContent({
               })}
             </ScrollView>
             <View style={[sc.tabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+              <Pressable
+                style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]}
+                onPress={() => handlePrintAccountableForm()}
+                accessibilityLabel="Print Document or Accountable Form"
+              >
+                <Lucide name="printer" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
               <View style={sc.tabSpacer} />
               {onCollapse !== undefined && (
                 <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={onCollapse}>
@@ -762,6 +795,13 @@ export function ApplicationReviewScreenContent({
               );
             })}
             <View style={sc.tabSpacer} />
+            <Pressable
+              style={[sc.iconBtn, { marginRight: 4 }, Platform.select({ web: { cursor: "pointer" } as object })]}
+              onPress={() => handlePrintAccountableForm()}
+              accessibilityLabel="Print Document or Accountable Form"
+            >
+              <Lucide name="printer" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+            </Pressable>
             {onCollapse !== undefined && (
               <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={onCollapse}>
                 <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
@@ -846,6 +886,7 @@ export function ApplicationReviewScreenContent({
           onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
           onInspectApplicant={(idx) => { setSelectedApplicantIndex(idx); setInnerTab("applicant-record"); }}
           onPreviewFile={handlePreviewFile}
+          onPrintAccountableForm={handlePrintAccountableForm}
         />
       )}
       {innerTab === "applicant-record" && (
@@ -992,6 +1033,12 @@ export function ApplicationReviewScreenContent({
       />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
       <SoaReportPreviewModal visible={showReportPreview} app={app} initialDocType={reportPreviewInitialDoc} onClose={() => setShowReportPreview(false)} onOpenGenerateSoa={() => setShowGenerateSoa(true)} />
+      <IssuedDocumentPrintModal
+        visible={showIssuedPrintModal}
+        app={app}
+        initialOptions={issuedPrintInitialOptions}
+        onClose={() => setShowIssuedPrintModal(false)}
+      />
     </Animated.View>
   );
 }

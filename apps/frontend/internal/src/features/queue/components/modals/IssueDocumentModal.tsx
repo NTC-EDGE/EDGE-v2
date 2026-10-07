@@ -22,6 +22,7 @@ import {
 } from '@edge/ui';
 import { applicationService, IssueApplicationRequest } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
+import { IssuedDocumentPrintModal } from './IssuedDocumentPrintModal';
 
 interface IssueDocumentModalProps {
   visible: boolean;
@@ -42,6 +43,7 @@ export function IssueDocumentModal({
 
   const [isLoadingDefaults, setIsLoadingDefaults] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
 
   // Form Fields
   const [documentType, setDocumentType] = useState<string>('Certificate');
@@ -124,7 +126,7 @@ export function IssueDocumentModal({
 
   const canSubmit = formNumber.trim().length > 0 && !isSubmitting && !isLoadingDefaults;
 
-  const handleConfirm = async () => {
+  const handleConfirm = async (openPrint = false) => {
     if (!canSubmit) return;
 
     setIsSubmitting(true);
@@ -154,7 +156,12 @@ export function IssueDocumentModal({
 
     toast.success('Statutory document and license issued successfully.');
     await onSuccess();
-    onClose();
+
+    if (openPrint) {
+      setShowPrintModal(true);
+    } else {
+      onClose();
+    }
   };
 
   return (
@@ -558,7 +565,7 @@ export function IssueDocumentModal({
                       : COLORS.neutral[300],
                 },
               ]}
-              onPress={() => void handleConfirm()}
+              onPress={() => void handleConfirm(false)}
               disabled={!canSubmit}
             >
               {isSubmitting ? (
@@ -566,13 +573,59 @@ export function IssueDocumentModal({
               ) : (
                 <>
                   <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
-                  <Text style={styles.confirmText}>Sign & Issue Document</Text>
+                  <Text style={styles.confirmText}>Sign & Issue</Text>
                 </>
               )}
+            </Pressable>
+
+            <Pressable
+              style={[
+                styles.confirmBtn,
+                !canSubmit && styles.confirmBtnDisabled,
+                {
+                  backgroundColor: canSubmit
+                    ? isDark
+                      ? '#1E40AF'
+                      : '#1D4ED8'
+                    : isDark
+                      ? colors.neutral[700]
+                      : COLORS.neutral[300],
+                },
+              ]}
+              onPress={() => void handleConfirm(true)}
+              disabled={!canSubmit}
+            >
+              <Lucide name="printer" size={16} color={COLORS.neutral.white} />
+              <Text style={styles.confirmText}>Issue & Print</Text>
             </Pressable>
           </View>
         </View>
       </View>
+
+      {/* Interactive Print Options Modal */}
+      {showPrintModal && (
+        <IssuedDocumentPrintModal
+          visible={showPrintModal}
+          app={app}
+          initialOptions={{
+            issuedDocumentType: documentType,
+            formNumber,
+            licenseNumber,
+            callSign,
+            stationClass,
+            frequencyBand,
+            issueDate,
+            expiryDate,
+            officialReceiptNumber,
+            signatoryName: currentOfficerName,
+            remarks,
+          }}
+          onClose={() => {
+            setShowPrintModal(false);
+            onClose();
+          }}
+        />
+      )}
     </Modal>
   );
 }

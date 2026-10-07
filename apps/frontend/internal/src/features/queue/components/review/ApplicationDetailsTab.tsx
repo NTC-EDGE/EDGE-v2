@@ -16,6 +16,7 @@ export function ApplicationDetailsTab({
   isEditable,
   updateApplication,
   onInspectApplicant,
+  onPrintAccountableForm,
 }: ApplicationDetailsTabProps) {
   const { colors, isDark } = useTheme();
   const [isEditingSection, setIsEditingSection] = useState(false);
@@ -206,7 +207,11 @@ export function ApplicationDetailsTab({
         </View>
       )}
 
-      <FormsAttachmentSection accountableForms={accountableForms} downloadForms={downloadForms} />
+      <FormsAttachmentSection
+        accountableForms={accountableForms}
+        downloadForms={downloadForms}
+        onPrintForm={onPrintAccountableForm}
+      />
       <View style={{ height: 40 }} />
     </ScrollView>
   );
