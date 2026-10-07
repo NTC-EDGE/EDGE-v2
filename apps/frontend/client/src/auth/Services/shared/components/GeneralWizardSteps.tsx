@@ -117,6 +117,8 @@ export function GeneralWizardSteps({
           selectedScheduleId={selectedScheduleId}
           onSelectSchedule={onSelectSchedule}
           errors={errors}
+          filingIntent={filingIntent}
+          onFilingIntentChange={onFilingIntentChange}
         />
       );
     case 2:

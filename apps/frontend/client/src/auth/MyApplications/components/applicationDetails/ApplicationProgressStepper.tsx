@@ -24,17 +24,20 @@ export function ApplicationProgressStepper({
   currentStepIndex,
   serviceCategory,
   serviceName,
+  status,
   remarks,
 }: ApplicationProgressStepperProps) {
   const docLabel = getServiceDocumentType(serviceCategory, serviceName);
 
+  const remarksLower = (typeof remarks === 'string' ? remarks : '').toLowerCase();
+  const statusLower = (typeof status === 'string' ? status : '').toLowerCase();
+
   const isPaymentSubmitted =
-    (typeof remarks === 'string' &&
-      (remarks.toLowerCase().includes('payment submitted') ||
-       remarks.toLowerCase().includes('waiting for cashier verification') ||
-       remarks.toLowerCase().includes('verification in progress'))) ||
-    status === 'PAYMENT_SUBMITTED' ||
-    status === 'PAYMENT_PROCESSING';
+    remarksLower.includes('payment submitted') ||
+    remarksLower.includes('waiting for cashier verification') ||
+    remarksLower.includes('verification in progress') ||
+    statusLower === 'payment_submitted' ||
+    statusLower === 'payment_processing';
 
   const paymentSubLabel =
     currentStepIndex > 3

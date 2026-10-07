@@ -4,6 +4,7 @@ import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { TenantInfo, OfficeInfo, ExamScheduleItem } from "../hooks/useGeneralServiceWizard";
 import { ExamScheduleCard } from "./ExamScheduleCard";
+import { FilingIntentReviewCard } from "./generalReview/FilingIntentReviewCard";
 
 interface GeneralRegionOfficeStepProps {
   selectedRegionId: string;
@@ -18,6 +19,8 @@ interface GeneralRegionOfficeStepProps {
   selectedScheduleId?: string | null;
   onSelectSchedule?: (id: string) => void;
   errors?: Record<string, string>;
+  filingIntent?: "Regular" | "AssessmentOnly";
+  onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;
 }
 
 export function GeneralRegionOfficeStep({
@@ -33,26 +36,36 @@ export function GeneralRegionOfficeStep({
   selectedScheduleId = null,
   onSelectSchedule,
   errors = {},
+  filingIntent = "Regular",
+  onFilingIntentChange,
 }: GeneralRegionOfficeStepProps) {
   const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
 
   return (
-    <View
-      style={{
-        backgroundColor: "#FFFFFF",
-        borderRadius: 14,
-        padding: 20,
-        borderWidth: 1,
-        borderColor: "#CBD5E1",
-        borderLeftWidth: 5,
-        borderLeftColor: "#0F2C59",
-        shadowColor: "#0F2C59",
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.05,
-        shadowRadius: 6,
-        elevation: 2,
-      }}
-    >
+    <View style={{ gap: 18 }}>
+      {/* ── 1. Select Filing Mode & Intent ── */}
+      <FilingIntentReviewCard
+        filingIntent={filingIntent}
+        onFilingIntentChange={onFilingIntentChange}
+      />
+
+      {/* ── 2. Regional Office & Schedule Selection ── */}
+      <View
+        style={{
+          backgroundColor: "#FFFFFF",
+          borderRadius: 14,
+          padding: 20,
+          borderWidth: 1,
+          borderColor: "#CBD5E1",
+          borderLeftWidth: 5,
+          borderLeftColor: "#0F2C59",
+          shadowColor: "#0F2C59",
+          shadowOffset: { width: 0, height: 2 },
+          shadowOpacity: 0.05,
+          shadowRadius: 6,
+          elevation: 2,
+        }}
+      >
       <View style={{ flexDirection: "row", alignItems: "center", gap: 8, marginBottom: 12 }}>
         <View style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: "#EFF6FF", justifyContent: "center", alignItems: "center" }}>
           <Icon name="map-pin" size={15} color="#0F2C59" />
@@ -261,5 +274,6 @@ export function GeneralRegionOfficeStep({
         </View>
       )}
     </View>
-  );
+  </View>
+);
 }
