@@ -129,7 +129,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             CreatedAt = DateTime.UtcNow
         };
 
-        soa.Histories.Add(new SoaHistory
+        await _repository.AddSoaHistoryAsync(new SoaHistory
         {
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
@@ -141,7 +141,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             StaffRole = staffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         op.Histories.Add(new OpHistory
         {

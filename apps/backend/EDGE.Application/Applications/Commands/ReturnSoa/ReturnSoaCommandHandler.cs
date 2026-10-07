@@ -77,7 +77,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
 
-        soa.Histories.Add(new SoaHistory
+        await _repository.AddSoaHistoryAsync(new SoaHistory
         {
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
@@ -89,7 +89,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             StaffRole = staffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         var app = soa.Application ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
         if (app != null)

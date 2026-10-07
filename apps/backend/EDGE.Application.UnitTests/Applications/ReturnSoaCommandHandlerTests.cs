@@ -110,12 +110,11 @@ public class ReturnSoaCommandHandlerTests
         result.Succeeded.Should().BeTrue();
         soa.Status.Should().Be(SoaStatus.Returned);
         soa.Remarks.Should().Be("Fee computation needs adjustment");
-        soa.Histories.Should().HaveCount(1);
-        soa.Histories.First().ToStatus.Should().Be(SoaStatus.Returned);
 
         app.Status.Should().Be(ApplicationStatus.Returned);
         app.Remarks.Should().Contain("Fee computation needs adjustment");
 
+        _repositoryMock.Verify(r => r.AddSoaHistoryAsync(It.Is<SoaHistory>(h => h.ToStatus == SoaStatus.Returned && h.StaffRole == "Accountant"), It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.UpdateAsync(app, It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.AddApplicationStatusHistoryAsync(It.Is<ApplicationStatusHistory>(h => h.Status == ApplicationStatus.Returned), It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.AddApplicationHistoryAsync(It.Is<ApplicationHistory>(h => h.ToStatus == ApplicationStatus.Returned && h.StaffRole == "Accountant"), It.IsAny<CancellationToken>()), Times.Once);

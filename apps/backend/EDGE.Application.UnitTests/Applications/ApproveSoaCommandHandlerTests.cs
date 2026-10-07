@@ -133,11 +133,10 @@ public class ApproveSoaCommandHandlerTests
         // Assert
         result.Succeeded.Should().BeTrue();
         soa.Status.Should().Be(SoaStatus.Approved);
-        soa.Histories.Should().HaveCount(1);
-        soa.Histories.First().ToStatus.Should().Be(SoaStatus.Approved);
 
         app.Status.Should().Be(ApplicationStatus.PendingPayment);
 
+        _repositoryMock.Verify(r => r.AddSoaHistoryAsync(It.Is<SoaHistory>(h => h.ToStatus == SoaStatus.Approved && h.StaffRole == "Accountant"), It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.AddOpAsync(It.Is<OrderOfPayment>(op =>
             op.StatementOfAccountId == soaId &&
             op.ApplicationId == appId &&
