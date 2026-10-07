@@ -35,9 +35,11 @@ public class OrBooklet : AuditableEntity
 
     public string FormatOrNumber(long number)
     {
-        return string.IsNullOrWhiteSpace(Prefix)
-            ? number.ToString("D7")
-            : $"{Prefix.Trim()}-{number:D7}";
+        if (string.IsNullOrWhiteSpace(Prefix))
+            return number.ToString("D7");
+
+        var cleanPrefix = Prefix.Trim().TrimEnd('-');
+        return $"{cleanPrefix}-{number:D7}";
     }
 
     public string CurrentFormattedOrNumber => FormatOrNumber(CurrentNumber);

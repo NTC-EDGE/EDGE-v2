@@ -85,19 +85,25 @@ public class CancelOfficialReceiptCommandHandler : IRequestHandler<CancelOfficia
                 op.AmountReceived = 0;
                 op.PaidAt = null;
 
-                op.Histories.Add(new OpHistory
+                Guid? validUserId = null;
+                if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))
+                {
+                    validUserId = cashierContext.UserId.Value;
+                }
+
+                await _appRepository.AddOpHistoryAsync(new OpHistory
                 {
                     Id = Guid.NewGuid(),
                     OrderOfPaymentId = op.Id,
                     Action = $"Official Receipt #{receipt.OfficialReceiptNumber} cancelled. Reason: {receipt.CancellationReason}",
                     FromStatus = prevOpStatus,
                     ToStatus = OpStatus.Billed,
-                    PerformedByUserId = cashierContext.UserId,
+                    PerformedByUserId = validUserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
                     OfficialReceiptNumber = receipt.OfficialReceiptNumber,
                     Timestamp = DateTime.UtcNow
-                });
+                }, cancellationToken);
 
                 if (op.Application != null)
                 {

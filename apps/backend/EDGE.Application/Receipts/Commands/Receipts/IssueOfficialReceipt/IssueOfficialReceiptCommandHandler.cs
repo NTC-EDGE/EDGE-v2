@@ -78,6 +78,12 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
     {
         var cashierContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Cashier", cancellationToken);
 
+        Guid? validUserId = null;
+        if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))
+        {
+            validUserId = cashierContext.UserId.Value;
+        }
+
         var (orNumber, booklet, orError) = await ResolveOrNumberAsync(request, cashierContext, cancellationToken);
         if (orError != null || orNumber == null)
         {
@@ -91,13 +97,13 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             return ApiResponse<OfficialReceiptDto>.Fail($"Official Receipt number '{orNumber}' already exists.");
         }
 
-        var (op, applicationId, appNumber, opError) = await ResolveOrderOfPaymentAsync(request, orNumber, cashierContext, cancellationToken);
+        var (op, applicationId, appNumber, opError) = await ResolveOrderOfPaymentAsync(request, orNumber, cashierContext, validUserId, cancellationToken);
         if (opError != null)
         {
             return ApiResponse<OfficialReceiptDto>.Fail(opError);
         }
 
-        var receipt = CreateReceiptEntity(request, orNumber, booklet, op, applicationId, cashierContext);
+        var receipt = CreateReceiptEntity(request, orNumber, booklet, op, applicationId, validUserId);
 
         await _receiptRepository.AddAsync(receipt, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -160,6 +166,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         IssueOfficialReceiptCommand request,
         string orNumber,
         StaffUserContext cashierContext,
+        Guid? validUserId,
         CancellationToken cancellationToken)
     {
         if (!request.OrderOfPaymentId.HasValue)
@@ -217,12 +224,6 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             return (null, null, null, $"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the required amount due ({op.AmountDue:N2}).");
         }
 
-        Guid? validUserId = null;
-        if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))
-        {
-            validUserId = cashierContext.UserId.Value;
-        }
-
         applicationId = op.ApplicationId;
         if (app != null)
         {
@@ -241,7 +242,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         op.VerifiedByCashierId = validUserId;
         op.PaidAt = DateTime.UtcNow;
 
-        op.Histories.Add(new OpHistory
+        await _appRepository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
@@ -253,7 +254,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             StaffRole = cashierContext.StaffRole,
             OfficialReceiptNumber = orNumber,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         if (app != null)
         {
@@ -296,11 +297,16 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         OrBooklet? booklet,
         OrderOfPayment? op,
         Guid? applicationId,
-        StaffUserContext cashierContext)
+        Guid? validUserId)
     {
+        var effectiveTenantId = request.TenantId != Guid.Empty
+            ? request.TenantId
+            : (op?.Application?.TenantId ?? booklet?.TenantId ?? Guid.Empty);
+
         var receipt = new OfficialReceipt
         {
-            TenantId = request.TenantId,
+            Id = Guid.NewGuid(),
+            TenantId = effectiveTenantId,
             OfficialReceiptNumber = orNumber,
             BookletId = booklet?.Id,
             OrderOfPaymentId = op?.Id,
@@ -314,7 +320,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             CheckDate = request.CheckDate,
             Status = ReceiptStatus.Issued,
             IssuedAt = DateTime.UtcNow,
-            IssuedByUserId = cashierContext.UserId,
+            IssuedByUserId = validUserId,
             Remarks = request.Remarks?.Trim()
         };
 
@@ -324,6 +330,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             {
                 receipt.LineItems.Add(new OfficialReceiptLineItem
                 {
+                    Id = Guid.NewGuid(),
                     OfficialReceiptId = receipt.Id,
                     FeeCode = item.FeeCode.Trim(),
                     Description = item.Description.Trim(),
@@ -335,6 +342,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         {
             receipt.LineItems.Add(new OfficialReceiptLineItem
             {
+                Id = Guid.NewGuid(),
                 OfficialReceiptId = receipt.Id,
                 FeeCode = "PAYMENT",
                 Description = $"Payment for OP #{op.OpNumber}",

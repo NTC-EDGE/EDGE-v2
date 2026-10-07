@@ -36,21 +36,27 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Cashier", cancellationToken);
 
+        Guid? validUserId = null;
+        if (userContext.UserId.HasValue && await _repository.UserExistsAsync(userContext.UserId.Value, cancellationToken))
+        {
+            validUserId = userContext.UserId.Value;
+        }
+
         op.Status = OpStatus.Returned;
         op.Remarks = request.Remarks;
 
-        op.Histories.Add(new OpHistory
+        await _repository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
             Action = $"OP returned to {request.ReturnTo}. Reason: {request.Remarks}",
             ToStatus = OpStatus.Returned,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = userContext.StaffName,
             StaffRole = userContext.StaffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         if (request.ReturnTo == ReturnTarget.Evaluator && op.StatementOfAccount != null)
         {

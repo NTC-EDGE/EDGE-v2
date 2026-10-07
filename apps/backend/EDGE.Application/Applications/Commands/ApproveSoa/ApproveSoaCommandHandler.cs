@@ -143,7 +143,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
-        op.Histories.Add(new OpHistory
+        await _repository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
@@ -153,7 +153,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             StaffName = staffName,
             StaffRole = staffRole,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         var prevAppStatus = app.Status;
         app.Status = ApplicationStatus.PendingPayment;

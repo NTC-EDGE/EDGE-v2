@@ -1031,6 +1031,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
         await _context.SoaHistories.AddAsync(history, cancellationToken);
     }
 
+    public async Task AddOpHistoryAsync(OpHistory history, CancellationToken cancellationToken = default)
+    {
+        await _context.OpHistories.AddAsync(history, cancellationToken);
+    }
+
     public async Task AddCorrectionAuditTrailAsync(CorrectionAuditTrail trail, CancellationToken cancellationToken = default)
     {
         await _context.CorrectionAuditTrails.AddAsync(trail, cancellationToken);
