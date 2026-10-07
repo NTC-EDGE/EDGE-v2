@@ -9,6 +9,7 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
 {
     public Guid TenantId { get; init; }
     public string SubmissionMode { get; init; } = "Single";   // Single | Bulk
+    public string Intent { get; init; } = "Regular";          // Regular | AssessmentOnly
     public bool IsDraft { get; init; } = false;
     public Guid? ExistingDraftId { get; init; }
 

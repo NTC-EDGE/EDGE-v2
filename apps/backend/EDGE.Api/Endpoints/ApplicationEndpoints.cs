@@ -18,6 +18,8 @@ using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
 using EDGE.Application.Applications.Commands.RemoveApplicantFromApplication;
+using EDGE.Application.Applications.Commands.ConvertAssessmentToRealApplication;
+using EDGE.Application.Applications.Commands.ReprocessAssessment;
 using EDGE.Application.Applications.Commands.SubmitApplication;
 using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
@@ -143,6 +145,18 @@ public static class ApplicationEndpoints
             .WithName("UpdateApplicationDraft")
             .WithSummary("Update application draft details")
             .WithDescription("Modifies core properties or metadata of a draft bulk application.");
+
+        group.MapPost("/{id:guid}/convert-to-real", ConvertAssessmentToRealEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("ConvertAssessmentToRealApplication")
+            .WithSummary("Convert pre-assessment application to real application")
+            .WithDescription("Converts an assessed application into an official application advancing to payment.");
+
+        group.MapPost("/{id:guid}/reprocess-assessment", ReprocessAssessmentEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("ReprocessAssessment")
+            .WithSummary("Request re-assessment for an assessment-only application")
+            .WithDescription("Requests re-evaluation and recalculation of SOA for an assessment-only application.");
 
         group.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
             .WithName("UpdateApplicationStatus")
@@ -744,11 +758,61 @@ public static class ApplicationEndpoints
         var result = await mediator.Send(command, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> ConvertAssessmentToRealEndpoint(
+        Guid id,
+        [FromBody] ConvertAssessmentRequest? request,
+        FluentValidation.IValidator<ConvertAssessmentToRealApplicationCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ConvertAssessmentToRealApplicationCommand
+        {
+            ApplicationId = id,
+            Remarks = request?.Remarks
+        };
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> ReprocessAssessmentEndpoint(
+        Guid id,
+        [FromBody] ReprocessAssessmentRequest? request,
+        FluentValidation.IValidator<ReprocessAssessmentCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ReprocessAssessmentCommand
+        {
+            ApplicationId = id,
+            Remarks = request?.Remarks
+        };
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
 }
 
 public record TogglePinRequest(bool? IsPinned);
 public record ToggleArchiveRequest(bool? IsArchived);
 public record EvaluateApplicationRequest(string? Remarks);
+public record ConvertAssessmentRequest(string? Remarks);
+public record ReprocessAssessmentRequest(string? Remarks);
 public record SubmitPaymentRequest(
     Guid? OrderOfPaymentId,
     PaymentMethod PaymentMethod,

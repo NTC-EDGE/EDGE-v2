@@ -17,6 +17,7 @@ public class Application : AuditableEntity
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Draft;
+    public ApplicationIntent Intent { get; set; } = ApplicationIntent.Regular;
     public SubmissionMode SubmissionMode { get; set; } = SubmissionMode.Single;
     public DataEntryMethod? DataEntryMethod { get; set; }
     public string? Remarks { get; set; }
@@ -25,6 +26,11 @@ public class Application : AuditableEntity
     public bool IsGuest { get; set; }
     public bool IsPinned { get; set; } = false;
     public bool IsArchived { get; set; } = false;
+
+    public DateTime? AssessedAt { get; set; }
+    public DateTime? ConvertedToRegularAt { get; set; }
+    public int AssessmentVersion { get; set; } = 1;
+    public string? AssessmentRemarks { get; set; }
 
     public ICollection<ApplicationApplicant> ApplicationApplicants { get; set; } = new List<ApplicationApplicant>();
     public ICollection<ApplicationRequirement> ApplicationRequirements { get; set; } = new List<ApplicationRequirement>();

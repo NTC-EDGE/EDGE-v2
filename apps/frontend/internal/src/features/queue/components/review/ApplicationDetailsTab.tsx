@@ -108,6 +108,7 @@ export function ApplicationDetailsTab({
           scheduleSummaryText={scheduleSummaryText}
           mode={app.applicationType === 'BULK' ? 'Bulk' : 'Single'}
           totalApplicants={app.applicantsList?.length || 1}
+          isAssessmentOnly={app.isAssessmentOnly || app.intent === 'AssessmentOnly'}
         />
       </View>
 

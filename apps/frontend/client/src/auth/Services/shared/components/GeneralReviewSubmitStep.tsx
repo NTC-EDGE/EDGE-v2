@@ -16,6 +16,7 @@ import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
 import { UploadedDocumentsReviewCard } from './generalReview/UploadedDocumentsReviewCard';
+import { FilingIntentReviewCard } from './generalReview/FilingIntentReviewCard';
 
 export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
   const {
@@ -25,6 +26,8 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
     currentApplicantIndex = 0,
     appMode,
     variantRequirements = [],
+    filingIntent = 'Regular',
+    onFilingIntentChange,
   } = props;
 
   const [previewFile, setPreviewFile] = useState<PreviewFileTarget>(null);
@@ -61,6 +64,10 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         headerSlot={
           <>
             <HeroReviewHeader />
+            <FilingIntentReviewCard
+              filingIntent={filingIntent}
+              onFilingIntentChange={onFilingIntentChange}
+            />
             <JurisdictionParametersCard
               service={service}
               isExamService={reviewData.isExamService}

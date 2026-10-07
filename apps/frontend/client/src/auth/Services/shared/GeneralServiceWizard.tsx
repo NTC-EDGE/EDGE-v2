@@ -148,6 +148,8 @@ export function GeneralServiceWizard({
     setFeedbackRating,
     feedbackComment,
     setFeedbackComment,
+    filingIntent,
+    setFilingIntent,
     submitApplicationPayload,
     submitFeedback,
   } = useGeneralServiceWizard({
@@ -377,6 +379,8 @@ export function GeneralServiceWizard({
           }}
           onRequiredFieldsChange={setDynamicRequiredFieldIds}
           errors={formErrors}
+          filingIntent={filingIntent}
+          onFilingIntentChange={setFilingIntent}
         />
       </ScrollView>
 

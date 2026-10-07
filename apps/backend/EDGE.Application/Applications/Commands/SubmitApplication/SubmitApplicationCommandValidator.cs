@@ -22,6 +22,12 @@ public class SubmitApplicationCommandValidator : AbstractValidator<SubmitApplica
                           string.Equals(mode, "Bulk", StringComparison.OrdinalIgnoreCase))
             .WithMessage("Submission mode must be either 'Single' or 'Bulk'.");
 
+        RuleFor(x => x.Intent)
+            .Must(intent => string.IsNullOrEmpty(intent) ||
+                            string.Equals(intent, "Regular", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(intent, "AssessmentOnly", StringComparison.OrdinalIgnoreCase))
+            .WithMessage("Application intent must be either 'Regular' or 'AssessmentOnly'.");
+
         // Applicants list validation (strictly enforced when NOT a draft)
         RuleFor(x => x.Applicants)
             .NotEmpty()

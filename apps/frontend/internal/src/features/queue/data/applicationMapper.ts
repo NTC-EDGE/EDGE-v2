@@ -419,6 +419,8 @@ export function mapApplicationDtoToUI(
     isUrgent: false,
     isPinned: Boolean(dto.isPinned),
     isArchived: Boolean(dto.isArchived),
+    intent: (dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1) ? 'AssessmentOnly' : 'Regular',
+    isAssessmentOnly: dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1,
     address: {
       streetAddress: primaryStreet,
       address: primaryStreet,

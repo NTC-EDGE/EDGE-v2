@@ -14,6 +14,8 @@ interface ClientBillingNoticeCardProps {
   onProceedToPayment: () => void;
   onViewSoa?: () => void;
   onViewOp?: () => void;
+  onConvertToReal?: () => void;
+  onRequestReassessment?: () => void;
 }
 
 export function ClientBillingNoticeCard({
@@ -22,8 +24,12 @@ export function ClientBillingNoticeCard({
   onProceedToPayment,
   onViewSoa,
   onViewOp,
+  onConvertToReal,
+  onRequestReassessment,
 }: ClientBillingNoticeCardProps) {
   const [showFeeDetails, setShowFeeDetails] = useState(true);
+
+  const isAssessmentOnly = app.isAssessmentOnly || app.intent === 'AssessmentOnly';
 
   const isReadyForPayment =
     app.status === 'READY_FOR_PAYMENT' ||
@@ -38,7 +44,7 @@ export function ClientBillingNoticeCard({
       typeof app.op.status === 'string' &&
       (app.op.status.toLowerCase() === 'processing' || app.op.status.toLowerCase() === 'paid'));
 
-  if (!isReadyForPayment && !app.soaNumber) {
+  if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly) {
     return null;
   }
 
@@ -51,16 +57,39 @@ export function ClientBillingNoticeCard({
     : '30 days from issuance';
 
   return (
-    <View style={styles.cardContainer}>
+    <View
+      style={[
+        styles.cardContainer,
+        isAssessmentOnly && {
+          borderColor: '#DDD6FE',
+          borderLeftColor: '#7C3AED',
+        },
+      ]}
+    >
       <View style={styles.cardHeader}>
         <View style={styles.headerTitleRow}>
-          <View style={styles.iconCircle}>
-            <Icon name="credit-card" size={20} color="#0284C7" />
+          <View
+            style={[
+              styles.iconCircle,
+              isAssessmentOnly && { backgroundColor: '#F3E8FF' },
+            ]}
+          >
+            <Icon
+              name={isAssessmentOnly ? 'search' : 'credit-card'}
+              size={20}
+              color={isAssessmentOnly ? '#7C3AED' : '#0284C7'}
+            />
           </View>
           <View style={styles.headerTexts}>
-            <Text style={styles.headerTitle}>Order of Payment &amp; Billing Assessment</Text>
+            <Text style={styles.headerTitle}>
+              {isAssessmentOnly
+                ? 'Pre-Assessment & Statement of Account (SOA)'
+                : 'Order of Payment & Billing Assessment'}
+            </Text>
             <Text style={styles.headerSubtitle}>
-              {isPaymentSubmitted
+              {isAssessmentOnly
+                ? 'Evaluator has assessed your submitted requirements and prepared your Statement of Account.'
+                : isPaymentSubmitted
                 ? 'Payment details submitted — pending Cashier verification'
                 : 'Statement of Account has been assessed and issued for settlement'}
             </Text>
@@ -70,22 +99,42 @@ export function ClientBillingNoticeCard({
         <View
           style={[
             styles.statusPill,
-            isPaymentSubmitted ? styles.statusPillSubmitted : styles.statusPillActionRequired,
+            isAssessmentOnly
+              ? { backgroundColor: '#FAF5FF' }
+              : isPaymentSubmitted
+              ? styles.statusPillSubmitted
+              : styles.statusPillActionRequired,
           ]}
         >
           <View
             style={[
               styles.statusDot,
-              { backgroundColor: isPaymentSubmitted ? '#0284C7' : '#D97706' },
+              {
+                backgroundColor: isAssessmentOnly
+                  ? '#7C3AED'
+                  : isPaymentSubmitted
+                  ? '#0284C7'
+                  : '#D97706',
+              },
             ]}
           />
           <Text
             style={[
               styles.statusPillText,
-              { color: isPaymentSubmitted ? '#0284C7' : '#B45309' },
+              {
+                color: isAssessmentOnly
+                  ? '#7C3AED'
+                  : isPaymentSubmitted
+                  ? '#0284C7'
+                  : '#B45309',
+              },
             ]}
           >
-            {isPaymentSubmitted ? 'Verification in Progress' : 'Action Required: Pay Fees'}
+            {isAssessmentOnly
+              ? 'Pre-Assessment Complete'
+              : isPaymentSubmitted
+              ? 'Verification in Progress'
+              : 'Action Required: Pay Fees'}
           </Text>
         </View>
       </View>
@@ -188,7 +237,7 @@ export function ClientBillingNoticeCard({
             </TouchableOpacity>
           )}
 
-          {onViewOp && (
+          {onViewOp && !isAssessmentOnly && (
             <TouchableOpacity style={styles.viewDocBtnOp} onPress={onViewOp} activeOpacity={0.75}>
               <Icon name="credit-card" size={14} color="#047857" />
               <Text style={styles.viewDocBtnTextOp}>View Order of Payment</Text>
@@ -196,7 +245,51 @@ export function ClientBillingNoticeCard({
           )}
         </View>
 
-        {isPaymentSubmitted ? (
+        {isAssessmentOnly ? (
+          <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
+            {onRequestReassessment && (
+              <TouchableOpacity
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  borderColor: '#7C3AED',
+                  borderWidth: 1.5,
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 8,
+                  backgroundColor: '#FFFFFF',
+                }}
+                onPress={onRequestReassessment}
+                activeOpacity={0.85}
+              >
+                <Icon name="rotate-ccw" size={15} color="#7C3AED" />
+                <Text
+                  style={{
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    fontWeight: TYPOGRAPHY.weights.semibold,
+                    fontSize: 13,
+                    color: '#7C3AED',
+                  }}
+                >
+                  Request Re-assessment
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {onConvertToReal && (
+              <TouchableOpacity
+                style={[styles.payBtn, { backgroundColor: '#0F2C59' }]}
+                onPress={onConvertToReal}
+                activeOpacity={0.85}
+              >
+                <Icon name="check-circle" size={16} color="#FFFFFF" />
+                <Text style={styles.payBtnText}>Submit as Real Application</Text>
+                <Icon name="arrow-right" size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            )}
+          </View>
+        ) : isPaymentSubmitted ? (
           <View style={styles.submittedBanner}>
             <Icon name="clock" size={16} color="#0369A1" />
             <Text style={styles.submittedBannerText}>

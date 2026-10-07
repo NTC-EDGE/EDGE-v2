@@ -56,6 +56,8 @@ interface GeneralWizardStepsProps {
   onRemoveUpload: (req: string) => void;
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;
+  filingIntent?: "Regular" | "AssessmentOnly";
+  onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;
 }
 
 export function GeneralWizardSteps({
@@ -96,6 +98,8 @@ export function GeneralWizardSteps({
   onRemoveUpload,
   onRequiredFieldsChange,
   errors = {},
+  filingIntent = "Regular",
+  onFilingIntentChange,
 }: GeneralWizardStepsProps) {
   switch (step) {
     case 1:
@@ -270,6 +274,8 @@ export function GeneralWizardSteps({
           variantRequirements={variantRequirements}
           schedules={schedules}
           selectedScheduleId={selectedScheduleId}
+          filingIntent={filingIntent}
+          onFilingIntentChange={onFilingIntentChange}
         />
       );
     default:

@@ -12,7 +12,7 @@ export type ApplicationStatus =
   | 'PENDING';
 
 export type ApplicationMode = 'SINGLE' | 'BULK';
-export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK';
+export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK' | 'ASSESSMENT';
 export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
 export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
@@ -149,6 +149,12 @@ export interface SingleApplication {
   tenantId?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  intent?: 'Regular' | 'AssessmentOnly';
+  isAssessmentOnly?: boolean;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
   histories?: Array<{
     id: string;
     action: string;
@@ -254,6 +260,12 @@ export interface BulkApplication {
   id: string;
   referenceNumber: string;
   mode: 'BULK';
+  intent?: 'Regular' | 'AssessmentOnly';
+  isAssessmentOnly?: boolean;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
   companyName: string;
   serviceName: string;
   serviceCategory: string;
@@ -695,6 +707,16 @@ export interface ApiApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   soaNumber?: string | null;
+  intent?: string;
+  Intent?: string;
+  assessedAt?: string;
+  AssessedAt?: string;
+  convertedToRegularAt?: string;
+  ConvertedToRegularAt?: string;
+  assessmentVersion?: number;
+  AssessmentVersion?: number;
+  assessmentRemarks?: string;
+  AssessmentRemarks?: string;
   filingUser?: {
     id?: string;
     name?: string;
@@ -1126,11 +1148,21 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
   const resolvedOpNumber = mappedOp?.opNumber || (status === 'READY_FOR_PAYMENT' ? `OP-${refNumber}` : null);
 
+  const rawIntentStr = (dto.intent || dto.Intent || '').toString().toLowerCase();
+  const isAssessmentOnly = rawIntentStr === 'assessmentonly' || rawIntentStr === 'assessment_only' || rawIntentStr === 'assessment';
+  const intent: 'Regular' | 'AssessmentOnly' = isAssessmentOnly ? 'AssessmentOnly' : 'Regular';
+
   if (isBulk) {
     const bulkApp: BulkApplication = {
       id: dto.id || '',
       referenceNumber: refNumber,
       mode: 'BULK',
+      intent,
+      isAssessmentOnly,
+      assessedAt: dto.assessedAt || dto.AssessedAt,
+      convertedToRegularAt: dto.convertedToRegularAt || dto.ConvertedToRegularAt,
+      assessmentVersion: dto.assessmentVersion || dto.AssessmentVersion || 1,
+      assessmentRemarks: dto.assessmentRemarks || dto.AssessmentRemarks,
       companyName,
       serviceName,
       serviceCategory,
@@ -1166,6 +1198,12 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     id: dto.id || '',
     referenceNumber: refNumber,
     mode: 'SINGLE',
+    intent,
+    isAssessmentOnly,
+    assessedAt: dto.assessedAt || dto.AssessedAt,
+    convertedToRegularAt: dto.convertedToRegularAt || dto.ConvertedToRegularAt,
+    assessmentVersion: dto.assessmentVersion || dto.AssessmentVersion || 1,
+    assessmentRemarks: dto.assessmentRemarks || dto.AssessmentRemarks,
     serviceName,
     serviceCategory,
     element: (resolvedVariantName || 'New') as ExamineeType,

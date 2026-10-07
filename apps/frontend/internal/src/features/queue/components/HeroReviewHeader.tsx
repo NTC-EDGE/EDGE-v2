@@ -19,6 +19,7 @@ export interface HeroReviewHeaderProps {
   services?: AppliedServiceDetail[];
   totalApplicants?: number;
   isDesktop?: boolean;
+  isAssessmentOnly?: boolean;
 }
 
 export function HeroReviewHeader({
@@ -31,6 +32,7 @@ export function HeroReviewHeader({
   services,
   totalApplicants,
   isDesktop = true,
+  isAssessmentOnly = false,
 }: HeroReviewHeaderProps) {
   const { colors, isDark } = useTheme();
 
@@ -109,6 +111,29 @@ export function HeroReviewHeader({
               {displayModeText}
             </Text>
           </View>
+
+          {/* Assessment Only Badge */}
+          {isAssessmentOnly && (
+            <View
+              style={[
+                styles.countPill,
+                {
+                  backgroundColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#FAF5FF',
+                  borderColor: isDark ? '#9333EA' : '#E9D5FF',
+                },
+              ]}
+            >
+              <Icon name="file-text" size={11} color={isDark ? '#C084FC' : '#7E22CE'} />
+              <Text
+                style={[
+                  styles.countPillText,
+                  { color: isDark ? '#C084FC' : '#7E22CE' },
+                ]}
+              >
+                Assessment Only
+              </Text>
+            </View>
+          )}
 
           {/* Multiple Services Count Badge */}
           {activeServices.length > 1 && (

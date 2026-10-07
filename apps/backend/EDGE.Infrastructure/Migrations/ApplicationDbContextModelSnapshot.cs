@@ -300,6 +300,18 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("ApplicationNumber")
                         .HasColumnType("text");
 
+                    b.Property<DateTime?>("AssessedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("AssessmentRemarks")
+                        .HasColumnType("text");
+
+                    b.Property<int>("AssessmentVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ConvertedToRegularAt")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -307,6 +319,10 @@ namespace EDGE.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<string>("DataEntryMethod")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Intent")
+                        .IsRequired()
                         .HasColumnType("text");
 
                     b.Property<bool>("IsArchived")

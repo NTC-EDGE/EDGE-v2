@@ -26,6 +26,10 @@ import { ClientBillingNoticeCard } from './applicationDetails/ClientBillingNotic
 import { ClientPaymentSubmissionModal } from './applicationDetails/ClientPaymentSubmissionModal';
 import { ClientSoaOpPreviewModal, ClientReportTab } from './applicationDetails/ClientSoaOpPreviewModal';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
+import { useApi } from '../../../shared/hooks/useApi';
+import { useToast } from '../../../shared/components/Toast';
+import { ConvertToRealModal } from './applicationDetails/ConvertToRealModal';
+import { ReassessmentModal } from './applicationDetails/ReassessmentModal';
 
 const TABLE_PAGE_SIZE = 6;
 
@@ -38,6 +42,8 @@ export function ApplicationDetailsPage({
 }: ApplicationDetailsPageProps) {
   const { width } = useWindowDimensions();
   const isDesktop = width >= 992;
+  const api = useApi();
+  const toast = useToast();
 
   const [appState, setAppState] = useState(initialApp);
   const [tableSearch, setTableSearch] = useState('');
@@ -45,6 +51,10 @@ export function ApplicationDetailsPage({
   const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
   const [soaOpModalVisible, setSoaOpModalVisible] = useState(false);
   const [soaOpInitialTab, setSoaOpInitialTab] = useState<ClientReportTab>('soa');
+  const [isConvertToRealModalOpen, setIsConvertToRealModalOpen] = useState(false);
+  const [isReassessmentModalOpen, setIsReassessmentModalOpen] = useState(false);
+  const [isConverting, setIsConverting] = useState(false);
+  const [isReprocessing, setIsReprocessing] = useState(false);
 
   const {
     app,
@@ -124,6 +134,62 @@ export function ApplicationDetailsPage({
 
   const handleSetPreviewCustomDoc = (doc: DocumentPreviewFile | null) => {
     setPreviewCustomDoc(doc);
+  };
+
+  const handleConvertToReal = async () => {
+    if (!app.id) return;
+    setIsConverting(true);
+    try {
+      await api.post(`/api/v2/applications/${app.id}/convert-to-real`, {});
+      toast.success(
+        'Application Converted',
+        'Your application has been converted to an official application and is ready for payment.'
+      );
+      setIsConvertToRealModalOpen(false);
+      setAppState((prev) => ({
+        ...prev,
+        isAssessmentOnly: false,
+        intent: 'Regular' as const,
+        status: 'READY_FOR_PAYMENT',
+      }));
+      refetch();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message.length > 0
+          ? err.message
+          : 'Failed to convert application.';
+      toast.error('Conversion Failed', message);
+    } finally {
+      setIsConverting(false);
+    }
+  };
+
+  const handleRequestReassessment = async (remarks: string) => {
+    if (!app.id) return;
+    setIsReprocessing(true);
+    try {
+      await api.post(`/api/v2/applications/${app.id}/reprocess-assessment`, { remarks });
+      toast.success(
+        'Re-assessment Requested',
+        'Your re-assessment request has been submitted to the evaluator.'
+      );
+      setIsReassessmentModalOpen(false);
+      setAppState((prev) => ({
+        ...prev,
+        status: 'FOR_EVALUATION',
+        remarks: `Re-assessment requested: ${remarks}`,
+      }));
+      refetch();
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error && err.message.length > 0
+          ? err.message
+          : 'Failed to submit re-assessment request.';
+      toast.error('Request Failed', message);
+      throw err;
+    } finally {
+      setIsReprocessing(false);
+    }
   };
 
   return (
@@ -222,6 +288,8 @@ export function ApplicationDetailsPage({
               setSoaOpInitialTab('op');
               setSoaOpModalVisible(true);
             }}
+            onConvertToReal={() => setIsConvertToRealModalOpen(true)}
+            onRequestReassessment={() => setIsReassessmentModalOpen(true)}
           />
 
           {isBulk ? (
@@ -325,6 +393,19 @@ export function ApplicationDetailsPage({
           }));
           refetch();
         }}
+      />
+      <ConvertToRealModal
+        visible={isConvertToRealModalOpen}
+        app={app}
+        onClose={() => setIsConvertToRealModalOpen(false)}
+        onConfirm={handleConvertToReal}
+        isLoading={isConverting}
+      />
+      <ReassessmentModal
+        visible={isReassessmentModalOpen}
+        onClose={() => setIsReassessmentModalOpen(false)}
+        onSubmit={handleRequestReassessment}
+        isLoading={isReprocessing}
       />
     </ScrollView>
   );

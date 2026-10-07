@@ -429,6 +429,7 @@ export function useGeneralServiceWizard(
   const [isFeedbackModalOpen, setIsFeedbackModalOpen] = useState(false);
   const [feedbackRating, setFeedbackRating] = useState(0);
   const [feedbackComment, setFeedbackComment] = useState("");
+  const [filingIntent, setFilingIntent] = useState<"Regular" | "AssessmentOnly">("Regular");
 
   const [tenants, setTenants] = useState<TenantInfo[]>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
@@ -1045,6 +1046,7 @@ export function useGeneralServiceWizard(
     const payload = {
       tenantId: selectedRegionId,
       submissionMode: appMode === "BULK" || mappedApplicants.length > 1 ? "Bulk" : "Single",
+      intent: filingIntent,
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || (variants.length > 0 ? variants[0].id : null),
@@ -1144,6 +1146,8 @@ export function useGeneralServiceWizard(
     setFeedbackRating,
     feedbackComment,
     setFeedbackComment,
+    filingIntent,
+    setFilingIntent,
     submitApplicationPayload,
     submitFeedback,
   };
