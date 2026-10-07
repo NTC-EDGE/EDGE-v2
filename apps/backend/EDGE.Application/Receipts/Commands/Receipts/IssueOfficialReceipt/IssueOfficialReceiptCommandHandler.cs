@@ -177,84 +177,114 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             if (appWithDetails == null)
             {
                 _logger.LogWarning("Failed to issue official receipt. Order of Payment / Application '{OrderOfPaymentId}' not found for Tenant '{TenantId}'. Performed by Cashier: '{CashierId}' ({CashierName}).", request.OrderOfPaymentId, request.TenantId, cashierContext.UserId, cashierContext.StaffName);
-                return (null, null, null, $"Order of Payment '{request.OrderOfPaymentId}' not found.");
+                return (null, null, null, $"Order of Payment / Application '{request.OrderOfPaymentId}' not found.");
             }
 
-            op = appWithDetails.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+            op = appWithDetails.OrdersOfPayment
+                .OrderByDescending(o => o.CreatedAt)
+                .FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+
             if (op == null)
             {
-                applicationId = appWithDetails.Id;
-                appNumber = appWithDetails.ApplicationNumber;
-                var prevAppStatus = appWithDetails.Status;
-                appWithDetails.Status = ApplicationStatus.ForIssuance;
-
-                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                var existingPaidOp = appWithDetails.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+                if (existingPaidOp != null)
                 {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = appWithDetails.Id,
-                    Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
-                    FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.ForIssuance,
-                    PerformedByUserId = cashierContext.UserId,
-                    StaffName = cashierContext.StaffName,
-                    StaffRole = cashierContext.StaffRole,
-                    Timestamp = DateTime.UtcNow
-                }, cancellationToken);
+                    return (null, null, null, $"Cannot issue Official Receipt: This application is already paid under Official Receipt #{existingPaidOp.OfficialReceiptNumber}.");
+                }
+
+                return (null, null, null, "Cannot issue Official Receipt: No active Order of Payment found for this application. The Statement of Account must first be approved by the Accountant and billed for payment before the client can proceed to payment.");
             }
         }
 
-        if (op != null)
+        if (op.Status == OpStatus.Paid)
         {
-            applicationId = op.ApplicationId;
-            if (op.Application != null)
-            {
-                appNumber = op.Application.ApplicationNumber;
-            }
+            return (null, null, null, $"Cannot issue Official Receipt: Order of Payment '{op.OpNumber}' is already paid under Official Receipt #{op.OfficialReceiptNumber}.");
+        }
 
-            // Update OP Status to Paid
-            var prevOpStatus = op.Status;
-            op.Status = OpStatus.Paid;
-            op.OfficialReceiptNumber = orNumber;
-            op.AmountReceived = request.Amount;
-            op.PaymentMethod = request.PaymentMethod;
-            op.CheckNumber = request.CheckNumber;
-            op.CheckBank = request.CheckBank;
-            op.CheckDate = request.CheckDate;
-            op.VerifiedByCashierId = cashierContext.UserId;
-            op.PaidAt = DateTime.UtcNow;
+        if (op.Status == OpStatus.Returned)
+        {
+            return (null, null, null, $"Cannot issue Official Receipt: Order of Payment '{op.OpNumber}' was returned and cannot accept payment.");
+        }
 
-            op.Histories.Add(new OpHistory
+        var app = op.Application ?? (op.ApplicationId != Guid.Empty ? await _appRepository.GetByIdAsync(op.ApplicationId, cancellationToken) : null);
+        if (app != null && app.Status != ApplicationStatus.PendingPayment)
+        {
+            return (null, null, null, $"Cannot issue Official Receipt: The application is currently in '{app.Status}' status. Payment can only be accepted when the application is in 'PendingPayment' status.");
+        }
+
+        if (request.Amount < op.AmountDue)
+        {
+            return (null, null, null, $"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the required amount due ({op.AmountDue:N2}).");
+        }
+
+        Guid? validUserId = null;
+        if (cashierContext.UserId.HasValue && await _appRepository.UserExistsAsync(cashierContext.UserId.Value, cancellationToken))
+        {
+            validUserId = cashierContext.UserId.Value;
+        }
+
+        applicationId = op.ApplicationId;
+        if (app != null)
+        {
+            appNumber = app.ApplicationNumber;
+        }
+
+        // Update OP Status to Paid
+        var prevOpStatus = op.Status;
+        op.Status = OpStatus.Paid;
+        op.OfficialReceiptNumber = orNumber;
+        op.AmountReceived = request.Amount;
+        op.PaymentMethod = request.PaymentMethod;
+        op.CheckNumber = request.CheckNumber;
+        op.CheckBank = request.CheckBank;
+        op.CheckDate = request.CheckDate;
+        op.VerifiedByCashierId = validUserId;
+        op.PaidAt = DateTime.UtcNow;
+
+        op.Histories.Add(new OpHistory
+        {
+            Id = Guid.NewGuid(),
+            OrderOfPaymentId = op.Id,
+            Action = $"Payment received and Official Receipt issued: {orNumber}",
+            FromStatus = prevOpStatus,
+            ToStatus = OpStatus.Paid,
+            PerformedByUserId = validUserId,
+            StaffName = cashierContext.StaffName,
+            StaffRole = cashierContext.StaffRole,
+            OfficialReceiptNumber = orNumber,
+            Timestamp = DateTime.UtcNow
+        });
+
+        if (app != null)
+        {
+            var prevAppStatus = app.Status;
+            app.Status = ApplicationStatus.ForIssuance;
+            app.Remarks = $"Payment verified via Official Receipt #{orNumber}. Forwarded for Document & License Issuance.";
+            await _appRepository.UpdateAsync(app, cancellationToken);
+
+            await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
             {
                 Id = Guid.NewGuid(),
-                OrderOfPaymentId = op.Id,
-                Action = $"Payment received and Official Receipt issued: {orNumber}",
-                FromStatus = prevOpStatus,
-                ToStatus = OpStatus.Paid,
-                PerformedByUserId = cashierContext.UserId,
+                ApplicationId = app.Id,
+                Status = ApplicationStatus.ForIssuance,
+                Remarks = $"Official Receipt #{orNumber} issued by Cashier. Forwarded for Document Issuance.",
+                Timestamp = DateTime.UtcNow,
+                UserId = validUserId
+            }, cancellationToken);
+
+            await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = app.Id,
+                Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
+                FromStatus = prevAppStatus,
+                ToStatus = ApplicationStatus.ForIssuance,
+                PerformedByUserId = validUserId,
                 StaffName = cashierContext.StaffName,
                 StaffRole = cashierContext.StaffRole,
-                OfficialReceiptNumber = orNumber,
+                Remarks = request.Remarks ?? $"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued.",
                 Timestamp = DateTime.UtcNow
-            });
-
-            if (op.Application != null)
-            {
-                var prevAppStatus = op.Application.Status;
-                op.Application.Status = ApplicationStatus.ForIssuance;
-
-                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
-                {
-                    Id = Guid.NewGuid(),
-                    ApplicationId = op.ApplicationId,
-                    Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
-                    FromStatus = prevAppStatus,
-                    ToStatus = ApplicationStatus.ForIssuance,
-                    PerformedByUserId = cashierContext.UserId,
-                    StaffName = cashierContext.StaffName,
-                    StaffRole = cashierContext.StaffRole,
-                    Timestamp = DateTime.UtcNow
-                }, cancellationToken);
-            }
+            }, cancellationToken);
         }
 
         return (op, applicationId, appNumber, null);
