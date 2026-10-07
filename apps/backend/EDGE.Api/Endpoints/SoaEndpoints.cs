@@ -78,7 +78,10 @@ public static class SoaEndpoints
         FluentValidation.IValidator<ApproveSoaCommand> validator,
         IMediator mediator)
     {
-        var command = new ApproveSoaCommand(soaId, request?.Remarks);
+        var command = new ApproveSoaCommand(
+            SoaId: soaId,
+            Remarks: request?.Remarks,
+            ApplicationId: request?.ApplicationId);
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {
@@ -97,7 +100,10 @@ public static class SoaEndpoints
         FluentValidation.IValidator<ReturnSoaCommand> validator,
         IMediator mediator)
     {
-        var command = new ReturnSoaCommand(soaId, request?.Remarks ?? string.Empty);
+        var command = new ReturnSoaCommand(
+            SoaId: soaId,
+            Remarks: request?.Remarks ?? string.Empty,
+            ApplicationId: request?.ApplicationId);
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

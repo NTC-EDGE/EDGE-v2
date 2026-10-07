@@ -185,6 +185,12 @@ public static class ApplicationEndpoints
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
 
+        group.MapPatch("/{id:guid}/approve-accountant", ApproveAccountantEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.ApproveSoa))
+            .WithName("ApproveAccountant")
+            .WithSummary("Accountant approves application and SOA")
+            .WithDescription("Approves Statement of Account, generates Order of Payment, and advances application to PendingPayment.");
+
         group.MapPost("/{id:guid}/issue", IssueApplicationEndpoint)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.IssueApplication))
             .WithName("IssueApplication")
@@ -708,6 +714,27 @@ public static class ApplicationEndpoints
             request.Remarks,
             request.ProofOfPaymentFileId);
 
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.ApproveSoa)]
+    public static async Task<IResult> ApproveAccountantEndpoint(
+        Guid id,
+        [FromBody] EDGE.Api.Endpoints.Soas.DTOs.ApproveSoaRequest? request,
+        FluentValidation.IValidator<ApproveSoaCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ApproveSoaCommand(
+            ApplicationId: id,
+            Remarks: request?.Remarks);
         var validationResult = await validator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
         {

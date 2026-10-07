@@ -40,7 +40,7 @@ public class ReturnSoaCommandHandlerTests
         var command = new ReturnSoaCommand(Guid.NewGuid(), "Fee discrepancy");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync((StatementOfAccount?)null);
 
         // Act
@@ -48,23 +48,23 @@ public class ReturnSoaCommandHandlerTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Message.Should().Be("SOA not found.");
+        result.Message.Should().Contain("not found");
     }
 
     [Fact]
-    public async Task Handle_ShouldReturnFail_WhenSoaNotPending()
+    public async Task Handle_ShouldReturnFail_WhenSoaAlreadyReturned()
     {
         // Arrange
         var soa = new StatementOfAccount
         {
             Id = Guid.NewGuid(),
-            Status = SoaStatus.Approved,
+            Status = SoaStatus.Returned,
         };
 
         var command = new ReturnSoaCommand(soa.Id, "Fee discrepancy");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(soa);
 
         // Act
@@ -72,7 +72,7 @@ public class ReturnSoaCommandHandlerTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Message.Should().Be("SOA must be Pending to return.");
+        result.Message.Should().Contain("must be in Pending or Approved status");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class ReturnSoaCommandHandlerTests
         var command = new ReturnSoaCommand(soa.Id, "Fee computation needs adjustment");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(soa);
 
         _repositoryMock

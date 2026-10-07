@@ -420,33 +420,25 @@ export function ApplicationReviewScreenContent({
       remarks: isReturned ? 'Evaluation re-submitted. Forwarded to Accountant.' : 'Evaluation approved. Forwarded to Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
-    toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved and forwarded to Accountant.');
+    toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved (Requirements & SOA). Forwarded to Accountant.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
   };
 
-  /** Accountant → Approves Application, background advances to PendingPayment (visible on client portal) */
+  /** Accountant → Approves Application & SOA, background advances to PendingPayment and issues Order of Payment */
   const handleAccountantApprove = async () => {
     setShowApprove(false);
-    const targetSoaId = app.soaId || app.statementOfAccountId;
-    if (targetSoaId) {
-      const [, soaErr] = await applicationService.approveSoa(targetSoaId, 'Application and SOA approved by Accountant.');
-      if (soaErr !== null) {
-        toast.error('Failed to approve application.');
-        return;
-      }
-    } else {
-      const [, err] = await applicationService.updateStatus(app.id, {
-        status: 'PendingPayment',
-        action: 'Application Approved by Accountant',
-        staffName: officerName,
-        staffRole: currentRole || 'Accountant',
-        remarks: 'Application approved by Accountant.',
-      });
-      if (err !== null) { toast.error('Failed to approve application.'); return; }
+    const targetId = app.soaId || app.statementOfAccountId || app.id;
+    const [, soaErr] = await applicationService.approveSoa(targetId, 'Application and SOA approved by Accountant. Order of Payment generated.');
+    if (soaErr !== null) {
+      const errMsg = typeof soaErr === 'object' && soaErr !== null && Reflect.has(soaErr, 'message')
+        ? String(Reflect.get(soaErr, 'message'))
+        : 'Please try again.';
+      toast.error(`Approval failed: ${errMsg}`);
+      return;
     }
-    toast.success('Application approved. Order of Payment generated and forwarded for payment collection.');
+    toast.success('Application and SOA approved. Order of Payment generated.');
     await mutateApplications(app.id);
     await refetch();
     onClose();
@@ -664,7 +656,7 @@ export function ApplicationReviewScreenContent({
       approveButtonIcon = 'play-circle';
     }
   } else if (showAccountantBtn) {
-    approveButtonLabel = 'Approve';
+    approveButtonLabel = 'Approve & Issue OP';
     approveButtonIcon = 'check-circle';
   } else if (showIssueBtn) {
     approveButtonLabel = 'Issue Document & License';
@@ -674,7 +666,7 @@ export function ApplicationReviewScreenContent({
       approveButtonLabel = 'Generate SOA';
       approveButtonIcon = 'play-circle';
     } else {
-      approveButtonLabel = 'Approve';
+      approveButtonLabel = 'Approve & Forward';
       approveButtonIcon = 'check-circle';
     }
   }
@@ -907,13 +899,25 @@ export function ApplicationReviewScreenContent({
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
-        title="Approve Application"
-        confirmText="Approve"
+        title={
+          showAccountantBtn
+            ? "Approve Application & Issue Order of Payment"
+            : showForwardBtn
+              ? "Approve Evaluation & Forward to Accountant"
+              : "Approve Application"
+        }
+        confirmText={
+          showAccountantBtn
+            ? "Approve & Issue OP"
+            : showForwardBtn
+              ? "Approve & Forward"
+              : "Approve"
+        }
         subtitleText={
           showAccountantBtn
-            ? `Approve application and issue Order of Payment for ${app.applicant}.`
+            ? `Confirm financial review and issue official Order of Payment for ${app.applicant}.`
             : showForwardBtn
-              ? `Approve application for ${app.applicant} and forward to Accountant.`
+              ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
               : undefined
         }
         onConfirm={

@@ -927,6 +927,7 @@ export interface StatementOfAccountDto {
   issuedToAddress?: string;
   totalAmount: number;
   dueDate: string;
+  createdAt?: string;
   preparedByUserId?: string;
   approvedByUserId?: string;
   approvedAt?: string;
@@ -1028,6 +1029,11 @@ export interface CompanyDetailDto {
 export interface ApplicantDetailDto {
   id: string;
   barangayId?: string;
+  barangay?: string;
+  barangayName?: string;
+  city?: string;
+  province?: string;
+  region?: string;
   address: string;
   firstName: string;
   middleName?: string;
@@ -1042,6 +1048,10 @@ export interface ApplicantDetailDto {
   email?: string;
   emailAddress?: string;
   zipCode?: string;
+  schoolAttended?: string;
+  courseTaken?: string;
+  yearGraduated?: string;
+  eSignature?: string;
   company?: CompanyDetailDto;
 }
 
@@ -1059,6 +1069,7 @@ export interface ApplicantDto {
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
   formFieldValues?: FormFieldValueDto[];
+  documents?: unknown[];
 }
 
 export interface FilingUserDto {
@@ -1166,6 +1177,7 @@ export interface ApplicantSummaryDto {
   company?: CompanyDetailDto;
   details?: ApplicantDetailDto;
   formFieldValues?: FormFieldValueDto[];
+  documents?: unknown[];
 }
 
 export interface ApplicationSummaryDto {
