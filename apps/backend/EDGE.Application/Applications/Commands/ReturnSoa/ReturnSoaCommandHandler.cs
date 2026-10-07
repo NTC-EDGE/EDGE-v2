@@ -30,10 +30,38 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
 
     public async Task<ApiResponse<bool>> Handle(ReturnSoaCommand request, CancellationToken cancellationToken)
     {
-        var soa = await _repository.GetSoaByIdAsync(request.SoaId, cancellationToken);
+        StatementOfAccount? soa = null;
+        if (request.SoaId.HasValue && request.SoaId.Value != Guid.Empty)
+        {
+            soa = await _repository.GetSoaByIdAsync(request.SoaId.Value, cancellationToken);
+        }
 
-        if (soa == null) return ApiResponse<bool>.Fail("SOA not found.");
-        if (soa.Status != SoaStatus.Pending) return ApiResponse<bool>.Fail("SOA must be Pending to return.");
+        if (soa == null)
+        {
+            var targetAppId = (request.ApplicationId.HasValue && request.ApplicationId.Value != Guid.Empty)
+                ? request.ApplicationId.Value
+                : (request.SoaId.HasValue && request.SoaId.Value != Guid.Empty ? request.SoaId.Value : Guid.Empty);
+
+            if (targetAppId != Guid.Empty)
+            {
+                var appLoaded = await _repository.GetByIdWithDetailsAsync(targetAppId, cancellationToken);
+                if (appLoaded != null)
+                {
+                    soa = appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.Pending)
+                          ?? appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+                    if (soa != null && soa.Application == null)
+                    {
+                        soa.Application = appLoaded;
+                    }
+                }
+            }
+        }
+
+        if (soa == null) return ApiResponse<bool>.Fail("Statement of Account (SOA) not found for this return request.");
+        if (soa.Status != SoaStatus.Pending && soa.Status != SoaStatus.Approved)
+        {
+            return ApiResponse<bool>.Fail("SOA must be in Pending or Approved status to return.");
+        }
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
         Guid? validUserId = null;
@@ -49,7 +77,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
         soa.Status = SoaStatus.Returned;
         soa.Remarks = request.Remarks;
 
-        soa.Histories.Add(new SoaHistory
+        await _repository.AddSoaHistoryAsync(new SoaHistory
         {
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
@@ -61,7 +89,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             StaffRole = staffRole,
             Remarks = request.Remarks,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         var app = soa.Application ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
         if (app != null)

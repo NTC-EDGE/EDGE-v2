@@ -40,7 +40,7 @@ public class ReturnSoaCommandHandlerTests
         var command = new ReturnSoaCommand(Guid.NewGuid(), "Fee discrepancy");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync((StatementOfAccount?)null);
 
         // Act
@@ -48,23 +48,23 @@ public class ReturnSoaCommandHandlerTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Message.Should().Be("SOA not found.");
+        result.Message.Should().Contain("not found");
     }
 
     [Fact]
-    public async Task Handle_ShouldReturnFail_WhenSoaNotPending()
+    public async Task Handle_ShouldReturnFail_WhenSoaAlreadyReturned()
     {
         // Arrange
         var soa = new StatementOfAccount
         {
             Id = Guid.NewGuid(),
-            Status = SoaStatus.Approved,
+            Status = SoaStatus.Returned,
         };
 
         var command = new ReturnSoaCommand(soa.Id, "Fee discrepancy");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(soa);
 
         // Act
@@ -72,7 +72,7 @@ public class ReturnSoaCommandHandlerTests
 
         // Assert
         result.Succeeded.Should().BeFalse();
-        result.Message.Should().Be("SOA must be Pending to return.");
+        result.Message.Should().Contain("must be in Pending or Approved status");
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public class ReturnSoaCommandHandlerTests
         var command = new ReturnSoaCommand(soa.Id, "Fee computation needs adjustment");
 
         _repositoryMock
-            .Setup(r => r.GetSoaByIdAsync(command.SoaId, It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetSoaByIdAsync(command.SoaId!.Value, It.IsAny<CancellationToken>()))
             .ReturnsAsync(soa);
 
         _repositoryMock
@@ -110,12 +110,11 @@ public class ReturnSoaCommandHandlerTests
         result.Succeeded.Should().BeTrue();
         soa.Status.Should().Be(SoaStatus.Returned);
         soa.Remarks.Should().Be("Fee computation needs adjustment");
-        soa.Histories.Should().HaveCount(1);
-        soa.Histories.First().ToStatus.Should().Be(SoaStatus.Returned);
 
         app.Status.Should().Be(ApplicationStatus.Returned);
         app.Remarks.Should().Contain("Fee computation needs adjustment");
 
+        _repositoryMock.Verify(r => r.AddSoaHistoryAsync(It.Is<SoaHistory>(h => h.ToStatus == SoaStatus.Returned && h.StaffRole == "Accountant"), It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.UpdateAsync(app, It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.AddApplicationStatusHistoryAsync(It.Is<ApplicationStatusHistory>(h => h.Status == ApplicationStatus.Returned), It.IsAny<CancellationToken>()), Times.Once);
         _repositoryMock.Verify(r => r.AddApplicationHistoryAsync(It.Is<ApplicationHistory>(h => h.ToStatus == ApplicationStatus.Returned && h.StaffRole == "Accountant"), It.IsAny<CancellationToken>()), Times.Once);

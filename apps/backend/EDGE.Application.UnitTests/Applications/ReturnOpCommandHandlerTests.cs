@@ -74,10 +74,9 @@ public class ReturnOpCommandHandlerTests
         result.Succeeded.Should().BeTrue();
         op.Status.Should().Be(OpStatus.Returned);
         op.Remarks.Should().Be("Fix billing line items");
-        op.Histories.Should().HaveCount(1);
-        op.Histories.First().ToStatus.Should().Be(OpStatus.Returned);
         op.StatementOfAccount.Status.Should().Be(SoaStatus.Approved); // SOA remains Approved when returning to Accountant
 
+        _repositoryMock.Verify(r => r.AddOpHistoryAsync(It.Is<OpHistory>(h => h.ToStatus == OpStatus.Returned), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 

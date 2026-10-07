@@ -1,3 +1,3 @@
 namespace EDGE.Api.Endpoints.Soas.DTOs;
 
-public record ReturnSoaRequest(string Remarks);
+public record ReturnSoaRequest(string Remarks, Guid? ApplicationId = null);

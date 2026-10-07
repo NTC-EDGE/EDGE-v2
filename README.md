@@ -77,6 +77,7 @@ Run the internal cross-platform app using these scripts at the root level:
 - **Run on Web**:
   ```bash
   bun internal:web
+  bun run internal:start -- --port 8082
   ```
 - **Build Web Bundle**:
   ```bash

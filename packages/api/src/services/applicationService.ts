@@ -185,21 +185,21 @@ export const applicationService = {
     });
   },
 
-  async approveSoa(soaId: string, remarks?: string) {
+  async approveSoa(soaOrApplicationId: string, remarks?: string) {
     return safeAsync(async () => {
       const response = await apiClient.patch(
-        `/api/v2/soas/${soaId}/approve`,
-        { remarks }
+        `/api/v2/soas/${soaOrApplicationId}/approve`,
+        { remarks, applicationId: soaOrApplicationId }
       );
       return response.data;
     });
   },
 
-  async returnSoa(soaId: string, remarks: string) {
+  async returnSoa(soaOrApplicationId: string, remarks: string) {
     return safeAsync(async () => {
       const response = await apiClient.patch(
-        `/api/v2/soas/${soaId}/return`,
-        { remarks }
+        `/api/v2/soas/${soaOrApplicationId}/return`,
+        { remarks, applicationId: soaOrApplicationId }
       );
       return response.data;
     });

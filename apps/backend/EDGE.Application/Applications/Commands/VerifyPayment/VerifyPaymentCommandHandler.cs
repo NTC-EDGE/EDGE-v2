@@ -43,11 +43,17 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Cashier", cancellationToken);
 
+        Guid? validUserId = null;
+        if (userContext.UserId.HasValue && await _repository.UserExistsAsync(userContext.UserId.Value, cancellationToken))
+        {
+            validUserId = userContext.UserId.Value;
+        }
+
         var prevOpStatus = op.Status;
         op.Status = OpStatus.Paid;
         op.OfficialReceiptNumber = request.OfficialReceiptNumber;
         op.AmountReceived = request.AmountReceived;
-        op.VerifiedByCashierId = userContext.UserId;
+        op.VerifiedByCashierId = validUserId;
         op.PaidAt = DateTime.UtcNow;
 
         if (op.Application != null)
@@ -62,26 +68,26 @@ public class VerifyPaymentCommandHandler : IRequestHandler<VerifyPaymentCommand,
                 Action = $"Payment verified. OR: {request.OfficialReceiptNumber}. Forwarded for Document & License Issuance.",
                 FromStatus = prevAppStatus,
                 ToStatus = ApplicationStatus.ForIssuance,
-                PerformedByUserId = userContext.UserId,
+                PerformedByUserId = validUserId,
                 StaffName = userContext.StaffName,
                 StaffRole = userContext.StaffRole,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);
         }
 
-        op.Histories.Add(new OpHistory
+        await _repository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
             Action = $"Payment verified. OR: {request.OfficialReceiptNumber}",
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Paid,
-            PerformedByUserId = userContext.UserId,
+            PerformedByUserId = validUserId,
             StaffName = userContext.StaffName,
             StaffRole = userContext.StaffRole,
             OfficialReceiptNumber = request.OfficialReceiptNumber,
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         return ApiResponse<bool>.Success(true);

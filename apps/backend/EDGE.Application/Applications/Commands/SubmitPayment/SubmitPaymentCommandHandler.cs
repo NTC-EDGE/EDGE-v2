@@ -128,19 +128,24 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         op.Remarks = paymentSummary;
 
         var clientGuid = Guid.TryParse(_currentUserService.UserId, out var parsedGuid) ? parsedGuid : (Guid?)null;
+        Guid? validUserId = null;
+        if (clientGuid.HasValue && await _repository.UserExistsAsync(clientGuid.Value, cancellationToken))
+        {
+            validUserId = clientGuid.Value;
+        }
 
-        op.Histories.Add(new OpHistory
+        await _repository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
             Action = $"Client submitted payment via {request.PaymentMethod} (Ref: {request.ReferenceNumber ?? "N/A"}). Awaiting Cashier verification.",
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Processing,
-            PerformedByUserId = clientGuid,
+            PerformedByUserId = validUserId,
             StaffName = clientName,
             StaffRole = "Client",
             Timestamp = DateTime.UtcNow
-        });
+        }, cancellationToken);
 
         await _repository.AddApplicationHistoryAsync(new ApplicationHistory
         {
@@ -149,7 +154,7 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
             Action = $"Payment submitted by client via {request.PaymentMethod} (Ref: {request.ReferenceNumber ?? "N/A"}). Forwarded to Cashier for verification.",
             FromStatus = app.Status,
             ToStatus = app.Status,
-            PerformedByUserId = clientGuid,
+            PerformedByUserId = validUserId,
             StaffName = clientName,
             StaffRole = "Client",
             Timestamp = DateTime.UtcNow

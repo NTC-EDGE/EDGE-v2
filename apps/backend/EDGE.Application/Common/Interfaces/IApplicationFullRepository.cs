@@ -39,6 +39,7 @@ public interface IApplicationFullRepository
     Task AddOpAsync(OrderOfPayment op, CancellationToken cancellationToken = default);
     Task AddApplicationHistoryAsync(ApplicationHistory history, CancellationToken cancellationToken = default);
     Task AddSoaHistoryAsync(SoaHistory history, CancellationToken cancellationToken = default);
+    Task AddOpHistoryAsync(OpHistory history, CancellationToken cancellationToken = default);
     Task AddCorrectionAuditTrailAsync(CorrectionAuditTrail trail, CancellationToken cancellationToken = default);
     Task AddCompanyDetailAsync(CompanyDetail companyDetail, CancellationToken cancellationToken = default);
     Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default);
