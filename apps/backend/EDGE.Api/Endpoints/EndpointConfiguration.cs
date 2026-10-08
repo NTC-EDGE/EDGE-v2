@@ -61,6 +61,7 @@ public static class EndpointConfiguration
         apiV2Group.MapServiceInformationEndpoints();
         apiV2Group.MapReportEndpoints();
         apiV2Group.MapReceiptEndpoints();
+        apiV2Group.MapTemplateEndpoints();
         apiV2Group.MapChatEndpoints();
         apiV2Group.MapMeetingEndpoints();
     }
