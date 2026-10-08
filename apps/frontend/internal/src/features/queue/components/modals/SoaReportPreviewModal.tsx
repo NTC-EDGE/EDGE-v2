@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -7,6 +7,7 @@ import {
   ScrollView,
   Pressable,
   Platform,
+  Linking,
 } from 'react-native';
 import {
   COLORS,
@@ -17,12 +18,15 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from '@edge/ui';
+import { applicationService } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import {
   generateSoaPrintableHtml,
   generateOpPrintableHtml,
   generateFullApplicationSummaryHtml,
   openPrintableDocumentWindow,
+  getPopulatedSoaRows,
+  OfficialSoaFormRow,
 } from '../../utils/soaReportGenerator';
 
 export type ReportDocumentType = 'soa' | 'op' | 'summary';
@@ -44,17 +48,46 @@ export function SoaReportPreviewModal({
 }: SoaReportPreviewModalProps) {
   const { colors, isDark } = useTheme();
   const [docType, setDocType] = useState<ReportDocumentType>(initialDocType);
+  const [soaOutputMode, setSoaOutputMode] = useState<'plain_paper' | 'accountable_form'>('plain_paper');
+
+  const { rows: populatedSoaRows, totalAmount: computedSoaTotal } = useMemo(
+    () => getPopulatedSoaRows(app),
+    [app]
+  );
+
+  const dateObj = app.createdAt ? new Date(app.createdAt) : new Date();
+  const currentMonthYear = dateObj
+    .toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    .toUpperCase();
 
   const handlePrint = () => {
     let html = '';
     if (docType === 'soa') {
-      html = generateSoaPrintableHtml(app);
+      html = generateSoaPrintableHtml(app, { outputMode: soaOutputMode });
     } else if (docType === 'op') {
       html = generateOpPrintableHtml(app);
     } else {
       html = generateFullApplicationSummaryHtml(app);
     }
     openPrintableDocumentWindow(html);
+  };
+
+  const handleDownloadPdf = () => {
+    if (docType === 'soa') {
+      const url = applicationService.getSoaPrintUrl(app.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        void Linking.openURL(url);
+      }
+    } else if (docType === 'op') {
+      const url = applicationService.getOpPrintUrl(app.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        void Linking.openURL(url);
+      }
+    }
   };
 
   const soaNumber = `SOA-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
@@ -268,162 +301,393 @@ export function SoaReportPreviewModal({
             showsVerticalScrollIndicator={false}
           >
             {docType === 'soa' && (
-              <View
-                style={[
-                  styles.docPaper,
-                  {
-                    backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+              <View style={{ gap: 14 }}>
+                {/* Mode Selector */}
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: SPACING[10],
+                    borderRadius: RADIUS.sm,
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                    borderWidth: 1,
                     borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                  },
-                ]}
-              >
-                {/* Government Seal & Header */}
-                <View style={styles.paperHeader}>
-                  <Text style={[styles.phRep, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                    Republic of the Philippines
-                  </Text>
-                  <Text style={[styles.phAgency, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                    NATIONAL TELECOMMUNICATIONS COMMISSION
-                  </Text>
-                  <Text style={[styles.phOffice, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
-                    {app.assignedTo || app.office || 'Main Office'}
-                  </Text>
+                  }}
+                >
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Lucide name="printer" size={16} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>
+                      Print Target Mode:
+                    </Text>
+                  </View>
+
+                  <View style={{ flexDirection: 'row', gap: 6 }}>
+                    <Pressable
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor:
+                          soaOutputMode === 'plain_paper'
+                            ? isDark
+                              ? colors.brand[900]
+                              : colors.brand[100]
+                            : 'transparent',
+                        borderWidth: 1,
+                        borderColor:
+                          soaOutputMode === 'plain_paper'
+                            ? isDark
+                              ? colors.brand[500]
+                              : colors.brand[600]
+                            : isDark
+                            ? colors.neutral[700]
+                            : colors.neutral[300],
+                      }}
+                      onPress={() => setSoaOutputMode('plain_paper')}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: soaOutputMode === 'plain_paper' ? '700' : '500',
+                          color:
+                            soaOutputMode === 'plain_paper'
+                              ? isDark
+                                ? colors.brand[300]
+                                : colors.brand[700]
+                              : isDark
+                              ? colors.neutral[400]
+                              : colors.neutral[600],
+                        }}
+                      >
+                        📄 Plain Paper (Full Electronic)
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={{
+                        paddingHorizontal: 10,
+                        paddingVertical: 4,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor:
+                          soaOutputMode === 'accountable_form'
+                            ? isDark
+                              ? '#451a03'
+                              : '#fef3c7'
+                            : 'transparent',
+                        borderWidth: 1,
+                        borderColor:
+                          soaOutputMode === 'accountable_form'
+                            ? '#d97706'
+                            : isDark
+                            ? colors.neutral[700]
+                            : colors.neutral[300],
+                      }}
+                      onPress={() => setSoaOutputMode('accountable_form')}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: soaOutputMode === 'accountable_form' ? '700' : '500',
+                          color:
+                            soaOutputMode === 'accountable_form'
+                              ? '#d97706'
+                              : isDark
+                              ? colors.neutral[400]
+                              : colors.neutral[600],
+                        }}
+                      >
+                        📑 Pre-Printed Physical Form Overlay
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
 
-                {/* Banner */}
-                <View style={styles.soaBanner}>
-                  <View>
-                    <Text style={styles.soaBannerTitle}>STATEMENT OF ACCOUNT</Text>
-                    <Text style={styles.soaBannerSub}>Assessment &amp; Fee Breakdown</Text>
-                  </View>
-                  <View style={{ alignItems: 'flex-end' }}>
-                    <Text style={styles.soaBannerRef}>{soaNumber}</Text>
-                    <Text style={styles.soaBannerDate}>Due: {app.dueDate || '30 days from issuance'}</Text>
-                  </View>
-                </View>
-
-                {/* Payor Card */}
+                {/* Official Assesment-SOA.pdf Document Canvas */}
                 <View
                   style={[
-                    styles.payorCard,
+                    styles.docPaper,
                     {
-                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                      backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
+                      borderColor: soaOutputMode === 'accountable_form' ? '#d97706' : (isDark ? colors.neutral[600] : '#000000'),
+                      borderWidth: 2,
+                      padding: SPACING[16],
                     },
                   ]}
                 >
-                  <View style={styles.payorRow}>
-                    <Text style={[styles.payorLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      Billed To:
-                    </Text>
-                    <Text style={[styles.payorVal, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                      {app.applicant} ({app.applicantType})
-                    </Text>
-                  </View>
-                  <View style={styles.payorRow}>
-                    <Text style={[styles.payorLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      Service:
-                    </Text>
-                    <Text style={[styles.payorVal, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-                      {app.serviceName} ({app.category})
-                    </Text>
-                  </View>
-                  <View style={styles.payorRow}>
-                    <Text style={[styles.payorLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      Billing Address:
-                    </Text>
-                    <Text style={[styles.payorVal, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                      {app.address?.streetAddress || app.address?.address || 'N/A'}
-                    </Text>
-                  </View>
-                </View>
-
-                {/* Table */}
-                <View
-                  style={[
-                    styles.previewTable,
-                    { borderColor: isDark ? colors.neutral[700] : colors.neutral[200] },
-                  ]}
-                >
-                  <View
-                    style={[
-                      styles.tableHeaderRow,
-                      { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] },
-                    ]}
-                  >
-                    <Text style={[styles.thCell, { flex: 2, color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      Particulars
-                    </Text>
-                    <Text style={[styles.thCell, { flex: 0.8, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      Code
-                    </Text>
-                    <Text style={[styles.thCell, { flex: 0.6, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      Units
-                    </Text>
-                    <Text style={[styles.thCell, { flex: 1, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      Rate
-                    </Text>
-                    <Text style={[styles.thCell, { flex: 1, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      Amount
-                    </Text>
-                  </View>
-
-                  {app.soaItems.length > 0 ? (
-                    app.soaItems.map((item, idx) => (
-                      <View
-                        key={idx}
-                        style={[
-                          styles.tableDataRow,
-                          { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] },
-                        ]}
-                      >
-                        <View style={{ flex: 2 }}>
-                          <Text style={[styles.tdMain, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                            {item.particular}
-                          </Text>
-                          <Text style={[styles.tdSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                            Validity: {item.validityYears} Year(s)
-                          </Text>
-                        </View>
-                        <Text style={[styles.tdCell, { flex: 0.8, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                          {item.code}
-                        </Text>
-                        <Text style={[styles.tdCell, { flex: 0.6, textAlign: 'center', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                          {item.noOfUnits}
-                        </Text>
-                        <Text style={[styles.tdCell, { flex: 1, textAlign: 'right', color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                          PHP {item.fees.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </Text>
-                        <Text style={[styles.tdCell, { flex: 1, textAlign: 'right', fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                          PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                        </Text>
-                      </View>
-                    ))
-                  ) : (
-                    <View style={{ padding: 16, alignItems: 'center' }}>
-                      <Text style={{ color: isDark ? colors.neutral[400] : colors.neutral[500], fontSize: 12, fontStyle: 'italic' }}>
-                        No line items available. Standard total: PHP {app.totalAmountDue.toFixed(2)}
+                  {/* Watermark notice in Overlay mode */}
+                  {soaOutputMode === 'accountable_form' && (
+                    <View
+                      style={{
+                        padding: 6,
+                        backgroundColor: isDark ? '#271b07' : '#fffbeb',
+                        borderWidth: 1,
+                        borderColor: '#f59e0b',
+                        borderRadius: RADIUS.xs,
+                        marginBottom: 10,
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text style={{ fontSize: 11, color: '#d97706', fontWeight: '700' }}>
+                        Physical Stationery Mode: Borders and static labels are suppressed during printing.
                       </Text>
                     </View>
                   )}
-                </View>
 
-                {/* Total box */}
-                <View
-                  style={[
-                    styles.totalBox,
-                    {
-                      backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                    },
-                  ]}
-                >
-                  <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                    TOTAL ASSESSMENT DUE
-                  </Text>
-                  <Text style={[styles.totalAmount, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
-                    PHP {app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}
-                  </Text>
+                  {/* Assessment Grid Header */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      borderWidth: 1,
+                      borderColor: isDark ? colors.neutral[600] : '#000000',
+                      backgroundColor: isDark ? colors.neutral[800] : '#f8fafc',
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 90,
+                        padding: 6,
+                        borderRightWidth: 1,
+                        borderRightColor: isDark ? colors.neutral[600] : '#000000',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          fontSize: 12,
+                          color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[600] : '#94a3b8') : (isDark ? colors.neutral[100] : '#000000'),
+                        }}
+                      >
+                        Code
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        flex: 1,
+                        padding: 6,
+                        borderRightWidth: 1,
+                        borderRightColor: isDark ? colors.neutral[600] : '#000000',
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          fontSize: 12,
+                          color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[600] : '#94a3b8') : (isDark ? colors.neutral[100] : '#000000'),
+                        }}
+                      >
+                        Description
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        width: 170,
+                        padding: 4,
+                        justifyContent: 'center',
+                        alignItems: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '700',
+                          fontSize: 10.5,
+                          color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[600] : '#94a3b8') : (isDark ? colors.neutral[100] : '#000000'),
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        CASHIER'S REPORT
+                      </Text>
+                      <Text
+                        style={{
+                          fontSize: 10,
+                          fontWeight: '600',
+                          color: isDark ? colors.neutral[300] : '#000000',
+                          marginTop: 2,
+                        }}
+                      >
+                        MONTH OF{' '}
+                        <Text style={{ fontWeight: '700', textDecorationLine: 'underline', color: isDark ? colors.brand[400] : '#000000' }}>
+                          {currentMonthYear}
+                        </Text>
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Assessment Sections & Rows */}
+                  {(['FOR LICENSES', 'FOR PERMITS', 'FOR AMATUER AND ROC', 'OTHER APPLICATION'] as const).map((cat) => {
+                    const catRows = populatedSoaRows.filter((r) => r.category === cat);
+                    return (
+                      <View key={cat}>
+                        {/* Section Header Row */}
+                        <View
+                          style={{
+                            borderWidth: 1,
+                            borderTopWidth: 0,
+                            borderColor: isDark ? colors.neutral[600] : '#000000',
+                            backgroundColor: isDark ? colors.neutral[800] : '#f1f5f9',
+                            paddingVertical: 3,
+                            alignItems: 'center',
+                          }}
+                        >
+                          <Text
+                            style={{
+                              fontWeight: '700',
+                              fontSize: 11,
+                              color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[600] : '#94a3b8') : (isDark ? colors.neutral[100] : '#000000'),
+                              letterSpacing: 0.5,
+                            }}
+                          >
+                            {cat}
+                          </Text>
+                        </View>
+
+                        {/* Section Data Rows */}
+                        {catRows.map((r, idx) => {
+                          const hasAmount = r.calculatedAmount > 0;
+                          return (
+                            <View
+                              key={idx}
+                              style={{
+                                flexDirection: 'row',
+                                borderLeftWidth: 1,
+                                borderRightWidth: 1,
+                                borderBottomWidth: 1,
+                                borderColor: isDark ? colors.neutral[600] : '#000000',
+                                backgroundColor: hasAmount
+                                  ? (isDark ? '#064e3b15' : '#ecfdf5')
+                                  : 'transparent',
+                                minHeight: 22,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <View
+                                style={{
+                                  width: 90,
+                                  paddingHorizontal: 4,
+                                  borderRightWidth: 1,
+                                  borderRightColor: isDark ? colors.neutral[600] : '#000000',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10,
+                                    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
+                                    color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[700] : '#cbd5e1') : (isDark ? colors.neutral[300] : '#1e293b'),
+                                  }}
+                                >
+                                  {r.code}
+                                </Text>
+                              </View>
+
+                              <View
+                                style={{
+                                  flex: 1,
+                                  paddingHorizontal: 6,
+                                  paddingVertical: 2,
+                                  borderRightWidth: 1,
+                                  borderRightColor: isDark ? colors.neutral[600] : '#000000',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 10.5,
+                                    color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[700] : '#cbd5e1') : (isDark ? colors.neutral[200] : '#000000'),
+                                    lineHeight: 14,
+                                  }}
+                                  numberOfLines={2}
+                                >
+                                  {r.description.replace(/<[^>]*>/g, ' ')}
+                                </Text>
+                              </View>
+
+                              <View
+                                style={{
+                                  width: 170,
+                                  paddingHorizontal: 8,
+                                  alignItems: 'flex-end',
+                                  justifyContent: 'center',
+                                }}
+                              >
+                                <Text
+                                  style={{
+                                    fontSize: 11,
+                                    fontWeight: hasAmount ? '700' : '400',
+                                    color: hasAmount
+                                      ? (isDark ? '#34d399' : '#047857')
+                                      : (isDark ? colors.neutral[600] : '#94a3b8'),
+                                    fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
+                                  }}
+                                >
+                                  {hasAmount ? `₱ ${r.calculatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : ''}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        })}
+                      </View>
+                    );
+                  })}
+
+                  {/* Grand TOTAL Row */}
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      borderLeftWidth: 1,
+                      borderRightWidth: 1,
+                      borderBottomWidth: 1,
+                      borderColor: isDark ? colors.neutral[600] : '#000000',
+                      backgroundColor: isDark ? colors.neutral[800] : '#f8fafc',
+                      minHeight: 28,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <View
+                      style={{
+                        flex: 1,
+                        paddingHorizontal: 12,
+                        alignItems: 'flex-end',
+                        borderRightWidth: 1,
+                        borderRightColor: isDark ? colors.neutral[600] : '#000000',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontWeight: '800',
+                          fontSize: 12,
+                          color: soaOutputMode === 'accountable_form' ? (isDark ? colors.neutral[600] : '#94a3b8') : (isDark ? colors.neutral[100] : '#000000'),
+                          letterSpacing: 0.5,
+                        }}
+                      >
+                        TOTAL
+                      </Text>
+                    </View>
+
+                    <View
+                      style={{
+                        width: 170,
+                        paddingHorizontal: 8,
+                        alignItems: 'flex-end',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 13,
+                          fontWeight: '800',
+                          color: isDark ? colors.brand[400] : '#0284c7',
+                          fontFamily: Platform.select({ ios: 'Courier', android: 'monospace', default: 'monospace' }),
+                        }}
+                      >
+                        ₱ {computedSoaTotal.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  </View>
                 </View>
               </View>
             )}
@@ -657,6 +921,33 @@ export function SoaReportPreviewModal({
             )}
 
             <View style={{ flex: 1 }} />
+
+            {(docType === 'soa' || docType === 'op') && (
+              <Pressable
+                style={[
+                  styles.secondaryBtn,
+                  {
+                    borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                    backgroundColor: isDark ? colors.neutral[800] : colors.brand[50],
+                  },
+                ]}
+                onPress={handleDownloadPdf}
+              >
+                <Lucide
+                  name="download"
+                  size={14}
+                  color={isDark ? colors.brand[400] : colors.brand[700]}
+                />
+                <Text
+                  style={[
+                    styles.secondaryBtnText,
+                    { color: isDark ? colors.brand[400] : colors.brand[700] },
+                  ]}
+                >
+                  Official Vector PDF
+                </Text>
+              </Pressable>
+            )}
 
             <Pressable
               style={[

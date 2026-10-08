@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using EDGE.Infrastructure.Printing.Models;
 using QuestPDF.Fluent;
 using QuestPDF.Helpers;
@@ -7,8 +8,9 @@ using QuestPDF.Infrastructure;
 namespace EDGE.Infrastructure.Printing.Reports;
 
 /// <summary>
-/// Printable Statement of Account document for National Telecommunications Commission.
-/// Renders a 1-up portrait page on standard A4 paper matching NTC official form layout.
+/// Printable Statement of Account / Cashier's Assessment document for National Telecommunications Commission.
+/// Renders an exact replica of the official NTC Assesment-SOA.pdf accountable form on standard A4 portrait.
+/// Supports both full electronic form rendering and blank physical accountable form overlay.
 /// </summary>
 public class StatementOfAccountReport : IDocument
 {
@@ -23,382 +25,146 @@ public class StatementOfAccountReport : IDocument
 
     public void Compose(IDocumentContainer container)
     {
+        bool isOverlay = _model.IsAccountableFormOverlay;
+        var borderColor = isOverlay ? Colors.Transparent : Colors.Black;
+        float outerBorderWidth = isOverlay ? 0f : 2.0f;
+        float innerBorderWidth = isOverlay ? 0f : 0.8f;
+
         container.Page(page =>
         {
             page.Size(PageSizes.A4);
-            page.MarginHorizontal(15);
-            page.MarginTop(25);
-            page.MarginBottom(12);
-            page.DefaultTextStyle(x => x.FontSize(8).FontFamily(Fonts.Arial));
-
+            page.MarginHorizontal(32);
+            page.MarginVertical(28);
+            page.DefaultTextStyle(x => x.FontSize(8.5f).FontFamily(Fonts.Arial));
 
             page.Content().Column(col =>
             {
-                // 1. Header Title
-                col.Item().Element(ComposeHeader);
-
-                // 2. Top Info & Transaction Types Checkboxes
-                col.Item().PaddingTop(4).Element(ComposeTopInfo);
-
-                // 3. Main Data Table Matrix
-                col.Item().PaddingTop(6).Element(ComposeGridTable);
-
-                // 4. Payment Due Date Note
-                col.Item().PaddingTop(6).Element(ComposePaymentDueDateNote);
-
-                // 5. Lower Section: O.R. Stamp Box, Assessment Checkboxes & Signatures
-                col.Item().PaddingTop(8).Element(ComposeBottomSection);
-
-                // 6. Remarks Section
-                col.Item().PaddingTop(8).Element(ComposeRemarksSection);
-            });
-        });
-    }
-
-    private void ComposeHeader(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().AlignCenter().Text(_model.AgencyName)
-                .FontSize(10).Bold();
-
-            col.Item().AlignCenter().Text(_model.Title)
-                .FontSize(9.5f).Bold();
-        });
-    }
-
-    private void ComposeTopInfo(IContainer container)
-    {
-        container.Row(row =>
-        {
-            // Left Column (~62% width)
-            row.RelativeItem(0.62f).Column(col =>
-            {
-                col.Item().Text("To: The Accountant:").FontSize(8.5f);
-
-                col.Item().PaddingTop(2).Row(r =>
+                // Main Official Grid matching Assesment-SOA.pdf
+                col.Item().Border(outerBorderWidth).BorderColor(borderColor).Table(table =>
                 {
-                    r.AutoItem().Text("Please issue Order of Payment in favor of ").FontSize(8f);
-                    r.RelativeItem().BorderBottom(0.5f).BorderColor(Colors.Black).AlignCenter()
-                        .Text(_model.PayorName ?? string.Empty).Bold().FontSize(8.5f);
-                });
-
-                col.Item().Text("for payment of the fees indicated below:").FontSize(8f);
-
-                // Checkboxes Grid (3 rows x 4 columns)
-                col.Item().PaddingTop(4).Table(chkTable =>
-                {
-                    chkTable.ColumnsDefinition(cd =>
+                    table.ColumnsDefinition(cd =>
                     {
-                        cd.RelativeColumn(1f);
-                        cd.RelativeColumn(1f);
-                        cd.RelativeColumn(1.4f);
-                        cd.RelativeColumn(1f);
+                        cd.ConstantColumn(80);  // Column 1: Code
+                        cd.RelativeColumn(1f);  // Column 2: Description
+                        cd.ConstantColumn(165); // Column 3: Cashier's Report / Amount
                     });
 
-                    // Row 1
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "NEW", _model.IsNew));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "MOD", _model.IsMod));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "CO", _model.IsCo));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "MA", _model.IsMa));
+                    // --- HEADER ROW ---
+                    // 1. Code Header
+                    table.Cell().Border(innerBorderWidth).BorderColor(borderColor)
+                        .AlignCenter().AlignMiddle().Padding(6)
+                        .Text(isOverlay ? "" : "Code").Bold().FontSize(10f);
 
-                    // Row 2
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "REN", _model.IsRen));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "DUP", _model.IsDup));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "CV", _model.IsCv));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "ROC", _model.IsRoc));
+                    // 2. Description Header
+                    table.Cell().Border(innerBorderWidth).BorderColor(borderColor)
+                        .AlignCenter().AlignMiddle().Padding(6)
+                        .Text(isOverlay ? "" : "Description").Bold().FontSize(10f);
 
-                    // Row 3
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "OTHERS RROCA", _model.IsOthersRroca));
-                    chkTable.Cell().Element(e => RenderCheckboxItem(e, "MS", _model.IsMs));
-                    chkTable.Cell().ColumnSpan(2).Element(e => RenderCheckboxItem(e, "Others: " + (_model.OthersText ?? ""), _model.IsOthers));
-                });
-            });
+                    // 3. Cashier's Report & Month Of Header
+                    table.Cell().Border(innerBorderWidth).BorderColor(borderColor)
+                        .AlignCenter().AlignMiddle().Padding(4).Column(c =>
+                        {
+                            if (!isOverlay)
+                            {
+                                c.Item().AlignCenter().Text("CASHIER'S REPORT").Bold().FontSize(9f);
+                            }
+                            else
+                            {
+                                c.Item().Height(12);
+                            }
 
-            row.ConstantItem(15); // Spacer
+                            c.Item().PaddingTop(2).Row(r =>
+                            {
+                                if (!isOverlay)
+                                {
+                                    r.AutoItem().Text("MONTH OF ").Bold().FontSize(8.5f);
+                                }
+                                var monthStr = !string.IsNullOrWhiteSpace(_model.MonthOf)
+                                    ? _model.MonthOf.ToUpperInvariant()
+                                    : (!string.IsNullOrWhiteSpace(_model.Date) ? _model.Date.ToUpperInvariant() : DateTime.UtcNow.ToString("MMMM yyyy").ToUpperInvariant());
 
-            // Right Column (~38% width)
-            row.RelativeItem(0.38f).Column(col =>
-            {
-                col.Item().Row(r =>
-                {
-                    r.AutoItem().Text("No.:  ").Bold().FontSize(8.5f);
-                    r.RelativeItem().BorderBottom(0.5f).BorderColor(Colors.Black).AlignCenter()
-                        .Text(_model.AccountNo ?? string.Empty).Bold().FontSize(8.5f);
-                });
+                                if (!isOverlay)
+                                {
+                                    r.RelativeItem().BorderBottom(0.8f).BorderColor(Colors.Black).AlignCenter()
+                                        .Text(monthStr).Bold().FontSize(8.5f);
+                                }
+                                else
+                                {
+                                    r.RelativeItem().AlignCenter().Text(monthStr).Bold().FontSize(8.5f);
+                                }
+                            });
+                        });
 
-                col.Item().Text(_model.Subtitle).FontSize(6.5f).Italic();
+                    // --- 1. FOR LICENSES SECTION ---
+                    RenderSectionBanner(table, "FOR LICENSES", isOverlay, innerBorderWidth, borderColor);
+                    RenderCategoryItems(table, SoaCategory.Licenses, isOverlay, innerBorderWidth, borderColor);
 
-                col.Item().PaddingTop(4).Row(r =>
-                {
-                    r.AutoItem().Text("Date:  ").FontSize(8.5f);
-                    r.RelativeItem().BorderBottom(0.5f).BorderColor(Colors.Black).AlignCenter()
-                        .Text(_model.Date ?? string.Empty).FontSize(8.5f);
+                    // --- 2. FOR PERMITS SECTION ---
+                    RenderSectionBanner(table, "FOR PERMITS", isOverlay, innerBorderWidth, borderColor);
+                    RenderCategoryItems(table, SoaCategory.Permits, isOverlay, innerBorderWidth, borderColor);
+
+                    // --- 3. FOR AMATUER AND ROC SECTION ---
+                    RenderSectionBanner(table, "FOR AMATUER AND ROC", isOverlay, innerBorderWidth, borderColor);
+                    RenderCategoryItems(table, SoaCategory.AmateurRoc, isOverlay, innerBorderWidth, borderColor);
+
+                    // --- 4. OTHER APPLICATION SECTION ---
+                    RenderSectionBanner(table, "OTHER APPLICATION", isOverlay, innerBorderWidth, borderColor);
+                    RenderCategoryItems(table, SoaCategory.OtherApplication, isOverlay, innerBorderWidth, borderColor);
+
+                    // --- TOTAL ROW ---
+                    table.Cell().ColumnSpan(2).Border(innerBorderWidth).BorderColor(borderColor)
+                        .AlignRight().AlignMiddle().Padding(4).PaddingRight(12)
+                        .Text(isOverlay ? "" : "TOTAL").Bold().FontSize(10.5f);
+
+                    string totalText = _model.TotalAmount.HasValue && _model.TotalAmount.Value > 0
+                        ? _model.TotalAmount.Value.ToString("N2")
+                        : string.Empty;
+
+                    table.Cell().Border(innerBorderWidth).BorderColor(borderColor)
+                        .AlignRight().AlignMiddle().Padding(4).PaddingRight(10)
+                        .Text(totalText).Bold().FontSize(10f);
                 });
             });
         });
     }
 
-    private void RenderCheckboxItem(IContainer container, string label, bool isChecked)
+    private static void RenderSectionBanner(TableDescriptor table, string title, bool isOverlay, float borderWidth, string borderColor)
     {
-        container.PaddingVertical(1).Row(r =>
-        {
-            r.ConstantItem(10).Height(10).Border(0.8f).BorderColor(Colors.Black).AlignCenter().AlignMiddle().Element(box =>
-            {
-                if (isChecked)
-                {
-                    box.Text("✓").FontSize(6f).Bold();
-                }
-            });
-
-            r.RelativeItem().PaddingLeft(3).Text(label).FontSize(7.5f);
-        });
+        table.Cell().ColumnSpan(3).Border(borderWidth).BorderColor(borderColor)
+            .AlignCenter().AlignMiddle().PaddingVertical(3)
+            .Text(isOverlay ? "" : title).Bold().FontSize(9f);
     }
 
-
-    private void ComposeGridTable(IContainer container)
+    private void RenderCategoryItems(TableDescriptor table, SoaCategory category, bool isOverlay, float borderWidth, string borderColor)
     {
-        container.Border(1f).BorderColor(Colors.Black).Table(table =>
+        var categoryItems = _model.Items.Where(i => i.Category == category).ToList();
+
+        foreach (var item in categoryItems)
         {
-            table.ColumnsDefinition(cd =>
+            // Column 1: Code
+            table.Cell().Border(borderWidth).BorderColor(borderColor)
+                .AlignLeft().AlignMiddle().PaddingVertical(2.5f).PaddingHorizontal(4)
+                .Text(isOverlay ? "" : item.Code).FontSize(8.2f);
+
+            // Column 2: Description (May be multi-line for surcharges)
+            table.Cell().Border(borderWidth).BorderColor(borderColor)
+                .AlignLeft().AlignMiddle().PaddingVertical(2.5f).PaddingHorizontal(4)
+                .Text(isOverlay ? "" : item.Description).FontSize(8.2f);
+
+            // Column 3: Amount (Right aligned)
+            decimal? feeVal = item.Particular1.Fees;
+            if (feeVal == null || feeVal == 0)
             {
-                cd.ConstantColumn(58);  // 0: Code
-                cd.ConstantColumn(155); // 1: Description
-
-                // Particular 1
-                cd.ConstantColumn(22);  // 2: No. of Yrs.
-                cd.ConstantColumn(16);  // 3: %
-                cd.ConstantColumn(24);  // 4: No. of Units
-                cd.ConstantColumn(38);  // 5: Fees
-
-                // Particular 2
-                cd.ConstantColumn(22);  // 6: No. of Yrs.
-                cd.ConstantColumn(16);  // 7: %
-                cd.ConstantColumn(24);  // 8: No. of Units
-                cd.ConstantColumn(38);  // 9: Fees
-
-                // Particular 3
-                cd.ConstantColumn(22);  // 10: No. of Yrs.
-                cd.ConstantColumn(16);  // 11: %
-                cd.ConstantColumn(24);  // 12: No. of Units
-                cd.ConstantColumn(38);  // 13: Fees
-
-                // Sub-Total
-                cd.RelativeColumn(1f);  // 14: SUB-TOTAL
-            });
-
-            // --- Header Row 1 ---
-            table.Cell().RowSpan(3).Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-                .Text("Code").Bold().FontSize(7.5f);
-
-            table.Cell().RowSpan(3).Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-                .Text("Description").Bold().FontSize(7.5f);
-
-            // Particular 1 Header
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Particular : {_model.Particular1Header ?? string.Empty}").FontSize(7f);
-
-            // Particular 2 Header
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Particular : {_model.Particular2Header ?? string.Empty}").FontSize(7f);
-
-            // Particular 3 Header
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Particular : {_model.Particular3Header ?? string.Empty}").FontSize(7f);
-
-            table.Cell().RowSpan(3).Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-                .Text("SUB-\nTOTAL").Bold().FontSize(7.5f);
-
-            // --- Header Row 2: Period Covered ---
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Period Covered: {_model.Particular1PeriodCovered ?? string.Empty}").FontSize(6.5f);
-
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Period Covered: {_model.Particular2PeriodCovered ?? string.Empty}").FontSize(6.5f);
-
-            table.Cell().ColumnSpan(4).Border(0.5f).BorderColor(Colors.Black).Padding(1)
-                .Text($"Period Covered: {_model.Particular3PeriodCovered ?? string.Empty}").FontSize(6.5f);
-
-            // --- Header Row 3: Sub-column headers ---
-            for (int p = 0; p < 3; p++)
-            {
-                table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle().Text("No. of Yrs.").FontSize(5.5f);
-                table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle().Text("%").FontSize(5.5f);
-                table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle().Text("No. of Units").FontSize(5.5f);
-                table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle().Text("Fees").FontSize(5.5f);
+                feeVal = item.SubTotal;
             }
 
-            // --- Data Rows grouped by Category ---
-            RenderCategorySection(table, SoaCategory.Licenses, "FOR LICENSES");
-            RenderCategorySection(table, SoaCategory.Permits, "FOR PERMITS");
-            RenderCategorySection(table, SoaCategory.AmateurRoc, "FOR AMATUER AND ROC");
-            RenderCategorySection(table, SoaCategory.OtherApplication, "OTHER APPLICATION");
+            string amountStr = feeVal.HasValue && feeVal.Value > 0
+                ? feeVal.Value.ToString("N2")
+                : string.Empty;
 
-            // --- TOTAL Row ---
-            table.Cell().ColumnSpan(14).Border(0.5f).BorderColor(Colors.Black).AlignRight().PaddingRight(6)
-                .Text("TOTAL").Bold().FontSize(8f);
-
-            string totalStr = _model.TotalAmount.HasValue ? $"P{_model.TotalAmount.Value:N2}" : string.Empty;
-            table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignRight().PaddingRight(2).AlignMiddle()
-                .Text(totalStr).Bold().FontSize(8f);
-        });
-    }
-
-    private void RenderCategorySection(TableDescriptor table, SoaCategory category, string categoryTitle)
-    {
-        // Category Banner Header
-        table.Cell().ColumnSpan(15).Border(0.5f).BorderColor(Colors.Black).AlignCenter().PaddingVertical(1)
-            .Text(categoryTitle).Bold().FontSize(7.5f);
-
-        var items = _model.Items.FindAll(i => i.Category == category);
-        foreach (var item in items)
-        {
-            // Code
-            table.Cell().Border(0.5f).BorderColor(Colors.Black).PaddingHorizontal(2).AlignMiddle()
-                .Text(item.Code).FontSize(6.8f);
-
-            // Description
-            table.Cell().Border(0.5f).BorderColor(Colors.Black).PaddingHorizontal(2).AlignMiddle()
-                .Text(item.Description).FontSize(6.8f);
-
-            // Particular 1
-            RenderFeeDetailCells(table, item.Particular1);
-
-            // Particular 2
-            RenderFeeDetailCells(table, item.Particular2);
-
-            // Particular 3
-            RenderFeeDetailCells(table, item.Particular3);
-
-            // SubTotal
-            string subTotalStr = item.SubTotal.HasValue ? item.SubTotal.Value.ToString("N2") : string.Empty;
-            table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignRight().PaddingRight(2).AlignMiddle()
-                .Text(subTotalStr).FontSize(6.8f);
+            table.Cell().Border(borderWidth).BorderColor(borderColor)
+                .AlignRight().AlignMiddle().PaddingVertical(2.5f).PaddingHorizontal(6)
+                .Text(amountStr).FontSize(8.5f).Bold();
         }
-    }
-
-    private static void RenderFeeDetailCells(TableDescriptor table, StatementOfAccountFeeDetail detail)
-    {
-        table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-            .Text(detail.NoOfYrs ?? string.Empty).FontSize(6.5f);
-
-        table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-            .Text(detail.Percent ?? string.Empty).FontSize(6.5f);
-
-        table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-            .Text(detail.NoOfUnits ?? string.Empty).FontSize(6.5f);
-
-        string feeStr = detail.Fees.HasValue ? detail.Fees.Value.ToString("N2") : string.Empty;
-        table.Cell().Border(0.5f).BorderColor(Colors.Black).AlignRight().PaddingRight(2).AlignMiddle()
-            .Text(feeStr).FontSize(6.5f);
-    }
-
-    private void ComposePaymentDueDateNote(IContainer container)
-    {
-        container.Row(row =>
-        {
-            row.AutoItem().Text("Note: To be paid on or before  ").Bold().FontSize(8f);
-
-            row.ConstantItem(120).BorderBottom(0.5f).BorderColor(Colors.Black).AlignCenter()
-                .Text(_model.PaymentDueDate ?? string.Empty).FontSize(8f);
-
-            row.AutoItem().Text("  otherwise subject to reassessment.").Bold().FontSize(8f);
-        });
-    }
-
-    private void ComposeBottomSection(IContainer container)
-    {
-        container.Row(row =>
-        {
-            // 1. Bottom-Left O.R. Stamp Box (Width ~155pt, thick border, enlarged amount font)
-            row.ConstantItem(155).Border(1.2f).BorderColor(Colors.Black).Table(orTable =>
-            {
-                orTable.ColumnsDefinition(cd =>
-                {
-                    cd.ConstantColumn(30); // O.R. label column
-                    cd.RelativeColumn();   // Details column
-                });
-
-                // Left cell: "O.R." centered vertically & horizontally
-                orTable.Cell().RowSpan(4).BorderRight(0.8f).BorderColor(Colors.Black).AlignCenter().AlignMiddle()
-                    .Text("O.R.").Bold().FontSize(11);
-
-                // Row 1: No.
-                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
-                {
-                    dr.ConstantItem(38).Text("No.").FontSize(7f);
-                    dr.RelativeItem().Text(_model.OrNo ?? string.Empty).FontSize(7.5f);
-                });
-
-                // Row 2: AMOUNT (Large prominent font size matching official form!)
-                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
-                {
-                    dr.ConstantItem(38).AlignMiddle().Text("AMOUNT:").FontSize(6.5f);
-                    dr.RelativeItem().AlignMiddle().Text(_model.OrAmount ?? string.Empty).Bold().FontSize(15);
-                });
-
-                // Row 3: Date
-                orTable.Cell().BorderBottom(0.5f).BorderColor(Colors.Black).Padding(1.5f).Row(dr =>
-                {
-                    dr.ConstantItem(38).Text("Date:").FontSize(7f);
-                    dr.RelativeItem().Text(_model.OrDate ?? string.Empty).FontSize(7.5f);
-                });
-
-                // Row 4: By
-                orTable.Cell().Padding(1.5f).Row(dr =>
-                {
-                    dr.ConstantItem(38).Text("By:").FontSize(7f);
-                    dr.RelativeItem().Text(_model.OrBy ?? string.Empty).FontSize(7.5f);
-                });
-            });
-
-
-            row.ConstantItem(15); // Spacer
-
-            // 2. Center Assessment Checkboxes (~140pt)
-            row.ConstantItem(140).Column(chkCol =>
-            {
-                chkCol.Item().PaddingTop(8).Element(e => RenderCheckboxItem(e, "For assessment only", _model.IsForAssessmentOnly));
-                chkCol.Item().PaddingTop(8).Element(e => RenderCheckboxItem(e, "Endorsed for Payment", _model.IsEndorsedForPayment));
-            });
-
-            row.RelativeItem(); // Spacer
-
-            // 3. Right Signatures Block (Prepared By & Approved By) (~220pt)
-            row.ConstantItem(220).Column(sigCol =>
-            {
-                sigCol.Item().Row(sigRow =>
-                {
-                    // Prepared By
-                    sigRow.RelativeItem().Column(pCol =>
-                    {
-                        pCol.Item().Text("PREPARED BY:").Bold().FontSize(7.5f);
-                        pCol.Item().Height(20).AlignCenter().AlignBottom().Text(_model.PreparedByName ?? string.Empty).Bold().FontSize(8f);
-                        pCol.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
-                        pCol.Item().AlignCenter().Text(_model.PreparedByTitle).FontSize(7.5f);
-                    });
-
-                    sigRow.ConstantItem(10); // Spacer
-
-                    // Approved By
-                    sigRow.RelativeItem().Column(aCol =>
-                    {
-                        aCol.Item().Text("APPROVED BY:").Bold().FontSize(7.5f);
-                        aCol.Item().Height(20).AlignCenter().AlignBottom().Text(_model.ApprovedByName ?? string.Empty).Bold().FontSize(8f);
-                        aCol.Item().LineHorizontal(0.5f).LineColor(Colors.Black);
-                        aCol.Item().AlignCenter().Text(_model.ApprovedByTitle).FontSize(7.5f);
-                    });
-                });
-            });
-        });
-    }
-
-    private void ComposeRemarksSection(IContainer container)
-    {
-        container.Column(col =>
-        {
-            col.Item().Text("REMARK/S").Bold().FontSize(8f).Underline();
-            col.Item().PaddingTop(2).Text(_model.Remarks).FontSize(7.5f);
-        });
     }
 }

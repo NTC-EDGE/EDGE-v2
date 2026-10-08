@@ -928,9 +928,12 @@ export function ApplicationReviewScreenContent({
         isReturnDisabled={isReturnDisabled}
         approveLabel={approveButtonLabel}
         approveIcon={approveButtonIcon}
+        isCompleted={app.status === 'Completed' || app.status === 'Approved' || app.queueTab === 'history'}
         onApprove={handlePrimaryAction}
         onReturn={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
+        onPrintAccountableForm={() => handlePrintAccountableForm()}
+        onPrintSoa={handlePrintSoa}
       />
 
       {/* ── Modals ── */}
@@ -1056,9 +1059,12 @@ interface WorkflowActionBarProps {
   isReturnDisabled?: boolean;
   approveLabel: string;
   approveIcon: 'check-circle' | 'credit-card' | 'play-circle';
+  isCompleted?: boolean;
   onApprove: () => void;
   onReturn: () => void;
   onEndorse: () => void;
+  onPrintAccountableForm?: () => void;
+  onPrintSoa?: () => void;
 }
 
 function WorkflowActionBar({
@@ -1072,9 +1078,12 @@ function WorkflowActionBar({
   isReturnDisabled = false,
   approveLabel,
   approveIcon,
+  isCompleted = false,
   onApprove,
   onReturn,
   onEndorse,
+  onPrintAccountableForm,
+  onPrintSoa,
 }: WorkflowActionBarProps) {
   const primaryGreen = isDark ? '#166534' : '#15803D';
   const primaryBlue = isDark ? colors.brand[600] : colors.brand[700];
@@ -1092,6 +1101,59 @@ function WorkflowActionBar({
   const endorseEnabled = isEditable && canEndorse;
 
   if (!canApprove && !canDecline && !endorseEnabled) {
+    if (isCompleted) {
+      return (
+        <View
+          style={[
+            sc.actionBar,
+            {
+              borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            },
+          ]}
+        >
+          {onPrintSoa !== undefined && (
+            <Pressable
+              style={[
+                sc.actionBtnOutline,
+                {
+                  backgroundColor: outlineBg,
+                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                  borderWidth: 1.5,
+                },
+                Platform.select({ web: { cursor: 'pointer' } as object }),
+              ]}
+              onPress={onPrintSoa}
+            >
+              <Lucide name="file-text" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
+              <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                SOA / OP Preview
+              </Text>
+            </Pressable>
+          )}
+
+          {onPrintAccountableForm !== undefined && (
+            <Pressable
+              style={[
+                sc.actionBtnPrimary,
+                {
+                  backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
+                  borderColor: 'transparent',
+                  borderWidth: 1,
+                },
+                Platform.select({ web: { cursor: 'pointer' } as object }),
+              ]}
+              onPress={onPrintAccountableForm}
+            >
+              <Lucide name="printer" size={15} color={COLORS.neutral.white} />
+              <Text style={[sc.actionBtnPrimaryText, { color: COLORS.neutral.white }]}>
+                Re-print Accountable Form
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
     return null;
   }
 

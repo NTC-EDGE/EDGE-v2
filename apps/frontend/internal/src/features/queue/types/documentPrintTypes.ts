@@ -192,6 +192,24 @@ export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
       { id: 'signatoryName', label: 'Collecting Officer', topMm: 160, leftMm: 115, widthMm: 65, fontSizePt: 10, fontWeight: 'bold', textAlign: 'center', uppercase: true },
     ],
   },
+  {
+    id: 'NTC-FORM-SOA',
+    code: 'NTC Form - SOA Assessment',
+    title: 'Statement of Account / Cashier Assessment (Assesment-SOA.pdf)',
+    category: 'General',
+    defaultPaperSize: 'a4',
+    defaultOrientation: 'portrait',
+    dimensions: { widthMm: 210, heightMm: 297 },
+    fields: [
+      { id: 'monthOf', label: 'Month of Assessment', topMm: 24, leftMm: 155, widthMm: 45, fontSizePt: 10, fontWeight: 'bold' },
+      { id: 'licenseFee', label: 'License Fee (4-02-01-060)', topMm: 62, leftMm: 155, widthMm: 45, fontSizePt: 10, textAlign: 'right' },
+      { id: 'filingFee', label: 'Filing Fee (4-02-01-130)', topMm: 42, leftMm: 155, widthMm: 45, fontSizePt: 10, textAlign: 'right' },
+      { id: 'inspectionFee', label: 'Inspection Fee (4-02-01-100)', topMm: 68, leftMm: 155, widthMm: 45, fontSizePt: 10, textAlign: 'right' },
+      { id: 'sufFee', label: "Spectrum User's Fee (4-02-01-080)", topMm: 74, leftMm: 155, widthMm: 45, fontSizePt: 10, textAlign: 'right' },
+      { id: 'dstFee', label: 'DST (4-01-04-010)', topMm: 232, leftMm: 155, widthMm: 45, fontSizePt: 10, textAlign: 'right' },
+      { id: 'totalAmount', label: 'Total Amount Due', topMm: 252, leftMm: 155, widthMm: 45, fontSizePt: 11, fontWeight: 'bold', textAlign: 'right' },
+    ],
+  },
 ];
 
 export interface ReportPrintProfile {
@@ -250,12 +268,13 @@ export const REPORT_PRINT_PROFILES: ReportPrintProfile[] = [
   },
   {
     id: 'soa',
-    name: 'Statement of Account (SOA)',
+    name: 'Statement of Account (Assesment-SOA.pdf)',
     category: 'Billing',
-    description: 'Official statutory fee calculation and billing assessment slip',
+    description: 'Official statutory fee calculation and cashier assessment template',
     defaultPaperSize: 'a4',
     defaultOutputMode: 'plain_paper',
     defaultOrientation: 'portrait',
+    associatedTemplateId: 'NTC-FORM-SOA',
   },
   {
     id: 'op',

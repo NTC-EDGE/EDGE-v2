@@ -310,4 +310,35 @@ export const applicationService = {
       return response.data;
     });
   },
+
+  getSoaPrintUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/soa/print`;
+  },
+
+  getOpPrintUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print`;
+  },
+
+  async downloadSoaPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/soa/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async downloadOpPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/op/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
 };
+

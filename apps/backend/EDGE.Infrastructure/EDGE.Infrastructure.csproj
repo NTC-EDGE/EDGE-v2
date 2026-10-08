@@ -9,9 +9,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Printing\Templates\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Printing\Assets\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

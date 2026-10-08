@@ -1,4 +1,6 @@
 using System;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
@@ -7,9 +9,10 @@ using Microsoft.AspNetCore.Routing;
 using EDGE.Application.Applications.Commands.CreateSoa;
 using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
-
+using EDGE.Infrastructure.Printing.Services;
 using EDGE.Api.Endpoints.Soas.DTOs;
 
 namespace EDGE.Api.Endpoints;
@@ -24,7 +27,18 @@ public static class SoaEndpoints
             .WithSummary("Create Statement of Account")
             .WithDescription("Generates an SOA for the given application.");
 
+        app.MapGet("/applications/{id:guid}/soa/print", PrintApplicationSoa)
+            .WithTags("StatementOfAccount")
+            .WithName("PrintApplicationSoa")
+            .WithSummary("Print Application Statement of Account")
+            .WithDescription("Generates and downloads official printable PDF Statement of Account document for the application.");
+
         var group = app.MapGroup("/soas").WithTags("StatementOfAccount");
+
+        group.MapGet("/{soaId:guid}/print", PrintSoaById)
+            .WithName("PrintSoaById")
+            .WithSummary("Print Statement of Account by ID")
+            .WithDescription("Generates and downloads official printable PDF Statement of Account document by SOA ID.");
 
         group.MapPatch("/{soaId:guid}/approve", ApproveSoa)
             .WithName("ApproveSoa")
@@ -113,5 +127,48 @@ public static class SoaEndpoints
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
+    }
+
+    public static async Task<IResult> PrintApplicationSoa(
+        Guid id,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        CancellationToken cancellationToken)
+    {
+        var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var soa = app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+        if (soa == null)
+        {
+            return Results.NotFound(new { message = $"No Statement of Account found for Application '{id}'." });
+        }
+
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app);
+        var pdfBytes = printingService.PrintStatementOfAccount(printModel);
+        var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
+        return Results.File(pdfBytes, "application/pdf", fileName);
+    }
+
+    public static async Task<IResult> PrintSoaById(
+        Guid soaId,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        CancellationToken cancellationToken)
+    {
+        var soa = await repository.GetSoaByIdAsync(soaId, cancellationToken);
+        if (soa == null)
+        {
+            return Results.NotFound(new { message = $"Statement of Account with ID '{soaId}' was not found." });
+        }
+
+        var app = soa.Application ?? await repository.GetByIdWithDetailsAsync(soa.ApplicationId, true, cancellationToken);
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app);
+        var pdfBytes = printingService.PrintStatementOfAccount(printModel);
+        var fileName = $"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf";
+        return Results.File(pdfBytes, "application/pdf", fileName);
     }
 }

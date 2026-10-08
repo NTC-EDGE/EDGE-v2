@@ -65,229 +65,374 @@ function numberToWords(num?: number | null): string {
   return `${inWords(n).trim()} pesos${centsText} only`.toUpperCase();
 }
 
+export interface OfficialSoaFormRow {
+  code: string;
+  description: string;
+  category: 'FOR LICENSES' | 'FOR PERMITS' | 'FOR AMATUER AND ROC' | 'OTHER APPLICATION';
+  amount?: number;
+  matchKeys: string[];
+}
+
+export const OFFICIAL_SOA_FORM_ROWS: OfficialSoaFormRow[] = [
+  // 1. FOR LICENSES
+  { code: '4-02-01-010', description: 'Permit to Purchase', category: 'FOR LICENSES', matchKeys: ['permit to purchase', 'purchase permit'] },
+  { code: '4-02-01-130', description: 'Filling Fee', category: 'FOR LICENSES', matchKeys: ['filling fee', 'filing fee', 'filing'] },
+  { code: '4-02-01-010', description: 'Permit to Possess/Storage', category: 'FOR LICENSES', matchKeys: ['possess', 'storage'] },
+  { code: '4-02-01-010', description: 'Construction Permit Fee', category: 'FOR LICENSES', matchKeys: ['construction permit', 'construction'] },
+  { code: '4-02-01-060', description: 'Radio Station License', category: 'FOR LICENSES', matchKeys: ['radio station license', 'rsl', 'license fee', 'station license'] },
+  { code: '4-02-01-100', description: 'Inspection Fee', category: 'FOR LICENSES', matchKeys: ['inspection fee', 'inspection'] },
+  { code: '4-02-01-080', description: "Spectrum User's Fee (SUF)", category: 'FOR LICENSES', matchKeys: ['spectrum user', 'suf', 'spectrum'] },
+  {
+    code: '4-02-01-140',
+    description: "Fines/Penalties/Surcharges<br><span style=\"font-size: 9.5px; color: #475569;\">(SUR)Radio Station License<br>(SUR)Spectrum User's Fee (SUF)</span>",
+    category: 'FOR LICENSES',
+    matchKeys: ['surcharge', 'surcharges', 'fines', 'penalty', 'penalties']
+  },
+
+  // 2. FOR PERMITS
+  {
+    code: '4-02-01-010',
+    description: 'Permit Fees (Dealers/Reseller/Service<br>Center/Sell/ Transfer/REC/Import)',
+    category: 'FOR PERMITS',
+    matchKeys: ['permit fee', 'dealer', 'reseller', 'service center', 'transfer', 'rec', 'import']
+  },
+  { code: '4-02-01-100', description: 'Inspection Fee', category: 'FOR PERMITS', matchKeys: ['permit inspection'] },
+  { code: '4-02-01-130', description: 'Filling Fee', category: 'FOR PERMITS', matchKeys: ['permit filing', 'permit filling'] },
+  { code: '4-02-01-140', description: 'Fines/Penalties/Surcharges', category: 'FOR PERMITS', matchKeys: ['permit fine', 'permit penalty'] },
+
+  // 3. FOR AMATUER AND ROC
+  { code: '4-02-01-060', description: 'Radio Station License', category: 'FOR AMATUER AND ROC', matchKeys: ['amateur station', 'amateur license', 'amatuer'] },
+  { code: '4-02-01-060', description: "Radio Operator's Cert.", category: 'FOR AMATUER AND ROC', matchKeys: ['radio operator', 'roc', 'operator cert', 'amateur cert'] },
+  { code: '4-02-01-130', description: 'Application Fee/Filing Fee', category: 'FOR AMATUER AND ROC', matchKeys: ['application fee', 'amateur application'] },
+  { code: '4-02-02-040', description: 'Seminar Fee', category: 'FOR AMATUER AND ROC', matchKeys: ['seminar fee', 'seminar'] },
+  {
+    code: '4-02-01-140',
+    description: "Fines/Penalties/Surcharges<br><span style=\"font-size: 9.5px; color: #475569;\">(SUR)Radio Station License :<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TO<br>(SUR)Radio Operator's Cert. :<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;TO</span>",
+    category: 'FOR AMATUER AND ROC',
+    matchKeys: ['amateur penalty', 'roc surcharge']
+  },
+
+  // 4. OTHER APPLICATION
+  { code: '4-02-01-020', description: 'Registration Fee', category: 'OTHER APPLICATION', matchKeys: ['registration fee', 'registration'] },
+  { code: '4-02-01-070', description: 'Supervision & Regulation Fee', category: 'OTHER APPLICATION', matchKeys: ['supervision', 'regulation', 'srf'] },
+  { code: '4-02-01-040', description: 'Verification Fee & Authentication Fees', category: 'OTHER APPLICATION', matchKeys: ['verification', 'authentication'] },
+  { code: '4-02-01-030', description: 'Examination Fee', category: 'OTHER APPLICATION', matchKeys: ['examination fee', 'examination', 'exam'] },
+  { code: '4-02-01-040', description: 'Clearance/Certification Fee', category: 'OTHER APPLICATION', matchKeys: ['clearance', 'certification fee'] },
+  { code: '4-02-01-060', description: 'Modification Fee', category: 'OTHER APPLICATION', matchKeys: ['modification fee', 'modification'] },
+  { code: '4-02-01-990', description: 'Miscellaneous Income', category: 'OTHER APPLICATION', matchKeys: ['miscellaneous', 'misc'] },
+  { code: '4-01-04-010', description: 'Documentary Stamp Tax (DST)', category: 'OTHER APPLICATION', matchKeys: ['documentary stamp', 'dst', 'stamp tax'] },
+  { code: '', description: 'Others (PENALTY FOR LATE<br>&nbsp;DELIVERY)', category: 'OTHER APPLICATION', matchKeys: ['late delivery', 'late penalty', 'others'] },
+];
+
+export function getPopulatedSoaRows(app: ApplicationData): { rows: (OfficialSoaFormRow & { calculatedAmount: number })[]; totalAmount: number } {
+  const rowMap = OFFICIAL_SOA_FORM_ROWS.map((r) => ({
+    ...r,
+    calculatedAmount: 0,
+  }));
+
+  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
+
+  if (soaItemsList.length > 0) {
+    for (const item of soaItemsList) {
+      const itemParticular = safeString(item.particular, '').toLowerCase();
+      const itemCode = safeString(item.code, '').toLowerCase();
+      const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
+
+      // 1. Try exact code matching
+      let matched = rowMap.find((r) => r.code.length > 0 && r.code.toLowerCase() === itemCode);
+
+      // 2. Try matchKeys
+      if (!matched) {
+        matched = rowMap.find((r) =>
+          r.matchKeys.some((k) => itemParticular.includes(k) || (itemCode.length > 0 && itemCode.includes(k)))
+        );
+      }
+
+      if (matched) {
+        matched.calculatedAmount += amount;
+      } else {
+        // Fallback to Others
+        const others = rowMap.find((r) => r.category === 'OTHER APPLICATION' && r.matchKeys.includes('others'));
+        if (others) {
+          others.calculatedAmount += amount;
+        }
+      }
+    }
+  } else if (typeof app.totalAmountDue === 'number' && app.totalAmountDue > 0) {
+    const sName = (app.serviceName || app.category || '').toLowerCase();
+    if (sName.includes('license') || sName.includes('station') || sName.includes('rsl')) {
+      const rslRow = rowMap.find((r) => r.code === '4-02-01-060' && r.category === 'FOR LICENSES');
+      if (rslRow) rslRow.calculatedAmount = app.totalAmountDue;
+    } else if (sName.includes('permit')) {
+      const permitRow = rowMap.find((r) => r.category === 'FOR PERMITS' && r.code === '4-02-01-010');
+      if (permitRow) permitRow.calculatedAmount = app.totalAmountDue;
+    } else if (sName.includes('amateur') || sName.includes('operator') || sName.includes('roc')) {
+      const rocRow = rowMap.find((r) => r.category === 'FOR AMATUER AND ROC' && r.code === '4-02-01-060');
+      if (rocRow) rocRow.calculatedAmount = app.totalAmountDue;
+    } else {
+      const regRow = rowMap.find((r) => r.code === '4-02-01-020');
+      if (regRow) regRow.calculatedAmount = app.totalAmountDue;
+    }
+  }
+
+  const computedTotal = rowMap.reduce((sum, r) => sum + r.calculatedAmount, 0);
+  const finalTotal = computedTotal > 0 ? computedTotal : (app.totalAmountDue || 0);
+
+  return { rows: rowMap, totalAmount: finalTotal };
+}
+
 export function generateSoaPrintableHtml(
   app: ApplicationData,
-  tenantName?: string,
+  optionsOrTenantName?: { outputMode?: 'plain_paper' | 'accountable_form'; monthOf?: string; tenantName?: string } | string,
   preparerName?: string,
   approverName?: string
 ): string {
-  const currentDate = new Date().toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric',
-  });
+  const isOptionsObj = typeof optionsOrTenantName === 'object' && optionsOrTenantName !== null;
+  const outputMode = isOptionsObj ? optionsOrTenantName.outputMode ?? 'plain_paper' : 'plain_paper';
+  const isOverlay = outputMode === 'accountable_form';
 
-  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
-  const soaNumber = `SOA-${refNum}`;
-  const totalWords = numberToWords(app.totalAmountDue);
-  const officeName = safeString(app.assignedTo || app.office || tenantName, 'National Telecommunications Commission');
-  const applicantName = safeString(app.applicant, 'Applicant');
-  const applicantType = safeString(app.applicantType, 'Individual');
-  const contactNum = safeString(app.contactDetails?.contactNumber, 'N/A');
-  const emailAddr = safeString(app.contactDetails?.email, 'N/A');
-  const formattedAddr = formatAddress(app);
-  const serviceName = safeString(app.serviceName, 'Application Services');
-  const categoryName = safeString(app.category, 'General');
-  const filingMode = safeString(app.mode, 'Single');
-  const dueDateStr = safeString(app.dueDate, '30 days from issuance');
+  const dateObj = app.createdAt ? new Date(app.createdAt) : new Date();
+  const currentMonthYear = isOptionsObj && optionsOrTenantName.monthOf
+    ? optionsOrTenantName.monthOf.toUpperCase()
+    : dateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }).toUpperCase();
 
-  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
-  const lineItemsHtml =
-    soaItemsList.length > 0
-      ? soaItemsList
-          .map((item, index) => {
-            const itemCode = safeString(item.code, 'NTC-FEE');
-            const itemParticular = safeString(item.particular, 'Statutory Regulatory Fee');
-            const validityYears = typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 1;
-            const noOfUnits = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
-            const fees = typeof item.fees === 'number' && !isNaN(item.fees) ? item.fees : 0;
-            const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : fees * noOfUnits;
+  const { rows, totalAmount } = getPopulatedSoaRows(app);
+  const formattedTotal = totalAmount > 0 ? totalAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '';
 
-            return `
-        <tr>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 8px; font-size: 11px; text-align: center;">${index + 1}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; font-family: monospace; color: #0284c7;">${itemCode}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px;">
-            <div style="font-weight: 600; color: #0f172a;">${itemParticular}</div>
-            <div style="font-size: 10px; color: #64748b;">Validity: ${validityYears} Year(s)</div>
-          </td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${validityYears}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: center;">${noOfUnits}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right;">${formatCurrency(fees)}</td>
-          <td style="border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; text-align: right; font-weight: 700; color: #0f172a;">${formatCurrency(amount)}</td>
+  const categories: Array<'FOR LICENSES' | 'FOR PERMITS' | 'FOR AMATUER AND ROC' | 'OTHER APPLICATION'> = [
+    'FOR LICENSES',
+    'FOR PERMITS',
+    'FOR AMATUER AND ROC',
+    'OTHER APPLICATION',
+  ];
+
+  const tableSectionsHtml = categories
+    .map((cat) => {
+      const catRows = rows.filter((r) => r.category === cat);
+      const rowsHtml = catRows
+        .map((r) => {
+          const amtStr = r.calculatedAmount > 0
+            ? r.calculatedAmount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+            : '';
+
+          return `
+            <tr style="height: 22px;">
+              <td class="code-cell">${isOverlay ? '' : r.code}</td>
+              <td class="desc-cell">${isOverlay ? '' : r.description}</td>
+              <td class="amount-cell">${amtStr}</td>
+            </tr>
+          `;
+        })
+        .join('');
+
+      return `
+        <tr class="banner-row">
+          <td colspan="3" class="banner-cell">${isOverlay ? '' : cat}</td>
         </tr>
+        ${rowsHtml}
       `;
-          })
-          .join('')
-      : `
-        <tr>
-          <td colspan="7" style="border: 1px solid #cbd5e1; padding: 18px; text-align: center; color: #64748b; font-style: italic;">
-            Standard statutory fees assessed for ${serviceName}. Total: ${formatCurrency(app.totalAmountDue)}
-          </td>
-        </tr>
-      `;
+    })
+    .join('');
 
   return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Statement of Account - ${soaNumber}</title>
+  <title>Statement of Account - ${app.referenceNumber || app.id || 'NTC-SOA'}</title>
   <style>
+    @page {
+      size: A4 portrait;
+      margin: 12mm 15mm;
+    }
     @media print {
-      @page { margin: 12mm 15mm; size: A4 portrait; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      body {
+        margin: 0;
+        padding: 0;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
       .no-print { display: none !important; }
     }
+    * {
+      box-sizing: border-box;
+      -webkit-font-smoothing: antialiased;
+    }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: #1e293b;
-      margin: 0;
-      padding: 24px;
+      font-family: 'Times New Roman', Times, serif, 'Segoe UI', Arial;
+      color: #000000;
       background-color: #ffffff;
-      line-height: 1.4;
-    }
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .header-text { text-align: center; }
-    .republic-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 600; }
-    .agency-title { font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; margin-top: 2px; }
-    .office-title { font-size: 12px; font-weight: 600; color: #0284c7; }
-    .doc-banner {
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #ffffff;
-      padding: 12px 18px;
-      border-radius: 6px;
+      margin: 0;
+      padding: 16px 0;
       display: flex;
-      justify-content: space-between;
+      flex-direction: column;
       align-items: center;
-      margin-bottom: 20px;
     }
-    .doc-title { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
-    .doc-ref { font-size: 12px; font-family: monospace; color: #38bdf8; font-weight: 700; }
-    .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; }
-    .info-title { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
-    .info-name { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
-    .info-sub { font-size: 11px; color: #475569; }
-    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    .th-cell { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
-    .total-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
-    .total-row { display: flex; justify-content: space-between; align-items: center; }
-    .total-amount { font-size: 20px; font-weight: 800; color: #0f172a; }
-    .total-words { font-size: 11px; font-weight: 600; color: #0284c7; margin-top: 4px; }
-    .due-date-badge { display: inline-block; background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-    .guidelines { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px 16px; font-size: 10.5px; color: #166534; margin-bottom: 24px; }
-    .signatories { display: flex; justify-content: space-between; margin-top: 30px; }
-    .sig-block { width: 45%; border-top: 1px solid #94a3b8; padding-top: 6px; text-align: center; }
-    .sig-name { font-size: 12px; font-weight: 700; color: #0f172a; text-transform: uppercase; }
-    .sig-role { font-size: 10px; color: #64748b; }
-    .footer-note { font-size: 9px; color: #94a3b8; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 8px; }
-    .print-btn-bar { position: fixed; top: 12px; right: 12px; z-index: 999; }
-    .btn-print { background: #0284c7; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .page-container {
+      width: 100%;
+      max-width: 680px;
+      margin: 0 auto;
+    }
+    .print-actions {
+      position: fixed;
+      top: 14px;
+      right: 14px;
+      z-index: 1000;
+      display: flex;
+      gap: 8px;
+    }
+    .btn-print {
+      background: #0f172a;
+      color: #ffffff;
+      border: 1px solid #334155;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-family: system-ui, sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+    }
+    .mode-indicator {
+      font-family: system-ui, sans-serif;
+      font-size: 11px;
+      color: #64748b;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    /* Main official NTC Assessment Form Table */
+    .soa-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: ${isOverlay ? '1.5px solid transparent' : '2px solid #000000'};
+      table-layout: fixed;
+    }
+    .col-code { width: 92px; }
+    .col-desc { width: 388px; }
+    .col-amt { width: 200px; }
+
+    .header-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      text-align: center;
+      vertical-align: middle;
+      font-weight: bold;
+      font-size: 13px;
+      padding: 6px 4px;
+    }
+    .report-title {
+      font-size: 12.5px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-bottom: 2px;
+    }
+    .month-label {
+      font-size: 12px;
+      font-weight: bold;
+      margin-top: 4px;
+    }
+    .month-val {
+      display: inline-block;
+      min-width: 90px;
+      text-align: center;
+      border-bottom: ${isOverlay ? 'none' : '1px solid #000000'};
+      padding: 0 4px;
+      font-weight: bold;
+      font-size: 12px;
+    }
+    .banner-row {
+      height: 22px;
+    }
+    .banner-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      text-align: center;
+      vertical-align: middle;
+      font-weight: bold;
+      font-size: 12.5px;
+      text-transform: uppercase;
+      padding: 2px 4px;
+    }
+    .code-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      font-size: 11.5px;
+      padding: 2px 6px;
+      vertical-align: middle;
+      text-align: left;
+      font-family: monospace, 'Courier New';
+    }
+    .desc-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      font-size: 11.5px;
+      padding: 2px 6px;
+      vertical-align: middle;
+      text-align: left;
+      line-height: 1.15;
+    }
+    .amount-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      font-size: 12px;
+      font-weight: bold;
+      padding: 2px 10px;
+      vertical-align: middle;
+      text-align: right;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    .total-label-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      text-align: right;
+      vertical-align: middle;
+      font-weight: bold;
+      font-size: 13.5px;
+      padding: 4px 12px;
+    }
+    .total-amount-cell {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      text-align: right;
+      vertical-align: middle;
+      font-weight: bold;
+      font-size: 13px;
+      padding: 4px 10px;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
   </style>
 </head>
 <body>
-  <div class="print-btn-bar no-print">
+  <div class="print-actions no-print">
     <button class="btn-print" onclick="window.print()">Print Statement of Account</button>
   </div>
 
-  <table class="header-table">
-    <tr>
-      <td class="header-text">
-        <div class="republic-title">Republic of the Philippines</div>
-        <div class="agency-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
-        <div class="office-title">${officeName}</div>
-      </td>
-    </tr>
-  </table>
-
-  <div class="doc-banner">
-    <div>
-      <div class="doc-title">STATEMENT OF ACCOUNT (SOA)</div>
-      <div style="font-size: 10px; opacity: 0.85;">Official Billing Assessment & Regulatory Fee Schedule</div>
+  <div class="page-container">
+    <div class="mode-indicator no-print">
+      ${isOverlay ? '⚡ Pre-Printed Accountable Form Overlay Mode (Background artwork & borders suppressed for physical stationery)' : '📄 Official Plain Paper Electronic Form (Assesment-SOA.pdf standard layout)'}
     </div>
-    <div style="text-align: right;">
-      <div class="doc-ref">${soaNumber}</div>
-      <div style="font-size: 10px; color: #94a3b8;">Issued: ${currentDate}</div>
-    </div>
-  </div>
 
-  <table class="info-grid">
-    <tr>
-      <td style="width: 50%; vertical-align: top; padding-right: 8px;">
-        <div class="info-card">
-          <div class="info-title">Billed To (Applicant / Payor)</div>
-          <div class="info-name">${applicantName}</div>
-          <div class="info-sub"><strong>Type:</strong> ${applicantType} • <strong>Contact:</strong> ${contactNum}</div>
-          <div class="info-sub"><strong>Email:</strong> ${emailAddr}</div>
-          <div class="info-sub"><strong>Address:</strong> ${formattedAddr}</div>
-        </div>
-      </td>
-      <td style="width: 50%; vertical-align: top; padding-left: 8px;">
-        <div class="info-card">
-          <div class="info-title">Application Reference</div>
-          <div class="info-name" style="font-family: monospace; color: #0284c7;">Ref #${refNum}</div>
-          <div class="info-sub"><strong>Service:</strong> ${serviceName}</div>
-          <div class="info-sub"><strong>Category:</strong> ${categoryName} • <strong>Mode:</strong> ${filingMode}</div>
-          <div class="info-sub" style="margin-top: 4px;">
-            <strong>Payment Due Date:</strong>
-            <span class="due-date-badge">${dueDateStr}</span>
-          </div>
-        </div>
-      </td>
-    </tr>
-  </table>
-
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th class="th-cell" style="width: 4%;">#</th>
-        <th class="th-cell" style="width: 14%;">Item Code</th>
-        <th class="th-cell" style="width: 38%;">Particulars / Description</th>
-        <th class="th-cell" style="width: 10%; text-align: center;">Validity</th>
-        <th class="th-cell" style="width: 8%; text-align: center;">Units</th>
-        <th class="th-cell" style="width: 12%; text-align: right;">Rate (PHP)</th>
-        <th class="th-cell" style="width: 14%; text-align: right;">Amount (PHP)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lineItemsHtml}
-    </tbody>
-  </table>
-
-  <div class="total-card">
-    <div class="total-row">
-      <div>
-        <div style="font-size: 11px; font-weight: 700; color: #64748b; text-transform: uppercase;">Total Assessment Due</div>
-        <div class="total-words">${totalWords}</div>
-      </div>
-      <div style="text-align: right;">
-        <div class="total-amount">${formatCurrency(app.totalAmountDue)}</div>
-      </div>
-    </div>
-  </div>
-
-  <div class="guidelines">
-    <div style="font-weight: 700; margin-bottom: 2px;">PAYMENT ADVISORY & GUIDELINES:</div>
-    <div>1. Please settle the assessed amount on or before the indicated due date to avoid surcharges or application forfeiture.</div>
-    <div>2. Payments may be made via Land Bank of the Philippines, NTC Cashier, or authorized online payment gateways.</div>
-    <div>3. Always present this Statement of Account Reference Number (<strong>${soaNumber}</strong>) upon payment.</div>
-  </div>
-
-  <div class="signatories">
-    <div class="sig-block">
-      <div class="sig-name">${safeString(preparerName, 'Assessing Officer / Evaluator')}</div>
-      <div class="sig-role">Assessed & Prepared By</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-name">${safeString(approverName, 'Chief, Enforcement & Operations Division')}</div>
-      <div class="sig-role">Noted & Certified Correct</div>
-    </div>
-  </div>
-
-  <div class="footer-note">
-    This is an official system-generated billing record issued by the National Telecommunications Commission (NTC-EDGE).
-    Governed by RA 11032 (Ease of Doing Business Act) and Commission guidelines.
+    <table class="soa-table">
+      <colgroup>
+        <col class="col-code" />
+        <col class="col-desc" />
+        <col class="col-amt" />
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="header-cell">${isOverlay ? '' : 'Code'}</th>
+          <th class="header-cell">${isOverlay ? '' : 'Description'}</th>
+          <th class="header-cell" style="padding: 4px 2px;">
+            ${isOverlay ? '<div style="height: 14px;"></div>' : '<div class="report-title">CASHIER\'S REPORT</div>'}
+            <div class="month-label">
+              ${isOverlay ? '' : 'MONTH OF '}
+              <span class="month-val">${currentMonthYear}</span>
+            </div>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        ${tableSectionsHtml}
+        <tr style="height: 26px;">
+          <td colspan="2" class="total-label-cell">${isOverlay ? '' : 'TOTAL'}</td>
+          <td class="total-amount-cell">${formattedTotal}</td>
+        </tr>
+      </tbody>
+    </table>
   </div>
 </body>
 </html>
