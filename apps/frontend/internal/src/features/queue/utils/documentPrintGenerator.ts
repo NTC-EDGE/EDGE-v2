@@ -52,26 +52,85 @@ function getPaperSizeCss(options: DocumentPrintOptions): { widthMm: number; heig
   return { widthMm: actualWidth, heightMm: actualHeight, sizeCss };
 }
 
+export function getEligibleTemplatesForApplication(
+  app: ApplicationData,
+  documentCategory: 'billing' | 'issuance' | 'receipt' = 'issuance'
+): AccountableFormTemplate[] {
+  // 1. Billing Context (Statement of Account)
+  if (documentCategory === 'billing') {
+    const soaTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-SOA');
+    return soaTemplates.length > 0 ? soaTemplates : [ACCOUNTABLE_FORM_TEMPLATES[0]];
+  }
+
+  // 2. Receipt Context (Official Receipt)
+  if (documentCategory === 'receipt') {
+    const receiptTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'AF-51');
+    return receiptTemplates.length > 0 ? receiptTemplates : [ACCOUNTABLE_FORM_TEMPLATES[0]];
+  }
+
+  // 3. Issuance Context: Strictly match to the specific service and service variant
+  const category = (app.serviceCategory || app.category || '').toLowerCase();
+  const service = (app.serviceName || app.permitTitle || '').toLowerCase();
+  const serviceVariant = (app.serviceVariantName || '').toLowerCase();
+
+  // Radio Operator Certificate (ROC) / Amateur Operator
+  if (
+    category.includes('operator') ||
+    service.includes('operator') ||
+    service.includes('roc') ||
+    serviceVariant.includes('roc') ||
+    service.includes('amateur') ||
+    service.includes('examination')
+  ) {
+    const operatorTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-102');
+    if (operatorTemplates.length > 0) return operatorTemplates;
+  }
+
+  // Radio Station License (RSL) / Commercial Station
+  if (
+    category.includes('station') ||
+    service.includes('radio station') ||
+    service.includes('rsl') ||
+    serviceVariant.includes('rsl') ||
+    category.includes('license')
+  ) {
+    const licenseTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-101');
+    if (licenseTemplates.length > 0) return licenseTemplates;
+  }
+
+  // Certificate of Registration / Dealer Permit / Purchase & Possess
+  if (
+    category.includes('permit') ||
+    service.includes('permit') ||
+    service.includes('registration') ||
+    service.includes('cor') ||
+    serviceVariant.includes('cor') ||
+    service.includes('dealer')
+  ) {
+    const permitTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-301');
+    if (permitTemplates.length > 0) return permitTemplates;
+  }
+
+  // Fallback: match by closest non-financial category
+  const matchedByCategory = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => {
+    if (t.id === 'NTC-FORM-SOA' || t.id === 'AF-51') return false;
+    if (category.includes('license') && t.category === 'Licenses') return true;
+    if (category.includes('cert') && t.category === 'Certificates') return true;
+    if (category.includes('permit') && t.category === 'Permits') return true;
+    return false;
+  });
+
+  return matchedByCategory.length > 0 ? matchedByCategory : [ACCOUNTABLE_FORM_TEMPLATES[0]];
+}
+
 export function findMatchingTemplate(app: ApplicationData, templateId?: string): AccountableFormTemplate {
-  if (templateId) {
+  if (templateId && templateId.trim().length > 0) {
     const matched = ACCOUNTABLE_FORM_TEMPLATES.find((t) => t.id === templateId);
     if (matched) return matched;
   }
 
-  const category = (app.serviceCategory || app.category || '').toLowerCase();
-  const service = (app.serviceName || '').toLowerCase();
-
-  if (category.includes('license') || service.includes('radio station') || service.includes('rsl')) {
-    return ACCOUNTABLE_FORM_TEMPLATES[0] ?? ACCOUNTABLE_FORM_TEMPLATES[0]; // NTC-FORM-101
-  }
-  if (category.includes('cert') || service.includes('operator') || service.includes('amateur')) {
-    return ACCOUNTABLE_FORM_TEMPLATES[1] ?? ACCOUNTABLE_FORM_TEMPLATES[0]; // NTC-FORM-102
-  }
-  if (category.includes('permit') || service.includes('permit') || service.includes('registration')) {
-    return ACCOUNTABLE_FORM_TEMPLATES[2] ?? ACCOUNTABLE_FORM_TEMPLATES[0]; // NTC-FORM-301
-  }
-
-  return ACCOUNTABLE_FORM_TEMPLATES[0] ?? ACCOUNTABLE_FORM_TEMPLATES[0];
+  const eligible = getEligibleTemplatesForApplication(app, 'issuance');
+  return eligible[0] ?? ACCOUNTABLE_FORM_TEMPLATES[0];
 }
 
 /**

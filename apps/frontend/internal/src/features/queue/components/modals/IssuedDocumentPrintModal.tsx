@@ -35,6 +35,7 @@ import {
 } from '../../types/documentPrintTypes';
 import {
   findMatchingTemplate,
+  getEligibleTemplatesForApplication,
   generateStatutoryDocumentHtml,
   generateAccountableFormOverlayHtml,
   generateAlignmentTestSheetHtml,
@@ -62,7 +63,13 @@ export function IssuedDocumentPrintModal({
   const { user, clerkUser } = useAuthContext();
   const activeUserId = user?.id ?? clerkUser?.id ?? null;
 
-  const defaultTemplate = useMemo(() => findMatchingTemplate(app), [app]);
+  const eligibleTemplates = useMemo(() => {
+    return getEligibleTemplatesForApplication(app, 'issuance');
+  }, [app]);
+
+  const defaultTemplate = useMemo(() => {
+    return eligibleTemplates[0] ?? findMatchingTemplate(app);
+  }, [eligibleTemplates, app]);
 
   // Printing Configurations
   const [outputMode, setOutputMode] = useState<PrintOutputMode>(
@@ -312,39 +319,66 @@ export function IssuedDocumentPrintModal({
                   <Text style={[styles.sectionHeading, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
                     2. ACCOUNTABLE FORM TEMPLATE
                   </Text>
-                  <View style={{ gap: 6 }}>
-                    {ACCOUNTABLE_FORM_TEMPLATES.map((tmpl) => {
-                      const isSelected = tmpl.id === selectedTemplateId;
-                      return (
-                        <TouchableOpacity
-                          key={tmpl.id}
-                          onPress={() => {
-                            setSelectedTemplateId(tmpl.id);
-                            setPaperSize(tmpl.defaultPaperSize);
-                          }}
-                          style={[
-                            styles.templateOptionRow,
-                            isSelected && styles.templateOptionRowSelected,
-                            {
-                              backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                              borderColor: isSelected ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
-                            },
-                          ]}
-                          activeOpacity={0.7}
-                        >
-                          <View style={{ flex: 1 }}>
-                            <Text style={[styles.templateOptionCode, { color: isSelected ? '#D97706' : isDark ? colors.neutral[200] : colors.neutral[800] }]}>
-                              {tmpl.code} • {tmpl.title}
-                            </Text>
-                            <Text style={[styles.templateOptionMeta, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                              {tmpl.dimensions.widthMm} x {tmpl.dimensions.heightMm} mm ({tmpl.defaultPaperSize.toUpperCase()})
-                            </Text>
-                          </View>
-                          {isSelected && <Lucide name="check" size={16} color="#D97706" />}
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  {eligibleTemplates.length === 1 ? (
+                    <View
+                      style={[
+                        styles.templateOptionRow,
+                        styles.templateOptionRowSelected,
+                        {
+                          backgroundColor: isDark ? 'rgba(217, 119, 6, 0.12)' : '#FFFBEB',
+                          borderColor: '#D97706',
+                          paddingVertical: 12,
+                        },
+                      ]}
+                    >
+                      <View style={{ flex: 1 }}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
+                          <Lucide name="lock" size={13} color="#D97706" />
+                          <Text style={[styles.templateOptionCode, { color: '#D97706', fontWeight: 'bold' }]}>
+                            {eligibleTemplates[0].code} • {eligibleTemplates[0].title}
+                          </Text>
+                        </View>
+                        <Text style={[styles.templateOptionMeta, { color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
+                          Auto-matched for {app.serviceName || 'this service'} ({eligibleTemplates[0].dimensions.widthMm} x {eligibleTemplates[0].dimensions.heightMm} mm)
+                        </Text>
+                      </View>
+                      <Lucide name="check-circle" size={18} color="#D97706" />
+                    </View>
+                  ) : (
+                    <View style={{ gap: 6 }}>
+                      {eligibleTemplates.map((tmpl) => {
+                        const isSelected = tmpl.id === selectedTemplateId;
+                        return (
+                          <TouchableOpacity
+                            key={tmpl.id}
+                            onPress={() => {
+                              setSelectedTemplateId(tmpl.id);
+                              setPaperSize(tmpl.defaultPaperSize);
+                            }}
+                            style={[
+                              styles.templateOptionRow,
+                              isSelected && styles.templateOptionRowSelected,
+                              {
+                                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
+                                borderColor: isSelected ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
+                              },
+                            ]}
+                            activeOpacity={0.7}
+                          >
+                            <View style={{ flex: 1 }}>
+                              <Text style={[styles.templateOptionCode, { color: isSelected ? '#D97706' : isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+                                {tmpl.code} • {tmpl.title}
+                              </Text>
+                              <Text style={[styles.templateOptionMeta, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                                {tmpl.dimensions.widthMm} x {tmpl.dimensions.heightMm} mm ({tmpl.defaultPaperSize.toUpperCase()})
+                              </Text>
+                            </View>
+                            {isSelected && <Lucide name="check" size={16} color="#D97706" />}
+                          </TouchableOpacity>
+                        );
+                      })}
+                    </View>
+                  )}
                 </View>
               )}
 
