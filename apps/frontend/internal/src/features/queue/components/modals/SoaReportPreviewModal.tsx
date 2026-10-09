@@ -403,7 +403,7 @@ export function SoaReportPreviewModal({
                   </View>
                 </View>
 
-                {/* Official Assesment-SOA.pdf Document Canvas */}
+                {/* Official soa-report-template.pdf Document Canvas */}
                 <View
                   style={[
                     styles.docPaper,

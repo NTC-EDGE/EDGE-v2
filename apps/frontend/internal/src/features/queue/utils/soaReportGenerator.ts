@@ -403,7 +403,7 @@ export function generateSoaPrintableHtml(
 
   <div class="page-container">
     <div class="mode-indicator no-print">
-      ${isOverlay ? '⚡ Pre-Printed Accountable Form Overlay Mode (Background artwork & borders suppressed for physical stationery)' : '📄 Official Plain Paper Electronic Form (Assesment-SOA.pdf standard layout)'}
+      ${isOverlay ? '⚡ Pre-Printed Accountable Form Overlay Mode (Background artwork & borders suppressed for physical stationery)' : '📄 Official Plain Paper Electronic Form (soa-report-template.pdf standard layout)'}
     </div>
 
     <table class="soa-table">

@@ -200,7 +200,7 @@ public class CloudflareR2PdfTemplateProviderTests
         {
             S3Objects = new System.Collections.Generic.List<S3Object>
             {
-                new S3Object { Key = "templates/Assesment-SOA.pdf" },
+                new S3Object { Key = "templates/soa-report-template.pdf" },
                 new S3Object { Key = "templates/ntc-1-01.pdf" },
                 new S3Object { Key = "templates/ntc-1-02.pdf" }
             }
@@ -215,7 +215,7 @@ public class CloudflareR2PdfTemplateProviderTests
         var templates = await _provider.ListTemplatesAsync();
 
         // Assert
-        templates.Should().Contain(new[] { "Assesment-SOA.pdf", "ntc-1-01.pdf", "ntc-1-02.pdf" });
+        templates.Should().Contain(new[] { "soa-report-template.pdf", "ntc-1-01.pdf", "ntc-1-02.pdf" });
     }
 
     [Fact]

@@ -195,7 +195,7 @@ export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
   {
     id: 'NTC-FORM-SOA',
     code: 'NTC Form - SOA Assessment',
-    title: 'Statement of Account / Cashier Assessment (Assesment-SOA.pdf)',
+    title: 'Statement of Account / Cashier Assessment (soa-report-template.pdf)',
     category: 'General',
     defaultPaperSize: 'a4',
     defaultOrientation: 'portrait',
@@ -268,7 +268,7 @@ export const REPORT_PRINT_PROFILES: ReportPrintProfile[] = [
   },
   {
     id: 'soa',
-    name: 'Statement of Account (Assesment-SOA.pdf)',
+    name: 'Statement of Account (soa-report-template.pdf)',
     category: 'Billing',
     description: 'Official statutory fee calculation and cashier assessment template',
     defaultPaperSize: 'a4',

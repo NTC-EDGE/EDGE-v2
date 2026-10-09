@@ -373,20 +373,38 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
 
     private static string? ResolveLocalTemplatePath(string templateName)
     {
-        var fileName = templateName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? templateName : $"{templateName}.pdf";
-        var candidatePaths = new[]
+        var clean = NormalizeTemplateId(templateName);
+        var fileNames = new List<string>
         {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "templates", fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "templates", fileName),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "templates", fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "templates", fileName)
+            clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf"
         };
 
-        foreach (var path in candidatePaths)
+        if (clean.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("Assesment-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("Assessment-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("NTC-FORM-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
         {
-            if (File.Exists(path))
+            fileNames.Add("soa-report-template.pdf");
+            fileNames.Add("Assesment-SOA.pdf");
+        }
+
+        foreach (var fileName in fileNames)
+        {
+            var candidatePaths = new[]
             {
-                return Path.GetFullPath(path);
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "templates", fileName),
+                Path.Combine(Directory.GetCurrentDirectory(), "templates", fileName),
+                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "templates", fileName),
+                Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "templates", fileName)
+            };
+
+            foreach (var path in candidatePaths)
+            {
+                if (File.Exists(path))
+                {
+                    return Path.GetFullPath(path);
+                }
             }
         }
 

@@ -9,7 +9,7 @@ namespace EDGE.Infrastructure.Printing.Reports;
 
 /// <summary>
 /// Printable Statement of Account / Cashier's Assessment document for National Telecommunications Commission.
-/// Renders an exact replica of the official NTC Assesment-SOA.pdf accountable form on standard A4 portrait.
+/// Renders an exact replica of the official NTC soa-report-template.pdf accountable form on standard A4 portrait.
 /// Supports both full electronic form rendering and blank physical accountable form overlay.
 /// </summary>
 public class StatementOfAccountReport : IDocument
@@ -39,7 +39,7 @@ public class StatementOfAccountReport : IDocument
 
             page.Content().Column(col =>
             {
-                // Main Official Grid matching Assesment-SOA.pdf
+                // Main Official Grid matching soa-report-template.pdf
                 col.Item().Border(outerBorderWidth).BorderColor(borderColor).Table(table =>
                 {
                     table.ColumnsDefinition(cd =>
