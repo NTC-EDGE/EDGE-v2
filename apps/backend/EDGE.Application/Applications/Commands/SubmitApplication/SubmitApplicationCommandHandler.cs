@@ -590,8 +590,16 @@ public class SubmitApplicationCommandHandler
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to save application. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to submit or save application for TenantId '{TenantId}', ExistingDraftId '{ExistingDraftId}'.", request.TenantId, request.ExistingDraftId);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application submission for TenantId '{TenantId}'.", request.TenantId);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while saving the application. Please try again later.");
         }
     }
 

@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,17 +15,20 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
     private readonly IServiceRepository _serviceRepository;
     private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UpdateApplicationCommandHandler> _logger;
 
     public UpdateApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
         IServiceRepository serviceRepository,
         IServiceVariantElementRepository elementRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<UpdateApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _serviceRepository = serviceRepository;
         _elementRepository = elementRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
@@ -72,8 +76,16 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to update application draft. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to update application draft for ApplicationId '{ApplicationId}'.", request.Id);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application update for ApplicationId '{ApplicationId}'.", request.Id);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating the application draft. Please try again later.");
         }
     }
 }

@@ -113,9 +113,16 @@ public class ConvertAssessmentToRealApplicationCommandHandler
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Failed to convert assessment application '{ApplicationId}' to real application.", request.ApplicationId);
-            return ApiResponse<Guid>.Fail($"Failed to convert application: {ex.Message}");
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application conversion for ApplicationId '{ApplicationId}'.", request.ApplicationId);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while converting the application. Please try again later.");
         }
     }
 

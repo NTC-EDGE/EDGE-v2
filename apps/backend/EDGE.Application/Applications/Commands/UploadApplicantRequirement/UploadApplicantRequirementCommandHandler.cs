@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
@@ -22,6 +23,7 @@ public class UploadApplicantRequirementCommandHandler
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UploadApplicantRequirementCommandHandler> _logger;
 
     public UploadApplicantRequirementCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -30,7 +32,8 @@ public class UploadApplicantRequirementCommandHandler
         ITenantContextService tenantContext,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<UploadApplicantRequirementCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
@@ -39,6 +42,7 @@ public class UploadApplicantRequirementCommandHandler
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -213,8 +217,16 @@ public class UploadApplicantRequirementCommandHandler
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to upload requirement. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to upload applicant requirement for ApplicationId '{ApplicationId}', StoredFileId '{StoredFileId}'.", request.ApplicationId, request.StoredFileId);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during requirement upload for ApplicationId '{ApplicationId}'.", request.ApplicationId);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while uploading the requirement document. Please try again later.");
         }
     }
 }

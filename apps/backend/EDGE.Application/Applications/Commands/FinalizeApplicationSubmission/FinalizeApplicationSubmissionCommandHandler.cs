@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
@@ -21,6 +22,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
     private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
     private readonly IUserAuthorizationService _userAuthorizationService;
+    private readonly ILogger<FinalizeApplicationSubmissionCommandHandler> _logger;
 
     public FinalizeApplicationSubmissionCommandHandler(
         IApplicationFullRepository applicationRepository,
@@ -29,7 +31,8 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         ICurrentUserService currentUserService,
         ITenantContextService tenantContextService,
         IUnitOfWork unitOfWork,
-        IUserAuthorizationService userAuthorizationService)
+        IUserAuthorizationService userAuthorizationService,
+        ILogger<FinalizeApplicationSubmissionCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
@@ -38,6 +41,7 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
         _userAuthorizationService = userAuthorizationService;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(FinalizeApplicationSubmissionCommand request, CancellationToken cancellationToken)
@@ -189,8 +193,16 @@ public class FinalizeApplicationSubmissionCommandHandler : IRequestHandler<Final
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to finalize application. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to finalize application submission for ApplicationId '{ApplicationId}'.", request.Id);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application finalization for ApplicationId '{ApplicationId}'.", request.Id);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while finalizing the application. Please try again later.");
         }
     }
 }

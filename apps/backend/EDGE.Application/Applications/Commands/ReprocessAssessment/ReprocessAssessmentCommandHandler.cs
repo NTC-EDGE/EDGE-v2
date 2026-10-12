@@ -94,9 +94,16 @@ public class ReprocessAssessmentCommandHandler
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             _logger.LogError(ex, "Failed to request re-assessment for application '{ApplicationId}'.", request.ApplicationId);
-            return ApiResponse<Guid>.Fail($"Failed to request re-assessment: {ex.Message}");
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during re-assessment request for ApplicationId '{ApplicationId}'.", request.ApplicationId);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while requesting re-assessment. Please try again later.");
         }
     }
 
