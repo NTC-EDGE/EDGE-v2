@@ -147,9 +147,9 @@ public static class SoaEndpoints
         var op = app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
         // If no direct SOA found on application, check if linked via Order of Payment
-        if (soa == null && op?.StatementOfAccountId.HasValue == true)
+        if (soa == null && op != null && op.StatementOfAccountId != Guid.Empty)
         {
-            soa = await repository.GetSoaByIdAsync(op.StatementOfAccountId.Value, cancellationToken);
+            soa = await repository.GetSoaByIdAsync(op.StatementOfAccountId, cancellationToken);
         }
 
         // If still no SOA but OP exists or Application exists, use OP / Application as reference
