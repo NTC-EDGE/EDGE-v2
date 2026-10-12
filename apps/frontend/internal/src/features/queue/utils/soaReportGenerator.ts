@@ -889,7 +889,7 @@ export function generateOpPrintableHtml(
         <div class="sub-caption">(Address/Office of Payor)</div>
 
         <div class="amount-line">
-          in the amount of PHP <span class="val-underline bold-val">${totalWords}</span>
+          in the amount of <span class="val-underline bold-val">${totalWords}</span>
           (<span class="val-underline bold-val">PHP ${formatCurrency(app.totalAmountDue)}</span>)
         </div>
 

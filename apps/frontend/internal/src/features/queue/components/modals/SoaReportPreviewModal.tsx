@@ -53,6 +53,7 @@ export function SoaReportPreviewModal({
   const [viewFormat, setViewFormat] = useState<'pdf' | 'grid'>('pdf');
   const [soaOutputMode, setSoaOutputMode] = useState<'plain_paper' | 'accountable_form'>('plain_paper');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [opCopyView, setOpCopyView] = useState<'both' | 'payor' | 'collecting'>('both');
 
   useEffect(() => {
     let active = true;
@@ -316,7 +317,7 @@ export function SoaReportPreviewModal({
 
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', alignItems: 'baseline', marginTop: 2 }}>
             <Text style={{ fontSize: 10, color: isDark ? colors.neutral[300] : '#1e293b' }}>
-              in the amount of PHP{' '}
+              in the amount of{' '}
             </Text>
             <Text
               style={{
@@ -1379,7 +1380,7 @@ export function SoaReportPreviewModal({
 
             {docType === 'op' && (
               <View style={{ gap: 16 }}>
-                {/* 2-up Layout Notice */}
+                {/* 2-up Layout Notice & Copy Selector */}
                 <View
                   style={{
                     padding: 8,
@@ -1387,46 +1388,102 @@ export function SoaReportPreviewModal({
                     borderWidth: 1,
                     borderColor: isDark ? '#065f46' : '#a7f3d0',
                     borderRadius: RADIUS.xs,
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
+                    gap: 8,
                   }}
                 >
-                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                    <Lucide name="check-circle" size={14} color="#059669" />
-                    <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#34d399' : '#065f46' }}>
-                      Official NTC 2-Up Accountable Form (Payor Copy &amp; Collecting Officer Copy)
+                  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                      <Lucide name="check-circle" size={14} color="#059669" />
+                      <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#34d399' : '#065f46' }}>
+                        Official NTC 2-Up Accountable Form (Payor Copy &amp; Collecting Officer Copy)
+                      </Text>
+                    </View>
+                    <Text style={{ fontSize: 10, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
+                      Ref: order-of-payment-template.pdf
                     </Text>
                   </View>
-                  <Text style={{ fontSize: 10, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
-                    Ref: order-of-payment-template.pdf
-                  </Text>
+
+                  {/* Copy View Segmented Controls */}
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                    <Text style={{ fontSize: 10.5, fontWeight: '600', color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
+                      View Copy:
+                    </Text>
+                    <Pressable
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor: opCopyView === 'both' ? (isDark ? '#065f46' : '#d1fae5') : 'transparent',
+                        borderWidth: 1,
+                        borderColor: opCopyView === 'both' ? '#059669' : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                      }}
+                      onPress={() => setOpCopyView('both')}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: opCopyView === 'both' ? '700' : '500', color: opCopyView === 'both' ? (isDark ? '#ecfdf5' : '#065f46') : (isDark ? colors.neutral[300] : colors.neutral[600]) }}>
+                        All Copies (2-Up Form)
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor: opCopyView === 'payor' ? (isDark ? '#065f46' : '#d1fae5') : 'transparent',
+                        borderWidth: 1,
+                        borderColor: opCopyView === 'payor' ? '#059669' : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                      }}
+                      onPress={() => setOpCopyView('payor')}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: opCopyView === 'payor' ? '700' : '500', color: opCopyView === 'payor' ? (isDark ? '#ecfdf5' : '#065f46') : (isDark ? colors.neutral[300] : colors.neutral[600]) }}>
+                        Payor's Copy Only
+                      </Text>
+                    </Pressable>
+
+                    <Pressable
+                      style={{
+                        paddingHorizontal: 8,
+                        paddingVertical: 3,
+                        borderRadius: RADIUS.xs,
+                        backgroundColor: opCopyView === 'collecting' ? (isDark ? '#065f46' : '#d1fae5') : 'transparent',
+                        borderWidth: 1,
+                        borderColor: opCopyView === 'collecting' ? '#059669' : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                      }}
+                      onPress={() => setOpCopyView('collecting')}
+                    >
+                      <Text style={{ fontSize: 10, fontWeight: opCopyView === 'collecting' ? '700' : '500', color: opCopyView === 'collecting' ? (isDark ? '#ecfdf5' : '#065f46') : (isDark ? colors.neutral[300] : colors.neutral[600]) }}>
+                        Collecting Officer Copy Only
+                      </Text>
+                    </Pressable>
+                  </View>
                 </View>
 
                 {/* Upper Voucher: Payor's Copy */}
-                {renderOpVoucher("Payor's Copy")}
+                {(opCopyView === 'both' || opCopyView === 'payor') && renderOpVoucher("Payor's Copy")}
 
                 {/* Perforation Cut Line */}
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    marginVertical: 4,
-                  }}
-                >
-                  <View style={{ flex: 1, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: isDark ? colors.neutral[600] : colors.neutral[400] }} />
-                  <View style={{ paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                    <Lucide name="scissors" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
-                    <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
-                      CUT HERE
-                    </Text>
+                {opCopyView === 'both' && (
+                  <View
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      marginVertical: 4,
+                    }}
+                  >
+                    <View style={{ flex: 1, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: isDark ? colors.neutral[600] : colors.neutral[400] }} />
+                    <View style={{ paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                      <Lucide name="scissors" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                      <Text style={{ fontSize: 10, fontWeight: '700', letterSpacing: 1, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                        CUT HERE
+                      </Text>
+                    </View>
+                    <View style={{ flex: 1, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: isDark ? colors.neutral[600] : colors.neutral[400] }} />
                   </View>
-                  <View style={{ flex: 1, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: isDark ? colors.neutral[600] : colors.neutral[400] }} />
-                </View>
+                )}
 
                 {/* Lower Voucher: Collecting Officer's Copy */}
-                {renderOpVoucher("Collecting Officer's Copy")}
+                {(opCopyView === 'both' || opCopyView === 'collecting') && renderOpVoucher("Collecting Officer's Copy")}
               </View>
             )}
 

@@ -134,6 +134,70 @@ public class OrderOfPaymentReportTests
         Assert.True(pdfBytes.Length > 1000);
     }
 
+    [Fact]
+    public void OrderOfPaymentAcroFormFiller_InspectTemplateFields()
+    {
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        if (!File.Exists(templatePath))
+        {
+            templatePath = Path.Combine(Directory.GetCurrentDirectory(), "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        }
+
+        Assert.True(File.Exists(templatePath), $"Template should exist at {templatePath}");
+        var bytes = File.ReadAllBytes(templatePath);
+
+        using var inStream = new MemoryStream(bytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var form = iText.Forms.PdfAcroForm.GetAcroForm(pdfDoc, true);
+        
+        var fieldNames = form.GetAllFormFields().Keys.ToList();
+        // Output all field names and rectangles
+        foreach (var name in fieldNames)
+        {
+            var field = form.GetField(name);
+            var widgets = field.GetWidgets();
+            foreach (var widget in widgets)
+            {
+                var rect = widget.GetRectangle().ToRectangle();
+                Console.WriteLine($"FIELD: {name} -> Rect: [X={rect.GetX():F1}, Y={rect.GetY():F1}, W={rect.GetWidth():F1}, H={rect.GetHeight():F1}]");
+            }
+        }
+
+        Assert.NotEmpty(fieldNames);
+    }
+
+    [Fact]
+    public void OrderOfPaymentAcroFormFiller_Fill_CheckDuplicateText()
+    {
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        if (!File.Exists(templatePath))
+        {
+            templatePath = Path.Combine(Directory.GetCurrentDirectory(), "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        }
+
+        var bytes = File.ReadAllBytes(templatePath);
+        var model = MockDataFactory.GetOrderOfPaymentModel();
+
+        var filledBytes = EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(bytes, model);
+        Assert.NotNull(filledBytes);
+
+        using var inStream = new MemoryStream(filledBytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var page = pdfDoc.GetPage(1);
+        var text = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page);
+
+        Console.WriteLine("EXTRACTED PDF TEXT:\n" + text);
+
+        // Assert: On a 2-up sheet (Upper voucher & Lower voucher), each field must appear exactly 2 times (never 3+ or double-printed)
+        int payorCount = System.Text.RegularExpressions.Regex.Matches(text, System.Text.RegularExpressions.Regex.Escape(model.PayorName ?? string.Empty)).Count;
+        Assert.Equal(2, payorCount);
+
+        int soaCount = System.Text.RegularExpressions.Regex.Matches(text, System.Text.RegularExpressions.Regex.Escape(model.StatementOfAccountNo ?? string.Empty)).Count;
+        Assert.Equal(2, soaCount);
+    }
+
     private static void SavePdfToTemp(string filename, byte[] bytes)
     {
         string tempDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Temp");

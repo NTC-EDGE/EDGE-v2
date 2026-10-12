@@ -396,7 +396,11 @@ export function ClientSoaOpPreviewModal({
                     </View>
                     <View style={styles.opInfoRow}>
                       <Text style={styles.opInfoLabel}>Service &amp; Category:</Text>
-                      <Text style={styles.opInfoValue}>{serviceName} ({categoryName})</Text>
+                      <Text style={styles.opInfoValue}>
+                        {categoryName && categoryName !== serviceName && categoryName !== 'General'
+                          ? `${serviceName} (${categoryName})`
+                          : serviceName}
+                      </Text>
                     </View>
                     <View style={styles.opInfoRow}>
                       <Text style={styles.opInfoLabel}>Filing Mode:</Text>

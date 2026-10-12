@@ -4,10 +4,6 @@ using System.Linq;
 using EDGE.Infrastructure.Printing.Models;
 using iText.Forms;
 using iText.Kernel.Pdf;
-using iText.Kernel.Pdf.Canvas;
-using iText.Layout;
-using iText.Layout.Element;
-using iText.Layout.Properties;
 
 namespace EDGE.Infrastructure.Printing.Services.AcroForm;
 
@@ -15,10 +11,11 @@ namespace EDGE.Infrastructure.Printing.Services.AcroForm;
 /// Fills the official NTC Order of Payment AcroForm PDF template (order-of-payment-template.pdf)
 /// directly preserving the authentic Republic of the Philippines seal, NTC logo, official fonts,
 /// borders, and pre-printed 2-up layout (Upper and Lower duplicate vouchers).
+/// Note: The template's AcroForm fields already bind to both the Upper and Lower 2-up voucher
+/// widget annotations simultaneously, ensuring identical and crisp vector rendering across both copies.
 /// </summary>
 public static class OrderOfPaymentAcroFormFiller
 {
-    private const float LowerCopyDeltaY = 255.6f;
 
     public static byte[] Fill(byte[] templateBytes, OrderOfPaymentModel model)
     {
@@ -76,57 +73,8 @@ public static class OrderOfPaymentAcroFormFiller
                 SetField(form, "Accountant", model.CollectingOfficer ?? "Special Collecting Officer");
                 SetField(form, "AccountantPosition", "Special Collecting Officer");
 
-                // Flatten all AcroForm fields on the upper copy
+                // Flatten all AcroForm fields (automatically fills and bakes BOTH Upper and Lower 2-up copies)
                 form.FlattenFields();
-            }
-
-            // Populate the Bottom Copy (Duplicate 2-up voucher)
-            // On the physical NTC template, the lower copy is an exact identical duplicate
-            // shifted down by 255.6 points.
-            var page = pdfDoc.GetFirstPage();
-            var canvas = new PdfCanvas(page);
-            using var layout = new Canvas(canvas, page.GetPageSize());
-
-            void DrawText(string? text, float x, float y, float fontSize = 8.5f, bool bold = false)
-            {
-                if (string.IsNullOrWhiteSpace(text)) return;
-                var p = new Paragraph(text).SetFontSize(fontSize);
-                if (bold) p.SetBold();
-                layout.ShowTextAligned(p, x, y, TextAlignment.LEFT);
-            }
-
-            // Bottom Copy fields
-            DrawText(model.SerialNo, 332.0f, 578.4f - LowerCopyDeltaY, 8f, bold: true);
-            DrawText(model.Date, 332.4f, 570.0f - LowerCopyDeltaY, 8f);
-            DrawText(model.RegionalOffice, 163.1f, 568.7f - LowerCopyDeltaY, 8f);
-            DrawText(model.PayorName, 149.4f, 504.9f - LowerCopyDeltaY, 8.5f, bold: true);
-            DrawText(model.PayorAddress, 7.8f, 486.5f - LowerCopyDeltaY, 8f);
-
-            string btmAmountStr = model.Amount.HasValue && model.Amount.Value > 0
-                ? model.Amount.Value.ToString("N2")
-                : (model.TotalAmount.HasValue && model.TotalAmount.Value > 0 ? model.TotalAmount.Value.ToString("N2") : string.Empty);
-
-            DrawText(model.AmountInWords, 60.1f, 469.5f - LowerCopyDeltaY, 8f);
-            DrawText(btmAmountStr, 355.5f, 470.1f - LowerCopyDeltaY, 8f, bold: true);
-            DrawText(model.Purpose, 60.5f, 461.4f - LowerCopyDeltaY, 8f);
-            DrawText(model.StatementOfAccountNo, 89.7f, 435.8f - LowerCopyDeltaY, 8f, bold: true);
-            DrawText(model.StatementOfAccountDate, 298.2f, 436.3f - LowerCopyDeltaY, 8f);
-
-            var btmBank = model.BankAccounts?.FirstOrDefault();
-            DrawText(btmBank?.No ?? "LBP-General", 9.6f, 400.8f - LowerCopyDeltaY, 8f);
-            DrawText(btmBank?.BankName ?? "Land Bank of the Philippines", 149.6f, 401.2f - LowerCopyDeltaY, 8f);
-            DrawText(btmAmountStr, 297.9f, 401.1f - LowerCopyDeltaY, 8f);
-            DrawText(btmAmountStr, 297.2f, 383.1f - LowerCopyDeltaY, 8.5f, bold: true);
-
-            DrawText(model.CollectingOfficer ?? "Special Collecting Officer", 103.7f, 356.4f - LowerCopyDeltaY, 8.5f, bold: true);
-            DrawText("Special Collecting Officer", 103.5f, 347.6f - LowerCopyDeltaY, 7.5f);
-
-            if (!string.IsNullOrWhiteSpace(model.OrNo))
-            {
-                DrawText(model.OrNo, 44.5f, 375.0f - LowerCopyDeltaY, 7.5f, bold: true);
-                DrawText(model.OrAmount, 45.0f, 361.7f - LowerCopyDeltaY, 7.5f);
-                DrawText(model.OrDate, 45.0f, 355.7f - LowerCopyDeltaY, 7.5f);
-                DrawText(model.OrBy, 44.2f, 349.8f - LowerCopyDeltaY, 7.5f);
             }
         }
 
