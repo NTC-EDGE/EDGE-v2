@@ -135,8 +135,8 @@ export function SoaReportPreviewModal({
       const loadBlob = async () => {
         try {
           const [blob, err] = docType === 'soa'
-            ? await applicationService.downloadSoaPdf(app.id)
-            : await applicationService.downloadOpPdf(app.id);
+            ? await applicationService.previewSoaPdf(app.id)
+            : await applicationService.previewOpPdf(app.id);
 
           if (!active) {
             return;
@@ -209,8 +209,8 @@ export function SoaReportPreviewModal({
     if (docType === 'soa' || docType === 'op') {
       try {
         const [pdfBlob, err] = docType === 'soa'
-          ? await applicationService.downloadSoaPdf(app.id)
-          : await applicationService.downloadOpPdf(app.id);
+          ? await applicationService.previewSoaPdf(app.id)
+          : await applicationService.previewOpPdf(app.id);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -265,8 +265,8 @@ export function SoaReportPreviewModal({
       }
 
       const url = docType === 'soa'
-        ? applicationService.getSoaPrintUrl(app.id)
-        : applicationService.getOpPrintUrl(app.id);
+        ? applicationService.getSoaDownloadUrl(app.id)
+        : applicationService.getOpDownloadUrl(app.id);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.open(url, '_blank');
@@ -1947,7 +1947,7 @@ export function SoaReportPreviewModal({
                     { color: isDark ? colors.brand[400] : colors.brand[700] },
                   ]}
                 >
-                  Official Vector PDF
+                  Download PDF
                 </Text>
               </Pressable>
             )}

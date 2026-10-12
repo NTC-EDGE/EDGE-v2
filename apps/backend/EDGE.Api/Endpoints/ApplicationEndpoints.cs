@@ -826,7 +826,9 @@ public static class ApplicationEndpoints
         Guid id,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
-        CancellationToken cancellationToken)
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
     {
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
         if (app == null)
@@ -863,7 +865,14 @@ public static class ApplicationEndpoints
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
         var pdfBytes = printingService.PrintIssuedDocument(printModel);
         var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
-        return Results.File(pdfBytes, "application/pdf", safeDocName);
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", safeDocName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeDocName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }
 

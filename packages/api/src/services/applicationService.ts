@@ -316,12 +316,22 @@ export const applicationService = {
     return `${base}/api/v2/applications/${applicationId}/soa/print`;
   },
 
+  getSoaDownloadUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/soa/print?download=true`;
+  },
+
   getOpPrintUrl(applicationId: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
     return `${base}/api/v2/applications/${applicationId}/op/print`;
   },
 
-  async downloadSoaPdf(applicationId: string) {
+  getOpDownloadUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print?download=true`;
+  },
+
+  async previewSoaPdf(applicationId: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/soa/print`,
@@ -331,10 +341,30 @@ export const applicationService = {
     });
   },
 
-  async downloadOpPdf(applicationId: string) {
+  async downloadSoaPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/soa/print?download=true`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async previewOpPdf(applicationId: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/op/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async downloadOpPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/op/print?download=true`,
         { responseType: 'blob' }
       );
       return response.data;
@@ -346,10 +376,25 @@ export const applicationService = {
     return `${base}/api/v2/applications/${applicationId}/issued-document/print`;
   },
 
-  async downloadIssuedDocumentPdf(applicationId: string) {
+  getIssuedDocumentDownloadUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/issued-document/print?download=true`;
+  },
+
+  async previewIssuedDocumentPdf(applicationId: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/issued-document/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async downloadIssuedDocumentPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/issued-document/print?download=true`,
         { responseType: 'blob' }
       );
       return response.data;

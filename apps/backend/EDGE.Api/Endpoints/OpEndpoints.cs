@@ -70,7 +70,9 @@ public static class OpEndpoints
         Guid id,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
-        CancellationToken cancellationToken)
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
     {
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
         if (app == null)
@@ -90,14 +92,23 @@ public static class OpEndpoints
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
-        return Results.File(pdfBytes, "application/pdf", fileName);
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", fileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 
     public static async Task<IResult> PrintOpById(
         Guid opId,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
-        CancellationToken cancellationToken)
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
     {
         var op = await repository.GetOpByIdAsync(opId, cancellationToken);
         if (op == null)
@@ -111,6 +122,13 @@ public static class OpEndpoints
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
-        return Results.File(pdfBytes, "application/pdf", fileName);
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", fileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }
