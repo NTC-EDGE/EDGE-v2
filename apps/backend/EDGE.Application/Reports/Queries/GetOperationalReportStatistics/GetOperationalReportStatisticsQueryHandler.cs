@@ -136,8 +136,8 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             }
         }
 
-        // Fetch live feedback dataset
-        var allFeedback = await _feedbackRepository.GetAllAsync(cancellationToken) ?? new List<FeedbackEntity>();
+        // Fetch live feedback dataset scoped to tenant
+        var allFeedback = await _feedbackRepository.GetByTenantAsync(targetTenantId, cancellationToken) ?? new List<FeedbackEntity>();
 
         // Selected filter intervals
         var activeYear = request.Year ?? DateTime.UtcNow.Year;

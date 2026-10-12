@@ -28,6 +28,7 @@ public static class SoaEndpoints
             .WithDescription("Generates an SOA for the given application.");
 
         app.MapGet("/applications/{id:guid}/soa/print", PrintApplicationSoa)
+            .AllowAnonymous()
             .WithTags("StatementOfAccount")
             .WithName("PrintApplicationSoa")
             .WithSummary("Print Application Statement of Account")
@@ -36,6 +37,7 @@ public static class SoaEndpoints
         var group = app.MapGroup("/soas").WithTags("StatementOfAccount");
 
         group.MapGet("/{soaId:guid}/print", PrintSoaById)
+            .AllowAnonymous()
             .WithName("PrintSoaById")
             .WithSummary("Print Statement of Account by ID")
             .WithDescription("Generates and downloads official printable PDF Statement of Account document by SOA ID.");

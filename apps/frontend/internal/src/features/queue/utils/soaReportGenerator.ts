@@ -6,7 +6,7 @@ function safeString(val: unknown, fallback = 'N/A'): string {
   return str.length > 0 ? str : fallback;
 }
 
-function formatAddress(app: ApplicationData): string {
+export function formatAddress(app: ApplicationData): string {
   if (!app.address) return 'N/A';
   const parts = [
     app.address.streetAddress || app.address.address,
@@ -15,11 +15,11 @@ function formatAddress(app: ApplicationData): string {
     app.address.province,
     app.address.region,
     app.address.zipCode,
-  ].filter((p): p is string => Boolean(p && typeof p === 'string' && p.trim() !== ''));
+  ].filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
   return parts.length > 0 ? parts.join(', ') : 'N/A';
 }
 
-function formatCurrency(amount?: number | null): string {
+export function formatCurrency(amount?: number | null): string {
   const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
   return `PHP ${safeAmount.toLocaleString('en-US', {
     minimumFractionDigits: 2,
@@ -27,7 +27,7 @@ function formatCurrency(amount?: number | null): string {
   })}`;
 }
 
-function numberToWords(num?: number | null): string {
+export function numberToWords(num?: number | null): string {
   const safeNum = typeof num === 'number' && !isNaN(num) && num >= 0 ? num : 0;
   const a = [
     '', 'one ', 'two ', 'three ', 'four ', 'five ', 'six ', 'seven ', 'eight ', 'nine ', 'ten ',
@@ -234,16 +234,57 @@ export function generateSoaPrintableHtml(
     })
     .join('');
 
-  return `
-<!DOCTYPE html>
+  const tenantName = isOptionsObj ? optionsOrTenantName.tenantName : (typeof optionsOrTenantName === 'string' ? optionsOrTenantName : undefined);
+  const officeName = safeString(app.office || app.assignedTo || tenantName, 'Regional Office No. VII');
+  const payorName = safeString(app.applicant, 'Applicant');
+  const payorAddress = formatAddress(app);
+  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
+  const soaNumber = `SOA-${refNum}`;
+  const totalInWords = numberToWords(totalAmount);
+
+  // Compute due date (30 days from created date)
+  const dueDateObj = new Date(dateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
+  const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+
+  // Classify transaction type checkboxes
+  const variantLower = (app.serviceVariantName || app.serviceName || app.category || '').toLowerCase();
+  const isRen = variantLower.includes('renew');
+  const isMod = variantLower.includes('mod') && !isRen;
+  const isDup = variantLower.includes('dup');
+  const isCv = variantLower.includes('cv') || variantLower.includes('convert');
+  const isRoc = variantLower.includes('roc') || variantLower.includes('operator');
+  const isCo = variantLower.includes('co') || variantLower.includes('ownership');
+  const isMa = variantLower.includes('ma');
+  const isMs = variantLower.includes('ms');
+  const isNew = !isRen && !isMod && !isDup && !isCv && !isRoc && !isCo && !isMa && !isMs;
+
+  const isForAssessmentOnly = app.intent === 'AssessmentOnly' || app.isAssessmentOnly === true;
+  const isEndorsedForPayment = !isForAssessmentOnly;
+
+  const orNumber = app.payment?.orNumber ?? '';
+  const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
+    ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+    : (formattedTotal ? `₱ ${formattedTotal}` : '');
+  const orDate = app.payment?.orNumber
+    ? (app.updatedAt
+        ? new Date(app.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+    : '';
+  const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
+
+  const prepName = safeString(preparerName || app.evaluatingOfficer, 'AUTHORIZED EVALUATOR');
+  const apprvName = safeString(approverName || app.issuingOfficer, 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION');
+
+  return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
-  <title>Statement of Account - ${app.referenceNumber || app.id || 'NTC-SOA'}</title>
+  <title>Statement of Account - ${soaNumber}</title>
   <style>
     @page {
       size: A4 portrait;
-      margin: 12mm 15mm;
+      margin: 8mm 12mm;
     }
     @media print {
       body {
@@ -259,18 +300,18 @@ export function generateSoaPrintableHtml(
       -webkit-font-smoothing: antialiased;
     }
     body {
-      font-family: 'Times New Roman', Times, serif, 'Segoe UI', Arial;
+      font-family: 'Times New Roman', Times, serif;
       color: #000000;
       background-color: #ffffff;
       margin: 0;
-      padding: 16px 0;
+      padding: 10px 0;
       display: flex;
       flex-direction: column;
       align-items: center;
     }
     .page-container {
       width: 100%;
-      max-width: 680px;
+      max-width: 720px;
       margin: 0 auto;
     }
     .print-actions {
@@ -297,9 +338,120 @@ export function generateSoaPrintableHtml(
       font-family: system-ui, sans-serif;
       font-size: 11px;
       color: #64748b;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       text-align: center;
     }
+
+    /* Official Top Header with Logos */
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+      visibility: ${isOverlay ? 'hidden' : 'visible'};
+    }
+    .logo-cell {
+      width: 70px;
+      text-align: center;
+      vertical-align: middle;
+    }
+    .header-text-cell {
+      text-align: center;
+      vertical-align: middle;
+      padding: 0 6px;
+    }
+    .rep-title {
+      font-size: 10.5px;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      font-weight: normal;
+    }
+    .dict-title {
+      font-size: 9.5px;
+      letter-spacing: 0.3px;
+      font-weight: bold;
+      text-transform: uppercase;
+      margin-top: 1px;
+    }
+    .agency-title {
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      margin-top: 2px;
+    }
+    .office-title {
+      font-size: 10px;
+      font-weight: 600;
+      margin-top: 1px;
+    }
+
+    /* Document Title & Series Code */
+    .title-banner {
+      text-align: center;
+      margin: 4px 0 6px 0;
+      visibility: ${isOverlay ? 'hidden' : 'visible'};
+    }
+    .doc-main-title {
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .doc-series-sub {
+      font-size: 8.5px;
+      font-style: italic;
+      color: #334155;
+    }
+
+    /* Payor & Control Box */
+    .meta-box {
+      width: 100%;
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      border-collapse: collapse;
+      margin-bottom: 4px;
+      font-family: Arial, sans-serif;
+      font-size: 9px;
+    }
+    .meta-box td {
+      padding: 2.5px 6px;
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      vertical-align: middle;
+    }
+    .meta-label {
+      font-weight: bold;
+      color: ${isOverlay ? 'transparent' : '#000000'};
+    }
+    .meta-val {
+      font-weight: 600;
+    }
+
+    /* Checkboxes Row */
+    .checkbox-bar {
+      width: 100%;
+      display: flex;
+      justify-content: space-between;
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      border-bottom: none;
+      padding: 2.5px 8px;
+      background: ${isOverlay ? 'transparent' : '#f8fafc'};
+      font-family: Arial, sans-serif;
+      font-size: 8.5px;
+      margin-top: 2px;
+    }
+    .cb-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+    }
+    .cb-mark {
+      font-weight: bold;
+      font-family: monospace;
+      font-size: 9.5px;
+    }
+    .cb-label {
+      color: ${isOverlay ? 'transparent' : '#000000'};
+    }
+
     /* Main official NTC Assessment Form Table */
     .soa-table {
       width: 100%;
@@ -307,92 +459,173 @@ export function generateSoaPrintableHtml(
       border: ${isOverlay ? '1.5px solid transparent' : '2px solid #000000'};
       table-layout: fixed;
     }
-    .col-code { width: 92px; }
-    .col-desc { width: 388px; }
-    .col-amt { width: 200px; }
+    .col-code { width: 85px; }
+    .col-desc { width: 445px; }
+    .col-amt { width: 190px; }
 
     .header-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
       text-align: center;
       vertical-align: middle;
       font-weight: bold;
-      font-size: 13px;
-      padding: 6px 4px;
+      font-size: 11.5px;
+      padding: 4px 4px;
+      background: ${isOverlay ? 'transparent' : '#f1f5f9'};
     }
     .report-title {
-      font-size: 12.5px;
+      font-size: 11px;
       font-weight: bold;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      margin-bottom: 2px;
     }
     .month-label {
-      font-size: 12px;
+      font-size: 10px;
       font-weight: bold;
-      margin-top: 4px;
+      margin-top: 1px;
     }
     .month-val {
       display: inline-block;
-      min-width: 90px;
+      min-width: 80px;
       text-align: center;
       border-bottom: ${isOverlay ? 'none' : '1px solid #000000'};
       padding: 0 4px;
       font-weight: bold;
-      font-size: 12px;
+      font-size: 10.5px;
     }
     .banner-row {
-      height: 22px;
+      height: 19px;
     }
     .banner-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
       text-align: center;
       vertical-align: middle;
       font-weight: bold;
-      font-size: 12.5px;
+      font-size: 10.5px;
       text-transform: uppercase;
       padding: 2px 4px;
+      background: ${isOverlay ? 'transparent' : '#e2e8f0'};
     }
     .code-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
-      font-size: 11.5px;
-      padding: 2px 6px;
+      font-size: 10px;
+      padding: 1.5px 5px;
       vertical-align: middle;
       text-align: left;
       font-family: monospace, 'Courier New';
     }
     .desc-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
-      font-size: 11.5px;
-      padding: 2px 6px;
+      font-size: 10px;
+      padding: 1.5px 5px;
       vertical-align: middle;
       text-align: left;
       line-height: 1.15;
     }
     .amount-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
-      font-size: 12px;
+      font-size: 10.5px;
       font-weight: bold;
-      padding: 2px 10px;
+      padding: 1.5px 8px;
       vertical-align: middle;
       text-align: right;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-family: Arial, sans-serif;
     }
     .total-label-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
       text-align: right;
       vertical-align: middle;
       font-weight: bold;
-      font-size: 13.5px;
-      padding: 4px 12px;
+      font-size: 11.5px;
+      padding: 3px 10px;
+      background: ${isOverlay ? 'transparent' : '#f8fafc'};
     }
     .total-amount-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
       text-align: right;
       vertical-align: middle;
       font-weight: bold;
-      font-size: 13px;
-      padding: 4px 10px;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-size: 11.5px;
+      padding: 3px 8px;
+      font-family: Arial, sans-serif;
+      background: ${isOverlay ? 'transparent' : '#f8fafc'};
+    }
+
+    /* Words Row */
+    .words-box {
+      border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
+      border-top: none;
+      padding: 3px 8px;
+      font-size: 8.5px;
+      font-family: Arial, sans-serif;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Bottom Assessment, O.R. Stamp, & Signatures Grid */
+    .bottom-grid {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 4px;
+      font-family: Arial, sans-serif;
+    }
+    .bottom-grid td {
+      vertical-align: top;
+      padding: 0;
+    }
+    .or-stamp-table {
+      width: 100%;
+      max-width: 180px;
+      border: ${isOverlay ? '1.2px solid transparent' : '1.2px solid #000000'};
+      border-collapse: collapse;
+      font-size: 8px;
+    }
+    .or-stamp-table td {
+      border: ${isOverlay ? '0.5px solid transparent' : '0.5px solid #000000'};
+      padding: 1.5px 3px;
+      vertical-align: middle;
+    }
+    .or-header-cell {
+      width: 32px;
+      text-align: center;
+      font-weight: bold;
+      font-size: 10.5px;
+      background: ${isOverlay ? 'transparent' : '#f1f5f9'};
+    }
+
+    .sig-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 8.5px;
+    }
+    .sig-table td {
+      padding: 3px 6px;
+      text-align: center;
+      vertical-align: bottom;
+    }
+    .sig-line {
+      border-bottom: ${isOverlay ? 'none' : '0.8px solid #000000'};
+      margin-bottom: 2px;
+      height: 18px;
+    }
+    .sig-name {
+      font-weight: bold;
+      font-size: 9px;
+      text-transform: uppercase;
+    }
+    .sig-title {
+      font-size: 7.5px;
+      color: ${isOverlay ? 'transparent' : '#475569'};
+      font-style: italic;
+    }
+
+    .footnote {
+      text-align: center;
+      font-size: 7px;
+      font-family: Arial, sans-serif;
+      color: #64748b;
+      margin-top: 4px;
+      visibility: ${isOverlay ? 'hidden' : 'visible'};
     }
   </style>
 </head>
@@ -403,9 +636,95 @@ export function generateSoaPrintableHtml(
 
   <div class="page-container">
     <div class="mode-indicator no-print">
-      ${isOverlay ? '⚡ Pre-Printed Accountable Form Overlay Mode (Background artwork & borders suppressed for physical stationery)' : '📄 Official Plain Paper Electronic Form (soa-report-template.pdf standard layout)'}
+      ${isOverlay ? '⚡ Pre-Printed Accountable Form Overlay Mode (Background artwork & borders suppressed for physical stationery)' : '📄 Official Plain Paper Electronic Form (National Telecommunications Commission)'}
     </div>
 
+    <!-- Official Header with Color Logos -->
+    <table class="header-table">
+      <tr>
+        <td class="logo-cell">
+          <!-- Republic of the Philippines Seal Vector -->
+          <svg width="56" height="56" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="#FCD116" stroke="#B45309" stroke-width="1.5"/>
+            <circle cx="50" cy="50" r="44" fill="#FFFFFF"/>
+            <path d="M 50 10 A 40 40 0 0 1 50 90 Z" fill="#CE1126"/>
+            <path d="M 50 10 A 40 40 0 0 0 50 90 Z" fill="#0038A8"/>
+            <circle cx="50" cy="50" r="24" fill="#FCD116"/>
+            <!-- Sun Rays & Stars -->
+            <polygon points="50,28 53,42 67,42 56,50 60,64 50,56 40,64 44,50 33,42 47,42" fill="#FFFFFF"/>
+          </svg>
+        </td>
+        <td class="header-text-cell">
+          <div class="rep-title">Republic of the Philippines</div>
+          <div class="dict-title">Department of Information and Communications Technology</div>
+          <div class="agency-title">National Telecommunications Commission</div>
+          <div class="office-title">${officeName}</div>
+        </td>
+        <td class="logo-cell">
+          <!-- NTC Official Full Color Emblem Vector -->
+          <svg width="56" height="56" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="48" fill="#0F172A" stroke="#2563EB" stroke-width="1.5"/>
+            <circle cx="50" cy="50" r="43" fill="#FFFFFF"/>
+            <!-- Radio Mast radiating waves -->
+            <path d="M 30 75 L 50 22 L 70 75 Z" fill="none" stroke="#2563EB" stroke-width="3"/>
+            <circle cx="50" cy="22" r="5" fill="#DC2626"/>
+            <path d="M 35 45 A 20 20 0 0 1 65 45" fill="none" stroke="#D97706" stroke-width="2.5" stroke-dasharray="3,2"/>
+            <path d="M 27 38 A 30 30 0 0 1 73 38" fill="none" stroke="#2563EB" stroke-width="2.5" stroke-dasharray="4,2"/>
+            <path d="M 20 30 A 40 40 0 0 1 80 30" fill="none" stroke="#059669" stroke-width="2.5" stroke-dasharray="4,3"/>
+            <!-- Philippine Stars at base -->
+            <polygon points="50,68 52,73 57,73 53,76 55,81 50,78 45,81 47,76 43,73 48,73" fill="#FCD116"/>
+          </svg>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Title & Series Subtitle -->
+    <div class="title-banner">
+      <div class="doc-main-title">Statement of Account</div>
+      <div class="doc-series-sub">(RC Code-Year of Issue-Mo. Of Issue-Series of the RC)</div>
+    </div>
+
+    <!-- Payor & Control Information Box -->
+    <table class="meta-box">
+      <tr>
+        <td style="width: 60%;">
+          <span class="meta-label">Payor: </span>
+          <span class="meta-val">${payorName}</span>
+        </td>
+        <td style="width: 40%;">
+          <span class="meta-label">Account No.: </span>
+          <span class="meta-val">${soaNumber}</span>
+        </td>
+      </tr>
+      <tr>
+        <td>
+          <span class="meta-label">Address: </span>
+          <span class="meta-val">${payorAddress}</span>
+        </td>
+        <td>
+          <span class="meta-label">Date: </span>
+          <span class="meta-val">${formattedDate}</span>
+          <span class="meta-label" style="margin-left: 8px;">Due: </span>
+          <span class="meta-val" style="color: #b91c1c;">${dueDateStr}</span>
+        </td>
+      </tr>
+    </table>
+
+    <!-- Transaction Checkbox Strip -->
+    <div class="checkbox-bar">
+      <span class="cb-item"><span class="cb-mark">${isNew ? '[X]' : '[ ]'}</span> <span class="cb-label">New</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMod ? '[X]' : '[ ]'}</span> <span class="cb-label">Mod</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCo ? '[X]' : '[ ]'}</span> <span class="cb-label">Co</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMa ? '[X]' : '[ ]'}</span> <span class="cb-label">Ma</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRen ? '[X]' : '[ ]'}</span> <span class="cb-label">Ren</span></span>
+      <span class="cb-item"><span class="cb-mark">${isDup ? '[X]' : '[ ]'}</span> <span class="cb-label">Dup</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCv ? '[X]' : '[ ]'}</span> <span class="cb-label">Cv</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRoc ? '[X]' : '[ ]'}</span> <span class="cb-label">ROC</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMs ? '[X]' : '[ ]'}</span> <span class="cb-label">MS</span></span>
+      <span class="cb-item"><span class="cb-mark">[ ]</span> <span class="cb-label">Others</span></span>
+    </div>
+
+    <!-- Main Official Fee Assessment Matrix -->
     <table class="soa-table">
       <colgroup>
         <col class="col-code" />
@@ -416,8 +735,8 @@ export function generateSoaPrintableHtml(
         <tr>
           <th class="header-cell">${isOverlay ? '' : 'Code'}</th>
           <th class="header-cell">${isOverlay ? '' : 'Description'}</th>
-          <th class="header-cell" style="padding: 4px 2px;">
-            ${isOverlay ? '<div style="height: 14px;"></div>' : '<div class="report-title">CASHIER\'S REPORT</div>'}
+          <th class="header-cell" style="padding: 2px 2px;">
+            ${isOverlay ? '<div style="height: 12px;"></div>' : '<div class="report-title">CASHIER\'S REPORT</div>'}
             <div class="month-label">
               ${isOverlay ? '' : 'MONTH OF '}
               <span class="month-val">${currentMonthYear}</span>
@@ -427,12 +746,71 @@ export function generateSoaPrintableHtml(
       </thead>
       <tbody>
         ${tableSectionsHtml}
-        <tr style="height: 26px;">
+        <tr style="height: 24px;">
           <td colspan="2" class="total-label-cell">${isOverlay ? '' : 'TOTAL'}</td>
-          <td class="total-amount-cell">${formattedTotal}</td>
+          <td class="total-amount-cell">₱ ${formattedTotal}</td>
         </tr>
       </tbody>
     </table>
+
+    <!-- Amount in Words -->
+    <div class="words-box">
+      <div><span class="meta-label">AMOUNT IN WORDS: </span><strong>${totalInWords}</strong></div>
+      <div><span class="meta-label">TOTAL: </span><strong>₱ ${formattedTotal}</strong></div>
+    </div>
+
+    <!-- Bottom Section: Assessment Stamp, O.R. Box, & Signatures -->
+    <table class="bottom-grid">
+      <tr>
+        <!-- Left: Conditions & O.R. Stamp -->
+        <td style="width: 48%; padding-top: 4px;">
+          <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
+            <span><strong>${isForAssessmentOnly ? '[X]' : '[ ]'}</strong> For Assessment Only</span>
+            <span><strong>${isEndorsedForPayment ? '[X]' : '[ ]'}</strong> Endorsed for Payment</span>
+          </div>
+
+          <table class="or-stamp-table">
+            <tr>
+              <td rowspan="4" class="or-header-cell">O.R.</td>
+              <td><span style="font-weight: bold;">No.</span> ${orNumber}</td>
+            </tr>
+            <tr>
+              <td><span style="font-weight: bold;">AMOUNT:</span> <strong style="font-size: 11px; color: #15803d;">${orAmount}</strong></td>
+            </tr>
+            <tr>
+              <td><span style="font-weight: bold;">Date:</span> ${orDate}</td>
+            </tr>
+            <tr>
+              <td><span style="font-weight: bold;">By:</span> ${orBy}</td>
+            </tr>
+          </table>
+        </td>
+
+        <!-- Right: Official Signatories -->
+        <td style="width: 52%; padding-top: 4px;">
+          <table class="sig-table">
+            <tr>
+              <td>
+                <div style="font-size: 7.5px; color: #475569; text-align: left; margin-bottom: 2px;">Prepared By:</div>
+                <div class="sig-line"></div>
+                <div class="sig-name">${prepName}</div>
+                <div class="sig-title">EVALUATOR, NTC</div>
+              </td>
+              <td>
+                <div style="font-size: 7.5px; color: #475569; text-align: left; margin-bottom: 2px;">Approved By:</div>
+                <div class="sig-line"></div>
+                <div class="sig-name">${apprvName}</div>
+                <div class="sig-title">CHIEF, ENFORCEMENT &amp; OPERATIONS DIV.</div>
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    </table>
+
+    <div class="footnote">
+      NTC-EDGE Official Digital System • Generated on ${formattedDate} • RA 11032 Ease of Doing Business Act Certified
+    </div>
   </div>
 </body>
 </html>
@@ -460,32 +838,129 @@ export function generateOpPrintableHtml(
   const filingMode = safeString(app.mode, 'Single');
   const orNumber = app.payment?.orNumber;
 
-  const soaItemsList = Array.isArray(app.soaItems) ? app.soaItems : [];
-  const lineItemsHtml =
-    soaItemsList.length > 0
-      ? soaItemsList
-          .map((item, idx) => {
-            const itemParticular = safeString(item.particular, 'Regulatory Fee Assessment');
-            const itemCode = safeString(item.code, 'NTC-FEE');
-            const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
-            return `
-            <tr>
-              <td class="td-cell" style="text-align: center;">${idx + 1}</td>
-              <td class="td-cell">
-                <strong>${itemParticular}</strong> (${itemCode})
-              </td>
-              <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(amount)}</td>
-            </tr>
-          `;
-          })
-          .join('')
-      : `
+  const applicantAddress = safeString(
+    formatAddress(app),
+    'Cebu City, Philippines'
+  );
+
+  const paymentStatusText = orNumber
+    ? `Paid via OR #${orNumber}`
+    : 'Pending Cashier Collection';
+
+  const renderSingleVoucher = (copyTitle: string) => `
+    <div class="voucher-wrapper">
+      <table class="voucher-top-table">
         <tr>
-          <td class="td-cell" style="text-align: center;">1</td>
-          <td class="td-cell"><strong>${serviceName} Processing & Regulatory Fees</strong></td>
-          <td class="td-cell" style="text-align: right; font-weight: 700;">${formatCurrency(app.totalAmountDue)}</td>
+          <td style="width: 65%; vertical-align: top;">
+            <div class="rep-title">Republic of the Philippines</div>
+            <div class="ntc-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
+            <div class="ro-title">Regional Office No. VII</div>
+            <div class="fund-title">General Fund</div>
+          </td>
+          <td style="width: 35%; vertical-align: top; text-align: right;">
+            <div class="serial-row">
+              <span class="label-bold">Serial No. :</span>
+              <span class="val-underline mono-bold">${opNumber}</span>
+            </div>
+            <div class="serial-row" style="margin-top: 3px;">
+              <span class="label-bold">Date :</span>
+              <span class="val-underline">${currentDate}</span>
+            </div>
+          </td>
         </tr>
-      `;
+      </table>
+
+      <div class="voucher-heading">
+        <div class="op-main-title">ORDER OF PAYMENT (OP)</div>
+        <div class="op-copy-subtitle">(${copyTitle})</div>
+      </div>
+
+      <div class="voucher-body">
+        <div class="officer-salutation"><strong>The Collecting Officer</strong></div>
+        <div class="lead-line">
+          Please issue <strong>Official Receipt</strong> in favor of
+          <span class="val-underline bold-val">${applicantName}</span>
+        </div>
+        <div class="sub-caption">(Name of Payor)</div>
+
+        <div class="address-line">
+          <span class="val-underline">${applicantAddress}</span>
+        </div>
+        <div class="sub-caption">(Address/Office of Payor)</div>
+
+        <div class="amount-line">
+          in the amount of PHP <span class="val-underline bold-val">${totalWords}</span>
+          (<span class="val-underline bold-val">PHP ${formatCurrency(app.totalAmountDue)}</span>)
+        </div>
+
+        <div class="purpose-line">
+          for the payment of <span class="val-underline">${serviceName} Assessment & Regulatory Fees</span>
+        </div>
+        <div class="sub-caption">(Purpose)</div>
+
+        <div class="soa-ref-line">
+          per Statement of Account No. <span class="val-underline bold-val">SOA-${refNum}</span>
+          dated <span class="val-underline">${currentDate}</span>
+        </div>
+      </div>
+
+      <div class="bank-instruction">
+        Please deposit the collections under Bank Account/s:
+      </div>
+
+      <table class="bank-grid">
+        <thead>
+          <tr>
+            <th style="width: 10%; text-align: center;">No.</th>
+            <th style="width: 60%; text-align: left;">Name of Bank</th>
+            <th style="width: 30%; text-align: right;">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align: center;">1</td>
+            <td>Land Bank of the Philippines</td>
+            <td style="text-align: right; font-weight: bold;">PHP ${formatCurrency(app.totalAmountDue)}</td>
+          </tr>
+          <tr class="total-row">
+            <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL PHP</td>
+            <td style="text-align: right; font-weight: bold;">${formatCurrency(app.totalAmountDue)}</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <table class="voucher-footer-table">
+        <tr>
+          <td style="width: 48%; vertical-align: top;">
+            <table class="or-stamp-box">
+              <tr>
+                <td style="width: 55px; font-weight: bold;">O.R. No.</td>
+                <td style="font-weight: bold; font-family: monospace;">${orNumber || '________________'}</td>
+              </tr>
+              <tr>
+                <td style="font-weight: bold;">AMOUNT:</td>
+                <td style="font-weight: bold;">${app.payment?.amountReceived ? `PHP ${formatCurrency(app.payment.amountReceived)}` : (orNumber ? `PHP ${formatCurrency(app.totalAmountDue)}` : '________________')}</td>
+              </tr>
+              <tr>
+                <td>Date:</td>
+                <td>${orNumber ? currentDate : '________________'}</td>
+              </tr>
+              <tr>
+                <td>By:</td>
+                <td>${safeString(cashierName, 'Special Collecting Officer')}</td>
+              </tr>
+            </table>
+          </td>
+          <td style="width: 52%; vertical-align: bottom; text-align: center; padding-left: 20px;">
+            <div class="officer-sig-line"></div>
+            <div class="officer-name">${safeString(cashierName, 'Special Collecting Officer')}</div>
+            <div class="officer-title">Special Collecting Officer / Cashier</div>
+            <div style="font-size: 8px; color: #64748b; margin-top: 2px;">${paymentStatusText}</div>
+          </td>
+        </tr>
+      </table>
+    </div>
+  `;
 
   return `
 <!DOCTYPE html>
@@ -495,50 +970,70 @@ export function generateOpPrintableHtml(
   <title>Order of Payment - ${opNumber}</title>
   <style>
     @media print {
-      @page { margin: 12mm 15mm; size: A4 portrait; }
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+      @page { margin: 8mm 10mm; size: A4 portrait; }
+      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; padding: 0 !important; }
       .no-print { display: none !important; }
+      .cut-line { margin: 6mm 0 !important; }
     }
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      color: #1e293b;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #000000;
       margin: 0;
-      padding: 24px;
+      padding: 12px;
       background-color: #ffffff;
-      line-height: 1.4;
+      line-height: 1.25;
     }
-    .header-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .header-text { text-align: center; }
-    .republic-title { font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: #64748b; font-weight: 600; }
-    .agency-title { font-size: 16px; font-weight: 800; color: #0f172a; letter-spacing: 0.5px; margin-top: 2px; }
-    .office-title { font-size: 12px; font-weight: 600; color: #059669; }
-    .doc-banner {
-      background: linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-      color: #ffffff;
-      padding: 12px 18px;
-      border-radius: 6px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .doc-title { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
-    .doc-ref { font-size: 12px; font-family: monospace; color: #6ee7b7; font-weight: 700; }
-    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; }
-    .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
-    .info-label { font-size: 11px; color: #64748b; font-weight: 600; }
-    .info-val { font-size: 12px; color: #0f172a; font-weight: 700; }
-    .data-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    .th-cell { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
-    .td-cell { border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; }
-    .payment-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; }
-    .signatories { display: flex; justify-content: space-between; margin-top: 30px; }
-    .sig-block { width: 45%; border-top: 1px solid #94a3b8; padding-top: 6px; text-align: center; }
-    .sig-name { font-size: 12px; font-weight: 700; color: #0f172a; text-transform: uppercase; }
-    .sig-role { font-size: 10px; color: #64748b; }
-    .footer-note { font-size: 9px; color: #94a3b8; text-align: center; margin-top: 24px; border-top: 1px solid #f1f5f9; padding-top: 8px; }
     .print-btn-bar { position: fixed; top: 12px; right: 12px; z-index: 999; }
-    .btn-print { background: #059669; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
+    .btn-print { background: #0f172a; color: #ffffff; border: none; padding: 8px 16px; border-radius: 4px; font-weight: 700; font-size: 12px; cursor: pointer; }
+    
+    .voucher-wrapper {
+      border: 1.8px solid #000000;
+      padding: 10px 14px;
+      background: #ffffff;
+      box-sizing: border-box;
+    }
+    .voucher-top-table { width: 100%; border-collapse: collapse; }
+    .rep-title { font-size: 9.5px; text-transform: uppercase; color: #334155; }
+    .ntc-title { font-size: 11px; font-weight: 800; letter-spacing: 0.3px; }
+    .ro-title { font-size: 9.5px; font-weight: bold; }
+    .fund-title { font-size: 9.5px; font-weight: bold; margin-top: 2px; }
+    .serial-row { font-size: 9.5px; }
+    .label-bold { font-weight: bold; }
+    .val-underline { border-bottom: 1px solid #000000; padding: 0 4px; display: inline-block; min-width: 60px; }
+    .mono-bold { font-family: monospace; font-weight: bold; font-size: 10.5px; }
+    .bold-val { font-weight: bold; }
+    
+    .voucher-heading { text-align: center; margin: 6px 0 6px 0; }
+    .op-main-title { font-size: 13px; font-weight: 900; letter-spacing: 0.8px; text-transform: uppercase; }
+    .op-copy-subtitle { font-size: 8.5px; font-style: italic; color: #475569; }
+    
+    .voucher-body { font-size: 10px; line-height: 1.45; margin-bottom: 6px; }
+    .officer-salutation { font-size: 10px; margin-bottom: 2px; }
+    .sub-caption { font-size: 8px; color: #475569; font-style: italic; margin-bottom: 2px; }
+    
+    .bank-instruction { font-size: 9.5px; font-weight: bold; margin-bottom: 3px; }
+    .bank-grid { width: 100%; border-collapse: collapse; border: 1px solid #000000; font-size: 9.5px; }
+    .bank-grid th { border: 1px solid #000000; background: #f1f5f9; padding: 3px 6px; font-size: 9px; font-weight: bold; }
+    .bank-grid td { border: 1px solid #000000; padding: 3px 6px; }
+    .total-row { background: #f8fafc; }
+    
+    .voucher-footer-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .or-stamp-box { border: 1px solid #000000; border-collapse: collapse; font-size: 9px; width: 100%; }
+    .or-stamp-box td { border: 0.5px solid #000000; padding: 2px 4px; }
+    
+    .officer-sig-line { border-bottom: 1.2px solid #000000; width: 85%; margin: 0 auto 3px auto; height: 18px; }
+    .officer-name { font-size: 10px; font-weight: bold; text-transform: uppercase; }
+    .officer-title { font-size: 8.5px; font-style: italic; color: #475569; }
+    
+    .cut-line {
+      text-align: center;
+      margin: 10px 0;
+      font-size: 8.5px;
+      color: #64748b;
+      letter-spacing: 2px;
+      border-top: 1px dashed #94a3b8;
+      padding-top: 2px;
+    }
   </style>
 </head>
 <body>
@@ -546,85 +1041,15 @@ export function generateOpPrintableHtml(
     <button class="btn-print" onclick="window.print()">Print Order of Payment</button>
   </div>
 
-  <table class="header-table">
-    <tr>
-      <td class="header-text">
-        <div class="republic-title">Republic of the Philippines</div>
-        <div class="agency-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
-        <div class="office-title">${officeName}</div>
-      </td>
-    </tr>
-  </table>
+  <!-- Upper Voucher: Payor's Copy -->
+  ${renderSingleVoucher("Payor's Copy")}
 
-  <div class="doc-banner">
-    <div>
-      <div class="doc-title">ORDER OF PAYMENT (OP)</div>
-      <div style="font-size: 10px; opacity: 0.85;">Official Treasury & Cashier Payment Authorization</div>
-    </div>
-    <div style="text-align: right;">
-      <div class="doc-ref">${opNumber}</div>
-      <div style="font-size: 10px; color: #d1fae5;">Date: ${currentDate}</div>
-    </div>
+  <div class="cut-line">
+    ✂ - - - - - - - - - - - - - - - - - - - - - CUT HERE - - - - - - - - - - - - - - - - - - - - - ✂
   </div>
 
-  <div class="info-card">
-    <div class="info-row">
-      <span class="info-label">Payor / Applicant Name:</span>
-      <span class="info-val">${applicantName}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Application Reference:</span>
-      <span class="info-val" style="font-family: monospace; color: #059669;">Ref #${refNum}</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Service & Category:</span>
-      <span class="info-val">${serviceName} (${categoryName})</span>
-    </div>
-    <div class="info-row">
-      <span class="info-label">Filing Mode:</span>
-      <span class="info-val">${filingMode} Application</span>
-    </div>
-  </div>
-
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th class="th-cell" style="width: 8%;">#</th>
-        <th class="th-cell" style="width: 60%;">Nature of Collection / Particulars</th>
-        <th class="th-cell" style="width: 32%; text-align: right;">Amount (PHP)</th>
-      </tr>
-    </thead>
-    <tbody>
-      ${lineItemsHtml}
-      <tr style="background: #f8fafc;">
-        <td colspan="2" class="td-cell" style="font-weight: 800; text-align: right; text-transform: uppercase;">Total Amount Payable:</td>
-        <td class="td-cell" style="text-align: right; font-weight: 800; font-size: 13px; color: #059669;">${formatCurrency(app.totalAmountDue)}</td>
-      </tr>
-    </tbody>
-  </table>
-
-  <div class="payment-box">
-    <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">AMOUNT IN WORDS:</div>
-    <div style="font-size: 11px; font-weight: 600; color: #047857;">${totalWords}</div>
-    <div style="margin-top: 8px; font-size: 10.5px; color: #065f46;">
-      <strong>Payment Status:</strong> ${orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection'}
-    </div>
-  </div>
-
-  <div class="signatories">
-    <div class="sig-block">
-      <div class="sig-name">Accountant / Collecting Officer</div>
-      <div class="sig-role">Authorized Assessment Officer</div>
-    </div>
-    <div class="sig-block">
-      <div class="sig-name">${safeString(cashierName, 'Special Collecting Officer / Cashier')}</div>
-      <div class="sig-role">Collecting Cashier</div>
-    </div>
-  </div>
-
-  <div class="footer-note">
-    National Telecommunications Commission • Order of Payment Generated via NTC-EDGE Digital Portal.
-  </div>
+  <!-- Lower Voucher: Collecting Officer's Copy -->
+  ${renderSingleVoucher("Collecting Officer's Copy")}
 </body>
 </html>
   `;

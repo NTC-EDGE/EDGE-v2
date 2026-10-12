@@ -59,9 +59,13 @@ public static class ClerkAuthenticationExtensions
                 {
                     OnMessageReceived = context =>
                     {
-                        var accessToken = context.Request.Query["access_token"];
+                        var accessToken = context.Request.Query["access_token"].ToString();
+                        if (string.IsNullOrEmpty(accessToken))
+                        {
+                            accessToken = context.Request.Query["token"].ToString();
+                        }
                         var path = context.HttpContext.Request.Path;
-                        if (!string.IsNullOrEmpty(accessToken) && path.StartsWithSegments("/hubs"))
+                        if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs") || path.Value?.Contains("/print", StringComparison.OrdinalIgnoreCase) == true))
                         {
                             context.Token = accessToken;
                         }

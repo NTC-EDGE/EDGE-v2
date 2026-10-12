@@ -933,7 +933,7 @@ export function ApplicationReviewScreenContent({
         onReturn={() => setShowDecline(true)}
         onEndorse={() => setShowEndorse(true)}
         onPrintAccountableForm={() => handlePrintAccountableForm()}
-        onPrintSoa={handlePrintSoa}
+        onPrintSoa={() => handlePreviewReport('soa')}
       />
 
       {/* ── Modals ── */}

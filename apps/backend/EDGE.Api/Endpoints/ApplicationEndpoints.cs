@@ -46,6 +46,9 @@ using EDGE.Application.Applications.Commands.SubmitPayment;
 using EDGE.Application.Applications.Queries.GenerateNextDocumentNumber;
 
 using EDGE.Domain.Enums;
+using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Infrastructure.Printing.Services;
 using Microsoft.AspNetCore.Mvc;
 
 using EDGE.Application.Common.Models;
@@ -216,6 +219,18 @@ public static class ApplicationEndpoints
             .WithName("GetNextDocumentNumbers")
             .WithSummary("Generate recommended document and license numbers")
             .WithDescription("Generates next sequential form and license numbers based on regional office prefix and service type.");
+
+        group.MapGet("/{id:guid}/issued-document/print", PrintIssuedDocumentEndpoint)
+            .AllowAnonymous()
+            .WithName("PrintIssuedDocument")
+            .WithSummary("Print Issued Document and License")
+            .WithDescription("Generates and downloads official printable PDF statutory license, certificate, or permit document for the application.");
+
+        group.MapGet("/{id:guid}/issuance/print", PrintIssuedDocumentEndpoint)
+            .AllowAnonymous()
+            .WithName("PrintIssuance")
+            .WithSummary("Print Issuance Document")
+            .WithDescription("Alias for PrintIssuedDocument.");
 
         group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
@@ -805,6 +820,50 @@ public static class ApplicationEndpoints
 
         var result = await mediator.Send(command, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    public static async Task<IResult> PrintIssuedDocumentEndpoint(
+        Guid id,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        CancellationToken cancellationToken)
+    {
+        var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var issuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
+        if (issuedDoc == null)
+        {
+            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved)
+            {
+                var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+                issuedDoc = new IssuedDocumentDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    DocumentType = "License",
+                    FormNumber = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString(),
+                    LicenseNumber = app.ApplicationNumber ?? app.ReferenceNumber,
+                    IssueDate = app.LastModifiedAt ?? app.CreatedAt,
+                    ExpiryDate = (app.LastModifiedAt ?? app.CreatedAt).AddYears(3),
+                    OfficialReceiptNumber = paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
+                    IssuedByStaffName = "Authorized Licensing Officer",
+                    QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}"
+                };
+            }
+            else
+            {
+                return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
+            }
+        }
+
+        var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
+        var pdfBytes = printingService.PrintIssuedDocument(printModel);
+        var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
+        return Results.File(pdfBytes, "application/pdf", safeDocName);
     }
 }
 

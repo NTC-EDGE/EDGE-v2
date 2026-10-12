@@ -21,6 +21,7 @@ public static class OpEndpoints
     public static IEndpointRouteBuilder MapOpEndpoints(this IEndpointRouteBuilder app)
     {
         app.MapGet("/applications/{id:guid}/op/print", PrintApplicationOp)
+            .AllowAnonymous()
             .WithTags("OrderOfPayment")
             .WithName("PrintApplicationOp")
             .WithSummary("Print Application Order of Payment")
@@ -29,6 +30,7 @@ public static class OpEndpoints
         var group = app.MapGroup("/ops").WithTags("OrderOfPayment");
 
         group.MapGet("/{opId:guid}/print", PrintOpById)
+            .AllowAnonymous()
             .WithName("PrintOpById")
             .WithSummary("Print Order of Payment by ID")
             .WithDescription("Generates and downloads official printable PDF Order of Payment document by OP ID.");

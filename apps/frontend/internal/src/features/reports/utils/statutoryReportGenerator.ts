@@ -167,8 +167,8 @@ export function generateStatutoryCsv(
       filename = `NTC_CSMR_Feedback_${cleanTenant}_${dateStamp}.csv`;
       content = 'Client / Citizen Name,Contact Email,Service Evaluated,CSAT Rating (1-5),Anonymous,Subject / Concern,Feedback Content,Resolution Status,Submission Date\n';
       for (const fb of feedback) {
-        const name = `"${(fb.senderName ?? 'Citizen Client').replace(/"/g, '""')}"`;
-        const email = `"${(fb.senderEmail ?? '').replace(/"/g, '""')}"`;
+        const name = fb.isAnonymous ? '"Anonymous Citizen"' : `"${(fb.senderName ?? 'Citizen Client').replace(/"/g, '""')}"`;
+        const email = fb.isAnonymous ? '"[Redacted / Anonymous]"' : `"${(fb.senderEmail ?? '').replace(/"/g, '""')}"`;
         const svc = '"Regional Service & Processing"';
         const rating = fb.rating;
         const anon = fb.isAnonymous ? 'Yes' : 'No';

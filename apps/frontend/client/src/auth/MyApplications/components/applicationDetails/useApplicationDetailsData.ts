@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { applicationService } from '@edge/api';
 import { useApi } from '../../../../shared/hooks/useApi';
 import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRequirement, mapApiApplicationToApplication } from '../../data/applicationsData';
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
@@ -354,8 +355,9 @@ export function useApplicationDetailsData(initialApp: Application) {
       });
     }
 
+    let resolvedDocs: ApplicationDocument[] = [];
     if (rawReqs.length > 0) {
-      return rawReqs.map((req: RawRequirement, index: number) => {
+      resolvedDocs = rawReqs.map((req: RawRequirement, index: number) => {
         const urlStr = req.url || '';
         const hasFile = Boolean(
           (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
@@ -389,8 +391,40 @@ export function useApplicationDetailsData(initialApp: Application) {
           storedFileId: hasFile ? req.storedFileId : undefined,
         };
       });
+    } else {
+      resolvedDocs = getAppDocuments(app);
     }
-    return getAppDocuments(app);
+
+    // When application is completed, guarantee official issued permit document entry
+    const statusLower = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
+    const rawBeStatusLower = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
+    const isCompleted =
+      statusLower === 'completed' ||
+      statusLower === 'approved' ||
+      rawBeStatusLower === 'completed' ||
+      rawBeStatusLower === 'approved';
+
+    if (isCompleted && typeof app.id === 'string' && app.id.trim().length > 0) {
+      const alreadyHasIssued = resolvedDocs.some(
+        (d) => d.category === 'ISSUED_PERMIT' && d.id.includes('official-issued-license')
+      );
+      if (!alreadyHasIssued) {
+        const permitTitle = app.serviceName || 'Statutory Permit & License';
+        const safeTitle = `Official_${permitTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+        const issuedDocEntry: ApplicationDocument = {
+          id: `official-issued-license-${app.id}`,
+          name: safeTitle,
+          type: 'PDF',
+          size: '1.4 MB',
+          category: 'ISSUED_PERMIT',
+          uploadedAt: app.submittedAt || new Date().toISOString(),
+          url: applicationService.getIssuedDocumentPrintUrl(app.id),
+        };
+        return [issuedDocEntry, ...resolvedDocs];
+      }
+    }
+
+    return resolvedDocs;
   }, [app]);
 
   const primaryName = useMemo(() => {

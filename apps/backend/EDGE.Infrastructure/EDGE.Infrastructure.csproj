@@ -6,6 +6,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Persistence\SeedData\geographic-data.json" />
+    <EmbeddedResource Include="Printing\Templates\*.pdf" />
   </ItemGroup>
 
   <ItemGroup>

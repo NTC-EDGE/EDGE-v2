@@ -419,20 +419,6 @@ export function generateStatutoryDocumentHtml(
             <div class="agency-name">National Telecommunications Commission</div>
             <div class="office-sub">${officeName}</div>
           </div>
-          <div class="header-qr-corner">
-            <div class="qr-box">
-              <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#1e3a8a" stroke-width="1.5">
-                <rect x="2" y="2" width="8" height="8" rx="1"/>
-                <rect x="14" y="2" width="8" height="8" rx="1"/>
-                <rect x="2" y="14" width="8" height="8" rx="1"/>
-                <rect x="5" y="5" width="2" height="2" fill="#1e3a8a"/>
-                <rect x="17" y="5" width="2" height="2" fill="#1e3a8a"/>
-                <rect x="5" y="17" width="2" height="2" fill="#1e3a8a"/>
-                <path d="M14 14h2v2h-2zM18 14h4v2h-4zM14 18h4v4h-4zM20 18h2v4h-2z" fill="#1e3a8a"/>
-              </svg>
-            </div>
-            <div class="qr-sub-text">NTC VERIFIED</div>
-          </div>
         </div>
 
         <div class="doc-title-box">

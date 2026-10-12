@@ -760,6 +760,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         {
             entity.HasIndex(e => e.CreatedAt);
             entity.HasIndex(e => e.Status);
+            entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
         });
 
         modelBuilder.Entity<ApplicationHistory>(entity =>

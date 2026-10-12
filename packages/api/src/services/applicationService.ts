@@ -340,5 +340,21 @@ export const applicationService = {
       return response.data;
     });
   },
+
+  getIssuedDocumentPrintUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/issued-document/print`;
+  },
+
+  async downloadIssuedDocumentPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/issued-document/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
 };
+
 

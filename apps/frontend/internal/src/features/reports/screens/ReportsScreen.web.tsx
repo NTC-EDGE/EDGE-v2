@@ -1281,6 +1281,8 @@ const styles = StyleSheet.create({
     paddingBottom: 90,
     gap: SPACING[16],
     width: '100%',
+    maxWidth: 1400,
+    alignSelf: 'center',
   },
   headerActions: {
     flexDirection: 'row',

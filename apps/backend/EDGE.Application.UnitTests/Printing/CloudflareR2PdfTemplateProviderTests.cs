@@ -97,6 +97,25 @@ public class CloudflareR2PdfTemplateProviderTests
     }
 
     [Fact]
+    public async Task GetTemplateResourceAsync_WhenEmbeddedInDll_ReturnsResourceFromDll()
+    {
+        // Arrange - Create a standalone provider without any S3/R2 client (e.g. offline/Docker production)
+        var standaloneProvider = new CloudflareR2PdfTemplateProvider(
+            _options,
+            NullLogger<CloudflareR2PdfTemplateProvider>.Instance,
+            s3Client: null);
+
+        // Act - Fetch the template embedded in EDGE.Infrastructure.dll
+        var resource = await standaloneProvider.GetTemplateResourceAsync("soa-report-template.pdf");
+
+        // Assert
+        resource.Should().NotBeNull();
+        using var ms = new MemoryStream();
+        await resource!.Stream.CopyToAsync(ms);
+        ms.Length.Should().BeGreaterThan(1000);
+    }
+
+    [Fact]
     public async Task UploadTemplateAsync_UploadsToS3_AndPopulatesCache()
     {
         // Arrange

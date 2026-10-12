@@ -74,7 +74,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             return new PdfTemplateResource(cachedTemplate, new MemoryStream(cachedBytes, writable: false));
         }
 
-        // 2. Fetch from Cloudflare R2
+        // 2. Fetch from Cloudflare R2 (cloud override)
         if (_s3Client != null)
         {
             try
@@ -107,7 +107,16 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             }
         }
 
-        // 3. Fallback check for local project files (e.g. templates/Assesment-SOA.pdf) to auto-seed
+        // 3. Fallback to Embedded Assembly Resources in EDGE.Infrastructure.dll
+        var embeddedBytes = GetEmbeddedTemplateBytes(cleanId);
+        if (embeddedBytes != null)
+        {
+            _cache[key] = embeddedBytes;
+            var template = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
+            return new PdfTemplateResource(template, new MemoryStream(embeddedBytes, writable: false));
+        }
+
+        // 4. Fallback check for local project files (e.g. templates/Assesment-SOA.pdf) to auto-seed
         var localFallbackPath = ResolveLocalTemplatePath(cleanId);
         if (localFallbackPath != null && File.Exists(localFallbackPath))
         {
@@ -252,8 +261,14 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
         }
 
         var key = GetStorageKey(templateId);
+        var cleanId = NormalizeTemplateId(templateId);
 
         if (_cache.ContainsKey(key))
+        {
+            return true;
+        }
+
+        if (GetEmbeddedTemplateBytes(cleanId) != null)
         {
             return true;
         }
@@ -283,13 +298,19 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             }
         }
 
-        var localPath = ResolveLocalTemplatePath(NormalizeTemplateId(templateId));
+        var localPath = ResolveLocalTemplatePath(cleanId);
         return localPath != null && File.Exists(localPath);
     }
 
     public async Task<IReadOnlyList<string>> ListTemplatesAsync(CancellationToken cancellationToken = default)
     {
         var resultList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Include embedded templates in assembly
+        foreach (var id in GetEmbeddedTemplateIds())
+        {
+            resultList.Add(id);
+        }
 
         // Include items in local cache
         foreach (var k in _cache.Keys)
@@ -388,6 +409,24 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             fileNames.Add("soa-report-template.pdf");
             fileNames.Add("Assesment-SOA.pdf");
         }
+        else if (clean.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames.Add("order-of-payment-template.pdf");
+            fileNames.Add("order-of-payment.pdf");
+        }
+        else if (clean.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames.Add("or_portrait-template.pdf");
+            fileNames.Add("or_portrait.pdf");
+            fileNames.Add("AF-51.pdf");
+        }
 
         foreach (var fileName in fileNames)
         {
@@ -409,5 +448,78 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
         }
 
         return null;
+    }
+
+    private static byte[]? GetEmbeddedTemplateBytes(string templateName)
+    {
+        var clean = NormalizeTemplateId(templateName);
+        var fileNames = new List<string>
+        {
+            clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf"
+        };
+
+        if (clean.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("Assesment-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("Assessment-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("NTC-FORM-SOA", StringComparison.OrdinalIgnoreCase) ||
+            clean.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames.Add("soa-report-template.pdf");
+        }
+        else if (clean.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames.Add("order-of-payment-template.pdf");
+        }
+        else if (clean.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 clean.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames.Add("or_portrait-template.pdf");
+        }
+
+        var assembly = typeof(CloudflareR2PdfTemplateProvider).Assembly;
+        var allResourceNames = assembly.GetManifestResourceNames();
+
+        foreach (var fileName in fileNames)
+        {
+            var match = allResourceNames.FirstOrDefault(r =>
+                r.EndsWith($".{fileName}", StringComparison.OrdinalIgnoreCase) ||
+                r.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+            {
+                using var stream = assembly.GetManifestResourceStream(match);
+                if (stream != null)
+                {
+                    using var ms = new MemoryStream();
+                    stream.CopyTo(ms);
+                    return ms.ToArray();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> GetEmbeddedTemplateIds()
+    {
+        var list = new List<string>();
+        var assembly = typeof(CloudflareR2PdfTemplateProvider).Assembly;
+        const string prefix = "EDGE.Infrastructure.Printing.Templates.";
+
+        foreach (var r in assembly.GetManifestResourceNames())
+        {
+            if (r.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && r.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(r[prefix.Length..]);
+            }
+        }
+
+        return list;
     }
 }

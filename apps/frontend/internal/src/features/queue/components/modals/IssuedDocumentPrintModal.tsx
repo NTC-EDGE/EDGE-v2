@@ -595,10 +595,6 @@ export function IssuedDocumentPrintModal({
                             <Text style={styles.mockDept}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
                             <Text style={styles.mockTitle}>{app.serviceName || 'RADIO STATION LICENSE'}</Text>
                           </View>
-                          <View style={styles.mockHeaderQr}>
-                            <Lucide name="grid" size={14} color="#1E3A8A" />
-                            <Text style={styles.mockQrLabel}>QR SEAL</Text>
-                          </View>
                         </View>
                         <View style={styles.mockLicensee}>
                           <Text style={styles.mockLicenseeName}>{app.applicant}</Text>
@@ -620,9 +616,6 @@ export function IssuedDocumentPrintModal({
                       {showGhostWatermark && (
                         <View style={styles.ghostLayer}>
                           <Text style={styles.ghostWatermarkText}>[PRE-PRINTED OFFICIAL GOVERNMENT STATIONERY]</Text>
-                          <View style={[styles.ghostBox, { top: '5%', right: '6%', width: '16%', height: '11%', alignItems: 'center', justifyContent: 'center' }]}>
-                            <Text style={styles.ghostBoxLabel}>QR CODE</Text>
-                          </View>
                           <View style={[styles.ghostBox, { top: '18%', left: '12%', width: '76%', height: '10%' }]}>
                             <Text style={styles.ghostBoxLabel}>NAME OF LICENSEE / GRANTEE</Text>
                           </View>
@@ -1036,16 +1029,6 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#1E3A8A',
     paddingBottom: 4,
-  },
-  mockHeaderQr: {
-    alignItems: 'center',
-    paddingLeft: 4,
-  },
-  mockQrLabel: {
-    fontSize: 4,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginTop: 1,
   },
   mockAgency: {
     fontSize: 7,

@@ -24,11 +24,9 @@ public static class StorageEndpoints
 {
     public static RouteGroupBuilder MapStorageEndpoints(this RouteGroupBuilder group)
     {
-        // Enforce Authentication & Authorization globally across all storage endpoints
-        var authorizedStorageGroup = group.RequireAuthorization();
-
         // Tenant-scoped storage endpoints: /api/v2/tenants/{tenantId}/storage/...
-        var tenantStorageGroup = authorizedStorageGroup.MapGroup("tenants/{tenantId:guid}/storage")
+        var tenantStorageGroup = group.MapGroup("tenants/{tenantId:guid}/storage")
+            .RequireAuthorization()
             .WithTags("Tenant Storage");
 
         tenantStorageGroup.MapPost("/upload", UploadTenantFile)
