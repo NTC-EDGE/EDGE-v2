@@ -206,9 +206,50 @@ public class StatementOfAccountReportTests
         // Act
         byte[] pdfBytes = report.GeneratePdf();
 
-        // Assert
         Assert.NotNull(pdfBytes);
-        Assert.True(pdfBytes.Length > 1000, "Overlay mode PDF bytes should be non-empty.");
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_MapsFromOrderOfPayment_WhenSoaIsNull()
+    {
+        // Arrange: Application has Order of Payment but no Statement of Account record
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ReferenceNumber = "REF-2026-NTC-999",
+            Status = Domain.Enums.ApplicationStatus.PendingPayment,
+            User = new Domain.Entities.User
+            {
+                FirstName = "Maria",
+                LastName = "Santos"
+            }
+        };
+
+        var op = new Domain.Entities.OrderOfPayment
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationId = appId,
+            OpNumber = "61-2026-07-9999",
+            AmountDue = 1500.00m,
+            OfficialReceiptNumber = "OR-2026-7788",
+            AmountReceived = 1500.00m,
+            PaidAt = System.DateTime.UtcNow
+        };
+
+        // Act: Map with soa = null, using op as reference
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: null, app: app, op: op);
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+
+        // Assert
+        Assert.Equal("Maria Santos", model.PayorName);
+        Assert.Equal("SOA-REF-2026-NTC-999", model.AccountNo);
+        Assert.True(model.IsEndorsedForPayment);
+        Assert.Equal("OR-2026-7788", model.OrNo);
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
     }
 
     private static void SavePdfToTemp(string filename, byte[] bytes)

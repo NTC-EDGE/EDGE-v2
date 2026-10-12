@@ -144,12 +144,21 @@ public static class SoaEndpoints
         }
 
         var soa = app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
-        if (soa == null)
+        var op = app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+
+        // If no direct SOA found on application, check if linked via Order of Payment
+        if (soa == null && op?.StatementOfAccountId.HasValue == true)
         {
-            return Results.NotFound(new { message = $"No Statement of Account found for Application '{id}'." });
+            soa = await repository.GetSoaByIdAsync(op.StatementOfAccountId.Value, cancellationToken);
         }
 
-        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app);
+        // If still no SOA but OP exists or Application exists, use OP / Application as reference
+        if (soa == null && op == null && (app.ApplicationApplicants == null || !app.ApplicationApplicants.Any()))
+        {
+            return Results.NotFound(new { message = $"No Statement of Account or Order of Payment found for Application '{id}'." });
+        }
+
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, op);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
         return Results.File(pdfBytes, "application/pdf", fileName);

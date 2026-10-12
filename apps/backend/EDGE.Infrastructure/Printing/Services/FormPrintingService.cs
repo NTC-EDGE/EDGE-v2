@@ -332,10 +332,17 @@ public class FormPrintingService : IFormPrintingService
 
         if (_fillerService != null)
         {
-            var templateBytes = _fillerService.GetTemplate("order-of-payment-template.pdf");
-            if (templateBytes != null && templateBytes.Length > 0)
+            try
             {
-                return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
+                var templateBytes = _fillerService.GetTemplate("order-of-payment-template.pdf");
+                if (templateBytes != null && templateBytes.Length > 0)
+                {
+                    return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
+                }
+            }
+            catch
+            {
+                // Fall back gracefully to QuestPDF report generator
             }
         }
 
@@ -348,10 +355,17 @@ public class FormPrintingService : IFormPrintingService
 
         if (_fillerService != null)
         {
-            var templateBytes = _fillerService.GetTemplate("soa-report-template.pdf");
-            if (templateBytes != null && templateBytes.Length > 0)
+            try
             {
-                return EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(templateBytes, model);
+                var templateBytes = _fillerService.GetTemplate("soa-report-template.pdf");
+                if (templateBytes != null && templateBytes.Length > 0)
+                {
+                    return EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(templateBytes, model);
+                }
+            }
+            catch
+            {
+                // Fall back gracefully to QuestPDF report generator
             }
         }
 

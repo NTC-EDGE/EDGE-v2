@@ -8,6 +8,7 @@ import {
   Pressable,
   Platform,
   Linking,
+  Animated,
 } from 'react-native';
 import {
   COLORS,
@@ -31,6 +32,64 @@ import {
   numberToWords,
 } from '../../utils/soaReportGenerator';
 
+interface PdfLoadBarProps {
+  height?: number;
+}
+
+function PdfLoadBar({ height = 5 }: PdfLoadBarProps) {
+  const { colors, isDark } = useTheme();
+  const anim = React.useRef(new Animated.Value(0)).current;
+  const [containerWidth, setContainerWidth] = useState(300);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-containerWidth * 0.4, containerWidth],
+  });
+
+  return (
+    <View
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) {
+          setContainerWidth(w);
+        }
+      }}
+      style={{
+        width: '100%',
+        height,
+        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200],
+        borderRadius: height / 2,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: '35%',
+          backgroundColor: isDark ? colors.brand[400] : colors.brand[600],
+          borderRadius: height / 2,
+          transform: [{ translateX }],
+        }}
+      />
+    </View>
+  );
+}
+
 export type ReportDocumentType = 'soa' | 'op' | 'summary';
 
 interface SoaReportPreviewModalProps {
@@ -53,28 +112,63 @@ export function SoaReportPreviewModal({
   const [viewFormat, setViewFormat] = useState<'pdf' | 'grid'>('pdf');
   const [soaOutputMode, setSoaOutputMode] = useState<'plain_paper' | 'accountable_form'>('plain_paper');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
   const [opCopyView, setOpCopyView] = useState<'both' | 'payor' | 'collecting'>('both');
+
+  useEffect(() => {
+    if (visible) {
+      setDocType(initialDocType);
+    }
+  }, [visible, initialDocType]);
 
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
 
     if (Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op')) {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+      setPdfBlobUrl(null);
+
       const loadBlob = async () => {
         try {
           const [blob, err] = docType === 'soa'
             ? await applicationService.downloadSoaPdf(app.id)
             : await applicationService.downloadOpPdf(app.id);
 
-          if (active && blob !== null && err === null && typeof window !== 'undefined') {
+          if (!active) {
+            return;
+          }
+
+          if (err !== null || blob === null) {
+            const errDetail = typeof err === 'string' && err.trim().length > 0
+              ? err
+              : `Failed to generate official ${docType.toUpperCase()} document.`;
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
             createdUrl = window.URL.createObjectURL(blob);
             setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
           }
-        } catch {
-          // Fall back to direct backend URL if blob conversion fails
+        } catch (fetchErr: unknown) {
+          if (!active) {
+            return;
+          }
+          const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Error generating official document';
+          setPdfError(errorMessage);
+          setIsLoadingPdf(false);
         }
       };
       void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+      setPdfError(null);
     }
 
     return () => {
@@ -83,7 +177,11 @@ export function SoaReportPreviewModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [app.id, docType, viewFormat]);
+  }, [app.id, docType, viewFormat, reloadKey]);
+
+  const handleRetryPdf = () => {
+    setReloadKey((prev) => prev + 1);
+  };
 
   const { rows: populatedSoaRows, totalAmount: computedSoaTotal } = useMemo(
     () => getPopulatedSoaRows(app),
@@ -807,13 +905,211 @@ export function SoaReportPreviewModal({
             </View>
           )}
 
+          {Platform.OS === 'web' && (docType === 'soa' || docType === 'op') && isLoadingPdf && (
+            <View style={{ width: '100%', height: 3, overflow: 'hidden' }}>
+              <PdfLoadBar height={3} />
+            </View>
+          )}
+
           {Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op') ? (
             <View style={{ flex: 1, minHeight: 700, padding: SPACING[12] }}>
-              {React.createElement('iframe', {
-                src: pdfBlobUrl || (docType === 'soa' ? applicationService.getSoaPrintUrl(app.id) : applicationService.getOpPrintUrl(app.id)),
-                style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
-                title: docType === 'soa' ? 'Official Statement of Account PDF' : 'Official Order of Payment PDF',
-              })}
+              {isLoadingPdf ? (
+                <View
+                  style={{
+                    flex: 1,
+                    minHeight: 650,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: isDark ? colors.neutral[900] : '#f8fafc',
+                    borderRadius: RADIUS.card,
+                    borderWidth: 1,
+                    borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                    padding: SPACING[24],
+                  }}
+                >
+                  <View
+                    style={{
+                      width: '100%',
+                      maxWidth: 460,
+                      alignItems: 'center',
+                      gap: SPACING[16],
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderWidth: 1,
+                        borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                      }}
+                    >
+                      <Lucide name="file-text" size={28} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                    </View>
+
+                    <View style={{ alignItems: 'center', gap: 6 }}>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 16,
+                          fontWeight: '700',
+                          color: isDark ? colors.neutral[100] : colors.neutral[900],
+                          textAlign: 'center',
+                        }}
+                      >
+                        Generating Official {docType === 'soa' ? 'Statement of Account' : 'Order of Payment'}...
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 12,
+                          color: isDark ? colors.neutral[400] : colors.neutral[600],
+                          textAlign: 'center',
+                          lineHeight: 18,
+                        }}
+                      >
+                        Synthesizing official NTC vector form using backend AcroForm and QuestPDF services.
+                      </Text>
+                    </View>
+
+                    {/* Animated Load Bar */}
+                    <View style={{ width: '100%', marginTop: SPACING[8] }}>
+                      <PdfLoadBar height={6} />
+                    </View>
+
+                    <View
+                      style={{
+                        paddingHorizontal: 12,
+                        paddingVertical: 6,
+                        borderRadius: RADIUS.circle,
+                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                        borderWidth: 1,
+                        borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                      }}
+                    >
+                      <Text
+                        style={{
+                          fontSize: 11,
+                          fontWeight: '600',
+                          color: isDark ? colors.neutral[300] : colors.neutral[700],
+                        }}
+                      >
+                        {docType === 'soa'
+                          ? 'Referencing Order of Payment (OP) for assessment fees'
+                          : 'Preparing 2-Up Accountable Form layout'}
+                      </Text>
+                    </View>
+                  </View>
+                </View>
+              ) : pdfError !== null ? (
+                <View
+                  style={{
+                    flex: 1,
+                    minHeight: 650,
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    backgroundColor: isDark ? colors.neutral[900] : '#fef2f2',
+                    borderRadius: RADIUS.card,
+                    borderWidth: 1,
+                    borderColor: isDark ? '#7f1d1d' : '#fecaca',
+                    padding: SPACING[24],
+                  }}
+                >
+                  <View
+                    style={{
+                      width: '100%',
+                      maxWidth: 480,
+                      alignItems: 'center',
+                      gap: SPACING[16],
+                    }}
+                  >
+                    <View
+                      style={{
+                        width: 56,
+                        height: 56,
+                        borderRadius: 28,
+                        backgroundColor: isDark ? '#450a0a' : '#fee2e2',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      <Lucide name="alert-triangle" size={28} color="#dc2626" />
+                    </View>
+
+                    <View style={{ alignItems: 'center', gap: 6 }}>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 16,
+                          fontWeight: '700',
+                          color: isDark ? '#fca5a5' : '#991b1b',
+                          textAlign: 'center',
+                        }}
+                      >
+                        Unable to Preview {docType === 'soa' ? 'Statement of Account' : 'Order of Payment'} PDF
+                      </Text>
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 12,
+                          color: isDark ? colors.neutral[400] : colors.neutral[600],
+                          textAlign: 'center',
+                          lineHeight: 18,
+                        }}
+                      >
+                        {pdfError}
+                      </Text>
+                    </View>
+
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, justifyContent: 'center' }}>
+                      <Pressable
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
+                        }}
+                        onPress={handleRetryPdf}
+                      >
+                        <Lucide name="refresh-cw" size={14} color="#ffffff" />
+                        <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Retry</Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={{
+                          flexDirection: 'row',
+                          alignItems: 'center',
+                          gap: 6,
+                          paddingHorizontal: 14,
+                          paddingVertical: 8,
+                          borderRadius: RADIUS.sm,
+                          backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                          borderWidth: 1,
+                          borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                        }}
+                        onPress={() => setViewFormat('grid')}
+                      >
+                        <Lucide name="table" size={14} color={isDark ? colors.neutral[200] : colors.neutral[800]} />
+                        <Text style={{ color: isDark ? colors.neutral[200] : colors.neutral[800], fontSize: 12, fontWeight: '600' }}>
+                          Switch to Data Grid
+                        </Text>
+                      </Pressable>
+                    </View>
+                  </View>
+                </View>
+              ) : pdfBlobUrl !== null ? (
+                React.createElement('iframe', {
+                  src: pdfBlobUrl,
+                  style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
+                  title: docType === 'soa' ? 'Official Statement of Account PDF' : 'Official Order of Payment PDF',
+                })
+              ) : null}
             </View>
           ) : (
             <ScrollView
