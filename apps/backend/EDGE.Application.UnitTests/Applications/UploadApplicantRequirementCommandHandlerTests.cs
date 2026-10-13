@@ -1,10 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
