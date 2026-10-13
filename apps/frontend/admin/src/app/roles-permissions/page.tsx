@@ -313,7 +313,10 @@ export default function RolesPermissionsPage() {
 
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
+  const selectedRole =
+    (selectedRoleId !== null ? roles.find((r) => r.id === selectedRoleId) : undefined) ??
+    roles[0] ??
+    null;
 
   const filteredRoles = useMemo(() => {
     return roles.filter((role) => {
@@ -748,7 +751,7 @@ export default function RolesPermissionsPage() {
                     <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
                     <input
                       type="text"
-                      placeholder="Search permissions by name, key, or category..."
+                      placeholder="Search permissions..."
                       value={permissionSearchTerm}
                       onChange={(e) => setPermissionSearchTerm(e.target.value)}
                       className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
@@ -792,6 +795,28 @@ export default function RolesPermissionsPage() {
 
                 {/* Permissions catalog */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                  {/* Search Bar on Permissions Catalog Header */}
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search permissions..."
+                        value={permissionSearchTerm}
+                        onChange={(e) => setPermissionSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      {permissionSearchTerm.trim().length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPermissionSearchTerm("")}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
 
                   {rolePermsLoading || permsLoading ? (
                     <div className="flex items-center justify-center h-48">

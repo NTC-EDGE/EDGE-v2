@@ -24,7 +24,7 @@ export function useRolePermissionService() {
    * Uses scope=all so system-admin users see all permissions across all scopes.
    */
   const usePermissionCatalog = () => {
-    return useQuery<PermissionDefinition[]>('/api/v2/permissions?scope=all');
+    return useQuery<PermissionDefinition[]>('/api/v2/permissions');
   };
 
   /**
