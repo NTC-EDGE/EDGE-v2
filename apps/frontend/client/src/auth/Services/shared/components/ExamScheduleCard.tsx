@@ -203,7 +203,7 @@ export function ExamScheduleCard({
             <Icon name="calendar" size={13} color="#059669" />
           </View>
           <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Application Filing Window</Text>
+            <Text style={styles.detailLabel}>Application Period (Filing Window)</Text>
             <Text style={styles.detailValue}>
               {appStartDisplay} – {appEndDisplay}
             </Text>

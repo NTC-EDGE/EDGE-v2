@@ -184,6 +184,9 @@ export function ApplicantRecordTab({
                 companyContactNumber: activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber,
                 representativeName: (activeApplicant.applicantType === 'Company') ? app.filingUser?.name : undefined,
                 notes: activeApplicant.evaluationRemarks,
+                schoolAttended: activeApplicant.schoolAttended,
+                courseTaken: activeApplicant.courseTaken,
+                yearGraduated: activeApplicant.yearGraduated,
               }}
             />
           )}

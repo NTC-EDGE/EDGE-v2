@@ -32,10 +32,7 @@ public class ExamFeeCalculationStrategy : IFeeCalculationStrategy
         var appType = request.ApplicationType.SafeTrim();
         var element = request.Element.SafeTrim();
 
-        // Application Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Application Fee", FeeConstants.Codes.ApplicationFee, "Examination Admission Application Fee", 1, 1, FeeConstants.Amounts.ExamApplicationFee, FeeConstants.Amounts.ExamApplicationFee));
-
-        // Examination Fee
+        // Examination Fee (FEEEXAM = EXAMFEE)
         decimal examRate = FeeConstants.Amounts.DefaultExamRate;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Examination Fee" : $"Examination Fee ({element})",
@@ -47,12 +44,9 @@ public class ExamFeeCalculationStrategy : IFeeCalculationStrategy
             Amount: examRate
         ));
 
-        // DST
-        lineItems.Add(new CalculatedFeeLineItemDto("Documentary Stamp Tax (DST)", FeeConstants.Codes.Dst, "Statutory Documentary Stamp Tax", 1, 1, DST_AMOUNT, DST_AMOUNT, IsTax: true));
-
-        var subTotal = lineItems.Where(li => !li.IsSurcharge && !li.IsTax).Sum(li => li.Amount);
-        var taxAmount = lineItems.Where(li => li.IsTax).Sum(li => li.Amount);
-        var totalAmount = lineItems.Sum(li => li.Amount);
+        var subTotal = examRate;
+        var taxAmount = 0m;
+        var totalAmount = examRate;
 
         return new FeeCalculationResultDto(
             Activity: activity,

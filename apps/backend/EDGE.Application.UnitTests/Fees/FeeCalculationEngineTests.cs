@@ -609,10 +609,13 @@ public class FeeCalculationEngineTests
         var result = _engine.Calculate(request);
 
         result.Category.Should().Be(ServiceCategoryType.Exam);
-        result.FormulaApplied.Should().Be("FEEEXAM = AF + EXAM + DST");
-        // AF = 50, EXAM = 100, SubTotal = 150, Total = 180
-        result.SubTotal.Should().Be(150.00m);
-        result.TotalAmount.Should().Be(180.00m);
+        result.FormulaApplied.Should().Be("FEEEXAM = EXAMFEE");
+        // EXAM = 50, SubTotal = 50, Total = 50
+        result.SubTotal.Should().Be(50.00m);
+        result.TotalAmount.Should().Be(50.00m);
+        result.LineItems.Should().HaveCount(1);
+        result.LineItems[0].Particular.Should().Be("Examination Fee");
+        result.LineItems[0].Amount.Should().Be(50.00m);
     }
 
     [Fact]

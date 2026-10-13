@@ -162,15 +162,18 @@ function parseClerkErrorPayload(errObj: object): string | null {
 
   const code = getProperty(targetErr, "code");
   const message = getProperty(targetErr, "message");
-  const longMessage = getProperty(targetErr, "long_message");
+  const longMessage = getProperty(targetErr, "long_message") ?? getProperty(targetErr, "longMessage");
 
-  if (
-    code === "external_account_not_found" ||
-    code === "account_not_found" ||
-    code === "user_not_found" ||
-    code === "not_allowed_to_sign_up" ||
-    code === "identifier_not_found"
-  ) {
+  // 1. Prioritize actual backend response message if provided by authentication provider
+  if (typeof longMessage === "string" && longMessage.trim().length > 0) {
+    return sanitizeErrorMessage(longMessage);
+  }
+  if (typeof message === "string" && message.trim().length > 0) {
+    return sanitizeErrorMessage(message);
+  }
+
+  // 2. Known error code fallbacks when no backend message is provided
+  if (code === "external_account_not_found") {
     return "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
   }
 
@@ -178,26 +181,19 @@ function parseClerkErrorPayload(errObj: object): string | null {
     return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
   }
   if (code === "too_many_requests" || (typeof code === "string" && code.includes("rate_limit"))) {
-    return typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Too many requests. Please try again in a bit.";
+    return "Too many requests. Please try again in a bit.";
   }
-  if (code === "form_identifier_not_found") {
+  if (
+    code === "form_identifier_not_found" ||
+    code === "account_not_found" ||
+    code === "user_not_found" ||
+    code === "not_allowed_to_sign_up" ||
+    code === "identifier_not_found"
+  ) {
     return "The selected account is not yet registered. Please make sure to sign in with a registered account.";
   }
   if (code === "form_password_incorrect") {
-    return typeof longMessage === "string" && longMessage.trim().length > 0
-      ? longMessage.trim()
-      : typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Incorrect password. Please try again.";
-  }
-
-  if (typeof longMessage === "string" && longMessage.trim().length > 0) {
-    return sanitizeErrorMessage(longMessage);
-  }
-  if (typeof message === "string" && message.trim().length > 0) {
-    return sanitizeErrorMessage(message);
+    return "Incorrect password. Please try again.";
   }
 
   return null;

@@ -160,10 +160,26 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       props.setStep(4);
     } else if (props.step === 4) {
       if (!validateExamForm(wizard.activeApplicant, wizard.setErrors)) {
-        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo"];
+        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo", "signature"];
         const nextTouched: Record<string, boolean> = {};
         fields.forEach((f) => (nextTouched[f] = true));
         wizard.setTouched(nextTouched);
+
+        const app = wizard.activeApplicant;
+        let firstTab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE" = "BASIC";
+        if (!app.lastName || !app.firstName) {
+          firstTab = "BASIC";
+        } else if (!app.province || !app.city || !app.barangay || !app.street || !app.zipCode || !/^\d{4}$/.test(app.zipCode)) {
+          firstTab = "ADDRESS";
+        } else if (!app.schoolName || !app.courseDegree || !app.yearGraduated || !/^\d{4}$/.test(app.yearGraduated)) {
+          firstTab = "EDUCATION";
+        } else if (!app.email || !app.contactNo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(app.email) || (!/^(09|\+639)\d{9}$/.test(app.contactNo) && !/^\d{10,11}$/.test(app.contactNo))) {
+          firstTab = "CONTACT";
+        } else if (!app.signature) {
+          firstTab = "SIGNATURE";
+        }
+        handleScrollToSection(firstTab);
+
         Alert.alert("Validation Error", "Please fill in all required fields marked with *.");
         return;
       }

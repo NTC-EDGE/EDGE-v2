@@ -72,7 +72,7 @@ export function EditRecordDialog({
   initialElementId,
   onSubmit,
 }: EditRecordDialogProps) {
-  const { useServiceVariants } = useFeesService();
+  const { useServiceVariants, createFee } = useFeesService();
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
@@ -86,6 +86,44 @@ export function EditRecordDialog({
   const [elementId, setElementId] = useState("");
   const [feeId, setFeeId] = useState("");
   const [amount, setAmount] = useState(0);
+
+  // Quick Fee Code creation states
+  const [isAddingNewFeeCode, setIsAddingNewFeeCode] = useState(false);
+  const [newFeeCode, setNewFeeCode] = useState("");
+  const [newFeeName, setNewFeeName] = useState("");
+  const [isCreatingFeeCode, setIsCreatingFeeCode] = useState(false);
+  const [localFees, setLocalFees] = useState<Fee[]>(fees);
+
+  useEffect(() => {
+    setLocalFees(fees);
+  }, [fees]);
+
+  const handleCreateNewFeeCode = async () => {
+    if (newFeeCode.trim().length === 0 || newFeeName.trim().length === 0) {
+      setErrorMsg("Please enter both fee code and fee name.");
+      return;
+    }
+    setIsCreatingFeeCode(true);
+    setErrorMsg(null);
+    try {
+      const created = await createFee({
+        code: newFeeCode.trim().toUpperCase(),
+        name: newFeeName.trim(),
+        description: null,
+      });
+      if (created !== null && created !== undefined && typeof created.id === "string") {
+        setLocalFees((prev) => [created, ...prev]);
+        setFeeId(created.id);
+        setIsAddingNewFeeCode(false);
+        setNewFeeCode("");
+        setNewFeeName("");
+      }
+    } catch {
+      setErrorMsg("Failed to create new fee code. It may already exist.");
+    } finally {
+      setIsCreatingFeeCode(false);
+    }
+  };
 
   // Multiplier & Surcharge states
   const [multiplierType, setMultiplierType] = useState<"years" | "fixed" | "units" | "pages">("years");
@@ -298,14 +336,55 @@ export function EditRecordDialog({
                 </select>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
+                  <button
+                    type="button"
+                    onClick={() => setIsAddingNewFeeCode((prev) => !prev)}
+                    className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                  >
+                    {isAddingNewFeeCode ? "Cancel" : "+ Add New Fee Code"}
+                  </button>
+                </div>
+
+                {isAddingNewFeeCode && (
+                  <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl space-y-2 mb-2">
+                    <p className="text-[11px] font-semibold text-indigo-900 dark:text-indigo-200">Create & Assign New Fee Code</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <input
+                        type="text"
+                        placeholder="Code (e.g. FEEEXAM)"
+                        value={newFeeCode}
+                        onChange={(e) => setNewFeeCode(e.target.value.toUpperCase())}
+                        className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Name (e.g. Examination Fee)"
+                        value={newFeeName}
+                        onChange={(e) => setNewFeeName(e.target.value)}
+                        className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white"
+                      />
+                    </div>
+                    <Button
+                      type="button"
+                      size="sm"
+                      disabled={isCreatingFeeCode || !newFeeCode.trim() || !newFeeName.trim()}
+                      onClick={handleCreateNewFeeCode}
+                      className="w-full text-xs h-8 bg-indigo-600 hover:bg-indigo-500 text-white"
+                    >
+                      {isCreatingFeeCode ? "Creating Fee Code..." : "Create & Select Fee Code"}
+                    </Button>
+                  </div>
+                )}
+
                 <select
                   value={feeId}
                   onChange={(e) => setFeeId(e.target.value)}
                   className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
                   <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">-- Select Fee Code --</option>
-                  {fees.map((f) => (
+                  {localFees.map((f) => (
                     <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                       [{f.code}] {f.name}
                     </option>
@@ -396,14 +475,56 @@ export function EditRecordDialog({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">Mapped Fee Code *</label>
+                    <button
+                      type="button"
+                      onClick={() => setIsAddingNewFeeCode((prev) => !prev)}
+                      className="text-[11px] font-semibold text-indigo-600 dark:text-indigo-400 hover:underline"
+                    >
+                      {isAddingNewFeeCode ? "Cancel" : "+ Add New Fee Code"}
+                    </button>
+                  </div>
+
+                  {isAddingNewFeeCode && (
+                    <div className="p-3 bg-indigo-50/70 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/80 rounded-xl space-y-2 mb-2">
+                      <p className="text-[11px] font-semibold text-indigo-900 dark:text-indigo-200">Create & Assign New Fee Code</p>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <input
+                          type="text"
+                          placeholder="Code (e.g. FEEEXAM)"
+                          value={newFeeCode}
+                          onChange={(e) => setNewFeeCode(e.target.value.toUpperCase())}
+                          className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white"
+                        />
+                        <input
+                          type="text"
+                          placeholder="Name (e.g. Examination Fee)"
+                          value={newFeeName}
+                          onChange={(e) => setNewFeeName(e.target.value)}
+                          className="px-2.5 py-1.5 text-xs bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-lg text-slate-900 dark:text-white"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        size="sm"
+                        disabled={isCreatingFeeCode || !newFeeCode.trim() || !newFeeName.trim()}
+                        onClick={handleCreateNewFeeCode}
+                        className="w-full text-xs h-8 bg-indigo-600 hover:bg-indigo-500 text-white"
+                      >
+                        {isCreatingFeeCode ? "Creating Fee Code..." : "Create & Select Fee Code"}
+                      </Button>
+                    </div>
+                  )}
+
                   <select
                     value={feeId}
                     onChange={(e) => setFeeId(e.target.value)}
                     required
                     className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-sm text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                   >
-                    {fees.map((f) => (
+                    <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">-- Select Fee Code --</option>
+                    {localFees.map((f) => (
                       <option key={f.id} value={f.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
                         [{f.code}] {f.name}
                       </option>

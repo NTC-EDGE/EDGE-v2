@@ -267,6 +267,7 @@ export default function RolesPermissionsPage() {
   // Selection state
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [permissionSearchTerm, setPermissionSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -318,9 +319,22 @@ export default function RolesPermissionsPage() {
     });
   }, [roles, searchTerm, roleFilter]);
 
+  const filteredPermissions = useMemo(() => {
+    const q = permissionSearchTerm.trim().toLowerCase();
+    if (q.length === 0) return allPermissions;
+    return allPermissions.filter((p) => {
+      const label = p.label ? p.label.toLowerCase() : "";
+      const key = p.key ? p.key.toLowerCase() : "";
+      const cat = p.category ? p.category.toLowerCase() : "";
+      const scope = p.scope ? p.scope.toLowerCase() : "";
+      const tag = p.tag ? p.tag.toLowerCase() : "";
+      return label.includes(q) || key.includes(q) || cat.includes(q) || scope.includes(q) || tag.includes(q);
+    });
+  }, [allPermissions, permissionSearchTerm]);
+
   const groupedPermissions = useMemo(() => {
     const groups = new Map<string, PermissionDefinition[]>();
-    allPermissions.forEach((p) => {
+    filteredPermissions.forEach((p) => {
       const existing = groups.get(p.category);
       if (existing !== undefined) {
         existing.push(p);
@@ -329,7 +343,7 @@ export default function RolesPermissionsPage() {
       }
     });
     return groups;
-  }, [allPermissions]);
+  }, [filteredPermissions]);
 
   const pendingChangesCount = useMemo(() => {
     let count = 0;
@@ -733,6 +747,29 @@ export default function RolesPermissionsPage() {
 
                 {/* Permissions catalog */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                  {/* Permissions search bar */}
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
+                      <input
+                        type="text"
+                        placeholder="Search permissions by name, key, or category..."
+                        value={permissionSearchTerm}
+                        onChange={(e) => setPermissionSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      {permissionSearchTerm.trim().length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPermissionSearchTerm("")}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {rolePermsLoading || permsLoading ? (
                     <div className="flex items-center justify-center h-48">
                       <Loader2 className="w-6 h-6 animate-spin text-purple-600 dark:text-purple-400" />
@@ -741,11 +778,19 @@ export default function RolesPermissionsPage() {
                     <div className="flex flex-col items-center justify-center h-48 text-slate-500">
                       <p className="text-xs">No permissions available.</p>
                     </div>
+                  ) : filteredPermissions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-center px-4">
+                      <Search className="w-8 h-8 mb-2 opacity-25" />
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No permissions found</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                        No permissions match &ldquo;{permissionSearchTerm}&rdquo;.
+                      </p>
+                    </div>
                   ) : (
                     <div className="overflow-y-auto max-h-[calc(100vh-420px)]">
                       {Array.from(groupedPermissions.entries()).map(
                         ([category, perms]) => {
-                          const isExpanded = expandedCategories.has(category);
+                          const isExpanded = permissionSearchTerm.trim().length > 0 || expandedCategories.has(category);
                           const categoryKeys = perms.map((p) => p.key);
                           const checkedCount = categoryKeys.filter((k) =>
                             pendingKeys.has(k)

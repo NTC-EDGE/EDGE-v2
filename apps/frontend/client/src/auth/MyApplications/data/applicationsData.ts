@@ -1062,6 +1062,33 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     timestamp: h.timestamp || '',
   }));
 
+  const hasSubmission = mappedHistories.some(
+    (h) => h.action.toLowerCase().includes('submitted') || h.action.toLowerCase().includes('application received')
+  );
+  if (!hasSubmission) {
+    const submissionDate =
+      dto.submittedAt ||
+      dto.createdAt ||
+      (mappedHistories.length > 0 ? mappedHistories[0].timestamp : '') ||
+      new Date().toISOString();
+    const submitterName =
+      dto.filingUser?.name ||
+      dto.applicantName ||
+      (firstApplicant?.name) ||
+      'Applicant';
+
+    mappedHistories.unshift({
+      id: `init-${dto.id || 'app'}`,
+      action: 'Application Submitted',
+      fromStatus: undefined,
+      toStatus: 'Submitted',
+      staffName: submitterName,
+      staffRole: 'Applicant',
+      remarks: 'Application submitted through the portal.',
+      timestamp: submissionDate,
+    });
+  }
+
   const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
   const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
   const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;

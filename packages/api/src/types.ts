@@ -1018,6 +1018,9 @@ export interface CompanyDetailDto {
   id: string;
   barangayId?: string;
   barangayName?: string;
+  cityMunicipalityName?: string;
+  provinceName?: string;
+  regionName?: string;
   address: string;
   name: string;
   registrationNumber: string;
@@ -1032,8 +1035,11 @@ export interface ApplicantDetailDto {
   barangay?: string;
   barangayName?: string;
   city?: string;
+  cityMunicipalityName?: string;
   province?: string;
+  provinceName?: string;
   region?: string;
+  regionName?: string;
   address: string;
   firstName: string;
   middleName?: string;
