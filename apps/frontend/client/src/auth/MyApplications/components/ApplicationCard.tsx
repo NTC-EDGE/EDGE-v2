@@ -92,6 +92,34 @@ export function ApplicationCard({
             </Text>
           </View>
 
+          {app.isAssessmentOnly || app.intent === 'AssessmentOnly' ? (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#FAF5FF',
+                borderColor: '#DDD6FE',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon name="search" size={10} color="#7C3AED" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: '#7C3AED',
+                }}
+              >
+                ASSESSMENT ONLY
+              </Text>
+            </View>
+          ) : null}
+
           <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
         </View>
 

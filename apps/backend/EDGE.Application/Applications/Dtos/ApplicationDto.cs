@@ -14,6 +14,7 @@ public class ApplicationDto
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Intent { get; set; } = "Regular";
     public string QueueTab { get; set; } = "activity";
     public string SubmissionMode { get; set; } = string.Empty;
     public string? DataEntryMethod { get; set; }
@@ -22,6 +23,10 @@ public class ApplicationDto
     public bool IsGuest { get; set; }
     public bool IsPinned { get; set; }
     public bool IsArchived { get; set; }
+    public DateTime? AssessedAt { get; set; }
+    public DateTime? ConvertedToRegularAt { get; set; }
+    public int AssessmentVersion { get; set; } = 1;
+    public string? AssessmentRemarks { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastModifiedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }

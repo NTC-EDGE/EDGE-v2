@@ -1,4 +1,5 @@
 import { useState, useMemo, useEffect, useCallback } from 'react';
+import { applicationService } from '@edge/api';
 import { useApi } from '../../../../shared/hooks/useApi';
 import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRequirement, mapApiApplicationToApplication } from '../../data/applicationsData';
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
@@ -354,8 +355,9 @@ export function useApplicationDetailsData(initialApp: Application) {
       });
     }
 
+    let resolvedDocs: ApplicationDocument[] = [];
     if (rawReqs.length > 0) {
-      return rawReqs.map((req: RawRequirement, index: number) => {
+      resolvedDocs = rawReqs.map((req: RawRequirement, index: number) => {
         const urlStr = req.url || '';
         const hasFile = Boolean(
           (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
@@ -389,8 +391,40 @@ export function useApplicationDetailsData(initialApp: Application) {
           storedFileId: hasFile ? req.storedFileId : undefined,
         };
       });
+    } else {
+      resolvedDocs = getAppDocuments(app);
     }
-    return getAppDocuments(app);
+
+    // When application is completed, guarantee official issued permit document entry
+    const statusLower = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
+    const rawBeStatusLower = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
+    const isCompleted =
+      statusLower === 'completed' ||
+      statusLower === 'approved' ||
+      rawBeStatusLower === 'completed' ||
+      rawBeStatusLower === 'approved';
+
+    if (isCompleted && typeof app.id === 'string' && app.id.trim().length > 0) {
+      const alreadyHasIssued = resolvedDocs.some(
+        (d) => d.category === 'ISSUED_PERMIT' && d.id.includes('official-issued-license')
+      );
+      if (!alreadyHasIssued) {
+        const permitTitle = app.serviceName || 'Statutory Permit & License';
+        const safeTitle = `Official_${permitTitle.replace(/[^a-zA-Z0-9_-]/g, '_')}.pdf`;
+        const issuedDocEntry: ApplicationDocument = {
+          id: `official-issued-license-${app.id}`,
+          name: safeTitle,
+          type: 'PDF',
+          size: '1.4 MB',
+          category: 'ISSUED_PERMIT',
+          uploadedAt: app.submittedAt || new Date().toISOString(),
+          url: applicationService.getIssuedDocumentPrintUrl(app.id),
+        };
+        return [issuedDocEntry, ...resolvedDocs];
+      }
+    }
+
+    return resolvedDocs;
   }, [app]);
 
   const primaryName = useMemo(() => {
@@ -416,16 +450,73 @@ export function useApplicationDetailsData(initialApp: Application) {
 
   const currentStepIndex = useMemo(() => {
     const rawStatus = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
+    const rawBeStatus = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
+    const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
+    const opStatus = (app.op && typeof app.op.status === 'string' ? app.op.status : '').toLowerCase();
 
-    if (rawStatus === 'draft' || rawStatus === 'pending') return 1;
-    if (rawStatus === 'submitted' || rawStatus === 'evaluating' || rawStatus === 'for_evaluation' || rawStatus === 'foraccountant') return 2;
-    if (rawStatus === 'pendingpayment' || rawStatus === 'ready_for_payment' || (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)) {
+    // 1. Completed / Approved -> Step 5
+    if (
+      rawStatus === 'approved' ||
+      rawStatus === 'completed' ||
+      rawBeStatus === 'completed' ||
+      rawBeStatus === 'approved'
+    ) {
+      return 5;
+    }
+
+    // 2. Issuance -> Step 4
+    if (
+      rawStatus === 'for_approval' ||
+      rawStatus === 'forissuance' ||
+      rawBeStatus === 'forissuance' ||
+      rawBeStatus === 'for_issuance' ||
+      opStatus === 'paid' ||
+      remarksLower.includes('payment verified') ||
+      remarksLower.includes('for issuance') ||
+      remarksLower.includes('issuance in progress')
+    ) {
+      return 4;
+    }
+
+    // 3. Payment -> Step 3
+    const isPaymentSubmitted =
+      remarksLower.includes('payment submitted') ||
+      remarksLower.includes('waiting for cashier verification') ||
+      remarksLower.includes('verification in progress') ||
+      opStatus === 'processing' ||
+      opStatus === 'pending';
+
+    if (
+      rawStatus === 'ready_for_payment' ||
+      rawStatus === 'pendingpayment' ||
+      rawBeStatus === 'pendingpayment' ||
+      isPaymentSubmitted ||
+      (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
+    ) {
       return 3;
     }
-    if (rawStatus === 'forissuance') return 4;
-    if (rawStatus === 'approved' || rawStatus === 'completed') return 5;
+
+    // 4. Evaluation -> Step 2
+    if (
+      rawStatus === 'for_evaluation' ||
+      rawStatus === 'evaluating' ||
+      rawStatus === 'submitted' ||
+      rawStatus === 'foraccountant' ||
+      rawBeStatus === 'evaluating' ||
+      rawBeStatus === 'submitted' ||
+      rawBeStatus === 'foraccountant' ||
+      rawStatus === 'declined'
+    ) {
+      return 2;
+    }
+
+    // 5. Draft / Initial Submission -> Step 1
+    if (rawStatus === 'draft' || rawStatus === 'pending') {
+      return 1;
+    }
+
     return 2;
-  }, [app.status, app.soaNumber]);
+  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op]);
 
   return {
     app,

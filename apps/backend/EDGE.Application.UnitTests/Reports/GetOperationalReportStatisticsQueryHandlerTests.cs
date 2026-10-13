@@ -161,7 +161,7 @@ public class GetOperationalReportStatisticsQueryHandlerTests
         };
 
         _feedbackRepositoryMock
-            .Setup(f => f.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(f => f.GetByTenantAsync(tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(sampleFeedback);
 
         var query = new GetOperationalReportStatisticsQuery(
@@ -295,7 +295,7 @@ public class GetOperationalReportStatisticsQueryHandlerTests
             .ReturnsAsync((new List<TenantTransactionDto>(), 0));
 
         _feedbackRepositoryMock
-            .Setup(f => f.GetAllAsync(It.IsAny<CancellationToken>()))
+            .Setup(f => f.GetByTenantAsync(tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<FeedbackEntity>());
 
         var query = new GetOperationalReportStatisticsQuery(

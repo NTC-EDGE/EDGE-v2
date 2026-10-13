@@ -1,4 +1,4 @@
-import { ApplicationDocument, ApplicationStatus, RawRequirement } from '../../data/applicationsData';
+import { ApplicationDocument, ApplicationStatus, RawRequirement, normalizeApplicationStatus } from '../../data/applicationsData';
 
 export interface ApplicationDetailsPageProps {
   app: import('../../data/applicationsData').Application;
@@ -64,40 +64,29 @@ export interface RawApplicantHolder {
   Requirements?: RawRequirement[];
 }
 
-export const normalizeStatus = (status: string): string => {
-  if (!status) return 'PENDING';
-  const s = status.toUpperCase().replace(/_/g, '');
-  if (s === 'DRAFT') return 'PENDING';
-  if (s === 'SUBMITTED' || s === 'FORVERIFICATION') return 'FOR_EVALUATION';
-  if (s === 'FORAPPROVAL') return 'FOR_APPROVAL';
-  if (s === 'APPROVED' || s === 'COMPLETED') return 'APPROVED';
-  if (s === 'DECLINED') return 'DECLINED';
-  if (s === 'EXPIRINGSOON') return 'EXPIRING_SOON';
-  if (s === 'READYFORPAYMENT') return 'READY_FOR_PAYMENT';
-  return status;
+export const normalizeStatus = (status: string | undefined | null): ApplicationStatus => {
+  return normalizeApplicationStatus(status);
 };
 
-const isValidStatus = (s: string): s is ApplicationStatus =>
-  ['FOR_APPROVAL','FOR_EVALUATION','APPROVED','DECLINED','EXPIRING_SOON','READY_FOR_PAYMENT','PENDING'].includes(s);
+export const safeGetStatusLabel = (status: string | undefined | null, fn: (s: ApplicationStatus) => string): string =>
+  fn(normalizeApplicationStatus(status));
 
-export const safeGetStatusLabel = (status: string, fn: (s: ApplicationStatus) => string): string =>
-  fn(isValidStatus(normalizeStatus(status)) ? (normalizeStatus(status) as ApplicationStatus) : 'PENDING');
+export const safeGetStatusColor = (status: string | undefined | null, fn: (s: ApplicationStatus) => string): string =>
+  fn(normalizeApplicationStatus(status));
 
-export const safeGetStatusColor = (status: string, fn: (s: ApplicationStatus) => string): string =>
-  fn(isValidStatus(normalizeStatus(status)) ? (normalizeStatus(status) as ApplicationStatus) : 'PENDING');
+export const safeGetStatusBgColor = (status: string | undefined | null, fn: (s: ApplicationStatus) => string): string =>
+  fn(normalizeApplicationStatus(status));
 
-export const safeGetStatusBgColor = (status: string, fn: (s: ApplicationStatus) => string): string =>
-  fn(isValidStatus(normalizeStatus(status)) ? (normalizeStatus(status) as ApplicationStatus) : 'PENDING');
-
-export const getApplicantStepProgress = (status: string): number => {
-  switch (normalizeStatus(status)) {
+export const getApplicantStepProgress = (status: string | undefined | null): number => {
+  switch (normalizeApplicationStatus(status)) {
     case 'PENDING': return 1;
     case 'FOR_EVALUATION': return 2;
-    case 'FOR_APPROVAL': return 3;
-    case 'APPROVED': case 'READY_FOR_PAYMENT': return 4;
+    case 'READY_FOR_PAYMENT': return 3;
+    case 'FOR_APPROVAL': return 4;
+    case 'APPROVED': return 5;
     case 'DECLINED': return 4;
     case 'EXPIRING_SOON': return 2;
-    default: return 3;
+    default: return 1;
   }
 };
 

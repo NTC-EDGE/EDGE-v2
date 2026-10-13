@@ -214,7 +214,6 @@ export function ActivityCard({
               <Text style={[styles.timestamp, { color: textMuted }]}>{timestamp}</Text>
             </View>
             <View style={styles.subHeaderRow}>
-              {/* Single / Bulk Mode Tag */}
               <View
                 style={[
                   styles.modePill,
@@ -246,6 +245,38 @@ export function ActivityCard({
                   {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
                 </Text>
               </View>
+
+              {(application.isAssessmentOnly || application.intent === 'AssessmentOnly') && (
+                <>
+                  <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
+                  <View
+                    style={[
+                      styles.modePill,
+                      {
+                        backgroundColor: isDark ? 'rgba(147, 51, 234, 0.2)' : '#FAF5FF',
+                        borderColor: isDark ? '#9333EA' : '#E9D5FF',
+                      },
+                    ]}
+                  >
+                    <Lucide
+                      name="file-text"
+                      size={10}
+                      color={isDark ? '#C084FC' : '#7E22CE'}
+                    />
+                    <Text
+                      style={[
+                        styles.modePillText,
+                        {
+                          color: isDark ? '#C084FC' : '#7E22CE',
+                        },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      ASSESSMENT
+                    </Text>
+                  </View>
+                </>
+              )}
 
               <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
               <Text style={[styles.entityType, { color: textMuted }]} numberOfLines={1}>{displayAccountType}</Text>

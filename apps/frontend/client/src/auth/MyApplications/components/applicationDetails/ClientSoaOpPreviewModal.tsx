@@ -7,6 +7,7 @@ import {
   ScrollView,
   TouchableOpacity,
   Platform,
+  Linking,
   useWindowDimensions,
 } from 'react-native';
 import {
@@ -14,6 +15,7 @@ import {
   SPACING,
   TYPOGRAPHY,
 } from '@edge/ui';
+import { applicationService } from '@edge/api';
 import { Application } from '../../data/applicationsData';
 import {
   generateSoaPrintableHtml,
@@ -85,6 +87,25 @@ export function ClientSoaOpPreviewModal({
     }
   };
 
+  const handleDownloadPdf = () => {
+    if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
+    if (activeTab === 'soa') {
+      const url = applicationService.getSoaPrintUrl(app.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        void Linking.openURL(url);
+      }
+    } else {
+      const url = applicationService.getOpPrintUrl(app.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        window.open(url, '_blank');
+      } else {
+        void Linking.openURL(url);
+      }
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -105,7 +126,16 @@ export function ClientSoaOpPreviewModal({
 
             <View style={styles.headerActions}>
               <TouchableOpacity
-                style={styles.printBtn}
+                style={[styles.printBtn, { backgroundColor: '#0369A1' }]}
+                onPress={handleDownloadPdf}
+                activeOpacity={0.75}
+              >
+                <Icon name="download" size={15} color="#FFFFFF" />
+                <Text style={styles.printBtnText}>Official PDF</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.printBtn, { backgroundColor: '#0284C7' }]}
                 onPress={handlePrint}
                 activeOpacity={0.75}
               >
@@ -366,7 +396,11 @@ export function ClientSoaOpPreviewModal({
                     </View>
                     <View style={styles.opInfoRow}>
                       <Text style={styles.opInfoLabel}>Service &amp; Category:</Text>
-                      <Text style={styles.opInfoValue}>{serviceName} ({categoryName})</Text>
+                      <Text style={styles.opInfoValue}>
+                        {categoryName && categoryName !== serviceName && categoryName !== 'General'
+                          ? `${serviceName} (${categoryName})`
+                          : serviceName}
+                      </Text>
                     </View>
                     <View style={styles.opInfoRow}>
                       <Text style={styles.opInfoLabel}>Filing Mode:</Text>

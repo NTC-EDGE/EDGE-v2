@@ -118,8 +118,16 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to update application status. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to update application status for ApplicationId '{ApplicationId}' to '{Status}'.", request.Id, request.Status);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application status update for ApplicationId '{ApplicationId}'.", request.Id);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating the application status. Please try again later.");
         }
     }
 

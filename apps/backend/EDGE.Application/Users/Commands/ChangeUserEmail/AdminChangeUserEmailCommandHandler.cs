@@ -68,7 +68,7 @@ public class AdminChangeUserEmailCommandHandler : IRequestHandler<AdminChangeUse
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to update primary email in Clerk for user {UserId} ({AuthUserId}) to {Email}", user.Id, user.AuthUserId, normalizedNewEmail);
-                throw new InvalidOperationException($"Failed to update login email in identity provider: {ex.Message}");
+                throw new InvalidOperationException("Failed to update login email in identity provider. Please try again later.");
             }
         }
 

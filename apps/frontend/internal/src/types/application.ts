@@ -180,6 +180,8 @@ export interface ApplicationData {
   isUrgent: boolean;
   isPinned: boolean;
   isArchived?: boolean;
+  intent?: 'Regular' | 'AssessmentOnly';
+  isAssessmentOnly?: boolean;
   serviceId?: string;
   serviceName?: string;
   serviceCategory?: string;

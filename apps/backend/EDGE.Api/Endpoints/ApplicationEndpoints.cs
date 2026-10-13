@@ -18,6 +18,8 @@ using EDGE.Application.Applications.Commands.DeleteDraftApplication;
 using EDGE.Application.Applications.Commands.FinalizeApplicationSubmission;
 using EDGE.Application.Applications.Commands.PreviewCsvImport;
 using EDGE.Application.Applications.Commands.RemoveApplicantFromApplication;
+using EDGE.Application.Applications.Commands.ConvertAssessmentToRealApplication;
+using EDGE.Application.Applications.Commands.ReprocessAssessment;
 using EDGE.Application.Applications.Commands.SubmitApplication;
 using EDGE.Application.Applications.Commands.UpdateApplication;
 using EDGE.Application.Applications.Commands.UpdateApplicationApplicant;
@@ -44,6 +46,9 @@ using EDGE.Application.Applications.Commands.SubmitPayment;
 using EDGE.Application.Applications.Queries.GenerateNextDocumentNumber;
 
 using EDGE.Domain.Enums;
+using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Infrastructure.Printing.Services;
 using Microsoft.AspNetCore.Mvc;
 
 using EDGE.Application.Common.Models;
@@ -144,6 +149,18 @@ public static class ApplicationEndpoints
             .WithSummary("Update application draft details")
             .WithDescription("Modifies core properties or metadata of a draft bulk application.");
 
+        group.MapPost("/{id:guid}/convert-to-real", ConvertAssessmentToRealEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("ConvertAssessmentToRealApplication")
+            .WithSummary("Convert pre-assessment application to real application")
+            .WithDescription("Converts an assessed application into an official application advancing to payment.");
+
+        group.MapPost("/{id:guid}/reprocess-assessment", ReprocessAssessmentEndpoint)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.SubmitApplication))
+            .WithName("ReprocessAssessment")
+            .WithSummary("Request re-assessment for an assessment-only application")
+            .WithDescription("Requests re-evaluation and recalculation of SOA for an assessment-only application.");
+
         group.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
@@ -202,6 +219,18 @@ public static class ApplicationEndpoints
             .WithName("GetNextDocumentNumbers")
             .WithSummary("Generate recommended document and license numbers")
             .WithDescription("Generates next sequential form and license numbers based on regional office prefix and service type.");
+
+        group.MapGet("/{id:guid}/issued-document/print", PrintIssuedDocumentEndpoint)
+            .AllowAnonymous()
+            .WithName("PrintIssuedDocument")
+            .WithSummary("Print Issued Document and License")
+            .WithDescription("Generates and downloads official printable PDF statutory license, certificate, or permit document for the application.");
+
+        group.MapGet("/{id:guid}/issuance/print", PrintIssuedDocumentEndpoint)
+            .AllowAnonymous()
+            .WithName("PrintIssuance")
+            .WithSummary("Print Issuance Document")
+            .WithDescription("Alias for PrintIssuedDocument.");
 
         group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
@@ -744,11 +773,114 @@ public static class ApplicationEndpoints
         var result = await mediator.Send(command, cancellationToken);
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> ConvertAssessmentToRealEndpoint(
+        Guid id,
+        [FromBody] ConvertAssessmentRequest? request,
+        FluentValidation.IValidator<ConvertAssessmentToRealApplicationCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ConvertAssessmentToRealApplicationCommand
+        {
+            ApplicationId = id,
+            Remarks = request?.Remarks
+        };
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    [HasPermission(Permissions.SubmitApplication)]
+    public static async Task<IResult> ReprocessAssessmentEndpoint(
+        Guid id,
+        [FromBody] ReprocessAssessmentRequest? request,
+        FluentValidation.IValidator<ReprocessAssessmentCommand> validator,
+        IMediator mediator,
+        CancellationToken cancellationToken)
+    {
+        var command = new ReprocessAssessmentCommand
+        {
+            ApplicationId = id,
+            Remarks = request?.Remarks
+        };
+
+        var validationResult = await validator.ValidateAsync(command, cancellationToken);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command, cancellationToken);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+    }
+
+    public static async Task<IResult> PrintIssuedDocumentEndpoint(
+        Guid id,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var issuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
+        if (issuedDoc == null)
+        {
+            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved)
+            {
+                var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+                issuedDoc = new IssuedDocumentDetail
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    DocumentType = "License",
+                    FormNumber = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString(),
+                    LicenseNumber = app.ApplicationNumber ?? app.ReferenceNumber,
+                    IssueDate = app.LastModifiedAt ?? app.CreatedAt,
+                    ExpiryDate = (app.LastModifiedAt ?? app.CreatedAt).AddYears(3),
+                    OfficialReceiptNumber = paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
+                    IssuedByStaffName = "Authorized Licensing Officer",
+                    QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}"
+                };
+            }
+            else
+            {
+                return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
+            }
+        }
+
+        var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
+        var pdfBytes = printingService.PrintIssuedDocument(printModel);
+        var safeDocName = $"{printModel.DocumentType}_{printModel.LicenseNumber ?? printModel.FormNumber ?? id.ToString()}.pdf".Replace(" ", "_");
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", safeDocName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeDocName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
 }
 
 public record TogglePinRequest(bool? IsPinned);
 public record ToggleArchiveRequest(bool? IsArchived);
 public record EvaluateApplicationRequest(string? Remarks);
+public record ConvertAssessmentRequest(string? Remarks);
+public record ReprocessAssessmentRequest(string? Remarks);
 public record SubmitPaymentRequest(
     Guid? OrderOfPaymentId,
     PaymentMethod PaymentMethod,

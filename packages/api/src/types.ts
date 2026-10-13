@@ -1097,6 +1097,11 @@ export interface ApplicationDto {
   isGuest: boolean;
   isPinned?: boolean;
   isArchived?: boolean;
+  intent?: 'Regular' | 'AssessmentOnly' | number | string;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
   createdAt: string;
   lastModifiedAt?: string;
   updatedAt?: string;
@@ -1193,6 +1198,11 @@ export interface ApplicationSummaryDto {
   isGuest?: boolean;
   isPinned?: boolean;
   isArchived?: boolean;
+  intent?: 'Regular' | 'AssessmentOnly' | number | string;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
   createdAt: string;
   lastModifiedAt?: string;
   updatedAt?: string;

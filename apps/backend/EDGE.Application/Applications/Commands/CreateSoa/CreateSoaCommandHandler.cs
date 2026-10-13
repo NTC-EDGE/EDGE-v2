@@ -264,6 +264,12 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             Timestamp = DateTime.UtcNow
         });
 
+        if (app.Intent == ApplicationIntent.AssessmentOnly)
+        {
+            app.AssessedAt = DateTime.UtcNow;
+            await _repository.UpdateAsync(app, cancellationToken);
+        }
+
         await _repository.AddSoaAsync(soa, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

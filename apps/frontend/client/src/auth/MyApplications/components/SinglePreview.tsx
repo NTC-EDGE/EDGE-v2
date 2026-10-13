@@ -65,12 +65,17 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
   const statusBg = getStatusBgColor(app.status);
   const documents = getAppDocuments(app);
 
-  // Status timeline steps
+  // Status timeline steps (5-stage standard lifecycle)
+  const isPaymentDone = app.status === 'READY_FOR_PAYMENT' || app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' || Boolean(app.soaNumber);
+  const isIssuanceDone = app.status === 'FOR_APPROVAL' || app.status === 'APPROVED';
+  const isCompletedDone = app.status === 'APPROVED';
+
   const steps = [
     { label: 'Submitted', sub: 'Received', done: true },
-    { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' },
-    { label: 'For Approval', sub: 'Awaiting decision', done: app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' },
-    { label: 'Approved', sub: 'License ready', done: app.status === 'APPROVED' },
+    { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' || isPaymentDone },
+    { label: 'Payment', sub: 'Fee assessment', done: isPaymentDone },
+    { label: 'Issuance', sub: 'Document release', done: isIssuanceDone },
+    { label: 'Issued', sub: 'License ready', done: isCompletedDone },
   ];
 
   return (

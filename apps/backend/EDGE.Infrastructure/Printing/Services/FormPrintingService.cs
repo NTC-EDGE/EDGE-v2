@@ -27,6 +27,7 @@ public interface IFormPrintingService
     byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null);
     byte[] PrintOrderOfPayment(OrderOfPaymentModel? model = null);
     byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null);
+    byte[] PrintIssuedDocument(IssuedDocumentModel? model = null);
 }
 
 public class FormPrintingService : IFormPrintingService
@@ -311,17 +312,70 @@ public class FormPrintingService : IFormPrintingService
 
     public byte[] PrintOfficialReceipt(OfficialReceiptModel? model = null)
     {
+        model ??= new OfficialReceiptModel();
+
+        if (_fillerService != null)
+        {
+            var templateBytes = _fillerService.GetTemplate("or_portrait-template.pdf");
+            if (templateBytes != null && templateBytes.Length > 0)
+            {
+                return EDGE.Infrastructure.Printing.Services.AcroForm.OfficialReceiptAcroFormFiller.Fill(templateBytes, model);
+            }
+        }
+
         return new OfficialReceiptReport(model).GeneratePdf();
     }
 
     public byte[] PrintOrderOfPayment(OrderOfPaymentModel? model = null)
     {
+        model ??= new OrderOfPaymentModel();
+
+        if (_fillerService != null)
+        {
+            try
+            {
+                var templateBytes = _fillerService.GetTemplate("order-of-payment-template.pdf");
+                if (templateBytes != null && templateBytes.Length > 0)
+                {
+                    return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
+                }
+            }
+            catch
+            {
+                // Fall back gracefully to QuestPDF report generator
+            }
+        }
+
         return new OrderOfPaymentReport(model).GeneratePdf();
     }
 
     public byte[] PrintStatementOfAccount(StatementOfAccountModel? model = null)
     {
+        model ??= new StatementOfAccountModel();
+
+        if (_fillerService != null)
+        {
+            try
+            {
+                var templateBytes = _fillerService.GetTemplate("soa-report-template.pdf");
+                if (templateBytes != null && templateBytes.Length > 0)
+                {
+                    return EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(templateBytes, model);
+                }
+            }
+            catch
+            {
+                // Fall back gracefully to QuestPDF report generator
+            }
+        }
+
         return new StatementOfAccountReport(model).GeneratePdf();
+    }
+
+    public byte[] PrintIssuedDocument(IssuedDocumentModel? model = null)
+    {
+        model ??= new IssuedDocumentModel();
+        return new IssuedDocumentReport(model).GeneratePdf();
     }
 }
 

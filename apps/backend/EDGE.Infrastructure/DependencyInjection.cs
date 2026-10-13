@@ -124,7 +124,7 @@ public static class DependencyInjection
         services.AddScoped<IUserActivityService, UserActivityService>();
 
         // Register Printing & PDF Rendering Services
-        services.AddSingleton<IPdfTemplateProvider, FileSystemPdfTemplateProvider>();
+        services.AddSingleton<IPdfTemplateProvider, CloudflareR2PdfTemplateProvider>();
         services.AddSingleton<IImageOverlayRenderer, ImageFieldRenderer>();
         services.AddSingleton<IPdfLibraryInitializer, ITextLibraryInitializer>();
         services.AddSingleton<IPdfRenderer, OverlayPdfRenderer>();

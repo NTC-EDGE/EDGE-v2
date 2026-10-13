@@ -313,6 +313,9 @@ public class SubmitApplicationCommandHandler
         try
         {
             var submissionMode = isBulk ? SubmissionMode.Bulk : SubmissionMode.Single;
+            var intent = request.Intent.Equals("AssessmentOnly", StringComparison.OrdinalIgnoreCase)
+                ? ApplicationIntent.AssessmentOnly
+                : ApplicationIntent.Regular;
             var status = request.IsDraft
                 ? ApplicationStatus.Draft
                 : ApplicationStatus.Submitted;
@@ -332,6 +335,7 @@ public class SubmitApplicationCommandHandler
                     existing.RegionId = tenant.RegionId;
                     existing.Office = officeName;
                     existing.Status = status;
+                    existing.Intent = intent;
                     existing.SubmissionMode = submissionMode;
                     if (status == ApplicationStatus.Submitted)
                     {
@@ -351,6 +355,7 @@ public class SubmitApplicationCommandHandler
                         ApplicationNumber = appNumber,
                         ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                         Status = status,
+                        Intent = intent,
                         SubmissionMode = submissionMode,
                         DataEntryMethod = DataEntryMethod.Manual,
                         UserId = submitterUserId,
@@ -371,6 +376,7 @@ public class SubmitApplicationCommandHandler
                     ApplicationNumber = appNumber,
                     ReferenceNumber = $"REF-{Guid.NewGuid().ToString("N")[..8].ToUpper()}",
                     Status = status,
+                    Intent = intent,
                     SubmissionMode = submissionMode,
                     DataEntryMethod = DataEntryMethod.Manual, // CSV deferred
                     UserId = submitterUserId,
@@ -544,18 +550,27 @@ public class SubmitApplicationCommandHandler
                 var submitterName = firstApp != null && !string.IsNullOrWhiteSpace($"{firstApp.FirstName} {firstApp.LastName}".Trim())
                     ? $"{firstApp.FirstName} {firstApp.LastName}".Trim()
                     : "Applicant";
+                
+                var actionName = intent == ApplicationIntent.AssessmentOnly
+                    ? "Pre-Assessment submitted by applicant"
+                    : "Application submitted by applicant";
+
+                var remarks = intent == ApplicationIntent.AssessmentOnly
+                    ? "Application submitted for pre-assessment and SOA estimation"
+                    : "Initial application submission";
+
                 await _applicationRepository.AddApplicationHistoryAsync(
                     new ApplicationHistory
                     {
                         Id = Guid.NewGuid(),
                         ApplicationId = application.Id,
-                        Action = "Application submitted by applicant",
+                        Action = actionName,
                         FromStatus = null,
                         ToStatus = ApplicationStatus.Submitted,
                         PerformedByUserId = submitterUserId,
                         StaffName = submitterName,
                         StaffRole = "Applicant",
-                        Remarks = "Initial application submission",
+                        Remarks = remarks,
                         Timestamp = DateTime.UtcNow
                     }, cancellationToken);
             }
@@ -563,16 +578,28 @@ public class SubmitApplicationCommandHandler
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
+            string successMessage = status == ApplicationStatus.Draft
+                ? "Application draft saved successfully."
+                : (intent == ApplicationIntent.AssessmentOnly
+                    ? "Pre-assessment request submitted successfully."
+                    : "Application submitted successfully.");
+
             return ApiResponse<Guid>.Success(
                 application.Id,
-                status == ApplicationStatus.Draft
-                    ? "Application draft saved successfully."
-                    : "Application submitted successfully.");
+                successMessage);
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to save application. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to submit or save application for TenantId '{TenantId}', ExistingDraftId '{ExistingDraftId}'.", request.TenantId, request.ExistingDraftId);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application submission for TenantId '{TenantId}'.", request.TenantId);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while saving the application. Please try again later.");
         }
     }
 

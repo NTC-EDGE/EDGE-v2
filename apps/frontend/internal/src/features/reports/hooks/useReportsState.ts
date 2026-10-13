@@ -4,6 +4,7 @@ import {
   useAdminApplications,
   useTenantTransactions,
   useAdminFeedback,
+  useOperationalReportStatistics,
   ApplicationSummaryDto,
   TenantTransactionDto,
   FeedbackDto,
@@ -69,7 +70,21 @@ export function useReportsState() {
   });
   const pageSize = 10;
 
-  // Live Applications Data
+  // Server-Aggregated Operational Reports Statistics (Single Source of Truth)
+  const {
+    data: serverStats,
+    isLoading: loadingServerStats,
+    refetch: refetchServerStats,
+  } = useOperationalReportStatistics({
+    tenantId: user?.tenantId,
+    periodMode,
+    year: selectedYear,
+    quarter: selectedQuarter,
+    month: selectedMonth + 1,
+    category: categoryFilter !== 'all' ? categoryFilter : undefined,
+  });
+
+  // Live Applications Data (for tabular inspection)
   const {
     applications,
     statistics,
@@ -80,7 +95,7 @@ export function useReportsState() {
     pageSize: 100,
   });
 
-  // Live Tenant Financial Transactions Data
+  // Live Tenant Financial Transactions Data (for tabular inspection)
   const {
     transactions,
     isLoading: loadingTx,
@@ -89,25 +104,28 @@ export function useReportsState() {
     pageSize: 100,
   });
 
-  // Live Customer Satisfaction & Feedback Data
+  // Live Customer Satisfaction & Feedback Data (for tabular inspection)
   const {
     feedback,
     isLoading: loadingFeedback,
     refetch: refetchFeedback,
   } = useAdminFeedback();
 
-  const isLoading = loadingApps || loadingTx || loadingFeedback;
+  const isLoading = loadingServerStats || loadingApps || loadingTx || loadingFeedback;
 
   const tenantDisplayName = useMemo(() => {
+    if (serverStats?.tenantDisplayName) {
+      return serverStats.tenantDisplayName;
+    }
     if (user?.tenantId) {
       return `NTC Regional Office (${user.tenantId.toUpperCase().slice(0, 8)})`;
     }
     return 'National Telecommunications Commission - Central Office';
-  }, [user?.tenantId]);
+  }, [serverStats?.tenantDisplayName, user?.tenantId]);
 
   const handleRefreshAll = useCallback(async () => {
-    await Promise.allSettled([refetchApps(), refetchTx(), refetchFeedback()]);
-  }, [refetchApps, refetchTx, refetchFeedback]);
+    await Promise.allSettled([refetchServerStats(), refetchApps(), refetchTx(), refetchFeedback()]);
+  }, [refetchServerStats, refetchApps, refetchTx, refetchFeedback]);
 
   // Date Filter Predicate based on Period Mode
   const isWithinTimeRange = useCallback((dateStr?: string | null): boolean => {
@@ -216,8 +234,12 @@ export function useReportsState() {
     });
   }, [feedback, isWithinTimeRange, searchQuery]);
 
-  // Category Breakdown Statistics
+  // Category Breakdown Statistics (Server Single Source of Truth with Client Fallback)
   const categoryBreakdown: CategoryBreakdown[] = useMemo(() => {
+    if (serverStats?.categoryBreakdown && serverStats.categoryBreakdown.length > 0) {
+      return serverStats.categoryBreakdown;
+    }
+
     const counts: Record<string, number> = {
       Permits: 0,
       Licenses: 0,
@@ -250,10 +272,28 @@ export function useReportsState() {
       count,
       percentage: Math.round((count / safeTotal) * 100),
     }));
-  }, [filteredApplications]);
+  }, [serverStats?.categoryBreakdown, filteredApplications]);
 
-  // Key KPI Aggregates
+  // Key KPI Aggregates (Server Single Source of Truth with Client Fallback)
   const stats = useMemo(() => {
+    if (serverStats?.summary) {
+      const s = serverStats.summary;
+      const outstandingBalance = Math.max(0, s.totalInvoiced - s.totalCollected);
+      return {
+        totalApps: s.totalApps,
+        approvedCount: s.approvedCount,
+        evaluatingCount: s.evaluatingCount,
+        returnedCount: s.returnedCount,
+        completedCount: s.approvedCount,
+        approvalRate: s.approvalRate,
+        totalCollected: s.totalCollected,
+        totalInvoiced: s.totalInvoiced,
+        outstandingBalance,
+        csatTotal: s.csatTotal,
+        avgCsat: s.avgCsat,
+      };
+    }
+
     const totalApps = filteredApplications.length;
     const approvedCount = filteredApplications.filter((a) => a.status === 'Approved').length;
     const evaluatingCount = filteredApplications.filter((a) => a.status === 'Evaluating' || a.status === 'Submitted').length;
@@ -290,7 +330,7 @@ export function useReportsState() {
       csatTotal,
       avgCsat,
     };
-  }, [filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [serverStats?.summary, filteredApplications, filteredTransactions, filteredFeedback]);
 
   // Dynamic Active Total Items & Total Pages
   const activeItemCount = useMemo(() => {
@@ -355,8 +395,8 @@ export function useReportsState() {
       fileName = `NTC_Customer_Satisfaction_Report_${new Date().toISOString().slice(0, 10)}.csv`;
       csvContent = 'Sender Name,Sender Email,Subject,Rating,Anonymous,Message,Date\n';
       for (const fb of filteredFeedback) {
-        const name = `"${(fb.senderName ?? '').replace(/"/g, '""')}"`;
-        const email = `"${(fb.senderEmail ?? '').replace(/"/g, '""')}"`;
+        const name = fb.isAnonymous ? '"Anonymous Client"' : `"${(fb.senderName ?? '').replace(/"/g, '""')}"`;
+        const email = fb.isAnonymous ? '"[Redacted / Anonymous]"' : `"${(fb.senderEmail ?? '').replace(/"/g, '""')}"`;
         const subject = `"${(fb.subject ?? '').replace(/"/g, '""')}"`;
         const rating = fb.rating;
         const anon = fb.isAnonymous ? 'Yes' : 'No';
@@ -385,25 +425,28 @@ export function useReportsState() {
     }
   }, [reportType, filteredApplications, filteredTransactions, filteredFeedback]);
 
-  // Computed Statutory Reports with Live Stats
+  // Computed Statutory Reports with Live Stats (Server Single Source of Truth with Client Fallback)
   const statutoryReports = useMemo(() => {
     return STATUTORY_REPORTS_LIST.map((meta) => {
-      let recordCount = filteredApplications.length;
-      let complianceRate = stats.approvalRate;
-      let totalAmount: number | undefined;
+      const serverMatch = serverStats?.statutoryReports?.find((r) => r.code === meta.code);
+      let recordCount = serverMatch !== undefined ? serverMatch.recordCount : filteredApplications.length;
+      let complianceRate = serverMatch !== undefined ? serverMatch.complianceRate : stats.approvalRate;
+      let totalAmount: number | undefined = serverMatch?.totalAmount !== undefined && serverMatch?.totalAmount !== null ? serverMatch.totalAmount : undefined;
 
-      if (meta.code === 'NTC-BTr-COA-01') {
-        recordCount = filteredTransactions.length;
-        complianceRate = 100;
-        totalAmount = stats.totalCollected;
-      } else if (meta.code === 'NTC-CSMR-8888') {
-        recordCount = filteredFeedback.length;
-        complianceRate = Math.round((Number(stats.avgCsat) / 5) * 100);
-      } else if (meta.code === 'ARTA-RA-11032') {
-        complianceRate = Math.min(100, Math.max(92, stats.approvalRate));
-      } else if (meta.code === 'NTC-NOV-ENF') {
-        recordCount = Math.max(filteredApplications.length, 4);
-        complianceRate = 98;
+      if (!serverMatch) {
+        if (meta.code === 'NTC-BTr-COA-01') {
+          recordCount = filteredTransactions.length;
+          complianceRate = 100;
+          totalAmount = stats.totalCollected;
+        } else if (meta.code === 'NTC-CSMR-8888') {
+          recordCount = filteredFeedback.length;
+          complianceRate = Math.round((Number(stats.avgCsat) / 5) * 100);
+        } else if (meta.code === 'ARTA-RA-11032') {
+          complianceRate = Math.min(100, Math.max(92, stats.approvalRate));
+        } else if (meta.code === 'NTC-NOV-ENF') {
+          recordCount = Math.max(filteredApplications.length, 4);
+          complianceRate = 98;
+        }
       }
 
       const status: 'Ready' | 'Needs Review' | 'Complete' = recordCount > 0 ? 'Ready' : 'Complete';
@@ -415,7 +458,7 @@ export function useReportsState() {
         status,
       };
     });
-  }, [filteredApplications.length, filteredTransactions.length, filteredFeedback.length, stats]);
+  }, [serverStats?.statutoryReports, filteredApplications.length, filteredTransactions.length, filteredFeedback.length, stats]);
 
   const handleOpenStatutoryModal = useCallback((report: StatutoryReportMetadata) => {
     setStatutoryModal({
@@ -458,8 +501,12 @@ export function useReportsState() {
     openPrintableReportWindow(html);
   }, [user, selectedPeriod, filteredApplications, filteredTransactions, filteredFeedback]);
 
-  // Aggregated Periodic Statistics (Quarterly / Monthly / Yearly buckets)
+  // Aggregated Periodic Statistics (Server Single Source of Truth with Client Fallback)
   const periodicStatistics: PeriodicStatBucket[] = useMemo(() => {
+    if (serverStats?.periodicStatistics && serverStats.periodicStatistics.length > 0) {
+      return serverStats.periodicStatistics;
+    }
+
     if (periodMode === 'monthly') {
       const monthNames = [
         'January', 'February', 'March', 'April', 'May', 'June',
@@ -628,7 +675,7 @@ export function useReportsState() {
       feedbackCount: stats.csatTotal,
       avgCsat: stats.avgCsat,
     }));
-  }, [periodMode, selectedYear, applications, transactions, feedback, filteredApplications.length, stats]);
+  }, [serverStats?.periodicStatistics, periodMode, selectedYear, applications, transactions, feedback, filteredApplications.length, stats]);
 
   // Export Periodic Statistics Matrix CSV
   const exportPeriodicStatsCsv = useCallback(() => {

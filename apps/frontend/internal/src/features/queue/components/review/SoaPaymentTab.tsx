@@ -395,15 +395,15 @@ export function SoaPaymentTab({
               style={[
                 styles.soaActionBtn,
                 {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                  backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                  borderColor: isDark ? colors.brand[700] : colors.brand[300],
                 },
               ]}
               onPress={() => onPreviewReport('soa')}
             >
-              <Lucide name="eye" size={13} color={isDark ? colors.neutral[200] : colors.neutral[700]} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                Preview & Print
+              <Lucide name="printer" size={13} color={isDark ? colors.brand[400] : colors.brand[700]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '700' }]}>
+                Print / Preview SOA
               </Text>
             </Pressable>
 
@@ -415,27 +415,11 @@ export function SoaPaymentTab({
                   borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
                 },
               ]}
-              onPress={onPrintSoa}
-            >
-              <Lucide name="printer" size={13} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                Print SOA
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.soaActionBtn,
-                {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
-                },
-              ]}
-              onPress={onPrintOp}
+              onPress={() => onPreviewReport('op')}
             >
               <Lucide name="file-text" size={13} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
               <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                Print OP
+                Order of Payment (OP)
               </Text>
             </Pressable>
           </View>

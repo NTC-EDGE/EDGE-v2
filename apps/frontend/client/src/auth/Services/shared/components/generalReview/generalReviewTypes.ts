@@ -16,6 +16,8 @@ export interface GeneralReviewSubmitStepProps {
   variantRequirements?: Array<ServiceRequirementItem | string>;
   schedules?: Array<{ id: string; scheduledDate: string; startTime?: string; endTime?: string; venue?: string }>;
   selectedScheduleId?: string | null;
+  filingIntent?: 'Regular' | 'AssessmentOnly';
+  onFilingIntentChange?: (intent: 'Regular' | 'AssessmentOnly') => void;
 }
 
 export interface PreviewFileObject {

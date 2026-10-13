@@ -379,4 +379,66 @@ public class SubmitApplicationCommandHandlerTests
         capturedApplicant.ApplicantDetailId.Should().Be(capturedDetail.Id);
         capturedApplicant.CompanyDetailId.Should().Be(capturedCompany.Id);
     }
+
+    [Fact]
+    public async Task Handle_WhenExceptionThrown_LogsCriticalStackTraceAndReturnsSanitizedResponse()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var serviceId = Guid.NewGuid();
+        var regionId = Guid.NewGuid();
+        var userId = Guid.NewGuid();
+
+        _mockCurrentUserService.Setup(u => u.UserId).Returns(userId.ToString());
+        _mockTenantRepo.Setup(t => t.GetByIdAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Tenant { Id = tenantId, RegionId = regionId, Name = "NCR Regional Office" });
+
+        var service = new Service
+        {
+            Id = serviceId,
+            Name = "Radio Operator Exam"
+        };
+        _mockServiceRepo.Setup(s => s.GetByIdAsync(serviceId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(service);
+
+        var expectedException = new InvalidOperationException("Internal database constraint failed: Npgsql.PostgresException: duplicate key value violates unique constraint 'IX_Applications_Number'");
+        _mockUnitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(expectedException);
+
+        var command = new SubmitApplicationCommand
+        {
+            TenantId = tenantId,
+            ServiceId = serviceId,
+            SubmissionMode = "Single",
+            IsDraft = false,
+            Applicants = new List<ApplicantSubmissionDto>
+            {
+                new()
+                {
+                    FirstName = "John",
+                    LastName = "Doe",
+                    Email = "john@example.com",
+                    ContactNumber = "09171234567"
+                }
+            }
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().NotContain("Npgsql.PostgresException");
+        result.Message.Should().NotContain("IX_Applications_Number");
+        result.Message.Should().Be("An unexpected error occurred while saving the application. Please try again later.");
+
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.Is<Exception>(e => e == expectedException),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+    }
 }

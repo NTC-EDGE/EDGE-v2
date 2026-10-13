@@ -34,6 +34,7 @@ import {
 } from '../types/adminSettingsTypes';
 import { RegionalConfigTab } from '../components/RegionalConfigTab';
 import { ServiceTreeConfigTab } from '../components/ServiceTreeConfigTab';
+import { PrintSettingsTab } from '../components/PrintSettingsTab';
 import {
   AdminSettingsModal,
   ModalType,
@@ -43,9 +44,9 @@ import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
 import { useTabQueryParam } from '../../../hooks/useTabQueryParam';
 
-export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio';
+export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio' | 'print-settings';
 
-const VALID_ADMIN_TABS: readonly AdminTabType[] = ['regional-details', 'branch-directory', 'services-studio'];
+const VALID_ADMIN_TABS: readonly AdminTabType[] = ['regional-details', 'branch-directory', 'services-studio', 'print-settings'];
 
 interface TabItem {
   id: AdminTabType;
@@ -72,6 +73,12 @@ const TABS: TabItem[] = [
     label: 'Services & Prerequisites Studio',
     subtitle: 'Catalog, variants & fees tree',
     icon: 'layers',
+  },
+  {
+    id: 'print-settings',
+    label: 'Printing & Accountable Forms',
+    subtitle: 'Paper sizes, templates & calibration',
+    icon: 'printer',
   },
 ];
 
@@ -351,6 +358,12 @@ export function AdminSettingsScreen(): React.ReactElement {
         {activeTab === 'services-studio' && (
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
             <ServiceTreeConfigTab />
+          </AnimatedCard>
+        )}
+
+        {activeTab === 'print-settings' && (
+          <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
+            <PrintSettingsTab />
           </AnimatedCard>
         )}
       </View>

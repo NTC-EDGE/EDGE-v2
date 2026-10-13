@@ -71,12 +71,25 @@ export function getEffectiveApplicantName(app: Application): string {
   return safeString(app.applicantName, 'Applicant');
 }
 
+function deduplicateLineItems(items: SoaLineItem[]): SoaLineItem[] {
+  const seen = new Set<string>();
+  const result: SoaLineItem[] = [];
+  for (const item of items) {
+    const key = `${item.itemCode || ''}_${item.particular || ''}_${item.amount}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      result.push(item);
+    }
+  }
+  return result;
+}
+
 export function getEffectiveLineItems(app: Application): SoaLineItem[] {
   if (Array.isArray(app.soaItems) && app.soaItems.length > 0) {
-    return app.soaItems;
+    return deduplicateLineItems(app.soaItems);
   }
   if (app.soa && Array.isArray(app.soa.lineItems) && app.soa.lineItems.length > 0) {
-    return app.soa.lineItems;
+    return deduplicateLineItems(app.soa.lineItems);
   }
   const units = app.mode === 'BULK' ? (app.applicants?.length || 1) : 1;
   const filingFee = 180;
@@ -475,7 +488,7 @@ export function generateOpPrintableHtml(
     </div>
     <div class="info-row">
       <span class="info-label">Service &amp; Category:</span>
-      <span class="info-val">${serviceName} (${categoryName})</span>
+      <span class="info-val">${categoryName && categoryName !== serviceName && categoryName !== 'General' ? `${serviceName} (${categoryName})` : serviceName}</span>
     </div>
     <div class="info-row">
       <span class="info-label">Filing Mode:</span>

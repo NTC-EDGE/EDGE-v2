@@ -5,16 +5,36 @@ import { ApplicationFormAttachment } from "../../../../types/application";
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
 
+export interface FormsAttachmentSectionProps {
+  accountableForms: ApplicationFormAttachment[];
+  downloadForms: ApplicationFormAttachment[];
+  onPrintForm?: (form: ApplicationFormAttachment) => void;
+  onViewForm?: (form: ApplicationFormAttachment) => void;
+  onDownloadForm?: (form: ApplicationFormAttachment) => void;
+}
+
 export function FormsAttachmentSection({
   accountableForms,
   downloadForms,
-}: {
-  accountableForms: ApplicationFormAttachment[];
-  downloadForms: ApplicationFormAttachment[];
-}) {
+  onPrintForm,
+  onViewForm,
+  onDownloadForm,
+}: FormsAttachmentSectionProps) {
   const { colors, isDark } = useTheme();
 
   const handleAction = (form: ApplicationFormAttachment, action: string) => {
+    if (action === "Print" && onPrintForm) {
+      onPrintForm(form);
+      return;
+    }
+    if (action === "View" && onViewForm) {
+      onViewForm(form);
+      return;
+    }
+    if (action === "Download" && onDownloadForm) {
+      onDownloadForm(form);
+      return;
+    }
     Alert.alert(
       `${action} Form`,
       `You are ${action.toLowerCase()}ing: ${form.name}`,

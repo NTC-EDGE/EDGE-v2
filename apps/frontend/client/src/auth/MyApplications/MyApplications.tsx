@@ -141,7 +141,9 @@ export function MyApplications() {
         params.set("searchTerm", debouncedSearch.trim());
       }
       if (selectedMode !== "ALL") {
-        params.set("mode", selectedMode === "SINGLE" ? "Single" : "Bulk");
+        if (selectedMode !== "ASSESSMENT") {
+          params.set("mode", selectedMode === "SINGLE" ? "Single" : "Bulk");
+        }
       }
       if (selectedStatus !== "ALL") {
         params.set("status", selectedStatus);
@@ -220,14 +222,21 @@ export function MyApplications() {
     fetchApplications();
   }, [fetchApplications]);
 
-  // Sorted Applications
+  // Sorted & Filtered Applications
   const displayedApps = useMemo<Application[]>(() => {
-    return [...applications].sort((a, b) => {
+    let list = [...applications];
+    if (selectedMode === "ASSESSMENT") {
+      list = list.filter((a) => a.isAssessmentOnly || a.intent === "AssessmentOnly");
+    }
+    if (selectedStatus !== "ALL") {
+      list = list.filter((a) => a.status === selectedStatus);
+    }
+    return list.sort((a, b) => {
       const timeA = new Date(a.submittedAt).getTime();
       const timeB = new Date(b.submittedAt).getTime();
       return sortOrder === "NEWEST" ? timeB - timeA : timeA - timeB;
     });
-  }, [applications, sortOrder]);
+  }, [applications, selectedMode, selectedStatus, sortOrder]);
 
   // Statistics
   const stats = useMemo(() => {
@@ -445,14 +454,16 @@ export function MyApplications() {
                         ? "Type: All"
                         : selectedMode === "SINGLE"
                           ? "Type: Single"
-                          : "Type: Bulk"}
+                          : selectedMode === "BULK"
+                            ? "Type: Bulk"
+                            : "Type: Assessment"}
                     </Text>
                     <Icon name="chevron-down" size={14} color="#64748B" />
                   </TouchableOpacity>
 
                   {openDropdown === "TYPE" && (
                     <View style={styles.dropdownMenu}>
-                      {(["ALL", "SINGLE", "BULK"] as ModeFilterOption[]).map(
+                      {(["ALL", "SINGLE", "BULK", "ASSESSMENT"] as ModeFilterOption[]).map(
                         (mode) => (
                           <TouchableOpacity
                             key={mode}
@@ -478,13 +489,15 @@ export function MyApplications() {
                                 ? "All Application Types"
                                 : mode === "SINGLE"
                                   ? "Single Applications"
-                                  : "Bulk Applications"}
+                                  : mode === "BULK"
+                                    ? "Bulk Applications"
+                                    : "Pre-Assessments Only"}
                             </Text>
                             {selectedMode === mode && (
                               <Icon name="check" size={14} color="#1D4ED8" />
                             )}
                           </TouchableOpacity>
-                        ),
+                        )
                       )}
                     </View>
                   )}
@@ -519,11 +532,13 @@ export function MyApplications() {
                       {(
                         [
                           ["ALL", "All Statuses"],
-                          ["FOR_APPROVAL", "For Approval"],
+                          ["PENDING", "Submitted"],
                           ["FOR_EVALUATION", "For Evaluation"],
-                          ["APPROVED", "Approved"],
+                          ["READY_FOR_PAYMENT", "Ready for Payment"],
+                          ["FOR_APPROVAL", "For Issuance"],
+                          ["APPROVED", "Issued"],
+                          ["DECLINED", "Returned"],
                           ["EXPIRING_SOON", "Expiring Soon"],
-                          ["PENDING", "Pending"],
                         ] as [StatusFilterOption, string][]
                       ).map(([val, label]) => (
                         <TouchableOpacity

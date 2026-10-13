@@ -1,14 +1,10 @@
-using System;
-using System.Collections.Generic;
-using System.Threading;
-using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
-using Xunit;
 using EDGE.Application.Applications.Commands.UploadApplicantRequirement;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
+using Microsoft.Extensions.Logging;
 
 namespace EDGE.Application.UnitTests.Applications;
 
@@ -21,6 +17,7 @@ public class UploadApplicantRequirementCommandHandlerTests
     private readonly Mock<ICurrentUserService> _mockCurrentUserService;
     private readonly Mock<IUserRepository> _mockUserRepo;
     private readonly Mock<IUnitOfWork> _mockUnitOfWork;
+    private readonly Mock<ILogger<UploadApplicantRequirementCommandHandler>> _mockLogger;
     private readonly UploadApplicantRequirementCommandHandler _handler;
 
     public UploadApplicantRequirementCommandHandlerTests()
@@ -32,6 +29,7 @@ public class UploadApplicantRequirementCommandHandlerTests
         _mockCurrentUserService = new Mock<ICurrentUserService>();
         _mockUserRepo = new Mock<IUserRepository>();
         _mockUnitOfWork = new Mock<IUnitOfWork>();
+        _mockLogger = new Mock<ILogger<UploadApplicantRequirementCommandHandler>>();
 
         _handler = new UploadApplicantRequirementCommandHandler(
             _mockAppRepo.Object,
@@ -40,7 +38,8 @@ public class UploadApplicantRequirementCommandHandlerTests
             _mockTenantContext.Object,
             _mockCurrentUserService.Object,
             _mockUserRepo.Object,
-            _mockUnitOfWork.Object);
+            _mockUnitOfWork.Object,
+            _mockLogger.Object);
     }
 
     [Fact]
@@ -246,5 +245,69 @@ public class UploadApplicantRequirementCommandHandlerTests
         existingRequirement.StoredFileId.Should().Be(newStoredFileId);
         existingRequirement.Url.Should().Contain(newStoredFileId.ToString());
         _mockUnitOfWork.Verify(u => u.CommitTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenExceptionThrown_LogsCriticalStackTraceAndReturnsSanitizedResponse()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var appId = Guid.NewGuid();
+        var applicantId = Guid.NewGuid();
+        var reqId = Guid.NewGuid();
+        var ownerUserId = Guid.NewGuid();
+        var storedFileId = Guid.NewGuid();
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            TenantId = tenantId,
+            UserId = ownerUserId,
+            CreatedBy = ownerUserId.ToString(),
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new() { ApplicationId = appId, ApplicantId = applicantId, Applicant = new Applicant { Id = applicantId } }
+            },
+            ApplicationRequirements = new List<ApplicationRequirement>()
+        };
+
+        _mockAppRepo.Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+        _mockAppRepo.Setup(r => r.GetApplicantRequirementsAsync(appId, applicantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<ApplicationRequirement>());
+        _mockTenantContext.Setup(t => t.IsUserActiveMemberAsync(tenantId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        _mockReqRepo.Setup(r => r.GetRequirementByIdAsync(reqId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Requirement { Id = reqId, Name = "Valid ID" });
+
+        var expectedException = new InvalidOperationException("Failed to write to S3 bucket at prod-documents.s3.ap-southeast-1.amazonaws.com with access key AKIAIOSFODNN7EXAMPLE");
+        _mockUnitOfWork.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(expectedException);
+
+        var command = new UploadApplicantRequirementCommand
+        {
+            ApplicationId = appId,
+            ApplicantId = applicantId,
+            RequirementId = reqId,
+            StoredFileId = storedFileId
+        };
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().NotContain("AKIAIOSFODNN7EXAMPLE");
+        result.Message.Should().NotContain("prod-documents.s3.ap-southeast-1.amazonaws.com");
+        result.Message.Should().Be("An unexpected error occurred while uploading the requirement document. Please try again later.");
+
+        _mockLogger.Verify(
+            x => x.Log(
+                LogLevel.Error,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((v, t) => true),
+                It.Is<Exception>(e => e == expectedException),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
     }
 }

@@ -1,5 +1,5 @@
 import { Platform, Alert } from 'react-native';
-import { storageService } from '@edge/api';
+import { storageService, applicationService } from '@edge/api';
 import { ApplicationDocument, Application, RawRequirement } from '../data/applicationsData';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 
@@ -71,6 +71,10 @@ export function resolveDocumentFileUrl(
   app?: Application | null,
   matchedReq?: RawRequirement | null
 ): string | undefined {
+  if (doc.category === 'ISSUED_PERMIT' && typeof app?.id === 'string' && app.id.trim().length > 0) {
+    return applicationService.getIssuedDocumentPrintUrl(app.id.trim());
+  }
+
   if (typeof doc.url === 'string' && doc.url.trim() !== '' && doc.url.toLowerCase() !== 'none' && doc.url.toLowerCase() !== 'null') {
     return doc.url.trim();
   }

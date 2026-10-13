@@ -186,18 +186,24 @@ describe('SOA and OP Report Generator', () => {
   };
 
   describe('generateSoaPrintableHtml', () => {
-    it('should generate official Statement of Account HTML with correct headers and particulars', () => {
-      const html = generateSoaPrintableHtml(mockApplication, 'NTC NCR Office', 'Maria Santos', 'Engr. Roberto Cruz');
-      expect(html).toContain('STATEMENT OF ACCOUNT (SOA)');
-      expect(html).toContain('NATIONAL TELECOMMUNICATIONS COMMISSION');
-      expect(html).toContain('SOA-REF-2026-001');
-      expect(html).toContain('Juan Dela Cruz Communications Inc.');
-      expect(html).toContain('Commercial Radio Station Filing Fee');
-      expect(html).toContain('NTC-RAD-01');
-      expect(html).toContain('PHP 2,500.00');
-      expect(html).toContain('TWO THOUSAND FIVE HUNDRED PESOS ONLY');
-      expect(html).toContain('Maria Santos');
-      expect(html).toContain('Engr. Roberto Cruz');
+    it('should generate official Statement of Account HTML matching Assesment-SOA.pdf format', () => {
+      const html = generateSoaPrintableHtml(mockApplication, { outputMode: 'plain_paper' });
+      expect(html).toContain("CASHIER'S REPORT");
+      expect(html).toContain('MONTH OF');
+      expect(html).toContain('FOR LICENSES');
+      expect(html).toContain('FOR PERMITS');
+      expect(html).toContain('FOR AMATUER AND ROC');
+      expect(html).toContain('OTHER APPLICATION');
+      expect(html).toContain('4-02-01-060');
+      expect(html).toContain('TOTAL');
+      expect(html).toContain('2,500.00');
+    });
+
+    it('should generate accountable form overlay mode with suppressed borders and static labels', () => {
+      const html = generateSoaPrintableHtml(mockApplication, { outputMode: 'accountable_form' });
+      expect(html).toContain('Pre-Printed Accountable Form Overlay Mode');
+      expect(html).toContain('2,500.00');
+      expect(html).not.toContain('undefined');
     });
 
     it('should handle applications without line items gracefully', () => {
@@ -207,16 +213,14 @@ describe('SOA and OP Report Generator', () => {
         totalAmountDue: 600,
       };
       const html = generateSoaPrintableHtml(emptySoaApp);
-      expect(html).toContain('STATEMENT OF ACCOUNT (SOA)');
-      expect(html).toContain('PHP 600.00');
+      expect(html).toContain("CASHIER'S REPORT");
+      expect(html).toContain('600.00');
       expect(html).not.toContain('undefined');
     });
 
     it('should not contain undefined strings for bare applications lacking address and contact fields', () => {
       const html = generateSoaPrintableHtml(bareApplication);
-      expect(html).toContain('STATEMENT OF ACCOUNT (SOA)');
-      expect(html).toContain('SOA-REF-BARE-999');
-      expect(html).toContain('ZERO PESOS ONLY');
+      expect(html).toContain("CASHIER'S REPORT");
       expect(html).not.toContain('undefined');
     });
   });

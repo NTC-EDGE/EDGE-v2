@@ -6,12 +6,10 @@
 
   <ItemGroup>
     <EmbeddedResource Include="Persistence\SeedData\geographic-data.json" />
+    <EmbeddedResource Include="Printing\Templates\*.pdf" />
   </ItemGroup>
 
   <ItemGroup>
-    <None Update="Printing\Templates\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Update="Printing\Assets\**\*.*">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>

@@ -132,6 +132,36 @@ describe('statutoryReportGenerator', () => {
       expect(result.content).toContain('Prompt Permit Processing');
       expect(result.content).toContain('Juan Dela Cruz');
     });
+
+    it('should sanitize PII and mark anonymous citizen when isAnonymous is true per RA 10173', () => {
+      const anonFeedback: FeedbackDto[] = [
+        {
+          id: 'fb-anon',
+          senderName: 'Private Citizen',
+          senderEmail: 'private@secret.ph',
+          subject: 'Confidential Report',
+          message: 'Anonymous feedback test',
+          rating: 4,
+          isAnonymous: true,
+          status: 'Resolved',
+          createdAt: '2026-03-15T08:00:00Z',
+        },
+      ];
+
+      const result = generateStatutoryCsv(
+        'NTC-CSMR-8888',
+        'NTC Region VII (Central Visayas)',
+        'Q1 2026',
+        sampleApps,
+        sampleTx,
+        anonFeedback
+      );
+
+      expect(result.content).toContain('Anonymous Citizen');
+      expect(result.content).toContain('[Redacted / Anonymous]');
+      expect(result.content).not.toContain('Private Citizen');
+      expect(result.content).not.toContain('private@secret.ph');
+    });
   });
 
   describe('generateStatutoryPrintableHtml', () => {
