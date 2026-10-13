@@ -296,18 +296,8 @@ export function RolesPermissionScreen() {
                 )}
               </View>
 
-              {/* Body */}
-              <ScrollView style={styles.rightBody} contentContainerStyle={styles.rightBodyContent} showsVerticalScrollIndicator={false}>
-                {isCurrentRoleReadOnly && (
-                  <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
-                    <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
-                    <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
-                      Standard role: Permissions are read-only. Tenant administrators cannot modify standard system roles.
-                    </Text>
-                  </View>
-                )}
-
-                {/* Search */}
+              {/* Sticky Search Header Bar for Permissions (Mobile) */}
+              <View style={[styles.mobilePermSearchHeader, { backgroundColor: panelBg, borderBottomColor: borderColor }]}>
                 <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
                   <Lucide name="search" size={14} color={mutedColor} />
                   <TextInput
@@ -323,6 +313,18 @@ export function RolesPermissionScreen() {
                     </Pressable>
                   )}
                 </View>
+              </View>
+
+              {/* Body */}
+              <ScrollView style={styles.rightBody} contentContainerStyle={styles.rightBodyContent} showsVerticalScrollIndicator={false}>
+                {isCurrentRoleReadOnly && (
+                  <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
+                    <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+                    <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                      Standard role: Permissions are read-only. Tenant administrators cannot modify standard system roles.
+                    </Text>
+                  </View>
+                )}
 
                 {/* Categories */}
                 {categories.map((cat) => (
@@ -491,6 +493,23 @@ export function RolesPermissionScreen() {
                     </View>
                   </View>
 
+                  {/* Search Permissions inside Role Header Card */}
+                  <View style={[styles.headerPermSearch, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                    <Lucide name="search" size={14} color={mutedColor} />
+                    <TextInput
+                      style={[styles.permSearchInput, { color: textColor }]}
+                      placeholder="Search permissions..."
+                      placeholderTextColor={mutedColor}
+                      value={permissionQuery}
+                      onChangeText={setPermissionQuery}
+                    />
+                    {permissionQuery.length > 0 && (
+                      <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
+                        <Lucide name="x" size={13} color={mutedColor} />
+                      </Pressable>
+                    )}
+                  </View>
+
                   <View style={styles.rightHeaderActions}>
                     {hasUnsavedChanges && !isCurrentRoleReadOnly && (
                       <Pressable onPress={resetChanges} style={styles.discardBtn}>
@@ -540,24 +559,8 @@ export function RolesPermissionScreen() {
                     </View>
                   )}
 
-                  <View style={styles.matrixToolbar}>
-                    <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
-                      <Lucide name="search" size={14} color={mutedColor} />
-                      <TextInput
-                        style={[styles.permSearchInput, { color: textColor }]}
-                        placeholder="Search permissions..."
-                        placeholderTextColor={mutedColor}
-                        value={permissionQuery}
-                        onChangeText={setPermissionQuery}
-                      />
-                      {permissionQuery.length > 0 && (
-                        <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
-                          <Lucide name="x" size={13} color={mutedColor} />
-                        </Pressable>
-                      )}
-                    </View>
-
-                    {!isCurrentRoleReadOnly && (
+                  {!isCurrentRoleReadOnly && (
+                    <View style={[styles.matrixToolbar, { justifyContent: 'flex-end' }]}>
                       <Pressable
                         style={[styles.selectAllBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}
                         onPress={handleToggleSelectAll}
@@ -571,8 +574,8 @@ export function RolesPermissionScreen() {
                           {isAllSelected ? 'Deselect All' : 'Select All'}
                         </Text>
                       </Pressable>
-                    )}
-                  </View>
+                    </View>
+                  )}
 
                   {categories.length === 0 ? (
                     <View style={styles.emptyPerms}>
@@ -824,6 +827,22 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[10],
+  },
+  headerPermSearch: {
+    flex: 1,
+    maxWidth: 360,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 7,
+  },
+  mobilePermSearchHeader: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
   },
   discardBtn: {
     paddingHorizontal: 12,
