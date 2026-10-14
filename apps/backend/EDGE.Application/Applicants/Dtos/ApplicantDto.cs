@@ -35,6 +35,9 @@ public class ApplicantDetailDto
     public Guid Id { get; set; }
     public Guid BarangayId { get; set; }
     public string BarangayName { get; set; } = string.Empty;
+    public string? CityMunicipalityName { get; set; }
+    public string? ProvinceName { get; set; }
+    public string? RegionName { get; set; }
     public string Address { get; set; } = string.Empty;
     public string FirstName { get; set; } = string.Empty;
     public string? MiddleName { get; set; }
@@ -59,6 +62,9 @@ public class CompanyDetailDto
     public Guid Id { get; set; }
     public Guid? BarangayId { get; set; }
     public string BarangayName { get; set; } = string.Empty;
+    public string? CityMunicipalityName { get; set; }
+    public string? ProvinceName { get; set; }
+    public string? RegionName { get; set; }
     public string Address { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public string RegistrationNumber { get; set; } = string.Empty;

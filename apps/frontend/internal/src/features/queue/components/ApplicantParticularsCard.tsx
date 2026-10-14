@@ -28,6 +28,9 @@ export interface ApplicantParticularsData {
   representativeEmail?: string | null;
   representativeContactNumber?: string | null;
   notes?: string | null;
+  schoolAttended?: string | null;
+  courseTaken?: string | null;
+  yearGraduated?: string | null;
 }
 
 interface ApplicantParticularsCardProps {
@@ -78,6 +81,9 @@ export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCard
       resolvedSex={applicant.sex || null}
       resolvedCivilStatus={applicant.civilStatus || null}
       resolvedNationality={applicant.nationality || null}
+      schoolAttended={applicant.schoolAttended || null}
+      courseTaken={applicant.courseTaken || null}
+      yearGraduated={applicant.yearGraduated || null}
     />
   );
 }

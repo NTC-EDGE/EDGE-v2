@@ -13,6 +13,7 @@ import { ExamWizardNavigation } from "./wizard/ExamWizardNavigation";
 import { ExamWizardModals } from "./wizard/ExamWizardModals";
 import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { validateExamForm, getRequirementsList } from "../helpers/examMapping";
+import { isScheduleOpenForFiling, formatFriendlyDate } from "../../../shared/components/ExamScheduleCard";
 import { styles } from "./ExamFilingWizard.styles";
 
 interface ExamFilingWizardProps {
@@ -65,10 +66,13 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.serviceName
   );
 
-  const handleDocumentPick = (slotKey: string, file: { name: string; uri: string }) => {
-    const nextUploads = { ...wizard.activeApplicant.uploads };
-    nextUploads[slotKey] = file;
-    wizard.updateActiveApplicant({ uploads: nextUploads });
+  const handleDocumentPick = (
+    slotKey: string,
+    file: { name: string; uri: string; type?: string; file?: File | Blob }
+  ) => {
+    wizard.updateActiveApplicant((prev) => ({
+      uploads: { ...(prev.uploads || {}), [slotKey]: file },
+    }));
   };
 
   const handleMockCSVUpload = async () => {
@@ -134,10 +138,23 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         Alert.alert("Validation Error", "Please select a Region, Processing Office, and Application Mode.");
         return;
       }
-      if (!selectedScheduleId) {
+      const openSchedules = wizard.schedules.filter((s) => isScheduleOpenForFiling(s));
+      if (wizard.schedules.length > 0 && openSchedules.length === 0) {
+        const firstUpcoming = wizard.schedules.find((s) => Boolean(s.startApplication));
+        const openDateText = firstUpcoming?.startApplication
+          ? formatFriendlyDate(firstUpcoming.startApplication)
+          : "the scheduled filing start date";
+        Alert.alert(
+          "Application Not Yet Open",
+          `Application filing opens on ${openDateText}.`
+        );
+        return;
+      }
+      const selectedSched = wizard.schedules.find((s) => s.id === selectedScheduleId);
+      if (!selectedScheduleId || !selectedSched || !isScheduleOpenForFiling(selectedSched)) {
         Alert.alert(
           "Exam Schedule Required",
-          "Please select an Exam Schedule date before you can proceed with the application."
+          "Please select an open Exam Schedule date before you can proceed with the application."
         );
         return;
       }
@@ -160,16 +177,39 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       props.setStep(4);
     } else if (props.step === 4) {
       if (!validateExamForm(wizard.activeApplicant, wizard.setErrors)) {
-        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo"];
+        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo", "signature"];
         const nextTouched: Record<string, boolean> = {};
         fields.forEach((f) => (nextTouched[f] = true));
         wizard.setTouched(nextTouched);
+
+        const app = wizard.activeApplicant;
+        let firstTab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE" = "BASIC";
+        if (!app.lastName || !app.firstName) {
+          firstTab = "BASIC";
+        } else if (!app.province || !app.city || !app.barangay || !app.street || !app.zipCode || !/^\d{4}$/.test(app.zipCode)) {
+          firstTab = "ADDRESS";
+        } else if (!app.schoolName || !app.courseDegree || !app.yearGraduated || !/^\d{4}$/.test(app.yearGraduated)) {
+          firstTab = "EDUCATION";
+        } else if (!app.email || !app.contactNo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(app.email) || (!/^(09|\+639)\d{9}$/.test(app.contactNo) && !/^\d{10,11}$/.test(app.contactNo))) {
+          firstTab = "CONTACT";
+        } else if (!app.signature) {
+          firstTab = "SIGNATURE";
+        }
+        handleScrollToSection(firstTab);
+
         Alert.alert("Validation Error", "Please fill in all required fields marked with *.");
         return;
       }
       props.setStep(5);
     } else if (props.step === 5) {
-      const allUploaded = requirementsList.every((_, idx) => wizard.activeApplicant.uploads[idx.toString()]);
+      const allUploaded = requirementsList.every((req, idx) => {
+        if (typeof req === "object" && req !== null && req.isRequired === false) {
+          return true;
+        }
+        const key = typeof req === "string" ? `req-${idx}` : req.id ? `req-${req.id}` : `req-${idx}`;
+        const uploads = wizard.activeApplicant.uploads || {};
+        return Boolean(uploads[key] || uploads[`req-${idx}`] || uploads[idx.toString()]);
+      });
       if (!allUploaded) {
         Alert.alert("Error", "Please upload all mandatory supporting documents.");
         return;

@@ -329,7 +329,7 @@ public static class FeeConstants
         public const decimal PermitFilingFee = 100.00m;
         public const decimal DefaultPermitRate = 300.00m;
         public const decimal ExamApplicationFee = 50.00m;
-        public const decimal DefaultExamRate = 100.00m;
+        public const decimal DefaultExamRate = 50.00m;
         public const decimal AccreditationFilingFee = 300.00m;
         public const decimal DefaultAccreditationRate = 1200.00m;
         public const decimal DefaultRequestRate = 150.00m;
@@ -450,7 +450,7 @@ public static class FeeConstants
         public const string LicenseRenewal = "FEELIC = FF + (LIC)(YR)(UNIT) + DST + SUR";
         public const string LicenseModification = "FEELIC = FF + MOD + DST";
         public const string PermitStandard = "FEEPERMIT = FF + (PERMIT)(UNIT) + DST";
-        public const string ExamStandard = "FEEEXAM = AF + EXAM + DST";
+        public const string ExamStandard = "FEEEXAM = EXAMFEE";
         public const string AccreditationNew = "FEEACCRED = FF + (ACCRED)(YR) + DST";
         public const string AccreditationRenewal = "FEEACCRED = FF + (ACCRED)(YR) + DST + SUR";
         public const string RequestStandard = "FEEREQ = REQ_FEE + DST";

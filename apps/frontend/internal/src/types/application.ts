@@ -97,6 +97,10 @@ export interface ApplicantItem {
   province: string;
   region?: string;
   zipCode: string;
+  schoolAttended?: string;
+  courseTaken?: string;
+  yearGraduated?: string;
+  eSignature?: string;
   basicInfo?: {
     lastName: string;
     firstName: string;

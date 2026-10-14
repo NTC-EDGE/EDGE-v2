@@ -50,23 +50,6 @@ export function DocumentPreviewModal({
   const fileSize = isObj && typeof file.size === "string" ? file.size : undefined;
   const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
 
-  React.useEffect(() => {
-    return () => {
-      if (
-        fileUri &&
-        fileUri.startsWith("blob:") &&
-        typeof URL !== "undefined" &&
-        typeof URL.revokeObjectURL === "function"
-      ) {
-        try {
-          URL.revokeObjectURL(fileUri);
-        } catch {
-          // Ignore revocation error if already released
-        }
-      }
-    };
-  }, [fileUri]);
-
   const fileNameLower = (fileName || "").toLowerCase();
   const uriLower = (fileUri || "").toLowerCase();
 

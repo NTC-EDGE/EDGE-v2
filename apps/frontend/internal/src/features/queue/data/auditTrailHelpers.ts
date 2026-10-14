@@ -40,19 +40,23 @@ export function buildAuditTrailList(
 ): AuditTrailEntry[] {
   const list: AuditTrailEntry[] = [];
   const hasInitialSubmission = dto.histories?.some(
-    (h) => h.toStatus === 'Submitted' || (h.action !== null && h.action !== undefined && h.action.toLowerCase().includes('submit'))
+    (h) =>
+      h.toStatus === 'Submitted' ||
+      h.fromStatus === 'Submitted' ||
+      (h.action !== null && h.action !== undefined && h.action.toLowerCase().includes('submit'))
   );
 
-  if (hasInitialSubmission !== true && dto.createdAt) {
+  if (hasInitialSubmission !== true) {
     const submitter = submitterName || 'Applicant';
     const modeText = dto.submissionMode ? ` (${dto.submissionMode})` : '';
+    const submissionTime = dto.createdAt ? new Date(dto.createdAt) : new Date();
     list.push({
-      id: `init-${dto.id}`,
+      id: `init-${dto.id || 'initial-submission'}`,
       action: `Application Submitted${modeText}`,
       staff: submitter,
       role: 'Filing Submitter',
       status: 'Submitted',
-      timestamp: new Date(dto.createdAt).toLocaleString('en-US', {
+      timestamp: submissionTime.toLocaleString('en-US', {
         month: 'short',
         day: '2-digit',
         year: 'numeric',

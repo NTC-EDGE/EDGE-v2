@@ -18,12 +18,14 @@ export interface DocumentRequirement {
 export interface UploadedFile {
   name: string;
   uri?: string;
+  type?: string;
+  file?: File | Blob;
 }
 
 interface SharedDocumentUploadProps {
   requirements: DocumentRequirement[];
   uploads: Record<string, UploadedFile | string | undefined>;
-  onUpload: (key: string, file: { name: string; uri: string }) => void;
+  onUpload: (key: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   onRemove: (key: string) => void;
   isWeb: boolean;
   errors?: Record<string, string>;
@@ -43,14 +45,24 @@ export function SharedDocumentUpload({
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
-  const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
+  const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string; type?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
   const activeReq = requirements[activeIndex];
+  const isActiveReqUploaded = Boolean(activeReq && safeUploads[activeReq.key]);
   const dropzoneRef = useRef<any>(null);
+
+  const handleRemoveSlot = useCallback(
+    (key: string) => {
+      setIsPreviewOpen(false);
+      setPreviewFile(null);
+      onRemove(key);
+    },
+    [onRemove]
+  );
 
   // Prevent default browser behavior on web (opening dropped files in a new tab)
   useEffect(() => {
@@ -100,6 +112,8 @@ export function SharedDocumentUpload({
       onUpload(slotKey, {
         name: fileName,
         uri: fileUri,
+        type: file.type || undefined,
+        file,
       });
     },
     [activeReq?.key, onUpload]
@@ -156,7 +170,7 @@ export function SharedDocumentUpload({
       target.removeEventListener("dragleave", onDragLeave);
       target.removeEventListener("drop", onDrop);
     };
-  }, [activeReq?.key, handleFileDrop]);
+  }, [activeReq?.key, isActiveReqUploaded, handleFileDrop]);
 
   const triggerUpload = (key: string) => {
     setActiveSlotKey(key);
@@ -172,8 +186,15 @@ export function SharedDocumentUpload({
         copyToCacheDirectory: true,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        onUpload(activeSlotKey, { name: file.name, uri: file.uri });
+        const asset = result.assets[0];
+        if (!asset) return;
+        const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        onUpload(activeSlotKey, {
+          name: asset.name,
+          uri: asset.uri,
+          type: asset.mimeType || undefined,
+          file: rawWebFile,
+        });
       }
     } catch (err) {
       console.error("Document picking error:", err);
@@ -195,9 +216,16 @@ export function SharedDocumentUpload({
         quality: 0.8,
       });
       if (!result.canceled && result.assets && result.assets.length > 0) {
-        const file = result.assets[0];
-        const fileName = file.fileName || `scanned_doc_${Date.now()}.jpg`;
-        onUpload(activeSlotKey, { name: fileName, uri: file.uri });
+        const asset = result.assets[0];
+        if (!asset) return;
+        const fileName = asset.fileName || `scanned_doc_${Date.now()}.jpg`;
+        const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        onUpload(activeSlotKey, {
+          name: fileName,
+          uri: asset.uri,
+          type: asset.mimeType || "image/jpeg",
+          file: rawWebFile,
+        });
       }
     } catch (err) {
       console.error("Camera error:", err);
@@ -265,11 +293,17 @@ export function SharedDocumentUpload({
               const uploadData = safeUploads[activeReq.key];
               const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
               const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
-              const isImage = fileUri && (
-                fileUri.toLowerCase().endsWith(".png") ||
-                fileUri.toLowerCase().endsWith(".jpg") ||
-                fileUri.toLowerCase().endsWith(".jpeg") ||
-                fileUri.startsWith("data:image")
+              const fileType = typeof uploadData === "object" && uploadData !== null ? uploadData.type : undefined;
+              const nameOrUriLower = (fileName || fileUri || "").toLowerCase();
+              const isImage = Boolean(
+                fileUri &&
+                  (nameOrUriLower.endsWith(".png") ||
+                    nameOrUriLower.endsWith(".jpg") ||
+                    nameOrUriLower.endsWith(".jpeg") ||
+                    nameOrUriLower.endsWith(".webp") ||
+                    nameOrUriLower.endsWith(".gif") ||
+                    fileUri.startsWith("data:image") ||
+                    (fileType && fileType.startsWith("image/")))
               );
 
               const extraHint = (activeReq.hint || activeReq.description || "").trim();
@@ -328,7 +362,7 @@ export function SharedDocumentUpload({
                       <Text style={styles.fileNameText} numberOfLines={1}>
                         {fileName}
                       </Text>
-                      <View style={{ flexDirection: "row", gap: 10, marginTop: 8 }}>
+                      <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 8 }}>
                         <TouchableOpacity
                           onPress={() => {
                             setPreviewFile(uploadData);
@@ -354,7 +388,27 @@ export function SharedDocumentUpload({
                         </TouchableOpacity>
 
                         <TouchableOpacity
-                          onPress={() => onRemove(activeReq.key)}
+                          onPress={() => triggerUpload(activeReq.key)}
+                          style={{
+                            flexDirection: "row",
+                            alignItems: "center",
+                            backgroundColor: "#F8FAFC",
+                            borderWidth: 1,
+                            borderColor: "#CBD5E1",
+                            paddingVertical: 8,
+                            paddingHorizontal: 14,
+                            borderRadius: 20,
+                          }}
+                          activeOpacity={0.7}
+                        >
+                          <Icon name="refresh-cw" size={15} color="#334155" style={{ marginRight: 6 }} />
+                          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: "#334155" }}>
+                            Replace
+                          </Text>
+                        </TouchableOpacity>
+
+                        <TouchableOpacity
+                          onPress={() => handleRemoveSlot(activeReq.key)}
                           style={styles.removeBtn}
                         >
                           <Icon name="trash-2" size={16} color={COLORS.semantic.error} style={{ marginRight: 6 }} />
@@ -446,11 +500,17 @@ export function SharedDocumentUpload({
             const uploadData = safeUploads[req.key];
             const fileName = typeof uploadData === "string" ? uploadData : uploadData?.name;
             const fileUri = typeof uploadData === "string" ? "" : uploadData?.uri;
-            const isImage = fileUri && (
-              fileUri.toLowerCase().endsWith(".png") ||
-              fileUri.toLowerCase().endsWith(".jpg") ||
-              fileUri.toLowerCase().endsWith(".jpeg") ||
-              fileUri.startsWith("data:image")
+            const fileType = typeof uploadData === "object" && uploadData !== null ? uploadData.type : undefined;
+            const nameOrUriLower = (fileName || fileUri || "").toLowerCase();
+            const isImage = Boolean(
+              fileUri &&
+                (nameOrUriLower.endsWith(".png") ||
+                  nameOrUriLower.endsWith(".jpg") ||
+                  nameOrUriLower.endsWith(".jpeg") ||
+                  nameOrUriLower.endsWith(".webp") ||
+                  nameOrUriLower.endsWith(".gif") ||
+                  fileUri.startsWith("data:image") ||
+                  (fileType && fileType.startsWith("image/")))
             );
 
             const extraHint = (req.hint || req.description || "").trim();
@@ -549,7 +609,25 @@ export function SharedDocumentUpload({
                       </Text>
                     </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => onRemove(req.key)} style={styles.mobileTrashBtn}>
+                    <TouchableOpacity
+                      onPress={() => triggerUpload(req.key)}
+                      style={{
+                        flexDirection: "row",
+                        alignItems: "center",
+                        backgroundColor: "#F8FAFC",
+                        borderWidth: 1,
+                        borderColor: "#CBD5E1",
+                        paddingVertical: 5,
+                        paddingHorizontal: 8,
+                        borderRadius: 8,
+                        marginRight: 4,
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="refresh-cw" size={13} color="#334155" />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => handleRemoveSlot(req.key)} style={styles.mobileTrashBtn}>
                       <Icon name="trash-2" size={16} color={COLORS.semantic.error} />
                     </TouchableOpacity>
                   </View>

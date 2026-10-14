@@ -86,6 +86,42 @@ function formatProperName(name?: string | null): string {
     .join(' ');
 }
 
+function parseAddressSegments(rawAddress?: string | null): {
+  street?: string;
+  barangay?: string;
+  city?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+} {
+  if (!rawAddress || typeof rawAddress !== 'string') return {};
+  const parts = rawAddress.split(',').map((p) => p.trim()).filter((p) => p.length > 0);
+  if (parts.length >= 5) {
+    return {
+      street: parts[0],
+      barangay: parts[1],
+      city: parts[2],
+      province: parts[3],
+      region: parts.length >= 6 ? parts[4] : undefined,
+      zipCode: parts[parts.length - 1],
+    };
+  } else if (parts.length === 4) {
+    return {
+      street: parts[0],
+      barangay: parts[1],
+      city: parts[2],
+      province: parts[3],
+    };
+  } else if (parts.length === 3) {
+    return {
+      street: parts[0],
+      barangay: parts[1],
+      city: parts[2],
+    };
+  }
+  return { street: rawAddress };
+}
+
 export function mapApplicationDtoToUI(
   dto: ApplicationDto | ApplicationSummaryDto,
   role?: string
@@ -160,17 +196,47 @@ export function mapApplicationDtoToUI(
   const findPrimaryFv = (predicate: (lbl: string, id: string) => boolean) =>
     primaryFormFields.find((f) => predicate((f.fieldLabel || '').toLowerCase(), f.fieldId || ''))?.value;
 
-  const brgyPrimary = findPrimaryFv((lbl) => lbl.includes('barangay')) ?? '';
-  const cityPrimary = findPrimaryFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) ?? '';
-  const provPrimary = findPrimaryFv((lbl) => lbl.includes('province')) ?? '';
-  const regPrimary = findPrimaryFv((lbl) => lbl.includes('region')) ?? '';
-  const zipPrimary = primaryDetail?.zipCode ?? findPrimaryFv((lbl) => lbl.includes('zip')) ?? '';
+  const rawPrimaryAddress = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
+  const parsedPrimaryAddr = parseAddressSegments(rawPrimaryAddress);
+
+  const brgyPrimary =
+    primaryDetail?.barangayName ||
+    primaryDetail?.barangay ||
+    findPrimaryFv((lbl) => lbl.includes('barangay')) ||
+    parsedPrimaryAddr.barangay ||
+    '';
+  const cityPrimary =
+    primaryDetail?.cityMunicipalityName ||
+    primaryDetail?.city ||
+    findPrimaryFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) ||
+    parsedPrimaryAddr.city ||
+    '';
+  const provPrimary =
+    primaryDetail?.provinceName ||
+    primaryDetail?.province ||
+    findPrimaryFv((lbl) => lbl.includes('province')) ||
+    parsedPrimaryAddr.province ||
+    '';
+  const regPrimary =
+    primaryDetail?.regionName ||
+    primaryDetail?.region ||
+    findPrimaryFv((lbl) => lbl.includes('region')) ||
+    parsedPrimaryAddr.region ||
+    '';
+  const zipPrimary =
+    primaryDetail?.zipCode ||
+    findPrimaryFv((lbl) => lbl.includes('zip') || lbl.includes('postal')) ||
+    parsedPrimaryAddr.zipCode ||
+    '';
   const dobPrimary = primaryDetail?.birthDate ?? findPrimaryFv((lbl) => lbl.includes('birth')) ?? '';
   const sexPrimary = primaryDetail?.sex ?? findPrimaryFv((lbl) => lbl.includes('sex') || lbl.includes('gender')) ?? '';
   const natPrimary = primaryDetail?.nationality ?? findPrimaryFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship')) ?? 'Filipino';
   const civilPrimary = findPrimaryFv((lbl) => lbl.includes('civil') || lbl.includes('marital')) ?? '';
 
-  const primaryStreet = primaryDetail?.address ?? rawFilingUser?.company?.address ?? '';
+  const primaryStreet =
+    (parsedPrimaryAddr.street && parsedPrimaryAddr.street !== rawPrimaryAddress)
+      ? parsedPrimaryAddr.street
+      : rawPrimaryAddress;
   const contactEmail = primaryDetail?.emailAddress ?? primaryDetail?.email ?? rawFilingUser?.email ?? '';
   const contactPhone = primaryDetail?.contactNumber ?? rawFilingUser?.company?.contactNumber ?? '';
 
@@ -225,11 +291,22 @@ export function mapApplicationDtoToUI(
     const cityFromFv = findFv((lbl) => lbl.includes('city') || lbl.includes('municipality'));
     const provFromFv = findFv((lbl) => lbl.includes('province'));
     const regFromFv = findFv((lbl) => lbl.includes('region'));
-    const zipFromFv = findFv((lbl) => lbl.includes('zip'));
+    const zipFromFv = findFv((lbl) => lbl.includes('zip') || lbl.includes('postal'));
     const dobFromFv = findFv((lbl) => lbl.includes('birth'));
     const sexFromFv = findFv((lbl) => lbl.includes('sex') || lbl.includes('gender'));
     const natFromFv = findFv((lbl) => lbl.includes('nationality') || lbl.includes('citizenship'));
     const civilFromFv = findFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+
+    const rawItemAddress = ad?.address ?? '';
+    const parsedItemAddr = parseAddressSegments(rawItemAddress);
+    const itemStreet = (parsedItemAddr.street && parsedItemAddr.street !== rawItemAddress)
+      ? parsedItemAddr.street
+      : rawItemAddress;
+    const itemBarangay = ad?.barangayName || ad?.barangay || brgyFromFv || parsedItemAddr.barangay || '';
+    const itemCity = ad?.cityMunicipalityName || ad?.city || cityFromFv || parsedItemAddr.city || '';
+    const itemProvince = ad?.provinceName || ad?.province || provFromFv || parsedItemAddr.province || '';
+    const itemRegion = ad?.regionName || ad?.region || regFromFv || parsedItemAddr.region || '';
+    const itemZip = ad?.zipCode || zipFromFv || parsedItemAddr.zipCode || '';
 
     const itemApplicantType: 'Individual' | 'Company' =
       appItem.applicantType === 'Company' ? 'Company' : 'Individual';
@@ -250,23 +327,28 @@ export function mapApplicationDtoToUI(
       submissionId: appItem.submissionId,
       contactNumber: ad?.contactNumber ?? '',
       email: ad?.emailAddress ?? ad?.email ?? '',
-      address: ad?.address ?? '',
+      address: itemStreet || rawItemAddress,
+      streetAddress: itemStreet || rawItemAddress,
       company: itemCompanyDetails,
       formFieldValues: formFields.map((f) => ({
         fieldId: f.fieldId || '',
         fieldLabel: f.fieldLabel || '',
         value: f.value || '',
       })),
-      barangay: brgyFromFv ?? ad?.barangay ?? '',
-      city: cityFromFv ?? ad?.city ?? '',
-      province: provFromFv ?? ad?.province ?? '',
-      region: regFromFv ?? ad?.region ?? '',
-      zipCode: zipFromFv ?? ad?.zipCode ?? '',
+      barangay: itemBarangay,
+      city: itemCity,
+      province: itemProvince,
+      region: itemRegion,
+      zipCode: itemZip,
       dob: dobFromFv ?? ad?.birthDate ?? '',
       sex: sexFromFv ?? ad?.sex ?? '',
       nationality: natFromFv ?? ad?.nationality ?? 'Filipino',
       civilStatus: civilFromFv ?? '',
       documents: appItem.documents ?? [],
+      schoolAttended: ad?.schoolAttended ?? findFv((lbl) => lbl.includes('school') || lbl.includes('university')),
+      courseTaken: ad?.courseTaken ?? findFv((lbl) => lbl.includes('course') || lbl.includes('degree') || lbl.includes('program')),
+      yearGraduated: ad?.yearGraduated ?? findFv((lbl) => lbl.includes('graduat')),
+      eSignature: ad?.eSignature,
     };
   });
 

@@ -46,7 +46,9 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
         .join(' • ')
     : null;
 
-  const selectedVariant = variants.find((v) => v.id === activeApplicant.selectedVariantId);
+  const selectedVariant = variants.find(
+    (v) => String(v.id).toLowerCase() === String(activeApplicant.selectedVariantId || '').toLowerCase()
+  );
   const variantDesc = selectedVariant?.description?.trim() || selectedVariant?.name?.trim() || '';
   const variantType =
     selectedVariant?.type &&
@@ -56,12 +58,24 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
       ? selectedVariant.type.toUpperCase()
       : '';
 
+  const isUuid = (val?: string | null) =>
+    Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
+
+  const fallbackVariantName =
+    activeApplicant.selectedVariantName && !isUuid(activeApplicant.selectedVariantName)
+      ? activeApplicant.selectedVariantName.trim()
+      : activeApplicant.selectedElementTitle && !isUuid(activeApplicant.selectedElementTitle)
+      ? activeApplicant.selectedElementTitle.trim()
+      : activeApplicant.selectedVariantId && !isUuid(activeApplicant.selectedVariantId)
+      ? activeApplicant.selectedVariantId.trim()
+      : 'Standard';
+
   const variantLabel =
     variantDesc.length > 0 && variantType.length > 0
       ? variantDesc.toUpperCase().includes(`(${variantType})`)
         ? variantDesc
         : `${variantDesc} (${variantType})`
-      : variantDesc || activeApplicant.selectedVariantId || 'Standard';
+      : variantDesc || fallbackVariantName;
 
   const appModeLabel =
     appMode === 'SINGLE' ? 'Single Applicant' : appMode === 'BULK' ? 'Bulk / Group Filing' : '—';

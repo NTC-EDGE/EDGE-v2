@@ -1,5 +1,5 @@
 import React from 'react';
-import { View } from 'react-native';
+import { View, Text } from 'react-native';
 import { SectionCard } from './SectionCard';
 import { SummaryRow } from './SummaryRow';
 
@@ -71,6 +71,9 @@ export interface ApplicantDetailsSnapshot {
   representativeEmail?: string | null;
   representativeContactNumber?: string | null;
   notes?: string | null;
+  schoolAttended?: string | null;
+  courseTaken?: string | null;
+  yearGraduated?: string | null;
 }
 
 export interface ApplicantDetailsReviewCardProps {
@@ -83,6 +86,9 @@ export interface ApplicantDetailsReviewCardProps {
   resolvedSex: string | null;
   resolvedCivilStatus: string | null;
   resolvedNationality: string | null;
+  schoolAttended?: string | null;
+  courseTaken?: string | null;
+  yearGraduated?: string | null;
 }
 
 export function ApplicantDetailsReviewCard({
@@ -95,6 +101,9 @@ export function ApplicantDetailsReviewCard({
   resolvedSex,
   resolvedCivilStatus,
   resolvedNationality,
+  schoolAttended: propSchoolAttended,
+  courseTaken: propCourseTaken,
+  yearGraduated: propYearGraduated,
 }: ApplicantDetailsReviewCardProps) {
   const applicantType = activeApplicant?.applicantType || 'individual';
   const companyName = activeApplicant?.companyName || null;
@@ -115,6 +124,11 @@ export function ApplicantDetailsReviewCard({
   const representativeContactNumber = activeApplicant?.representativeContactNumber || null;
   const notes = activeApplicant?.notes || null;
 
+  const schoolAttended = propSchoolAttended || activeApplicant?.schoolAttended || null;
+  const courseTaken = propCourseTaken || activeApplicant?.courseTaken || null;
+  const yearGraduated = propYearGraduated || activeApplicant?.yearGraduated || null;
+  const hasEducationalBackground = Boolean(schoolAttended || courseTaken || yearGraduated);
+
   const formattedBirthDate = formatFullDateOfBirth(resolvedBirthDate);
 
   const hasApplicantData =
@@ -128,6 +142,7 @@ export function ApplicantDetailsReviewCard({
     resolvedCivilStatus !== null ||
     resolvedNationality !== null ||
     formattedBirthDate !== null ||
+    hasEducationalBackground ||
     Boolean(notes);
 
   if (!hasApplicantData) {
@@ -223,6 +238,30 @@ export function ApplicantDetailsReviewCard({
             {resolvedNationality !== null ? (
               <View style={{ flex: 1 }}>
                 <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
+              </View>
+            ) : null}
+          </View>
+        </>
+      )}
+      {hasEducationalBackground && applicantType !== 'company' && (
+        <>
+          <View style={{ marginTop: 8, marginBottom: 4, borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 8 }}>
+            <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>
+              EDUCATIONAL BACKGROUND
+            </Text>
+          </View>
+          {schoolAttended ? (
+            <SummaryRow label="School / University Attended" value={schoolAttended} />
+          ) : null}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {courseTaken ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Course / Program / Degree" value={courseTaken} />
+              </View>
+            ) : null}
+            {yearGraduated ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Year Graduated" value={yearGraduated} />
               </View>
             ) : null}
           </View>

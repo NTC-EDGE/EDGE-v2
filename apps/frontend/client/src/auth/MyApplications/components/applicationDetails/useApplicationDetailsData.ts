@@ -213,6 +213,23 @@ export function useApplicationDetailsData(initialApp: Application) {
       findField((l) => l.includes('email')) ||
       '';
 
+    const resolvedSchool =
+      (details !== null && typeof details === 'object' && 'schoolAttended' in details && typeof details.schoolAttended === 'string' ? details.schoolAttended : null) ||
+      (details !== null && typeof details === 'object' && 'schoolName' in details && typeof details.schoolName === 'string' ? details.schoolName : null) ||
+      findField((l) => l.includes('school') || l.includes('university')) ||
+      null;
+
+    const resolvedCourse =
+      (details !== null && typeof details === 'object' && 'courseTaken' in details && typeof details.courseTaken === 'string' ? details.courseTaken : null) ||
+      (details !== null && typeof details === 'object' && 'courseDegree' in details && typeof details.courseDegree === 'string' ? details.courseDegree : null) ||
+      findField((l) => l.includes('course') || l.includes('degree') || l.includes('program')) ||
+      null;
+
+    const resolvedYearGrad =
+      (details !== null && typeof details === 'object' && 'yearGraduated' in details && typeof details.yearGraduated === 'string' ? details.yearGraduated : null) ||
+      findField((l) => l.includes('graduat') || l.includes('year graduated')) ||
+      null;
+
     return {
       applicantName,
       sex: resolvedSex,
@@ -231,6 +248,9 @@ export function useApplicationDetailsData(initialApp: Application) {
       companyName: details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null,
       representativeName: details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null,
       notes: details?.notes || app.remarks || null,
+      schoolAttended: resolvedSchool,
+      courseTaken: resolvedCourse,
+      yearGraduated: resolvedYearGrad,
     };
   }, [app]);
 
@@ -252,7 +272,13 @@ export function useApplicationDetailsData(initialApp: Application) {
     return app.office ? `NTC Field Office • ${app.office}` : null;
   }, [app]);
 
-  const variantLabel = useMemo(() => app.serviceVariantName || app.variant || app.element || singleApplicant?.examineeType || 'Standard', [app, singleApplicant]);
+  const variantLabel = useMemo(() => {
+    const isUuid = (val?: string | null) =>
+      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
+    const candidates = [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType];
+    const readable = candidates.find((c) => c && c.trim().length > 0 && !isUuid(c));
+    return readable ? readable.trim() : 'Standard';
+  }, [app, singleApplicant]);
 
   const formFieldValues = useMemo(() => {
     let baseValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];

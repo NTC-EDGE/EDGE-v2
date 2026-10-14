@@ -40,6 +40,10 @@ export const validateExamForm = (
     newErrors.contactNo = "Invalid contact number format.";
   }
 
+  if (!app.signature) {
+    newErrors.signature = "Applicant signature is required.";
+  }
+
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
@@ -73,6 +77,10 @@ export const getFieldValidationError = (field: keyof ExamApplicantData, value: s
   if (field === "contactNo") {
     if (!value) return "Contact number is required.";
     if (!/^(09|\+639)\d{9}$/.test(value) && !/^\d{10,11}$/.test(value)) return "Invalid contact number format.";
+  }
+
+  if (field === "signature" && !value) {
+    return "Applicant signature is required.";
   }
 
   return undefined;
@@ -164,7 +172,6 @@ export const mapApplicantsPayload = (
         },
         { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
         { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
-        { fieldId: "fd000000-0000-0000-0000-000000000010", terms: ["special needs", "assistance"], value: "None" },
         { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
       ];
 
@@ -180,6 +187,18 @@ export const mapApplicantsPayload = (
       formFields.forEach((field: any) => {
         const labelLower = (field.label || "").toLowerCase();
         const id = field.fieldId;
+        if (labelLower.includes("school") || labelLower.includes("university")) {
+          formFieldValues.push({ fieldId: id, value: app.schoolName });
+          return;
+        }
+        if (labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) {
+          formFieldValues.push({ fieldId: id, value: app.courseDegree });
+          return;
+        }
+        if (labelLower.includes("graduat") || labelLower.includes("year graduated")) {
+          formFieldValues.push({ fieldId: id, value: app.yearGraduated });
+          return;
+        }
         if (ignoredBioTerms.some(t => labelLower.includes(t))) return;
 
         const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
@@ -200,11 +219,20 @@ export const mapApplicantsPayload = (
     return {
       applicantType: "individual",
       firstName: app.firstName,
+      middleName: app.middleName || undefined,
       lastName: app.lastName,
+      suffix: app.suffix || undefined,
       email: app.email,
       contactNumber: app.contactNo,
       address: address,
       birthDate: birthDate,
+      sex: app.sex,
+      nationality: app.nationality,
+      zipCode: app.zipCode,
+      schoolAttended: app.schoolName,
+      courseTaken: app.courseDegree,
+      yearGraduated: app.yearGraduated,
+      eSignature: app.signature || undefined,
       formFieldValues,
     };
   });

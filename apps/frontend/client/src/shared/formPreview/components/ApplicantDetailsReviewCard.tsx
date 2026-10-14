@@ -71,6 +71,9 @@ export interface ApplicantDetailsSnapshot {
   representativeEmail?: string | null;
   representativeContactNumber?: string | null;
   notes?: string | null;
+  schoolAttended?: string | null;
+  courseTaken?: string | null;
+  yearGraduated?: string | null;
 }
 
 export interface ApplicantDetailsReviewCardProps {
@@ -83,6 +86,9 @@ export interface ApplicantDetailsReviewCardProps {
   resolvedSex: string | null;
   resolvedCivilStatus: string | null;
   resolvedNationality: string | null;
+  schoolAttended?: string | null;
+  courseTaken?: string | null;
+  yearGraduated?: string | null;
 }
 
 export function ApplicantDetailsReviewCard({
@@ -95,6 +101,9 @@ export function ApplicantDetailsReviewCard({
   resolvedSex,
   resolvedCivilStatus,
   resolvedNationality,
+  schoolAttended,
+  courseTaken,
+  yearGraduated,
 }: ApplicantDetailsReviewCardProps) {
   const applicantType = activeApplicant?.applicantType || 'individual';
   const companyName = activeApplicant?.companyName || null;
@@ -128,6 +137,9 @@ export function ApplicantDetailsReviewCard({
     resolvedCivilStatus !== null ||
     resolvedNationality !== null ||
     formattedBirthDate !== null ||
+    Boolean(activeApplicant?.schoolAttended || schoolAttended) ||
+    Boolean(activeApplicant?.courseTaken || courseTaken) ||
+    Boolean(activeApplicant?.yearGraduated || yearGraduated) ||
     Boolean(notes);
 
   if (!hasApplicantData) {
@@ -228,6 +240,25 @@ export function ApplicantDetailsReviewCard({
           </View>
         </>
       )}
+      {(activeApplicant?.schoolAttended || schoolAttended || activeApplicant?.courseTaken || courseTaken || activeApplicant?.yearGraduated || yearGraduated) ? (
+        <>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {(activeApplicant?.schoolAttended || schoolAttended) ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="School / Institution" value={activeApplicant?.schoolAttended || schoolAttended || ''} />
+              </View>
+            ) : null}
+            {(activeApplicant?.courseTaken || courseTaken) ? (
+              <View style={{ flex: 1 }}>
+                <SummaryRow label="Course / Program / Degree" value={activeApplicant?.courseTaken || courseTaken || ''} />
+              </View>
+            ) : null}
+          </View>
+          {(activeApplicant?.yearGraduated || yearGraduated) ? (
+            <SummaryRow label="Year Graduated" value={activeApplicant?.yearGraduated || yearGraduated || ''} />
+          ) : null}
+        </>
+      ) : null}
       {notes ? <SummaryRow label="Special Notes / Remarks" value={notes} /> : null}
     </SectionCard>
   );

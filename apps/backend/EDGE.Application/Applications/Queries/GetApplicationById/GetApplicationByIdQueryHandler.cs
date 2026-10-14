@@ -82,6 +82,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 {
                     Id = app.User.CompanyDetail.Id,
                     BarangayId = app.User.CompanyDetail.BarangayId,
+                    BarangayName = app.User.CompanyDetail.Barangay?.Name ?? string.Empty,
+                    CityMunicipalityName = app.User.CompanyDetail.Barangay?.Municipality?.Name,
+                    ProvinceName = app.User.CompanyDetail.Barangay?.Municipality?.Province?.Name,
+                    RegionName = app.User.CompanyDetail.Barangay?.Municipality?.Province?.Region?.Name,
                     Address = app.User.CompanyDetail.Address,
                     Name = app.User.CompanyDetail.Name,
                     RegistrationNumber = app.User.CompanyDetail.RegistrationNumber,
@@ -134,6 +138,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     {
                         Id = ad.Id,
                         BarangayId = ad.BarangayId ?? Guid.Empty,
+                        BarangayName = ad.Barangay?.Name ?? string.Empty,
+                        CityMunicipalityName = ad.Barangay?.Municipality?.Name,
+                        ProvinceName = ad.Barangay?.Municipality?.Province?.Name,
+                        RegionName = ad.Barangay?.Municipality?.Province?.Region?.Name,
                         Address = ad.Address,
                         FirstName = ad.FirstName,
                         MiddleName = ad.MiddleName,
@@ -163,6 +171,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         {
                             Id = cd.Id,
                             BarangayId = cd.BarangayId,
+                            BarangayName = cd.Barangay?.Name ?? string.Empty,
+                            CityMunicipalityName = cd.Barangay?.Municipality?.Name,
+                            ProvinceName = cd.Barangay?.Municipality?.Province?.Name,
+                            RegionName = cd.Barangay?.Municipality?.Province?.Region?.Name,
                             Address = cd.Address,
                             Name = cd.Name,
                             RegistrationNumber = cd.RegistrationNumber,

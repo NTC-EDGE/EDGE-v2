@@ -64,8 +64,7 @@ public static class ExamsCategorySeederData
         ],
         ""requiredSections"": [
             { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""applicantEducation"", ""required"": false },
-            { ""key"": ""assistanceRequest"", ""required"": false }
+            { ""key"": ""applicantEducation"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -279,10 +278,7 @@ public static class ExamsCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        new("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" })
-        })
+        new("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new())
     };
 
     public static List<ServiceInformationDef> GetServiceInformations() => new()

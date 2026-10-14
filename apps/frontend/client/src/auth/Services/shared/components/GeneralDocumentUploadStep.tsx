@@ -21,7 +21,7 @@ interface GeneralDocumentUploadStepProps {
   currentApplicantIndex?: number;
   setCurrentApplicantIndex?: (idx: number) => void;
   isWeb: boolean;
-  onUploadPress: (req: string, file: { name: string; uri: string }) => void;
+  onUploadPress: (req: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   onRemoveUpload: (req: string) => void;
   errors?: Record<string, string>;
 }

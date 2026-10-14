@@ -1,6 +1,8 @@
 import React from "react";
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, Alert } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
+
+export type FilingWindowStatus = "UPCOMING" | "OPEN" | "CLOSED";
 
 export interface ExamScheduleCardData {
   id: string;
@@ -29,6 +31,15 @@ interface ExamScheduleCardProps {
   fallbackRegionName?: string;
 }
 
+interface FilingWindowInfo {
+  status: FilingWindowStatus;
+  label: string;
+  badgeBg: string;
+  badgeBorder: string;
+  badgeText: string;
+  iconName: "clock" | "alert-circle" | "check-circle";
+}
+
 export function formatFriendlyDate(val?: string | null): string {
   if (!val) return "TBA";
   const d = new Date(val);
@@ -52,18 +63,18 @@ export function formatFullExamDate(val?: string | null): string {
   });
 }
 
-function getFilingWindowInfo(startApp?: string | null, endApp?: string | null) {
+export function getFilingWindowStatus(
+  startApp?: string | null,
+  endApp?: string | null
+): FilingWindowStatus {
   const now = new Date();
   if (startApp) {
     const s = new Date(startApp);
-    if (!isNaN(s.getTime()) && now < s) {
-      return {
-        label: `Filing Starts ${formatFriendlyDate(startApp)}`,
-        badgeBg: "#FEF3C7",
-        badgeBorder: "#FDE68A",
-        badgeText: "#B45309",
-        iconName: "clock" as const,
-      };
+    if (!isNaN(s.getTime())) {
+      s.setHours(0, 0, 0, 0);
+      if (now < s) {
+        return "UPCOMING";
+      }
     }
   }
   if (endApp) {
@@ -71,22 +82,56 @@ function getFilingWindowInfo(startApp?: string | null, endApp?: string | null) {
     if (!isNaN(e.getTime())) {
       e.setHours(23, 59, 59, 999);
       if (now > e) {
-        return {
-          label: "Filing Closed",
-          badgeBg: "#FEE2E2",
-          badgeBorder: "#FECACA",
-          badgeText: "#DC2626",
-          iconName: "alert-circle" as const,
-        };
+        return "CLOSED";
       }
     }
   }
+  return "OPEN";
+}
+
+export function isScheduleOpenForFiling(
+  schedule: Pick<ExamScheduleCardData, "startApplication" | "endApplication" | "applicationDeadline">
+): boolean {
+  return (
+    getFilingWindowStatus(
+      schedule.startApplication,
+      schedule.endApplication || schedule.applicationDeadline
+    ) === "OPEN"
+  );
+}
+
+function getFilingWindowInfo(
+  startApp?: string | null,
+  endApp?: string | null
+): FilingWindowInfo {
+  const status = getFilingWindowStatus(startApp, endApp);
+  if (status === "UPCOMING") {
+    return {
+      status: "UPCOMING",
+      label: `Filing Starts ${formatFriendlyDate(startApp)}`,
+      badgeBg: "#FEF3C7",
+      badgeBorder: "#FDE68A",
+      badgeText: "#B45309",
+      iconName: "clock",
+    };
+  }
+  if (status === "CLOSED") {
+    return {
+      status: "CLOSED",
+      label: "Filing Closed",
+      badgeBg: "#FEE2E2",
+      badgeBorder: "#FECACA",
+      badgeText: "#DC2626",
+      iconName: "alert-circle",
+    };
+  }
   return {
+    status: "OPEN",
     label: endApp ? `Filing Ends ${formatFriendlyDate(endApp)}` : "Filing Open",
     badgeBg: "#DCFCE7",
     badgeBorder: "#BBF7D0",
     badgeText: "#15803D",
-    iconName: "check-circle" as const,
+    iconName: "check-circle",
   };
 }
 
@@ -101,6 +146,10 @@ export function ExamScheduleCard({
     schedule.endApplication || schedule.applicationDeadline
   );
 
+  const isUpcoming = filingInfo.status === "UPCOMING";
+  const isClosed = filingInfo.status === "CLOSED";
+  const isOpen = filingInfo.status === "OPEN";
+
   const examTimeDisplay =
     [schedule.startTime, schedule.endTime].filter(Boolean).join(" - ") || "08:00 AM - 12:00 PM";
 
@@ -113,23 +162,52 @@ export function ExamScheduleCard({
     schedule.endApplication || schedule.applicationDeadline
   );
 
+  const handleCardPress = () => {
+    if (isUpcoming) {
+      Alert.alert(
+        "Application Not Yet Open",
+        `Filing opens on ${appStartDisplay}.`
+      );
+      return;
+    }
+    if (isClosed) {
+      Alert.alert(
+        "Application Period Closed",
+        "The application filing window for this examination schedule has already closed."
+      );
+      return;
+    }
+    onSelect(schedule.id);
+  };
+
   return (
     <TouchableOpacity
       activeOpacity={0.8}
-      onPress={() => onSelect(schedule.id)}
+      onPress={handleCardPress}
       style={[
         styles.cardContainer,
-        isSelected && styles.cardSelected,
+        isUpcoming && styles.cardUpcoming,
+        isSelected && isOpen && styles.cardSelected,
       ]}
     >
       {/* Top Header Row */}
       <View style={styles.headerRow}>
         <View style={styles.headerLeft}>
-          <View style={[styles.radioCircle, isSelected && styles.radioCircleSelected]}>
-            {isSelected && <View style={styles.radioDot} />}
+          <View
+            style={[
+              styles.radioCircle,
+              isUpcoming && styles.radioCircleUpcoming,
+              isSelected && isOpen && styles.radioCircleSelected,
+            ]}
+          >
+            {isUpcoming ? (
+              <Icon name="clock" size={11} color="#D97706" />
+            ) : isSelected && isOpen ? (
+              <View style={styles.radioDot} />
+            ) : null}
           </View>
           <View style={{ flex: 1 }}>
-            <Text style={[styles.examDateTitle, isSelected && styles.examDateTitleSelected]}>
+            <Text style={[styles.examDateTitle, isSelected && isOpen && styles.examDateTitleSelected]}>
               {formatFullExamDate(schedule.startDate || schedule.scheduledDate)}
             </Text>
             {schedule.title ? (
@@ -151,7 +229,7 @@ export function ExamScheduleCard({
             </Text>
           </View>
 
-          {isSelected && (
+          {isSelected && isOpen && (
             <View style={styles.selectedBadge}>
               <Icon name="check" size={11} color="#FFFFFF" />
               <Text style={styles.selectedBadgeText}>SELECTED</Text>
@@ -203,7 +281,7 @@ export function ExamScheduleCard({
             <Icon name="calendar" size={13} color="#059669" />
           </View>
           <View style={styles.detailContent}>
-            <Text style={styles.detailLabel}>Application Filing Window</Text>
+            <Text style={styles.detailLabel}>Application Period (Filing Window)</Text>
             <Text style={styles.detailValue}>
               {appStartDisplay} – {appEndDisplay}
             </Text>
@@ -256,6 +334,10 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 1,
   },
+  cardUpcoming: {
+    borderColor: "#FDE68A",
+    backgroundColor: "#FFFCF5",
+  },
   cardSelected: {
     borderColor: "#0F2C59",
     borderWidth: 2,
@@ -287,6 +369,10 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginTop: 2,
+  },
+  radioCircleUpcoming: {
+    borderColor: "#F59E0B",
+    backgroundColor: "#FEF3C7",
   },
   radioCircleSelected: {
     borderColor: "#0F2C59",

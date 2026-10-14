@@ -111,8 +111,8 @@ export function useFeesService() {
     return await post<ServiceFee[], { serviceId: string; fees: { feeId: string; amount: number }[] }>('/api/v2/service-fees', data);
   };
 
-  const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {
-    return await put<ServiceFee, Omit<ServiceFee, 'id'>>(`/api/v2/service-fees/${id}`, data);
+  const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'> | Partial<ServiceFee>): Promise<ServiceFee> => {
+    return await put<ServiceFee, { id: string } & Partial<ServiceFee>>(`/api/v2/service-fees/${id}`, { id, ...data });
   };
 
   const deleteServiceFee = async (id: string): Promise<void> => {

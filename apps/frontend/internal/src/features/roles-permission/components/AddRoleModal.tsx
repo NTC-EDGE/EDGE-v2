@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -41,9 +41,26 @@ export function AddRoleModal({
 
   const [roleName, setRoleName] = useState('');
   const [selectedPermissionIds, setSelectedPermissionIds] = useState<string[]>([]);
+  const [permSearchQuery, setPermSearchQuery] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [activeTemplateId, setActiveTemplateId] = useState<string>('');
   const [isLoadingTemplate, setIsLoadingTemplate] = useState(false);
+
+  const filteredCategories = useMemo(() => {
+    const q = permSearchQuery.trim().toLowerCase();
+    if (!q) return categories;
+    return categories
+      .map((cat) => ({
+        ...cat,
+        options: cat.options.filter(
+          (opt) =>
+            opt.label.toLowerCase().includes(q) ||
+            opt.id.toLowerCase().includes(q) ||
+            (opt.description !== undefined && opt.description !== null && opt.description.toLowerCase().includes(q)),
+        ),
+      }))
+      .filter((cat) => cat.options.length > 0);
+  }, [categories, permSearchQuery]);
 
   const canvasBg = isDark ? colors.neutral[900] : colors.neutral[50];
   const cardBg = isDark ? colors.neutral[800] : '#FFFFFF';
@@ -149,6 +166,7 @@ export function AddRoleModal({
   const handleReset = () => {
     setRoleName('');
     setSelectedPermissionIds([]);
+    setPermSearchQuery('');
     setErrorMsg('');
     setActiveTemplateId('');
     setIsLoadingTemplate(false);
@@ -322,8 +340,32 @@ export function AddRoleModal({
                 </View>
               </View>
 
-              <View style={styles.categoriesGrid}>
-                {categories.map((category) => {
+              {/* Permissions Search */}
+              <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                <Lucide name="search" size={14} color={mutedColor} />
+                <TextInput
+                  style={[styles.permSearchInput, { color: textColor }]}
+                  placeholder="Search permissions..."
+                  placeholderTextColor={mutedColor}
+                  value={permSearchQuery}
+                  onChangeText={setPermSearchQuery}
+                />
+                {permSearchQuery.length > 0 && (
+                  <Pressable onPress={() => setPermSearchQuery('')} hitSlop={8}>
+                    <Lucide name="x" size={13} color={mutedColor} />
+                  </Pressable>
+                )}
+              </View>
+
+              {filteredCategories.length === 0 ? (
+                <View style={styles.emptyPerms}>
+                  <Text style={[styles.emptyPermsText, { color: mutedColor }]}>
+                    No permissions match "{permSearchQuery}"
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.categoriesGrid}>
+                  {filteredCategories.map((category) => {
                   const catIds = category.options.map((opt) => opt.id);
                   const allSel = catIds.every((id) => selectedPermissionIds.includes(id));
                   return (
@@ -387,6 +429,7 @@ export function AddRoleModal({
                   );
                 })}
               </View>
+            )}
             </View>
           </ScrollView>
 
@@ -556,6 +599,30 @@ const styles = StyleSheet.create({
   },
   permActionDivider: {
     fontSize: 14,
+  },
+  permSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 8,
+    marginBottom: SPACING[12],
+  },
+  permSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    padding: 0,
+  },
+  emptyPerms: {
+    paddingVertical: SPACING[24],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyPermsText: {
+    fontSize: 13,
+    fontStyle: 'italic',
   },
   categoriesGrid: {
     flexDirection: 'row',

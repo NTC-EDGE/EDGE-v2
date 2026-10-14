@@ -97,6 +97,30 @@ export function ApplicationDetailsTab({
   const accountableForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "ACCOUNTABLE FORM");
   const downloadForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "DOWNLOAD FORM");
 
+  const isCompanyApplication =
+    app.applicantType === 'Company' ||
+    app.applicationType === 'BULK' ||
+    Boolean(app.companyDetails?.name) ||
+    app.filingUser?.accountType === 'Company';
+
+  const editAction = isEditable ? (
+    isEditingSection ? (
+      <View style={{ flexDirection: 'row', gap: 6 }}>
+        <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], paddingHorizontal: 10 }]} onPress={() => setIsEditingSection(false)}>
+          <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
+        </Pressable>
+        <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]} onPress={handleSaveDetails}>
+          <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
+        </Pressable>
+      </View>
+    ) : (
+      <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: isDark ? colors.brand[500] : colors.brand[600], borderWidth: 1, paddingHorizontal: 10 }]} onPress={() => setIsEditingSection(true)}>
+        <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+        <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '600' }]}>Edit</Text>
+      </Pressable>
+    )
+  ) : null;
+
   return (
     <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
       <View style={{ paddingHorizontal: SPACING[16], paddingTop: SPACING[16] }}>
@@ -125,40 +149,26 @@ export function ApplicationDetailsTab({
         <InfoRow label="Application Number:" value={app.applicationNumber} isEditing={isEditingSection} editValue={applicationDraft} onEditChange={setApplicationDraft} />
       </View>
 
-      <SectionHeader
-        title="FILING ENTITY & SUBMITTER DETAILS"
-        rightAction={
-          isEditable ? (
-            isEditingSection ? (
-              <View style={{ flexDirection: 'row', gap: 6 }}>
-                <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], paddingHorizontal: 10 }]} onPress={() => setIsEditingSection(false)}>
-                  <Text style={[styles.inspectBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[800] }]}>Cancel</Text>
-                </Pressable>
-                <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], paddingHorizontal: 12 }]} onPress={handleSaveDetails}>
-                  <Text style={[styles.inspectBtnText, { color: COLORS.neutral.white, fontWeight: '700' }]}>Save</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <Pressable style={[styles.inspectBtn, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], borderColor: isDark ? colors.brand[500] : colors.brand[600], borderWidth: 1, paddingHorizontal: 10 }]} onPress={() => setIsEditingSection(true)}>
-                <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
-                <Text style={[styles.inspectBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '600' }]}>Edit</Text>
-              </Pressable>
-            )
-          ) : null
-        }
-      />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Submitted By:" value={app.filingUser?.name ?? "—"} />
-        <InfoRow label="User Email:" value={app.filingUser?.email ?? "—"} isEditing={isEditingSection} editValue={emailDraft} onEditChange={setEmailDraft} />
-        <InfoRow label="User Account Type:" value={app.filingUser?.accountType ?? app.applicantType ?? "Individual"} />
-        {app.applicantType === 'Company' && (
-          <>
-            <InfoRow label="Company Name:" value={app.companyDetails?.name || app.applicant} isEditing={isEditingSection} editValue={compNameDraft} onEditChange={setCompNameDraft} />
-            <InfoRow label="Company Reg No:" value={app.companyDetails?.registrationNumber || "—"} isEditing={isEditingSection} editValue={compRegNoDraft} onEditChange={setCompRegNoDraft} />
-            <InfoRow label="Company Address:" value={app.companyDetails?.address || "—"} isEditing={isEditingSection} editValue={compAddrDraft} onEditChange={setCompAddrDraft} />
-          </>
-        )}
-      </View>
+      {isCompanyApplication && (
+        <>
+          <SectionHeader
+            title="FILING ENTITY & SUBMITTER DETAILS"
+            rightAction={editAction}
+          />
+          <View style={styles.infoBlock}>
+            <InfoRow label="Submitted By:" value={app.filingUser?.name ?? "—"} />
+            <InfoRow label="User Email:" value={app.filingUser?.email ?? "—"} isEditing={isEditingSection} editValue={emailDraft} onEditChange={setEmailDraft} />
+            <InfoRow label="User Account Type:" value={app.filingUser?.accountType ?? app.applicantType ?? "Individual"} />
+            {app.applicantType === 'Company' && (
+              <>
+                <InfoRow label="Company Name:" value={app.companyDetails?.name || app.applicant} isEditing={isEditingSection} editValue={compNameDraft} onEditChange={setCompNameDraft} />
+                <InfoRow label="Company Reg No:" value={app.companyDetails?.registrationNumber || "—"} isEditing={isEditingSection} editValue={compRegNoDraft} onEditChange={setCompRegNoDraft} />
+                <InfoRow label="Company Address:" value={app.companyDetails?.address || "—"} isEditing={isEditingSection} editValue={compAddrDraft} onEditChange={setCompAddrDraft} />
+              </>
+            )}
+          </View>
+        </>
+      )}
 
       {app.applicationType === 'BULK' && (app.applicantsList?.length ?? 0) > 0 && (
         <BulkApplicantsRosterSection
@@ -173,12 +183,24 @@ export function ApplicationDetailsTab({
 
       {app.applicationType !== 'BULK' && (
         <View style={{ paddingHorizontal: SPACING[16], marginTop: SPACING[12] }}>
-          <SectionHeader title="PRIMARY APPLICANT SUMMARY" />
+          <SectionHeader
+            title="PRIMARY APPLICANT DETAILS"
+            rightAction={!isCompanyApplication ? editAction : undefined}
+          />
           <View style={[styles.infoBlock, { backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white }]}>
             <InfoRow label="Applicant Name:" value={app.applicant || "—"} />
             <InfoRow label="Applicant Type:" value={app.applicantType || "Individual"} />
-            <InfoRow label="Email Address:" value={app.contactDetails?.email || app.filingUser?.email || "—"} />
+            <InfoRow
+              label="Email Address:"
+              value={app.contactDetails?.email || app.filingUser?.email || "—"}
+              isEditing={!isCompanyApplication ? isEditingSection : false}
+              editValue={emailDraft}
+              onEditChange={setEmailDraft}
+            />
             <InfoRow label="Contact Number:" value={app.contactDetails?.contactNumber || app.companyDetails?.contactNumber || "—"} />
+            {(app.address?.address || app.address?.streetAddress) ? (
+              <InfoRow label="Address:" value={app.address?.address || app.address?.streetAddress || "—"} />
+            ) : null}
             <Pressable
               style={{
                 marginTop: SPACING[8],

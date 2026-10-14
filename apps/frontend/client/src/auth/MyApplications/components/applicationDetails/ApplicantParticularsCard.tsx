@@ -25,6 +25,9 @@ interface ApplicantParticularsCardProps {
     representativeEmail?: string | null;
     representativeContactNumber?: string | null;
     notes: string | null;
+    schoolAttended?: string | null;
+    courseTaken?: string | null;
+    yearGraduated?: string | null;
   } | null;
   isDesktop?: boolean;
 }
@@ -54,6 +57,9 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
         representativeEmail: singleApplicant.representativeEmail || null,
         representativeContactNumber: singleApplicant.representativeContactNumber || null,
         notes: singleApplicant.notes,
+        schoolAttended: singleApplicant.schoolAttended,
+        courseTaken: singleApplicant.courseTaken,
+        yearGraduated: singleApplicant.yearGraduated,
       }}
       resolvedFullName={singleApplicant.applicantName || null}
       resolvedEmail={singleApplicant.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : ''}
@@ -63,6 +69,9 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
       resolvedSex={singleApplicant.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
       resolvedCivilStatus={singleApplicant.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
       resolvedNationality={singleApplicant.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
+      schoolAttended={singleApplicant.schoolAttended}
+      courseTaken={singleApplicant.courseTaken}
+      yearGraduated={singleApplicant.yearGraduated}
     />
   );
 }

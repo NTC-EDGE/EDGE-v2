@@ -3,7 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { TenantInfo, OfficeInfo, ExamScheduleItem } from "../hooks/useGeneralServiceWizard";
-import { ExamScheduleCard } from "./ExamScheduleCard";
+import { ExamScheduleCard, isScheduleOpenForFiling } from "./ExamScheduleCard";
 import { FilingIntentReviewCard } from "./generalReview/FilingIntentReviewCard";
 
 interface GeneralRegionOfficeStepProps {
@@ -40,6 +40,9 @@ export function GeneralRegionOfficeStep({
   onFilingIntentChange,
 }: GeneralRegionOfficeStepProps) {
   const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
+  const hasOpenSchedule = schedules.some((s) => isScheduleOpenForFiling(s));
+  const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId);
+  const isSelectedOpen = selectedSchedule ? isScheduleOpenForFiling(selectedSchedule) : false;
 
   return (
     <View style={{ gap: 18 }}>
@@ -169,7 +172,7 @@ export function GeneralRegionOfficeStep({
                 Scheduled Exam Dates*
               </Text>
             </View>
-            {selectedScheduleId ? (
+            {selectedScheduleId && isSelectedOpen ? (
               <View
                 style={{
                   backgroundColor: "#DCFCE7",
@@ -186,6 +189,25 @@ export function GeneralRegionOfficeStep({
                 <Icon name="check" size={11} color="#16A34A" />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#16A34A" }}>
                   Schedule Selected
+                </Text>
+              </View>
+            ) : schedules.length > 0 && !hasOpenSchedule ? (
+              <View
+                style={{
+                  backgroundColor: "#FEF3C7",
+                  borderColor: "#F59E0B",
+                  borderWidth: 1,
+                  paddingHorizontal: 8,
+                  paddingVertical: 3,
+                  borderRadius: 12,
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 4,
+                }}
+              >
+                <Icon name="clock" size={11} color="#B45309" />
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#B45309" }}>
+                  Upcoming Schedule(s)
                 </Text>
               </View>
             ) : (
@@ -248,7 +270,7 @@ export function GeneralRegionOfficeStep({
                   No Open Examination Schedule
                 </Text>
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, color: "#B45309", fontSize: 12.5, lineHeight: 18 }}>
-                  There are currently no active or open exam slots for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
+                  There are currently no active or upcoming exam schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
                 </Text>
               </View>
             </View>

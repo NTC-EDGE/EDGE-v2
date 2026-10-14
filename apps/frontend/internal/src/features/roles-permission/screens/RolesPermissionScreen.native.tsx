@@ -135,7 +135,7 @@ export function RolesPermissionScreen() {
               <Lucide name="search" size={14} color={mutedColor} />
               <TextInput
                 style={[styles.searchInput, { color: textColor }]}
-                placeholder="Search roles..."
+                placeholder="Search roles by name or key..."
                 placeholderTextColor={mutedColor}
                 value={roleSearchQuery}
                 onChangeText={setRoleSearchQuery}

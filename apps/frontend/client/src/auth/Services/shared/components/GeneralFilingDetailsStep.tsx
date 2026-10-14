@@ -94,7 +94,9 @@ export function GeneralFilingDetailsStep({
         k === "applicantperson" ||
         k === "applicantparticulars" ||
         k === "applicantaddress" ||
-        k === "applicantcontact"
+        k === "applicantcontact" ||
+        k === "assistancerequest" ||
+        t.includes("special needs")
       ) {
         return;
       }

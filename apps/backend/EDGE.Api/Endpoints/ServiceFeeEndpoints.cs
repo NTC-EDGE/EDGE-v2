@@ -114,7 +114,11 @@ public static class ServiceFeeEndpoints
         IValidator<UpdateServiceFeeCommand> validator,
         IMediator mediator)
     {
-        if (id != command.Id)
+        if (command.Id == Guid.Empty)
+        {
+            command = command with { Id = id };
+        }
+        else if (id != command.Id)
         {
             return Results.BadRequest("Route ID does not match request body ID.");
         }

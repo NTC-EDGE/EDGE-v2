@@ -790,7 +790,7 @@ function RolePermissionsModal({
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search permission capabilities..."
+              placeholder="Search permissions..."
               value={permSearch}
               onChange={(e) => setPermSearch(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-lg text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-500"

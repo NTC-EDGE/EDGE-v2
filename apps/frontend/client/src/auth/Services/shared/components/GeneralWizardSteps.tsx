@@ -52,7 +52,7 @@ interface GeneralWizardStepsProps {
     fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
   ) => void;
   isWeb: boolean;
-  onUploadPress: (req: string, file: { name: string; uri: string }) => void;
+  onUploadPress: (req: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   onRemoveUpload: (req: string) => void;
   onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
   errors?: Record<string, string>;

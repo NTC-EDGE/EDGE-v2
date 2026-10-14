@@ -4,6 +4,7 @@ import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ExamApplicantData } from "../../types/examTypes";
 import { styles } from "../ExamFilingWizard.styles";
 import { DocumentPreviewModal } from "../../../../../../shared/components/DocumentPreviewModal";
+import { ExamScheduleCardData, formatFriendlyDate, formatFullExamDate } from "../../../../shared/components/ExamScheduleCard";
 
 interface ExamStep6ReviewProps {
   activeApplicant: ExamApplicantData;
@@ -12,6 +13,8 @@ interface ExamStep6ReviewProps {
   selectedOfficeId: string;
   isAgreedToTerms: boolean;
   setIsAgreedToTerms: React.Dispatch<React.SetStateAction<boolean>>;
+  schedules?: ExamScheduleCardData[];
+  selectedScheduleId?: string | null;
 }
 
 export function ExamStep6Review({
@@ -21,10 +24,43 @@ export function ExamStep6Review({
   selectedOfficeId,
   isAgreedToTerms,
   setIsAgreedToTerms,
+  schedules,
+  selectedScheduleId,
 }: ExamStep6ReviewProps) {
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+
+  const selectedSchedule = Array.isArray(schedules) && selectedScheduleId
+    ? schedules.find((s) => s.id === selectedScheduleId)
+    : null;
+
+  const appStartDisplay = formatFriendlyDate(selectedSchedule?.startApplication);
+  const appEndDisplay = formatFriendlyDate(selectedSchedule?.endApplication || selectedSchedule?.applicationDeadline);
+  const filingPeriodDisplay = selectedSchedule?.startApplication || selectedSchedule?.endApplication || selectedSchedule?.applicationDeadline
+    ? `${appStartDisplay} – ${appEndDisplay}`
+    : "—";
+
+  const examDateDisplay = selectedSchedule?.startDate || selectedSchedule?.scheduledDate
+    ? formatFullExamDate(selectedSchedule.startDate || selectedSchedule.scheduledDate)
+    : "—";
+
+  const examTimeDisplay = selectedSchedule
+    ? [selectedSchedule.startTime, selectedSchedule.endTime].filter(Boolean).join(" - ") || "08:00 AM - 12:00 PM"
+    : "—";
+
+  const venueDisplay = selectedSchedule?.venue || "NTC Regional Examination Center";
+
+  const fullAddress = [
+    activeApplicant.street,
+    activeApplicant.barangay,
+    activeApplicant.city,
+    activeApplicant.province,
+    activeApplicant.zipCode
+  ].filter(Boolean).join(", ");
+
+  const birthDateDisplay = `${activeApplicant.birthMonth} ${activeApplicant.birthDay}, ${activeApplicant.birthYear}`;
+
   const renderReviewRow = (label: string, value: string) => (
     <View style={{ flexDirection: "row", paddingVertical: 8, paddingHorizontal: 12, borderBottomWidth: 1, borderBottomColor: "#f1f5f9" }}>
       <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500], width: "30%", minWidth: 120 }}>
@@ -43,28 +79,42 @@ export function ExamStep6Review({
       <View style={{ backgroundColor: COLORS.neutral.white, borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, overflow: "hidden" }}>
         <View style={{ backgroundColor: "#f1f5f9", paddingVertical: 6, paddingHorizontal: 12 }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: COLORS.neutral[600] }}>
-            EXAMINATION PATHWAYS
+            EXAMINATION PATHWAYS & SCHEDULE
           </Text>
         </View>
         {renderReviewRow("Region", selectedRegionId)}
         {renderReviewRow("Application Mode", appMode)}
         {renderReviewRow("NTC Office", selectedOfficeId)}
+        {renderReviewRow("Scheduled Exam Date", examDateDisplay)}
+        {renderReviewRow("Exam Time", examTimeDisplay)}
+        {renderReviewRow("Examination Venue", venueDisplay)}
+        {renderReviewRow("Application Period", filingPeriodDisplay)}
 
         <View style={{ backgroundColor: "#f1f5f9", paddingVertical: 6, paddingHorizontal: 12, marginTop: 12 }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: COLORS.neutral[600] }}>
             APPLICANT DETAILS (First Applicant / Upload List)
           </Text>
         </View>
-        {renderReviewRow("Name", `${activeApplicant.firstName} ${activeApplicant.middleName} ${activeApplicant.lastName}`)}
+        {renderReviewRow("Name", [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" "))}
+        {renderReviewRow("Date of Birth", birthDateDisplay)}
         {renderReviewRow("Sex", activeApplicant.sex)}
         {renderReviewRow("Nationality", activeApplicant.nationality)}
+        {renderReviewRow("Complete Address", fullAddress)}
+        {renderReviewRow("Email", activeApplicant.email)}
+        {renderReviewRow("Contact No", activeApplicant.contactNo)}
         {renderReviewRow("Exam Type", activeApplicant.examType)}
         {renderReviewRow("Class Option", activeApplicant.selectedOption)}
         {renderReviewRow("Examinee Type", activeApplicant.examineeType)}
-        {renderReviewRow("School", activeApplicant.schoolName)}
-        {renderReviewRow("Course", activeApplicant.courseDegree)}
-        {renderReviewRow("Email", activeApplicant.email)}
-        {renderReviewRow("Contact No", activeApplicant.contactNo)}
+
+        <View style={{ backgroundColor: "#f1f5f9", paddingVertical: 6, paddingHorizontal: 12, marginTop: 12 }}>
+          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: COLORS.neutral[600] }}>
+            EDUCATIONAL BACKGROUND
+          </Text>
+        </View>
+        {renderReviewRow("School / Institution", activeApplicant.schoolName)}
+        {renderReviewRow("Program / Course / Degree", activeApplicant.courseDegree)}
+        {renderReviewRow("Year Graduated", activeApplicant.yearGraduated)}
+        {Boolean(activeApplicant.specialOrderNo) && renderReviewRow("Special Order (SO) No.", activeApplicant.specialOrderNo)}
 
         <View style={{ backgroundColor: "#f1f5f9", paddingVertical: 6, paddingHorizontal: 12, marginTop: 12 }}>
           <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: COLORS.neutral[600] }}>

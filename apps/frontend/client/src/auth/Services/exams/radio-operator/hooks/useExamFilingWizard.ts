@@ -8,6 +8,7 @@ import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
 import { isExamApplicantComplete } from "../helpers/validation";
 import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+import { isScheduleOpenForFiling } from "../../../shared/components/ExamScheduleCard";
 
 const isGuid = (val?: string | null): boolean => {
   if (!val || typeof val !== "string") return false;
@@ -93,9 +94,15 @@ export function useExamFilingWizard({
 
   const activeApplicant = applicants[currentApplicantIndex] || initialExamApplicant(1);
 
-  const updateActiveApplicant = (fields: Partial<ExamApplicantData>) => {
+  const updateActiveApplicant = (
+    fields: Partial<ExamApplicantData> | ((prevApp: ExamApplicantData) => Partial<ExamApplicantData>)
+  ) => {
     setApplicants((prev) =>
-      prev.map((app, idx) => (idx === currentApplicantIndex ? { ...app, ...fields } : app))
+      prev.map((app, idx) => {
+        if (idx !== currentApplicantIndex) return app;
+        const resolved = typeof fields === "function" ? fields(app) : fields;
+        return { ...app, ...resolved };
+      })
     );
   };
 
@@ -185,14 +192,19 @@ export function useExamFilingWizard({
       throw new Error(`Data Serialization Error: ${serializationMsg}`);
     }
 
+    const firstOpenSchedule = queries.schedules.find(
+      (s) => isScheduleOpenForFiling(s) && isGuid(s.id)
+    );
     const effectiveScheduleId =
       selectedScheduleId && isGuid(selectedScheduleId)
         ? selectedScheduleId
-        : (queries.schedules && queries.schedules.length > 0 && isGuid(queries.schedules[0].id) ? queries.schedules[0].id : null);
+        : firstOpenSchedule
+        ? firstOpenSchedule.id
+        : null;
 
     if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
       throw new Error(
-        "Examination Schedule is required. Please select an Examination Schedule & Venue in Step 2 before submitting."
+        "Examination Schedule is required. Please select an open Examination Schedule & Venue before submitting."
       );
     }
 

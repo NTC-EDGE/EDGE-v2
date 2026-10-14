@@ -33,6 +33,7 @@ import {
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
+import { isScheduleOpenForFiling } from "../components/ExamScheduleCard";
 import { useServiceForm } from "./useServiceForm";
 
 const isGuid = (val?: string | null): boolean => {
@@ -117,7 +118,7 @@ export interface GeneralApplicantData {
   selectedVariantName?: string;
   selectedElementId?: string;
   selectedElementTitle?: string;
-  uploads: Record<string, { name: string; uri: string } | string>;
+  uploads: Record<string, { name: string; uri: string; type?: string; file?: File | Blob } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   signatureUrl?: string;
   // Specialized Certificate, License & Permit Models
@@ -557,8 +558,10 @@ export function useGeneralServiceWizard(
           };
         });
         setSchedules(mappedSchedules);
-        if (mappedSchedules.length > 0 && !selectedScheduleId) {
-          setSelectedScheduleId(mappedSchedules[0].id);
+        const currentSelectedSched = mappedSchedules.find((s) => s.id === selectedScheduleId);
+        if (!currentSelectedSched || !isScheduleOpenForFiling(currentSelectedSched)) {
+          const firstOpenSchedule = mappedSchedules.find((s) => isScheduleOpenForFiling(s));
+          setSelectedScheduleId(firstOpenSchedule ? firstOpenSchedule.id : null);
         }
       } catch (err) {
         console.warn("[useGeneralServiceWizard] Failed to fetch exam schedules:", err);
@@ -576,11 +579,11 @@ export function useGeneralServiceWizard(
   const [variantElements, setVariantElements] = useState<ServiceVariantElementInfo[]>([]);
   const [loadingElements, setLoadingElements] = useState(false);
 
-  // Lazy fetch variants when opening Step 3
+  // Fetch variants when service changes so variant names are available across all steps (including Step 5 review)
   React.useEffect(() => {
     let active = true;
-    const fetchStep3Variants = async () => {
-      if ((currentStep !== 2 && currentStep !== 3) || !service?.id) return;
+    const fetchServiceVariants = async () => {
+      if (!service?.id) return;
       try {
         setLoadingVariants(true);
         const varRes = await api.get<unknown>(`/api/v2/services/${service.id}/variants`).catch(() => null);
@@ -596,33 +599,60 @@ export function useGeneralServiceWizard(
           }
           setVariants(fetchedVariants);
 
-          // Auto-select initial variant if applicant has no variant selected yet
+          const buildReadableVariantName = (v: ServiceVariantInfo): string => {
+            const desc = (v.description || v.name || "").trim();
+            const typeStr =
+              v.type &&
+              typeof v.type === "string" &&
+              v.type.toUpperCase() !== "NA" &&
+              v.type.toUpperCase() !== "N/A"
+                ? v.type.toUpperCase()
+                : "";
+            if (desc.length > 0 && typeStr.length > 0) {
+              return desc.toUpperCase().includes(`(${typeStr})`) ? desc : `${desc} (${typeStr})`;
+            }
+            return desc || typeStr || "";
+          };
+
+          // Auto-select initial variant if applicant has no variant selected yet, or backfill missing selectedVariantName
           if (fetchedVariants.length > 0) {
             const firstVariant = fetchedVariants[0];
             if (firstVariant) {
               setApplicants((prev) =>
-                prev.map((app, idx) =>
-                  idx === currentApplicantIndex && !app.selectedVariantId
-                    ? {
+                prev.map((app, idx) => {
+                  if (idx === currentApplicantIndex && !app.selectedVariantId) {
+                    return {
+                      ...app,
+                      selectedVariantId: firstVariant.id,
+                      selectedVariantName: buildReadableVariantName(firstVariant),
+                    };
+                  }
+                  if (app.selectedVariantId && !app.selectedVariantName) {
+                    const matched = fetchedVariants.find(
+                      (v) => String(v.id).toLowerCase() === String(app.selectedVariantId).toLowerCase()
+                    );
+                    if (matched) {
+                      return {
                         ...app,
-                        selectedVariantId: firstVariant.id,
-                        selectedVariantName: firstVariant.name || firstVariant.description || "",
-                      }
-                    : app
-                )
+                        selectedVariantName: buildReadableVariantName(matched),
+                      };
+                    }
+                  }
+                  return app;
+                })
               );
             }
           }
         }
       } catch (err) {
-        console.warn("Failed to fetch service variants on Step 2/3:", err);
+        console.warn("Failed to fetch service variants:", err);
       } finally {
         if (active) setLoadingVariants(false);
       }
     };
-    fetchStep3Variants();
+    fetchServiceVariants();
     return () => { active = false; };
-  }, [currentStep, service?.id]);
+  }, [service?.id]);
 
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
   const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
@@ -752,6 +782,7 @@ export function useGeneralServiceWizard(
           const repSuffix = app.representativeSuffix || initialProfile.representativeSuffix || initialProfile.suffix || "";
           const repName = app.representativeName || initialProfile.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || initialProfile.fullName;
           const repPos = app.representativePosition || initialProfile.designation || initialProfile.position || "";
+          const initialStreet = [initialProfile.unit, initialProfile.street].filter(Boolean).join(", ");
           return {
             ...app,
             firstName: app.firstName || initialProfile.firstName,
@@ -763,11 +794,15 @@ export function useGeneralServiceWizard(
             sex: app.sex || initialProfile.sex,
             nationality: app.nationality || initialProfile.nationality,
             zipCode: app.zipCode || initialProfile.zipCode,
-            address: app.address || initialProfile.formattedAddress || [initialProfile.unit, initialProfile.street].filter(Boolean).join(", "),
+            street: app.street || initialStreet,
+            address: app.address || initialStreet,
             region: app.region || initialProfile.region,
             province: app.province || initialProfile.province,
             city: app.city || initialProfile.city,
             barangay: app.barangay || initialProfile.barangay,
+            schoolName: app.schoolName || initialProfile.schoolAttended,
+            courseDegree: app.courseDegree || initialProfile.courseTaken,
+            yearGraduated: app.yearGraduated || initialProfile.yearGraduated,
             birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
@@ -805,6 +840,7 @@ export function useGeneralServiceWizard(
             const repSuffix = app.representativeSuffix || enriched.representativeSuffix || enriched.suffix || "";
             const repName = app.representativeName || enriched.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || enriched.fullName;
             const repPos = app.representativePosition || enriched.designation || enriched.position || "";
+            const enrichedStreet = [enriched.unit, enriched.street].filter(Boolean).join(", ");
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -816,11 +852,15 @@ export function useGeneralServiceWizard(
               sex: app.sex || enriched.sex,
               nationality: app.nationality || enriched.nationality,
               zipCode: app.zipCode || enriched.zipCode,
-              address: app.address || enriched.formattedAddress || [enriched.unit, enriched.street].filter(Boolean).join(", "),
+              street: app.street || enrichedStreet,
+              address: app.address || enrichedStreet,
               region: app.region || enriched.region,
               province: app.province || enriched.province,
               city: app.city || enriched.city,
               barangay: app.barangay || enriched.barangay,
+              schoolName: app.schoolName || enriched.schoolAttended,
+              courseDegree: app.courseDegree || enriched.courseTaken,
+              yearGraduated: app.yearGraduated || enriched.yearGraduated,
               birthYear: isBlank ? enriched.birthYear : app.birthYear,
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,
@@ -962,8 +1002,9 @@ export function useGeneralServiceWizard(
     let effectiveScheduleId = selectedScheduleId && isGuid(selectedScheduleId) ? selectedScheduleId : undefined;
 
     if (!effectiveScheduleId && isExamService) {
-      if (schedules.length > 0 && isGuid(schedules[0].id)) {
-        effectiveScheduleId = schedules[0].id;
+      const openSched = schedules.find((s) => isScheduleOpenForFiling(s) && isGuid(s.id));
+      if (openSched) {
+        effectiveScheduleId = openSched.id;
         setSelectedScheduleId(effectiveScheduleId);
       } else if (selectedRegionId && service?.id) {
         try {
@@ -979,20 +1020,32 @@ export function useGeneralServiceWizard(
                 .catch(() => null);
             });
 
-          const dataObj = typeof fetchedSchedules === "object" && fetchedSchedules !== null ? (fetchedSchedules as Record<string, unknown>) : {};
+          const isRecord = (val: unknown): val is Record<string, unknown> =>
+            typeof val === "object" && val !== null;
+
+          const dataObj = isRecord(fetchedSchedules) ? fetchedSchedules : {};
           const rawItems = Array.isArray(fetchedSchedules)
             ? fetchedSchedules
             : Array.isArray(dataObj.items)
-            ? (dataObj.items as unknown[])
+            ? dataObj.items
             : Array.isArray(dataObj.data)
-            ? (dataObj.data as unknown[])
+            ? dataObj.data
             : [];
 
-          if (rawItems.length > 0) {
-            const firstItem = rawItems[0] as Record<string, unknown>;
-            if (firstItem?.id && isGuid(String(firstItem.id))) {
-              effectiveScheduleId = String(firstItem.id);
-              setSelectedScheduleId(effectiveScheduleId);
+          for (const rawItem of rawItems) {
+            if (isRecord(rawItem) && rawItem.id && isGuid(String(rawItem.id))) {
+              const startApp = typeof rawItem.startApplication === "string" ? rawItem.startApplication : null;
+              const endApp =
+                typeof rawItem.endApplication === "string"
+                  ? rawItem.endApplication
+                  : typeof rawItem.applicationDeadline === "string"
+                  ? rawItem.applicationDeadline
+                  : null;
+              if (isScheduleOpenForFiling({ startApplication: startApp, endApplication: endApp })) {
+                effectiveScheduleId = String(rawItem.id);
+                setSelectedScheduleId(effectiveScheduleId);
+                break;
+              }
             }
           }
         } catch (fetchErr) {
@@ -1003,7 +1056,7 @@ export function useGeneralServiceWizard(
 
     if (isExamService && !isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
       throw new Error(
-        "Examination Schedule is required for exam service applications. Please select an Examination Schedule & Venue before submitting."
+        "Examination Schedule is required for exam service applications. Please select an open Examination Schedule & Venue before submitting."
       );
     }
 

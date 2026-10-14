@@ -367,15 +367,18 @@ export function GeneralServiceWizard({
           updateActiveApplicant={handleUpdateActiveApplicant}
           isWeb={isWeb}
 
-          onUploadPress={(req: string, file: { name: string; uri: string }) => {
-            const cur = { ...activeApplicant.uploads };
-            cur[req] = file;
-            updateActiveApplicant({ uploads: cur });
+          onUploadPress={(req: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => {
+            clearFieldError(req);
+            updateActiveApplicant((prev) => ({
+              uploads: { ...(prev.uploads || {}), [req]: file },
+            }));
           }}
           onRemoveUpload={(req) => {
-            const cur = { ...activeApplicant.uploads };
-            delete cur[req];
-            updateActiveApplicant({ uploads: cur });
+            updateActiveApplicant((prev) => {
+              const cur = { ...(prev.uploads || {}) };
+              delete cur[req];
+              return { uploads: cur };
+            });
           }}
           onRequiredFieldsChange={setDynamicRequiredFieldIds}
           errors={formErrors}
