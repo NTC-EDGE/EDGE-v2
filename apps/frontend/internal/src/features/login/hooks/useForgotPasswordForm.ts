@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { isClerkAPIResponseError } from "@clerk/expo";
 import { useSignIn } from "@clerk/expo/legacy";
+import { parseApiError, safeAsync } from "@edge/api";
 import {
   forgotPasswordRequestSchema,
   forgotPasswordResetSchema,
@@ -10,42 +11,159 @@ import {
   ForgotPasswordResetFormData,
 } from "../schemas/authSchemas";
 
-function isObject(val: unknown): val is Record<string, unknown> {
-  return typeof val === "object" && val !== null;
+type ResetSupportedStrategy = "reset_password_email_code" | "email_code";
+
+interface ClerkSupportedResetFactor {
+  strategy: ResetSupportedStrategy;
+  emailAddressId: string;
 }
 
-function getCallableMethod(
-  target: unknown,
-  methodName: string
-): ((...args: unknown[]) => Promise<unknown>) | null {
-  if (isObject(target)) {
-    const fn = Reflect.get(target, methodName);
-    if (typeof fn === "function") {
-      return (...args: unknown[]) => fn.apply(target, args);
+interface ClerkFutureSendCodeCapable {
+  sendCode: () => Promise<unknown>;
+}
+
+interface ClerkFutureResetCapable {
+  verifyCode: (params: { code: string }) => Promise<unknown>;
+  submitPassword: (params: { password: string }) => Promise<unknown>;
+}
+
+interface ClerkSignInWithFinalize {
+  finalize: () => Promise<unknown>;
+}
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+/**
+ * Safely reads a property from an unknown target object using guarded property lookup.
+ * Protects against non-object targets, missing keys, and throwing getters/proxies
+ * across varying Clerk SDK versions.
+ */
+function getSafeProperty(target: unknown, key: string): unknown {
+  if (!isRecord(target)) {
+    return undefined;
+  }
+  try {
+    if (!(key in target)) {
+      return undefined;
+    }
+    return target[key];
+  } catch {
+    return undefined;
+  }
+}
+
+function getNonEmptyStringProp(target: unknown, key: string): string | undefined {
+  const val = getSafeProperty(target, key);
+  if (typeof val === "string" && val.trim().length > 0) {
+    return val.trim();
+  }
+  return undefined;
+}
+
+function getRecordProp(target: unknown, key: string): Record<string, unknown> | null {
+  const val = getSafeProperty(target, key);
+  return isRecord(val) ? val : null;
+}
+
+function getArrayProp(target: unknown, key: string): unknown[] | null {
+  const val = getSafeProperty(target, key);
+  return Array.isArray(val) ? val : null;
+}
+
+function isFutureSendCodeCapable(val: unknown): val is ClerkFutureSendCodeCapable {
+  return isRecord(val) && typeof getSafeProperty(val, "sendCode") === "function";
+}
+
+function isFutureResetCapable(val: unknown): val is ClerkFutureResetCapable {
+  return (
+    isRecord(val) &&
+    typeof getSafeProperty(val, "verifyCode") === "function" &&
+    typeof getSafeProperty(val, "submitPassword") === "function"
+  );
+}
+
+function isSignInWithFinalize(val: unknown): val is ClerkSignInWithFinalize {
+  return isRecord(val) && typeof getSafeProperty(val, "finalize") === "function";
+}
+
+function throwIfResultHasError(result: unknown): void {
+  const errorProp = getSafeProperty(result, "error");
+  if (errorProp !== undefined && errorProp !== null) {
+    throw errorProp;
+  }
+}
+
+function isResetSupportedStrategy(val: unknown): val is ResetSupportedStrategy {
+  return val === "reset_password_email_code" || val === "email_code";
+}
+
+function extractSupportedResetFactor(
+  primarySignIn: unknown,
+  fallbackSignIn: unknown
+): ClerkSupportedResetFactor | null {
+  const rawFactors =
+    getArrayProp(primarySignIn, "supportedFirstFactors") ??
+    getArrayProp(fallbackSignIn, "supportedFirstFactors") ??
+    [];
+
+  let resetFactor: ClerkSupportedResetFactor | null = null;
+  let emailFactor: ClerkSupportedResetFactor | null = null;
+
+  for (const factor of rawFactors) {
+    if (!isRecord(factor)) {
+      continue;
+    }
+    const strategy = getSafeProperty(factor, "strategy");
+    if (!isResetSupportedStrategy(strategy)) {
+      continue;
+    }
+    const emailAddressId =
+      getNonEmptyStringProp(factor, "emailAddressId") ??
+      getNonEmptyStringProp(factor, "email_address_id") ??
+      "";
+
+    const parsedFactor: ClerkSupportedResetFactor = {
+      strategy,
+      emailAddressId,
+    };
+
+    if (strategy === "reset_password_email_code" && resetFactor === null) {
+      resetFactor = parsedFactor;
+    } else if (strategy === "email_code" && emailFactor === null) {
+      emailFactor = parsedFactor;
     }
   }
-  return null;
+
+  return resetFactor ?? emailFactor;
 }
 
 function isStrategyInvalidError(err: unknown): boolean {
-  if (isObject(err)) {
-    if (err.code === "strategy_for_user_invalid") {
-      return true;
-    }
-    const errors = Reflect.get(err, "errors");
-    if (Array.isArray(errors)) {
-      return errors.some(
-        (e) =>
-          isObject(e) &&
-          (e.code === "strategy_for_user_invalid" ||
-            (typeof e.message === "string" && e.message.toLowerCase().includes("strategy")))
-      );
-    }
-    if (typeof err.message === "string" && err.message.toLowerCase().includes("strategy")) {
+  if (!isRecord(err)) {
+    return false;
+  }
+  if (getNonEmptyStringProp(err, "code") === "strategy_for_user_invalid") {
+    return true;
+  }
+  const errors = getArrayProp(err, "errors");
+  if (errors !== null) {
+    const matched = errors.some((item) => {
+      if (!isRecord(item)) {
+        return false;
+      }
+      if (getNonEmptyStringProp(item, "code") === "strategy_for_user_invalid") {
+        return true;
+      }
+      const itemMsg = getNonEmptyStringProp(item, "message");
+      return itemMsg !== undefined && itemMsg.toLowerCase().includes("strategy");
+    });
+    if (matched) {
       return true;
     }
   }
-  return false;
+  const directMsg = getNonEmptyStringProp(err, "message");
+  return directMsg !== undefined && directMsg.toLowerCase().includes("strategy");
 }
 
 /**
@@ -53,8 +171,10 @@ function isStrategyInvalidError(err: unknown): boolean {
  * avoiding generic frontend fallback messages and prioritizing actual server details.
  */
 function extractBackendErrorMessage(err: unknown): string {
+  const fallbackMessage = "An unexpected error occurred. Please try again.";
+
   if (err === null || err === undefined) {
-    return "An unexpected error occurred. Please try again.";
+    return fallbackMessage;
   }
   if (typeof err === "string" && err.trim().length > 0) {
     return err.trim();
@@ -73,54 +193,54 @@ function extractBackendErrorMessage(err: unknown): string {
     }
   }
 
-  if (isObject(err)) {
+  if (isRecord(err)) {
     // 2. Clerk API errors array: { errors: [{ message, longMessage, long_message }] }
-    const errors = Reflect.get(err, "errors");
-    if (Array.isArray(errors) && errors.length > 0) {
+    const errors = getArrayProp(err, "errors");
+    if (errors !== null && errors.length > 0) {
       const firstErr = errors[0];
-      if (isObject(firstErr)) {
+      if (isRecord(firstErr)) {
         const longMsg =
-          Reflect.get(firstErr, "longMessage") ??
-          Reflect.get(firstErr, "long_message");
-        if (typeof longMsg === "string" && longMsg.trim().length > 0) {
-          return longMsg.trim();
+          getNonEmptyStringProp(firstErr, "longMessage") ??
+          getNonEmptyStringProp(firstErr, "long_message");
+        if (longMsg !== undefined) {
+          return longMsg;
         }
-        const msg = Reflect.get(firstErr, "message");
-        if (typeof msg === "string" && msg.trim().length > 0) {
-          return msg.trim();
+        const msg = getNonEmptyStringProp(firstErr, "message");
+        if (msg !== undefined) {
+          return msg;
         }
       }
     }
 
     // 3. Direct longMessage on error object (e.g. ClerkError)
     const directLongMsg =
-      Reflect.get(err, "longMessage") ??
-      Reflect.get(err, "long_message");
-    if (typeof directLongMsg === "string" && directLongMsg.trim().length > 0) {
-      return directLongMsg.trim();
+      getNonEmptyStringProp(err, "longMessage") ??
+      getNonEmptyStringProp(err, "long_message");
+    if (directLongMsg !== undefined) {
+      return directLongMsg;
     }
 
     // 4. Direct verification error property: { firstFactorVerification: { error: { message, longMessage } } }
-    const firstFactorVerification = Reflect.get(err, "firstFactorVerification");
-    if (isObject(firstFactorVerification)) {
-      const vErr = Reflect.get(firstFactorVerification, "error");
-      if (isObject(vErr)) {
+    const firstFactorVerification = getRecordProp(err, "firstFactorVerification");
+    if (firstFactorVerification !== null) {
+      const vErr = getRecordProp(firstFactorVerification, "error");
+      if (vErr !== null) {
         const longMsg =
-          Reflect.get(vErr, "longMessage") ??
-          Reflect.get(vErr, "long_message");
-        if (typeof longMsg === "string" && longMsg.trim().length > 0) {
-          return longMsg.trim();
+          getNonEmptyStringProp(vErr, "longMessage") ??
+          getNonEmptyStringProp(vErr, "long_message");
+        if (longMsg !== undefined) {
+          return longMsg;
         }
-        const msg = Reflect.get(vErr, "message");
-        if (typeof msg === "string" && msg.trim().length > 0) {
-          return msg.trim();
+        const msg = getNonEmptyStringProp(vErr, "message");
+        if (msg !== undefined) {
+          return msg;
         }
       }
     }
 
     // 5. Direct error property: { error: { message, longMessage } }
-    const singleErr = Reflect.get(err, "error");
-    if (isObject(singleErr)) {
+    const singleErr = getRecordProp(err, "error");
+    if (singleErr !== null) {
       const subMsg = extractBackendErrorMessage(singleErr);
       if (subMsg.length > 0 && !subMsg.includes("unexpected error")) {
         return subMsg;
@@ -128,7 +248,7 @@ function extractBackendErrorMessage(err: unknown): string {
     }
 
     // 6. Cause property
-    const cause = Reflect.get(err, "cause");
+    const cause = getSafeProperty(err, "cause");
     if (cause !== undefined && cause !== null) {
       const causeMsg = extractBackendErrorMessage(cause);
       if (causeMsg.length > 0 && !causeMsg.includes("unexpected error")) {
@@ -137,25 +257,25 @@ function extractBackendErrorMessage(err: unknown): string {
     }
 
     // 7. Backend ApiResponse / ProblemDetails format
-    const response = Reflect.get(err, "response");
-    if (isObject(response)) {
-      const data = Reflect.get(response, "data");
-      if (isObject(data)) {
-        const message = Reflect.get(data, "message");
-        if (typeof message === "string" && message.trim().length > 0) {
-          return message.trim();
+    const response = getRecordProp(err, "response");
+    if (response !== null) {
+      const data = getRecordProp(response, "data");
+      if (data !== null) {
+        const message = getNonEmptyStringProp(data, "message");
+        if (message !== undefined) {
+          return message;
         }
-        const detail = Reflect.get(data, "detail");
-        if (typeof detail === "string" && detail.trim().length > 0) {
-          return detail.trim();
+        const detail = getNonEmptyStringProp(data, "detail");
+        if (detail !== undefined) {
+          return detail;
         }
       }
     }
 
     // 8. Standard message property
-    const message = Reflect.get(err, "message");
-    if (typeof message === "string" && message.trim().length > 0) {
-      return message.trim();
+    const message = getNonEmptyStringProp(err, "message");
+    if (message !== undefined) {
+      return message;
     }
   }
 
@@ -163,7 +283,7 @@ function extractBackendErrorMessage(err: unknown): string {
     return err.message.trim();
   }
 
-  return "An unexpected error occurred. Please try again.";
+  return parseApiError(err, fallbackMessage);
 }
 
 export function useForgotPasswordForm() {
@@ -198,88 +318,70 @@ export function useForgotPasswordForm() {
       return;
     }
 
-    try {
-      // 1. Support Clerk Expo v3 Future API if resetPasswordEmailCode is present on runtime signIn
-      const resetEmailObj = isObject(signIn) ? Reflect.get(signIn, "resetPasswordEmailCode") : null;
-      const sendCodeFn = resetEmailObj && isObject(resetEmailObj) ? Reflect.get(resetEmailObj, "sendCode") : null;
+    const trimmedEmail = data.email.trim();
 
-      if (typeof sendCodeFn === "function") {
-        if (typeof signIn.create === "function") {
-          const createRes = await signIn.create({
-            identifier: data.email.trim(),
-          });
-          if (isObject(createRes) && Reflect.get(createRes, "error")) {
-            throw Reflect.get(createRes, "error");
+    const [, error] = await safeAsync(async () => {
+      try {
+        // 1. Support Clerk Expo v3 Future API if resetPasswordEmailCode is present on runtime signIn
+        const resetEmailObj = getRecordProp(signIn, "resetPasswordEmailCode");
+
+        if (isFutureSendCodeCapable(resetEmailObj)) {
+          if (typeof signIn.create === "function") {
+            const createRes = await signIn.create({
+              identifier: trimmedEmail,
+            });
+            throwIfResultHasError(createRes);
           }
+
+          const sendRes = await resetEmailObj.sendCode();
+          throwIfResultHasError(sendRes);
+          return;
         }
-        const sendCodeMethod = getCallableMethod(resetEmailObj, "sendCode");
-        if (sendCodeMethod !== null) {
-          const sendRes = await sendCodeMethod();
-          if (isObject(sendRes) && Reflect.get(sendRes, "error")) {
-            throw Reflect.get(sendRes, "error");
-          }
-        }
-      } else {
+
         // 2. Standard Clerk Legacy flow (SignInResource)
-        let si: typeof signIn = signIn;
+        let createdSignIn: unknown = signIn;
         try {
-          si = await signIn.create({
+          createdSignIn = await signIn.create({
             strategy: "reset_password_email_code",
-            identifier: data.email.trim(),
+            identifier: trimmedEmail,
           });
         } catch {
-          si = await signIn.create({
-            identifier: data.email.trim(),
+          createdSignIn = await signIn.create({
+            identifier: trimmedEmail,
           });
         }
 
-        const rawFactors = si?.supportedFirstFactors ?? signIn.supportedFirstFactors;
-        const factors = Array.isArray(rawFactors) ? rawFactors : [];
-        const resetFactor = factors.find(
-          (f) => f.strategy === "reset_password_email_code"
-        );
-        const emailFactor = factors.find(
-          (f) => f.strategy === "email_code"
-        );
-        const targetFactor = resetFactor ?? emailFactor;
+        const targetFactor = extractSupportedResetFactor(createdSignIn, signIn);
 
-        if (targetFactor !== undefined && typeof signIn.prepareFirstFactor === "function") {
-          const strategy =
-            targetFactor.strategy === "reset_password_email_code"
-              ? "reset_password_email_code"
-              : "email_code";
-          const rawEmailId =
-            "emailAddressId" in targetFactor && typeof targetFactor.emailAddressId === "string"
-              ? targetFactor.emailAddressId
-              : "email_address_id" in targetFactor && typeof targetFactor.email_address_id === "string"
-              ? targetFactor.email_address_id
-              : "";
-
-          if (rawEmailId.length > 0) {
-            if (strategy === "reset_password_email_code") {
-              await signIn.prepareFirstFactor({
-                strategy: "reset_password_email_code",
-                emailAddressId: rawEmailId,
-              });
-            } else {
-              await signIn.prepareFirstFactor({
-                strategy: "email_code",
-                emailAddressId: rawEmailId,
-              });
-            }
+        if (
+          targetFactor !== null &&
+          targetFactor.emailAddressId.length > 0 &&
+          typeof signIn.prepareFirstFactor === "function"
+        ) {
+          if (targetFactor.strategy === "reset_password_email_code") {
+            await signIn.prepareFirstFactor({
+              strategy: "reset_password_email_code",
+              emailAddressId: targetFactor.emailAddressId,
+            });
+          } else {
+            await signIn.prepareFirstFactor({
+              strategy: "email_code",
+              emailAddressId: targetFactor.emailAddressId,
+            });
           }
         }
+      } catch (err: unknown) {
+        throw new Error(extractBackendErrorMessage(err));
       }
+    });
 
-      setRequestedEmail(data.email.trim());
+    if (error !== null) {
+      setToastMessage(error);
+    } else {
+      setRequestedEmail(trimmedEmail);
       setStep("reset");
-    } catch (err: unknown) {
-      console.error("[useForgotPasswordForm] Request error:", err);
-      const errMsg = extractBackendErrorMessage(err);
-      setToastMessage(errMsg);
-    } finally {
-      setIsSubmitting(false);
     }
+    setIsSubmitting(false);
   });
 
   const onResetSubmit = resetForm.handleSubmit(async (data) => {
@@ -292,162 +394,144 @@ export function useForgotPasswordForm() {
       return;
     }
 
-    try {
-      // 1. Support Clerk Expo v3 Future API if resetPasswordEmailCode is present on runtime signIn
-      const resetEmailObj = isObject(signIn) ? Reflect.get(signIn, "resetPasswordEmailCode") : null;
-      const verifyCodeFn = resetEmailObj && isObject(resetEmailObj) ? Reflect.get(resetEmailObj, "verifyCode") : null;
-      const submitPasswordFn = resetEmailObj && isObject(resetEmailObj) ? Reflect.get(resetEmailObj, "submitPassword") : null;
+    const trimmedCode = data.code.trim();
 
-      if (typeof verifyCodeFn === "function" && typeof submitPasswordFn === "function") {
-        const verifyCodeMethod = getCallableMethod(resetEmailObj, "verifyCode");
-        if (verifyCodeMethod !== null) {
-          const verifyRes = await verifyCodeMethod({
-            code: data.code.trim(),
+    const [, error] = await safeAsync(async () => {
+      try {
+        // 1. Support Clerk Expo v3 Future API if resetPasswordEmailCode is present on runtime signIn
+        const resetEmailObj = getRecordProp(signIn, "resetPasswordEmailCode");
+
+        if (isFutureResetCapable(resetEmailObj)) {
+          const verifyRes = await resetEmailObj.verifyCode({
+            code: trimmedCode,
           });
-          if (isObject(verifyRes) && Reflect.get(verifyRes, "error")) {
-            throw Reflect.get(verifyRes, "error");
-          }
-        }
+          throwIfResultHasError(verifyRes);
 
-        const submitPasswordMethod = getCallableMethod(resetEmailObj, "submitPassword");
-        if (submitPasswordMethod !== null) {
-          const submitRes = await submitPasswordMethod({
+          const submitRes = await resetEmailObj.submitPassword({
             password: data.newPassword,
           });
-          if (isObject(submitRes) && Reflect.get(submitRes, "error")) {
-            throw Reflect.get(submitRes, "error");
-          }
-        }
+          throwIfResultHasError(submitRes);
 
-        const finalizeMethod = getCallableMethod(signIn, "finalize");
-        if (finalizeMethod !== null) {
-          const finRes = await finalizeMethod();
-          if (isObject(finRes) && Reflect.get(finRes, "error")) {
-            throw Reflect.get(finRes, "error");
-          }
-        } else if (typeof setActive === "function") {
-          const createdSessionId = Reflect.get(signIn, "createdSessionId");
-          if (typeof createdSessionId === "string" && createdSessionId.length > 0) {
-            await setActive({ session: createdSessionId });
-          }
-        }
-
-        setStep("success");
-        return;
-      }
-
-      // 2. Standard Clerk Legacy flow (attemptFirstFactor)
-      if (typeof signIn.attemptFirstFactor === "function") {
-        const preparedStrategy =
-          isObject(signIn.firstFactorVerification) &&
-          typeof signIn.firstFactorVerification.strategy === "string"
-            ? signIn.firstFactorVerification.strategy
-            : undefined;
-
-        let result: unknown = null;
-
-        // If Clerk prepared "email_code", verify the code first, then submit the new password
-        if (preparedStrategy === "email_code") {
-          const verifyResult = await signIn.attemptFirstFactor({
-            strategy: "email_code",
-            code: data.code.trim(),
-          });
-
-          if (
-            isObject(verifyResult) &&
-            (verifyResult.status === "needs_new_password" || signIn.status === "needs_new_password") &&
-            typeof signIn.resetPassword === "function"
-          ) {
-            result = await signIn.resetPassword({
-              password: data.newPassword,
-            });
-          } else {
-            result = verifyResult;
-          }
-        } else {
-          // Prepared strategy is reset_password_email_code (or unknown/default)
-          try {
-            result = await signIn.attemptFirstFactor({
-              strategy: "reset_password_email_code",
-              code: data.code.trim(),
-              password: data.newPassword,
-            });
-          } catch (firstErr: unknown) {
-            // Fallback: if Clerk rejected with strategy_for_user_invalid, the session has email_code pending
-            if (isStrategyInvalidError(firstErr)) {
-              const verifyResult = await signIn.attemptFirstFactor({
-                strategy: "email_code",
-                code: data.code.trim(),
-              });
-
-              if (
-                isObject(verifyResult) &&
-                (verifyResult.status === "needs_new_password" || signIn.status === "needs_new_password") &&
-                typeof signIn.resetPassword === "function"
-              ) {
-                result = await signIn.resetPassword({
-                  password: data.newPassword,
-                });
-              } else {
-                result = verifyResult;
-              }
-            } else {
-              throw firstErr;
+          if (isSignInWithFinalize(signIn)) {
+            const finRes = await signIn.finalize();
+            throwIfResultHasError(finRes);
+          } else if (typeof setActive === "function") {
+            const createdSessionId = getNonEmptyStringProp(signIn, "createdSessionId");
+            if (createdSessionId !== undefined) {
+              await setActive({ session: createdSessionId });
             }
           }
-        }
 
-        if (
-          (isObject(result) && result.status === "complete") ||
-          signIn.status === "complete"
-        ) {
-          if (typeof setActive === "function") {
-            const resultSessionId =
-              isObject(result) && typeof result.createdSessionId === "string"
-                ? result.createdSessionId
-                : undefined;
-            const sessionId = resultSessionId ?? signIn.createdSessionId;
-            if (typeof sessionId === "string" && sessionId.length > 0) {
-              await setActive({ session: sessionId });
-            }
-          }
-          setStep("success");
           return;
         }
 
-        // Check if backend returned specific error details
-        const backendError = extractBackendErrorMessage(result);
-        if (backendError.length > 0 && !backendError.toLowerCase().includes("unexpected error")) {
-          throw new Error(backendError);
+        // 2. Standard Clerk Legacy flow (attemptFirstFactor)
+        if (typeof signIn.attemptFirstFactor === "function") {
+          const verificationRecord = getRecordProp(signIn, "firstFactorVerification");
+          const preparedStrategy =
+            verificationRecord !== null
+              ? getNonEmptyStringProp(verificationRecord, "strategy")
+              : undefined;
+
+          let result: unknown = null;
+
+          // If Clerk prepared "email_code", verify the code first, then submit the new password
+          if (preparedStrategy === "email_code") {
+            const verifyResult = await signIn.attemptFirstFactor({
+              strategy: "email_code",
+              code: trimmedCode,
+            });
+
+            const verifyStatus = getNonEmptyStringProp(verifyResult, "status");
+            if (
+              (verifyStatus === "needs_new_password" || signIn.status === "needs_new_password") &&
+              typeof signIn.resetPassword === "function"
+            ) {
+              result = await signIn.resetPassword({
+                password: data.newPassword,
+              });
+            } else {
+              result = verifyResult;
+            }
+          } else {
+            // Prepared strategy is reset_password_email_code (or unknown/default)
+            try {
+              result = await signIn.attemptFirstFactor({
+                strategy: "reset_password_email_code",
+                code: trimmedCode,
+                password: data.newPassword,
+              });
+            } catch (firstErr: unknown) {
+              // Fallback: if Clerk rejected with strategy_for_user_invalid, the session has email_code pending
+              if (isStrategyInvalidError(firstErr)) {
+                const verifyResult = await signIn.attemptFirstFactor({
+                  strategy: "email_code",
+                  code: trimmedCode,
+                });
+
+                const verifyStatus = getNonEmptyStringProp(verifyResult, "status");
+                if (
+                  (verifyStatus === "needs_new_password" || signIn.status === "needs_new_password") &&
+                  typeof signIn.resetPassword === "function"
+                ) {
+                  result = await signIn.resetPassword({
+                    password: data.newPassword,
+                  });
+                } else {
+                  result = verifyResult;
+                }
+              } else {
+                throw firstErr;
+              }
+            }
+          }
+
+          const resultStatus = getNonEmptyStringProp(result, "status");
+          if (resultStatus === "complete" || signIn.status === "complete") {
+            if (typeof setActive === "function") {
+              const sessionId =
+                getNonEmptyStringProp(result, "createdSessionId") ??
+                getNonEmptyStringProp(signIn, "createdSessionId");
+              if (sessionId !== undefined) {
+                await setActive({ session: sessionId });
+              }
+            }
+            return;
+          }
+
+          // Check if backend returned specific error details
+          const backendError = extractBackendErrorMessage(result);
+          if (backendError.length > 0 && !backendError.toLowerCase().includes("unexpected error")) {
+            throw new Error(backendError);
+          }
+
+          const statusStr = resultStatus ?? "unverified";
+          throw new Error(`Verification status: ${statusStr}. Please check your code and try again.`);
         }
 
-        const statusStr =
-          isObject(result) && typeof result.status === "string"
-            ? result.status
-            : "unverified";
-        throw new Error(`Verification status: ${statusStr}. Please check your code and try again.`);
-      }
+        // 3. Alternative legacy resetPassword
+        if (typeof signIn.resetPassword === "function") {
+          await signIn.resetPassword({
+            password: data.newPassword,
+          });
+          return;
+        }
 
-      // 3. Alternative legacy resetPassword
-      if (typeof signIn.resetPassword === "function") {
-        await signIn.resetPassword({
-          password: data.newPassword,
-        });
-        setStep("success");
-        return;
+        // 4. If none of the known reset methods are available, surface an actionable error
+        throw new Error(
+          "Password reset is not supported by the current authentication session. Please refresh and try again."
+        );
+      } catch (err: unknown) {
+        throw new Error(extractBackendErrorMessage(err));
       }
+    });
 
-      // 4. If none of the known reset methods are available, surface an actionable error with details
-      const methodKeys = Object.keys(signIn).filter((k) => typeof Reflect.get(signIn, k) === "function");
-      console.warn("[useForgotPasswordForm] No supported reset method found on signIn. Available methods:", methodKeys);
-      throw new Error("Password reset is not supported by the current authentication session. Please refresh and try again.");
-    } catch (err: unknown) {
-      console.error("[useForgotPasswordForm] Reset error:", err);
-      const errMsg = extractBackendErrorMessage(err);
-      setToastMessage(errMsg);
-    } finally {
-      setIsSubmitting(false);
+    if (error !== null) {
+      setToastMessage(error);
+    } else {
+      setStep("success");
     }
+    setIsSubmitting(false);
   });
 
   return {
@@ -462,3 +546,4 @@ export function useForgotPasswordForm() {
     onResetSubmit,
   };
 }
+

@@ -45,8 +45,8 @@ export function RegionSelectionModal({
        clerkUser.primaryEmailAddress.emailAddress.toLowerCase() === "superadmin@ntcedge.com")) ||
     (typeof clerkUser?.publicMetadata === "object" &&
       clerkUser.publicMetadata !== null &&
-      (Reflect.get(clerkUser.publicMetadata, "is_super_admin") === true ||
-       Reflect.get(clerkUser.publicMetadata, "role") === "superadmin"))
+      (clerkUser.publicMetadata["is_super_admin"] === true ||
+       clerkUser.publicMetadata["role"] === "superadmin"))
   );
 
   const [token, setToken] = useState<string | null>(null);
@@ -62,7 +62,7 @@ export function RegionSelectionModal({
     try {
       await onSignOut();
     } catch (err: unknown) {
-      console.error("Sign out error:", err);
+      setActionError(parseApiError(err));
     } finally {
       setIsSigningOut(false);
       setIsSignOutConfirmVisible(false);

@@ -50,7 +50,6 @@ export function useLoginForm() {
     });
 
     if (error !== null) {
-      console.error("Google sign-in error:", error);
       setToastMessage(error);
     }
     setIsGoogleSubmitting(false);
