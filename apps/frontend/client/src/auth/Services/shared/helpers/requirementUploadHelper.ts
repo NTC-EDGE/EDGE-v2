@@ -2,9 +2,16 @@ import { Platform } from "react-native";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { apiClient } from "@edge/api";
 
+export interface UploadFileDescriptor {
+  name: string;
+  uri?: string;
+  type?: string;
+  file?: File | Blob;
+}
+
 export interface ApplicantUploadHolder {
   id?: string | number;
-  uploads?: Record<string, { name: string; uri: string; type?: string } | string | undefined>;
+  uploads?: Record<string, UploadFileDescriptor | string | undefined>;
 }
 
 export interface UploadRequirementsParams {
@@ -27,38 +34,57 @@ interface BackendRequirementItem {
   requirementName?: string;
 }
 
+const isGuidString = (val: string): boolean =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+
+const inferMimeFromName = (name: string): string => {
+  const ext = name.split(".").pop()?.toLowerCase() ?? "";
+  if (ext === "pdf") return "application/pdf";
+  if (ext === "png") return "image/png";
+  if (ext === "jpg" || ext === "jpeg") return "image/jpeg";
+  if (ext === "webp") return "image/webp";
+  if (ext === "gif") return "image/gif";
+  if (ext === "bmp") return "image/bmp";
+  return "application/octet-stream";
+};
+
 /**
  * Resolves a File or Blob from an upload descriptor across Web and Mobile.
  */
 export const resolveFileFromUpload = async (
-  upload: { name: string; uri?: string; type?: string } | string
+  upload: UploadFileDescriptor | string
 ): Promise<File | Blob | null> => {
   const name = typeof upload === "string" ? upload : upload.name;
   const uri = typeof upload === "string" ? "" : (upload.uri ?? "");
+  const explicitType = typeof upload === "object" && upload !== null ? upload.type : undefined;
+  const fallbackMime = inferMimeFromName(name);
+
+  // 1. Prefer direct in-memory File / Blob when available (immune to blob: URL revocation)
+  if (typeof upload === "object" && upload !== null && upload.file instanceof Blob && upload.file.size > 0) {
+    const rawBlob = upload.file;
+    const mimeType =
+      explicitType || (rawBlob.type && rawBlob.type.trim() !== "" ? rawBlob.type : fallbackMime);
+    if (typeof File !== "undefined") {
+      try {
+        return new File([rawBlob], name, { type: mimeType });
+      } catch {
+        return rawBlob;
+      }
+    }
+    return rawBlob;
+  }
 
   if (!uri || uri.trim() === "") return null;
 
+  // 2. Fetch from URI (blob:, data:, file:, http:, etc.)
   try {
     const res = await fetch(uri);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status} while reading ${uri}`);
+    }
     const blob = await res.blob();
-    const ext = name.split(".").pop()?.toLowerCase() ?? "";
-    const fallbackMime =
-      ext === "pdf"
-        ? "application/pdf"
-        : ext === "png"
-        ? "image/png"
-        : ext === "jpg" || ext === "jpeg"
-        ? "image/jpeg"
-        : ext === "webp"
-        ? "image/webp"
-        : ext === "gif"
-        ? "image/gif"
-        : ext === "bmp"
-        ? "image/bmp"
-        : "application/octet-stream";
-
-    const explicitType = typeof upload === "object" ? upload.type : undefined;
-    const mimeType = explicitType || (blob.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
+    const mimeType =
+      explicitType || (blob.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
 
     if (typeof File !== "undefined") {
       try {
@@ -143,7 +169,12 @@ export async function uploadRequirementsAfterSubmit({
   for (let i = 0; i < applicants.length; i++) {
     const localApplicant = applicants[i];
     const uploadsMap = localApplicant?.uploads ?? {};
-    const uploadKeys = Object.keys(uploadsMap);
+    const uploadKeys = Object.keys(uploadsMap).filter((k) => {
+      const entry = uploadsMap[k];
+      if (entry === null || entry === undefined) return false;
+      if (typeof entry === "string") return entry.trim().length > 0;
+      return Boolean((entry.name && entry.name.trim().length > 0) || (entry.uri && entry.uri.trim().length > 0) || entry.file);
+    });
     if (uploadKeys.length === 0) continue;
 
     // Match server applicant by sequenceOrder (1-indexed) or fallback to array index
@@ -185,11 +216,81 @@ export async function uploadRequirementsAfterSubmit({
       console.warn(`[requirementUploadHelper] Could not fetch requirements catalog for applicant ${applicantId}:`, err);
     }
 
+    // Pre-resolve each upload key to its target BackendRequirementItem so that
+    // deleting & re-uploading an attachment (which reorders Object.keys) never
+    // causes index collisions or overwrites an already-matched requirement.
+    const getReqUniqueKey = (br: BackendRequirementItem): string =>
+      (br.serviceVariantRequirementId || br.requirementId).toLowerCase();
+
+    const resolvedReqByUploadKey = new Map<string, BackendRequirementItem>();
+    const claimedReqKeys = new Set<string>();
+
+    // Pass 1: Match by exact requirementId, serviceVariantRequirementId, or requirementName (case-insensitive)
+    for (const fileKey of uploadKeys) {
+      const rawReqIdInKey = (fileKey.startsWith("req-") ? fileKey.slice(4) : fileKey).trim();
+      const rawLower = rawReqIdInKey.toLowerCase();
+      const keyLower = fileKey.trim().toLowerCase();
+
+      const matched = backendRequirements.find((br) => {
+        const reqIdLower = br.requirementId.toLowerCase();
+        const svrIdLower = (br.serviceVariantRequirementId ?? "").toLowerCase();
+        const nameLower = (br.requirementName ?? "").replace(/\*$/, "").trim().toLowerCase();
+        return (
+          reqIdLower === rawLower ||
+          (svrIdLower !== "" && svrIdLower === rawLower) ||
+          (nameLower !== "" && (nameLower === rawLower || nameLower === keyLower))
+        );
+      });
+
+      if (matched) {
+        resolvedReqByUploadKey.set(fileKey, matched);
+        claimedReqKeys.add(getReqUniqueKey(matched));
+      }
+    }
+
+    // Pass 2: Match strictly numeric index keys (e.g. "req-0", "req-gen-0", "0")
+    for (const fileKey of uploadKeys) {
+      if (resolvedReqByUploadKey.has(fileKey)) continue;
+      const rawReqIdInKey = (fileKey.startsWith("req-") ? fileKey.slice(4) : fileKey).trim();
+      const indexMatch = /^(?:gen-)?(\d+)$/i.exec(rawReqIdInKey);
+      if (!indexMatch) continue;
+
+      const parsedKeyIdx = parseInt(indexMatch[1], 10);
+      if (!Number.isNaN(parsedKeyIdx) && parsedKeyIdx >= 0 && parsedKeyIdx < backendRequirements.length) {
+        const candidate = backendRequirements[parsedKeyIdx];
+        if (candidate && !claimedReqKeys.has(getReqUniqueKey(candidate))) {
+          resolvedReqByUploadKey.set(fileKey, candidate);
+          claimedReqKeys.add(getReqUniqueKey(candidate));
+        }
+      }
+    }
+
+    // Pass 3: Fallback for any remaining keys — assign to unclaimed backendRequirements in order.
+    // Note: If a key is a GUID from a previously selected variant and all backendRequirements
+    // are already claimed, leave it unresolved so we don't overwrite a valid requirement.
+    for (const fileKey of uploadKeys) {
+      if (resolvedReqByUploadKey.has(fileKey)) continue;
+      const rawReqIdInKey = (fileKey.startsWith("req-") ? fileKey.slice(4) : fileKey).trim();
+      const unclaimed = backendRequirements.find((br) => !claimedReqKeys.has(getReqUniqueKey(br)));
+      if (unclaimed) {
+        resolvedReqByUploadKey.set(fileKey, unclaimed);
+        claimedReqKeys.add(getReqUniqueKey(unclaimed));
+      } else if (!isGuidString(rawReqIdInKey) && backendRequirements.length > 0) {
+        resolvedReqByUploadKey.set(fileKey, backendRequirements[0]);
+      }
+    }
+
     // 4. Upload and link each picture / file
     for (let keyIdx = 0; keyIdx < uploadKeys.length; keyIdx++) {
       const fileKey = uploadKeys[keyIdx];
       const uploadEntry = uploadsMap[fileKey];
       if (uploadEntry === null || uploadEntry === undefined) continue;
+
+      const matchedReq = resolvedReqByUploadKey.get(fileKey);
+      if (backendRequirements.length > 0 && !matchedReq) {
+        // Stale upload entry from a previous variant when all active requirements are already satisfied
+        continue;
+      }
 
       const fileName =
         typeof uploadEntry === "string"
@@ -241,18 +342,6 @@ export async function uploadRequirementsAfterSubmit({
       }
 
       // Step B: Resolve requirement target ID
-      const rawReqIdInKey = fileKey.startsWith("req-") ? fileKey.slice(4) : fileKey;
-      const matchedByExactId = backendRequirements.find(
-        (br) => br.requirementId === rawReqIdInKey || br.serviceVariantRequirementId === rawReqIdInKey
-      );
-
-      const parsedKeyIdx = parseInt(rawReqIdInKey, 10);
-      const matchedByIndex = !Number.isNaN(parsedKeyIdx) && parsedKeyIdx >= 0 && parsedKeyIdx < backendRequirements.length
-        ? backendRequirements[parsedKeyIdx]
-        : undefined;
-
-      const matchedReq = matchedByExactId ?? matchedByIndex ?? backendRequirements[keyIdx] ?? backendRequirements[0];
-
       const requirementBody: Record<string, unknown> = { storedFileId };
       if (matchedReq) {
         if (matchedReq.serviceVariantRequirementId) {

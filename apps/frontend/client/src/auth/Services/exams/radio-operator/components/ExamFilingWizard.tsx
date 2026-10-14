@@ -66,10 +66,13 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.serviceName
   );
 
-  const handleDocumentPick = (slotKey: string, file: { name: string; uri: string }) => {
-    const nextUploads = { ...wizard.activeApplicant.uploads };
-    nextUploads[slotKey] = file;
-    wizard.updateActiveApplicant({ uploads: nextUploads });
+  const handleDocumentPick = (
+    slotKey: string,
+    file: { name: string; uri: string; type?: string; file?: File | Blob }
+  ) => {
+    wizard.updateActiveApplicant((prev) => ({
+      uploads: { ...(prev.uploads || {}), [slotKey]: file },
+    }));
   };
 
   const handleMockCSVUpload = async () => {
@@ -199,7 +202,14 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       }
       props.setStep(5);
     } else if (props.step === 5) {
-      const allUploaded = requirementsList.every((_, idx) => wizard.activeApplicant.uploads[idx.toString()]);
+      const allUploaded = requirementsList.every((req, idx) => {
+        if (typeof req === "object" && req !== null && req.isRequired === false) {
+          return true;
+        }
+        const key = typeof req === "string" ? `req-${idx}` : req.id ? `req-${req.id}` : `req-${idx}`;
+        const uploads = wizard.activeApplicant.uploads || {};
+        return Boolean(uploads[key] || uploads[`req-${idx}`] || uploads[idx.toString()]);
+      });
       if (!allUploaded) {
         Alert.alert("Error", "Please upload all mandatory supporting documents.");
         return;

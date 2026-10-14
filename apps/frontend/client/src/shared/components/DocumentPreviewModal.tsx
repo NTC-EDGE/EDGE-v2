@@ -53,23 +53,6 @@ export function DocumentPreviewModal({
     setImageError(false);
   }, [fileUri, file]);
 
-  useEffect(() => {
-    return () => {
-      if (
-        fileUri &&
-        fileUri.startsWith("blob:") &&
-        typeof URL !== "undefined" &&
-        typeof URL.revokeObjectURL === "function"
-      ) {
-        try {
-          URL.revokeObjectURL(fileUri);
-        } catch {
-          // Ignore revocation error
-        }
-      }
-    };
-  }, [fileUri]);
-
   if (!file) return null;
 
   const fileNameLower = (fileName || "").toLowerCase();

@@ -25,7 +25,7 @@ export interface ExamApplicantData {
   email: string;
   contactNo: string;
   signature?: string;
-  uploads: Record<string, string | { name: string; uri: string }>; // Maps requirement index/key to filename or file object
+  uploads: Record<string, string | { name: string; uri: string; type?: string; file?: File | Blob }>; // Maps requirement index/key to filename or file object
   selectedVariantId?: string;
   selectedElementId?: string;
 }

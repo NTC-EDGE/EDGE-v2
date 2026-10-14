@@ -660,14 +660,17 @@ export function GeneralBulkApplicationFlow({
             variantRequirements={variantRequirements}
             isWeb={isWeb}
             onUploadPress={(req, file) => {
-              const cur = { ...activeApplicant.uploads };
-              cur[req] = file;
-              updateActiveApplicant({ uploads: cur });
+              clearFieldError(req);
+              updateActiveApplicant((prev) => ({
+                uploads: { ...(prev.uploads || {}), [req]: file },
+              }));
             }}
             onRemoveUpload={(req) => {
-              const cur = { ...activeApplicant.uploads };
-              delete cur[req];
-              updateActiveApplicant({ uploads: cur });
+              updateActiveApplicant((prev) => {
+                const cur = { ...(prev.uploads || {}) };
+                delete cur[req];
+                return { uploads: cur };
+              });
             }}
             errors={formErrors}
           />

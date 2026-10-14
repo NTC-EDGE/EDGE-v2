@@ -5,9 +5,11 @@ import { ExamRequirementItem } from "../../helpers/examMapping";
 
 interface ExamStep5UploadProps {
   activeApplicant: ExamApplicantData;
-  updateActiveApplicant: (fields: Partial<ExamApplicantData>) => void;
+  updateActiveApplicant: (
+    fields: Partial<ExamApplicantData> | ((prevApp: ExamApplicantData) => Partial<ExamApplicantData>)
+  ) => void;
   requirementsList: Array<ExamRequirementItem | string>;
-  handleDocumentPick: (slotKey: string, file: { name: string; uri: string }) => void;
+  handleDocumentPick: (slotKey: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   isWeb: boolean;
 }
 
@@ -41,9 +43,11 @@ export function ExamStep5Upload({
       uploads={activeApplicant.uploads}
       onUpload={handleDocumentPick}
       onRemove={(key: string) => {
-        const nextUploads = { ...activeApplicant.uploads };
-        delete nextUploads[key];
-        updateActiveApplicant({ uploads: nextUploads });
+        updateActiveApplicant((prev) => {
+          const nextUploads = { ...(prev.uploads || {}) };
+          delete nextUploads[key];
+          return { uploads: nextUploads };
+        });
       }}
       isWeb={isWeb}
     />

@@ -94,9 +94,15 @@ export function useExamFilingWizard({
 
   const activeApplicant = applicants[currentApplicantIndex] || initialExamApplicant(1);
 
-  const updateActiveApplicant = (fields: Partial<ExamApplicantData>) => {
+  const updateActiveApplicant = (
+    fields: Partial<ExamApplicantData> | ((prevApp: ExamApplicantData) => Partial<ExamApplicantData>)
+  ) => {
     setApplicants((prev) =>
-      prev.map((app, idx) => (idx === currentApplicantIndex ? { ...app, ...fields } : app))
+      prev.map((app, idx) => {
+        if (idx !== currentApplicantIndex) return app;
+        const resolved = typeof fields === "function" ? fields(app) : fields;
+        return { ...app, ...resolved };
+      })
     );
   };
 
