@@ -172,7 +172,6 @@ export const mapApplicantsPayload = (
         },
         { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
         { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
-        { fieldId: "fd000000-0000-0000-0000-000000000010", terms: ["special needs", "assistance"], value: "None" },
         { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
       ];
 

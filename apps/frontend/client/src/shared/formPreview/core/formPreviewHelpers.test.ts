@@ -134,5 +134,20 @@ describe('Address formatting helpers', () => {
       });
       expect(result).toBe('10 Main Road, Iloilo');
     });
+
+    it('strips duplicate barangay, city, province, region, and zip when address or street already contains the full composite address', () => {
+      const result = formatCompositeAddress({
+        street: 'Zone 2',
+        address: 'Zone 2, Santo Niño, Manolo Fortich, Bukidnon, Region X (Northern Mindanao), 8703',
+        barangay: 'Santo Niño',
+        city: 'Manolo Fortich',
+        province: 'Bukidnon',
+        region: 'Region X (Northern Mindanao)',
+        zipCode: '8703',
+      });
+      expect(result).toBe(
+        'Zone 2, Brgy. Santo Niño, Manolo Fortich, Bukidnon, (Region X (Northern Mindanao)), ZIP 8703'
+      );
+    });
   });
 });

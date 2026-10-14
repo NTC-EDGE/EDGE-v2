@@ -19,7 +19,10 @@ export const isUnrelatedSection = (titleOrKey: string): boolean => {
     lower.includes('evaluation remark') ||
     lower.includes('processing note') ||
     lower.includes('cashier use') ||
-    lower.includes('accounting use')
+    lower.includes('accounting use') ||
+    lower === 'assistancerequest' ||
+    lower === 'assistance request' ||
+    lower.includes('special needs')
   );
 };
 

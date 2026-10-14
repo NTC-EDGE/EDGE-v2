@@ -579,11 +579,11 @@ export function useGeneralServiceWizard(
   const [variantElements, setVariantElements] = useState<ServiceVariantElementInfo[]>([]);
   const [loadingElements, setLoadingElements] = useState(false);
 
-  // Lazy fetch variants when opening Step 3
+  // Fetch variants when service changes so variant names are available across all steps (including Step 5 review)
   React.useEffect(() => {
     let active = true;
-    const fetchStep3Variants = async () => {
-      if ((currentStep !== 2 && currentStep !== 3) || !service?.id) return;
+    const fetchServiceVariants = async () => {
+      if (!service?.id) return;
       try {
         setLoadingVariants(true);
         const varRes = await api.get<unknown>(`/api/v2/services/${service.id}/variants`).catch(() => null);
@@ -599,33 +599,60 @@ export function useGeneralServiceWizard(
           }
           setVariants(fetchedVariants);
 
-          // Auto-select initial variant if applicant has no variant selected yet
+          const buildReadableVariantName = (v: ServiceVariantInfo): string => {
+            const desc = (v.description || v.name || "").trim();
+            const typeStr =
+              v.type &&
+              typeof v.type === "string" &&
+              v.type.toUpperCase() !== "NA" &&
+              v.type.toUpperCase() !== "N/A"
+                ? v.type.toUpperCase()
+                : "";
+            if (desc.length > 0 && typeStr.length > 0) {
+              return desc.toUpperCase().includes(`(${typeStr})`) ? desc : `${desc} (${typeStr})`;
+            }
+            return desc || typeStr || "";
+          };
+
+          // Auto-select initial variant if applicant has no variant selected yet, or backfill missing selectedVariantName
           if (fetchedVariants.length > 0) {
             const firstVariant = fetchedVariants[0];
             if (firstVariant) {
               setApplicants((prev) =>
-                prev.map((app, idx) =>
-                  idx === currentApplicantIndex && !app.selectedVariantId
-                    ? {
+                prev.map((app, idx) => {
+                  if (idx === currentApplicantIndex && !app.selectedVariantId) {
+                    return {
+                      ...app,
+                      selectedVariantId: firstVariant.id,
+                      selectedVariantName: buildReadableVariantName(firstVariant),
+                    };
+                  }
+                  if (app.selectedVariantId && !app.selectedVariantName) {
+                    const matched = fetchedVariants.find(
+                      (v) => String(v.id).toLowerCase() === String(app.selectedVariantId).toLowerCase()
+                    );
+                    if (matched) {
+                      return {
                         ...app,
-                        selectedVariantId: firstVariant.id,
-                        selectedVariantName: firstVariant.name || firstVariant.description || "",
-                      }
-                    : app
-                )
+                        selectedVariantName: buildReadableVariantName(matched),
+                      };
+                    }
+                  }
+                  return app;
+                })
               );
             }
           }
         }
       } catch (err) {
-        console.warn("Failed to fetch service variants on Step 2/3:", err);
+        console.warn("Failed to fetch service variants:", err);
       } finally {
         if (active) setLoadingVariants(false);
       }
     };
-    fetchStep3Variants();
+    fetchServiceVariants();
     return () => { active = false; };
-  }, [currentStep, service?.id]);
+  }, [service?.id]);
 
   const activeApplicant = applicants[currentApplicantIndex] || initialGeneralApplicant(1);
   const effectiveVariantId = activeApplicant.selectedVariantId || (variants[0] ? variants[0].id : null);
@@ -755,6 +782,7 @@ export function useGeneralServiceWizard(
           const repSuffix = app.representativeSuffix || initialProfile.representativeSuffix || initialProfile.suffix || "";
           const repName = app.representativeName || initialProfile.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || initialProfile.fullName;
           const repPos = app.representativePosition || initialProfile.designation || initialProfile.position || "";
+          const initialStreet = [initialProfile.unit, initialProfile.street].filter(Boolean).join(", ");
           return {
             ...app,
             firstName: app.firstName || initialProfile.firstName,
@@ -766,11 +794,15 @@ export function useGeneralServiceWizard(
             sex: app.sex || initialProfile.sex,
             nationality: app.nationality || initialProfile.nationality,
             zipCode: app.zipCode || initialProfile.zipCode,
-            address: app.address || initialProfile.formattedAddress || [initialProfile.unit, initialProfile.street].filter(Boolean).join(", "),
+            street: app.street || initialStreet,
+            address: app.address || initialStreet,
             region: app.region || initialProfile.region,
             province: app.province || initialProfile.province,
             city: app.city || initialProfile.city,
             barangay: app.barangay || initialProfile.barangay,
+            schoolName: app.schoolName || initialProfile.schoolAttended,
+            courseDegree: app.courseDegree || initialProfile.courseTaken,
+            yearGraduated: app.yearGraduated || initialProfile.yearGraduated,
             birthYear: isBlank ? initialProfile.birthYear : app.birthYear,
             birthMonth: isBlank ? initialProfile.birthMonth : app.birthMonth,
             birthDay: isBlank ? initialProfile.birthDay : app.birthDay,
@@ -808,6 +840,7 @@ export function useGeneralServiceWizard(
             const repSuffix = app.representativeSuffix || enriched.representativeSuffix || enriched.suffix || "";
             const repName = app.representativeName || enriched.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || enriched.fullName;
             const repPos = app.representativePosition || enriched.designation || enriched.position || "";
+            const enrichedStreet = [enriched.unit, enriched.street].filter(Boolean).join(", ");
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -819,11 +852,15 @@ export function useGeneralServiceWizard(
               sex: app.sex || enriched.sex,
               nationality: app.nationality || enriched.nationality,
               zipCode: app.zipCode || enriched.zipCode,
-              address: app.address || enriched.formattedAddress || [enriched.unit, enriched.street].filter(Boolean).join(", "),
+              street: app.street || enrichedStreet,
+              address: app.address || enrichedStreet,
               region: app.region || enriched.region,
               province: app.province || enriched.province,
               city: app.city || enriched.city,
               barangay: app.barangay || enriched.barangay,
+              schoolName: app.schoolName || enriched.schoolAttended,
+              courseDegree: app.courseDegree || enriched.courseTaken,
+              yearGraduated: app.yearGraduated || enriched.yearGraduated,
               birthYear: isBlank ? enriched.birthYear : app.birthYear,
               birthMonth: isBlank ? enriched.birthMonth : app.birthMonth,
               birthDay: isBlank ? enriched.birthDay : app.birthDay,

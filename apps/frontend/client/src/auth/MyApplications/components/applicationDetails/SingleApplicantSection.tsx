@@ -90,7 +90,7 @@ export function SingleApplicantSection({
 
           <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 8 }}>
             <View style={{ flex: 1 }}>
-              <SummaryRow label="License / Permit Variant" value={variantLabel} />
+              <SummaryRow label="Variant" value={variantLabel} />
             </View>
             <View style={{ flex: 1 }}>
               <SummaryRow label="Filing Mode" value={app.mode || 'Single Application'} />

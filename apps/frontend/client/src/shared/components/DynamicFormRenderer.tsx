@@ -212,7 +212,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       k === "applicantperson" ||
       k === "applicantparticulars" ||
       k === "applicantaddress" ||
-      k === "applicantcontact"
+      k === "applicantcontact" ||
+      k === "assistancerequest" ||
+      t.includes("special needs")
     ) {
       return false;
     }
@@ -234,7 +236,11 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               labelLower.includes("i hereby declare") ||
               rawTargetId.includes("payment") ||
               labelLower.includes("official receipt") ||
-              labelLower.includes("amount paid")
+              labelLower.includes("amount paid") ||
+              rawTargetId === "fd000000-0000-0000-0000-000000000010" ||
+              rawTargetId === "specialneeds" ||
+              labelLower.includes("special assistance") ||
+              labelLower.includes("special needs")
             ) {
               return false;
             }

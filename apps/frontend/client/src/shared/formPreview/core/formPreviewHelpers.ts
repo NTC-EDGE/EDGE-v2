@@ -176,21 +176,55 @@ export function formatCompositeAddress(components?: AddressComponentsInput | nul
   const street = sanitizeAddressSegment(components.streetAddress || components.street);
   const rawAddress = sanitizeAddressSegment(components.address);
 
-  // Determine base street/building segment without duplicate repetition
-  let primaryStreet: string | null = null;
-  if (street && rawAddress && street !== rawAddress) {
-    primaryStreet = rawAddress.toLowerCase().includes(street.toLowerCase())
-      ? rawAddress
-      : `${street}, ${rawAddress}`;
-  } else {
-    primaryStreet = street || rawAddress;
-  }
-
   const barangay = sanitizeAddressSegment(components.barangay || components.barangayName);
   const city = sanitizeAddressSegment(components.cityMunicipality || components.city);
   const province = sanitizeAddressSegment(components.province);
   const region = sanitizeAddressSegment(components.region);
   const zip = sanitizeAddressSegment(components.zipCode);
+
+  const isDuplicateLocationSegment = (segment: string): boolean => {
+    const clean = segment.replace(/^[(\s]+|[)\s]+$/g, '').trim().toLowerCase();
+    if (!clean) return true;
+    const cleanNoBrgy = clean.replace(/^(brgy\.?|barangay)\s+/i, '').trim();
+    const cleanNoZip = clean.replace(/^zip\s+/i, '').trim();
+
+    if (barangay) {
+      const bLower = barangay.toLowerCase().replace(/^(brgy\.?|barangay)\s+/i, '').trim();
+      if (clean === barangay.toLowerCase() || cleanNoBrgy === bLower) return true;
+    }
+    if (city && clean === city.toLowerCase()) return true;
+    if (province && clean === province.toLowerCase()) return true;
+    if (region && clean === region.toLowerCase()) return true;
+    if (zip) {
+      const zLower = zip.replace(/^zip\s+/i, '').trim().toLowerCase();
+      if (clean === zLower || cleanNoZip === zLower) return true;
+    }
+    return false;
+  };
+
+  const stripDuplicateLocationSegments = (val: string | null): string | null => {
+    if (!val) return null;
+    const filtered = val
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s.length > 0 && !isDuplicateLocationSegment(s));
+    return filtered.length > 0 ? filtered.join(', ') : null;
+  };
+
+  const cleanStreet = stripDuplicateLocationSegments(street);
+  const cleanRawAddress = stripDuplicateLocationSegments(rawAddress);
+
+  // Determine base street/building segment without duplicate repetition
+  let primaryStreet: string | null = null;
+  if (cleanStreet && cleanRawAddress && cleanStreet !== cleanRawAddress) {
+    primaryStreet = cleanRawAddress.toLowerCase().includes(cleanStreet.toLowerCase())
+      ? cleanRawAddress
+      : cleanStreet.toLowerCase().includes(cleanRawAddress.toLowerCase())
+      ? cleanStreet
+      : `${cleanStreet}, ${cleanRawAddress}`;
+  } else {
+    primaryStreet = cleanStreet || cleanRawAddress;
+  }
 
   const parts: string[] = [];
 

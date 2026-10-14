@@ -272,7 +272,13 @@ export function useApplicationDetailsData(initialApp: Application) {
     return app.office ? `NTC Field Office • ${app.office}` : null;
   }, [app]);
 
-  const variantLabel = useMemo(() => app.serviceVariantName || app.variant || app.element || singleApplicant?.examineeType || 'Standard', [app, singleApplicant]);
+  const variantLabel = useMemo(() => {
+    const isUuid = (val?: string | null) =>
+      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
+    const candidates = [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType];
+    const readable = candidates.find((c) => c && c.trim().length > 0 && !isUuid(c));
+    return readable ? readable.trim() : 'Standard';
+  }, [app, singleApplicant]);
 
   const formFieldValues = useMemo(() => {
     let baseValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];

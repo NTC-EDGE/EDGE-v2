@@ -114,7 +114,6 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
         "Exam Type",
         "Examinee Type",
         "Class/Element",
-        "Special Needs",
       ],
       sampleRows: [
         [
@@ -140,7 +139,6 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
           "Radiotelephony",
           "First Taker",
           "1PHN - Elements 1, 2, 3 & 4",
-          "None",
         ],
         [
           "Maria",
@@ -165,7 +163,6 @@ export function getSpreadsheetTemplateForService(service: NTCService): Spreadshe
           "Amateur",
           "Upgrader",
           "Class B - Elements 5, 6 & 7",
-          "None",
         ],
       ],
       description: "Use this template for batch filing of Radio Operator Examination admission slips.",
