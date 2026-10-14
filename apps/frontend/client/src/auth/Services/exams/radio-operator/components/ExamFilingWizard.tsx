@@ -13,6 +13,7 @@ import { ExamWizardNavigation } from "./wizard/ExamWizardNavigation";
 import { ExamWizardModals } from "./wizard/ExamWizardModals";
 import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { validateExamForm, getRequirementsList } from "../helpers/examMapping";
+import { isScheduleOpenForFiling, formatFriendlyDate } from "../../../shared/components/ExamScheduleCard";
 import { styles } from "./ExamFilingWizard.styles";
 
 interface ExamFilingWizardProps {
@@ -134,10 +135,23 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         Alert.alert("Validation Error", "Please select a Region, Processing Office, and Application Mode.");
         return;
       }
-      if (!selectedScheduleId) {
+      const openSchedules = wizard.schedules.filter((s) => isScheduleOpenForFiling(s));
+      if (wizard.schedules.length > 0 && openSchedules.length === 0) {
+        const firstUpcoming = wizard.schedules.find((s) => Boolean(s.startApplication));
+        const openDateText = firstUpcoming?.startApplication
+          ? formatFriendlyDate(firstUpcoming.startApplication)
+          : "the scheduled filing start date";
+        Alert.alert(
+          "Application Not Yet Open",
+          `Application filing opens on ${openDateText}.`
+        );
+        return;
+      }
+      const selectedSched = wizard.schedules.find((s) => s.id === selectedScheduleId);
+      if (!selectedScheduleId || !selectedSched || !isScheduleOpenForFiling(selectedSched)) {
         Alert.alert(
           "Exam Schedule Required",
-          "Please select an Exam Schedule date before you can proceed with the application."
+          "Please select an open Exam Schedule date before you can proceed with the application."
         );
         return;
       }

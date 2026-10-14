@@ -33,6 +33,7 @@ import {
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
 import { uploadRequirementsAfterSubmit } from "../helpers/requirementUploadHelper";
+import { isScheduleOpenForFiling } from "../components/ExamScheduleCard";
 import { useServiceForm } from "./useServiceForm";
 
 const isGuid = (val?: string | null): boolean => {
@@ -557,8 +558,10 @@ export function useGeneralServiceWizard(
           };
         });
         setSchedules(mappedSchedules);
-        if (mappedSchedules.length > 0 && !selectedScheduleId) {
-          setSelectedScheduleId(mappedSchedules[0].id);
+        const currentSelectedSched = mappedSchedules.find((s) => s.id === selectedScheduleId);
+        if (!currentSelectedSched || !isScheduleOpenForFiling(currentSelectedSched)) {
+          const firstOpenSchedule = mappedSchedules.find((s) => isScheduleOpenForFiling(s));
+          setSelectedScheduleId(firstOpenSchedule ? firstOpenSchedule.id : null);
         }
       } catch (err) {
         console.warn("[useGeneralServiceWizard] Failed to fetch exam schedules:", err);
@@ -962,8 +965,9 @@ export function useGeneralServiceWizard(
     let effectiveScheduleId = selectedScheduleId && isGuid(selectedScheduleId) ? selectedScheduleId : undefined;
 
     if (!effectiveScheduleId && isExamService) {
-      if (schedules.length > 0 && isGuid(schedules[0].id)) {
-        effectiveScheduleId = schedules[0].id;
+      const openSched = schedules.find((s) => isScheduleOpenForFiling(s) && isGuid(s.id));
+      if (openSched) {
+        effectiveScheduleId = openSched.id;
         setSelectedScheduleId(effectiveScheduleId);
       } else if (selectedRegionId && service?.id) {
         try {
@@ -979,20 +983,32 @@ export function useGeneralServiceWizard(
                 .catch(() => null);
             });
 
-          const dataObj = typeof fetchedSchedules === "object" && fetchedSchedules !== null ? (fetchedSchedules as Record<string, unknown>) : {};
+          const isRecord = (val: unknown): val is Record<string, unknown> =>
+            typeof val === "object" && val !== null;
+
+          const dataObj = isRecord(fetchedSchedules) ? fetchedSchedules : {};
           const rawItems = Array.isArray(fetchedSchedules)
             ? fetchedSchedules
             : Array.isArray(dataObj.items)
-            ? (dataObj.items as unknown[])
+            ? dataObj.items
             : Array.isArray(dataObj.data)
-            ? (dataObj.data as unknown[])
+            ? dataObj.data
             : [];
 
-          if (rawItems.length > 0) {
-            const firstItem = rawItems[0] as Record<string, unknown>;
-            if (firstItem?.id && isGuid(String(firstItem.id))) {
-              effectiveScheduleId = String(firstItem.id);
-              setSelectedScheduleId(effectiveScheduleId);
+          for (const rawItem of rawItems) {
+            if (isRecord(rawItem) && rawItem.id && isGuid(String(rawItem.id))) {
+              const startApp = typeof rawItem.startApplication === "string" ? rawItem.startApplication : null;
+              const endApp =
+                typeof rawItem.endApplication === "string"
+                  ? rawItem.endApplication
+                  : typeof rawItem.applicationDeadline === "string"
+                  ? rawItem.applicationDeadline
+                  : null;
+              if (isScheduleOpenForFiling({ startApplication: startApp, endApplication: endApp })) {
+                effectiveScheduleId = String(rawItem.id);
+                setSelectedScheduleId(effectiveScheduleId);
+                break;
+              }
             }
           }
         } catch (fetchErr) {
@@ -1003,7 +1019,7 @@ export function useGeneralServiceWizard(
 
     if (isExamService && !isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
       throw new Error(
-        "Examination Schedule is required for exam service applications. Please select an Examination Schedule & Venue before submitting."
+        "Examination Schedule is required for exam service applications. Please select an open Examination Schedule & Venue before submitting."
       );
     }
 

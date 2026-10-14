@@ -28,6 +28,7 @@ import {
   FIELD_ID_SIGNATURE,
   FIELD_ID_INVOICE_NUMBER,
 } from "../../../../shared/constants/fieldIds";
+import { isScheduleOpenForFiling, formatFriendlyDate } from "../components/ExamScheduleCard";
 
 interface NavigationContext {
   step: number;
@@ -35,7 +36,14 @@ interface NavigationContext {
   selectedRegionId: string;
   selectedOfficeId: string;
   isExamService?: boolean;
-  schedules?: Array<{ id: string; scheduledDate: string; [key: string]: unknown }>;
+  schedules?: Array<{
+    id: string;
+    scheduledDate: string;
+    startApplication?: string | null;
+    endApplication?: string | null;
+    applicationDeadline?: string | null;
+    [key: string]: unknown;
+  }>;
   selectedScheduleId?: string | null;
   appMode: "SINGLE" | "BULK" | "";
   activeApplicant: GeneralApplicantData;
@@ -106,12 +114,25 @@ export function handleWizardNext({
       if (schedules.length === 0) {
         Alert.alert(
           "No Available Schedule",
-          "There are currently no active or open examination schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon."
+          "There are currently no active or upcoming examination schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon."
         );
         return;
       }
-      if (!selectedScheduleId) {
-        step1Errors.selectedScheduleId = "Please select an Exam Schedule date.";
+      const openSchedules = schedules.filter((s) => isScheduleOpenForFiling(s));
+      if (openSchedules.length === 0) {
+        const firstUpcoming = schedules.find((s) => Boolean(s.startApplication));
+        const openDateText = firstUpcoming?.startApplication
+          ? formatFriendlyDate(firstUpcoming.startApplication)
+          : "the scheduled filing start date";
+        const msg = `Application filing opens on ${openDateText}.`;
+        step1Errors.selectedScheduleId = msg;
+        setFormErrors?.(step1Errors);
+        Alert.alert("Application Not Yet Open", msg);
+        return;
+      }
+      const selectedSched = schedules.find((s) => s.id === selectedScheduleId);
+      if (!selectedScheduleId || !selectedSched || !isScheduleOpenForFiling(selectedSched)) {
+        step1Errors.selectedScheduleId = "Please select an open Exam Schedule date.";
       }
     }
     if (Object.keys(step1Errors).length > 0) {

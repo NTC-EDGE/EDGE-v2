@@ -11,7 +11,7 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "../../../../shared/spreadsheet";
-import { ExamScheduleCard } from "../../../../shared/components/ExamScheduleCard";
+import { ExamScheduleCard, isScheduleOpenForFiling } from "../../../../shared/components/ExamScheduleCard";
 
 interface ExamSteps1To2Props {
   step: number;
@@ -65,6 +65,9 @@ export function ExamSteps1To2({
   setExamApplicants,
 }: ExamSteps1To2Props) {
   const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
+  const hasOpenSchedule = schedules.some((s) => isScheduleOpenForFiling(s));
+  const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId);
+  const isSelectedOpen = selectedSchedule ? isScheduleOpenForFiling(selectedSchedule) : false;
   const [uploadLoading, setUploadLoading] = useState(false);
 
   const examService = {
@@ -229,10 +232,15 @@ export function ExamSteps1To2({
         <View style={styles.formSection}>
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
             <Text style={styles.formSectionHeading}>Scheduled Exam Dates*</Text>
-            {selectedScheduleId ? (
+            {selectedScheduleId && isSelectedOpen ? (
               <View style={{ backgroundColor: "#DCFCE7", borderColor: "#16A34A", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
                 <Icon name="check" size={12} color="#16A34A" />
                 <Text style={{ fontSize: 11, fontWeight: "700", color: "#16A34A" }}>Schedule Selected</Text>
+              </View>
+            ) : schedules.length > 0 && !hasOpenSchedule ? (
+              <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="clock" size={12} color="#B45309" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#B45309" }}>Upcoming Schedule(s)</Text>
               </View>
             ) : (
               <Text style={{ fontSize: 11, fontStyle: "italic", color: "#E11D48" }}>* Selection required</Text>
@@ -275,7 +283,7 @@ export function ExamSteps1To2({
                   No Open Examination Schedule
                 </Text>
                 <Text style={{ color: "#B45309", fontSize: 13, lineHeight: 18 }}>
-                  There are currently no active or open exam slots for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
+                  There are currently no active or upcoming exam schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
                 </Text>
               </View>
             </View>

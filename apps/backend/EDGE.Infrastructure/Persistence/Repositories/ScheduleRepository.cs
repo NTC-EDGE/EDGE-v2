@@ -83,16 +83,17 @@ public class ScheduleRepository : IScheduleRepository
         CancellationToken cancellationToken = default)
     {
         var referenceDate = date.HasValue ? DateTime.SpecifyKind(date.Value, DateTimeKind.Utc) : DateTime.UtcNow;
+        var referenceDay = DateTime.SpecifyKind(referenceDate.Date, DateTimeKind.Utc);
 
         var query = _context.Schedules
             .AsNoTracking()
             .Include(s => s.Service)
             .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished)
-            // Filter by application window
-            .Where(s => (s.StartApplication == null || s.StartApplication <= referenceDate) &&
-                        (s.EndApplication == null || s.EndApplication >= referenceDate))
+            // Allow clients to view upcoming schedules even before StartApplication has passed;
+            // only exclude schedules whose application filing window has already ended.
+            .Where(s => s.EndApplication == null || s.EndApplication >= referenceDay)
             // Only return schedules that haven't ended yet
-            .Where(s => s.EndDate >= referenceDate);
+            .Where(s => s.EndDate >= referenceDay);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
