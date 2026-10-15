@@ -92,6 +92,25 @@ export function getEffectiveLineItems(app: Application): SoaLineItem[] {
     return deduplicateLineItems(app.soa.lineItems);
   }
   const units = app.mode === 'BULK' ? (app.applicants?.length || 1) : 1;
+  const svcLower = (app.serviceName || '').toLowerCase();
+  const catLower = (app.serviceCategory || '').toLowerCase();
+  const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
+
+  if (isExam) {
+    const examFee = 50;
+    return [
+      {
+        id: 'fee-exam-1',
+        particular: 'Examination Fee',
+        itemCode: '4-02-01-030',
+        validityYears: 1,
+        noOfUnits: units,
+        feeRate: examFee,
+        amount: examFee * units,
+      },
+    ];
+  }
+
   const filingFee = 180;
   const permitFee = 1200;
   return [
@@ -130,7 +149,10 @@ export function getEffectiveTotalAmount(app: Application): number {
   if (items.length > 0) {
     return items.reduce((sum, item) => sum + (typeof item.amount === 'number' ? item.amount : 0), 0);
   }
-  return 1380;
+  const svcLower = (app.serviceName || '').toLowerCase();
+  const catLower = (app.serviceCategory || '').toLowerCase();
+  const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
+  return isExam ? 50 : 1380;
 }
 
 export function generateSoaPrintableHtml(

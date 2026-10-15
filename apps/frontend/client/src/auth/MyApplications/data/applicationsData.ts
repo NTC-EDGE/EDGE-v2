@@ -1134,30 +1134,48 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     : undefined;
 
   let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
+  const svcLower = (serviceName || '').toLowerCase();
+  const catLower = (serviceCategory || '').toLowerCase();
+  const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
+
   if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || dto.soaNumber)) {
     const units = isBulk ? (mappedApplicants.length || 1) : 1;
-    const filingFee = 180;
-    const permitFee = 1200;
-    mappedSoaItems = [
-      {
-        id: 'fee-filing-1',
-        particular: 'Filing & Processing Fee',
-        itemCode: 'NTC-FF-01',
-        validityYears: 1,
-        noOfUnits: units,
-        feeRate: filingFee,
-        amount: filingFee * units,
-      },
-      {
-        id: 'fee-lic-1',
-        particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
-        itemCode: 'NTC-RF-02',
-        validityYears: 1,
-        noOfUnits: units,
-        feeRate: permitFee,
-        amount: permitFee * units,
-      },
-    ];
+    if (isExam) {
+      mappedSoaItems = [
+        {
+          id: 'fee-exam-1',
+          particular: 'Examination Fee',
+          itemCode: '4-02-01-030',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: 50,
+          amount: 50 * units,
+        },
+      ];
+    } else {
+      const filingFee = 180;
+      const permitFee = 1200;
+      mappedSoaItems = [
+        {
+          id: 'fee-filing-1',
+          particular: 'Filing & Processing Fee',
+          itemCode: 'NTC-FF-01',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: filingFee,
+          amount: filingFee * units,
+        },
+        {
+          id: 'fee-lic-1',
+          particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
+          itemCode: 'NTC-RF-02',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: permitFee,
+          amount: permitFee * units,
+        },
+      ];
+    }
   }
 
   const calculatedTotalDue =
@@ -1167,7 +1185,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       ? mappedOp.amountDue
       : mappedSoaItems.length > 0
       ? mappedSoaItems.reduce((acc, item) => acc + (typeof item.amount === 'number' ? item.amount : 0), 0)
-      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? 1380 : undefined);
+      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? (isExam ? 50 : 1380) : undefined);
 
   const resolvedDueDate = mappedSoa?.dueDate;
   const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
