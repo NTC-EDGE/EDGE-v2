@@ -116,7 +116,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
             return new PdfTemplateResource(template, new MemoryStream(embeddedBytes, writable: false));
         }
 
-        // 4. Fallback check for local project files (e.g. templates/Assesment-SOA.pdf) to auto-seed
+        // 4. Fallback check for local project files (e.g. templates/soa-report-template.pdf) to auto-seed
         var localFallbackPath = ResolveLocalTemplatePath(cleanId);
         if (localFallbackPath != null && File.Exists(localFallbackPath))
         {
@@ -395,54 +395,60 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
     private static string? ResolveLocalTemplatePath(string templateName)
     {
         var clean = NormalizeTemplateId(templateName);
-        var fileNames = new List<string>
-        {
-            clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf"
-        };
+        var nameWithoutExt = clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean[..^4] : clean;
+        List<string> fileNames;
 
-        if (clean.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("Assesment-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("Assessment-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("NTC-FORM-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
+        if (nameWithoutExt.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            nameWithoutExt.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("soa-report-template.pdf");
-            fileNames.Add("Assesment-SOA.pdf");
+            fileNames = new List<string> { "soa-report-template.pdf" };
         }
-        else if (clean.Equals("op", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        else if (nameWithoutExt.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("order-of-payment-template.pdf");
-            fileNames.Add("order-of-payment.pdf");
+            fileNames = new List<string> { "order-of-payment-template.pdf", "order-of-payment.pdf" };
         }
-        else if (clean.Equals("or", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        else if (nameWithoutExt.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("or_portrait-template.pdf");
-            fileNames.Add("or_portrait.pdf");
-            fileNames.Add("AF-51.pdf");
+            fileNames = new List<string> { "or_portrait-template.pdf", "or_portrait.pdf", "AF-51.pdf" };
+        }
+        else
+        {
+            fileNames = new List<string> { clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf" };
         }
 
         foreach (var fileName in fileNames)
         {
-            var candidatePaths = new[]
+            var searchRoots = new[]
             {
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "templates", fileName),
-                Path.Combine(Directory.GetCurrentDirectory(), "templates", fileName),
-                Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "templates", fileName),
-                Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "templates", fileName)
+                Directory.GetCurrentDirectory(),
+                AppDomain.CurrentDomain.BaseDirectory
             };
 
-            foreach (var path in candidatePaths)
+            foreach (var root in searchRoots)
             {
-                if (File.Exists(path))
+                var dir = new DirectoryInfo(root);
+                while (dir != null)
                 {
-                    return Path.GetFullPath(path);
+                    var directTemplates = Path.Combine(dir.FullName, "templates", fileName);
+                    if (File.Exists(directTemplates))
+                    {
+                        return Path.GetFullPath(directTemplates);
+                    }
+
+                    var infrastructureTemplates = Path.Combine(dir.FullName, "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", fileName);
+                    if (File.Exists(infrastructureTemplates))
+                    {
+                        return Path.GetFullPath(infrastructureTemplates);
+                    }
+
+                    dir = dir.Parent;
                 }
             }
         }
@@ -453,33 +459,32 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
     private static byte[]? GetEmbeddedTemplateBytes(string templateName)
     {
         var clean = NormalizeTemplateId(templateName);
-        var fileNames = new List<string>
-        {
-            clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf"
-        };
+        var nameWithoutExt = clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean[..^4] : clean;
+        List<string> fileNames;
 
-        if (clean.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("Assesment-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("Assessment-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("NTC-FORM-SOA", StringComparison.OrdinalIgnoreCase) ||
-            clean.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
+        if (nameWithoutExt.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            nameWithoutExt.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("soa-report-template.pdf");
+            fileNames = new List<string> { "soa-report-template.pdf" };
         }
-        else if (clean.Equals("op", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        else if (nameWithoutExt.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("order-of-payment-template.pdf");
+            fileNames = new List<string> { "order-of-payment-template.pdf" };
         }
-        else if (clean.Equals("or", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
-                 clean.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        else if (nameWithoutExt.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames.Add("or_portrait-template.pdf");
+            fileNames = new List<string> { "or_portrait-template.pdf", "AF-51.pdf" };
+        }
+        else
+        {
+            fileNames = new List<string> { clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf" };
         }
 
         var assembly = typeof(CloudflareR2PdfTemplateProvider).Assembly;

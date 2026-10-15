@@ -251,11 +251,31 @@ export function ApplicationReviewScreenContent({
   }, [previewCustomDoc?.uri]);
 
   const handlePrintSoa = useCallback(() => {
-    if (selectedApplication !== null) openPrintableDocumentWindow(generateSoaPrintableHtml(selectedApplication));
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getSoaPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateSoaPrintableHtml(selectedApplication));
+    }
   }, [selectedApplication]);
 
   const handlePrintOp = useCallback(() => {
-    if (selectedApplication !== null) openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getOpPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
+    }
   }, [selectedApplication]);
 
   const handlePreviewReport = useCallback((docType: ReportDocumentType) => {

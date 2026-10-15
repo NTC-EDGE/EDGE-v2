@@ -78,6 +78,18 @@ export function ClientSoaOpPreviewModal({
     : '30 days from issuance';
 
   const handlePrint = () => {
+    if (typeof app.id === 'string' && app.id.trim().length > 0) {
+      const url = activeTab === 'soa'
+        ? applicationService.getSoaPrintUrl(app.id)
+        : applicationService.getOpPrintUrl(app.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+    }
     if (activeTab === 'soa') {
       const html = generateSoaPrintableHtml(app);
       openPrintableDocumentWindow(html);

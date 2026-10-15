@@ -190,7 +190,12 @@ export function GenerateSoaModal({
     : (calculatedFees?.totalAmount ?? (app.totalAmountDue > 0 ? app.totalAmountDue : 0));
 
   const handleGenerate = async () => {
-    if (app.status !== 'Evaluating') {
+    const isReturned =
+      app.status === 'Returned' ||
+      app.soaStatus === 'Returned' ||
+      (app.note !== undefined && (app.note.includes('SOA returned') || app.note.includes('Returned by Accountant')));
+
+    if (app.status !== 'Evaluating' && !isReturned) {
       toast.warning('You must start evaluation on this application first before generating the Statement of Account.');
       return;
     }

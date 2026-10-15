@@ -186,7 +186,7 @@ describe('SOA and OP Report Generator', () => {
   };
 
   describe('generateSoaPrintableHtml', () => {
-    it('should generate official Statement of Account HTML matching Assesment-SOA.pdf format', () => {
+    it('should generate official Statement of Account HTML matching soa-report-template.pdf format', () => {
       const html = generateSoaPrintableHtml(mockApplication, { outputMode: 'plain_paper' });
       expect(html).toContain("CASHIER'S REPORT");
       expect(html).toContain('MONTH OF');

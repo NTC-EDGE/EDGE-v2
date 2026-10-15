@@ -155,7 +155,7 @@ public static class SoaEndpoints
         }
 
         // If still no SOA but OP exists or Application exists, use OP / Application as reference
-        if (soa == null && op == null && (app.ApplicationApplicants == null || !app.ApplicationApplicants.Any()))
+        if (soa == null && op == null && (app.ApplicationApplicants == null || !app.ApplicationApplicants.Any()) && app.User == null && string.IsNullOrWhiteSpace(app.ReferenceNumber))
         {
             return Results.NotFound(new { message = $"No Statement of Account or Order of Payment found for Application '{id}'." });
         }
