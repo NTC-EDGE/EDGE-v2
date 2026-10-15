@@ -175,6 +175,7 @@ export interface SingleApplication {
     remarks?: string;
     timestamp: string;
   }>;
+  applicantType?: string;
   filingUser?: {
     id?: string;
     name?: string;
@@ -1223,6 +1224,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     id: dto.id || '',
     referenceNumber: refNumber,
     mode: 'SINGLE',
+    applicantType: firstApplicant?.applicantType || (dto as { applicantType?: string }).applicantType || 'Individual',
     intent,
     isAssessmentOnly,
     assessedAt: dto.assessedAt || dto.AssessedAt,

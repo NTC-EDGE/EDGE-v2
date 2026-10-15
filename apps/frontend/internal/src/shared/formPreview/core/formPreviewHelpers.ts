@@ -177,21 +177,32 @@ export function formatCompositeAddress(components?: AddressComponentsInput | nul
   const zip = sanitizeAddressSegment(components.zipCode);
 
   const isDuplicateLocationSegment = (segment: string): boolean => {
-    const clean = segment.replace(/^[(\s]+|[)\s]+$/g, '').trim().toLowerCase();
-    if (!clean) return true;
-    const cleanNoBrgy = clean.replace(/^(brgy\.?|barangay)\s+/i, '').trim();
-    const cleanNoZip = clean.replace(/^zip\s+/i, '').trim();
+    let clean = segment.trim();
+    if (clean.startsWith('(') && clean.endsWith(')')) {
+      clean = clean.slice(1, -1).trim();
+    }
+    const cleanLower = clean.toLowerCase();
+    if (!cleanLower) return true;
+    const cleanNoBrgy = cleanLower.replace(/^(brgy\.?|barangay)\s+/i, '').trim();
+    const cleanNoZip = cleanLower.replace(/^zip\s+/i, '').trim();
 
     if (barangay) {
       const bLower = barangay.toLowerCase().replace(/^(brgy\.?|barangay)\s+/i, '').trim();
-      if (clean === barangay.toLowerCase() || cleanNoBrgy === bLower) return true;
+      if (cleanLower === barangay.toLowerCase() || cleanNoBrgy === bLower) return true;
     }
-    if (city && clean === city.toLowerCase()) return true;
-    if (province && clean === province.toLowerCase()) return true;
-    if (region && clean === region.toLowerCase()) return true;
+    if (city && cleanLower === city.toLowerCase()) return true;
+    if (province && cleanLower === province.toLowerCase()) return true;
+    if (region) {
+      const rLower = region.toLowerCase();
+      let rUnwrapped = rLower;
+      if (rUnwrapped.startsWith('(') && rUnwrapped.endsWith(')')) {
+        rUnwrapped = rUnwrapped.slice(1, -1).trim();
+      }
+      if (cleanLower === rLower || cleanLower === rUnwrapped) return true;
+    }
     if (zip) {
       const zLower = zip.replace(/^zip\s+/i, '').trim().toLowerCase();
-      if (clean === zLower || cleanNoZip === zLower) return true;
+      if (cleanLower === zLower || cleanNoZip === zLower) return true;
     }
     return false;
   };

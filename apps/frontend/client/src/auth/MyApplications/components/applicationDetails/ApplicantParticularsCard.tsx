@@ -4,6 +4,7 @@ import { ApplicantDetailsReviewCard, formatCompositeAddress } from '../../../../
 interface ApplicantParticularsCardProps {
   singleApplicant: {
     applicantName: string;
+    applicantType?: string | null;
     sex: string;
     nationality: string;
     streetAddress: string;
@@ -44,18 +45,21 @@ export function ApplicantParticularsCard({ singleApplicant }: ApplicantParticula
     zipCode: singleApplicant.zipCode,
   });
 
+  const isIndividual = (singleApplicant.applicantType || '').toLowerCase() === 'individual';
+  const isCompany = !isIndividual && ((singleApplicant.applicantType || '').toLowerCase() === 'company' || Boolean(singleApplicant.companyName));
+
   return (
     <ApplicantDetailsReviewCard
       activeApplicant={{
-        applicantType: singleApplicant.companyName ? 'company' : 'individual',
-        companyName: singleApplicant.companyName,
-        registrationNumber: singleApplicant.registrationNumber || null,
-        companyAddress: singleApplicant.companyAddress || null,
-        companyEmail: singleApplicant.companyEmail || null,
-        companyContactNumber: singleApplicant.companyContactNumber || null,
-        representativeName: singleApplicant.representativeName,
-        representativeEmail: singleApplicant.representativeEmail || null,
-        representativeContactNumber: singleApplicant.representativeContactNumber || null,
+        applicantType: isCompany ? 'company' : 'individual',
+        companyName: isCompany ? (singleApplicant.companyName || null) : null,
+        registrationNumber: isCompany ? (singleApplicant.registrationNumber || null) : null,
+        companyAddress: isCompany ? (singleApplicant.companyAddress || null) : null,
+        companyEmail: isCompany ? (singleApplicant.companyEmail || null) : null,
+        companyContactNumber: isCompany ? (singleApplicant.companyContactNumber || null) : null,
+        representativeName: isCompany ? (singleApplicant.representativeName || null) : null,
+        representativeEmail: isCompany ? (singleApplicant.representativeEmail || null) : null,
+        representativeContactNumber: isCompany ? (singleApplicant.representativeContactNumber || null) : null,
         notes: singleApplicant.notes,
         schoolAttended: singleApplicant.schoolAttended,
         courseTaken: singleApplicant.courseTaken,

@@ -54,23 +54,26 @@ export function ApplicantParticularsCard({ applicant }: ApplicantParticularsCard
   const email = applicant.email || '';
   const contactNo = applicant.mobileNumber || applicant.contactNumber || '';
 
+  const isIndividual = (applicant.applicantType || '').toLowerCase() === 'individual';
   const isCompany =
-    applicant.applicantType === 'company' ||
-    applicant.applicantType === 'Company' ||
-    Boolean(applicant.companyName);
+    !isIndividual &&
+    (
+      (applicant.applicantType || '').toLowerCase() === 'company' ||
+      Boolean(applicant.companyName)
+    );
 
   return (
     <ApplicantDetailsReviewCard
       activeApplicant={{
         applicantType: isCompany ? 'company' : 'individual',
-        companyName: applicant.companyName || null,
-        registrationNumber: applicant.registrationNumber || null,
-        companyAddress: applicant.companyAddress || null,
-        companyEmail: applicant.companyEmail || null,
-        companyContactNumber: applicant.companyContactNumber || null,
-        representativeName: applicant.representativeName || null,
-        representativeEmail: applicant.representativeEmail || null,
-        representativeContactNumber: applicant.representativeContactNumber || null,
+        companyName: isCompany ? (applicant.companyName || null) : null,
+        registrationNumber: isCompany ? (applicant.registrationNumber || null) : null,
+        companyAddress: isCompany ? (applicant.companyAddress || null) : null,
+        companyEmail: isCompany ? (applicant.companyEmail || null) : null,
+        companyContactNumber: isCompany ? (applicant.companyContactNumber || null) : null,
+        representativeName: isCompany ? (applicant.representativeName || null) : null,
+        representativeEmail: isCompany ? (applicant.representativeEmail || null) : null,
+        representativeContactNumber: isCompany ? (applicant.representativeContactNumber || null) : null,
         notes: applicant.notes || null,
       }}
       resolvedFullName={fullName}

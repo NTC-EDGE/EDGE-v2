@@ -1,3 +1,4 @@
+// @ts-expect-error - bun test runtime module
 import { describe, it, expect } from 'bun:test';
 import { buildAuditTrailList, deriveStaffRoleFromAction } from './auditTrailHelpers';
 import { ApplicationDto, ApplicationHistoryDto, StatementOfAccountDto } from '@edge/api';
