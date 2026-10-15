@@ -17,7 +17,7 @@ import {
   DatePickerInput,
 } from "@edge/ui";
 import { SoaPaymentTabProps } from "./reviewTypes";
-import { formatAmount, amountToWords, formatDisplayDueDate } from "./reviewFormatters";
+import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "./reviewFormatters";
 import { reviewStyles as styles } from "./reviewStyles";
 import { AuditTrailEntry, SoaItem, ApplicantItem } from "../../../../types/application";
 
@@ -351,7 +351,19 @@ export function SoaPaymentTab({
           <View style={{ flex: 1, minWidth: 220 }}>
             <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
             <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-            <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+            {app.soaNumber !== null && app.soaNumber !== undefined && app.soaNumber.trim().length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
+                  {app.soaNumber}
+                </Text>
+                {app.soaCreatedAt !== null && app.soaCreatedAt !== undefined && app.soaCreatedAt.trim().length > 0 ? (
+                  <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                    • Generated {formatDisplayDateTime(app.soaCreatedAt)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], marginTop: 2 }]}>
               Review the billing particulars, charges, and due date below.
             </Text>
           </View>

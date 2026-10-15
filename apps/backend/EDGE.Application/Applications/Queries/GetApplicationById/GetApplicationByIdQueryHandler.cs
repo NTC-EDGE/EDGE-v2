@@ -221,6 +221,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 IssuedToAddress = s.IssuedToAddress,
                 TotalAmount = s.TotalAmount,
                 DueDate = s.DueDate,
+                CreatedAt = s.CreatedAt,
                 PreparedByUserId = s.PreparedByUserId,
                 ApprovedByUserId = s.ApprovedByUserId,
                 ApprovedAt = s.ApprovedAt,

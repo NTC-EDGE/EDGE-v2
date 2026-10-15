@@ -1065,49 +1065,58 @@ export function GenerateSoaModal({
               { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200] },
             ]}
           >
-            <Pressable
-              style={[
-                styles.cancelBtn,
-                {
-                  borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
-                  backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
-                },
-              ]}
-              onPress={onClose}
-              disabled={submitting}
-            >
-              <Text
-                style={[
-                  styles.cancelBtnText,
-                  { color: isDark ? colors.neutral[300] : colors.neutral[700] },
-                ]}
-              >
-                Cancel
+            <View style={{ flex: 1, minWidth: 200, marginRight: 12 }}>
+              <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[500], lineHeight: 15 }}>
+                {isExistingSoa
+                  ? 'Saves updated fee particulars. Technical evaluation remains active until formally approved.'
+                  : 'Prepares billing assessment. Technical evaluation remains active until formally approved.'}
               </Text>
-            </Pressable>
+            </View>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: SPACING[12] }}>
+              <Pressable
+                style={[
+                  styles.cancelBtn,
+                  {
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                  },
+                ]}
+                onPress={onClose}
+                disabled={submitting}
+              >
+                <Text
+                  style={[
+                    styles.cancelBtnText,
+                    { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                  ]}
+                >
+                  Cancel
+                </Text>
+              </Pressable>
 
-            <Pressable
-              style={[
-                styles.submitBtn,
-                { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
-                submitting && styles.btnDisabled,
-              ]}
-              onPress={handleGenerate}
-              disabled={submitting}
-            >
-              {submitting ? (
-                <ActivityIndicator size="small" color={COLORS.neutral.white} />
-              ) : (
-                <>
-                  <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
-                  <Text style={styles.submitBtnText}>
-                    {isExistingSoa
-                      ? (isManualMode ? 'Save Statement of Account' : 'Update & Recalculate SOA')
-                      : (isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account')}
-                  </Text>
-                </>
-              )}
-            </Pressable>
+              <Pressable
+                style={[
+                  styles.submitBtn,
+                  { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
+                  submitting && styles.btnDisabled,
+                ]}
+                onPress={handleGenerate}
+                disabled={submitting}
+              >
+                {submitting ? (
+                  <ActivityIndicator size="small" color={COLORS.neutral.white} />
+                ) : (
+                  <>
+                    <Lucide name="check-circle" size={16} color={COLORS.neutral.white} />
+                    <Text style={styles.submitBtnText}>
+                      {isExistingSoa
+                        ? (isManualMode ? 'Save Statement of Account' : 'Update & Recalculate SOA')
+                        : (isManualMode ? 'Generate Custom SOA' : 'Generate Statement of Account')}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
           </View>
         </View>
       </View>
@@ -1469,7 +1478,8 @@ const styles = StyleSheet.create({
   modalFooter: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
     gap: SPACING[12],
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[12],

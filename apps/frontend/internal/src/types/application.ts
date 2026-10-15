@@ -175,6 +175,7 @@ export interface ApplicationData {
   soaIssuedToAddress?: string;
   soaIssuedToType?: ApplicantType;
   soaDueDate?: string;
+  soaCreatedAt?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

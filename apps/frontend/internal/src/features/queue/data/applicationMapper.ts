@@ -495,6 +495,7 @@ export function mapApplicationDtoToUI(
     soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
     soaIssuedToType: activeSoa?.issuedToType === 'Company' ? 'Company' : 'Individual',
     soaDueDate: activeSoa?.dueDate,
+    soaCreatedAt: activeSoa?.createdAt,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
