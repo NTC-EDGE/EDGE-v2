@@ -45,4 +45,5 @@ public interface IApplicationFullRepository
     Task AddIssuedDocumentDetailAsync(IssuedDocumentDetail issuedDoc, CancellationToken cancellationToken = default);
     Task<IssuedDocumentDetail?> GetIssuedDocumentByApplicationIdAsync(Guid applicationId, CancellationToken cancellationToken = default);
     Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default);
+    Task<EDGE.Application.Applications.Dtos.RegionalSignatoriesDto> GetRegionalSignatoriesAsync(Guid? tenantId, Guid? regionId, CancellationToken cancellationToken = default);
 }

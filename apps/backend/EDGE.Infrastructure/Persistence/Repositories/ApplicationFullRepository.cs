@@ -100,6 +100,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(o => o.Histories)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
+            .Include(a => a.Tenant)
+                .ThenInclude(t => t!.Region)
+            .Include(a => a.Region)
             .FirstOrDefaultAsync(a => a.Id == id, cancellationToken);
     }
 
@@ -1100,5 +1103,108 @@ public class ApplicationFullRepository : IApplicationFullRepository
     public async Task<bool> UserExistsAsync(Guid userId, CancellationToken cancellationToken = default)
     {
         return await _context.Users.AnyAsync(u => u.Id == userId, cancellationToken);
+    }
+
+    public async Task<EDGE.Application.Applications.Dtos.RegionalSignatoriesDto> GetRegionalSignatoriesAsync(Guid? tenantId, Guid? regionId, CancellationToken cancellationToken = default)
+    {
+        var dto = new EDGE.Application.Applications.Dtos.RegionalSignatoriesDto();
+
+        Domain.Entities.Region? region = null;
+        if (regionId.HasValue && regionId.Value != Guid.Empty)
+        {
+            region = await _context.Regions.AsNoTracking().FirstOrDefaultAsync(r => r.Id == regionId.Value, cancellationToken);
+        }
+
+        if (region == null && tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            var tenant = await _context.Tenants.AsNoTracking().Include(t => t.Region).FirstOrDefaultAsync(t => t.Id == tenantId.Value, cancellationToken);
+            if (tenant != null)
+            {
+                region = tenant.Region;
+                dto.OfficeName = tenant.Name;
+                if (!regionId.HasValue) regionId = tenant.RegionId;
+            }
+        }
+
+        if (region != null)
+        {
+            dto.RegionName = region.Name;
+            dto.RegionCode = region.Code;
+            if (string.IsNullOrWhiteSpace(dto.OfficeName))
+            {
+                dto.OfficeName = region.Name;
+            }
+        }
+
+        var memberQuery = _context.TenantMembers
+            .AsNoTracking()
+            .Include(tm => tm.Role)
+            .Include(tm => tm.User)
+            .Include(tm => tm.Tenant)
+                .ThenInclude(t => t.Region)
+            .Where(tm => !tm.IsDeleted && tm.User != null && !tm.User.IsDeleted);
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            memberQuery = memberQuery.Where(tm => tm.TenantId == tenantId.Value);
+        }
+        else if (regionId.HasValue && regionId.Value != Guid.Empty)
+        {
+            memberQuery = memberQuery.Where(tm => tm.Tenant != null && tm.Tenant.RegionId == regionId.Value);
+        }
+
+        var members = await memberQuery.ToListAsync(cancellationToken);
+
+        // Fallback to default central tenant if no members found for this specific tenant/region
+        if (members.Count == 0)
+        {
+            members = await _context.TenantMembers
+                .AsNoTracking()
+                .Include(tm => tm.Role)
+                .Include(tm => tm.User)
+                .Include(tm => tm.Tenant)
+                    .ThenInclude(t => t.Region)
+                .Where(tm => !tm.IsDeleted && tm.User != null && !tm.User.IsDeleted && tm.TenantId == EDGE.Domain.Constants.SeedConstants.DefaultTenantId)
+                .ToListAsync(cancellationToken);
+        }
+
+        // 1. Resolve Chief of EOD
+        var chiefMember = members.FirstOrDefault(m =>
+            (m.Role != null && (string.Equals(m.Role.Key, "chief_of_eod", StringComparison.OrdinalIgnoreCase) ||
+                                string.Equals(m.Role.Key, "higherups", StringComparison.OrdinalIgnoreCase) ||
+                                (m.Role.Name.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Role.Name.Contains("EOD", StringComparison.OrdinalIgnoreCase)))) ||
+            (!string.IsNullOrWhiteSpace(m.Position) && m.Position.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Position.Contains("EOD", StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(m.Designation) && m.Designation.Contains("Chief", StringComparison.OrdinalIgnoreCase) && m.Designation.Contains("EOD", StringComparison.OrdinalIgnoreCase)));
+
+        if (chiefMember?.User != null)
+        {
+            var u = chiefMember.User;
+            var middleInitial = !string.IsNullOrWhiteSpace(u.MiddleName) ? $" {u.MiddleName[0]}." : "";
+            var suffix = !string.IsNullOrWhiteSpace(u.Suffix) ? $" {u.Suffix}" : "";
+            dto.ChiefEodName = $"{u.FirstName}{middleInitial} {u.LastName}{suffix}".Trim();
+            dto.ChiefEodTitle = !string.IsNullOrWhiteSpace(chiefMember.Designation)
+                ? chiefMember.Designation
+                : (!string.IsNullOrWhiteSpace(chiefMember.Position) ? chiefMember.Position : (!string.IsNullOrWhiteSpace(chiefMember.JobTitle) ? chiefMember.JobTitle : null));
+        }
+
+        // 2. Resolve Regional Director
+        var rdMember = members.FirstOrDefault(m =>
+            (m.Role != null && (string.Equals(m.Role.Key, "regional_director", StringComparison.OrdinalIgnoreCase) ||
+                                m.Role.Name.Contains("Regional Director", StringComparison.OrdinalIgnoreCase))) ||
+            (!string.IsNullOrWhiteSpace(m.Position) && m.Position.Contains("Regional Director", StringComparison.OrdinalIgnoreCase)) ||
+            (!string.IsNullOrWhiteSpace(m.Designation) && m.Designation.Contains("Regional Director", StringComparison.OrdinalIgnoreCase)));
+
+        if (rdMember?.User != null)
+        {
+            var u = rdMember.User;
+            var middleInitial = !string.IsNullOrWhiteSpace(u.MiddleName) ? $" {u.MiddleName[0]}." : "";
+            var suffix = !string.IsNullOrWhiteSpace(u.Suffix) ? $" {u.Suffix}" : "";
+            dto.RegionalDirectorName = $"{u.FirstName}{middleInitial} {u.LastName}{suffix}".Trim();
+            dto.RegionalDirectorTitle = !string.IsNullOrWhiteSpace(rdMember.Designation)
+                ? rdMember.Designation
+                : (!string.IsNullOrWhiteSpace(rdMember.Position) ? rdMember.Position : (!string.IsNullOrWhiteSpace(rdMember.JobTitle) ? rdMember.JobTitle : null));
+        }
+
+        return dto;
     }
 }

@@ -103,10 +103,10 @@ public static class StatementOfAccountAcroFormFiller
                 }
 
                 // 6. Signatures and Remarks
-                SetField(form, "PreparedBy", model.PreparedByName ?? "EVALUATOR, NTC XIV");
+                SetField(form, "PreparedBy", model.PreparedByName ?? "EVALUATOR");
                 SetField(form, "PreparedByPosition", model.PreparedByTitle ?? "Evaluator");
-                SetField(form, "ApprovedBy", model.ApprovedByName ?? "CEOD, NTC XIV");
-                SetField(form, "ApprovedByPosition", model.ApprovedByTitle ?? "Chief Engineer");
+                SetField(form, "ApprovedBy", model.ApprovedByName ?? "CHIEF, EOD");
+                SetField(form, "ApprovedByPosition", model.ApprovedByTitle ?? "Chief, Enforcement & Operations Division");
 
                 if (!string.IsNullOrWhiteSpace(model.Remarks))
                 {

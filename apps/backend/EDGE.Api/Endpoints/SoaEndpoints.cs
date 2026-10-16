@@ -160,7 +160,8 @@ public static class SoaEndpoints
             return Results.NotFound(new { message = $"No Statement of Account or Order of Payment found for Application '{id}'." });
         }
 
-        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, op);
+        var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, op, regionalSignatories);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
 
@@ -188,7 +189,8 @@ public static class SoaEndpoints
         }
 
         var app = soa.Application ?? await repository.GetByIdWithDetailsAsync(soa.ApplicationId, true, cancellationToken);
-        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app);
+        var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app?.TenantId, app?.RegionId, cancellationToken);
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: regionalSignatories);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf";
 

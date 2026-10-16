@@ -15,7 +15,8 @@ public static class StatementOfAccountPrintMapper
     public static StatementOfAccountModel MapToPrintModel(
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
-        OrderOfPayment? op = null)
+        OrderOfPayment? op = null,
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null)
     {
         var model = new StatementOfAccountModel();
 
@@ -189,14 +190,75 @@ public static class StatementOfAccountPrintMapper
             model.OrBy = activeOp.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
         }
 
-        // 8. Signatures
-        var evaluatorName = soa?.Histories.FirstOrDefault(h => h.Action == "Created" || h.StaffRole.Contains("Evaluator"))?.StaffName
-            ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Evaluator"))?.StaffName;
-        var approverName = soa?.Histories.FirstOrDefault(h => h.Action == "Approved" || h.StaffRole.Contains("Accountant") || h.StaffRole.Contains("CEOD"))?.StaffName
-            ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Approver") || h.StaffRole.Contains("CEOD"))?.StaffName;
+        // 8. Signatures: Prepared By (Evaluator) & Approved By (Chief of EOD / Regional Director)
+        var allHistories = (app?.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
+            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
+            .Concat((soa?.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
+                .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (EDGE.Domain.Enums.ApplicationStatus?)null, h.Timestamp }))
+            .OrderByDescending(h => h.Timestamp)
+            .ToList();
 
-        model.PreparedByName = evaluatorName ?? "EVALUATOR";
-        model.ApprovedByName = approverName ?? (soa?.ApprovedAt.HasValue == true || activeOp != null ? "APPROVED" : null);
+        // 8A. Resolve PREPARED BY:
+        // Rule: The evaluator who evaluated / prepared the SOA. In multi-evaluator / re-evaluation
+        // chains, the last evaluator who evaluated or approved the evaluation for the next stage.
+        var evaluatorHistory = allHistories.FirstOrDefault(h =>
+            h.ToStatus == EDGE.Domain.Enums.ApplicationStatus.ForAccountant ||
+            (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)) ||
+            ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase) ||
+                                   h.Action.Contains("Assessment", StringComparison.OrdinalIgnoreCase))) &&
+             (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))));
+
+        var evaluatorName = evaluatorHistory?.StaffName
+            ?? soa?.Histories.FirstOrDefault(h => h.Action == "Created" || h.StaffRole.Contains("Evaluator"))?.StaffName
+            ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Evaluator"))?.StaffName;
+
+        model.PreparedByName = !string.IsNullOrWhiteSpace(evaluatorName) ? evaluatorName : "EVALUATOR";
+
+        var fallbackRegionLabel = !string.IsNullOrWhiteSpace(app?.Region?.Code)
+            ? $"NTC {app.Region.Code}"
+            : (!string.IsNullOrWhiteSpace(app?.Region?.Name)
+                ? $"NTC {app.Region.Name}"
+                : (!string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "NTC"));
+
+        if (regionalSignatories != null)
+        {
+            model.PreparedByTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
+        }
+        else
+        {
+            model.PreparedByTitle = $"Evaluator, {fallbackRegionLabel}";
+        }
+
+        // 8B. Resolve APPROVED BY:
+        // Rule: The Chief of Enforcement and Operations Division (Chief of EOD).
+        // If no Chief of EOD in the specified region, automatically defaults to Regional Director.
+        var chiefOrDirectorHistory = allHistories.FirstOrDefault(h =>
+            (h.StaffRole != null && (h.StaffRole.Contains("Chief", StringComparison.OrdinalIgnoreCase) ||
+                                     h.StaffRole.Contains("CEOD", StringComparison.OrdinalIgnoreCase) ||
+                                     h.StaffRole.Contains("Regional Director", StringComparison.OrdinalIgnoreCase) ||
+                                     h.StaffRole.Contains("Director", StringComparison.OrdinalIgnoreCase))) ||
+            (h.Action != null && (h.Action.Contains("Chief", StringComparison.OrdinalIgnoreCase) ||
+                                  h.Action.Contains("Director", StringComparison.OrdinalIgnoreCase))));
+
+        if (chiefOrDirectorHistory != null && !string.IsNullOrWhiteSpace(chiefOrDirectorHistory.StaffName))
+        {
+            model.ApprovedByName = chiefOrDirectorHistory.StaffName;
+            var isDirector = chiefOrDirectorHistory.StaffRole.Contains("Director", StringComparison.OrdinalIgnoreCase);
+            model.ApprovedByTitle = isDirector
+                ? $"Regional Director, {fallbackRegionLabel}"
+                : $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
+        }
+        else if (regionalSignatories != null)
+        {
+            model.ApprovedByName = regionalSignatories.GetResolvedApproverName(defaultFallback: "CHIEF, EOD");
+            model.ApprovedByTitle = regionalSignatories.GetResolvedApproverTitle();
+        }
+        else
+        {
+            model.ApprovedByName = "CHIEF, EOD";
+            model.ApprovedByTitle = $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
+        }
 
         // 9. Remarks
         if (!string.IsNullOrWhiteSpace(soa?.Remarks))
