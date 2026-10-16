@@ -56,7 +56,7 @@ export interface SoaPaymentTabProps {
   isEditable: boolean;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
   onOpenGenerateSoa: () => void;
-  onPrintSoa: () => void;
-  onPrintOp: () => void;
+  onPrintSoa?: () => void;
+  onPrintOp?: () => void;
   onPreviewReport: (docType: 'soa' | 'op' | 'or' | 'summary') => void;
 }

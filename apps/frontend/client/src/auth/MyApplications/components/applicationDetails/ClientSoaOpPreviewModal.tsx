@@ -55,6 +55,7 @@ export function ClientSoaOpPreviewModal({
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState<number>(0);
+  const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
 
   const refNum = app.referenceNumber || (app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
   const soaNum = app.soaNumber || `SOA-${refNum}`;
@@ -93,8 +94,27 @@ export function ClientSoaOpPreviewModal({
     if (visible) {
       setActiveTab(initialTab);
       setViewFormat('pdf');
+      setShowActionMenu(false);
     }
   }, [visible, initialTab]);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    const handleOutsideClick = () => {
+      setShowActionMenu(false);
+    };
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('blur', handleOutsideClick);
+      }, 50);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('blur', handleOutsideClick);
+      };
+    }
+  }, [showActionMenu]);
 
   useEffect(() => {
     let active = true;
@@ -201,11 +221,11 @@ export function ClientSoaOpPreviewModal({
     }
   };
 
-  const handleDownloadPdf = () => {
+  const handleDownloadSpecificPdf = (targetDoc: ClientReportTab) => {
     if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
-    const url = activeTab === 'soa'
+    const url = targetDoc === 'soa'
       ? applicationService.getSoaPrintUrl(app.id)
-      : activeTab === 'op'
+      : targetDoc === 'op'
         ? applicationService.getOpPrintUrl(app.id)
         : applicationService.getOrPrintUrl(app.id);
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -213,6 +233,10 @@ export function ClientSoaOpPreviewModal({
     } else {
       void Linking.openURL(url);
     }
+  };
+
+  const handleDownloadPdf = () => {
+    handleDownloadSpecificPdf(activeTab);
   };
 
   return (
@@ -240,11 +264,11 @@ export function ClientSoaOpPreviewModal({
               </View>
               <View>
                 <Text style={styles.modalTitle}>
-                  {activeTab === 'or'
-                    ? 'Official Receipt Preview'
+                  Application Reports • {activeTab === 'or'
+                    ? 'Official Receipt (OR)'
                     : activeTab === 'op'
-                    ? 'Order of Payment Preview'
-                    : 'Statement of Account Preview'}
+                    ? 'Order of Payment (OP)'
+                    : 'Statement of Account (SOA)'}
                 </Text>
                 <Text style={styles.modalSubtitle}>
                   Ref #{refNum} • {applicantName}
@@ -257,7 +281,10 @@ export function ClientSoaOpPreviewModal({
                 <View style={styles.formatSwitcher}>
                   <TouchableOpacity
                     style={[styles.formatBtn, viewFormat === 'pdf' && styles.formatBtnActive]}
-                    onPress={() => setViewFormat('pdf')}
+                    onPress={() => {
+                      setViewFormat('pdf');
+                      setShowActionMenu(false);
+                    }}
                     activeOpacity={0.8}
                   >
                     <Icon name="file-text" size={13} color={viewFormat === 'pdf' ? '#0369A1' : '#64748B'} />
@@ -267,7 +294,10 @@ export function ClientSoaOpPreviewModal({
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.formatBtn, viewFormat === 'grid' && styles.formatBtnActive]}
-                    onPress={() => setViewFormat('grid')}
+                    onPress={() => {
+                      setViewFormat('grid');
+                      setShowActionMenu(false);
+                    }}
                     activeOpacity={0.8}
                   >
                     <Icon name="layout" size={13} color={viewFormat === 'grid' ? '#0369A1' : '#64748B'} />
@@ -282,40 +312,137 @@ export function ClientSoaOpPreviewModal({
                 style={[
                   styles.printBtn,
                   activeTab === 'or'
-                    ? { backgroundColor: '#059669' }
-                    : activeTab === 'op'
-                    ? { backgroundColor: '#047857' }
-                    : { backgroundColor: '#0369A1' },
-                ]}
-                onPress={handleDownloadPdf}
-                activeOpacity={0.75}
-              >
-                <Icon name="download" size={15} color="#FFFFFF" />
-                <Text style={styles.printBtnText}>Official PDF</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.printBtn,
-                  activeTab === 'or'
                     ? { backgroundColor: '#10B981' }
                     : activeTab === 'op'
                     ? { backgroundColor: '#059669' }
                     : { backgroundColor: '#0284C7' },
                 ]}
-                onPress={handlePrint}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  handlePrint();
+                }}
                 activeOpacity={0.75}
               >
                 <Icon name="printer" size={15} color="#FFFFFF" />
-                <Text style={styles.printBtnText}>
-                  {Platform.OS === 'web' ? 'Print / Download' : 'Print Document'}
-                </Text>
+                <Text style={styles.printBtnText}>Print</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.closeBtn} onPress={onClose} hitSlop={8} activeOpacity={0.7}>
+              {/* 3-Dots More Options Menu Button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                  setShowActionMenu((prev) => !prev);
+                }}
+                style={[
+                  styles.menuTriggerBtn,
+                  showActionMenu && styles.menuTriggerBtnActive,
+                ]}
+                activeOpacity={0.8}
+                accessibilityLabel="More options"
+              >
+                <Icon name="more-vertical" size={17} color="#475569" />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.closeBtn}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  onClose();
+                }}
+                hitSlop={8}
+                activeOpacity={0.7}
+              >
                 <Icon name="x" size={20} color="#64748B" />
               </TouchableOpacity>
             </View>
+
+            {/* Dropdown Menu from 3-Dots */}
+            {showActionMenu && (
+              <View
+                style={styles.dropdownMenu}
+                onTouchStart={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                <View style={styles.dropdownSectionHeader}>
+                  <Text style={styles.dropdownSectionTitle}>DOWNLOAD OFFICIAL PDF</Text>
+                </View>
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadSpecificPdf('soa');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="file-text" size={15} color="#0369A1" />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Statement of Account (SOA)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Official Vector PDF • #{soaNum}</Text>
+                  </View>
+                  <Icon name="download" size={13} color="#94A3B8" />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadSpecificPdf('op');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="credit-card" size={15} color="#047857" />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Order of Payment (OP)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Official Vector PDF • #{opNum}</Text>
+                  </View>
+                  <Icon name="download" size={13} color="#94A3B8" />
+                </TouchableOpacity>
+
+                {isPaid && (
+                  <TouchableOpacity
+                    style={styles.dropdownMenuItem}
+                    onPress={() => {
+                      setShowActionMenu(false);
+                      handleDownloadSpecificPdf('or');
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name="check-circle" size={15} color="#059669" />
+                    <View style={styles.dropdownMenuTextContainer}>
+                      <Text style={styles.dropdownMenuItemText}>Official Receipt (OR)</Text>
+                      <Text style={styles.dropdownMenuItemSubtext}>Accountable Form 51 • #{orNum}</Text>
+                    </View>
+                    <Icon name="download" size={13} color="#94A3B8" />
+                  </TouchableOpacity>
+                )}
+
+                {Platform.OS === 'web' && (
+                  <>
+                    <View style={styles.dropdownDivider} />
+                    <TouchableOpacity
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        setShowActionMenu(false);
+                        setReloadKey((k) => k + 1);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Icon name="refresh-cw" size={14} color="#64748B" />
+                      <View style={styles.dropdownMenuTextContainer}>
+                        <Text style={styles.dropdownMenuItemText}>Reload Current Template</Text>
+                        <Text style={styles.dropdownMenuItemSubtext}>Fetch fresh template from server</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Document Tab Switcher */}
@@ -832,6 +959,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
+    height: '92%',
     maxHeight: '94%',
     overflow: 'hidden',
     borderWidth: 1,
@@ -853,7 +981,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
-    flexWrap: 'wrap',
+    position: 'relative',
+    zIndex: 100,
     gap: 8,
   },
   headerLeft: {
@@ -886,7 +1015,75 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    flexWrap: 'wrap',
+  },
+  menuTriggerBtn: {
+    padding: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuTriggerBtnActive: {
+    backgroundColor: '#F1F5F9',
+    borderColor: '#CBD5E1',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 52,
+    right: 16,
+    width: 280,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 50,
+    zIndex: 1000,
+  },
+  dropdownSectionHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  dropdownSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#64748B',
+    letterSpacing: 0.5,
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  dropdownMenuTextContainer: {
+    flex: 1,
+  },
+  dropdownMenuItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#0F172A',
+  },
+  dropdownMenuItemSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+    color: '#64748B',
+    marginTop: 1,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginVertical: 4,
   },
   formatSwitcher: {
     flexDirection: 'row',
@@ -1035,6 +1232,8 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 680,
     backgroundColor: '#334155',
+    position: 'relative',
+    zIndex: 1,
   },
   pdfLoadingBox: {
     flex: 1,
@@ -1102,6 +1301,7 @@ const styles = StyleSheet.create({
   },
   modalBody: {
     flex: 1,
+    minHeight: 500,
     backgroundColor: '#F1F5F9',
   },
   modalBodyContent: {

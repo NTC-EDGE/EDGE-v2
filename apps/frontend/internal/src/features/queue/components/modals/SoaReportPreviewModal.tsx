@@ -113,13 +113,33 @@ export function SoaReportPreviewModal({
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [opCopyView, setOpCopyView] = useState<'both' | 'payor' | 'collecting'>('both');
+  const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
 
   useEffect(() => {
     if (visible) {
       setDocType(initialDocType);
       setViewFormat('pdf');
+      setShowActionMenu(false);
     }
   }, [visible, initialDocType]);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    const handleOutsideClick = () => {
+      setShowActionMenu(false);
+    };
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('blur', handleOutsideClick);
+      }, 50);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('blur', handleOutsideClick);
+      };
+    }
+  }, [showActionMenu]);
 
   useEffect(() => {
     let active = true;
@@ -225,45 +245,53 @@ export function SoaReportPreviewModal({
     openPrintableDocumentWindow(html);
   };
 
-  const handleDownloadPdf = async () => {
-    if (docType === 'soa' || docType === 'op' || docType === 'or') {
-      try {
-        const [pdfBlob, err] = docType === 'soa'
-          ? await applicationService.downloadSoaPdf(app.id)
-          : docType === 'op'
-            ? await applicationService.downloadOpPdf(app.id)
-            : await applicationService.downloadOrPdf(app.id);
-
-        if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
-          const blobUrl = window.URL.createObjectURL(pdfBlob);
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          const ref = docType === 'or' && app.payment?.orNumber
-            ? app.payment.orNumber
-            : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
-          link.download = `${docType.toUpperCase()}_${ref}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
-          return;
-        }
-      } catch (err) {
-        console.warn('Direct blob download failed, falling back to direct URL open:', err);
-      }
-
-      const url = docType === 'soa'
-        ? applicationService.getSoaDownloadUrl(app.id)
-        : docType === 'op'
-          ? applicationService.getOpDownloadUrl(app.id)
-          : applicationService.getOrDownloadUrl(app.id);
-
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(url, '_blank');
-      } else {
-        void Linking.openURL(url);
-      }
+  const handleDownloadSpecificPdf = async (targetDoc: ReportDocumentType) => {
+    if (targetDoc === 'summary') {
+      const html = generateFullApplicationSummaryHtml(app);
+      openPrintableDocumentWindow(html);
+      return;
     }
+
+    try {
+      const [pdfBlob, err] = targetDoc === 'soa'
+        ? await applicationService.downloadSoaPdf(app.id)
+        : targetDoc === 'op'
+          ? await applicationService.downloadOpPdf(app.id)
+          : await applicationService.downloadOrPdf(app.id);
+
+      if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
+        const blobUrl = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        const ref = targetDoc === 'or' && app.payment?.orNumber
+          ? app.payment.orNumber
+          : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
+        link.download = `${targetDoc.toUpperCase()}_${ref}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        return;
+      }
+    } catch (err) {
+      console.warn('Direct blob download failed, falling back to direct URL open:', err);
+    }
+
+    const url = targetDoc === 'soa'
+      ? applicationService.getSoaDownloadUrl(app.id)
+      : targetDoc === 'op'
+        ? applicationService.getOpDownloadUrl(app.id)
+        : applicationService.getOrDownloadUrl(app.id);
+
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    } else {
+      void Linking.openURL(url);
+    }
+  };
+
+  const handleDownloadPdf = () => {
+    void handleDownloadSpecificPdf(docType);
   };
 
   const soaNumber = `SOA-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
@@ -660,7 +688,7 @@ export function SoaReportPreviewModal({
                 ]}
               >
                 <Lucide
-                  name="printer"
+                  name={docType === 'or' ? 'check-circle' : docType === 'op' ? 'credit-card' : docType === 'summary' ? 'layout' : 'file-text'}
                   size={20}
                   color={isDark ? colors.brand[400] : colors.brand[600]}
                 />
@@ -672,7 +700,7 @@ export function SoaReportPreviewModal({
                     { color: isDark ? colors.neutral[100] : colors.neutral[900] },
                   ]}
                 >
-                  Official Document Preview &amp; Printing
+                  Application Reports • {docType === 'soa' ? 'Statement of Account (SOA)' : docType === 'op' ? 'Order of Payment (OP)' : docType === 'or' ? 'Official Receipt (OR)' : 'Application Dossier'}
                 </Text>
                 <Text
                   style={[
@@ -680,18 +708,188 @@ export function SoaReportPreviewModal({
                     { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                   ]}
                 >
-                  Ref #{app.referenceNumber} • {app.applicant}
+                  Ref #{app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()} • {app.applicant}
                 </Text>
               </View>
             </View>
 
-            <Pressable style={styles.closeBtn} onPress={onClose} hitSlop={8}>
-              <Lucide
-                name="x"
-                size={20}
-                color={isDark ? colors.neutral[400] : colors.neutral[500]}
-              />
-            </Pressable>
+            <View style={styles.headerActions}>
+              <Pressable
+                style={[
+                  styles.printHeaderBtn,
+                  { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
+                ]}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  handlePrint();
+                }}
+              >
+                <Lucide name="printer" size={14} color={COLORS.neutral.white} />
+                <Text style={styles.printHeaderBtnText}>Print</Text>
+              </Pressable>
+
+              {/* 3-Dots More Options Menu Button */}
+              <Pressable
+                onPress={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                  setShowActionMenu((prev) => !prev);
+                }}
+                style={[
+                  styles.menuTriggerBtn,
+                  {
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                    backgroundColor: showActionMenu
+                      ? (isDark ? colors.neutral[800] : colors.neutral[100])
+                      : (isDark ? colors.neutral[900] : COLORS.neutral.white),
+                  },
+                ]}
+                accessibilityLabel="More options"
+              >
+                <Lucide name="more-vertical" size={17} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
+              </Pressable>
+
+              <Pressable
+                style={styles.closeBtn}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  onClose();
+                }}
+                hitSlop={8}
+              >
+                <Lucide
+                  name="x"
+                  size={20}
+                  color={isDark ? colors.neutral[400] : colors.neutral[500]}
+                />
+              </Pressable>
+            </View>
+
+            {/* Dropdown Menu from 3-Dots */}
+            {showActionMenu && (
+              <View
+                style={[
+                  styles.dropdownMenu,
+                  {
+                    backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                  },
+                ]}
+                onTouchStart={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                <View style={styles.dropdownSectionHeader}>
+                  <Text style={[styles.dropdownSectionTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                    DOWNLOAD OFFICIAL PDF
+                  </Text>
+                </View>
+
+                <Pressable
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    void handleDownloadSpecificPdf('soa');
+                  }}
+                >
+                  <Lucide name="file-text" size={15} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      Statement of Account (SOA)
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                      Official Vector PDF • #{soaNumber}
+                    </Text>
+                  </View>
+                  <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                </Pressable>
+
+                <Pressable
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    void handleDownloadSpecificPdf('op');
+                  }}
+                >
+                  <Lucide name="credit-card" size={15} color={isDark ? '#34d399' : '#059669'} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      Order of Payment (OP)
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                      Official Vector PDF • #{opNumber}
+                    </Text>
+                  </View>
+                  <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                </Pressable>
+
+                {Boolean((app.payment && app.payment.orNumber && app.payment.orNumber.trim().length > 0) || app.status === 'ForIssuance' || app.status === 'Completed') && (
+                  <Pressable
+                    style={styles.dropdownMenuItem}
+                    onPress={() => {
+                      setShowActionMenu(false);
+                      void handleDownloadSpecificPdf('or');
+                    }}
+                  >
+                    <Lucide name="check-circle" size={15} color={isDark ? '#34d399' : '#059669'} />
+                    <View style={styles.dropdownMenuTextContainer}>
+                      <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                        Official Receipt (OR)
+                      </Text>
+                      <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                        Accountable Form 51 • #{app.payment?.orNumber || 'Official'}
+                      </Text>
+                    </View>
+                    <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                  </Pressable>
+                )}
+
+                <Pressable
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    void handleDownloadSpecificPdf('summary');
+                  }}
+                >
+                  <Lucide name="layout" size={15} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                      Application Dossier Summary
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                      Complete Application Assessment Dossier
+                    </Text>
+                  </View>
+                  <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                </Pressable>
+
+                {Platform.OS === 'web' && (
+                  <>
+                    <View style={[styles.dropdownDivider, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200] }]} />
+                    <Pressable
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        setShowActionMenu(false);
+                        setReloadKey((k) => k + 1);
+                      }}
+                    >
+                      <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                      <View style={styles.dropdownMenuTextContainer}>
+                        <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                          Reload Current Template
+                        </Text>
+                        <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                          Fetch fresh template from server
+                        </Text>
+                      </View>
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
           {/* Document Tab Selector */}
@@ -1242,39 +1440,6 @@ export function SoaReportPreviewModal({
                     </Text>
                   </View>
                 </View>
-
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, marginTop: 4, justifyContent: 'center' }}>
-                  <Pressable
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: 16,
-                      paddingVertical: 10,
-                      borderRadius: RADIUS.sm,
-                      backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
-                    }}
-                    onPress={handlePrint}
-                  >
-                    <Lucide name="printer" size={15} color="#ffffff" />
-                    <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: '700' }}>Print / Open Official SOA PDF</Text>
-                  </Pressable>
-                  <Pressable
-                    style={{
-                      flexDirection: 'row',
-                      alignItems: 'center',
-                      gap: 6,
-                      paddingHorizontal: 16,
-                      paddingVertical: 10,
-                      borderRadius: RADIUS.sm,
-                      backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200],
-                    }}
-                    onPress={handleDownloadPdf}
-                  >
-                    <Lucide name="download" size={15} color={isDark ? colors.neutral[200] : colors.neutral[800]} />
-                    <Text style={{ color: isDark ? colors.neutral[200] : colors.neutral[800], fontSize: 12, fontWeight: '700' }}>Download PDF</Text>
-                  </Pressable>
-                </View>
               </View>
             )}
 
@@ -1529,33 +1694,6 @@ export function SoaReportPreviewModal({
 
             <View style={{ flex: 1 }} />
 
-            {(docType === 'soa' || docType === 'op' || docType === 'or') && (
-              <Pressable
-                style={[
-                  styles.secondaryBtn,
-                  {
-                    borderColor: isDark ? colors.brand[500] : colors.brand[600],
-                    backgroundColor: isDark ? colors.neutral[800] : colors.brand[50],
-                  },
-                ]}
-                onPress={handleDownloadPdf}
-              >
-                <Lucide
-                  name="download"
-                  size={14}
-                  color={isDark ? colors.brand[400] : colors.brand[700]}
-                />
-                <Text
-                  style={[
-                    styles.secondaryBtnText,
-                    { color: isDark ? colors.brand[400] : colors.brand[700] },
-                  ]}
-                >
-                  Download PDF
-                </Text>
-              </Pressable>
-            )}
-
             <Pressable
               style={[
                 styles.cancelBtn,
@@ -1573,19 +1711,6 @@ export function SoaReportPreviewModal({
                 ]}
               >
                 Close
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.printBtn,
-                { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] },
-              ]}
-              onPress={handlePrint}
-            >
-              <Lucide name="printer" size={16} color={COLORS.neutral.white} />
-              <Text style={styles.printBtnText}>
-                Print {docType === 'soa' ? 'SOA' : docType === 'op' ? 'Order of Payment' : docType === 'or' ? 'Official Receipt' : 'Dossier'}
               </Text>
             </Pressable>
           </View>
@@ -1606,10 +1731,13 @@ const styles = StyleSheet.create({
   modalContent: {
     width: '100%',
     maxWidth: 820,
-    maxHeight: '92%',
+    height: '92%',
+    maxHeight: '94%',
     borderRadius: RADIUS.dialog,
     borderWidth: 1,
     overflow: 'hidden',
+    display: 'flex',
+    flexDirection: 'column',
     ...SHADOWS.modal,
   },
   modalHeader: {
@@ -1619,11 +1747,90 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[20],
     paddingVertical: SPACING[16],
     borderBottomWidth: 1,
+    position: 'relative',
+    zIndex: 100,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[12],
+    flex: 1,
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  printHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
+    borderRadius: RADIUS.xs,
+  },
+  printHeaderBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  menuTriggerBtn: {
+    padding: 7,
+    borderRadius: RADIUS.xs,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 54,
+    right: 16,
+    width: 280,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 50,
+    zIndex: 1000,
+  },
+  dropdownSectionHeader: {
+    paddingHorizontal: 14,
+    paddingTop: 6,
+    paddingBottom: 4,
+  },
+  dropdownSectionTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  dropdownMenuTextContainer: {
+    flex: 1,
+  },
+  dropdownMenuItemText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  dropdownMenuItemSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10.5,
+    marginTop: 1,
+  },
+  dropdownDivider: {
+    height: 1,
+    marginVertical: 4,
   },
   iconCircle: {
     width: 38,

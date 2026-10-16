@@ -26,8 +26,6 @@ export function SoaPaymentTab({
   isEditable,
   updateApplication,
   onOpenGenerateSoa,
-  onPrintSoa,
-  onPrintOp,
   onPreviewReport,
 }: SoaPaymentTabProps) {
   const { colors, isDark } = useTheme();
@@ -408,50 +406,46 @@ export function SoaPaymentTab({
                 styles.soaActionBtn,
                 {
                   backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
-                  borderColor: isDark ? colors.brand[700] : colors.brand[300],
+                  borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                  gap: 6,
                 },
               ]}
-              onPress={() => onPreviewReport('soa')}
+              onPress={() => onPreviewReport(hasPayment ? 'or' : 'soa')}
             >
-              <Lucide name="printer" size={13} color={isDark ? colors.brand[400] : colors.brand[700]} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[400] : colors.brand[700], fontWeight: '700' }]}>
-                Print / Preview SOA
+              <Lucide name="file-text" size={13} color={isDark ? colors.brand[300] : colors.brand[700]} />
+              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.brand[300] : colors.brand[700], fontWeight: '700' }]}>
+                {hasPayment
+                  ? 'View Application Reports (SOA • OP • OR)'
+                  : 'View Application Reports (SOA • OP)'}
               </Text>
+              {hasPayment && app.payment.orNumber.trim().length > 0 && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 6,
+                    paddingVertical: 1,
+                    borderRadius: RADIUS.xs,
+                    backgroundColor: isDark ? '#064e3b' : '#ecfdf5',
+                    borderWidth: 1,
+                    borderColor: isDark ? '#059669' : '#a7f3d0',
+                  }}
+                >
+                  <Lucide name="check-circle" size={10} color={isDark ? '#34d399' : '#059669'} />
+                  <Text
+                    style={{
+                      fontSize: 10,
+                      fontWeight: '700',
+                      fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
+                      color: isDark ? '#34d399' : '#059669',
+                    }}
+                  >
+                    OR #{app.payment.orNumber}
+                  </Text>
+                </View>
+              )}
             </Pressable>
-
-            <Pressable
-              style={[
-                styles.soaActionBtn,
-                {
-                  backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
-                },
-              ]}
-              onPress={() => onPreviewReport('op')}
-            >
-              <Lucide name="file-text" size={13} color={isDark ? colors.neutral[300] : colors.neutral[600]} />
-              <Text style={[styles.soaActionBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                Order of Payment (OP)
-              </Text>
-            </Pressable>
-
-            {Boolean((app.payment && app.payment.orNumber && app.payment.orNumber.trim().length > 0) || app.status === 'ForIssuance' || app.status === 'Completed') && (
-              <Pressable
-                style={[
-                  styles.soaActionBtn,
-                  {
-                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
-                    borderColor: isDark ? '#10B981' : '#6EE7B7',
-                  },
-                ]}
-                onPress={() => onPreviewReport('or')}
-              >
-                <Lucide name="check-circle" size={13} color={isDark ? '#34D399' : '#047857'} />
-                <Text style={[styles.soaActionBtnText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
-                  Official Receipt (OR)
-                </Text>
-              </Pressable>
-            )}
           </View>
         </View>
 
@@ -714,7 +708,7 @@ export function SoaPaymentTab({
                     {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
                   </Text>
                   {app.payment.orNumber.length > 0 && (
-                    <Pressable
+                    <View
                       style={[
                         styles.orEditBtn,
                         {
@@ -722,11 +716,12 @@ export function SoaPaymentTab({
                           borderColor: isDark ? '#10B981' : '#6EE7B7',
                         },
                       ]}
-                      onPress={() => onPreviewReport('or')}
                     >
                       <Lucide name="check-circle" size={12} color={isDark ? '#34D399' : '#047857'} />
-                      <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>VIEW OR</Text>
-                    </Pressable>
+                      <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
+                        SETTLED • OR #{app.payment.orNumber}
+                      </Text>
+                    </View>
                   )}
                   {isEditable && (
                     <Pressable

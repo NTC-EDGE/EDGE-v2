@@ -942,8 +942,6 @@ export function ApplicationReviewScreenContent({
           isEditable={isEditable}
           updateApplication={updateApplication}
           onOpenGenerateSoa={() => setShowGenerateSoa(true)}
-          onPrintSoa={handlePrintSoa}
-          onPrintOp={handlePrintOp}
           onPreviewReport={handlePreviewReport}
         />
       )}
@@ -1162,7 +1160,7 @@ function WorkflowActionBar({
             >
               <Lucide name="file-text" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
               <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                SOA / OP Preview
+                View Application Reports
               </Text>
             </Pressable>
           )}
