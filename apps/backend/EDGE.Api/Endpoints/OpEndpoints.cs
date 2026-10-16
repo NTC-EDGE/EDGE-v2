@@ -10,6 +10,8 @@ using EDGE.Application.Applications.Commands.VerifyPayment;
 using EDGE.Application.Applications.Commands.ReturnOp;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Infrastructure.Printing.Services;
 using EDGE.Api.Endpoints.Ops.DTOs;
@@ -81,13 +83,30 @@ public static class OpEndpoints
         }
 
         var op = app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+        var soa = op != null
+            ? (app.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId) ?? app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault())
+            : app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+
         if (op == null)
         {
-            return Results.NotFound(new { message = $"No Order of Payment found for Application '{id}'." });
+            if (soa != null || app.Status == ApplicationStatus.ForAccountant)
+            {
+                op = new OrderOfPayment
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    StatementOfAccountId = soa?.Id ?? Guid.Empty,
+                    OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{app.ReferenceNumber ?? Guid.NewGuid().ToString()[..6].ToUpper()}",
+                    AmountDue = soa?.TotalAmount ?? 0,
+                    Status = OpStatus.Billed,
+                    CreatedAt = DateTime.UtcNow
+                };
+            }
+            else
+            {
+                return Results.NotFound(new { message = $"No Order of Payment found for Application '{id}'." });
+            }
         }
-
-        var soa = app.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId)
-                 ?? app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
 
         var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);

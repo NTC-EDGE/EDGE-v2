@@ -193,4 +193,69 @@ public class ApproveSoaCommandHandlerTests
         _repositoryMock.Verify(r => r.AddOpAsync(It.IsAny<OrderOfPayment>(), It.IsAny<CancellationToken>()), Times.Once);
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_ShouldApproveSoaAndReuseExistingOp_WhenSoaInForOrderOfPaymentStatus()
+    {
+        // Arrange
+        var soaId = Guid.NewGuid();
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+
+        var soa = new StatementOfAccount
+        {
+            Id = soaId,
+            ApplicationId = appId,
+            Status = SoaStatus.ForOrderOfPayment,
+            TotalAmount = 3500m,
+            Histories = new List<SoaHistory>()
+        };
+
+        var existingOp = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            StatementOfAccountId = soaId,
+            OpNumber = "OP-2026-TEST01",
+            AmountDue = 3500m,
+            Status = OpStatus.Billed,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Status = ApplicationStatus.ForAccountant,
+            StatementsOfAccount = new List<StatementOfAccount> { soa },
+            OrdersOfPayment = new List<OrderOfPayment> { existingOp }
+        };
+        soa.Application = app;
+
+        _repositoryMock
+            .Setup(r => r.GetSoaByIdAsync(soaId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(soa);
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+        _repositoryMock
+            .Setup(r => r.GetByIdAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        var command = new ApproveSoaCommand(SoaId: soaId, Remarks: "Approved from ForOrderOfPayment");
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().Be(opId);
+        soa.Status.Should().Be(SoaStatus.Approved);
+        app.Status.Should().Be(ApplicationStatus.PendingPayment);
+        existingOp.Status.Should().Be(OpStatus.Billed);
+        existingOp.AmountDue.Should().Be(3500m);
+
+        // Does NOT add a duplicate OP since existing was reused
+        _repositoryMock.Verify(r => r.AddOpAsync(It.IsAny<OrderOfPayment>(), It.IsAny<CancellationToken>()), Times.Never);
+        _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }

@@ -57,6 +57,45 @@ export function SoaParticularsTable({
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
                 {app.soaNumber}
               </Text>
+              <View
+                style={{
+                  paddingHorizontal: 8,
+                  paddingVertical: 2,
+                  borderRadius: 12,
+                  backgroundColor:
+                    app.soaStatus === 'ForOrderOfPayment' || isForAccountant
+                      ? (isDark ? '#312e81' : '#e0e7ff')
+                      : app.soaStatus === 'Approved'
+                      ? (isDark ? '#064e3b' : '#dcfce7')
+                      : isSoaReturned || app.soaStatus === 'Returned'
+                      ? (isDark ? '#451a03' : '#fef3c7')
+                      : (isDark ? '#1f2937' : '#f3f4f6'),
+                }}
+              >
+                <Text
+                  style={{
+                    fontSize: 11,
+                    fontWeight: '700',
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                    color:
+                      app.soaStatus === 'ForOrderOfPayment' || isForAccountant
+                        ? (isDark ? '#c7d2fe' : '#4338ca')
+                        : app.soaStatus === 'Approved'
+                        ? (isDark ? '#86efac' : '#15803d')
+                        : isSoaReturned || app.soaStatus === 'Returned'
+                        ? (isDark ? '#fde68a' : '#b45309')
+                        : (isDark ? '#9ca3af' : '#4b5563'),
+                  }}
+                >
+                  {app.soaStatus === 'ForOrderOfPayment' || isForAccountant
+                    ? 'FOR Order of Payment'
+                    : app.soaStatus === 'Approved'
+                    ? 'Approved'
+                    : isSoaReturned || app.soaStatus === 'Returned'
+                    ? 'Returned'
+                    : 'Pending'}
+                </Text>
+              </View>
               {app.soaCreatedAt !== null && app.soaCreatedAt !== undefined && app.soaCreatedAt.trim().length > 0 ? (
                 <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
                   • Generated {formatDisplayDateTime(app.soaCreatedAt)}

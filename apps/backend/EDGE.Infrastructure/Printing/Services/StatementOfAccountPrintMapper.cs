@@ -101,7 +101,7 @@ public static class StatementOfAccountPrintMapper
 
         // 4. Assessment Checkboxes
         model.IsForAssessmentOnly = app?.Intent == ApplicationIntent.AssessmentOnly || (soa != null && soa.Status == SoaStatus.Pending);
-        model.IsEndorsedForPayment = (soa != null && soa.Status == SoaStatus.Approved) ||
+        model.IsEndorsedForPayment = (soa != null && (soa.Status == SoaStatus.Approved || soa.Status == SoaStatus.ForOrderOfPayment)) ||
                                      activeOp != null ||
                                      app?.Status == ApplicationStatus.PendingPayment ||
                                      app?.Status == ApplicationStatus.Completed;

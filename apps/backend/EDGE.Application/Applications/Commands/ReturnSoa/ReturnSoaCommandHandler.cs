@@ -47,7 +47,7 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
                 var appLoaded = await _repository.GetByIdWithDetailsAsync(targetAppId, cancellationToken);
                 if (appLoaded != null)
                 {
-                    soa = appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.Pending)
+                    soa = appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.ForOrderOfPayment || s.Status == SoaStatus.Pending)
                           ?? appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
                     if (soa != null && soa.Application == null)
                     {
@@ -58,9 +58,9 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
         }
 
         if (soa == null) return ApiResponse<bool>.Fail("Statement of Account (SOA) not found for this return request.");
-        if (soa.Status != SoaStatus.Pending && soa.Status != SoaStatus.Approved)
+        if (soa.Status != SoaStatus.Pending && soa.Status != SoaStatus.ForOrderOfPayment && soa.Status != SoaStatus.Approved)
         {
-            return ApiResponse<bool>.Fail("SOA must be in Pending or Approved status to return.");
+            return ApiResponse<bool>.Fail("SOA must be in Pending or Approved status to return (or FOR Order of Payment).");
         }
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Accountant", cancellationToken);
@@ -91,9 +91,27 @@ public class ReturnSoaCommandHandler : IRequestHandler<ReturnSoaCommand, ApiResp
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
-        var app = soa.Application ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
+        var app = soa.Application ?? await _repository.GetByIdWithDetailsAsync(soa.ApplicationId, cancellationToken) ?? await _repository.GetByIdAsync(soa.ApplicationId, cancellationToken);
         if (app != null)
         {
+            var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
+                             ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+            if (existingOp != null)
+            {
+                existingOp.Status = OpStatus.Returned;
+                await _repository.AddOpHistoryAsync(new OpHistory
+                {
+                    Id = Guid.NewGuid(),
+                    OrderOfPaymentId = existingOp.Id,
+                    Action = $"Order of Payment returned. Reason: {request.Remarks}",
+                    ToStatus = OpStatus.Returned,
+                    PerformedByUserId = validUserId,
+                    StaffName = staffName,
+                    StaffRole = staffRole,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+
             var prevAppStatus = app.Status;
             app.Status = ApplicationStatus.Returned;
             app.Remarks = $"SOA returned by Accountant: {request.Remarks}";

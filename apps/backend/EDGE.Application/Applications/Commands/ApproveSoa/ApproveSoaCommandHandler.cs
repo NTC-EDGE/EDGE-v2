@@ -51,8 +51,8 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
                 var appLoaded = await _repository.GetByIdWithDetailsAsync(targetAppId, cancellationToken);
                 if (appLoaded != null)
                 {
-                    // Prioritize pending SOA, then approved SOA
-                    soa = appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.Pending)
+                    // Prioritize ForOrderOfPayment SOA, then Pending, then Approved
+                    soa = appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.ForOrderOfPayment || s.Status == SoaStatus.Pending)
                           ?? appLoaded.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault(s => s.Status == SoaStatus.Approved);
 
                     if (soa != null && soa.Application == null)
@@ -77,10 +77,10 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         // 3. Idempotency Guard: If SOA is already approved and Order of Payment exists, return existing OP cleanly
         if (soa.Status == SoaStatus.Approved)
         {
-            var existingOp = app.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
-                             ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Paid);
+            var alreadyApprovedOp = app.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
+                                    ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Paid);
 
-            if (existingOp != null)
+            if (alreadyApprovedOp != null)
             {
                 if (app.Status != ApplicationStatus.PendingPayment && app.Status != ApplicationStatus.ForIssuance && app.Status != ApplicationStatus.Completed)
                 {
@@ -89,7 +89,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
                 }
 
-                return ApiResponse<Guid>.Success(existingOp.Id, "Statement of Account and Application are already approved. Existing Order of Payment returned.");
+                return ApiResponse<Guid>.Success(alreadyApprovedOp.Id, "Statement of Account and Application are already approved. Existing Order of Payment returned.");
             }
         }
 
@@ -118,16 +118,30 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         soa.ApprovedByUserId = validUserId;
         soa.ApprovedAt = DateTime.UtcNow;
 
-        var op = new OrderOfPayment
+        var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
+                         ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+
+        OrderOfPayment op;
+        if (existingOp != null)
         {
-            Id = Guid.NewGuid(),
-            ApplicationId = soa.ApplicationId,
-            StatementOfAccountId = soa.Id,
-            OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
-            AmountDue = soa.TotalAmount,
-            Status = OpStatus.Billed,
-            CreatedAt = DateTime.UtcNow
-        };
+            op = existingOp;
+            op.Status = OpStatus.Billed;
+            op.AmountDue = soa.TotalAmount;
+        }
+        else
+        {
+            op = new OrderOfPayment
+            {
+                Id = Guid.NewGuid(),
+                ApplicationId = soa.ApplicationId,
+                StatementOfAccountId = soa.Id,
+                OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                AmountDue = soa.TotalAmount,
+                Status = OpStatus.Billed,
+                CreatedAt = DateTime.UtcNow
+            };
+            await _repository.AddOpAsync(op, cancellationToken);
+        }
 
         await _repository.AddSoaHistoryAsync(new SoaHistory
         {
@@ -184,7 +198,6 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
-        await _repository.AddOpAsync(op, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return ApiResponse<Guid>.Success(op.Id, "Statement of Account and Application approved. Order of Payment generated successfully.");

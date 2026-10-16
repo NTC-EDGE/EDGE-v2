@@ -76,6 +76,8 @@ export function SoaPaymentTab({
         isEditable={isEditable}
         hasPayment={hasPayment}
         isPaymentSubmitted={isPaymentSubmitted}
+        isForAccountant={isForAccountant}
+        onPreviewReport={onPreviewReport}
         updateApplication={updateApplication}
       />
 

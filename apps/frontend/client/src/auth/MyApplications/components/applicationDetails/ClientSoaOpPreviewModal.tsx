@@ -612,7 +612,43 @@ export function ClientSoaOpPreviewModal({
                         </Text>
                       </View>
                       <View style={styles.bannerRight}>
-                        <Text style={styles.bannerDocNum}>{soaNum}</Text>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+                          <Text style={styles.bannerDocNum}>{soaNum}</Text>
+                          {app?.soa?.status && (
+                            <View
+                              style={{
+                                paddingHorizontal: 6,
+                                paddingVertical: 2,
+                                borderRadius: 10,
+                                backgroundColor:
+                                  app.soa.status === 'ForOrderOfPayment'
+                                    ? '#e0e7ff'
+                                    : app.soa.status === 'Approved'
+                                    ? '#dcfce7'
+                                    : app.soa.status === 'Returned'
+                                    ? '#fef3c7'
+                                    : '#f3f4f6',
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 10,
+                                  fontWeight: '700',
+                                  color:
+                                    app.soa.status === 'ForOrderOfPayment'
+                                      ? '#4338ca'
+                                      : app.soa.status === 'Approved'
+                                      ? '#15803d'
+                                      : app.soa.status === 'Returned'
+                                      ? '#b45309'
+                                      : '#4b5563',
+                                }}
+                              >
+                                {app.soa.status === 'ForOrderOfPayment' ? 'FOR Order of Payment' : app.soa.status}
+                              </Text>
+                            </View>
+                          )}
+                        </View>
                         <Text style={styles.bannerDate}>
                           Issued: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                         </Text>

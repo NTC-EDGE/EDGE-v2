@@ -1,2 +1,3 @@
 namespace EDGE.Domain.Enums;
-public enum SoaStatus { Pending, Approved, Returned }
+public enum SoaStatus { Pending, ForOrderOfPayment, Approved, Returned }
+

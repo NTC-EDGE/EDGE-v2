@@ -11,6 +11,8 @@ interface SoaPaymentSummaryProps {
   isEditable: boolean;
   hasPayment: boolean;
   isPaymentSubmitted: boolean;
+  isForAccountant?: boolean;
+  onPreviewReport?: (reportType: 'soa' | 'op' | 'or') => void;
   updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
 }
 
@@ -19,6 +21,8 @@ export function SoaPaymentSummary({
   isEditable,
   hasPayment,
   isPaymentSubmitted,
+  isForAccountant,
+  onPreviewReport,
   updateApplication,
 }: SoaPaymentSummaryProps) {
   const { colors, isDark } = useTheme();
@@ -163,6 +167,65 @@ export function SoaPaymentSummary({
               </View>
             )}
           </View>
+        </View>
+      ) : isForAccountant ? (
+        <View
+          style={{
+            padding: SPACING[16],
+            borderRadius: RADIUS.card,
+            backgroundColor: isDark ? '#1e1b4b' : '#eef2ff',
+            borderWidth: 1,
+            borderColor: isDark ? '#4338ca' : '#c7d2fe',
+            gap: 12,
+          }}
+        >
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: isDark ? '#312e81' : '#e0e7ff',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
+              </View>
+              <View>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: isDark ? '#e0e7ff' : '#3730a3' }}>
+                  Order of Payment (OP) — Ready for Review
+                </Text>
+                <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontSize: 12, color: isDark ? '#a5b4fc' : '#4338ca', marginTop: 2 }}>
+                  {app.payment.opNumber || (app.referenceNumber ? `OP-${app.referenceNumber}` : 'OP Ready')} • ₱{(app.totalAmountDue || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </Text>
+              </View>
+            </View>
+
+            {onPreviewReport !== undefined && (
+              <Pressable
+                onPress={() => onPreviewReport('op')}
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  gap: 6,
+                  paddingHorizontal: 12,
+                  paddingVertical: 7,
+                  borderRadius: RADIUS.sm,
+                  backgroundColor: isDark ? '#4338ca' : '#4f46e5',
+                }}
+              >
+                <Lucide name="eye" size={14} color="#ffffff" />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#ffffff', fontFamily: TYPOGRAPHY.fonts.primary }}>
+                  Review Order of Payment (OP)
+                </Text>
+              </Pressable>
+            )}
+          </View>
+          <Text style={{ fontSize: 12, color: isDark ? '#c7d2fe' : '#4338ca', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 16 }}>
+            Evaluator approved the assessment. Review the Order of Payment details and verify charges before approving and issuing the OP for payment.
+          </Text>
         </View>
       ) : (
         <View

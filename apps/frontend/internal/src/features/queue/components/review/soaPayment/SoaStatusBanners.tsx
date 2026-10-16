@@ -38,7 +38,7 @@ export function SoaStatusBanners({
         >
           <Lucide name="file-text" size={18} color={isDark ? '#a5b4fc' : '#4f46e5'} />
           <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#e0e7ff' : '#3730a3', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
-            <Text style={{ fontWeight: '700' }}>SOA Verification:</Text> Verify fee calculations. Click <Text style={{ fontWeight: '700' }}>Approve &amp; Issue OP</Text> to issue Order of Payment, or <Text style={{ fontWeight: '700' }}>Return</Text> if corrections are needed.
+            <Text style={{ fontWeight: '700' }}>SOA Status: FOR Order of Payment.</Text> Evaluator approved the assessment. Order of Payment is ready for review. Click <Text style={{ fontWeight: '700' }}>Approve &amp; Issue OP</Text> to issue Order of Payment, or <Text style={{ fontWeight: '700' }}>Return</Text> if corrections are needed.
           </Text>
         </View>
       )}

@@ -887,7 +887,7 @@ export type ApplicationStatusDto =
   | 'PendingPayment'
   | 'ForIssuance';
 
-export type SoaStatusDto = 'Pending' | 'Approved' | 'Returned';
+export type SoaStatusDto = 'Pending' | 'ForOrderOfPayment' | 'Approved' | 'Returned';
 export type OpStatusDto = 'Billed' | 'Processing' | 'Returned' | 'Paid';
 export type IssuedToTypeDto = 'Individual' | 'Company' | 'AccountOwner';
 export type PaymentMethodDto = 'Cash' | 'Check' | 'Online';
