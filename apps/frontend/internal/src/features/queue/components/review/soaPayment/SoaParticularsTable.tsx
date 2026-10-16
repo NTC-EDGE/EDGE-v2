@@ -99,7 +99,7 @@ export function SoaParticularsTable({
             >
               <Lucide name="lock" size={13} color={isDark ? '#34d399' : '#059669'} />
               <Text style={[styles.soaActionBtnText, { color: isDark ? '#34d399' : '#059669' }]}>
-                SOA Paid (Locked)
+                SOA (Locked)
               </Text>
             </View>
           ) : null}
@@ -293,13 +293,6 @@ export function SoaParticularsTable({
                 <Text style={[styles.dueDateHighlightValue, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
                   {formatDisplayDueDate(app.dueDate)}
                 </Text>
-                {app.dueDate && app.dueDate.includes('-') && (
-                  <View style={[styles.dueDateIsoBadge, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200] }]}>
-                    <Text style={[styles.dueDateIsoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                      {app.dueDate}
-                    </Text>
-                  </View>
-                )}
               </View>
             )}
           </View>

@@ -425,6 +425,13 @@ export function ApplicationReviewScreenContent({
       toast.error('Failed to claim application authority.');
       return;
     }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+      ...(isForAccountant ? { accountingOfficer: officerName } : {}),
+      ...(isPendingPayment ? { cashierOfficer: officerName } : {}),
+      ...(isForIssuance ? { issuingOfficer: officerName } : {}),
+      ...(isEvaluating || isSubmitted || isReturned ? { evaluatingOfficer: officerName } : {}),
+    });
     toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
     await mutateApplications(app.id);
     await refetch();
@@ -485,6 +492,9 @@ export function ApplicationReviewScreenContent({
       toast.error(`Approval failed: ${errMsg}`);
       return;
     }
+    await updateApplication(app.id, {
+      accountingOfficer: officerName,
+    });
     toast.success('Application and SOA approved. Order of Payment generated.');
     await mutateApplications(app.id);
     await refetch();
@@ -498,6 +508,7 @@ export function ApplicationReviewScreenContent({
     if (receipt && receipt.officialReceiptNumber) {
       updateApplication(app.id, {
         status: 'ForIssuance',
+        cashierOfficer: officerName,
         payment: {
           ...app.payment,
           orNumber: receipt.officialReceiptNumber,
@@ -713,14 +724,14 @@ export function ApplicationReviewScreenContent({
       approveButtonLabel = 'Verify & Issue OR';
       approveButtonIcon = 'credit-card';
     } else {
-      approveButtonLabel = 'Awaiting Client Payment (Locked)';
+      approveButtonLabel = 'Awaiting Client Payment';
       approveButtonIcon = 'play-circle';
     }
   } else if (showAccountantBtn) {
     approveButtonLabel = 'Approve & Issue OP';
     approveButtonIcon = 'check-circle';
   } else if (showIssueBtn) {
-    approveButtonLabel = 'Issue Document & License';
+    approveButtonLabel = 'Issue Document';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
@@ -1062,6 +1073,10 @@ export function ApplicationReviewScreenContent({
         currentOfficerName={officerName}
         onClose={() => setShowIssueDoc(false)}
         onSuccess={async () => {
+          await updateApplication(app.id, {
+            issuingOfficer: officerName,
+            status: 'Completed',
+          });
           await mutateApplications(app.id);
           await refetch();
           onClose();
