@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { PendingPaymentDto, NextAvailableOrDto } from '@edge/api';
+import { PendingPaymentDto, NextAvailableOrDto, parsePaymentBreakdown } from '@edge/api';
 
 interface PendingPaymentsTabProps {
   pendingPayments: PendingPaymentDto[];
@@ -211,6 +211,46 @@ export function PendingPaymentsTab({
                             </Text>
                           </View>
                         ))}
+                      </View>
+                    )}
+
+                    {/* Client Preferred Payment Banner */}
+                    {(() => {
+                      const breakdown = parsePaymentBreakdown(payment.remarks);
+                      if (!breakdown) return null;
+                      return (
+                        <View style={[styles.clientPrefBanner, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
+                          <View style={styles.clientPrefHeader}>
+                            <Lucide name="layers" size={13} color="#6D28D9" />
+                            <Text style={[styles.clientPrefTitle, { color: '#4C1D95' }]}>
+                              Client Preference: {breakdown.isCombination ? 'Combination / Split Payment' : breakdown.items[0]?.mode}
+                            </Text>
+                          </View>
+                          <View style={styles.clientPrefPills}>
+                            {breakdown.items.map((item, iIdx) => (
+                              <View key={iIdx} style={[styles.clientPrefPill, { backgroundColor: '#FFFFFF', borderColor: '#E9D5FF' }]}>
+                                <Text style={[styles.clientPrefPillText, { color: '#5B21B6' }]}>
+                                  <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                  {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
+                                  {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
+                                </Text>
+                              </View>
+                            ))}
+                          </View>
+                        </View>
+                      );
+                    })()}
+
+                    {/* Partial Payment Banner if already partially paid */}
+                    {typeof payment.amountReceived === 'number' && payment.amountReceived > 0 && (
+                      <View style={[styles.clientPrefBanner, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+                        <View style={styles.clientPrefHeader}>
+                          <Lucide name="clock" size={13} color="#B45309" />
+                          <Text style={[styles.clientPrefTitle, { color: '#92400E' }]}>
+                            Partial OR Issued: ₱{payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {' • '}Remaining: ₱{(payment.remainingBalance ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </Text>
+                        </View>
                       </View>
                     )}
                   </View>
@@ -515,5 +555,35 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     maxWidth: 360,
+  },
+  clientPrefBanner: {
+    borderWidth: 1,
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    gap: 6,
+  },
+  clientPrefHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  clientPrefTitle: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  clientPrefPills: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  clientPrefPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  clientPrefPillText: {
+    fontSize: 10,
   },
 });

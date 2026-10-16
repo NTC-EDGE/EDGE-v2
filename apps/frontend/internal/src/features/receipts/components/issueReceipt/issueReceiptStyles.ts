@@ -498,4 +498,27 @@ export const styles = StyleSheet.create({
     fontSize: 11,
     color: '#1E293B',
   },
+  strategyActiveBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    marginTop: 4,
+  },
+  strategyActiveBannerText: {
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  strategyActiveBannerSub: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  onlineInlineBox: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+  },
 });

@@ -149,6 +149,47 @@ export function PreferredPaymentBanner({
               </View>
             </View>
           )}
+
+          {/* Active Strategy & Amount Summary Pill for Cashier */}
+          <View
+            style={[
+              styles.strategyActiveBanner,
+              {
+                backgroundColor: issuanceStrategy === 'Consolidated' ? '#EFF6FF' : '#F0FDF4',
+                borderColor: issuanceStrategy === 'Consolidated' ? '#BFDBFE' : '#BBF7D0',
+              },
+            ]}
+          >
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Lucide
+                name={issuanceStrategy === 'Consolidated' ? 'layers' : 'scissors'}
+                size={13}
+                color={issuanceStrategy === 'Consolidated' ? '#1D4ED8' : '#15803D'}
+              />
+              <Text
+                style={[
+                  styles.strategyActiveBannerText,
+                  { color: issuanceStrategy === 'Consolidated' ? '#1E40AF' : '#166534' },
+                ]}
+              >
+                {issuanceStrategy === 'Consolidated'
+                  ? 'Active Strategy: Single Consolidated OR (All Payment Modes)'
+                  : `Active Strategy: Split OR — ${preferredBreakdown.items[selectedSplitIndex]?.mode ?? 'Selected'} Portion`}
+              </Text>
+            </View>
+            <Text
+              style={[
+                styles.strategyActiveBannerSub,
+                { color: issuanceStrategy === 'Consolidated' ? '#1E40AF' : '#166534' },
+              ]}
+            >
+              Amount for this OR: ₱
+              {(issuanceStrategy === 'Consolidated'
+                ? preferredBreakdown.totalAmount
+                : (preferredBreakdown.items[selectedSplitIndex]?.amount ?? 0)
+              ).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+            </Text>
+          </View>
         </View>
       )}
     </View>

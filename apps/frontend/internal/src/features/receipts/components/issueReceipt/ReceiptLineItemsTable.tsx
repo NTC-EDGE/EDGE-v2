@@ -43,7 +43,7 @@ export function ReceiptLineItemsTable({
           </Text>
           <Text style={[styles.sectionSubtitle, { color: colors.textMuted }]}>
             {isFromPendingPayment
-              ? 'Fees and particulars are determined by Evaluator/Accountant and locked for Cashier collection.'
+              ? 'Fees and particulars reflect the assessed fees or selected payment mode allocation for this receipt.'
               : 'Search fee code (e.g. REG-FEE, EXAM) or enter custom particulars'}
           </Text>
         </View>

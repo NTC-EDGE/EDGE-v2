@@ -33,6 +33,7 @@ export function useIssueReceiptForm({
   const [checkNumber, setCheckNumber] = useState('');
   const [checkBank, setCheckBank] = useState('');
   const [checkDate, setCheckDate] = useState('');
+  const [onlineReference, setOnlineReference] = useState('');
   const [remarks, setRemarks] = useState('');
   const [manualOrNumber, setManualOrNumber] = useState('');
   const [useManualOr, setUseManualOr] = useState(false);
@@ -55,13 +56,20 @@ export function useIssueReceiptForm({
         setIssuanceStrategy('Consolidated');
         setSelectedSplitIndex(0);
         const checkItem = parsed.items.find((i) => i.mode === 'Check');
+        const onlineItem = parsed.items.find((i) => i.mode === 'Online');
         if (checkItem !== undefined) {
           setPaymentMethod('Check');
           setCheckNumber(checkItem.checkNumber ?? '');
           setCheckBank(checkItem.checkBank ?? '');
           setCheckDate(checkItem.checkDate ?? '');
+        } else if (onlineItem !== undefined) {
+          setPaymentMethod('Online');
+          setOnlineReference(onlineItem.referenceNumber ?? '');
         } else {
           setPaymentMethod('Cash');
+        }
+        if (onlineItem !== undefined) {
+          setOnlineReference(onlineItem.referenceNumber ?? '');
         }
         setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${parsed.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
       } else if (parsed !== null && !parsed.isCombination) {
@@ -75,6 +83,10 @@ export function useIssueReceiptForm({
           setCheckNumber(checkItem.checkNumber ?? '');
           setCheckBank(checkItem.checkBank ?? '');
           setCheckDate(checkItem.checkDate ?? '');
+        }
+        const onlineItem = parsed.items.find((i) => i.mode === 'Online');
+        if (onlineItem !== undefined) {
+          setOnlineReference(onlineItem.referenceNumber ?? '');
         }
         setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
       } else {
@@ -94,6 +106,7 @@ export function useIssueReceiptForm({
       setCheckNumber('');
       setCheckBank('');
       setCheckDate('');
+      setOnlineReference('');
       setIssuanceStrategy('Consolidated');
       setSelectedSplitIndex(0);
       setLineItems([{ feeCode: 'FEE', description: '', amount: 0 }]);
@@ -110,8 +123,10 @@ export function useIssueReceiptForm({
     setCheckNumber(target.mode === 'Check' ? (target.checkNumber ?? '') : '');
     setCheckBank(target.mode === 'Check' ? (target.checkBank ?? '') : '');
     setCheckDate(target.mode === 'Check' ? (target.checkDate ?? '') : '');
+    setOnlineReference(target.mode === 'Online' ? (target.referenceNumber ?? '') : '');
     setLineItems([{ feeCode: target.mode.toUpperCase(), description: `Payment portion (${target.mode}) for ${pendingPayment.serviceName}`, amount: target.amount }]);
-    setRemarks(`Split OR (${target.mode} portion): ₱${target.amount.toFixed(2)} for OP #${pendingPayment.opNumber}`);
+    const refSuffix = target.mode === 'Online' && target.referenceNumber ? ` [Ref: ${target.referenceNumber}]` : '';
+    setRemarks(`Split OR (${target.mode} portion): ₱${target.amount.toFixed(2)}${refSuffix} for OP #${pendingPayment.opNumber}`);
   };
 
   const handleSelectStrategy = (strat: 'Consolidated' | 'SplitPerMode') => {
@@ -124,11 +139,20 @@ export function useIssueReceiptForm({
         setLineItems([{ feeCode: 'PAYMENT', description: `Payment for ${pendingPayment.serviceName}`, amount: pendingPayment.amountDue }]);
       }
       const checkItem = preferredBreakdown.items.find((i) => i.mode === 'Check');
-      setPaymentMethod(checkItem !== undefined ? 'Check' : 'Cash');
+      const onlineItem = preferredBreakdown.items.find((i) => i.mode === 'Online');
       if (checkItem !== undefined) {
+        setPaymentMethod('Check');
         setCheckNumber(checkItem.checkNumber ?? '');
         setCheckBank(checkItem.checkBank ?? '');
         setCheckDate(checkItem.checkDate ?? '');
+      } else if (onlineItem !== undefined) {
+        setPaymentMethod('Online');
+        setOnlineReference(onlineItem.referenceNumber ?? '');
+      } else {
+        setPaymentMethod('Cash');
+      }
+      if (onlineItem !== undefined) {
+        setOnlineReference(onlineItem.referenceNumber ?? '');
       }
       setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${preferredBreakdown.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
     } else {
@@ -189,6 +213,12 @@ export function useIssueReceiptForm({
       .map((l) => ({ feeCode: l.feeCode.trim() || 'FEE', description: l.description.trim(), amount: l.amount }));
 
     const effectiveTenantId = pendingPayment?.tenantId && pendingPayment.tenantId.length > 0 ? pendingPayment.tenantId : tenantId;
+    const finalRemarks = remarks.trim()
+      ? (paymentMethod === 'Online' && onlineReference.trim() && !remarks.includes(onlineReference.trim())
+          ? `${remarks.trim()} (Online Ref: ${onlineReference.trim()})`
+          : remarks.trim())
+      : (paymentMethod === 'Online' && onlineReference.trim() ? `Online Ref: ${onlineReference.trim()}` : null);
+
     const [res, err] = await receiptService.issueOfficialReceipt({
       tenantId: effectiveTenantId,
       orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
@@ -201,7 +231,7 @@ export function useIssueReceiptForm({
       checkNumber: paymentMethod === 'Check' && checkNumber.trim() ? checkNumber.trim() : null,
       checkBank: paymentMethod === 'Check' && checkBank.trim() ? checkBank.trim() : null,
       checkDate: paymentMethod === 'Check' && checkDate.trim() ? checkDate.trim() : null,
-      remarks: remarks.trim() || null,
+      remarks: finalRemarks,
       lineItems: validLineItems,
       allowPartialPayment: issuanceStrategy === 'SplitPerMode',
     });
@@ -214,6 +244,8 @@ export function useIssueReceiptForm({
       setPayorAddress('');
       setCheckNumber('');
       setCheckBank('');
+      setCheckDate('');
+      setOnlineReference('');
       setRemarks('');
       onSuccess(res ?? undefined);
       onClose();
@@ -233,6 +265,8 @@ export function useIssueReceiptForm({
     setCheckBank,
     checkDate,
     setCheckDate,
+    onlineReference,
+    setOnlineReference,
     remarks,
     setRemarks,
     manualOrNumber,

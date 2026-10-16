@@ -19,6 +19,8 @@ interface ReceiptHeaderCardProps {
   setCheckBank: (v: string) => void;
   checkDate: string;
   setCheckDate: (v: string) => void;
+  onlineReference?: string;
+  setOnlineReference?: (v: string) => void;
 }
 
 export function ReceiptHeaderCard({
@@ -36,6 +38,8 @@ export function ReceiptHeaderCard({
   setCheckBank,
   checkDate,
   setCheckDate,
+  onlineReference = '',
+  setOnlineReference,
 }: ReceiptHeaderCardProps) {
   const { colors } = useTheme();
 
@@ -92,7 +96,7 @@ export function ReceiptHeaderCard({
           </TouchableOpacity>
         </View>
 
-        {/* Payment Method Selector - Locked if from pending payment */}
+        {/* Payment Method Selector */}
         <View style={styles.methodSelector}>
           <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
             <Text style={[styles.methodSelectorLabel, { color: colors.textMuted, marginBottom: 0 }]}>
@@ -100,9 +104,9 @@ export function ReceiptHeaderCard({
             </Text>
             {isFromPendingPayment && (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4 }}>
-                <Lucide name="lock" size={10} color={colors.textMuted} />
-                <Text style={{ fontSize: 9, color: colors.textMuted, fontWeight: '700' }}>
-                  (Client Selected)
+                <Lucide name="check-circle" size={10} color={colors.brand.primary} />
+                <Text style={{ fontSize: 9, color: colors.brand.primary, fontWeight: '700' }}>
+                  (Client Specified)
                 </Text>
               </View>
             )}
@@ -111,19 +115,15 @@ export function ReceiptHeaderCard({
           <View style={styles.methodPillGroup}>
             {(['Cash', 'Check', 'Online'] as PaymentMethod[]).map((method) => {
               const isSelected = paymentMethod === method;
-              const isDisabled = isFromPendingPayment;
 
               return (
                 <TouchableOpacity
                   key={method}
-                  onPress={() => !isDisabled && setPaymentMethod(method)}
-                  disabled={isDisabled}
+                  onPress={() => setPaymentMethod(method)}
                   style={[
                     styles.methodPill,
                     { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] },
                     isSelected && { backgroundColor: colors.brand.primary, borderColor: colors.brand.primary },
-                    isDisabled && !isSelected && { opacity: 0.4 },
-                    isDisabled && isSelected && { opacity: 0.95 },
                   ]}
                 >
                   <Lucide
@@ -140,9 +140,6 @@ export function ReceiptHeaderCard({
                   >
                     {method}
                   </Text>
-                  {isDisabled && isSelected && (
-                    <Lucide name="lock" size={10} color="#fff" style={{ marginLeft: 2 }} />
-                  )}
                 </TouchableOpacity>
               );
             })}
@@ -160,6 +157,22 @@ export function ReceiptHeaderCard({
             placeholderTextColor={colors.neutral[400]}
             value={manualOrNumber}
             onChangeText={setManualOrNumber}
+          />
+        </View>
+      )}
+
+      {/* Online Reference Row (Only when Online is selected) */}
+      {paymentMethod === 'Online' && (
+        <View style={[styles.onlineInlineBox, { borderTopColor: colors.neutral[200] }]}>
+          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>
+            Online Reference / E-Receipt / Transaction No. (Optional)
+          </Text>
+          <TextInput
+            style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+            placeholder="e.g. LBP-TXN-12345678, GCASH-REF-89012"
+            placeholderTextColor={colors.neutral[400]}
+            value={onlineReference}
+            onChangeText={setOnlineReference}
           />
         </View>
       )}

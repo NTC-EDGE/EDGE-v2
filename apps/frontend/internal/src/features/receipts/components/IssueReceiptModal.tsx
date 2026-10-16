@@ -42,6 +42,8 @@ export function IssueReceiptModal({
     setCheckBank,
     checkDate,
     setCheckDate,
+    onlineReference,
+    setOnlineReference,
     remarks,
     setRemarks,
     manualOrNumber,
@@ -132,6 +134,8 @@ export function IssueReceiptModal({
               setCheckBank={setCheckBank}
               checkDate={checkDate}
               setCheckDate={setCheckDate}
+              onlineReference={onlineReference}
+              setOnlineReference={setOnlineReference}
             />
 
             <ReceiptPayorSection
