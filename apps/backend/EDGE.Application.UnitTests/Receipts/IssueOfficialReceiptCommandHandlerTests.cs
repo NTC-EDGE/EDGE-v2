@@ -255,4 +255,86 @@ public class IssueOfficialReceiptCommandHandlerTests
         result.Succeeded.Should().BeFalse();
         result.Message.Should().Contain("Payment can only be accepted when the application is in 'PendingPayment' status");
     }
+
+    [Fact]
+    public async Task Handle_ShouldSupportSplitOrIssuance_WhenAllowPartialPaymentIsTrue()
+    {
+        // Arrange
+        var tenantId = Guid.NewGuid();
+        var bookletId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+
+        var booklet = new OrBooklet
+        {
+            Id = bookletId,
+            TenantId = tenantId,
+            BookletNumber = "B01",
+            CurrentNumber = 1,
+            EndNumber = 50,
+            TotalCount = 50,
+            IssuedCount = 0,
+            Status = BookletStatus.Active
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-001",
+            Status = ApplicationStatus.PendingPayment
+        };
+
+        var op = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = app.Id,
+            OpNumber = "OP-2026-001",
+            AmountDue = 5000m,
+            AmountReceived = 0m,
+            Status = OpStatus.Billed,
+            Application = app
+        };
+
+        _bookletRepoMock
+            .Setup(b => b.GetByIdAsync(bookletId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(booklet);
+
+        _receiptRepoMock
+            .Setup(r => r.ExistsOrNumberAsync(tenantId, It.IsAny<string>(), null, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(false);
+
+        _receiptRepoMock
+            .Setup(r => r.GetByOrderOfPaymentIdAsync(opId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<OfficialReceipt>());
+
+        _appRepoMock
+            .Setup(a => a.GetOpByIdAsync(opId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(op);
+
+        var command = new IssueOfficialReceiptCommand(
+            TenantId: tenantId,
+            OrderOfPaymentId: opId,
+            BookletId: bookletId,
+            PayorName: "Globe Telecom",
+            Amount: 3000m, // Partial check portion of 5000 total
+            PaymentMethod: PaymentMethod.Check,
+            CheckNumber: "CHK-998811",
+            CheckBank: "LandBank",
+            AllowPartialPayment: true
+        );
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        result.Data.Should().NotBeNull();
+        result.Data!.Amount.Should().Be(3000m);
+        result.Data.PaymentMethod.Should().Be(PaymentMethod.Check);
+
+        // Order of Payment should be in Processing status (not yet Paid)
+        op.Status.Should().Be(OpStatus.Processing);
+        op.AmountReceived.Should().Be(3000m);
+        // Application remains in PendingPayment for remainder
+        app.Status.Should().Be(ApplicationStatus.PendingPayment);
+    }
 }

@@ -86,6 +86,8 @@ export interface PendingPaymentDto {
   serviceName: string;
   serviceCategory: string;
   amountDue: number;
+  amountReceived?: number;
+  remainingBalance?: number;
   billedAt: string;
   remarks?: string | null;
   lineItems: PendingPaymentLineItemDto[];
@@ -264,6 +266,7 @@ export interface IssueOfficialReceiptPayload {
   checkDate?: string | null;
   remarks?: string | null;
   lineItems?: IssueReceiptLineItemInput[];
+  allowPartialPayment?: boolean;
 }
 
 export interface EditOfficialReceiptPayload {

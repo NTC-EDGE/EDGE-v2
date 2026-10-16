@@ -177,6 +177,17 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<OfficialReceipt>> GetByOrderOfPaymentIdAsync(Guid orderOfPaymentId, CancellationToken cancellationToken = default)
+    {
+        return await _context.OfficialReceipts
+            .AsNoTracking()
+            .Include(r => r.LineItems)
+            .Include(r => r.IssuedByUser)
+            .Where(r => r.OrderOfPaymentId == orderOfPaymentId)
+            .OrderBy(r => r.IssuedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<bool> ExistsOrNumberAsync(Guid tenantId, string orNumber, Guid? excludeId = null, CancellationToken cancellationToken = default)
     {
         var query = _context.OfficialReceipts

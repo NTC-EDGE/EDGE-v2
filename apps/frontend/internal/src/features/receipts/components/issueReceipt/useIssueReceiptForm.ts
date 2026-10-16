@@ -1,0 +1,260 @@
+import { useState, useEffect, useMemo } from 'react';
+import {
+  receiptService,
+  NextAvailableOrDto,
+  PendingPaymentDto,
+  PaymentMethod,
+  IssueReceiptLineItemInput,
+  OfficialReceiptDto,
+  parsePaymentBreakdown,
+  ReceiptFeeItemDto,
+} from '@edge/api';
+
+interface UseIssueReceiptFormProps {
+  visible: boolean;
+  tenantId: string;
+  nextOr?: NextAvailableOrDto;
+  pendingPayment?: PendingPaymentDto | null;
+  onClose: () => void;
+  onSuccess: (issuedReceipt?: OfficialReceiptDto) => void;
+}
+
+export function useIssueReceiptForm({
+  visible,
+  tenantId,
+  nextOr,
+  pendingPayment,
+  onClose,
+  onSuccess,
+}: UseIssueReceiptFormProps) {
+  const [payorName, setPayorName] = useState('');
+  const [payorAddress, setPayorAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>('Cash');
+  const [checkNumber, setCheckNumber] = useState('');
+  const [checkBank, setCheckBank] = useState('');
+  const [checkDate, setCheckDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [manualOrNumber, setManualOrNumber] = useState('');
+  const [useManualOr, setUseManualOr] = useState(false);
+  const [issuanceStrategy, setIssuanceStrategy] = useState<'Consolidated' | 'SplitPerMode'>('Consolidated');
+  const [selectedSplitIndex, setSelectedSplitIndex] = useState<number>(0);
+  const [activeSuggestionIndex, setActiveSuggestionIndex] = useState<number | null>(null);
+  const [lineItems, setLineItems] = useState<IssueReceiptLineItemInput[]>([{ feeCode: 'FEE', description: '', amount: 0 }]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  const isFromPendingPayment = pendingPayment !== undefined && pendingPayment !== null;
+  const preferredBreakdown = useMemo(() => parsePaymentBreakdown(pendingPayment?.remarks), [pendingPayment?.remarks]);
+  const totalAmount = lineItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+
+  useEffect(() => {
+    if (visible && pendingPayment !== undefined && pendingPayment !== null) {
+      setPayorName(pendingPayment.applicantName);
+      const parsed = parsePaymentBreakdown(pendingPayment.remarks);
+      if (parsed !== null && parsed.isCombination) {
+        setIssuanceStrategy('Consolidated');
+        setSelectedSplitIndex(0);
+        const checkItem = parsed.items.find((i) => i.mode === 'Check');
+        if (checkItem !== undefined) {
+          setPaymentMethod('Check');
+          setCheckNumber(checkItem.checkNumber ?? '');
+          setCheckBank(checkItem.checkBank ?? '');
+          setCheckDate(checkItem.checkDate ?? '');
+        } else {
+          setPaymentMethod('Cash');
+        }
+        setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${parsed.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
+      } else if (parsed !== null && !parsed.isCombination) {
+        const firstMode = parsed.items[0];
+        if (firstMode !== undefined) {
+          setPaymentMethod(firstMode.mode);
+        }
+        const checkItem = parsed.items.find((i) => i.mode === 'Check');
+        if (checkItem !== undefined) {
+          setPaymentMethod('Check');
+          setCheckNumber(checkItem.checkNumber ?? '');
+          setCheckBank(checkItem.checkBank ?? '');
+          setCheckDate(checkItem.checkDate ?? '');
+        }
+        setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
+      } else {
+        setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
+      }
+
+      if (pendingPayment.lineItems && pendingPayment.lineItems.length > 0) {
+        setLineItems(pendingPayment.lineItems.map((li) => ({ feeCode: li.feeCode || 'FEE', description: li.description, amount: li.amount })));
+      } else {
+        setLineItems([{ feeCode: 'PAYMENT', description: `Payment for ${pendingPayment.serviceName}`, amount: pendingPayment.amountDue }]);
+      }
+      setActiveSuggestionIndex(null);
+    } else if (visible && (pendingPayment === undefined || pendingPayment === null)) {
+      setPayorName('');
+      setPayorAddress('');
+      setRemarks('');
+      setCheckNumber('');
+      setCheckBank('');
+      setCheckDate('');
+      setIssuanceStrategy('Consolidated');
+      setSelectedSplitIndex(0);
+      setLineItems([{ feeCode: 'FEE', description: '', amount: 0 }]);
+      setActiveSuggestionIndex(null);
+    }
+  }, [visible, pendingPayment]);
+
+  const handleSelectSplitItem = (idx: number) => {
+    if (!preferredBreakdown || !pendingPayment) return;
+    const target = preferredBreakdown.items[idx];
+    if (target === undefined) return;
+    setSelectedSplitIndex(idx);
+    setPaymentMethod(target.mode);
+    setCheckNumber(target.mode === 'Check' ? (target.checkNumber ?? '') : '');
+    setCheckBank(target.mode === 'Check' ? (target.checkBank ?? '') : '');
+    setCheckDate(target.mode === 'Check' ? (target.checkDate ?? '') : '');
+    setLineItems([{ feeCode: target.mode.toUpperCase(), description: `Payment portion (${target.mode}) for ${pendingPayment.serviceName}`, amount: target.amount }]);
+    setRemarks(`Split OR (${target.mode} portion): ₱${target.amount.toFixed(2)} for OP #${pendingPayment.opNumber}`);
+  };
+
+  const handleSelectStrategy = (strat: 'Consolidated' | 'SplitPerMode') => {
+    setIssuanceStrategy(strat);
+    if (!preferredBreakdown || !pendingPayment) return;
+    if (strat === 'Consolidated') {
+      if (pendingPayment.lineItems && pendingPayment.lineItems.length > 0) {
+        setLineItems(pendingPayment.lineItems.map((li) => ({ feeCode: li.feeCode || 'FEE', description: li.description, amount: li.amount })));
+      } else {
+        setLineItems([{ feeCode: 'PAYMENT', description: `Payment for ${pendingPayment.serviceName}`, amount: pendingPayment.amountDue }]);
+      }
+      const checkItem = preferredBreakdown.items.find((i) => i.mode === 'Check');
+      setPaymentMethod(checkItem !== undefined ? 'Check' : 'Cash');
+      if (checkItem !== undefined) {
+        setCheckNumber(checkItem.checkNumber ?? '');
+        setCheckBank(checkItem.checkBank ?? '');
+        setCheckDate(checkItem.checkDate ?? '');
+      }
+      setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${preferredBreakdown.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
+    } else {
+      handleSelectSplitItem(0);
+    }
+  };
+
+  const handleAddLineItem = () => {
+    setLineItems([...lineItems, { feeCode: 'FEE', description: '', amount: 0 }]);
+    setActiveSuggestionIndex(lineItems.length);
+  };
+
+  const handleRemoveLineItem = (idx: number) => {
+    if (lineItems.length > 1) {
+      setLineItems(lineItems.filter((_, i) => i !== idx));
+    }
+  };
+
+  const handleUpdateLineItem = (idx: number, field: keyof IssueReceiptLineItemInput, val: string | number) => {
+    const updated = [...lineItems];
+    const target = updated[idx];
+    if (target) {
+      updated[idx] = { ...target, [field]: field === 'amount' ? Number(val) || 0 : String(val) };
+      setLineItems(updated);
+    }
+  };
+
+  const handleSelectFee = (idx: number, fee: ReceiptFeeItemDto) => {
+    const updated = [...lineItems];
+    updated[idx] = { feeCode: fee.feeCode, description: fee.description, amount: fee.amount };
+    setLineItems(updated);
+    setActiveSuggestionIndex(null);
+  };
+
+  const handleSubmit = async () => {
+    const effectivePayorName = payorName.trim();
+    if (!effectivePayorName) {
+      setErrorMsg('Payee / Payor name is required.');
+      return;
+    }
+    if (totalAmount <= 0) {
+      setErrorMsg('Receipt total amount must be greater than 0.');
+      return;
+    }
+    if (paymentMethod === 'Check' && (!checkNumber.trim() || !checkBank.trim())) {
+      setErrorMsg('Check number and Bank name are required for Check payments.');
+      return;
+    }
+    if (!useManualOr && (!nextOr || !nextOr.hasActiveBooklet)) {
+      setErrorMsg('No active OR booklet series found. Please register an OR booklet first or use manual override.');
+      return;
+    }
+
+    setIsSubmitting(true);
+    setErrorMsg(null);
+    const validLineItems = lineItems
+      .filter((l) => l.description.trim().length > 0 && l.amount > 0)
+      .map((l) => ({ feeCode: l.feeCode.trim() || 'FEE', description: l.description.trim(), amount: l.amount }));
+
+    const effectiveTenantId = pendingPayment?.tenantId && pendingPayment.tenantId.length > 0 ? pendingPayment.tenantId : tenantId;
+    const [res, err] = await receiptService.issueOfficialReceipt({
+      tenantId: effectiveTenantId,
+      orderOfPaymentId: pendingPayment?.orderOfPaymentId ?? null,
+      bookletId: useManualOr ? null : (nextOr?.bookletId ?? null),
+      manualOrNumber: useManualOr && manualOrNumber.trim().length > 0 ? manualOrNumber.trim() : null,
+      payorName: effectivePayorName,
+      payorAddress: payorAddress.trim() || null,
+      amount: totalAmount,
+      paymentMethod,
+      checkNumber: paymentMethod === 'Check' && checkNumber.trim() ? checkNumber.trim() : null,
+      checkBank: paymentMethod === 'Check' && checkBank.trim() ? checkBank.trim() : null,
+      checkDate: paymentMethod === 'Check' && checkDate.trim() ? checkDate.trim() : null,
+      remarks: remarks.trim() || null,
+      lineItems: validLineItems,
+      allowPartialPayment: issuanceStrategy === 'SplitPerMode',
+    });
+
+    setIsSubmitting(false);
+    if (err !== null) {
+      setErrorMsg(err);
+    } else {
+      setPayorName('');
+      setPayorAddress('');
+      setCheckNumber('');
+      setCheckBank('');
+      setRemarks('');
+      onSuccess(res ?? undefined);
+      onClose();
+    }
+  };
+
+  return {
+    payorName,
+    setPayorName,
+    payorAddress,
+    setPayorAddress,
+    paymentMethod,
+    setPaymentMethod,
+    checkNumber,
+    setCheckNumber,
+    checkBank,
+    setCheckBank,
+    checkDate,
+    setCheckDate,
+    remarks,
+    setRemarks,
+    manualOrNumber,
+    setManualOrNumber,
+    useManualOr,
+    setUseManualOr,
+    issuanceStrategy,
+    selectedSplitIndex,
+    activeSuggestionIndex,
+    setActiveSuggestionIndex,
+    lineItems,
+    isSubmitting,
+    errorMsg,
+    isFromPendingPayment,
+    preferredBreakdown,
+    totalAmount,
+    handleSelectSplitItem,
+    handleSelectStrategy,
+    handleAddLineItem,
+    handleRemoveLineItem,
+    handleUpdateLineItem,
+    handleSelectFee,
+    handleSubmit,
+  };
+}

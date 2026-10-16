@@ -38,7 +38,9 @@ public record PendingPaymentDto(
     decimal AmountDue,
     DateTime BilledAt,
     string? Remarks,
-    List<PendingPaymentLineItemDto> LineItems
+    List<PendingPaymentLineItemDto> LineItems,
+    decimal AmountReceived = 0,
+    decimal RemainingBalance = 0
 );
 
 public record GetPendingPaymentsQuery(
@@ -193,6 +195,9 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 li.Amount
             )).ToList() ?? new List<PendingPaymentLineItemDto>();
 
+            var amtReceived = op.AmountReceived;
+            var remBalance = op.AmountDue > amtReceived ? op.AmountDue - amtReceived : 0m;
+
             return new PendingPaymentDto(
                 op.Id,
                 op.ApplicationId,
@@ -209,7 +214,9 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 op.AmountDue,
                 op.CreatedAt,
                 op.Remarks,
-                lineItems
+                lineItems,
+                amtReceived,
+                remBalance
             );
         }).ToList();
 
