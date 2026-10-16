@@ -17,7 +17,7 @@ import {
   DatePickerInput,
 } from "@edge/ui";
 import { SoaPaymentTabProps } from "./reviewTypes";
-import { formatAmount, amountToWords, formatDisplayDueDate } from "./reviewFormatters";
+import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "./reviewFormatters";
 import { reviewStyles as styles } from "./reviewStyles";
 import { AuditTrailEntry, SoaItem, ApplicantItem } from "../../../../types/application";
 
@@ -351,7 +351,19 @@ export function SoaPaymentTab({
           <View style={{ flex: 1, minWidth: 220 }}>
             <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>OFFICIAL BILLING RECORD</Text>
             <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-            <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+            {app.soaNumber !== null && app.soaNumber !== undefined && app.soaNumber.trim().length > 0 ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
+                <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
+                  {app.soaNumber}
+                </Text>
+                {app.soaCreatedAt !== null && app.soaCreatedAt !== undefined && app.soaCreatedAt.trim().length > 0 ? (
+                  <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                    • Generated {formatDisplayDateTime(app.soaCreatedAt)}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+            <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], marginTop: 2 }]}>
               Review the billing particulars, charges, and due date below.
             </Text>
           </View>
@@ -422,6 +434,24 @@ export function SoaPaymentTab({
                 Order of Payment (OP)
               </Text>
             </Pressable>
+
+            {Boolean((app.payment && app.payment.orNumber && app.payment.orNumber.trim().length > 0) || app.status === 'ForIssuance' || app.status === 'Completed') && (
+              <Pressable
+                style={[
+                  styles.soaActionBtn,
+                  {
+                    backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
+                    borderColor: isDark ? '#10B981' : '#6EE7B7',
+                  },
+                ]}
+                onPress={() => onPreviewReport('or')}
+              >
+                <Lucide name="check-circle" size={13} color={isDark ? '#34D399' : '#047857'} />
+                <Text style={[styles.soaActionBtnText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
+                  Official Receipt (OR)
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
 
@@ -683,6 +713,21 @@ export function SoaPaymentTab({
                   <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
                     {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
                   </Text>
+                  {app.payment.orNumber.length > 0 && (
+                    <Pressable
+                      style={[
+                        styles.orEditBtn,
+                        {
+                          backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
+                          borderColor: isDark ? '#10B981' : '#6EE7B7',
+                        },
+                      ]}
+                      onPress={() => onPreviewReport('or')}
+                    >
+                      <Lucide name="check-circle" size={12} color={isDark ? '#34D399' : '#047857'} />
+                      <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>VIEW OR</Text>
+                    </Pressable>
+                  )}
                   {isEditable && (
                     <Pressable
                       style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600] }]}
@@ -695,6 +740,21 @@ export function SoaPaymentTab({
                       <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700] }]}>EDIT</Text>
                     </Pressable>
                   )}
+                </View>
+              )}
+
+              {Boolean(app.cashierOfficer || app.payment.paidAt) && (
+                <View style={{ marginTop: SPACING[12] }}>
+                  {app.cashierOfficer ? (
+                    <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
+                      Collecting Officer: <Text style={{ fontWeight: '600', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>{app.cashierOfficer}</Text>
+                    </Text>
+                  ) : null}
+                  {app.payment.paidAt ? (
+                    <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[400] : colors.neutral[600], marginTop: 2 }]}>
+                      Payment Date: <Text style={{ fontWeight: '600', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>{formatDisplayDateTime(app.payment.paidAt)}</Text>
+                    </Text>
+                  ) : null}
                 </View>
               )}
 

@@ -92,19 +92,30 @@ public class PdfFormFillerService : IPdfFormFillerService
     public string? ResolveTemplatePath(string templateName)
     {
         var fileName = templateName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? templateName : $"{templateName}.pdf";
-        var candidatePaths = new[]
+        var searchRoots = new[]
         {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "templates", fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "templates", fileName),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "templates", fileName),
-            Path.Combine(Directory.GetCurrentDirectory(), "..", "..", "templates", fileName)
+            Directory.GetCurrentDirectory(),
+            AppDomain.CurrentDomain.BaseDirectory
         };
 
-        foreach (var path in candidatePaths)
+        foreach (var root in searchRoots)
         {
-            if (File.Exists(path))
+            var dir = new DirectoryInfo(root);
+            while (dir != null)
             {
-                return Path.GetFullPath(path);
+                var directTemplates = Path.Combine(dir.FullName, "templates", fileName);
+                if (File.Exists(directTemplates))
+                {
+                    return Path.GetFullPath(directTemplates);
+                }
+
+                var infrastructureTemplates = Path.Combine(dir.FullName, "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", fileName);
+                if (File.Exists(infrastructureTemplates))
+                {
+                    return Path.GetFullPath(infrastructureTemplates);
+                }
+
+                dir = dir.Parent;
             }
         }
 
@@ -113,7 +124,10 @@ public class PdfFormFillerService : IPdfFormFillerService
 
     public bool TemplateExists(string templateName)
     {
-        return _templateProvider.TemplateExistsAsync(templateName).GetAwaiter().GetResult();
+        var exists = _templateProvider.TemplateExistsAsync(templateName).GetAwaiter().GetResult();
+        if (exists) return true;
+        var localPath = ResolveTemplatePath(templateName);
+        return localPath != null && File.Exists(localPath);
     }
 
     public byte[]? GetTemplate(string templateName)
@@ -123,6 +137,11 @@ public class PdfFormFillerService : IPdfFormFillerService
 
         if (resource == null)
         {
+            var localPath = ResolveTemplatePath(templateName);
+            if (localPath != null && File.Exists(localPath))
+            {
+                return File.ReadAllBytes(localPath);
+            }
             return null;
         }
 

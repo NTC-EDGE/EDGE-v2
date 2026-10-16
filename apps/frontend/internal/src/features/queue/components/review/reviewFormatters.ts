@@ -109,3 +109,22 @@ export function formatDisplayDueDate(dateStr?: string | null): string {
   }
   return dateStr;
 }
+
+export function formatDisplayDateTime(dateStr?: string | null): string {
+  if (dateStr === null || dateStr === undefined || dateStr.trim().length === 0) return '';
+  try {
+    const d = new Date(dateStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+      });
+    }
+  } catch {
+    // fallback
+  }
+  return dateStr;
+}

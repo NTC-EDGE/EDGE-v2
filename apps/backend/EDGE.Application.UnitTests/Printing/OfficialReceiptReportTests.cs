@@ -108,6 +108,52 @@ public class OfficialReceiptReportTests
         Assert.True(landscapeSample.Length > 1000);
     }
 
+    [Fact]
+    public void OfficialReceiptPrintMapper_MapsEntities_AndFillsAcroFormSuccessfully()
+    {
+        // Arrange
+        var receipt = new EDGE.Domain.Entities.OfficialReceipt
+        {
+            Id = System.Guid.NewGuid(),
+            OfficialReceiptNumber = "OR-2026-999999",
+            PayorName = "NTC Radio Station Inc.",
+            Amount = 1500m,
+            PaymentMethod = EDGE.Domain.Enums.PaymentMethod.Cash,
+            IssuedAt = System.DateTime.UtcNow,
+            LineItems = new List<EDGE.Domain.Entities.OfficialReceiptLineItem>
+            {
+                new() { FeeCode = "LIC", Description = "Radio Station License", Amount = 1200m },
+                new() { FeeCode = "DST", Description = "Documentary Stamp Tax", Amount = 300m }
+            }
+        };
+
+        var op = new EDGE.Domain.Entities.OrderOfPayment
+        {
+            Id = System.Guid.NewGuid(),
+            OpNumber = "OP-2026-000123",
+            AmountDue = 1500m,
+            AmountReceived = 1500m,
+            OfficialReceiptNumber = "OR-2026-999999",
+            Status = EDGE.Domain.Enums.OpStatus.Paid
+        };
+
+        // Act
+        var model = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: op);
+
+        // Assert
+        Assert.NotNull(model);
+        Assert.Equal("OR-2026-999999", model.ReceiptNo);
+        Assert.Equal("NTC Radio Station Inc.", model.Payor);
+        Assert.Equal(1500m, model.TotalAmount);
+        Assert.Equal(2, model.Items.Count);
+        Assert.Equal(PaymentType.Cash, model.SelectedPaymentType);
+
+        var service = new FormPrintingService();
+        var pdfBytes = service.PrintOfficialReceipt(model);
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 10000, "Filled OR AcroForm should produce substantial PDF bytes.");
+    }
+
     private static void SavePdfToTemp(string filename, byte[] bytes)
     {
         string tempDir = System.IO.Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Temp");
@@ -117,3 +163,4 @@ public class OfficialReceiptReportTests
         }
     }
 }
+

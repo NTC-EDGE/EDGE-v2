@@ -1118,6 +1118,9 @@ export interface ApplicationDto {
   serviceCategoryCode?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
   filingUser?: FilingUserDto;
   services?: ApplicationServiceDto[];
   applicants: ApplicantDto[];
@@ -1217,6 +1220,10 @@ export interface ApplicationSummaryDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
+  totalAmountDue?: number;
   filingUser?: FilingUserDto;
   services: ApplicationServiceDto[];
   applicants: ApplicantSummaryDto[];

@@ -103,6 +103,9 @@ export interface SingleApplication {
   totalAmountDue?: number;
   dueDate?: string;
   opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -175,6 +178,7 @@ export interface SingleApplication {
     remarks?: string;
     timestamp: string;
   }>;
+  applicantType?: string;
   filingUser?: {
     id?: string;
     name?: string;
@@ -283,6 +287,9 @@ export interface BulkApplication {
   totalAmountDue?: number;
   dueDate?: string;
   opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -704,6 +711,12 @@ export interface ApiApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   soaNumber?: string | null;
+  officialReceiptNumber?: string;
+  OfficialReceiptNumber?: string;
+  amountPaid?: number;
+  AmountPaid?: number;
+  paidAt?: string;
+  PaidAt?: string;
   intent?: string;
   Intent?: string;
   assessedAt?: string;
@@ -1094,6 +1107,27 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;
   const primaryOpDto = rawOps.length > 0 ? rawOps[0] : undefined;
 
+  const resolvedOrNumber =
+    dto.officialReceiptNumber ||
+    dto.OfficialReceiptNumber ||
+    primaryOpDto?.officialReceiptNumber ||
+    undefined;
+
+  const resolvedAmountPaid =
+    typeof dto.amountPaid === 'number'
+      ? dto.amountPaid
+      : typeof dto.AmountPaid === 'number'
+        ? dto.AmountPaid
+        : typeof primaryOpDto?.amountReceived === 'number'
+          ? primaryOpDto.amountReceived
+          : undefined;
+
+  const resolvedPaidAt =
+    dto.paidAt ||
+    dto.PaidAt ||
+    primaryOpDto?.paidAt ||
+    undefined;
+
   const mappedSoa: SoaData | undefined = primarySoaDto
     ? {
         id: primarySoaDto.id,
@@ -1124,39 +1158,65 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         opNumber: primaryOpDto.opNumber || '',
         status: primaryOpDto.status || 'Active',
         amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
-        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : 0,
+        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : (resolvedAmountPaid ?? 0),
         paymentMethod: primaryOpDto.paymentMethod,
-        officialReceiptNumber: primaryOpDto.officialReceiptNumber,
-        paidAt: primaryOpDto.paidAt,
+        officialReceiptNumber: primaryOpDto.officialReceiptNumber || resolvedOrNumber,
+        paidAt: primaryOpDto.paidAt || resolvedPaidAt,
         remarks: primaryOpDto.remarks,
       }
-    : undefined;
+    : (resolvedOrNumber ? {
+        id: 'op-auto-gen',
+        opNumber: '',
+        status: 'PAID',
+        amountDue: 0,
+        amountReceived: resolvedAmountPaid ?? 0,
+        officialReceiptNumber: resolvedOrNumber,
+        paidAt: resolvedPaidAt,
+      } : undefined);
 
   let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
+  const svcLower = (serviceName || '').toLowerCase();
+  const catLower = (serviceCategory || '').toLowerCase();
+  const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
+
   if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || dto.soaNumber)) {
     const units = isBulk ? (mappedApplicants.length || 1) : 1;
-    const filingFee = 180;
-    const permitFee = 1200;
-    mappedSoaItems = [
-      {
-        id: 'fee-filing-1',
-        particular: 'Filing & Processing Fee',
-        itemCode: 'NTC-FF-01',
-        validityYears: 1,
-        noOfUnits: units,
-        feeRate: filingFee,
-        amount: filingFee * units,
-      },
-      {
-        id: 'fee-lic-1',
-        particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
-        itemCode: 'NTC-RF-02',
-        validityYears: 1,
-        noOfUnits: units,
-        feeRate: permitFee,
-        amount: permitFee * units,
-      },
-    ];
+    if (isExam) {
+      mappedSoaItems = [
+        {
+          id: 'fee-exam-1',
+          particular: 'Examination Fee',
+          itemCode: '4-02-01-030',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: 50,
+          amount: 50 * units,
+        },
+      ];
+    } else {
+      const filingFee = 180;
+      const permitFee = 1200;
+      mappedSoaItems = [
+        {
+          id: 'fee-filing-1',
+          particular: 'Filing & Processing Fee',
+          itemCode: 'NTC-FF-01',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: filingFee,
+          amount: filingFee * units,
+        },
+        {
+          id: 'fee-lic-1',
+          particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
+          itemCode: 'NTC-RF-02',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: permitFee,
+          amount: permitFee * units,
+        },
+      ];
+    }
   }
 
   const calculatedTotalDue =
@@ -1166,7 +1226,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       ? mappedOp.amountDue
       : mappedSoaItems.length > 0
       ? mappedSoaItems.reduce((acc, item) => acc + (typeof item.amount === 'number' ? item.amount : 0), 0)
-      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? 1380 : undefined);
+      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? (isExam ? 50 : 1380) : undefined);
 
   const resolvedDueDate = mappedSoa?.dueDate;
   const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
@@ -1201,6 +1261,9 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       totalAmountDue: calculatedTotalDue,
       dueDate: resolvedDueDate,
       opNumber: resolvedOpNumber,
+      officialReceiptNumber: resolvedOrNumber,
+      amountPaid: resolvedAmountPaid,
+      paidAt: resolvedPaidAt,
       submissionMode: 'BULK',
       documents: reqDocs,
       requirements: reqDocs,
@@ -1223,6 +1286,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     id: dto.id || '',
     referenceNumber: refNumber,
     mode: 'SINGLE',
+    applicantType: firstApplicant?.applicantType || (dto as { applicantType?: string }).applicantType || 'Individual',
     intent,
     isAssessmentOnly,
     assessedAt: dto.assessedAt || dto.AssessedAt,
@@ -1270,6 +1334,9 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     totalAmountDue: calculatedTotalDue,
     dueDate: resolvedDueDate,
     opNumber: resolvedOpNumber,
+    officialReceiptNumber: resolvedOrNumber,
+    amountPaid: resolvedAmountPaid,
+    paidAt: resolvedPaidAt,
     histories: mappedHistories,
     history: mappedHistories,
     rawStatus,

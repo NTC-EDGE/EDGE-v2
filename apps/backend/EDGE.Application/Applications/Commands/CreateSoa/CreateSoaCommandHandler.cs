@@ -270,7 +270,30 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             await _repository.UpdateAsync(app, cancellationToken);
         }
 
+        var isExistingSoa = app.StatementsOfAccount.Any();
         await _repository.AddSoaAsync(soa, cancellationToken);
+
+        var actionName = isExistingSoa ? "Statement of Account (SOA) Updated" : "Statement of Account (SOA) Generated";
+        var remarksText = isExistingSoa
+            ? $"Statement of Account ({soa.SoaNumber}) updated with total amount PHP {soa.TotalAmount:N2}. Due date: {soa.DueDate:yyyy-MM-dd}."
+            : $"Statement of Account ({soa.SoaNumber}) generated with total amount PHP {soa.TotalAmount:N2}. Due date: {soa.DueDate:yyyy-MM-dd}.";
+
+        var appHistory = new ApplicationHistory
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = app.Id,
+            Action = actionName,
+            FromStatus = app.Status,
+            ToStatus = app.Status,
+            PerformedByUserId = userContext.UserId,
+            StaffName = staffName,
+            StaffRole = staffRole,
+            Remarks = remarksText,
+            Timestamp = DateTime.UtcNow
+        };
+        app.Histories.Add(appHistory);
+        await _repository.AddApplicationHistoryAsync(appHistory, cancellationToken);
+
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return ApiResponse<Guid>.Success(soa.Id);

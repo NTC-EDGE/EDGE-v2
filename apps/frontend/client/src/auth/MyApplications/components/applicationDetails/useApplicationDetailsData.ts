@@ -230,8 +230,18 @@ export function useApplicationDetailsData(initialApp: Application) {
       findField((l) => l.includes('graduat') || l.includes('year graduated')) ||
       null;
 
+    const rawAppType =
+      first?.applicantType ||
+      first?.applicationType ||
+      (app as { applicantType?: string }).applicantType ||
+      (details as { applicantType?: string })?.applicantType ||
+      'Individual';
+
+    const isCompany = rawAppType.toLowerCase() === 'company';
+
     return {
       applicantName,
+      applicantType: isCompany ? 'Company' : 'Individual',
       sex: resolvedSex,
       nationality: resolvedNationality,
       streetAddress: resolvedStreet,
@@ -245,8 +255,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       examineeType: details?.examineeType || first?.applicationType || first?.applicantType || app.element || app.examineeType || 'New',
       birthDate: resolveBirthDate(details, rawFormFields),
       civilStatus: resolveCivilStatus(details, rawFormFields),
-      companyName: details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null,
-      representativeName: details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null,
+      companyName: isCompany ? (details?.companyName || app.companyName || (app.company as { name?: string })?.name || (app.Company as { Name?: string })?.Name || null) : null,
+      representativeName: isCompany ? (details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null) : null,
       notes: details?.notes || app.remarks || null,
       schoolAttended: resolvedSchool,
       courseTaken: resolvedCourse,

@@ -53,6 +53,7 @@ export interface PaymentDetails {
   orNumber: string;
   checkNumber: string;
   checkName: string;
+  paidAt?: string;
 }
 
 export interface AuditTrailEntry {
@@ -175,6 +176,7 @@ export interface ApplicationData {
   soaIssuedToAddress?: string;
   soaIssuedToType?: ApplicantType;
   soaDueDate?: string;
+  soaCreatedAt?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

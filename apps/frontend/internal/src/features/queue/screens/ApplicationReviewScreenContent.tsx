@@ -29,6 +29,7 @@ import {
   mutateApplications,
   useNextAvailableOrNumber,
   PendingPaymentDto,
+  OfficialReceiptDto,
 } from "@edge/api";
 import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -251,11 +252,31 @@ export function ApplicationReviewScreenContent({
   }, [previewCustomDoc?.uri]);
 
   const handlePrintSoa = useCallback(() => {
-    if (selectedApplication !== null) openPrintableDocumentWindow(generateSoaPrintableHtml(selectedApplication));
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getSoaPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateSoaPrintableHtml(selectedApplication));
+    }
   }, [selectedApplication]);
 
   const handlePrintOp = useCallback(() => {
-    if (selectedApplication !== null) openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getOpPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
+    }
   }, [selectedApplication]);
 
   const handlePreviewReport = useCallback((docType: ReportDocumentType) => {
@@ -471,9 +492,23 @@ export function ApplicationReviewScreenContent({
   };
 
   /** Cashier → issues official receipt via IssueReceiptModal; backend advances to ForIssuance */
-  const handleCashierReceiptSuccess = async () => {
+  const handleCashierReceiptSuccess = async (receipt?: OfficialReceiptDto) => {
     setShowCashier(false);
     toast.success('Official Receipt issued successfully. Application forwarded for document issuance.');
+    if (receipt && receipt.officialReceiptNumber) {
+      updateApplication(app.id, {
+        status: 'ForIssuance',
+        payment: {
+          ...app.payment,
+          orNumber: receipt.officialReceiptNumber,
+          amountReceived: receipt.amount > 0 ? receipt.amount : app.payment.amountReceived,
+          method: receipt.paymentMethod === 'Check' ? 'check' : 'cash',
+          checkNumber: receipt.checkNumber ?? '',
+          checkName: receipt.checkBank ?? '',
+          paidAt: receipt.issuedAt,
+        },
+      });
+    }
     await mutateApplications(app.id);
     await mutateNextOr();
     await refetch();

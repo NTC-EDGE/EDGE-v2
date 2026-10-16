@@ -51,6 +51,22 @@ function getEventTheme(action: string, role?: string, status?: string) {
     };
   }
 
+  if (
+    (text.includes("soa") && (text.includes("generat") || text.includes("creat") || text.includes("prepared"))) ||
+    text.includes("statement of account")
+  ) {
+    return {
+      nodeBg: "#EFF6FF",
+      nodeBorder: "#2563EB",
+      iconName: "file-text" as const,
+      iconColor: "#2563EB",
+      badgeBg: "#EFF6FF",
+      badgeText: "#1D4ED8",
+      badgeBorder: "#BFDBFE",
+      defaultRole: "Evaluating Officer",
+    };
+  }
+
   if (text.includes("accountant") || text.includes("soa") || text.includes("payment") || text.includes("cashier") || text.includes("receipt")) {
     return {
       nodeBg: "#F3E8FF",

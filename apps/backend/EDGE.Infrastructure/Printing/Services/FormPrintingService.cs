@@ -1,3 +1,5 @@
+using System;
+using Microsoft.Extensions.Logging;
 using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Reports;
 using QuestPDF.Fluent;
@@ -33,10 +35,14 @@ public interface IFormPrintingService
 public class FormPrintingService : IFormPrintingService
 {
     private readonly IPdfFormFillerService? _fillerService;
+    private readonly ILogger<FormPrintingService>? _logger;
 
-    public FormPrintingService(IPdfFormFillerService? fillerService = null)
+    public FormPrintingService(
+        IPdfFormFillerService? fillerService = null,
+        ILogger<FormPrintingService>? logger = null)
     {
         _fillerService = fillerService;
+        _logger = logger;
 
         // QuestPDF Community license
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
@@ -340,9 +346,9 @@ public class FormPrintingService : IFormPrintingService
                     return EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(templateBytes, model);
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back gracefully to QuestPDF report generator
+                _logger?.LogWarning(ex, "Failed to fill Order of Payment AcroForm template order-of-payment-template.pdf. Falling back to QuestPDF generator.");
             }
         }
 
@@ -353,19 +359,40 @@ public class FormPrintingService : IFormPrintingService
     {
         model ??= new StatementOfAccountModel();
 
+        byte[]? templateBytes = null;
         if (_fillerService != null)
         {
             try
             {
-                var templateBytes = _fillerService.GetTemplate("soa-report-template.pdf");
-                if (templateBytes != null && templateBytes.Length > 0)
-                {
-                    return EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(templateBytes, model);
-                }
+                templateBytes = _fillerService.GetTemplate("soa-report-template.pdf");
             }
-            catch
+            catch (Exception ex)
             {
-                // Fall back gracefully to QuestPDF report generator
+                _logger?.LogWarning(ex, "Failed to retrieve soa-report-template.pdf from filler service.");
+            }
+        }
+
+        if (templateBytes == null || templateBytes.Length == 0)
+        {
+            var asm = typeof(FormPrintingService).Assembly;
+            using var stream = asm.GetManifestResourceStream("EDGE.Infrastructure.Printing.Templates.soa-report-template.pdf");
+            if (stream != null)
+            {
+                using var ms = new System.IO.MemoryStream();
+                stream.CopyTo(ms);
+                templateBytes = ms.ToArray();
+            }
+        }
+
+        if (templateBytes != null && templateBytes.Length > 0)
+        {
+            try
+            {
+                return EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(templateBytes, model);
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogError(ex, "Failed to fill soa-report-template.pdf AcroForm.");
             }
         }
 

@@ -1,14 +1,19 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.Mvc;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
+using EDGE.Infrastructure.Printing.Services;
 using EDGE.Application.Receipts.Dtos;
 using EDGE.Application.Receipts.Commands.Booklets.CreateOrBooklet;
 using EDGE.Application.Receipts.Commands.Booklets.UpdateOrBooklet;
@@ -108,6 +113,19 @@ public static class ReceiptEndpoints
             .WithName("CancelOfficialReceipt")
             .WithSummary("Cancel Official Receipt")
             .WithDescription("Cancels an official receipt with reason and reverts payment status.");
+
+        group.MapGet("/{id:guid}/print", PrintOfficialReceiptById)
+            .AllowAnonymous()
+            .WithName("PrintOfficialReceiptById")
+            .WithSummary("Print Official Receipt by ID")
+            .WithDescription("Generates and downloads official printable PDF Official Receipt (Accountable Form No. 51).");
+
+        app.MapGet("/applications/{id:guid}/or/print", PrintApplicationOfficialReceipt)
+            .AllowAnonymous()
+            .WithTags("Receipts")
+            .WithName("PrintApplicationOfficialReceipt")
+            .WithSummary("Print Application Official Receipt")
+            .WithDescription("Generates and downloads official printable PDF Official Receipt (Accountable Form No. 51) for the application.");
 
         // Bank Accounts
         group.MapGet("/bank-accounts", GetAgencyBankAccounts)
@@ -293,6 +311,90 @@ public static class ReceiptEndpoints
         var result = await mediator.Send(command);
         if (!result.Succeeded) return Results.BadRequest(result);
         return Results.Ok(result);
+    }
+
+    public static async Task<IResult> PrintOfficialReceiptById(
+        Guid id,
+        IOfficialReceiptRepository receiptRepository,
+        IApplicationFullRepository appRepository,
+        IFormPrintingService printingService,
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var receipt = await receiptRepository.GetByIdWithDetailsAsync(id, cancellationToken);
+        if (receipt == null)
+        {
+            return Results.NotFound(new { message = $"Official Receipt with ID '{id}' was not found." });
+        }
+
+        Domain.Entities.Application? app = null;
+        if (receipt.ApplicationId.HasValue && receipt.ApplicationId.Value != Guid.Empty)
+        {
+            app = await appRepository.GetByIdWithDetailsAsync(receipt.ApplicationId.Value, true, cancellationToken);
+        }
+
+        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: receipt.OrderOfPayment, app: app);
+        var pdfBytes = printingService.PrintOfficialReceipt(printModel);
+        var fileName = $"OR_{receipt.OfficialReceiptNumber ?? id.ToString()}.pdf";
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", fileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    public static async Task<IResult> PrintApplicationOfficialReceipt(
+        Guid id,
+        IApplicationFullRepository appRepository,
+        IOfficialReceiptRepository receiptRepository,
+        IFormPrintingService printingService,
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await appRepository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var paidOp = app.OrdersOfPayment
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
+        OfficialReceipt? receipt = null;
+        if (paidOp != null && !string.IsNullOrWhiteSpace(paidOp.OfficialReceiptNumber))
+        {
+            receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, paidOp.OfficialReceiptNumber, cancellationToken);
+        }
+
+        if (receipt == null)
+        {
+            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+            receipt = receipts.FirstOrDefault(r => r.ApplicationId == id || (paidOp != null && r.OrderOfPaymentId == paidOp.Id));
+        }
+
+        if (paidOp == null && receipt == null)
+        {
+            return Results.NotFound(new { message = $"No paid Official Receipt found for Application '{id}'. Payment must first be accepted by the Cashier." });
+        }
+
+        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: paidOp, app: app);
+        var pdfBytes = printingService.PrintOfficialReceipt(printModel);
+        var orNo = receipt?.OfficialReceiptNumber ?? paidOp?.OfficialReceiptNumber ?? app.ReferenceNumber ?? id.ToString();
+        var fileName = $"OR_{orNo}.pdf";
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", fileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{fileName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 
     [HasPermission(Permissions.ReceiptsRead)]

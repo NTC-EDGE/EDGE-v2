@@ -160,36 +160,40 @@ export function ApplicantRecordTab({
         {/* 1. Profile */}
         <SectionHeader title={activeApplicant ? `1. APPLICANT PROFILE DETAILS (${activeApplicant.name.toUpperCase()})` : "APPLICATION FORM"} />
         <View style={{ paddingHorizontal: SPACING[16] }}>
-          {activeApplicant && (
-            <ApplicantParticularsCard
-              applicant={{
-                applicantName: activeApplicant.name, name: activeApplicant.name,
-                applicantType: activeApplicant.applicantType === 'Company' ? 'company' : 'individual',
-                email: activeApplicant.email || app.contactDetails?.email || app.filingUser?.email,
-                mobileNumber: activeApplicant.contactNumber || app.contactDetails?.contactNumber,
-                streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress,
-                barangay: activeApplicant.barangay || app.address?.barangay,
-                cityMunicipality: activeApplicant.city || app.address?.city,
-                province: activeApplicant.province || app.address?.province,
-                region: activeApplicant.region || app.address?.region,
-                zipCode: activeApplicant.zipCode || app.address?.zipCode,
-                birthDate: activeApplicant.basicInfo?.dob || app.basicInfo?.dob,
-                sex: activeApplicant.basicInfo?.sex || app.basicInfo?.sex,
-                civilStatus: activeApplicant.basicInfo?.civilStatus || app.basicInfo?.civilStatus,
-                nationality: activeApplicant.basicInfo?.nationality || app.basicInfo?.nationality,
-                companyName: activeApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name,
-                registrationNumber: activeApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber,
-                companyAddress: activeApplicant.companyDetails?.address || app.companyDetails?.address,
-                companyEmail: activeApplicant.companyDetails?.email || app.companyDetails?.email,
-                companyContactNumber: activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber,
-                representativeName: (activeApplicant.applicantType === 'Company') ? app.filingUser?.name : undefined,
-                notes: activeApplicant.evaluationRemarks,
-                schoolAttended: activeApplicant.schoolAttended,
-                courseTaken: activeApplicant.courseTaken,
-                yearGraduated: activeApplicant.yearGraduated,
-              }}
-            />
-          )}
+          {activeApplicant && (() => {
+            const isCompanyRecord = activeApplicant.applicantType === 'Company' || (activeApplicant.applicantType !== 'Individual' && app.applicantType === 'Company');
+            return (
+              <ApplicantParticularsCard
+                applicant={{
+                  applicantName: activeApplicant.name,
+                  name: activeApplicant.name,
+                  applicantType: isCompanyRecord ? 'company' : 'individual',
+                  email: activeApplicant.email || app.contactDetails?.email || app.filingUser?.email,
+                  mobileNumber: activeApplicant.contactNumber || app.contactDetails?.contactNumber,
+                  streetAddress: activeApplicant.streetAddress || activeApplicant.address || app.address?.streetAddress,
+                  barangay: activeApplicant.barangay || app.address?.barangay,
+                  cityMunicipality: activeApplicant.city || app.address?.city,
+                  province: activeApplicant.province || app.address?.province,
+                  region: activeApplicant.region || app.address?.region,
+                  zipCode: activeApplicant.zipCode || app.address?.zipCode,
+                  birthDate: activeApplicant.basicInfo?.dob || app.basicInfo?.dob,
+                  sex: activeApplicant.basicInfo?.sex || app.basicInfo?.sex,
+                  civilStatus: activeApplicant.basicInfo?.civilStatus || app.basicInfo?.civilStatus,
+                  nationality: activeApplicant.basicInfo?.nationality || app.basicInfo?.nationality,
+                  companyName: isCompanyRecord ? (activeApplicant.companyDetails?.name || app.companyDetails?.name || app.filingUser?.company?.name) : undefined,
+                  registrationNumber: isCompanyRecord ? (activeApplicant.companyDetails?.registrationNumber || app.companyDetails?.registrationNumber) : undefined,
+                  companyAddress: isCompanyRecord ? (activeApplicant.companyDetails?.address || app.companyDetails?.address) : undefined,
+                  companyEmail: isCompanyRecord ? (activeApplicant.companyDetails?.email || app.companyDetails?.email) : undefined,
+                  companyContactNumber: isCompanyRecord ? (activeApplicant.companyDetails?.contactNumber || app.companyDetails?.contactNumber) : undefined,
+                  representativeName: isCompanyRecord ? app.filingUser?.name : undefined,
+                  notes: activeApplicant.evaluationRemarks,
+                  schoolAttended: activeApplicant.schoolAttended,
+                  courseTaken: activeApplicant.courseTaken,
+                  yearGraduated: activeApplicant.yearGraduated,
+                }}
+              />
+            );
+          })()}
         </View>
 
         {/* 2. Form submissions */}

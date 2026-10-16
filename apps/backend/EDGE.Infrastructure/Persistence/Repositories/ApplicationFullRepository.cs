@@ -588,6 +588,24 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    OfficialReceiptNumber = app.OrdersOfPayment
+                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.OfficialReceiptNumber)
+                        .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                    AmountPaid = app.OrdersOfPayment
+                        .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => (decimal?)o.AmountReceived)
+                        .FirstOrDefault(),
+                    PaidAt = app.OrdersOfPayment
+                        .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.PaidAt)
+                        .FirstOrDefault(),
+                    TotalAmountDue = app.StatementsOfAccount
+                        .OrderByDescending(s => s.CreatedAt)
+                        .Select(s => (decimal?)s.TotalAmount)
+                        .FirstOrDefault(),
                     FilingUser = app.User != null ? new EDGE.Application.Applications.Dtos.FilingUserSummaryDto
                     {
                         Id = app.User.Id,

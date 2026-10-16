@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   StyleSheet,
   View,
@@ -20,6 +20,7 @@ import { Application } from '../../data/applicationsData';
 import {
   generateSoaPrintableHtml,
   generateOpPrintableHtml,
+  generateOrPrintableHtml,
   openPrintableDocumentWindow,
   formatAddress,
   formatCurrency,
@@ -29,7 +30,7 @@ import {
   getEffectiveTotalAmount,
 } from '../../utils/clientSoaReportGenerator';
 
-export type ClientReportTab = 'soa' | 'op';
+export type ClientReportTab = 'soa' | 'op' | 'or';
 
 interface ClientSoaOpPreviewModalProps {
   visible: boolean;
@@ -49,18 +50,18 @@ export function ClientSoaOpPreviewModal({
   const { width } = useWindowDimensions();
   const isDesktop = width >= 768;
   const [activeTab, setActiveTab] = useState<ClientReportTab>(initialTab);
-
-  React.useEffect(() => {
-    if (visible) {
-      setActiveTab(initialTab);
-    }
-  }, [visible, initialTab]);
-
-  if (!visible) return null;
+  const [viewFormat, setViewFormat] = useState<'pdf' | 'grid'>('pdf');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
 
   const refNum = app.referenceNumber || (app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
   const soaNum = app.soaNumber || `SOA-${refNum}`;
   const opNum = app.opNumber || `OP-${refNum}`;
+  const orNum = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
+  const isPaid = Boolean(orNum && orNum.trim().length > 0);
+
   const applicantName = getEffectiveApplicantName(app);
   const applicantType = app.mode === 'BULK' ? 'Corporate / Bulk Entity' : 'Individual';
   const contactNum = app.mobileNumber || 'N/A';
@@ -77,47 +78,174 @@ export function ClientSoaOpPreviewModal({
     ? new Date(app.dueDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
     : '30 days from issuance';
 
-  const handlePrint = () => {
+  const paidDateFormatted = (app.paidAt || app.op?.paidAt)
+    ? new Date(app.paidAt || app.op?.paidAt || '').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+    : dueDateFormatted;
+
+  const paidAmount = app.amountPaid !== undefined && app.amountPaid !== null
+    ? app.amountPaid
+    : (app.op?.amountReceived !== undefined && app.op.amountReceived > 0
+        ? app.op.amountReceived
+        : totalAmount);
+  const wordsPaid = numberToWords(paidAmount);
+
+  useEffect(() => {
+    if (visible) {
+      setActiveTab(initialTab);
+      setViewFormat('pdf');
+    }
+  }, [visible, initialTab]);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (Platform.OS === 'web' && viewFormat === 'pdf' && typeof app.id === 'string' && app.id.trim().length > 0) {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+      setPdfBlobUrl(null);
+
+      const loadBlob = async () => {
+        try {
+          const [blob, err] = activeTab === 'soa'
+            ? await applicationService.previewSoaPdf(app.id)
+            : activeTab === 'op'
+              ? await applicationService.previewOpPdf(app.id)
+              : await applicationService.previewOrPdf(app.id);
+
+          if (!active) return;
+
+          if (err !== null || blob === null) {
+            const errDetail = typeof err === 'string' && err.trim().length > 0
+              ? err
+              : `Unable to load official ${activeTab.toUpperCase()} PDF template.`;
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            createdUrl = window.URL.createObjectURL(blob);
+            setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
+          }
+        } catch (fetchErr: unknown) {
+          if (!active) return;
+          const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Error loading official PDF';
+          setPdfError(errorMessage);
+          setIsLoadingPdf(false);
+        }
+      };
+
+      void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+      setPdfError(null);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl !== null && typeof window !== 'undefined') {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [app.id, activeTab, viewFormat, reloadKey]);
+
+  if (!visible) return null;
+
+  const handlePrint = async () => {
+    if (typeof app.id === 'string' && app.id.trim().length > 0) {
+      try {
+        const [pdfBlob, err] = activeTab === 'soa'
+          ? await applicationService.previewSoaPdf(app.id)
+          : activeTab === 'op'
+            ? await applicationService.previewOpPdf(app.id)
+            : await applicationService.previewOrPdf(app.id);
+
+        if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
+          const blobUrl = window.URL.createObjectURL(pdfBlob);
+          const printWindow = window.open(blobUrl, '_blank');
+          if (printWindow !== null) {
+            printWindow.focus();
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
+      }
+
+      const url = activeTab === 'soa'
+        ? applicationService.getSoaPrintUrl(app.id)
+        : activeTab === 'op'
+          ? applicationService.getOpPrintUrl(app.id)
+          : applicationService.getOrPrintUrl(app.id);
+
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+    }
+
     if (activeTab === 'soa') {
       const html = generateSoaPrintableHtml(app);
       openPrintableDocumentWindow(html);
-    } else {
+    } else if (activeTab === 'op') {
       const html = generateOpPrintableHtml(app);
+      openPrintableDocumentWindow(html);
+    } else {
+      const html = generateOrPrintableHtml(app);
       openPrintableDocumentWindow(html);
     }
   };
 
   const handleDownloadPdf = () => {
     if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
-    if (activeTab === 'soa') {
-      const url = applicationService.getSoaPrintUrl(app.id);
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(url, '_blank');
-      } else {
-        void Linking.openURL(url);
-      }
+    const url = activeTab === 'soa'
+      ? applicationService.getSoaPrintUrl(app.id)
+      : activeTab === 'op'
+        ? applicationService.getOpPrintUrl(app.id)
+        : applicationService.getOrPrintUrl(app.id);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
     } else {
-      const url = applicationService.getOpPrintUrl(app.id);
-      if (Platform.OS === 'web' && typeof window !== 'undefined') {
-        window.open(url, '_blank');
-      } else {
-        void Linking.openURL(url);
-      }
+      void Linking.openURL(url);
     }
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
-        <View style={[styles.modalContainer, { maxWidth: 840, width: '100%' }]}>
+        <View style={[styles.modalContainer, { maxWidth: 920, width: '100%' }]}>
           {/* Top Header */}
           <View style={styles.modalHeader}>
             <View style={styles.headerLeft}>
-              <View style={styles.headerIconCircle}>
-                <Icon name="file-text" size={20} color="#0284C7" />
+              <View
+                style={[
+                  styles.headerIconCircle,
+                  activeTab === 'or'
+                    ? { backgroundColor: '#ECFDF5' }
+                    : activeTab === 'op'
+                    ? { backgroundColor: '#F0FDF4' }
+                    : { backgroundColor: '#E0F2FE' },
+                ]}
+              >
+                <Icon
+                  name={activeTab === 'or' ? 'check-circle' : activeTab === 'op' ? 'credit-card' : 'file-text'}
+                  size={20}
+                  color={activeTab === 'or' ? '#059669' : activeTab === 'op' ? '#047857' : '#0284C7'}
+                />
               </View>
               <View>
-                <Text style={styles.modalTitle}>Official Billing Assessment</Text>
+                <Text style={styles.modalTitle}>
+                  {activeTab === 'or'
+                    ? 'Official Receipt Preview'
+                    : activeTab === 'op'
+                    ? 'Order of Payment Preview'
+                    : 'Statement of Account Preview'}
+                </Text>
                 <Text style={styles.modalSubtitle}>
                   Ref #{refNum} • {applicantName}
                 </Text>
@@ -125,8 +253,40 @@ export function ClientSoaOpPreviewModal({
             </View>
 
             <View style={styles.headerActions}>
+              {Platform.OS === 'web' && (
+                <View style={styles.formatSwitcher}>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'pdf' && styles.formatBtnActive]}
+                    onPress={() => setViewFormat('pdf')}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="file-text" size={13} color={viewFormat === 'pdf' ? '#0369A1' : '#64748B'} />
+                    <Text style={[styles.formatBtnText, viewFormat === 'pdf' && styles.formatBtnTextActive]}>
+                      PDF Template
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'grid' && styles.formatBtnActive]}
+                    onPress={() => setViewFormat('grid')}
+                    activeOpacity={0.8}
+                  >
+                    <Icon name="layout" size={13} color={viewFormat === 'grid' ? '#0369A1' : '#64748B'} />
+                    <Text style={[styles.formatBtnText, viewFormat === 'grid' && styles.formatBtnTextActive]}>
+                      Data View
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <TouchableOpacity
-                style={[styles.printBtn, { backgroundColor: '#0369A1' }]}
+                style={[
+                  styles.printBtn,
+                  activeTab === 'or'
+                    ? { backgroundColor: '#059669' }
+                    : activeTab === 'op'
+                    ? { backgroundColor: '#047857' }
+                    : { backgroundColor: '#0369A1' },
+                ]}
                 onPress={handleDownloadPdf}
                 activeOpacity={0.75}
               >
@@ -135,7 +295,14 @@ export function ClientSoaOpPreviewModal({
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.printBtn, { backgroundColor: '#0284C7' }]}
+                style={[
+                  styles.printBtn,
+                  activeTab === 'or'
+                    ? { backgroundColor: '#10B981' }
+                    : activeTab === 'op'
+                    ? { backgroundColor: '#059669' }
+                    : { backgroundColor: '#0284C7' },
+                ]}
                 onPress={handlePrint}
                 activeOpacity={0.75}
               >
@@ -202,280 +369,430 @@ export function ClientSoaOpPreviewModal({
                 </Text>
               </View>
             </TouchableOpacity>
+
+            {isPaid && (
+              <TouchableOpacity
+                style={[styles.tabItem, activeTab === 'or' && styles.tabItemActiveOr]}
+                onPress={() => setActiveTab('or')}
+                activeOpacity={0.75}
+              >
+                <Icon
+                  name="check-circle"
+                  size={15}
+                  color={activeTab === 'or' ? '#059669' : '#64748B'}
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    activeTab === 'or' && styles.tabTextActiveOr,
+                  ]}
+                >
+                  Official Receipt (OR)
+                </Text>
+                <View style={[styles.tabBadge, activeTab === 'or' ? styles.tabBadgeActiveOr : styles.tabBadgeInactive]}>
+                  <Text style={[styles.tabBadgeText, activeTab === 'or' ? styles.tabBadgeTextActiveOr : styles.tabBadgeTextInactive]}>
+                    {orNum}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           </View>
 
-          {/* Document Printable View Container */}
-          <ScrollView
-            style={styles.modalBody}
-            contentContainerStyle={styles.modalBodyContent}
-            showsVerticalScrollIndicator={true}
-          >
-            <View style={styles.paperContainer}>
-              {/* Agency Header */}
-              <View style={styles.republicHeader}>
-                <Text style={styles.republicTitle}>Republic of the Philippines</Text>
-                <Text style={styles.agencyTitle}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
-                <Text style={[styles.officeTitle, activeTab === 'op' && { color: '#059669' }]}>
-                  {officeName}
-                </Text>
-              </View>
-
-              {activeTab === 'soa' ? (
-                /* ─────────────────────────────────────────────────────────────
-                   Statement of Account (SOA) Body View
-                   ───────────────────────────────────────────────────────────── */
-                <View>
-                  <View style={styles.soaBanner}>
-                    <View>
-                      <Text style={styles.bannerTitle}>STATEMENT OF ACCOUNT (SOA)</Text>
-                      <Text style={styles.bannerSubtitle}>
-                        Official Regulatory Fee Assessment &amp; Schedule
-                      </Text>
-                    </View>
-                    <View style={styles.bannerRight}>
-                      <Text style={styles.bannerDocNum}>{soaNum}</Text>
-                      <Text style={styles.bannerDate}>
-                        Issued: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Info Grid */}
-                  <View style={[styles.infoGrid, { flexDirection: isDesktop ? 'row' : 'column' }]}>
-                    <View style={[styles.infoCard, { flex: 1 }]}>
-                      <Text style={styles.infoCardTitle}>Billed To (Payor / Applicant)</Text>
-                      <Text style={styles.infoCardName}>{applicantName}</Text>
-                      <Text style={styles.infoCardDetail}>
-                        <Text style={styles.boldText}>Type:</Text> {applicantType} •{' '}
-                        <Text style={styles.boldText}>Contact:</Text> {contactNum}
-                      </Text>
-                      <Text style={styles.infoCardDetail}>
-                        <Text style={styles.boldText}>Email:</Text> {emailAddr}
-                      </Text>
-                      <Text style={styles.infoCardDetail}>
-                        <Text style={styles.boldText}>Address:</Text> {formattedAddr}
-                      </Text>
-                    </View>
-
-                    <View style={[styles.infoCard, { flex: 1 }]}>
-                      <Text style={styles.infoCardTitle}>Application Reference</Text>
-                      <Text style={[styles.infoCardName, { color: '#0284C7', fontFamily: 'monospace' }]}>
-                        Ref #{refNum}
-                      </Text>
-                      <Text style={styles.infoCardDetail}>
-                        <Text style={styles.boldText}>Service:</Text> {serviceName}
-                      </Text>
-                      <Text style={styles.infoCardDetail}>
-                        <Text style={styles.boldText}>Category / Mode:</Text> {categoryName} • {filingMode}
-                      </Text>
-                      <View style={styles.dueDateBadgeRow}>
-                        <Text style={styles.dueDateLabel}>Due Date:</Text>
-                        <View style={styles.dueDateBadge}>
-                          <Text style={styles.dueDateBadgeText}>{dueDateFormatted}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Assessment Line Items Table */}
-                  <View style={styles.tableWrapper}>
-                    <View style={styles.tableHeader}>
-                      <Text style={[styles.thCell, { width: 32, textAlign: 'center' }]}>#</Text>
-                      <Text style={[styles.thCell, { width: 100 }]}>Item Code</Text>
-                      <Text style={[styles.thCell, { flex: 3 }]}>Particulars / Description</Text>
-                      <Text style={[styles.thCell, { width: 65, textAlign: 'center' }]}>Validity</Text>
-                      <Text style={[styles.thCell, { width: 55, textAlign: 'center' }]}>Units</Text>
-                      <Text style={[styles.thCell, { width: 85, textAlign: 'right' }]}>Rate (PHP)</Text>
-                      <Text style={[styles.thCell, { width: 95, textAlign: 'right' }]}>Amount (PHP)</Text>
-                    </View>
-
-                    {lineItems.map((item, idx) => {
-                      const validityYears = typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 1;
-                      const units = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
-                      const rate = typeof item.feeRate === 'number' && !isNaN(item.feeRate) ? item.feeRate : (item.amount / units);
-                      const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : rate * units;
-
-                      return (
-                        <View key={item.id || idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
-                          <Text style={[styles.tdCell, { width: 32, textAlign: 'center', color: '#64748B' }]}>
-                            {idx + 1}
-                          </Text>
-                          <Text style={[styles.tdCell, { width: 100, fontFamily: 'monospace', color: '#0284C7', fontWeight: '600' }]}>
-                            {item.itemCode || 'NTC-FEE'}
-                          </Text>
-                          <View style={{ flex: 3, paddingVertical: 2 }}>
-                            <Text style={styles.tdParticularName}>{item.particular}</Text>
-                            <Text style={styles.tdParticularSub}>Validity: {validityYears} Year(s)</Text>
-                          </View>
-                          <Text style={[styles.tdCell, { width: 65, textAlign: 'center' }]}>{validityYears} yr</Text>
-                          <Text style={[styles.tdCell, { width: 55, textAlign: 'center' }]}>{units}</Text>
-                          <Text style={[styles.tdCell, { width: 85, textAlign: 'right' }]}>
-                            {formatCurrency(rate).replace('PHP ', '')}
-                          </Text>
-                          <Text style={[styles.tdCell, { width: 95, textAlign: 'right', fontWeight: '700', color: '#0F172A' }]}>
-                            {formatCurrency(amount).replace('PHP ', '')}
-                          </Text>
-                        </View>
-                      );
-                    })}
-                  </View>
-
-                  {/* Total Assessment Due Card */}
-                  <View style={styles.totalCard}>
-                    <View style={styles.totalRow}>
-                      <View style={{ flex: 1, paddingRight: 12 }}>
-                        <Text style={styles.totalHeaderLabel}>TOTAL ASSESSMENT DUE</Text>
-                        <Text style={styles.totalInWords}>{wordsTotal}</Text>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <Text style={styles.totalFigure}>{formatCurrency(totalAmount)}</Text>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Payment Advisory */}
-                  <View style={styles.guidelinesBox}>
-                    <View style={styles.guidelinesHeader}>
-                      <Icon name="info" size={15} color="#166534" />
-                      <Text style={styles.guidelinesTitle}>PAYMENT ADVISORY &amp; GUIDELINES:</Text>
-                    </View>
-                    <Text style={styles.guidelineItem}>
-                      1. Please settle the assessed amount on or before the indicated due date ({dueDateFormatted}) to avoid statutory surcharges.
-                    </Text>
-                    <Text style={styles.guidelineItem}>
-                      2. Official payments may be settled via Land Bank of the Philippines, NTC Regional Cashier, or authorized online portals.
-                    </Text>
-                    <Text style={styles.guidelineItem}>
-                      3. Always present this Statement of Account Reference Number (<Text style={styles.boldText}>{soaNum}</Text>) upon payment.
-                    </Text>
-                  </View>
-
-                  {/* Signatories */}
-                  <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
-                    <View style={styles.sigBlock}>
-                      <Text style={styles.sigName}>REGIONAL ASSESSING OFFICER</Text>
-                      <Text style={styles.sigRole}>Assessed &amp; Prepared By</Text>
-                    </View>
-                    <View style={styles.sigBlock}>
-                      <Text style={styles.sigName}>CHIEF, ENFORCEMENT &amp; OPERATIONS</Text>
-                      <Text style={styles.sigRole}>Noted &amp; Certified Correct</Text>
-                    </View>
+          {/* View Container: Web Iframe Vector PDF vs Structured Data Grid */}
+          {Platform.OS === 'web' && viewFormat === 'pdf' ? (
+            <View style={styles.pdfContainer}>
+              {isLoadingPdf ? (
+                <View style={styles.pdfLoadingBox}>
+                  <Icon
+                    name={activeTab === 'or' ? 'check-circle' : 'file-text'}
+                    size={32}
+                    color={activeTab === 'or' ? '#059669' : '#0284C7'}
+                  />
+                  <Text style={styles.pdfLoadingText}>
+                    Loading official {activeTab === 'soa' ? 'Statement of Account' : activeTab === 'op' ? 'Order of Payment' : 'Official Receipt'} PDF template...
+                  </Text>
+                </View>
+              ) : pdfError !== null ? (
+                <View style={styles.pdfErrorBox}>
+                  <Icon name="alert-circle" size={32} color="#DC2626" />
+                  <Text style={styles.pdfErrorText}>{pdfError}</Text>
+                  <View style={styles.pdfErrorActions}>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => setReloadKey((k) => k + 1)}
+                      activeOpacity={0.8}
+                    >
+                      <Icon name="refresh-cw" size={14} color="#FFFFFF" />
+                      <Text style={styles.retryBtnText}>Retry Loading</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.switchGridBtn}
+                      onPress={() => setViewFormat('grid')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.switchGridBtnText}>Switch to Data View</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              ) : (
-                /* ─────────────────────────────────────────────────────────────
-                   Order of Payment (OP) Body View
-                   ───────────────────────────────────────────────────────────── */
-                <View>
-                  <View style={styles.opBanner}>
-                    <View>
-                      <Text style={styles.bannerTitle}>ORDER OF PAYMENT (OP)</Text>
-                      <Text style={styles.bannerSubtitle}>
-                        Official Treasury &amp; Cashier Payment Authorization
-                      </Text>
-                    </View>
-                    <View style={styles.bannerRight}>
-                      <Text style={[styles.bannerDocNum, { color: '#6EE7B7' }]}>{opNum}</Text>
-                      <Text style={[styles.bannerDate, { color: '#D1FAE5' }]}>
-                        Date: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Payor & Application Profile Card */}
-                  <View style={styles.opInfoCard}>
-                    <View style={styles.opInfoRow}>
-                      <Text style={styles.opInfoLabel}>Payor / Applicant Name:</Text>
-                      <Text style={styles.opInfoValue}>{applicantName}</Text>
-                    </View>
-                    <View style={styles.opInfoRow}>
-                      <Text style={styles.opInfoLabel}>Application Reference:</Text>
-                      <Text style={[styles.opInfoValue, { color: '#059669', fontFamily: 'monospace' }]}>
-                        Ref #{refNum}
-                      </Text>
-                    </View>
-                    <View style={styles.opInfoRow}>
-                      <Text style={styles.opInfoLabel}>Service &amp; Category:</Text>
-                      <Text style={styles.opInfoValue}>
-                        {categoryName && categoryName !== serviceName && categoryName !== 'General'
-                          ? `${serviceName} (${categoryName})`
-                          : serviceName}
-                      </Text>
-                    </View>
-                    <View style={styles.opInfoRow}>
-                      <Text style={styles.opInfoLabel}>Filing Mode:</Text>
-                      <Text style={styles.opInfoValue}>{filingMode}</Text>
-                    </View>
-                  </View>
-
-                  {/* Nature of Collection Table */}
-                  <View style={styles.tableWrapper}>
-                    <View style={[styles.tableHeader, { backgroundColor: '#F0FDF4' }]}>
-                      <Text style={[styles.thCell, { width: 40, textAlign: 'center' }]}>#</Text>
-                      <Text style={[styles.thCell, { flex: 1 }]}>Nature of Collection / Particulars</Text>
-                      <Text style={[styles.thCell, { width: 140, textAlign: 'right' }]}>Amount (PHP)</Text>
-                    </View>
-
-                    {lineItems.map((item, idx) => {
-                      const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : 0;
-                      return (
-                        <View key={item.id || idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
-                          <Text style={[styles.tdCell, { width: 40, textAlign: 'center', color: '#64748B' }]}>
-                            {idx + 1}
-                          </Text>
-                          <View style={{ flex: 1, paddingVertical: 2 }}>
-                            <Text style={styles.tdParticularName}>{item.particular}</Text>
-                            <Text style={styles.tdParticularSub}>Code: {item.itemCode || 'NTC-FEE'}</Text>
-                          </View>
-                          <Text style={[styles.tdCell, { width: 140, textAlign: 'right', fontWeight: '700', color: '#0F172A' }]}>
-                            {formatCurrency(amount)}
-                          </Text>
-                        </View>
-                      );
-                    })}
-
-                    <View style={styles.opTotalRow}>
-                      <Text style={styles.opTotalLabel}>TOTAL AMOUNT PAYABLE:</Text>
-                      <Text style={styles.opTotalAmount}>{formatCurrency(totalAmount)}</Text>
-                    </View>
-                  </View>
-
-                  {/* Payment Status & Words */}
-                  <View style={styles.opStatusCard}>
-                    <Text style={styles.opStatusLabel}>AMOUNT IN WORDS:</Text>
-                    <Text style={styles.opStatusWords}>{wordsTotal}</Text>
-                    <View style={styles.opPaymentStatusBadgeRow}>
-                      <Text style={styles.opPaymentStatusText}>
-                        <Text style={styles.boldText}>Payment Status:</Text>{' '}
-                        {app.op?.officialReceiptNumber
-                          ? `Paid via OR #${app.op.officialReceiptNumber}`
-                          : 'Pending Cashier Verification / Collection'}
-                      </Text>
-                    </View>
-                  </View>
-
-                  {/* Signatories */}
-                  <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
-                    <View style={styles.sigBlock}>
-                      <Text style={styles.sigName}>REGIONAL ASSESSMENT OFFICER</Text>
-                      <Text style={styles.sigRole}>Authorized Assessment Officer</Text>
-                    </View>
-                    <View style={styles.sigBlock}>
-                      <Text style={styles.sigName}>SPECIAL COLLECTING OFFICER</Text>
-                      <Text style={styles.sigRole}>Collecting Cashier</Text>
-                    </View>
-                  </View>
-                </View>
-              )}
-
-              {/* Footer Note */}
-              <View style={styles.footerNoteContainer}>
-                <Text style={styles.footerNoteText}>
-                  National Telecommunications Commission • Official Document Generated via NTC-EDGE Digital Portal. Governed by RA 11032.
-                </Text>
-              </View>
+              ) : pdfBlobUrl !== null ? (
+                React.createElement('iframe', {
+                  src: pdfBlobUrl,
+                  style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
+                  title: activeTab === 'soa' ? 'Official Statement of Account PDF' : activeTab === 'op' ? 'Official Order of Payment PDF' : 'Official Receipt PDF',
+                })
+              ) : null}
             </View>
-          </ScrollView>
+          ) : (
+            <ScrollView
+              style={styles.modalBody}
+              contentContainerStyle={styles.modalBodyContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <View style={styles.paperContainer}>
+                {/* Agency Header */}
+                <View style={styles.republicHeader}>
+                  <Text style={styles.republicTitle}>Republic of the Philippines</Text>
+                  <Text style={styles.agencyTitle}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                  <Text
+                    style={[
+                      styles.officeTitle,
+                      activeTab === 'or'
+                        ? { color: '#059669' }
+                        : activeTab === 'op'
+                        ? { color: '#047857' }
+                        : { color: '#0284C7' },
+                    ]}
+                  >
+                    {officeName}
+                  </Text>
+                </View>
+
+                {activeTab === 'soa' ? (
+                  /* ─────────────────────────────────────────────────────────────
+                     Statement of Account (SOA) Body View
+                     ───────────────────────────────────────────────────────────── */
+                  <View>
+                    <View style={styles.soaBanner}>
+                      <View>
+                        <Text style={styles.bannerTitle}>STATEMENT OF ACCOUNT (SOA)</Text>
+                        <Text style={styles.bannerSubtitle}>
+                          Official Regulatory Fee Assessment &amp; Schedule
+                        </Text>
+                      </View>
+                      <View style={styles.bannerRight}>
+                        <Text style={styles.bannerDocNum}>{soaNum}</Text>
+                        <Text style={styles.bannerDate}>
+                          Issued: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Info Grid */}
+                    <View style={[styles.infoGrid, { flexDirection: isDesktop ? 'row' : 'column' }]}>
+                      <View style={[styles.infoCard, { flex: 1 }]}>
+                        <Text style={styles.infoCardTitle}>Billed To (Payor / Applicant)</Text>
+                        <Text style={styles.infoCardName}>{applicantName}</Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Type:</Text> {applicantType} •{' '}
+                          <Text style={styles.boldText}>Contact:</Text> {contactNum}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Email:</Text> {emailAddr}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Address:</Text> {formattedAddr}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.infoCard, { flex: 1 }]}>
+                        <Text style={styles.infoCardTitle}>Assessment &amp; Filing Details</Text>
+                        <Text style={styles.infoCardName}>
+                          {categoryName && categoryName !== serviceName && categoryName !== 'General'
+                            ? `${serviceName} (${categoryName})`
+                            : serviceName}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Reference No.:</Text> #{refNum}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Filing Mode:</Text> {filingMode}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Due Date:</Text>{' '}
+                          <Text style={styles.dueDateHighlight}>{dueDateFormatted}</Text>
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Line Items Table */}
+                    <View style={styles.dataTable}>
+                      <View style={styles.tableHeader}>
+                        <Text style={[styles.thCell, { flex: 3 }]}>PARTICULARS / NATURE OF COLLECTION</Text>
+                        <Text style={[styles.thCell, { width: 50, textAlign: 'center' }]}>QTY</Text>
+                        <Text style={[styles.thCell, { width: 60, textAlign: 'center' }]}>YRS</Text>
+                        <Text style={[styles.thCell, { width: 100, textAlign: 'right' }]}>RATE (PHP)</Text>
+                        <Text style={[styles.thCell, { width: 110, textAlign: 'right' }]}>AMOUNT (PHP)</Text>
+                      </View>
+
+                      {lineItems.map((item, idx) => {
+                        const units = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+                        const validity = typeof item.validityYears === 'number' && item.validityYears > 0 ? item.validityYears : 1;
+                        const rate = typeof item.feeRate === 'number' && !isNaN(item.feeRate) ? item.feeRate : (item.amount / units);
+                        const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : rate * units;
+
+                        return (
+                          <View key={item.id || idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
+                            <View style={{ flex: 3 }}>
+                              <Text style={styles.tdParticularName}>{item.particular}</Text>
+                              <Text style={styles.tdParticularSub}>Code: {item.itemCode || 'NTC-FEE'}</Text>
+                            </View>
+                            <Text style={[styles.tdCell, { width: 50, textAlign: 'center' }]}>{units}</Text>
+                            <Text style={[styles.tdCell, { width: 60, textAlign: 'center' }]}>{validity}</Text>
+                            <Text style={[styles.tdCell, { width: 100, textAlign: 'right' }]}>
+                              {formatCurrency(rate).replace('PHP ', '')}
+                            </Text>
+                            <Text style={[styles.tdCell, { width: 110, textAlign: 'right', fontWeight: '700', color: '#0F172A' }]}>
+                              {formatCurrency(amount).replace('PHP ', '')}
+                            </Text>
+                          </View>
+                        );
+                      })}
+
+                      <View style={styles.tableTotalRow}>
+                        <Text style={styles.tableTotalLabel}>TOTAL AMOUNT DUE:</Text>
+                        <Text style={styles.tableTotalAmount}>{formatCurrency(totalAmount)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Amount in words */}
+                    <View style={styles.wordsCard}>
+                      <Text style={styles.wordsLabel}>AMOUNT IN WORDS:</Text>
+                      <Text style={styles.wordsText}>{wordsTotal}</Text>
+                    </View>
+
+                    {/* Signatories */}
+                    <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
+                      <View style={styles.sigBlock}>
+                        <Text style={styles.sigName}>REGIONAL ASSESSMENT OFFICER</Text>
+                        <Text style={styles.sigRole}>Authorized Assessment Officer</Text>
+                      </View>
+                      <View style={styles.sigBlock}>
+                        <Text style={styles.sigName}>COMMISSION AUDITOR</Text>
+                        <Text style={styles.sigRole}>Commission Representative</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : activeTab === 'op' ? (
+                  /* ─────────────────────────────────────────────────────────────
+                     Order of Payment (OP) Body View
+                     ───────────────────────────────────────────────────────────── */
+                  <View>
+                    <View style={styles.opBanner}>
+                      <View>
+                        <Text style={styles.bannerTitle}>ORDER OF PAYMENT (OP)</Text>
+                        <Text style={styles.bannerSubtitle}>
+                          Authorized National Telecommunications Commission Payment Voucher
+                        </Text>
+                      </View>
+                      <View style={styles.bannerRight}>
+                        <Text style={styles.bannerDocNum}>{opNum}</Text>
+                        <Text style={styles.bannerDate}>
+                          Issued: {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Payor Card */}
+                    <View style={styles.opPayorCard}>
+                      <View style={styles.opPayorRow}>
+                        <Text style={styles.opPayorLabel}>Payor / Applicant:</Text>
+                        <Text style={styles.opPayorVal}>{applicantName}</Text>
+                      </View>
+                      <View style={styles.opPayorRow}>
+                        <Text style={styles.opPayorLabel}>Application Reference:</Text>
+                        <Text style={[styles.opPayorVal, { fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }) }]}>
+                          #{refNum}
+                        </Text>
+                      </View>
+                      <View style={styles.opPayorRow}>
+                        <Text style={styles.opPayorLabel}>Address:</Text>
+                        <Text style={styles.opPayorVal}>{formattedAddr}</Text>
+                      </View>
+                      <View style={styles.opPayorRow}>
+                        <Text style={styles.opPayorLabel}>Service Variant:</Text>
+                        <Text style={styles.opPayorVal}>{serviceName}</Text>
+                      </View>
+                    </View>
+
+                    {/* Line items table */}
+                    <View style={styles.dataTable}>
+                      <View style={[styles.tableHeader, { backgroundColor: '#F0FDF4', borderBottomColor: '#BBF7D0' }]}>
+                        <Text style={[styles.thCell, { flex: 3, color: '#065F46' }]}>NATURE OF COLLECTION / PARTICULARS</Text>
+                        <Text style={[styles.thCell, { width: 140, textAlign: 'right', color: '#065F46' }]}>AMOUNT (PHP)</Text>
+                      </View>
+
+                      {lineItems.map((item, idx) => {
+                        const units = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+                        const rate = typeof item.feeRate === 'number' && !isNaN(item.feeRate) ? item.feeRate : (item.amount / units);
+                        const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : rate * units;
+
+                        return (
+                          <View key={item.id || idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
+                            <View style={{ flex: 3 }}>
+                              <Text style={styles.tdParticularName}>{item.particular}</Text>
+                              <Text style={styles.tdParticularSub}>Code: {item.itemCode || 'NTC-FEE'}</Text>
+                            </View>
+                            <Text style={[styles.tdCell, { width: 140, textAlign: 'right', fontWeight: '700', color: '#0F172A' }]}>
+                              {formatCurrency(amount)}
+                            </Text>
+                          </View>
+                        );
+                      })}
+
+                      <View style={styles.opTotalRow}>
+                        <Text style={styles.opTotalLabel}>TOTAL AMOUNT PAYABLE:</Text>
+                        <Text style={styles.opTotalAmount}>{formatCurrency(totalAmount)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Payment Status & Words */}
+                    <View style={styles.opStatusCard}>
+                      <Text style={styles.opStatusLabel}>AMOUNT IN WORDS:</Text>
+                      <Text style={styles.opStatusWords}>{wordsTotal}</Text>
+                      <View style={styles.opPaymentStatusBadgeRow}>
+                        <Text style={styles.opPaymentStatusText}>
+                          <Text style={styles.boldText}>Payment Status:</Text>{' '}
+                          {orNum
+                            ? `Paid via OR #${orNum}`
+                            : 'Pending Cashier Verification / Collection'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Signatories */}
+                    <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
+                      <View style={styles.sigBlock}>
+                        <Text style={styles.sigName}>REGIONAL ASSESSMENT OFFICER</Text>
+                        <Text style={styles.sigRole}>Authorized Assessment Officer</Text>
+                      </View>
+                      <View style={styles.sigBlock}>
+                        <Text style={styles.sigName}>SPECIAL COLLECTING OFFICER</Text>
+                        <Text style={styles.sigRole}>Collecting Cashier</Text>
+                      </View>
+                    </View>
+                  </View>
+                ) : (
+                  /* ─────────────────────────────────────────────────────────────
+                     Official Receipt (OR) Body View (Accountable Form No. 51)
+                     ───────────────────────────────────────────────────────────── */
+                  <View>
+                    <View style={styles.orBanner}>
+                      <View>
+                        <Text style={styles.bannerTitle}>OFFICIAL RECEIPT (OR)</Text>
+                        <Text style={styles.bannerSubtitle}>
+                          Accountable Form No. 51 (Revised 2006)
+                        </Text>
+                      </View>
+                      <View style={styles.bannerRight}>
+                        <Text style={[styles.bannerDocNum, { color: '#34D399' }]}>{orNum ?? `OR-${refNum}`}</Text>
+                        <Text style={styles.bannerDate}>
+                          Date Issued: {paidDateFormatted}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Info Grid */}
+                    <View style={[styles.infoGrid, { flexDirection: isDesktop ? 'row' : 'column' }]}>
+                      <View style={[styles.infoCard, { flex: 1 }]}>
+                        <Text style={[styles.infoCardTitle, { color: '#059669' }]}>Payor Information</Text>
+                        <Text style={styles.infoCardName}>{applicantName}</Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Address:</Text> {formattedAddr}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Order of Payment:</Text> {opNum} • <Text style={styles.boldText}>App Ref:</Text> #{refNum}
+                        </Text>
+                      </View>
+                      <View style={[styles.infoCard, { flex: 1 }]}>
+                        <Text style={[styles.infoCardTitle, { color: '#059669' }]}>Payment Details</Text>
+                        <Text style={styles.infoCardName}>Total Paid: {formatCurrency(paidAmount)}</Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Mode of Payment:</Text> {app.op?.paymentMethod || 'Cash / Electronic Payment'}
+                        </Text>
+                        <Text style={styles.infoCardDetail}>
+                          <Text style={styles.boldText}>Issuing Office:</Text> {officeName}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Nature of Collection Table */}
+                    <View style={styles.dataTable}>
+                      <View style={[styles.tableHeader, { backgroundColor: '#ECFDF5', borderBottomColor: '#A7F3D0' }]}>
+                        <Text style={[styles.thCell, { flex: 3, color: '#065F46' }]}>NATURE OF COLLECTION</Text>
+                        <Text style={[styles.thCell, { width: 140, textAlign: 'center', color: '#065F46' }]}>FUND / CODE</Text>
+                        <Text style={[styles.thCell, { width: 140, textAlign: 'right', color: '#065F46' }]}>AMOUNT (PHP)</Text>
+                      </View>
+
+                      {lineItems.map((item, idx) => {
+                        const units = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+                        const rate = typeof item.feeRate === 'number' && !isNaN(item.feeRate) ? item.feeRate : (item.amount / units);
+                        const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : rate * units;
+
+                        return (
+                          <View key={item.id || idx} style={[styles.tableRow, idx % 2 === 1 && styles.tableRowEven]}>
+                            <View style={{ flex: 3 }}>
+                              <Text style={styles.tdParticularName}>{item.particular}</Text>
+                            </View>
+                            <Text style={[styles.tdCell, { width: 140, textAlign: 'center', fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }) }]}>
+                              {item.itemCode || 'NTC-FEE'}
+                            </Text>
+                            <Text style={[styles.tdCell, { width: 140, textAlign: 'right', fontWeight: '700', color: '#0F172A' }]}>
+                              {formatCurrency(amount).replace('PHP ', '')}
+                            </Text>
+                          </View>
+                        );
+                      })}
+
+                      <View style={[styles.opTotalRow, { backgroundColor: '#F0FDF4', borderTopColor: '#BBF7D0' }]}>
+                        <Text style={[styles.opTotalLabel, { color: '#065F46' }]}>TOTAL AMOUNT (in Figures):</Text>
+                        <Text style={[styles.opTotalAmount, { color: '#059669' }]}>{formatCurrency(paidAmount)}</Text>
+                      </View>
+                    </View>
+
+                    {/* Payment Status & Words */}
+                    <View style={[styles.opStatusCard, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                      <Text style={[styles.opStatusLabel, { color: '#065F46' }]}>AMOUNT IN WORDS:</Text>
+                      <Text style={[styles.opStatusWords, { color: '#047857' }]}>{wordsPaid}</Text>
+                      <View style={styles.opPaymentStatusBadgeRow}>
+                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                          <Icon name="check-circle" size={14} color="#059669" />
+                          <Text style={[styles.opPaymentStatusText, { color: '#065F46', fontWeight: '700' }]}>
+                            OFFICIALLY PAID &amp; ACKNOWLEDGED • OR #{orNum ?? refNum}
+                          </Text>
+                        </View>
+                      </View>
+                    </View>
+
+                    {/* Signatories */}
+                    <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
+                      <View style={styles.sigBlock}>
+                        <View style={{ width: 180, borderBottomWidth: 1, borderBottomColor: '#0F172A', marginBottom: 6 }} />
+                        <Text style={styles.sigName}>SPECIAL COLLECTING OFFICER</Text>
+                        <Text style={styles.sigRole}>Authorized Cashier / Collecting Officer</Text>
+                      </View>
+                    </View>
+                  </View>
+                )}
+
+                {/* Footer Note */}
+                <View style={styles.footerNoteContainer}>
+                  <Text style={styles.footerNoteText}>
+                    National Telecommunications Commission • Official Document Generated via NTC-EDGE Digital Portal. Governed by RA 11032.
+                  </Text>
+                </View>
+              </View>
+            </ScrollView>
+          )}
 
           {/* Modal Bottom Footer Actions */}
           <View style={styles.modalFooter}>
@@ -483,7 +800,7 @@ export function ClientSoaOpPreviewModal({
               <Text style={styles.secondaryBtnText}>Close Preview</Text>
             </TouchableOpacity>
 
-            {onProceedToPayment && (
+            {onProceedToPayment && !isPaid && (
               <TouchableOpacity
                 style={styles.primaryPayBtn}
                 onPress={() => {
@@ -515,7 +832,7 @@ const styles = StyleSheet.create({
   modalContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 14,
-    maxHeight: '92%',
+    maxHeight: '94%',
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -536,18 +853,20 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#E2E8F0',
     backgroundColor: '#FFFFFF',
+    flexWrap: 'wrap',
+    gap: 8,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
     flex: 1,
+    minWidth: 200,
   },
   headerIconCircle: {
     width: 38,
     height: 38,
     borderRadius: 19,
-    backgroundColor: '#E0F2FE',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -566,13 +885,48 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 8,
+    flexWrap: 'wrap',
+  },
+  formatSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: 6,
+    padding: 3,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    marginRight: 4,
+  },
+  formatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  formatBtnActive: {
+    backgroundColor: '#FFFFFF',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
+      },
+    }),
+  },
+  formatBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    color: '#64748B',
+  },
+  formatBtnTextActive: {
+    color: '#0369A1',
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
   printBtn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    backgroundColor: '#0284C7',
     paddingVertical: 7,
     paddingHorizontal: 12,
     borderRadius: 6,
@@ -595,6 +949,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[16],
     paddingTop: 8,
     gap: 8,
+    flexWrap: 'wrap',
   },
   tabItem: {
     flexDirection: 'row',
@@ -619,6 +974,11 @@ const styles = StyleSheet.create({
     borderColor: '#A7F3D0',
     borderBottomColor: '#FFFFFF',
   },
+  tabItemActiveOr: {
+    backgroundColor: '#FFFFFF',
+    borderColor: '#A7F3D0',
+    borderBottomColor: '#FFFFFF',
+  },
   tabText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
@@ -633,6 +993,10 @@ const styles = StyleSheet.create({
     color: '#047857',
     fontWeight: TYPOGRAPHY.weights.bold,
   },
+  tabTextActiveOr: {
+    color: '#059669',
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
   tabBadge: {
     paddingHorizontal: 6,
     paddingVertical: 2,
@@ -642,6 +1006,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#E0F2FE',
   },
   tabBadgeActiveOp: {
+    backgroundColor: '#D1FAE5',
+  },
+  tabBadgeActiveOr: {
     backgroundColor: '#D1FAE5',
   },
   tabBadgeInactive: {
@@ -658,8 +1025,80 @@ const styles = StyleSheet.create({
   tabBadgeTextActiveOp: {
     color: '#047857',
   },
+  tabBadgeTextActiveOr: {
+    color: '#065F46',
+  },
   tabBadgeTextInactive: {
     color: '#94A3B8',
+  },
+  pdfContainer: {
+    flex: 1,
+    minHeight: 680,
+    backgroundColor: '#334155',
+  },
+  pdfLoadingBox: {
+    flex: 1,
+    minHeight: 500,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#F8FAFC',
+  },
+  pdfLoadingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: '#475569',
+    fontWeight: TYPOGRAPHY.weights.medium,
+  },
+  pdfErrorBox: {
+    flex: 1,
+    minHeight: 450,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#FEF2F2',
+    padding: 24,
+  },
+  pdfErrorText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: '#DC2626',
+    textAlign: 'center',
+    maxWidth: 400,
+  },
+  pdfErrorActions: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#DC2626',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+  },
+  switchGridBtn: {
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#DC2626',
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 6,
+  },
+  switchGridBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#DC2626',
   },
   modalBody: {
     flex: 1,
@@ -720,6 +1159,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 16,
   },
+  orBanner: {
+    backgroundColor: '#064E3B',
+    borderRadius: 6,
+    padding: 12,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   bannerTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
@@ -737,7 +1185,7 @@ const styles = StyleSheet.create({
     alignItems: 'flex-end',
   },
   bannerDocNum: {
-    fontFamily: 'monospace',
+    fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#38BDF8',
@@ -754,16 +1202,16 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: '#F8FAFC',
+    borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 6,
     padding: 12,
   },
   infoCardTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#64748B',
+    color: '#0284C7',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 6,
@@ -779,104 +1227,53 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     color: '#475569',
-    marginBottom: 2,
+    marginTop: 2,
   },
   boldText: {
     fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#334155',
   },
-  dueDateBadgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginTop: 6,
-  },
-  dueDateLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
+  dueDateHighlight: {
+    color: '#DC2626',
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#475569',
   },
-  dueDateBadge: {
-    backgroundColor: '#FEF3C7',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4,
-  },
-  dueDateBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#B45309',
-  },
-  opInfoCard: {
-    backgroundColor: '#F8FAFC',
+  dataTable: {
     borderWidth: 1,
     borderColor: '#E2E8F0',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 16,
-    gap: 6,
-  },
-  opInfoRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  opInfoLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: '#64748B',
-  },
-  opInfoValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#0F172A',
-  },
-  tableWrapper: {
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
     borderRadius: 6,
     overflow: 'hidden',
     marginBottom: 16,
   },
   tableHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
     backgroundColor: '#F1F5F9',
     paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#CBD5E1',
+    borderBottomColor: '#E2E8F0',
   },
   thCell: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 10,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#475569',
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   tableRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 8,
-    paddingHorizontal: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#E2E8F0',
+    borderBottomColor: '#F1F5F9',
   },
   tableRowEven: {
-    backgroundColor: '#F8FAFC',
-  },
-  tdCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    color: '#1E293B',
+    backgroundColor: '#FAFAFA',
   },
   tdParticularName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#0F172A',
   },
   tdParticularSub: {
@@ -885,129 +1282,143 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 1,
   },
-  totalCard: {
-    backgroundColor: '#F8FAFC',
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 16,
-  },
-  totalRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  totalHeaderLabel: {
+  tdCell: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#64748B',
-    textTransform: 'uppercase',
+    fontSize: 12,
+    color: '#334155',
   },
-  totalInWords: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: '#0284C7',
-    marginTop: 3,
-  },
-  totalFigure: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#0F172A',
-  },
-  opTotalRow: {
+  tableTotalRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
     paddingVertical: 10,
     paddingHorizontal: 12,
+    borderTopWidth: 1.5,
+    borderTopColor: '#0F172A',
   },
-  opTotalLabel: {
+  tableTotalLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+  },
+  tableTotalAmount: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0369A1',
+  },
+  wordsCard: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+    borderRadius: 6,
+    padding: 10,
+    marginBottom: 16,
+  },
+  wordsLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#065F46',
+    letterSpacing: 0.5,
+    marginBottom: 2,
+  },
+  wordsText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#047857',
+  },
+  opPayorCard: {
+    backgroundColor: '#F8FAFC',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 6,
+    padding: 12,
+    marginBottom: 16,
+    gap: 4,
+  },
+  opPayorRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  opPayorLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    color: '#64748B',
+  },
+  opPayorVal: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#0F172A',
+  },
+  opTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0FDF4',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderTopWidth: 1.5,
+    borderTopColor: '#064E3B',
+  },
+  opTotalLabel: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#064E3B',
   },
   opTotalAmount: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 14,
     fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#059669',
+    color: '#047857',
   },
   opStatusCard: {
     backgroundColor: '#F0FDF4',
     borderWidth: 1,
-    borderColor: '#86EFAC',
+    borderColor: '#BBF7D0',
     borderRadius: 6,
-    padding: 12,
+    padding: 10,
     marginBottom: 16,
   },
   opStatusLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#065F46',
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 2,
   },
   opStatusWords: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: '#047857',
-    marginTop: 2,
   },
   opPaymentStatusBadgeRow: {
-    marginTop: 8,
-    paddingTop: 8,
+    marginTop: 6,
+    paddingTop: 6,
     borderTopWidth: 1,
-    borderTopColor: '#BBF7D0',
+    borderTopColor: '#A7F3D0',
   },
   opPaymentStatusText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     color: '#065F46',
   },
-  guidelinesBox: {
-    backgroundColor: '#F0FDF4',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    borderRadius: 6,
-    padding: 12,
-    marginBottom: 20,
-    gap: 4,
-  },
-  guidelinesHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    marginBottom: 2,
-  },
-  guidelinesTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#166534',
-  },
-  guidelineItem: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 10.5,
-    color: '#166534',
-    lineHeight: 15,
-  },
   signatoriesRow: {
-    justifyContent: 'space-between',
-    marginTop: 10,
-    marginBottom: 16,
+    justifyContent: 'space-around',
+    marginVertical: 16,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
   },
   sigBlock: {
-    flex: 1,
-    borderTopWidth: 1,
-    borderTopColor: '#94A3B8',
-    paddingTop: 6,
     alignItems: 'center',
   },
   sigName: {
@@ -1024,9 +1435,10 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   footerNoteContainer: {
-    borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
-    paddingTop: 10,
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 0.8,
+    borderTopColor: '#E2E8F0',
     alignItems: 'center',
   },
   footerNoteText: {
@@ -1040,14 +1452,14 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
     alignItems: 'center',
     paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[16],
+    paddingVertical: SPACING[12],
     borderTopWidth: 1,
     borderTopColor: '#E2E8F0',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     gap: 10,
   },
   secondaryBtn: {
-    paddingVertical: 9,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 8,
     borderWidth: 1,
@@ -1063,7 +1475,7 @@ const styles = StyleSheet.create({
   primaryPayBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 6,
     backgroundColor: '#0284C7',
     paddingVertical: 9,
     paddingHorizontal: 18,

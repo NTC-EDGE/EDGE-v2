@@ -13,6 +13,7 @@ interface SingleApplicantSectionProps {
   app: Application;
   singleApplicant: {
     applicantName: string;
+    applicantType?: string | null;
     sex: string;
     nationality: string;
     streetAddress: string;

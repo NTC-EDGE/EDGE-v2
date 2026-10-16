@@ -43,8 +43,8 @@ public class CloudflareR2PdfTemplateProviderTests
     public async Task GetTemplateResourceAsync_WhenFoundInR2_CachesAndReturnsResource()
     {
         // Arrange
-        var templateId = "Assessment-SOA";
-        var expectedKey = "templates/Assessment-SOA.pdf";
+        var templateId = "soa-report-template";
+        var expectedKey = "templates/soa-report-template.pdf";
         var samplePdfBytes = Encoding.UTF8.GetBytes("%PDF-1.4 Mock PDF Content");
 
         var getObjectResponse = new GetObjectResponse

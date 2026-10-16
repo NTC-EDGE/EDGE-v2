@@ -39,6 +39,10 @@ public class ApplicationDto
     public string? ServiceCategoryCode { get; set; }
     public string? ServiceVariantName { get; set; }
 
+    public string? OfficialReceiptNumber { get; set; }
+    public decimal? AmountPaid { get; set; }
+    public DateTime? PaidAt { get; set; }
+
     public FilingUserDto? FilingUser { get; set; }
 
     public List<ApplicationServiceDto> Services { get; set; } = new();

@@ -102,10 +102,17 @@ export function ApplicationDetailsPage({
 
   const handlePreviewDoc = (doc: ApplicationDocument | null) => {
     if (doc) {
-      const isSoa = doc.category === 'SOA' || doc.name.toLowerCase().includes('soa') || doc.name.toLowerCase().includes('statement');
-      const isOp = doc.category === 'RECEIPT' || doc.name.toLowerCase().includes('order of payment') || doc.name.toLowerCase().includes('op');
+      const lowerName = doc.name.toLowerCase();
+      const isSoa = doc.category === 'SOA' || lowerName.includes('soa') || lowerName.includes('statement');
+      const isOr = lowerName.includes('official receipt') || lowerName.includes('or_') || (doc.category === 'RECEIPT' && !lowerName.includes('order of payment') && !lowerName.includes('op'));
+      const isOp = lowerName.includes('order of payment') || lowerName.includes('op') || doc.category === 'RECEIPT';
       if (isSoa) {
         setSoaOpInitialTab('soa');
+        setSoaOpModalVisible(true);
+        return;
+      }
+      if (isOr) {
+        setSoaOpInitialTab('or');
         setSoaOpModalVisible(true);
         return;
       }
@@ -286,6 +293,10 @@ export function ApplicationDetailsPage({
             }}
             onViewOp={() => {
               setSoaOpInitialTab('op');
+              setSoaOpModalVisible(true);
+            }}
+            onViewOr={() => {
+              setSoaOpInitialTab('or');
               setSoaOpModalVisible(true);
             }}
             onConvertToReal={() => setIsConvertToRealModalOpen(true)}

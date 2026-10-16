@@ -97,11 +97,15 @@ export function ApplicationDetailsTab({
   const accountableForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "ACCOUNTABLE FORM");
   const downloadForms = app.forms.filter((f: ApplicationFormAttachment) => f.section === "DOWNLOAD FORM");
 
+  const isIndividual = (app.applicantType || '').toLowerCase() === 'individual';
   const isCompanyApplication =
-    app.applicantType === 'Company' ||
-    app.applicationType === 'BULK' ||
-    Boolean(app.companyDetails?.name) ||
-    app.filingUser?.accountType === 'Company';
+    !isIndividual &&
+    (
+      (app.applicantType || '').toLowerCase() === 'company' ||
+      app.applicationType === 'BULK' ||
+      Boolean(app.companyDetails?.name) ||
+      app.filingUser?.accountType === 'Company'
+    );
 
   const editAction = isEditable ? (
     isEditingSection ? (
@@ -159,7 +163,7 @@ export function ApplicationDetailsTab({
             <InfoRow label="Submitted By:" value={app.filingUser?.name ?? "—"} />
             <InfoRow label="User Email:" value={app.filingUser?.email ?? "—"} isEditing={isEditingSection} editValue={emailDraft} onEditChange={setEmailDraft} />
             <InfoRow label="User Account Type:" value={app.filingUser?.accountType ?? app.applicantType ?? "Individual"} />
-            {app.applicantType === 'Company' && (
+            {isCompanyApplication && (
               <>
                 <InfoRow label="Company Name:" value={app.companyDetails?.name || app.applicant} isEditing={isEditingSection} editValue={compNameDraft} onEditChange={setCompNameDraft} />
                 <InfoRow label="Company Reg No:" value={app.companyDetails?.registrationNumber || "—"} isEditing={isEditingSection} editValue={compRegNoDraft} onEditChange={setCompRegNoDraft} />

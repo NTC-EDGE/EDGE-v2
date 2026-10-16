@@ -55,6 +55,7 @@ function isSubjectForPayment(app: ApplicationData): boolean {
     app.totalAmountDue > 0 &&
     (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0) &&
     app.status !== 'Completed' &&
+    app.status !== 'ForIssuance' &&
     app.status !== 'Draft'
   );
 }
@@ -287,6 +288,33 @@ export function ActivityCard({
                   {application.referenceNumber}
                 </Text>
               </View>
+
+              {Boolean(application.payment?.orNumber && application.payment.orNumber.trim().length > 0) && (
+                <>
+                  <Text style={[styles.dotSeparator, { color: textMuted }]}>•</Text>
+                  <View
+                    style={[
+                      styles.appNumBadge,
+                      {
+                        backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ECFDF5',
+                        borderColor: isDark ? '#059669' : '#A7F3D0',
+                        borderWidth: 1,
+                      },
+                    ]}
+                  >
+                    <Lucide name="check-circle" size={10} color={isDark ? '#34D399' : '#059669'} />
+                    <Text
+                      style={[
+                        styles.appNumText,
+                        { color: isDark ? '#34D399' : '#065F46', fontWeight: '700' },
+                      ]}
+                      numberOfLines={1}
+                    >
+                      OR #{application.payment?.orNumber}
+                    </Text>
+                  </View>
+                </>
+              )}
             </View>
           </View>
         </View>

@@ -285,4 +285,50 @@ public class CreateSoaCommandHandlerTests
         savedSoa.LineItems.First().ValidityYears.Should().Be(3);
         savedSoa.LineItems.First().NoOfUnits.Should().Be(2);
     }
+
+    [Fact]
+    public async Task Handle_ShouldRecordApplicationHistory_WhenSoaIsGenerated()
+    {
+        // Arrange
+        var app = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            Status = ApplicationStatus.Evaluating,
+            ReferenceNumber = "APP-TEST-001"
+        };
+        var lineItem = new CreateSoaLineItemRequest("Processing Fee", "FEE-01", "Desc", null, null, 1, 1, 500m, 500m);
+        var command = new CreateSoaCommand(
+            app.Id,
+            null,
+            "Individual",
+            "Jane Applicant",
+            "123 Street",
+            DateTime.UtcNow.AddDays(30),
+            new List<CreateSoaLineItemRequest> { lineItem });
+
+        _repositoryMock
+            .Setup(r => r.GetByIdWithDetailsAsync(app.Id, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        ApplicationHistory? recordedHistory = null;
+        _repositoryMock
+            .Setup(r => r.AddApplicationHistoryAsync(It.IsAny<ApplicationHistory>(), It.IsAny<CancellationToken>()))
+            .Callback<ApplicationHistory, CancellationToken>((h, _) => recordedHistory = h)
+            .Returns(Task.CompletedTask);
+
+        // Act
+        var result = await _handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeTrue();
+        recordedHistory.Should().NotBeNull();
+        recordedHistory!.ApplicationId.Should().Be(app.Id);
+        recordedHistory.Action.Should().Be("Statement of Account (SOA) Generated");
+        recordedHistory.FromStatus.Should().Be(ApplicationStatus.Evaluating);
+        recordedHistory.ToStatus.Should().Be(ApplicationStatus.Evaluating);
+        recordedHistory.StaffRole.Should().Be("Evaluator");
+        recordedHistory.Remarks.Should().Contain("Statement of Account (SOA-");
+        recordedHistory.Remarks.Should().Contain("500.00");
+        app.Histories.Should().Contain(recordedHistory);
+    }
 }

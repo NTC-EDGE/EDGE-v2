@@ -57,15 +57,19 @@ export function ApplicationCard({
     (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : undefined) ||
     (app.element !== 'New' ? app.element : '');
 
+  const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
+  const isPaid = Boolean(orNumber && orNumber.trim().length > 0);
+
   const isReadyForPayment =
-    app.status === 'READY_FOR_PAYMENT' ||
-    (typeof app.rawStatus === 'string' && app.rawStatus.toUpperCase().includes('PAYMENT'));
+    !isPaid &&
+    (app.status === 'READY_FOR_PAYMENT' ||
+    (typeof app.rawStatus === 'string' && app.rawStatus.toUpperCase().includes('PAYMENT')));
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.88}
-      style={[styles.card, style]}
+      style={[styles.card, isPaid && { borderLeftColor: '#059669' }, style]}
     >
       {/* ── Card Top Header ────────────────────── */}
       <View style={styles.cardTopHeader}>
@@ -91,6 +95,34 @@ export function ApplicationCard({
               {isBulk ? `BULK (${totalApplicants})` : 'SINGLE'}
             </Text>
           </View>
+
+          {isPaid && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#ECFDF5',
+                borderColor: '#A7F3D0',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon name="check-circle" size={10} color="#059669" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: '#059669',
+                }}
+              >
+                OR #{orNumber}
+              </Text>
+            </View>
+          )}
 
           {app.isAssessmentOnly || app.intent === 'AssessmentOnly' ? (
             <View
@@ -184,7 +216,13 @@ export function ApplicationCard({
           </Text>
         </View>
 
-        {isReadyForPayment ? (
+        {isPaid ? (
+          <View style={[styles.viewDetailsBtn, { backgroundColor: '#059669', borderColor: '#047857' }]}>
+            <Icon name="check-circle" size={13} color="#FFFFFF" />
+            <Text style={[styles.viewDetailsBtnText, { marginLeft: 4, marginRight: 2 }]}>View Receipt</Text>
+            <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
+        ) : isReadyForPayment ? (
           <View style={styles.payNowBtn}>
             <Icon name="credit-card" size={13} color="#FFFFFF" />
             <Text style={styles.payNowBtnText}>Proceed to Payment</Text>
