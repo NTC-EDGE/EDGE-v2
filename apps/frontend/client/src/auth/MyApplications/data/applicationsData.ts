@@ -616,10 +616,10 @@ export function normalizeApplicationStatus(rawStatus: string | undefined | null)
   if (!rawStatus) return 'PENDING';
   const s = rawStatus.toUpperCase().replace(/\s+/g, '_').replace(/_/g, '');
   if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
-  if (s.includes('EVALUAT') || s.includes('UNDEREVALUATION') || s.includes('FORACCOUNTANT')) return 'FOR_EVALUATION';
+  if (s.includes('FORORDEROFPAYMENT') || s.includes('FORACCOUNTANT') || s.includes('EVALUAT') || s.includes('UNDEREVALUATION')) return 'FOR_EVALUATION';
   if (s.includes('APPROV') || s.includes('COMPLET') || s.includes('ISSUED')) return 'APPROVED';
   if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
-  if (s.includes('PAYMENT') || s.includes('READYFORPAYMENT') || s.includes('PENDINGPAYMENT') || s.includes('FORPAYMENT')) return 'READY_FOR_PAYMENT';
+  if (s.includes('PENDINGPAYMENT') || s.includes('READYFORPAYMENT') || s.includes('FORPAYMENT') || s === 'PAYMENT' || s === 'FOR_PAYMENT') return 'READY_FOR_PAYMENT';
   if (s.includes('EXPIR')) return 'EXPIRING_SOON';
   if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
   return 'PENDING';

@@ -65,7 +65,7 @@ export function SoaParticularsTable({
                   backgroundColor:
                     app.soaStatus === 'ForOrderOfPayment' || isForAccountant
                       ? (isDark ? '#312e81' : '#e0e7ff')
-                      : app.soaStatus === 'Approved'
+                      : app.soaStatus === 'Approved' || app.status === 'PendingPayment'
                       ? (isDark ? '#064e3b' : '#dcfce7')
                       : isSoaReturned || app.soaStatus === 'Returned'
                       ? (isDark ? '#451a03' : '#fef3c7')
@@ -80,7 +80,7 @@ export function SoaParticularsTable({
                     color:
                       app.soaStatus === 'ForOrderOfPayment' || isForAccountant
                         ? (isDark ? '#c7d2fe' : '#4338ca')
-                        : app.soaStatus === 'Approved'
+                        : app.soaStatus === 'Approved' || app.status === 'PendingPayment'
                         ? (isDark ? '#86efac' : '#15803d')
                         : isSoaReturned || app.soaStatus === 'Returned'
                         ? (isDark ? '#fde68a' : '#b45309')
@@ -89,8 +89,8 @@ export function SoaParticularsTable({
                 >
                   {app.soaStatus === 'ForOrderOfPayment' || isForAccountant
                     ? 'FOR Order of Payment'
-                    : app.soaStatus === 'Approved'
-                    ? 'Approved'
+                    : app.soaStatus === 'Approved' || app.status === 'PendingPayment'
+                    ? 'FOR Payment'
                     : isSoaReturned || app.soaStatus === 'Returned'
                     ? 'Returned'
                     : 'Pending'}

@@ -260,7 +260,12 @@ export function generateSoaPrintableHtml(
   const isNew = !isRen && !isMod && !isDup && !isCv && !isRoc && !isCo && !isMa && !isMs;
 
   const isForAssessmentOnly = app.intent === 'AssessmentOnly' || app.isAssessmentOnly === true;
-  const isEndorsedForPayment = !isForAssessmentOnly;
+  const isEndorsedForPayment = !isForAssessmentOnly && (
+    app.status === 'PendingPayment' ||
+    app.status === 'Completed' ||
+    app.status === 'ForIssuance' ||
+    app.soaStatus === 'Approved'
+  );
 
   const orNumber = app.payment?.orNumber ?? '';
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0

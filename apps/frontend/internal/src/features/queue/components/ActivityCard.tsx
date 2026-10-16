@@ -53,34 +53,32 @@ function getAvatarInitials(name: string): string {
 
 function isSubjectForPayment(app: ApplicationData): boolean {
   return (
+    app.status === 'PendingPayment' &&
     app.totalAmountDue > 0 &&
-    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0) &&
-    app.status !== 'Completed' &&
-    app.status !== 'ForIssuance' &&
-    app.status !== 'Draft'
+    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0)
   );
 }
 
 function formatStatusDisplay(application: ApplicationData): string {
-  if (isSubjectForPayment(application)) return "FOR PAYMENT";
   const s = application.status.toLowerCase();
+  if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return "FOR PAYMENT";
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
-  if (s === "foraccountant") return "FOR SOA";
-  if (s === "pendingpayment") return "FOR PAYMENT";
   if (s === "forissuance") return "FOR ISSUANCE";
+  if (s === "returned") return "RETURNED";
+  if (s === "completed" || s === "approved") return "APPROVED";
   return application.status.toUpperCase();
 }
 
 function getStatusStyle(application: ApplicationData): { bg: string; text: string } {
-  if (isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
   const s = application.status.toLowerCase();
+  if (s === "foraccountant") return { bg: '#4F46E5', text: COLORS.neutral.white };
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
   if (s === "completed" || s === "approved") return { bg: COLORS.brand[800],    text: COLORS.neutral.white };
   if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
   if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
   if (s === "returned")                     return { bg: COLORS.semantic.error,   text: COLORS.neutral.white };
-  if (s === "foraccountant")                return { bg: '#0284C7',               text: COLORS.neutral.white };
-  if (s === "pendingpayment")               return { bg: '#16A34A',               text: COLORS.neutral.white };
   if (s === "forissuance")                  return { bg: '#059669',               text: COLORS.neutral.white };
   if (s === "draft")                        return { bg: COLORS.neutral[400],     text: COLORS.neutral.white };
   return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };

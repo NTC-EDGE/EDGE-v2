@@ -644,7 +644,11 @@ export function ClientSoaOpPreviewModal({
                                       : '#4b5563',
                                 }}
                               >
-                                {app.soa.status === 'ForOrderOfPayment' ? 'FOR Order of Payment' : app.soa.status}
+                                {app.soa.status === 'ForOrderOfPayment'
+                                  ? 'FOR Order of Payment'
+                                  : app.soa.status === 'Approved'
+                                  ? 'FOR Payment'
+                                  : app.soa.status}
                               </Text>
                             </View>
                           )}
