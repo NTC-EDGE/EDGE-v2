@@ -1,7 +1,12 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
-import { formatFieldKey, isRecord, extractSerialNumbers } from '../core/formPreviewHelpers';
+import {
+  formatFieldKey,
+  isRecord,
+  extractSerialNumbers,
+  normalizeRepeaterRowEntries,
+} from '../core/formPreviewHelpers';
 
 interface JsonTableSummaryRowProps {
   label: string;
@@ -61,8 +66,12 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
   );
 
   const extractedSerials = extractSerialNumbers(v);
-  if (extractedSerials !== null && (isSerialField || extractedSerials.length > 0)) {
+  if (extractedSerials !== null && extractedSerials.length > 0) {
     return renderSerialBadges(extractedSerials);
+  }
+
+  if (isSerialField && typeof v === 'string' && v.trim().length > 0) {
+    return renderSerialBadges([v.trim()]);
   }
 
   // 2. Check if string is serialized JSON
@@ -81,6 +90,7 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
     }
   }
 
+  // 3. Array of items
   if (Array.isArray(v)) {
     if (v.length === 0) {
       return (
@@ -108,15 +118,7 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
     return (
       <View style={{ gap: 6, marginTop: 4 }}>
         {validSubObjs.map((subObj, sIdx) => {
-          const subEntries = Object.entries(subObj).filter(
-            ([sk, sv]) =>
-              sk !== 'id' &&
-              sk !== '_id' &&
-              sk !== 'key' &&
-              sv !== null &&
-              sv !== undefined &&
-              String(sv).trim() !== ''
-          );
+          const subEntries = normalizeRepeaterRowEntries(subObj);
           if (subEntries.length === 0) return null;
 
           return (
@@ -151,18 +153,7 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
                   >
                     {formatFieldKey(sk)}:
                   </Text>
-                  <Text
-                    style={{
-                      fontFamily: TYPOGRAPHY.fonts.primary,
-                      fontSize: 11,
-                      fontWeight: '600',
-                      color: '#0F172A',
-                      flex: 1,
-                      textAlign: 'right',
-                    }}
-                  >
-                    {String(sv)}
-                  </Text>
+                  {renderCellValue(sv, sk)}
                 </View>
               ))}
             </View>
@@ -172,16 +163,9 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
     );
   }
 
+  // 4. Record/Object
   if (isRecord(v)) {
-    const subEntries = Object.entries(v).filter(
-      ([sk, sv]) =>
-        sk !== 'id' &&
-        sk !== '_id' &&
-        sk !== 'key' &&
-        sv !== null &&
-        sv !== undefined &&
-        String(sv).trim() !== ''
-    );
+    const subEntries = normalizeRepeaterRowEntries(v);
     if (subEntries.length === 0) return null;
 
     return (
@@ -206,18 +190,7 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
             >
               {formatFieldKey(sk)}:
             </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11,
-                fontWeight: '600',
-                color: '#0F172A',
-                flex: 1,
-                textAlign: 'right',
-              }}
-            >
-              {String(sv)}
-            </Text>
+            {renderCellValue(sv, sk)}
           </View>
         ))}
       </View>
@@ -295,15 +268,7 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
 
       <View style={{ gap: 8 }}>
         {parsedArray.map((row, rIdx) => {
-          const entries = Object.entries(row).filter(
-            ([k, v]) =>
-              k !== '_id' &&
-              k !== 'id' &&
-              k !== 'key' &&
-              v !== null &&
-              v !== undefined &&
-              String(v).trim() !== ''
-          );
+          const entries = normalizeRepeaterRowEntries(row);
 
           if (entries.length === 0) return null;
 

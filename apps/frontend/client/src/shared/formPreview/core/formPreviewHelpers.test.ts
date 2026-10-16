@@ -1,6 +1,8 @@
 import {
   formatCompositeAddress,
   sanitizeAddressSegment,
+  extractSerialNumbers,
+  normalizeRepeaterRowEntries,
 } from './formPreviewHelpers';
 
 describe('Address formatting helpers', () => {
@@ -151,3 +153,102 @@ describe('Address formatting helpers', () => {
     });
   });
 });
+
+describe('extractSerialNumbers helper', () => {
+  it('returns null for null, undefined, or empty values', () => {
+    expect(extractSerialNumbers(null)).toBeNull();
+    expect(extractSerialNumbers(undefined)).toBeNull();
+    expect(extractSerialNumbers('')).toBeNull();
+    expect(extractSerialNumbers('-')).toBeNull();
+    expect(extractSerialNumbers('N/A')).toBeNull();
+  });
+
+  it('extracts and deduplicates serials from JSON string of objects', () => {
+    const json = JSON.stringify([
+      { id: 'serial-1', serialNumber: 'SN-001' },
+      { id: 'serial-2', serialNumber: 'SN-002' },
+      { id: 'serial-3', serialNumber: 'SN-001' }, // duplicate
+    ]);
+    expect(extractSerialNumbers(json)).toEqual(['SN-001', 'SN-002']);
+  });
+
+  it('extracts and deduplicates serials from comma-separated string', () => {
+    expect(extractSerialNumbers('SN-A1, SN-B2, SN-A1')).toEqual(['SN-A1', 'SN-B2']);
+  });
+
+  it('filters out internal keys (id, _id, key)', () => {
+    const raw = [{ id: 'serial-12345', value: 'SN-999' }];
+    expect(extractSerialNumbers(raw)).toEqual(['SN-999']);
+  });
+});
+
+describe('normalizeRepeaterRowEntries helper', () => {
+  it('deduplicates deviceType and typeOfEquipmentDevice into a single entry', () => {
+    const row = {
+      _id: '1234',
+      deviceType: 'Wireless Data Network (WDN) - Indoor',
+      typeOfEquipmentDevice: 'Wireless Data Network (WDN) - Indoor',
+    };
+    const entries = normalizeRepeaterRowEntries(row);
+    expect(entries).toEqual([
+      ['deviceType', 'Wireless Data Network (WDN) - Indoor'],
+    ]);
+  });
+
+  it('deduplicates makeTypeModel, nameTypeModel, and fallback make/typeModel', () => {
+    const row = {
+      _id: '1234',
+      makeTypeModel: 'Cisco Catalyst 9120AX',
+      nameTypeModel: 'Cisco Catalyst 9120AX',
+      make: 'Cisco Catalyst 9120AX',
+      typeModel: 'Cisco Catalyst 9120AX',
+    };
+    const entries = normalizeRepeaterRowEntries(row);
+    expect(entries).toEqual([
+      ['makeTypeModel', 'Cisco Catalyst 9120AX'],
+    ]);
+  });
+
+  it('consolidates multiple serial alias keys into a single equipmentSerials entry with unique serials', () => {
+    const row = {
+      _id: '1234',
+      deviceType: 'Wireless Data Network (WDN) - Indoor',
+      typeOfEquipmentDevice: 'Wireless Data Network (WDN) - Indoor',
+      makeTypeModel: 'Cisco Catalyst 9120AX',
+      nameTypeModel: 'Cisco Catalyst 9120AX',
+      equipmentSerials: JSON.stringify([
+        { id: 'serial-1', serialNumber: 'SN-001' },
+        { id: 'serial-2', serialNumber: 'SN-002' },
+      ]),
+      serialNumbers: JSON.stringify([
+        { id: 'serial-1', serialNumber: 'SN-001' },
+        { id: 'serial-2', serialNumber: 'SN-002' },
+      ]),
+      serialNumber: 'SN-001, SN-002',
+    };
+
+    const entries = normalizeRepeaterRowEntries(row);
+    expect(entries).toHaveLength(3);
+    expect(entries[0]).toEqual(['deviceType', 'Wireless Data Network (WDN) - Indoor']);
+    expect(entries[1]).toEqual(['makeTypeModel', 'Cisco Catalyst 9120AX']);
+    expect(entries[2]).toEqual(['equipmentSerials', ['SN-001', 'SN-002']]);
+  });
+
+  it('preserves single serialNumber when it is the only serial key (e.g. TVRO)', () => {
+    const row = {
+      type: 'Receivers',
+      makeTypeModel: 'Harmonic ProView 7100',
+      serialNumber: 'SN-8920194',
+      frequencyRange: '3.7 - 4.2 GHz',
+    };
+
+    const entries = normalizeRepeaterRowEntries(row);
+    expect(entries).toEqual([
+      ['makeTypeModel', 'Harmonic ProView 7100'],
+      ['serialNumber', ['SN-8920194']],
+      ['type', 'Receivers'],
+      ['frequencyRange', '3.7 - 4.2 GHz'],
+    ]);
+  });
+});
+

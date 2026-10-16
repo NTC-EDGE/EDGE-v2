@@ -5,6 +5,7 @@
  * Source: generalReview/generalReviewHelpers.ts + generalReviewFormatters.ts (wizard)
  */
 import { Icon } from '@edge/ui';
+import { isSuppressedValue } from './formPreviewFieldCheckers';
 
 // ─── Section icon & color ─────────────────────────────────────────────────────
 
@@ -292,8 +293,19 @@ export function extractSerialNumbers(val: unknown): string[] | null {
   if (val === null || val === undefined) return null;
 
   // If already array of strings or numbers
-  if (Array.isArray(val) && val.length > 0 && val.every((item) => typeof item === 'string' || typeof item === 'number')) {
-    const list = val.map(String).map((s) => s.trim()).filter((s) => s.length > 0 && s !== 'null' && s !== 'undefined');
+  if (
+    Array.isArray(val) &&
+    val.length > 0 &&
+    val.every((item) => typeof item === 'string' || typeof item === 'number')
+  ) {
+    const list = Array.from(
+      new Set(
+        val
+          .map(String)
+          .map((s) => s.trim())
+          .filter((s) => s.length > 0 && s !== 'null' && s !== 'undefined' && !isSuppressedValue(s))
+      )
+    );
     return list.length > 0 ? list : null;
   }
 
@@ -313,7 +325,10 @@ export function extractSerialNumbers(val: unknown): string[] | null {
         obj.number ??
         obj.value;
       if (sn !== undefined && sn !== null && String(sn).trim().length > 0) {
-        serials.push(String(sn).trim());
+        const sStr = String(sn).trim();
+        if (!isSuppressedValue(sStr) && !serials.includes(sStr)) {
+          serials.push(sStr);
+        }
       } else {
         const nonIdVals = Object.entries(obj)
           .filter(
@@ -323,20 +338,23 @@ export function extractSerialNumbers(val: unknown): string[] | null {
               k !== 'key' &&
               sv !== null &&
               sv !== undefined &&
-              String(sv).trim().length > 0
+              String(sv).trim().length > 0 &&
+              !isSuppressedValue(String(sv))
           )
           .map(([, sv]) => String(sv).trim());
-        if (nonIdVals.length === 1 && nonIdVals[0]) {
+        if (nonIdVals.length === 1 && nonIdVals[0] && !serials.includes(nonIdVals[0])) {
           serials.push(nonIdVals[0]);
         }
       }
     }
-    if (serials.length > 0) return serials;
+    return serials.length > 0 ? Array.from(new Set(serials)) : null;
   }
 
   // If string, check if it's JSON or separated list
   if (typeof val === 'string') {
     const trimmed = val.trim();
+    if (isSuppressedValue(trimmed)) return null;
+
     if (
       (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
       (trimmed.startsWith('{') && trimmed.endsWith('}'))
@@ -349,12 +367,179 @@ export function extractSerialNumbers(val: unknown): string[] | null {
       }
     }
     if (trimmed.includes(',') && !trimmed.includes('{') && !trimmed.includes('[')) {
-      const parts = trimmed.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      const parts = Array.from(
+        new Set(
+          trimmed
+            .split(',')
+            .map((s) => s.trim())
+            .filter((s) => s.length > 0 && !isSuppressedValue(s))
+        )
+      );
       if (parts.length > 1) return parts;
     }
   }
 
   return null;
+}
+
+/**
+ * Normalizes repeater table row entries, deduplicating alias columns
+ * (e.g. deviceType vs typeOfEquipmentDevice, makeTypeModel vs nameTypeModel,
+ * equipmentSerials vs serialNumbers vs serialNumber) and consolidating serial numbers.
+ */
+export function normalizeRepeaterRowEntries(
+  row: Record<string, unknown>
+): Array<[string, unknown]> {
+  if (!row || typeof row !== 'object') return [];
+
+  // Filter out internal metadata keys and null/empty values
+  const validKeys = Object.keys(row).filter((k) => {
+    if (!k || k === 'id' || k === '_id' || k === 'key' || k.startsWith('__')) return false;
+    const v = row[k];
+    if (v === null || v === undefined) return false;
+    if (typeof v === 'string') {
+      const str = v.trim();
+      if (str === '' || isSuppressedValue(str)) return false;
+    }
+    return true;
+  });
+
+  const keyMap = new Map<string, string>();
+  for (const k of validKeys) {
+    keyMap.set(k.toLowerCase().replace(/[-_\s]/g, ''), k);
+  }
+
+  const handledKeys = new Set<string>();
+  const normalizedEntries: Array<[string, unknown]> = [];
+
+  // 1. Device Type
+  const deviceTypeAliases = [
+    'devicetype',
+    'typeofequipmentdevice',
+    'deviceequipmenttype',
+    'deviceequipment',
+    'equipmenttype',
+  ];
+  const matchedDeviceKey = deviceTypeAliases.find((a) => keyMap.has(a));
+  if (matchedDeviceKey) {
+    const originalKey = keyMap.get(matchedDeviceKey);
+    if (originalKey !== undefined) {
+      const val = row[originalKey];
+      normalizedEntries.push(['deviceType', val]);
+      for (const a of deviceTypeAliases) {
+        const orig = keyMap.get(a);
+        if (orig !== undefined) handledKeys.add(orig);
+      }
+    }
+  }
+
+  // 2. Make / Type / Model
+  const makeModelAliases = ['maketypemodel', 'nametypemodel', 'makemodel'];
+  const matchedMakeKey = makeModelAliases.find((a) => keyMap.has(a));
+  if (matchedMakeKey) {
+    const originalKey = keyMap.get(matchedMakeKey);
+    if (originalKey !== undefined) {
+      const val = row[originalKey];
+      normalizedEntries.push(['makeTypeModel', val]);
+      for (const a of makeModelAliases) {
+        const orig = keyMap.get(a);
+        if (orig !== undefined) handledKeys.add(orig);
+      }
+      // Also suppress standalone "make" and "typeModel" if they duplicate makeTypeModel
+      const makeOrig = keyMap.get('make');
+      if (makeOrig !== undefined && String(row[makeOrig]).trim() === String(val).trim()) {
+        handledKeys.add(makeOrig);
+      }
+      const tmOrig = keyMap.get('typemodel');
+      if (tmOrig !== undefined && String(row[tmOrig]).trim() === String(val).trim()) {
+        handledKeys.add(tmOrig);
+      }
+    }
+  }
+
+  // 3. Serial Numbers (Equipment Serials)
+  const serialAliases = [
+    'equipmentserials',
+    'serialnumbers',
+    'serialnumber',
+    'serials',
+    'serialno',
+    'equipmentserial',
+    'equipmentserialnumbers',
+  ];
+  const presentSerialKeys = serialAliases
+    .map((a) => keyMap.get(a))
+    .filter((k): k is string => k !== undefined);
+
+  if (presentSerialKeys.length > 0) {
+    const collectedSerials: string[] = [];
+    for (const sk of presentSerialKeys) {
+      const rawVal = row[sk];
+      const extracted = extractSerialNumbers(rawVal);
+      if (extracted !== null && extracted.length > 0) {
+        for (const sn of extracted) {
+          if (!collectedSerials.includes(sn)) {
+            collectedSerials.push(sn);
+          }
+        }
+      } else if (
+        typeof rawVal === 'string' &&
+        rawVal.trim().length > 0 &&
+        !isSuppressedValue(rawVal.trim())
+      ) {
+        const trimmed = rawVal.trim();
+        if (trimmed.includes(',')) {
+          const parts = trimmed
+            .split(',')
+            .map((p) => p.trim())
+            .filter((p) => p.length > 0 && !isSuppressedValue(p));
+          for (const p of parts) {
+            if (!collectedSerials.includes(p)) collectedSerials.push(p);
+          }
+        } else if (!collectedSerials.includes(trimmed)) {
+          collectedSerials.push(trimmed);
+        }
+      }
+      handledKeys.add(sk);
+    }
+
+    if (collectedSerials.length > 0) {
+      // Use original key if exactly one specific key existed (e.g. 'serialNumber' on TVRO), else 'equipmentSerials'
+      const canonicalKey =
+        presentSerialKeys.length === 1 && presentSerialKeys[0]
+          ? presentSerialKeys[0]
+          : 'equipmentSerials';
+      normalizedEntries.push([canonicalKey, collectedSerials]);
+    }
+  }
+
+  // 4. Equipments Units (for Equipment Repeater)
+  const equipmentUnitAliases = ['equipments', 'equipmentunits'];
+  const matchedEqKey = equipmentUnitAliases.find((a) => keyMap.has(a));
+  if (matchedEqKey) {
+    const originalKey = keyMap.get(matchedEqKey);
+    if (originalKey !== undefined) {
+      const val = row[originalKey];
+      normalizedEntries.push([originalKey, val]);
+      for (const a of equipmentUnitAliases) {
+        const orig = keyMap.get(a);
+        if (orig !== undefined) handledKeys.add(orig);
+      }
+      const freqOrig = keyMap.get('frequency') || keyMap.get('frequencyrange');
+      if (freqOrig !== undefined) handledKeys.add(freqOrig);
+      const snOrig = keyMap.get('serialnumber');
+      if (snOrig !== undefined) handledKeys.add(snOrig);
+    }
+  }
+
+  // 5. Add all remaining unhandled keys in original order
+  for (const k of validKeys) {
+    if (!handledKeys.has(k)) {
+      normalizedEntries.push([k, row[k]]);
+    }
+  }
+
+  return normalizedEntries;
 }
 
 
