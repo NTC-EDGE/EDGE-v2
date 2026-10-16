@@ -53,6 +53,7 @@ export interface PaymentDetails {
   orNumber: string;
   checkNumber: string;
   checkName: string;
+  paidAt?: string;
 }
 
 export interface AuditTrailEntry {

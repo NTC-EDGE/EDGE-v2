@@ -88,7 +88,7 @@ function PdfLoadBar({ height = 5 }: PdfLoadBarProps) {
   );
 }
 
-export type ReportDocumentType = 'soa' | 'op' | 'summary';
+export type ReportDocumentType = 'soa' | 'op' | 'or' | 'summary';
 
 interface SoaReportPreviewModalProps {
   visible: boolean;
@@ -125,7 +125,7 @@ export function SoaReportPreviewModal({
     let active = true;
     let createdUrl: string | null = null;
 
-    if (Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op')) {
+    if (Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op' || docType === 'or')) {
       setIsLoadingPdf(true);
       setPdfError(null);
       setPdfBlobUrl(null);
@@ -134,7 +134,9 @@ export function SoaReportPreviewModal({
         try {
           const [blob, err] = docType === 'soa'
             ? await applicationService.previewSoaPdf(app.id)
-            : await applicationService.previewOpPdf(app.id);
+            : docType === 'op'
+              ? await applicationService.previewOpPdf(app.id)
+              : await applicationService.previewOrPdf(app.id);
 
           if (!active) {
             return;
@@ -184,11 +186,13 @@ export function SoaReportPreviewModal({
   const dateObj = app.createdAt ? new Date(app.createdAt) : new Date();
 
   const handlePrint = async () => {
-    if (docType === 'soa' || docType === 'op') {
+    if (docType === 'soa' || docType === 'op' || docType === 'or') {
       try {
         const [pdfBlob, err] = docType === 'soa'
           ? await applicationService.previewSoaPdf(app.id)
-          : await applicationService.previewOpPdf(app.id);
+          : docType === 'op'
+            ? await applicationService.previewOpPdf(app.id)
+            : await applicationService.previewOrPdf(app.id);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -204,7 +208,9 @@ export function SoaReportPreviewModal({
 
       const url = docType === 'soa'
         ? applicationService.getSoaPrintUrl(app.id)
-        : applicationService.getOpPrintUrl(app.id);
+        : docType === 'op'
+          ? applicationService.getOpPrintUrl(app.id)
+          : applicationService.getOrPrintUrl(app.id);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open(url, '_blank');
@@ -220,17 +226,21 @@ export function SoaReportPreviewModal({
   };
 
   const handleDownloadPdf = async () => {
-    if (docType === 'soa' || docType === 'op') {
+    if (docType === 'soa' || docType === 'op' || docType === 'or') {
       try {
         const [pdfBlob, err] = docType === 'soa'
           ? await applicationService.downloadSoaPdf(app.id)
-          : await applicationService.downloadOpPdf(app.id);
+          : docType === 'op'
+            ? await applicationService.downloadOpPdf(app.id)
+            : await applicationService.downloadOrPdf(app.id);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
           const link = document.createElement('a');
           link.href = blobUrl;
-          const ref = app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC');
+          const ref = docType === 'or' && app.payment?.orNumber
+            ? app.payment.orNumber
+            : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
           link.download = `${docType.toUpperCase()}_${ref}.pdf`;
           document.body.appendChild(link);
           link.click();
@@ -244,7 +254,9 @@ export function SoaReportPreviewModal({
 
       const url = docType === 'soa'
         ? applicationService.getSoaDownloadUrl(app.id)
-        : applicationService.getOpDownloadUrl(app.id);
+        : docType === 'op'
+          ? applicationService.getOpDownloadUrl(app.id)
+          : applicationService.getOrDownloadUrl(app.id);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         window.open(url, '_blank');
@@ -781,6 +793,54 @@ export function SoaReportPreviewModal({
               </Text>
             </Pressable>
 
+            {Boolean((app.payment && app.payment.orNumber && app.payment.orNumber.trim().length > 0) || app.status === 'ForIssuance' || app.status === 'Completed' || initialDocType === 'or') && (
+              <Pressable
+                style={[
+                  styles.tabItem,
+                  docType === 'or' && {
+                    backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                    borderColor: isDark ? colors.brand[500] : colors.brand[600],
+                  },
+                ]}
+                onPress={() => {
+                  setDocType('or');
+                  setViewFormat('pdf');
+                }}
+              >
+                <Lucide
+                  name="check-circle"
+                  size={14}
+                  color={
+                    docType === 'or'
+                      ? isDark
+                        ? colors.brand[400]
+                        : colors.brand[700]
+                      : isDark
+                      ? colors.neutral[400]
+                      : colors.neutral[500]
+                  }
+                />
+                <Text
+                  style={[
+                    styles.tabText,
+                    {
+                      color:
+                        docType === 'or'
+                          ? isDark
+                            ? colors.brand[400]
+                            : colors.brand[700]
+                          : isDark
+                          ? colors.neutral[400]
+                          : colors.neutral[600],
+                      fontWeight: docType === 'or' ? '700' : '500',
+                    },
+                  ]}
+                >
+                  Official Receipt (OR)
+                </Text>
+              </Pressable>
+            )}
+
             <Pressable
               style={[
                 styles.tabItem,
@@ -886,13 +946,13 @@ export function SoaReportPreviewModal({
             </View>
           )}
 
-          {Platform.OS === 'web' && (docType === 'soa' || docType === 'op') && isLoadingPdf && (
+          {Platform.OS === 'web' && (docType === 'soa' || docType === 'op' || docType === 'or') && isLoadingPdf && (
             <View style={{ width: '100%', height: 3, overflow: 'hidden' }}>
               <PdfLoadBar height={3} />
             </View>
           )}
 
-          {Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op') ? (
+          {Platform.OS === 'web' && viewFormat === 'pdf' && (docType === 'soa' || docType === 'op' || docType === 'or') ? (
             <View style={{ flex: 1, minHeight: 700, padding: SPACING[12] }}>
               {isLoadingPdf ? (
                 <View
@@ -928,7 +988,7 @@ export function SoaReportPreviewModal({
                         borderColor: isDark ? colors.brand[700] : colors.brand[200],
                       }}
                     >
-                      <Lucide name="file-text" size={28} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                      <Lucide name={docType === 'or' ? 'check-circle' : 'file-text'} size={28} color={isDark ? colors.brand[400] : colors.brand[600]} />
                     </View>
 
                     <View style={{ alignItems: 'center', gap: 6 }}>
@@ -941,7 +1001,7 @@ export function SoaReportPreviewModal({
                           textAlign: 'center',
                         }}
                       >
-                        Generating Official {docType === 'soa' ? 'Statement of Account' : 'Order of Payment'}...
+                        Generating Official {docType === 'soa' ? 'Statement of Account' : docType === 'op' ? 'Order of Payment' : 'Official Receipt'}...
                       </Text>
                       <Text
                         style={{
@@ -980,7 +1040,9 @@ export function SoaReportPreviewModal({
                       >
                         {docType === 'soa'
                           ? 'Referencing Order of Payment (OP) for assessment fees'
-                          : 'Preparing 2-Up Accountable Form layout'}
+                          : docType === 'op'
+                            ? 'Preparing 2-Up Accountable Form layout'
+                            : 'Synthesizing canonical Official Receipt (OR) form'}
                       </Text>
                     </View>
                   </View>
@@ -1030,7 +1092,7 @@ export function SoaReportPreviewModal({
                           textAlign: 'center',
                         }}
                       >
-                        Unable to Preview {docType === 'soa' ? 'Statement of Account' : 'Order of Payment'} PDF
+                        Unable to Preview {docType === 'soa' ? 'Statement of Account' : docType === 'op' ? 'Order of Payment' : 'Official Receipt'} PDF
                       </Text>
                       <Text
                         style={{
@@ -1090,7 +1152,7 @@ export function SoaReportPreviewModal({
                 React.createElement('iframe', {
                   src: pdfBlobUrl,
                   style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
-                  title: docType === 'soa' ? 'Official Statement of Account PDF' : 'Official Order of Payment PDF',
+                  title: docType === 'soa' ? 'Official Statement of Account PDF' : docType === 'op' ? 'Official Order of Payment PDF' : 'Official Receipt PDF',
                 })
               ) : null}
             </View>
@@ -1467,7 +1529,7 @@ export function SoaReportPreviewModal({
 
             <View style={{ flex: 1 }} />
 
-            {(docType === 'soa' || docType === 'op') && (
+            {(docType === 'soa' || docType === 'op' || docType === 'or') && (
               <Pressable
                 style={[
                   styles.secondaryBtn,
@@ -1523,7 +1585,7 @@ export function SoaReportPreviewModal({
             >
               <Lucide name="printer" size={16} color={COLORS.neutral.white} />
               <Text style={styles.printBtnText}>
-                Print {docType === 'soa' ? 'SOA' : docType === 'op' ? 'Order of Payment' : 'Dossier'}
+                Print {docType === 'soa' ? 'SOA' : docType === 'op' ? 'Order of Payment' : docType === 'or' ? 'Official Receipt' : 'Dossier'}
               </Text>
             </Pressable>
           </View>

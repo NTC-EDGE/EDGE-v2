@@ -246,7 +246,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
-            Action = $"Payment received and Official Receipt issued: {orNumber}",
+            Action = $"Payment verified and Official Receipt issued: {orNumber}",
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Paid,
             PerformedByUserId = validUserId,

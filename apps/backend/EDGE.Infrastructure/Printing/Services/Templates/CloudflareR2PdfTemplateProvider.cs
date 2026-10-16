@@ -416,7 +416,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                  nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames = new List<string> { "or_portrait-template.pdf", "or_portrait.pdf", "AF-51.pdf" };
+            fileNames = new List<string> { "or_portrait-template.pdf" };
         }
         else
         {
@@ -480,7 +480,7 @@ public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
                  nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
                  nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
         {
-            fileNames = new List<string> { "or_portrait-template.pdf", "AF-51.pdf" };
+            fileNames = new List<string> { "or_portrait-template.pdf" };
         }
         else
         {

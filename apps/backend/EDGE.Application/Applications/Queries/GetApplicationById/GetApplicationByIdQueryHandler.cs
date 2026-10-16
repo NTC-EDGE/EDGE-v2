@@ -30,6 +30,9 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
         var primaryService = app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
         var primaryVariant = app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
+        var paidOp = app.OrdersOfPayment
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
         var dto = new ApplicationDto
         {
@@ -60,6 +63,9 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
             ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
+            OfficialReceiptNumber = paidOp?.OfficialReceiptNumber,
+            AmountPaid = paidOp?.AmountReceived,
+            PaidAt = paidOp?.PaidAt,
             Services = app.ApplicationApplicants
                 .Where(aa => aa.Applicant?.Service != null)
                 .Select(aa => new ApplicationServiceDto

@@ -550,13 +550,18 @@ export function mapApplicationDtoToUI(
       amount: item.amount,
       code: item.itemCode,
     })) ?? [],
-    totalAmountDue: activeSoa?.totalAmount ?? 0,
+    totalAmountDue: activeSoa?.totalAmount ?? (('totalAmountDue' in dto && typeof dto.totalAmountDue === 'number') ? dto.totalAmountDue : 0),
     dueDate: activeSoa?.dueDate
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',
     payment: (() => {
       const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
         ? [...dto.ordersOfPayment].sort((a, b) => {
+            const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
+            const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
+            if (hasOrA && !hasOrB) return -1;
+            if (!hasOrA && hasOrB) return 1;
+
             const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
             const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
             const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
@@ -565,14 +570,35 @@ export function mapApplicationDtoToUI(
           })[0]
         : undefined;
 
+      const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
+        ? dto.officialReceiptNumber
+        : '';
+      const directAmountPaid = 'amountPaid' in dto && typeof dto.amountPaid === 'number'
+        ? dto.amountPaid
+        : 0;
+      const directPaidAt = 'paidAt' in dto && typeof dto.paidAt === 'string'
+        ? dto.paidAt
+        : undefined;
+
+      const resolvedOrNumber = (activeOp?.officialReceiptNumber && activeOp.officialReceiptNumber.trim().length > 0)
+        ? activeOp.officialReceiptNumber
+        : directOrNumber;
+
+      const resolvedAmount = (activeOp?.amountReceived && activeOp.amountReceived > 0)
+        ? activeOp.amountReceived
+        : (directAmountPaid > 0 ? directAmountPaid : 0);
+
+      const resolvedPaidAt = activeOp?.paidAt ?? directPaidAt;
+
       return {
         orderOfPaymentId: activeOp?.id,
         opNumber: activeOp?.opNumber,
-        amountReceived: activeOp?.amountReceived ?? 0,
+        amountReceived: resolvedAmount,
         method: activeOp?.paymentMethod === 'Check' ? 'check' : 'cash',
-        orNumber: activeOp?.officialReceiptNumber ?? '',
+        orNumber: resolvedOrNumber,
         checkNumber: activeOp?.checkNumber ?? '',
         checkName: activeOp?.checkName ?? '',
+        paidAt: resolvedPaidAt,
       };
     })(),
     correctionAuditTrail: dto.correctionAuditTrails?.map((c) => ({

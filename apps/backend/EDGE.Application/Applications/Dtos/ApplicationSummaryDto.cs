@@ -32,6 +32,11 @@ public class ApplicationSummaryDto
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
 
+    public string? OfficialReceiptNumber { get; set; }
+    public decimal? AmountPaid { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public decimal? TotalAmountDue { get; set; }
+
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();

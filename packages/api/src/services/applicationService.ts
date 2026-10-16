@@ -371,6 +371,36 @@ export const applicationService = {
     });
   },
 
+  getOrPrintUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/or/print`;
+  },
+
+  getOrDownloadUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/or/print?download=true`;
+  },
+
+  async previewOrPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/or/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async downloadOrPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/or/print?download=true`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
   getIssuedDocumentPrintUrl(applicationId: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
     return `${base}/api/v2/applications/${applicationId}/issued-document/print`;

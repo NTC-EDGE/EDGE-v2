@@ -18,6 +18,7 @@ import {
   PaymentMethod,
   IssueReceiptLineItemInput,
   ReceiptFeeItemDto,
+  OfficialReceiptDto,
 } from '@edge/api';
 import { FeeSuggestionsDropdown } from './FeeSuggestionsDropdown';
 
@@ -27,7 +28,7 @@ interface IssueReceiptModalProps {
   nextOr?: NextAvailableOrDto;
   pendingPayment?: PendingPaymentDto | null;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess: (issuedReceipt?: OfficialReceiptDto) => void;
 }
 
 export function IssueReceiptModal({
@@ -205,7 +206,7 @@ export function IssueReceiptModal({
       setCheckNumber('');
       setCheckBank('');
       setRemarks('');
-      onSuccess();
+      onSuccess(res ?? undefined);
       onClose();
     }
   };

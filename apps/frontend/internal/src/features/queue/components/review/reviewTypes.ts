@@ -58,5 +58,5 @@ export interface SoaPaymentTabProps {
   onOpenGenerateSoa: () => void;
   onPrintSoa: () => void;
   onPrintOp: () => void;
-  onPreviewReport: (docType: 'soa' | 'op' | 'summary') => void;
+  onPreviewReport: (docType: 'soa' | 'op' | 'or' | 'summary') => void;
 }
