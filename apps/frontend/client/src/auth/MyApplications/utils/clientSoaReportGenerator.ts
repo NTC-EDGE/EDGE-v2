@@ -562,6 +562,268 @@ export function generateOpPrintableHtml(
   `;
 }
 
+export function generateOrPrintableHtml(app: Application): string {
+  const applicantName = getEffectiveApplicantName(app);
+  const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
+  const orNumber = safeString(app.officialReceiptNumber || app.op?.officialReceiptNumber, `OR-${refNum}`);
+  const opNumber = safeString(app.opNumber || app.op?.opNumber, `OP-${refNum}`);
+  const officeName = safeString(app.office, 'NTC Regional Office');
+  const formattedAddress = formatAddress(app);
+  const lineItems = getEffectiveLineItems(app);
+  const totalAmount = app.amountPaid !== undefined && app.amountPaid !== null
+    ? app.amountPaid
+    : (app.op?.amountReceived !== undefined && app.op.amountReceived > 0
+        ? app.op.amountReceived
+        : getEffectiveTotalAmount(app));
+  const totalWords = numberToWords(totalAmount);
+
+  const rawPaidAt = app.paidAt || app.op?.paidAt;
+  let formattedDate = 'N/A';
+  if (rawPaidAt) {
+    try {
+      const d = new Date(rawPaidAt);
+      if (!isNaN(d.getTime())) {
+        formattedDate = d.toLocaleDateString('en-US', {
+          month: 'long',
+          day: 'numeric',
+          year: 'numeric',
+        });
+      }
+    } catch {
+      formattedDate = rawPaidAt;
+    }
+  } else {
+    formattedDate = new Date().toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric',
+    });
+  }
+
+  const tableRowsHtml = lineItems.map((item) => {
+    const units = typeof item.noOfUnits === 'number' && item.noOfUnits > 0 ? item.noOfUnits : 1;
+    const rate = typeof item.feeRate === 'number' && !isNaN(item.feeRate) ? item.feeRate : (item.amount / units);
+    const amount = typeof item.amount === 'number' && !isNaN(item.amount) ? item.amount : rate * units;
+    return `
+      <tr>
+        <td style="padding: 6px 8px; border-bottom: 0.5pt solid #cbd5e1; font-size: 8.5pt;">${item.particular}</td>
+        <td style="padding: 6px 8px; border-bottom: 0.5pt solid #cbd5e1; font-size: 8.5pt; font-family: monospace; text-align: center;">${item.itemCode || 'NTC-FEE'}</td>
+        <td style="padding: 6px 8px; border-bottom: 0.5pt solid #cbd5e1; font-size: 9pt; font-weight: bold; text-align: right;">${formatCurrency(amount).replace('PHP ', '')}</td>
+      </tr>
+    `;
+  }).join('');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Official Receipt - ${orNumber}</title>
+  <style>
+    @page {
+      size: 139.7mm 215.9mm;
+      margin: 0;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 139.7mm;
+      min-height: 215.9mm;
+      padding: 8mm;
+      font-family: Arial, Helvetica, sans-serif;
+      color: #0f172a;
+      background: #ffffff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+    .sheet-border {
+      border: 1.5pt solid #0f172a;
+      padding: 6mm;
+      min-height: calc(215.9mm - 16mm);
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+    }
+    .header-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 6px;
+    }
+    .republic-title {
+      font-size: 8.5pt;
+      font-family: "Times New Roman", serif;
+      text-align: center;
+    }
+    .agency-title {
+      font-size: 10pt;
+      font-weight: bold;
+      font-family: "Times New Roman", serif;
+      text-align: center;
+    }
+    .form-title {
+      font-size: 13pt;
+      font-weight: bold;
+      letter-spacing: 1.5px;
+      text-align: center;
+      margin-top: 2px;
+    }
+    .form-code {
+      font-size: 7pt;
+      font-style: italic;
+      color: #64748b;
+      text-align: center;
+    }
+    .meta-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border: 0.8pt solid #0f172a;
+      padding: 4px 8px;
+      margin-top: 6px;
+      background: #f8fafc;
+    }
+    .or-no {
+      font-size: 12pt;
+      font-weight: bold;
+      color: #dc2626;
+      font-family: monospace;
+    }
+    .payor-card {
+      border: 0.8pt solid #0f172a;
+      padding: 4px 8px;
+      margin-top: 4px;
+      font-size: 8.5pt;
+    }
+    .items-table {
+      width: 100%;
+      border-collapse: collapse;
+      border: 0.8pt solid #0f172a;
+      margin-top: 4px;
+    }
+    .items-table th {
+      background: #f1f5f9;
+      border-bottom: 0.8pt solid #0f172a;
+      padding: 4px 6px;
+      font-size: 8pt;
+      font-weight: bold;
+      text-align: left;
+    }
+    .total-row td {
+      border-top: 1pt solid #0f172a;
+      background: #f8fafc;
+      padding: 5px 6px;
+      font-weight: bold;
+    }
+    .amount-words-box {
+      border: 0.8pt solid #0f172a;
+      padding: 4px 8px;
+      margin-top: 4px;
+      font-size: 8pt;
+    }
+    .payment-method-box {
+      border: 0.8pt solid #0f172a;
+      padding: 4px 8px;
+      margin-top: 4px;
+      font-size: 8pt;
+    }
+    .signature-section {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+    .signature-box {
+      width: 60mm;
+      text-align: center;
+    }
+    .sign-line {
+      border-bottom: 0.8pt solid #0f172a;
+      height: 18px;
+      margin-bottom: 2px;
+    }
+    .sign-name {
+      font-size: 8.5pt;
+      font-weight: bold;
+      text-transform: uppercase;
+    }
+    .sign-role {
+      font-size: 7pt;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="sheet-border">
+    <div>
+      <div class="republic-title">Republic of the Philippines</div>
+      <div class="agency-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
+      <div class="form-title">OFFICIAL RECEIPT</div>
+      <div class="form-code">Accountable Form No. 51 (Revised 2006)</div>
+
+      <div class="meta-bar">
+        <div><strong>DATE:</strong> ${formattedDate}</div>
+        <div><strong>No.</strong> <span class="or-no">${orNumber}</span></div>
+      </div>
+
+      <div class="payor-card">
+        <div><strong>Agency / Office:</strong> ${officeName}</div>
+        <div style="margin-top: 2px;"><strong>Payor:</strong> <span style="font-weight: bold; font-size: 9pt;">${applicantName}</span></div>
+        <div style="margin-top: 2px;"><strong>Address:</strong> ${formattedAddress}</div>
+        <div style="margin-top: 2px;"><strong>Order of Payment No.:</strong> ${opNumber} • <strong>Application Ref:</strong> #${refNum}</div>
+      </div>
+
+      <table class="items-table">
+        <thead>
+          <tr>
+            <th style="width: 55%;">NATURE OF COLLECTION</th>
+            <th style="width: 25%; text-align: center;">FUND / CODE</th>
+            <th style="width: 20%; text-align: right;">AMOUNT (PHP)</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRowsHtml}
+        </tbody>
+        <tfoot>
+          <tr class="total-row">
+            <td colspan="2" style="text-align: right; font-size: 8.5pt;">TOTAL AMOUNT (in Figures):</td>
+            <td style="text-align: right; font-size: 9.5pt; color: #059669;">${formatCurrency(totalAmount)}</td>
+          </tr>
+        </tfoot>
+      </table>
+
+      <div class="amount-words-box">
+        <strong>AMOUNT IN WORDS:</strong><br>
+        <span style="font-style: italic; font-weight: bold; color: #047857;">${totalWords}</span>
+      </div>
+
+      <div class="payment-method-box">
+        <div style="display: flex; justify-content: space-between;">
+          <span><strong>Payment Mode:</strong> Cash / Electronic Fund Transfer</span>
+          <span><strong>Payment Status:</strong> PAID</span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <div class="signature-section">
+        <div class="signature-box">
+          <div class="sign-line"></div>
+          <div class="sign-name">Special Collecting Officer</div>
+          <div class="sign-role">Authorized Cashier Officer</div>
+        </div>
+      </div>
+
+      <div style="font-size: 6.5pt; color: #64748b; text-align: center; margin-top: 6px; border-top: 0.5pt solid #cbd5e1; padding-top: 4px;">
+        NOTE: Write the number and date of this receipt on the back of check or draft.
+      </div>
+    </div>
+  </div>
+</body>
+</html>`;
+}
+
 export function openPrintableDocumentWindow(htmlContent: string): void {
   if (typeof window !== 'undefined') {
     const printWindow = window.open('', '_blank');

@@ -14,6 +14,7 @@ interface ClientBillingNoticeCardProps {
   onProceedToPayment: () => void;
   onViewSoa?: () => void;
   onViewOp?: () => void;
+  onViewOr?: () => void;
   onConvertToReal?: () => void;
   onRequestReassessment?: () => void;
 }
@@ -24,27 +25,35 @@ export function ClientBillingNoticeCard({
   onProceedToPayment,
   onViewSoa,
   onViewOp,
+  onViewOr,
   onConvertToReal,
   onRequestReassessment,
 }: ClientBillingNoticeCardProps) {
   const [showFeeDetails, setShowFeeDetails] = useState(true);
 
+  const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
+  const hasOr = Boolean(orNumber && orNumber.trim().length > 0);
+
   const isAssessmentOnly = app.isAssessmentOnly || app.intent === 'AssessmentOnly';
 
   const isReadyForPayment =
-    app.status === 'READY_FOR_PAYMENT' ||
-    (typeof app.soaNumber === 'string' && app.soaNumber.length > 0);
+    !hasOr && (
+      app.status === 'READY_FOR_PAYMENT' ||
+      (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
+    );
 
   const isPaymentSubmitted =
-    (typeof app.remarks === 'string' &&
-      (app.remarks.toLowerCase().includes('payment submitted') ||
-       app.remarks.toLowerCase().includes('waiting for cashier verification') ||
-       app.remarks.toLowerCase().includes('verification in progress'))) ||
-    (app.op !== undefined &&
-      typeof app.op.status === 'string' &&
-      (app.op.status.toLowerCase() === 'processing' || app.op.status.toLowerCase() === 'paid'));
+    !hasOr && (
+      (typeof app.remarks === 'string' &&
+        (app.remarks.toLowerCase().includes('payment submitted') ||
+         app.remarks.toLowerCase().includes('waiting for cashier verification') ||
+         app.remarks.toLowerCase().includes('verification in progress'))) ||
+      (app.op !== undefined &&
+        typeof app.op.status === 'string' &&
+        (app.op.status.toLowerCase() === 'processing' || app.op.status.toLowerCase() === 'paid'))
+    );
 
-  if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly) {
+  if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly && !hasOr) {
     return null;
   }
 
@@ -71,24 +80,32 @@ export function ClientBillingNoticeCard({
           <View
             style={[
               styles.iconCircle,
-              isAssessmentOnly && { backgroundColor: '#F3E8FF' },
+              isAssessmentOnly
+                ? { backgroundColor: '#F3E8FF' }
+                : hasOr
+                ? { backgroundColor: '#ECFDF5' }
+                : { backgroundColor: '#E0F2FE' },
             ]}
           >
             <Icon
-              name={isAssessmentOnly ? 'search' : 'credit-card'}
+              name={isAssessmentOnly ? 'search' : hasOr ? 'check-circle' : 'credit-card'}
               size={20}
-              color={isAssessmentOnly ? '#7C3AED' : '#0284C7'}
+              color={isAssessmentOnly ? '#7C3AED' : hasOr ? '#059669' : '#0284C7'}
             />
           </View>
           <View style={styles.headerTexts}>
             <Text style={styles.headerTitle}>
               {isAssessmentOnly
                 ? 'Pre-Assessment & Statement of Account (SOA)'
+                : hasOr
+                ? 'Official Receipt Issued • Payment Completed'
                 : 'Order of Payment & Billing Assessment'}
             </Text>
             <Text style={styles.headerSubtitle}>
               {isAssessmentOnly
                 ? 'Evaluator has assessed your submitted requirements and prepared your Statement of Account.'
+                : hasOr
+                ? `Official Receipt #${orNumber} has been officially issued by the Cashier.`
                 : isPaymentSubmitted
                 ? 'Payment details submitted — pending Cashier verification'
                 : 'Statement of Account has been assessed and issued for settlement'}
@@ -101,6 +118,8 @@ export function ClientBillingNoticeCard({
             styles.statusPill,
             isAssessmentOnly
               ? { backgroundColor: '#FAF5FF' }
+              : hasOr
+              ? { backgroundColor: '#ECFDF5' }
               : isPaymentSubmitted
               ? styles.statusPillSubmitted
               : styles.statusPillActionRequired,
@@ -112,6 +131,8 @@ export function ClientBillingNoticeCard({
               {
                 backgroundColor: isAssessmentOnly
                   ? '#7C3AED'
+                  : hasOr
+                  ? '#059669'
                   : isPaymentSubmitted
                   ? '#0284C7'
                   : '#D97706',
@@ -124,6 +145,8 @@ export function ClientBillingNoticeCard({
               {
                 color: isAssessmentOnly
                   ? '#7C3AED'
+                  : hasOr
+                  ? '#059669'
                   : isPaymentSubmitted
                   ? '#0284C7'
                   : '#B45309',
@@ -132,6 +155,8 @@ export function ClientBillingNoticeCard({
           >
             {isAssessmentOnly
               ? 'Pre-Assessment Complete'
+              : hasOr
+              ? `Paid • OR #${orNumber}`
               : isPaymentSubmitted
               ? 'Verification in Progress'
               : 'Action Required: Pay Fees'}
@@ -243,9 +268,26 @@ export function ClientBillingNoticeCard({
               <Text style={styles.viewDocBtnTextOp}>View Order of Payment</Text>
             </TouchableOpacity>
           )}
+
+          {onViewOr && hasOr && (
+            <TouchableOpacity style={styles.viewDocBtnOr} onPress={onViewOr} activeOpacity={0.75}>
+              <Icon name="check-circle" size={14} color="#059669" />
+              <Text style={styles.viewDocBtnTextOr}>Official Receipt (OR #{orNumber})</Text>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {isAssessmentOnly ? (
+        {hasOr ? (
+          <TouchableOpacity
+            style={[styles.payBtn, { backgroundColor: '#059669' }]}
+            onPress={onViewOr}
+            activeOpacity={0.85}
+          >
+            <Icon name="check-circle" size={16} color="#FFFFFF" />
+            <Text style={styles.payBtnText}>View Official Receipt</Text>
+            <Icon name="arrow-right" size={16} color="#FFFFFF" />
+          </TouchableOpacity>
+        ) : isAssessmentOnly ? (
           <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
             {onRequestReassessment && (
               <TouchableOpacity
@@ -584,6 +626,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#047857',
+  },
+  viewDocBtnOr: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+  },
+  viewDocBtnTextOr: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#059669',
   },
   payBtn: {
     flexDirection: 'row',

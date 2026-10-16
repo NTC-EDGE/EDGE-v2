@@ -103,6 +103,9 @@ export interface SingleApplication {
   totalAmountDue?: number;
   dueDate?: string;
   opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -284,6 +287,9 @@ export interface BulkApplication {
   totalAmountDue?: number;
   dueDate?: string;
   opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -705,6 +711,12 @@ export interface ApiApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   soaNumber?: string | null;
+  officialReceiptNumber?: string;
+  OfficialReceiptNumber?: string;
+  amountPaid?: number;
+  AmountPaid?: number;
+  paidAt?: string;
+  PaidAt?: string;
   intent?: string;
   Intent?: string;
   assessedAt?: string;
@@ -1095,6 +1107,27 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;
   const primaryOpDto = rawOps.length > 0 ? rawOps[0] : undefined;
 
+  const resolvedOrNumber =
+    dto.officialReceiptNumber ||
+    dto.OfficialReceiptNumber ||
+    primaryOpDto?.officialReceiptNumber ||
+    undefined;
+
+  const resolvedAmountPaid =
+    typeof dto.amountPaid === 'number'
+      ? dto.amountPaid
+      : typeof dto.AmountPaid === 'number'
+        ? dto.AmountPaid
+        : typeof primaryOpDto?.amountReceived === 'number'
+          ? primaryOpDto.amountReceived
+          : undefined;
+
+  const resolvedPaidAt =
+    dto.paidAt ||
+    dto.PaidAt ||
+    primaryOpDto?.paidAt ||
+    undefined;
+
   const mappedSoa: SoaData | undefined = primarySoaDto
     ? {
         id: primarySoaDto.id,
@@ -1125,13 +1158,21 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         opNumber: primaryOpDto.opNumber || '',
         status: primaryOpDto.status || 'Active',
         amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
-        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : 0,
+        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : (resolvedAmountPaid ?? 0),
         paymentMethod: primaryOpDto.paymentMethod,
-        officialReceiptNumber: primaryOpDto.officialReceiptNumber,
-        paidAt: primaryOpDto.paidAt,
+        officialReceiptNumber: primaryOpDto.officialReceiptNumber || resolvedOrNumber,
+        paidAt: primaryOpDto.paidAt || resolvedPaidAt,
         remarks: primaryOpDto.remarks,
       }
-    : undefined;
+    : (resolvedOrNumber ? {
+        id: 'op-auto-gen',
+        opNumber: '',
+        status: 'PAID',
+        amountDue: 0,
+        amountReceived: resolvedAmountPaid ?? 0,
+        officialReceiptNumber: resolvedOrNumber,
+        paidAt: resolvedPaidAt,
+      } : undefined);
 
   let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
   const svcLower = (serviceName || '').toLowerCase();
@@ -1220,6 +1261,9 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       totalAmountDue: calculatedTotalDue,
       dueDate: resolvedDueDate,
       opNumber: resolvedOpNumber,
+      officialReceiptNumber: resolvedOrNumber,
+      amountPaid: resolvedAmountPaid,
+      paidAt: resolvedPaidAt,
       submissionMode: 'BULK',
       documents: reqDocs,
       requirements: reqDocs,
@@ -1290,6 +1334,9 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     totalAmountDue: calculatedTotalDue,
     dueDate: resolvedDueDate,
     opNumber: resolvedOpNumber,
+    officialReceiptNumber: resolvedOrNumber,
+    amountPaid: resolvedAmountPaid,
+    paidAt: resolvedPaidAt,
     histories: mappedHistories,
     history: mappedHistories,
     rawStatus,

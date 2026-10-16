@@ -10,7 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { OfficialReceiptDto } from '@edge/api';
+import { OfficialReceiptDto, receiptService } from '@edge/api';
 import {
   PrintOutputMode,
   loadUserReportPrintConfig,
@@ -37,14 +37,20 @@ export function ReceiptPrintPreviewModal({
 }: ReceiptPrintPreviewModalProps) {
   const { colors } = useTheme();
 
+  const [viewFormat, setViewFormat] = useState<'pdf' | 'physical'>('pdf');
   const [outputMode, setOutputMode] = useState<PrintOutputMode>('plain_paper');
   const [offsetX, setOffsetX] = useState<number>(0);
   const [offsetY, setOffsetY] = useState<number>(0);
   const [showCalibrationSettings, setShowCalibrationSettings] = useState<boolean>(false);
   const [isSavedFeedback, setIsSavedFeedback] = useState<boolean>(false);
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
 
   useEffect(() => {
     if (visible) {
+      setViewFormat('pdf');
       const savedConfig = loadUserReportPrintConfig('AF-51', userId);
       if (savedConfig !== null && savedConfig !== undefined) {
         if (savedConfig.outputMode !== null && savedConfig.outputMode !== undefined) {
@@ -57,6 +63,57 @@ export function ReceiptPrintPreviewModal({
       }
     }
   }, [visible, userId]);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (visible && receipt && Platform.OS === 'web' && viewFormat === 'pdf' && typeof receipt.id === 'string' && receipt.id.trim().length > 0) {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+      setPdfBlobUrl(null);
+
+      const loadBlob = async () => {
+        try {
+          const [blob, err] = await receiptService.previewReceiptPdf(receipt.id);
+
+          if (!active) return;
+
+          if (err !== null || blob === null) {
+            const errDetail = typeof err === 'string' && err.trim().length > 0
+              ? err
+              : 'Unable to load official OR PDF template.';
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            createdUrl = window.URL.createObjectURL(blob);
+            setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
+          }
+        } catch (fetchErr: unknown) {
+          if (!active) return;
+          const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Error loading official OR PDF';
+          setPdfError(errorMessage);
+          setIsLoadingPdf(false);
+        }
+      };
+
+      void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+      setPdfError(null);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl !== null && typeof window !== 'undefined') {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [visible, receipt?.id, viewFormat, reloadKey]);
 
   if (receipt === null) return null;
 
@@ -78,7 +135,32 @@ export function ReceiptPrintPreviewModal({
     }, 2000);
   };
 
-  const handlePrint = () => {
+  const handlePrint = async () => {
+    if (viewFormat === 'pdf') {
+      try {
+        const [pdfBlob, err] = await receiptService.previewReceiptPdf(receipt.id);
+        if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
+          const blobUrl = window.URL.createObjectURL(pdfBlob);
+          const printWindow = window.open(blobUrl, '_blank');
+          if (printWindow !== null) {
+            printWindow.focus();
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
+      }
+
+      const url = receiptService.getReceiptPrintUrl(receipt.id);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+    }
+
     const printOptions: OfficialReceiptPrintOptions = {
       outputMode,
       paperSize: 'letter',
@@ -94,6 +176,13 @@ export function ReceiptPrintPreviewModal({
 
     const html = generateOfficialReceiptPrintHtml(receipt, printOptions);
     openDocumentPrintWindow(html);
+  };
+
+  const handleDownloadPdf = () => {
+    const url = receiptService.getReceiptDownloadUrl(receipt.id);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    }
   };
 
   const isStatusCancelled = (statusVal: unknown): boolean => {
@@ -118,20 +207,81 @@ export function ReceiptPrintPreviewModal({
               </View>
             </View>
             <View style={styles.headerActions}>
+              {Platform.OS === 'web' && (
+                <View style={styles.formatSwitcher}>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'pdf' && styles.formatBtnActive]}
+                    onPress={() => setViewFormat('pdf')}
+                    activeOpacity={0.8}
+                  >
+                    <Lucide
+                      name="file-text"
+                      size={13}
+                      color={viewFormat === 'pdf' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.formatBtnText,
+                        viewFormat === 'pdf' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Official PDF Template
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'physical' && styles.formatBtnActive]}
+                    onPress={() => setViewFormat('physical')}
+                    activeOpacity={0.8}
+                  >
+                    <Lucide
+                      name="sliders"
+                      size={13}
+                      color={viewFormat === 'physical' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.formatBtnText,
+                        viewFormat === 'physical' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Physical Form &amp; Calibration
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
               <TouchableOpacity
-                onPress={() => setShowCalibrationSettings(!showCalibrationSettings)}
-                style={[
-                  styles.settingsBtn,
-                  showCalibrationSettings && { backgroundColor: colors.brand.primary + '18' },
-                ]}
+                onPress={handleDownloadPdf}
+                style={[styles.downloadHeaderBtn, { borderColor: colors.brand.primary }]}
+                activeOpacity={0.8}
               >
-                <Lucide name="sliders" size={15} color={colors.brand.primary} />
-                <Text style={[styles.settingsBtnText, { color: colors.brand.primary }]}>Feeder Calibration</Text>
+                <Lucide name="download" size={15} color={colors.brand.primary} />
+                <Text style={[styles.downloadHeaderBtnText, { color: colors.brand.primary }]}>Official PDF</Text>
               </TouchableOpacity>
+
+              {viewFormat === 'physical' && (
+                <TouchableOpacity
+                  onPress={() => setShowCalibrationSettings(!showCalibrationSettings)}
+                  style={[
+                    styles.settingsBtn,
+                    showCalibrationSettings && { backgroundColor: colors.brand.primary + '18' },
+                  ]}
+                >
+                  <Lucide name="sliders" size={15} color={colors.brand.primary} />
+                  <Text style={[styles.settingsBtnText, { color: colors.brand.primary }]}>Feeder Calibration</Text>
+                </TouchableOpacity>
+              )}
+
               <TouchableOpacity onPress={handlePrint} style={[styles.printHeaderBtn, { backgroundColor: colors.brand.primary }]}>
                 <Lucide name="printer" size={16} color="#fff" />
                 <Text style={styles.printHeaderBtnText}>
-                  {outputMode === 'accountable_form' ? 'Print on Physical Form' : outputMode === 'alignment_test' ? 'Print Alignment Test' : 'Print Electronic Receipt'}
+                  {viewFormat === 'pdf'
+                    ? 'Print Official PDF'
+                    : outputMode === 'accountable_form'
+                    ? 'Print on Physical Form'
+                    : outputMode === 'alignment_test'
+                    ? 'Print Alignment Test'
+                    : 'Print Electronic Receipt'}
                 </Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
@@ -140,8 +290,49 @@ export function ReceiptPrintPreviewModal({
             </View>
           </View>
 
-          {/* Mode Switcher Tabs */}
-          <View style={styles.modeTabsRow}>
+          {Platform.OS === 'web' && viewFormat === 'pdf' ? (
+            <View style={styles.pdfContainer}>
+              {isLoadingPdf ? (
+                <View style={styles.pdfLoadingBox}>
+                  <Lucide name="printer" size={32} color={colors.brand.primary} />
+                  <Text style={[styles.pdfLoadingText, { color: colors.neutral[600] }]}>
+                    Loading Official Receipt #{receipt.officialReceiptNumber} PDF template...
+                  </Text>
+                </View>
+              ) : pdfError !== null ? (
+                <View style={styles.pdfErrorBox}>
+                  <Lucide name="alert-circle" size={32} color="#DC2626" />
+                  <Text style={styles.pdfErrorText}>{pdfError}</Text>
+                  <View style={styles.pdfErrorActions}>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => setReloadKey((k) => k + 1)}
+                      activeOpacity={0.8}
+                    >
+                      <Lucide name="refresh-cw" size={14} color="#FFFFFF" />
+                      <Text style={styles.retryBtnText}>Retry Loading</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.switchGridBtn}
+                      onPress={() => setViewFormat('physical')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.switchGridBtnText}>Switch to Physical Mode</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : pdfBlobUrl !== null ? (
+                React.createElement('iframe', {
+                  src: pdfBlobUrl,
+                  style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
+                  title: `Official Receipt #${receipt.officialReceiptNumber} PDF`,
+                })
+              ) : null}
+            </View>
+          ) : (
+            <>
+              {/* Mode Switcher Tabs */}
+              <View style={styles.modeTabsRow}>
             <TouchableOpacity
               onPress={() => setOutputMode('plain_paper')}
               style={[styles.modeTab, outputMode === 'plain_paper' && styles.modeTabActive]}
@@ -445,9 +636,11 @@ export function ReceiptPrintPreviewModal({
               ) : null}
             </View>
           </ScrollView>
-        </View>
-      </View>
-    </Modal>
+        </>
+      )}
+    </View>
+  </View>
+</Modal>
   );
 }
 
@@ -462,7 +655,7 @@ const styles = StyleSheet.create({
   container: {
     borderRadius: 12,
     width: '100%',
-    maxWidth: 780,
+    maxWidth: 860,
     maxHeight: '94%',
     shadowColor: '#000',
     shadowOpacity: 0.2,
@@ -497,6 +690,50 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  formatSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  formatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  formatBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  formatBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  downloadHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+    backgroundColor: '#ffffff',
+  },
+  downloadHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+  },
   settingsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -526,6 +763,73 @@ const styles = StyleSheet.create({
   },
   closeBtn: {
     padding: 4,
+  },
+  pdfContainer: {
+    flex: 1,
+    minHeight: 680,
+    backgroundColor: '#334155',
+    padding: 12,
+  },
+  pdfLoadingBox: {
+    flex: 1,
+    minHeight: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+  },
+  pdfLoadingText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pdfErrorBox: {
+    flex: 1,
+    minHeight: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 24,
+  },
+  pdfErrorText: {
+    fontSize: 14,
+    color: '#dc2626',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  pdfErrorActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  switchGridBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  switchGridBtnText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '600',
   },
   modeTabsRow: {
     flexDirection: 'row',
