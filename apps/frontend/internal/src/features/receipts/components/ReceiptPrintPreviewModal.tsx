@@ -43,6 +43,7 @@ export function ReceiptPrintPreviewModal({
   const [offsetY, setOffsetY] = useState<number>(0);
   const [showCalibrationSettings, setShowCalibrationSettings] = useState<boolean>(false);
   const [isSavedFeedback, setIsSavedFeedback] = useState<boolean>(false);
+  const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -51,6 +52,7 @@ export function ReceiptPrintPreviewModal({
   useEffect(() => {
     if (visible) {
       setViewFormat('pdf');
+      setShowActionMenu(false);
       const savedConfig = loadUserReportPrintConfig('AF-51', userId);
       if (savedConfig !== null && savedConfig !== undefined) {
         if (savedConfig.outputMode !== null && savedConfig.outputMode !== undefined) {
@@ -114,6 +116,24 @@ export function ReceiptPrintPreviewModal({
       }
     };
   }, [visible, receipt?.id, viewFormat, reloadKey]);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    const handleOutsideClick = () => {
+      setShowActionMenu(false);
+    };
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('blur', handleOutsideClick);
+      }, 50);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('blur', handleOutsideClick);
+      };
+    }
+  }, [showActionMenu]);
 
   if (receipt === null) return null;
 
@@ -201,17 +221,25 @@ export function ReceiptPrintPreviewModal({
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View style={styles.titleRow}>
               <Lucide name="printer" size={20} color={colors.brand.primary} />
-              <View>
-                <Text style={[styles.title, { color: colors.text }]}>Official Receipt Print Center</Text>
-                <Text style={styles.subtitle}>Accountable Form No. 51 • #{receipt.officialReceiptNumber}</Text>
+              <View style={styles.titleTextContainer}>
+                <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+                  Official Receipt Print Center
+                </Text>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  Accountable Form No. 51 • #{receipt.officialReceiptNumber}
+                </Text>
               </View>
             </View>
+
             <View style={styles.headerActions}>
               {Platform.OS === 'web' && (
                 <View style={styles.formatSwitcher}>
                   <TouchableOpacity
                     style={[styles.formatBtn, viewFormat === 'pdf' && styles.formatBtnActive]}
-                    onPress={() => setViewFormat('pdf')}
+                    onPress={() => {
+                      setViewFormat('pdf');
+                      setShowActionMenu(false);
+                    }}
                     activeOpacity={0.8}
                   >
                     <Lucide
@@ -225,16 +253,19 @@ export function ReceiptPrintPreviewModal({
                         viewFormat === 'pdf' && { color: colors.brand.primary, fontWeight: '700' },
                       ]}
                     >
-                      Official PDF Template
+                      PDF Template
                     </Text>
                   </TouchableOpacity>
                   <TouchableOpacity
                     style={[styles.formatBtn, viewFormat === 'physical' && styles.formatBtnActive]}
-                    onPress={() => setViewFormat('physical')}
+                    onPress={() => {
+                      setViewFormat('physical');
+                      setShowActionMenu(false);
+                    }}
                     activeOpacity={0.8}
                   >
                     <Lucide
-                      name="sliders"
+                      name="copy"
                       size={13}
                       color={viewFormat === 'physical' ? colors.brand.primary : colors.neutral[600]}
                     />
@@ -244,50 +275,124 @@ export function ReceiptPrintPreviewModal({
                         viewFormat === 'physical' && { color: colors.brand.primary, fontWeight: '700' },
                       ]}
                     >
-                      Physical Form &amp; Calibration
+                      Physical Form
                     </Text>
                   </TouchableOpacity>
                 </View>
               )}
 
               <TouchableOpacity
-                onPress={handleDownloadPdf}
-                style={[styles.downloadHeaderBtn, { borderColor: colors.brand.primary }]}
+                onPress={() => {
+                  setShowActionMenu(false);
+                  handlePrint();
+                }}
+                style={[styles.printHeaderBtn, { backgroundColor: colors.brand.primary }]}
                 activeOpacity={0.8}
               >
-                <Lucide name="download" size={15} color={colors.brand.primary} />
-                <Text style={[styles.downloadHeaderBtnText, { color: colors.brand.primary }]}>Official PDF</Text>
+                <Lucide name="printer" size={15} color="#fff" />
+                <Text style={styles.printHeaderBtnText}>Print</Text>
               </TouchableOpacity>
 
-              {viewFormat === 'physical' && (
-                <TouchableOpacity
-                  onPress={() => setShowCalibrationSettings(!showCalibrationSettings)}
-                  style={[
-                    styles.settingsBtn,
-                    showCalibrationSettings && { backgroundColor: colors.brand.primary + '18' },
-                  ]}
-                >
-                  <Lucide name="sliders" size={15} color={colors.brand.primary} />
-                  <Text style={[styles.settingsBtnText, { color: colors.brand.primary }]}>Feeder Calibration</Text>
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity onPress={handlePrint} style={[styles.printHeaderBtn, { backgroundColor: colors.brand.primary }]}>
-                <Lucide name="printer" size={16} color="#fff" />
-                <Text style={styles.printHeaderBtnText}>
-                  {viewFormat === 'pdf'
-                    ? 'Print Official PDF'
-                    : outputMode === 'accountable_form'
-                    ? 'Print on Physical Form'
-                    : outputMode === 'alignment_test'
-                    ? 'Print Alignment Test'
-                    : 'Print Electronic Receipt'}
-                </Text>
+              {/* 3-Dots More Options Menu Button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                  setShowActionMenu((prev) => !prev);
+                }}
+                style={[
+                  styles.menuTriggerBtn,
+                  showActionMenu && styles.menuTriggerBtnActive,
+                ]}
+                activeOpacity={0.8}
+                accessibilityLabel="More options"
+              >
+                <Lucide name="more-vertical" size={17} color={colors.neutral[700]} />
               </TouchableOpacity>
-              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowActionMenu(false);
+                  onClose();
+                }}
+                style={styles.closeBtn}
+                activeOpacity={0.8}
+              >
                 <Lucide name="x" size={20} color={colors.neutral[700]} />
               </TouchableOpacity>
             </View>
+
+            {/* Dropdown Menu from 3-Dots */}
+            {showActionMenu && (
+              <View
+                style={styles.dropdownMenu}
+                onTouchStart={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadPdf();
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="download" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Download Official PDF</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Canonical vector PDF template</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.dropdownDivider} />
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    if (viewFormat !== 'physical') {
+                      setViewFormat('physical');
+                    }
+                    setShowCalibrationSettings((prev) => !prev);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="sliders" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>
+                      {showCalibrationSettings ? 'Hide Feeder Calibration' : 'Feeder Calibration'}
+                    </Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>
+                      {showCalibrationSettings ? 'Close adjustment panel' : 'Printer tray X/Y offset controls'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {Platform.OS === 'web' && (
+                  <>
+                    <View style={styles.dropdownDivider} />
+                    <TouchableOpacity
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        setShowActionMenu(false);
+                        setReloadKey((k) => k + 1);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Lucide name="refresh-cw" size={16} color={colors.neutral[600]} />
+                      <View style={styles.dropdownMenuTextContainer}>
+                        <Text style={styles.dropdownMenuItemText}>Reload Template</Text>
+                        <Text style={styles.dropdownMenuItemSubtext}>Fetch fresh copy from server</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
           </View>
 
           {Platform.OS === 'web' && viewFormat === 'pdf' ? (
@@ -333,63 +438,89 @@ export function ReceiptPrintPreviewModal({
             <>
               {/* Mode Switcher Tabs */}
               <View style={styles.modeTabsRow}>
-            <TouchableOpacity
-              onPress={() => setOutputMode('plain_paper')}
-              style={[styles.modeTab, outputMode === 'plain_paper' && styles.modeTabActive]}
-            >
-              <Lucide
-                name="file-text"
-                size={14}
-                color={outputMode === 'plain_paper' ? colors.brand.primary : colors.neutral[600]}
-              />
-              <Text
-                style={[
-                  styles.modeTabText,
-                  outputMode === 'plain_paper' && { color: colors.brand.primary, fontWeight: '700' },
-                ]}
-              >
-                Plain Bond Paper (Full Form)
-              </Text>
-            </TouchableOpacity>
+                <View style={styles.modeTabsGroup}>
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('plain_paper')}
+                    style={[styles.modeTab, outputMode === 'plain_paper' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="file-text"
+                      size={14}
+                      color={outputMode === 'plain_paper' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'plain_paper' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Plain Paper
+                    </Text>
+                  </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setOutputMode('accountable_form')}
-              style={[styles.modeTab, outputMode === 'accountable_form' && styles.modeTabActive]}
-            >
-              <Lucide
-                name="copy"
-                size={14}
-                color={outputMode === 'accountable_form' ? colors.brand.primary : colors.neutral[600]}
-              />
-              <Text
-                style={[
-                  styles.modeTabText,
-                  outputMode === 'accountable_form' && { color: colors.brand.primary, fontWeight: '700' },
-                ]}
-              >
-                Pre-Printed Form Overlay (Hard Copy OR)
-              </Text>
-            </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('accountable_form')}
+                    style={[styles.modeTab, outputMode === 'accountable_form' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="copy"
+                      size={14}
+                      color={outputMode === 'accountable_form' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'accountable_form' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Pre-Printed Booklet
+                    </Text>
+                  </TouchableOpacity>
 
-            <TouchableOpacity
-              onPress={() => setOutputMode('alignment_test')}
-              style={[styles.modeTab, outputMode === 'alignment_test' && styles.modeTabActive]}
-            >
-              <Lucide
-                name="target"
-                size={14}
-                color={outputMode === 'alignment_test' ? colors.brand.primary : colors.neutral[600]}
-              />
-              <Text
-                style={[
-                  styles.modeTabText,
-                  outputMode === 'alignment_test' && { color: colors.brand.primary, fontWeight: '700' },
-                ]}
-              >
-                Alignment Test Sheet
-              </Text>
-            </TouchableOpacity>
-          </View>
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('alignment_test')}
+                    style={[styles.modeTab, outputMode === 'alignment_test' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="target"
+                      size={14}
+                      color={outputMode === 'alignment_test' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'alignment_test' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Alignment Test
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Calibration Toggle on the right side of mode tabs */}
+                <TouchableOpacity
+                  onPress={() => setShowCalibrationSettings((prev) => !prev)}
+                  style={[
+                    styles.calibrationBadgeBtn,
+                    showCalibrationSettings && styles.calibrationBadgeBtnActive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="sliders"
+                    size={12}
+                    color={showCalibrationSettings ? colors.brand.primary : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.calibrationBadgeText,
+                      showCalibrationSettings && { color: colors.brand.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    Offsets ({offsetX >= 0 ? `+${offsetX}` : offsetX}, {offsetY >= 0 ? `+${offsetY}` : offsetY}mm)
+                  </Text>
+                </TouchableOpacity>
+              </View>
 
           {/* Collapsible Feeder Calibration Panel */}
           {showCalibrationSettings && (
@@ -490,7 +621,11 @@ export function ReceiptPrintPreviewModal({
             </View>
           )}
 
-          <ScrollView style={styles.body} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            showsVerticalScrollIndicator={true}
+          >
             {/* Accountable Form 51 Layout Card */}
             <View style={[styles.receiptSheet, isCancelled && { borderColor: colors.semantic.error }]}>
               {isCancelled && (
@@ -656,7 +791,10 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     width: '100%',
     maxWidth: 860,
+    height: '92%',
     maxHeight: '94%',
+    display: 'flex',
+    flexDirection: 'column',
     shadowColor: '#000',
     shadowOpacity: 0.2,
     shadowRadius: 20,
@@ -671,6 +809,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    position: 'relative',
+    zIndex: 100,
   },
   titleRow: {
     flexDirection: 'row',
@@ -720,33 +860,63 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: '#64748b',
   },
-  downloadHeaderBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  titleTextContainer: {
+    flexShrink: 1,
+  },
+  menuTriggerBtn: {
+    padding: 7,
     borderRadius: 6,
     borderWidth: 1,
+    borderColor: '#e2e8f0',
     backgroundColor: '#ffffff',
-  },
-  downloadHeaderBtnText: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  settingsBtn: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    borderWidth: 1,
+    justifyContent: 'center',
+  },
+  menuTriggerBtnActive: {
+    backgroundColor: '#f1f5f9',
     borderColor: '#cbd5e1',
   },
-  settingsBtnText: {
-    fontSize: 12,
+  dropdownMenu: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    width: 250,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 50,
+    zIndex: 1000,
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dropdownMenuTextContainer: {
+    flex: 1,
+  },
+  dropdownMenuItemText: {
+    fontSize: 13,
     fontWeight: '600',
+    color: '#1e293b',
+  },
+  dropdownMenuItemSubtext: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 4,
   },
   printHeaderBtn: {
     flexDirection: 'row',
@@ -769,6 +939,8 @@ const styles = StyleSheet.create({
     minHeight: 680,
     backgroundColor: '#334155',
     padding: 12,
+    position: 'relative',
+    zIndex: 1,
   },
   pdfLoadingBox: {
     flex: 1,
@@ -833,12 +1005,38 @@ const styles = StyleSheet.create({
   },
   modeTabsRow: {
     flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     backgroundColor: '#f1f5f9',
     paddingHorizontal: 12,
     paddingTop: 8,
-    gap: 8,
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
+  },
+  modeTabsGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  calibrationBadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  calibrationBadgeBtnActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#93c5fd',
+  },
+  calibrationBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
   },
   modeTab: {
     flexDirection: 'row',
@@ -961,8 +1159,13 @@ const styles = StyleSheet.create({
     lineHeight: 16,
   },
   body: {
+    flex: 1,
+    minHeight: 500,
     padding: 16,
     backgroundColor: '#f8fafc',
+  },
+  bodyContent: {
+    paddingBottom: 40,
   },
   receiptSheet: {
     backgroundColor: '#ffffff',
