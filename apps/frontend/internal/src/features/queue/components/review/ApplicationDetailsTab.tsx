@@ -6,7 +6,6 @@ import { InfoRow } from "./reviewComponents";
 import { FormsAttachmentSection } from "./FormsAttachmentSection";
 import { BulkApplicantsRosterSection } from "./BulkApplicantsRosterSection";
 import { HeroReviewHeader } from "../HeroReviewHeader";
-import { OfficerAccountabilitySection } from "./OfficerAccountabilitySection";
 import { CompanyDetailsSection } from "./CompanyDetailsSection";
 import { PrimaryApplicantDetailsSection } from "./PrimaryApplicantDetailsSection";
 import { reviewStyles as styles } from "./reviewStyles";
@@ -133,8 +132,6 @@ export function ApplicationDetailsTab({
           isAssessmentOnly={app.isAssessmentOnly || app.intent === "AssessmentOnly"}
         />
       </View>
-
-      <OfficerAccountabilitySection app={app} />
 
       <View style={styles.infoBlock}>
         <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
