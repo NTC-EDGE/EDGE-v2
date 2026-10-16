@@ -66,6 +66,8 @@ export function IssueReceiptModal({
     handleRemoveLineItem,
     handleUpdateLineItem,
     handleSelectFee,
+    handlePaymentMethodChange,
+    clientPaymentDetails,
     handleSubmit,
   } = useIssueReceiptForm({
     visible,
@@ -113,6 +115,7 @@ export function IssueReceiptModal({
 
             <PreferredPaymentBanner
               preferredBreakdown={preferredBreakdown}
+              pendingPayment={pendingPayment}
               issuanceStrategy={issuanceStrategy}
               selectedSplitIndex={selectedSplitIndex}
               onSelectStrategy={handleSelectStrategy}
@@ -127,6 +130,8 @@ export function IssueReceiptModal({
               nextOr={nextOr}
               paymentMethod={paymentMethod}
               setPaymentMethod={setPaymentMethod}
+              onPaymentMethodChange={handlePaymentMethodChange}
+              clientSubmittedPayment={clientPaymentDetails}
               isFromPendingPayment={isFromPendingPayment}
               checkNumber={checkNumber}
               setCheckNumber={setCheckNumber}

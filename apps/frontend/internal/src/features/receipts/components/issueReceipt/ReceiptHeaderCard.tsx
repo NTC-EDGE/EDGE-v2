@@ -12,6 +12,13 @@ interface ReceiptHeaderCardProps {
   nextOr?: NextAvailableOrDto;
   paymentMethod: PaymentMethod;
   setPaymentMethod: (m: PaymentMethod) => void;
+  onPaymentMethodChange?: (m: PaymentMethod) => void;
+  clientSubmittedPayment?: {
+    checkNumber: string;
+    checkBank: string;
+    checkDate: string;
+    onlineReference: string;
+  };
   isFromPendingPayment: boolean;
   checkNumber: string;
   setCheckNumber: (v: string) => void;
@@ -31,6 +38,8 @@ export function ReceiptHeaderCard({
   nextOr,
   paymentMethod,
   setPaymentMethod,
+  onPaymentMethodChange,
+  clientSubmittedPayment,
   isFromPendingPayment,
   checkNumber,
   setCheckNumber,
@@ -119,7 +128,13 @@ export function ReceiptHeaderCard({
               return (
                 <TouchableOpacity
                   key={method}
-                  onPress={() => setPaymentMethod(method)}
+                  onPress={() => {
+                    if (onPaymentMethodChange) {
+                      onPaymentMethodChange(method);
+                    } else {
+                      setPaymentMethod(method);
+                    }
+                  }}
                   style={[
                     styles.methodPill,
                     { backgroundColor: colors.neutral[100], borderColor: colors.neutral[300] },
@@ -164,9 +179,18 @@ export function ReceiptHeaderCard({
       {/* Online Reference Row (Only when Online is selected) */}
       {paymentMethod === 'Online' && (
         <View style={[styles.onlineInlineBox, { borderTopColor: colors.neutral[200] }]}>
-          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>
-            Online Reference / E-Receipt / Transaction No. (Optional)
-          </Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700], marginBottom: 0 }]}>
+              Online Reference / E-Receipt / Transaction No. (Optional)
+            </Text>
+            {Boolean(clientSubmittedPayment?.onlineReference) && (
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#6D28D9' }}>
+                  Auto-filled from Client Submission
+                </Text>
+              </View>
+            )}
+          </View>
           <TextInput
             style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
             placeholder="e.g. LBP-TXN-12345678, GCASH-REF-89012"
@@ -180,6 +204,18 @@ export function ReceiptHeaderCard({
       {/* Check Details Row (Only when Check is selected) */}
       {paymentMethod === 'Check' && (
         <View style={[styles.checkInlineBox, { borderTopColor: colors.neutral[200] }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700], marginBottom: 0 }]}>
+              Check Details
+            </Text>
+            {Boolean(clientSubmittedPayment?.checkBank || clientSubmittedPayment?.checkNumber) && (
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 10, fontWeight: '700', color: '#6D28D9' }}>
+                  Auto-filled from Client Submission
+                </Text>
+              </View>
+            )}
+          </View>
           <View style={styles.checkFieldsRow}>
             <View style={{ flex: 1, marginRight: 8 }}>
               <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Check # *</Text>

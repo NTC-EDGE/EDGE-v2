@@ -7,6 +7,7 @@ import {
   PaymentBreakdownItem,
   PaymentItemMode,
   serializePaymentBreakdown,
+  SubmitPaymentRequest,
 } from '@edge/api';
 import { useToast } from '../../../../../shared/components/Toast';
 import { ModeOfPayment, CombinationRow } from './paymentSubmissionTypes';
@@ -344,12 +345,27 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
     }
 
     const serializedRemarks = serializePaymentBreakdown(breakdown);
-    const payload = {
+    const checkRow = combinationRows.find((r) => r.mode === 'Check');
+    const directCheckNumber = selectedMode === 'Check'
+      ? (checkNumber.trim() || undefined)
+      : (checkRow?.checkNumber.trim() || undefined);
+    const directCheckBank = selectedMode === 'Check'
+      ? (checkBank.trim() || undefined)
+      : (checkRow?.checkBank.trim() || undefined);
+    const directCheckDate = selectedMode === 'Check'
+      ? (checkDate.trim() || undefined)
+      : (checkRow?.checkDate.trim() || undefined);
+
+    const payload: SubmitPaymentRequest = {
+      orderOfPaymentId: app.op?.id,
       paymentMethod: mappedPaymentMethod,
       referenceNumber: primaryRef.length > 0 ? primaryRef : undefined,
       payorName: payorName.trim().length > 0 ? payorName.trim() : undefined,
       amountPaid: totalAmountDue > 0 ? totalAmountDue : undefined,
       remarks: serializedRemarks,
+      checkNumber: directCheckNumber,
+      checkBank: directCheckBank,
+      checkDate: directCheckDate,
     };
 
     const [, error] = await applicationService.submitPayment(app.id, payload);

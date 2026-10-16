@@ -34,6 +34,12 @@ export function useIssueReceiptForm({
   const [checkBank, setCheckBank] = useState('');
   const [checkDate, setCheckDate] = useState('');
   const [onlineReference, setOnlineReference] = useState('');
+  const [clientPaymentDetails, setClientPaymentDetails] = useState<{
+    checkNumber: string;
+    checkBank: string;
+    checkDate: string;
+    onlineReference: string;
+  }>({ checkNumber: '', checkBank: '', checkDate: '', onlineReference: '' });
   const [remarks, setRemarks] = useState('');
   const [manualOrNumber, setManualOrNumber] = useState('');
   const [useManualOr, setUseManualOr] = useState(false);
@@ -51,25 +57,39 @@ export function useIssueReceiptForm({
   useEffect(() => {
     if (visible && pendingPayment !== undefined && pendingPayment !== null) {
       setPayorName(pendingPayment.applicantName);
+
       const parsed = parsePaymentBreakdown(pendingPayment.remarks);
+      const parsedCheck = parsed?.items.find((i) => i.mode === 'Check');
+      const parsedOnline = parsed?.items.find((i) => i.mode === 'Online');
+
+      const resolvedCheckNumber = parsedCheck?.checkNumber ?? pendingPayment.checkNumber ?? '';
+      const resolvedCheckBank = parsedCheck?.checkBank ?? pendingPayment.checkBank ?? '';
+      const resolvedCheckDate = parsedCheck?.checkDate ?? (pendingPayment.checkDate ? pendingPayment.checkDate.split('T')[0] : '');
+      const resolvedOnlineRef = parsedOnline?.referenceNumber ?? pendingPayment.paymentReferenceNumber ?? '';
+
+      setClientPaymentDetails({
+        checkNumber: resolvedCheckNumber,
+        checkBank: resolvedCheckBank,
+        checkDate: resolvedCheckDate,
+        onlineReference: resolvedOnlineRef,
+      });
+
       if (parsed !== null && parsed.isCombination) {
         setIssuanceStrategy('Consolidated');
         setSelectedSplitIndex(0);
-        const checkItem = parsed.items.find((i) => i.mode === 'Check');
-        const onlineItem = parsed.items.find((i) => i.mode === 'Online');
-        if (checkItem !== undefined) {
+        if (parsedCheck !== undefined) {
           setPaymentMethod('Check');
-          setCheckNumber(checkItem.checkNumber ?? '');
-          setCheckBank(checkItem.checkBank ?? '');
-          setCheckDate(checkItem.checkDate ?? '');
-        } else if (onlineItem !== undefined) {
+          setCheckNumber(resolvedCheckNumber);
+          setCheckBank(resolvedCheckBank);
+          setCheckDate(resolvedCheckDate);
+        } else if (parsedOnline !== undefined) {
           setPaymentMethod('Online');
-          setOnlineReference(onlineItem.referenceNumber ?? '');
+          setOnlineReference(resolvedOnlineRef);
         } else {
           setPaymentMethod('Cash');
         }
-        if (onlineItem !== undefined) {
-          setOnlineReference(onlineItem.referenceNumber ?? '');
+        if (resolvedOnlineRef) {
+          setOnlineReference(resolvedOnlineRef);
         }
         setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${parsed.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
       } else if (parsed !== null && !parsed.isCombination) {
@@ -77,19 +97,28 @@ export function useIssueReceiptForm({
         if (firstMode !== undefined) {
           setPaymentMethod(firstMode.mode);
         }
-        const checkItem = parsed.items.find((i) => i.mode === 'Check');
-        if (checkItem !== undefined) {
+        if (parsedCheck !== undefined) {
           setPaymentMethod('Check');
-          setCheckNumber(checkItem.checkNumber ?? '');
-          setCheckBank(checkItem.checkBank ?? '');
-          setCheckDate(checkItem.checkDate ?? '');
+          setCheckNumber(resolvedCheckNumber);
+          setCheckBank(resolvedCheckBank);
+          setCheckDate(resolvedCheckDate);
         }
-        const onlineItem = parsed.items.find((i) => i.mode === 'Online');
-        if (onlineItem !== undefined) {
-          setOnlineReference(onlineItem.referenceNumber ?? '');
+        if (resolvedOnlineRef) {
+          setOnlineReference(resolvedOnlineRef);
         }
         setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
       } else {
+        if (pendingPayment.paymentMethod === 'Check' || resolvedCheckBank || resolvedCheckNumber) {
+          setPaymentMethod('Check');
+          setCheckNumber(resolvedCheckNumber);
+          setCheckBank(resolvedCheckBank);
+          setCheckDate(resolvedCheckDate);
+        } else if (pendingPayment.paymentMethod === 'Online' || resolvedOnlineRef) {
+          setPaymentMethod('Online');
+          setOnlineReference(resolvedOnlineRef);
+        } else {
+          setPaymentMethod('Cash');
+        }
         setRemarks(`Payment for OP #${pendingPayment.opNumber} (App #${pendingPayment.applicationNumber || pendingPayment.referenceNumber})`);
       }
 
@@ -107,12 +136,32 @@ export function useIssueReceiptForm({
       setCheckBank('');
       setCheckDate('');
       setOnlineReference('');
+      setClientPaymentDetails({ checkNumber: '', checkBank: '', checkDate: '', onlineReference: '' });
       setIssuanceStrategy('Consolidated');
       setSelectedSplitIndex(0);
       setLineItems([{ feeCode: 'FEE', description: '', amount: 0 }]);
       setActiveSuggestionIndex(null);
     }
   }, [visible, pendingPayment]);
+
+  const handlePaymentMethodChange = (newMethod: PaymentMethod) => {
+    setPaymentMethod(newMethod);
+    if (newMethod === 'Check') {
+      if (clientPaymentDetails.checkNumber) {
+        setCheckNumber(clientPaymentDetails.checkNumber);
+      }
+      if (clientPaymentDetails.checkBank) {
+        setCheckBank(clientPaymentDetails.checkBank);
+      }
+      if (clientPaymentDetails.checkDate) {
+        setCheckDate(clientPaymentDetails.checkDate);
+      }
+    } else if (newMethod === 'Online') {
+      if (clientPaymentDetails.onlineReference) {
+        setOnlineReference(clientPaymentDetails.onlineReference);
+      }
+    }
+  };
 
   const handleSelectSplitItem = (idx: number) => {
     if (!preferredBreakdown || !pendingPayment) return;
@@ -289,6 +338,8 @@ export function useIssueReceiptForm({
     handleRemoveLineItem,
     handleUpdateLineItem,
     handleSelectFee,
+    handlePaymentMethodChange,
+    clientPaymentDetails,
     handleSubmit,
   };
 }

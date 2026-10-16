@@ -110,16 +110,46 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
             op.AmountReceived = op.AmountDue;
         }
 
-        if (request.PaymentMethod == PaymentMethod.Check && !string.IsNullOrWhiteSpace(request.ReferenceNumber))
+        if (request.PaymentMethod == PaymentMethod.Check)
         {
-            op.CheckNumber = request.ReferenceNumber;
+            if (!string.IsNullOrWhiteSpace(request.CheckNumber))
+            {
+                op.CheckNumber = request.CheckNumber.Trim();
+            }
+            else if (!string.IsNullOrWhiteSpace(request.ReferenceNumber))
+            {
+                op.CheckNumber = request.ReferenceNumber.Trim();
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.CheckBank))
+            {
+                op.CheckBank = request.CheckBank.Trim();
+            }
+
+            if (request.CheckDate.HasValue)
+            {
+                op.CheckDate = DateTime.SpecifyKind(request.CheckDate.Value, DateTimeKind.Utc);
+            }
+        }
+
+        // Also check if remarks contains serialized breakdown with check details (e.g. combination or single check)
+        if (string.IsNullOrWhiteSpace(op.CheckBank) || string.IsNullOrWhiteSpace(op.CheckNumber))
+        {
+            TryExtractCheckDetailsFromRemarks(request.Remarks, op);
         }
 
         var clientName = !string.IsNullOrWhiteSpace(request.PayorName)
             ? request.PayorName
             : (_currentUserService.UserId != null ? $"User {_currentUserService.UserId}" : "Applicant");
 
-        var paymentSummary = $"Payment submitted via {request.PaymentMethod}. Ref: {request.ReferenceNumber ?? "N/A"}.";
+        var checkDetailStr = !string.IsNullOrWhiteSpace(op.CheckBank)
+            ? $"Bank: {op.CheckBank}, Check #: {op.CheckNumber ?? request.ReferenceNumber ?? "N/A"}"
+            : $"Check #: {op.CheckNumber ?? request.ReferenceNumber ?? "N/A"}";
+
+        var paymentSummary = request.PaymentMethod == PaymentMethod.Check
+            ? $"Payment submitted via Check ({checkDetailStr})."
+            : $"Payment submitted via {request.PaymentMethod}. Ref: {request.ReferenceNumber ?? "N/A"}.";
+
         if (!string.IsNullOrWhiteSpace(request.Remarks))
         {
             paymentSummary += $" Notes: {request.Remarks}";
@@ -134,11 +164,15 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
             validUserId = clientGuid.Value;
         }
 
+        var historyAction = request.PaymentMethod == PaymentMethod.Check
+            ? $"Client submitted payment via Check ({checkDetailStr}). Awaiting Cashier verification."
+            : $"Client submitted payment via {request.PaymentMethod} (Ref: {request.ReferenceNumber ?? "N/A"}). Awaiting Cashier verification.";
+
         await _repository.AddOpHistoryAsync(new OpHistory
         {
             Id = Guid.NewGuid(),
             OrderOfPaymentId = op.Id,
-            Action = $"Client submitted payment via {request.PaymentMethod} (Ref: {request.ReferenceNumber ?? "N/A"}). Awaiting Cashier verification.",
+            Action = historyAction,
             FromStatus = prevOpStatus,
             ToStatus = OpStatus.Processing,
             PerformedByUserId = validUserId,
@@ -151,7 +185,7 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         {
             Id = Guid.NewGuid(),
             ApplicationId = app.Id,
-            Action = $"Payment submitted by client via {request.PaymentMethod} (Ref: {request.ReferenceNumber ?? "N/A"}). Forwarded to Cashier for verification.",
+            Action = historyAction,
             FromStatus = app.Status,
             ToStatus = app.Status,
             PerformedByUserId = validUserId,
@@ -167,5 +201,51 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         _logger.LogInformation("Payment submitted successfully for Application '{ApplicationId}' and OP '{OpId}'. Reference: '{RefNumber}'.", app.Id, op.Id, request.ReferenceNumber);
 
         return ApiResponse<bool>.Success(true, "Payment details submitted successfully. Your transaction is now awaiting Cashier verification.");
+    }
+
+    private static void TryExtractCheckDetailsFromRemarks(string? remarks, OrderOfPayment op)
+    {
+        if (string.IsNullOrWhiteSpace(remarks)) return;
+        const string tagStart = "[PAYMENT_BREAKDOWN:";
+        var startIdx = remarks.IndexOf(tagStart, StringComparison.Ordinal);
+        if (startIdx < 0) return;
+        var jsonStart = startIdx + tagStart.Length;
+        var endIdx = remarks.IndexOf(']', jsonStart);
+        if (endIdx < 0) return;
+        var json = remarks.Substring(jsonStart, endIdx - jsonStart);
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+            {
+                foreach (var item in itemsElem.EnumerateArray())
+                {
+                    if (item.TryGetProperty("mode", out var modeElem) && modeElem.GetString() == "Check")
+                    {
+                        if (string.IsNullOrWhiteSpace(op.CheckNumber) && item.TryGetProperty("checkNumber", out var numElem))
+                        {
+                            op.CheckNumber = numElem.GetString()?.Trim();
+                        }
+                        if (string.IsNullOrWhiteSpace(op.CheckBank) && item.TryGetProperty("checkBank", out var bankElem))
+                        {
+                            op.CheckBank = bankElem.GetString()?.Trim();
+                        }
+                        if (!op.CheckDate.HasValue && item.TryGetProperty("checkDate", out var dateElem))
+                        {
+                            var dateStr = dateElem.GetString();
+                            if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+                            {
+                                op.CheckDate = DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+                            }
+                        }
+                        break;
+                    }
+                }
+            }
+        }
+        catch
+        {
+            // Ignore parsing error and fallback gracefully
+        }
     }
 }

@@ -149,28 +149,76 @@ export function PendingPaymentsView({
                     {/* Client Preferred Payment Banner */}
                     {(() => {
                       const breakdown = parsePaymentBreakdown(payment.remarks);
-                      if (!breakdown) return null;
-                      return (
-                        <View style={[styles.clientPrefBanner, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
-                          <View style={styles.clientPrefHeader}>
-                            <Lucide name="layers" size={13} color="#6D28D9" />
-                            <Text style={[styles.clientPrefTitle, { color: '#4C1D95' }]}>
-                              Client Preference: {breakdown.isCombination ? 'Combination / Split Payment' : breakdown.items[0]?.mode}
-                            </Text>
+                      if (breakdown) {
+                        return (
+                          <View style={[styles.clientPrefBanner, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>
+                            <View style={styles.clientPrefHeader}>
+                              <Lucide name="layers" size={13} color="#6D28D9" />
+                              <Text style={[styles.clientPrefTitle, { color: '#4C1D95' }]}>
+                                Client Preference: {breakdown.isCombination ? 'Combination / Split Payment' : breakdown.items[0]?.mode}
+                              </Text>
+                            </View>
+                            <View style={styles.clientPrefPills}>
+                              {breakdown.items.map((item, iIdx) => (
+                                <View key={iIdx} style={[styles.clientPrefPill, { backgroundColor: '#FFFFFF', borderColor: '#E9D5FF' }]}>
+                                  <Text style={[styles.clientPrefPillText, { color: '#5B21B6' }]}>
+                                    <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                                    {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
+                                    {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
+                                  </Text>
+                                </View>
+                              ))}
+                            </View>
                           </View>
-                          <View style={styles.clientPrefPills}>
-                            {breakdown.items.map((item, iIdx) => (
-                              <View key={iIdx} style={[styles.clientPrefPill, { backgroundColor: '#FFFFFF', borderColor: '#E9D5FF' }]}>
-                                <Text style={[styles.clientPrefPillText, { color: '#5B21B6' }]}>
-                                  <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                  {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
-                                  {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
+                        );
+                      }
+
+                      const hasCheck = Boolean(payment.checkBank || payment.checkNumber || payment.paymentMethod === 'Check');
+                      const hasOnline = Boolean(payment.paymentReferenceNumber || payment.paymentMethod === 'Online');
+
+                      if (hasCheck) {
+                        return (
+                          <View style={[styles.clientPrefBanner, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+                            <View style={styles.clientPrefHeader}>
+                              <Lucide name="credit-card" size={13} color="#0284C7" />
+                              <Text style={[styles.clientPrefTitle, { color: '#0369A1' }]}>
+                                Client Payment: Check
+                              </Text>
+                            </View>
+                            <View style={styles.clientPrefPills}>
+                              <View style={[styles.clientPrefPill, { backgroundColor: '#FFFFFF', borderColor: '#BAE6FD' }]}>
+                                <Text style={[styles.clientPrefPillText, { color: '#0369A1' }]}>
+                                  <Text style={{ fontWeight: '700' }}>Bank:</Text> {payment.checkBank || 'Not Specified'}
+                                  {payment.checkNumber ? ` • Check #: ${payment.checkNumber}` : ''}
+                                  {payment.checkDate ? ` • Date: ${new Date(payment.checkDate).toLocaleDateString('en-US')}` : ''}
                                 </Text>
                               </View>
-                            ))}
+                            </View>
                           </View>
-                        </View>
-                      );
+                        );
+                      }
+
+                      if (hasOnline) {
+                        return (
+                          <View style={[styles.clientPrefBanner, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+                            <View style={styles.clientPrefHeader}>
+                              <Lucide name="globe" size={13} color="#16A34A" />
+                              <Text style={[styles.clientPrefTitle, { color: '#15803D' }]}>
+                                Client Payment: Online
+                              </Text>
+                            </View>
+                            <View style={styles.clientPrefPills}>
+                              <View style={[styles.clientPrefPill, { backgroundColor: '#FFFFFF', borderColor: '#BBF7D0' }]}>
+                                <Text style={[styles.clientPrefPillText, { color: '#15803D' }]}>
+                                  <Text style={{ fontWeight: '700' }}>Reference #:</Text> {payment.paymentReferenceNumber || 'Pending Gateway Verification'}
+                                </Text>
+                              </View>
+                            </View>
+                          </View>
+                        );
+                      }
+
+                      return null;
                     })()}
 
                     {/* Partial Payment Banner if already partially paid */}

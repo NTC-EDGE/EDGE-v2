@@ -91,6 +91,11 @@ export interface PendingPaymentDto {
   billedAt: string;
   remarks?: string | null;
   lineItems: PendingPaymentLineItemDto[];
+  paymentMethod?: string | null;
+  checkNumber?: string | null;
+  checkBank?: string | null;
+  checkDate?: string | null;
+  paymentReferenceNumber?: string | null;
 }
 
 export interface OfficialReceiptLineItemDto {

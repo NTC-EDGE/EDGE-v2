@@ -1331,6 +1331,9 @@ export interface SubmitPaymentRequest {
   amountPaid?: number | null;
   remarks?: string | null;
   proofOfPaymentFileId?: string | null;
+  checkNumber?: string | null;
+  checkBank?: string | null;
+  checkDate?: string | null;
 }
 
 export type ReturnTargetDto = 'Accountant' | 'Evaluator';

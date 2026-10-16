@@ -1,11 +1,12 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { PaymentBreakdown } from '@edge/api';
+import { PaymentBreakdown, PendingPaymentDto } from '@edge/api';
 import { styles } from './issueReceiptStyles';
 
 interface PreferredPaymentBannerProps {
   preferredBreakdown: PaymentBreakdown | null;
+  pendingPayment?: PendingPaymentDto | null;
   issuanceStrategy: 'Consolidated' | 'SplitPerMode';
   selectedSplitIndex: number;
   onSelectStrategy: (strat: 'Consolidated' | 'SplitPerMode') => void;
@@ -14,6 +15,7 @@ interface PreferredPaymentBannerProps {
 
 export function PreferredPaymentBanner({
   preferredBreakdown,
+  pendingPayment,
   issuanceStrategy,
   selectedSplitIndex,
   onSelectStrategy,
@@ -21,7 +23,51 @@ export function PreferredPaymentBanner({
 }: PreferredPaymentBannerProps) {
   const { colors } = useTheme();
 
-  if (!preferredBreakdown) return null;
+  if (!preferredBreakdown) {
+    if (!pendingPayment) return null;
+    const hasCheckDetails = Boolean(pendingPayment.checkBank || pendingPayment.checkNumber || pendingPayment.paymentMethod === 'Check');
+    const hasOnlineDetails = Boolean(pendingPayment.paymentReferenceNumber || pendingPayment.paymentMethod === 'Online');
+
+    if (!hasCheckDetails && !hasOnlineDetails) return null;
+
+    return (
+      <View style={[styles.preferredCard, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+        <View style={styles.preferredCardHeader}>
+          <View style={styles.preferredTitleRow}>
+            <Lucide name={hasCheckDetails ? 'credit-card' : 'globe'} size={15} color="#0284C7" />
+            <Text style={[styles.preferredTitleText, { color: '#0369A1' }]}>
+              CLIENT SUBMITTED PAYMENT DETAILS
+            </Text>
+          </View>
+          <View style={[styles.preferredBadge, { backgroundColor: '#E0F2FE' }]}>
+            <Text style={[styles.preferredBadgeText, { color: '#0284C7' }]}>
+              {hasCheckDetails ? 'Check Payment' : 'Online Payment'}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.preferredItemsRow}>
+          {hasCheckDetails && (
+            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: '#BAE6FD' }]}>
+              <Lucide name="credit-card" size={13} color="#0284C7" />
+              <Text style={[styles.preferredItemText, { color: '#0369A1' }]}>
+                <Text style={{ fontWeight: '700' }}>Drawee Bank:</Text> {pendingPayment.checkBank || 'Not Specified'}
+                {pendingPayment.checkNumber ? ` • Check #: ${pendingPayment.checkNumber}` : ''}
+                {pendingPayment.checkDate ? ` • Date: ${new Date(pendingPayment.checkDate).toLocaleDateString('en-US')}` : ''}
+              </Text>
+            </View>
+          )}
+          {hasOnlineDetails && (
+            <View style={[styles.preferredItemPill, { backgroundColor: '#FFFFFF', borderColor: '#BBF7D0' }]}>
+              <Lucide name="globe" size={13} color="#16A34A" />
+              <Text style={[styles.preferredItemText, { color: '#15803D' }]}>
+                <Text style={{ fontWeight: '700' }}>Reference #:</Text> {pendingPayment.paymentReferenceNumber || 'Pending Gateway Verification'}
+              </Text>
+            </View>
+          )}
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View style={[styles.preferredCard, { backgroundColor: '#F5F3FF', borderColor: '#DDD6FE' }]}>

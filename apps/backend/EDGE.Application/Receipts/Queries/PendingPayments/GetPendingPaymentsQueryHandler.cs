@@ -40,7 +40,12 @@ public record PendingPaymentDto(
     string? Remarks,
     List<PendingPaymentLineItemDto> LineItems,
     decimal AmountReceived = 0,
-    decimal RemainingBalance = 0
+    decimal RemainingBalance = 0,
+    string? PaymentMethod = null,
+    string? CheckNumber = null,
+    string? CheckBank = null,
+    DateTime? CheckDate = null,
+    string? PaymentReferenceNumber = null
 );
 
 public record GetPendingPaymentsQuery(
@@ -198,6 +203,16 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
             var amtReceived = op.AmountReceived;
             var remBalance = op.AmountDue > amtReceived ? op.AmountDue - amtReceived : 0m;
 
+            var effectiveCheckNumber = op.CheckNumber;
+            var effectiveCheckBank = op.CheckBank;
+            var effectiveCheckDate = op.CheckDate;
+            string? paymentRefNumber = null;
+
+            if (string.IsNullOrWhiteSpace(effectiveCheckBank) || string.IsNullOrWhiteSpace(effectiveCheckNumber))
+            {
+                TryExtractCheckAndRefDetails(op.Remarks, ref effectiveCheckNumber, ref effectiveCheckBank, ref effectiveCheckDate, ref paymentRefNumber);
+            }
+
             return new PendingPaymentDto(
                 op.Id,
                 op.ApplicationId,
@@ -216,11 +231,81 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 op.Remarks,
                 lineItems,
                 amtReceived,
-                remBalance
+                remBalance,
+                op.PaymentMethod?.ToString(),
+                effectiveCheckNumber,
+                effectiveCheckBank,
+                effectiveCheckDate,
+                paymentRefNumber
             );
         }).ToList();
 
         return ApiResponse<List<PendingPaymentDto>>.Success(dtos, "Pending payments retrieved successfully.");
+    }
+
+    private static void TryExtractCheckAndRefDetails(
+        string? remarks,
+        ref string? checkNumber,
+        ref string? checkBank,
+        ref DateTime? checkDate,
+        ref string? paymentRef)
+    {
+        if (string.IsNullOrWhiteSpace(remarks)) return;
+        const string tagStart = "[PAYMENT_BREAKDOWN:";
+        var startIdx = remarks.IndexOf(tagStart, StringComparison.Ordinal);
+        if (startIdx >= 0)
+        {
+            var jsonStart = startIdx + tagStart.Length;
+            var endIdx = remarks.IndexOf(']', jsonStart);
+            if (endIdx > jsonStart)
+            {
+                var json = remarks.Substring(jsonStart, endIdx - jsonStart);
+                try
+                {
+                    using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (doc.RootElement.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
+                    {
+                        foreach (var item in itemsElem.EnumerateArray())
+                        {
+                            if (item.TryGetProperty("mode", out var modeElem))
+                            {
+                                var mode = modeElem.GetString();
+                                if (mode == "Check")
+                                {
+                                    if (string.IsNullOrWhiteSpace(checkNumber) && item.TryGetProperty("checkNumber", out var numElem))
+                                    {
+                                        checkNumber = numElem.GetString()?.Trim();
+                                    }
+                                    if (string.IsNullOrWhiteSpace(checkBank) && item.TryGetProperty("checkBank", out var bankElem))
+                                    {
+                                        checkBank = bankElem.GetString()?.Trim();
+                                    }
+                                    if (!checkDate.HasValue && item.TryGetProperty("checkDate", out var dateElem))
+                                    {
+                                        var dateStr = dateElem.GetString();
+                                        if (!string.IsNullOrWhiteSpace(dateStr) && DateTime.TryParse(dateStr, out var parsedDate))
+                                        {
+                                            checkDate = DateTime.SpecifyKind(parsedDate, DateTimeKind.Utc);
+                                        }
+                                    }
+                                }
+                                else if (mode == "Online" && string.IsNullOrWhiteSpace(paymentRef))
+                                {
+                                    if (item.TryGetProperty("referenceNumber", out var refElem))
+                                    {
+                                        paymentRef = refElem.GetString()?.Trim();
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                catch
+                {
+                    // Fallback gracefully
+                }
+            }
+        }
     }
 
     private static Guid CreateGuidFromString(string input)
