@@ -42,18 +42,46 @@ public static class StatementOfAccountAcroFormFiller
                 SetField(form, "Particular1", model.Particular1Header ?? model.AccountNo);
                 SetField(form, "NoYears1", model.Particular1PeriodCovered);
 
-                // 2. Transaction Checkboxes
-                SetCheckbox(form, "New", model.IsNew);
-                SetCheckbox(form, "Mod", model.IsMod);
-                SetCheckbox(form, "Co", model.IsCo);
-                SetCheckbox(form, "Ma", model.IsMa);
-                SetCheckbox(form, "Ren", model.IsRen);
-                SetCheckbox(form, "Dup", model.IsDup);
-                SetCheckbox(form, "Cv", model.IsCv);
-                SetCheckbox(form, "Roc", model.IsRoc);
-                SetCheckbox(form, "Ms", model.IsMs);
-                SetCheckbox(form, "Other1", model.IsOthersRroca);
-                SetCheckbox(form, "Other2", model.IsOthers);
+                // 2. Prepare Checkboxes (Transaction Types & Assessment/Endorsement)
+                // Instead of setting "Yes" text on form fields, collect target coordinates and remove fields
+                // so they are drawn as true square checkboxes with vector checkmarks on the canvas.
+                var checkboxDefs = new (string FieldName, bool IsChecked, float DefaultX, float DefaultY, float DefaultW, float DefaultH, float BoxSize)[]
+                {
+                    ("New", model.IsNew, 125.5f, 696.7f, 13.7f, 13.7f, 8.5f),
+                    ("Mod", model.IsMod, 197.8f, 696.3f, 13.7f, 13.7f, 8.5f),
+                    ("Co", model.IsCo, 308.2f, 695.9f, 13.7f, 13.7f, 8.5f),
+                    ("Ma", model.IsMa, 416.9f, 696.6f, 13.7f, 13.7f, 8.5f),
+                    ("Ren", model.IsRen, 125.4f, 688.5f, 13.7f, 13.7f, 8.5f),
+                    ("Dup", model.IsDup, 197.8f, 688.8f, 13.7f, 13.7f, 8.5f),
+                    ("Cv", model.IsCv, 308.2f, 688.7f, 13.7f, 13.7f, 8.5f),
+                    ("Roc", model.IsRoc, 416.9f, 688.7f, 13.7f, 13.7f, 8.5f),
+                    ("Ms", model.IsMs, 308.2f, 681.2f, 13.7f, 13.7f, 8.5f),
+                    ("Other1", model.IsOthersRroca, 197.8f, 681.2f, 13.7f, 13.7f, 8.5f),
+                    ("Other2", model.IsOthers, 416.9f, 681.0f, 13.7f, 13.7f, 8.5f),
+                    ("Assessment", model.IsForAssessmentOnly, 202.0f, 261.0f, 8.4f, 8.4f, 8.4f),
+                    ("Endorsed", model.IsEndorsedForPayment, 363.3f, 260.3f, 8.4f, 8.4f, 8.4f),
+                };
+
+                var drawnCheckboxes = new System.Collections.Generic.List<(float X, float Y, float W, float H, float BoxSize, bool IsChecked)>();
+                foreach (var cb in checkboxDefs)
+                {
+                    float x = cb.DefaultX, y = cb.DefaultY, w = cb.DefaultW, h = cb.DefaultH;
+                    var field = form.GetField(cb.FieldName);
+                    if (field != null)
+                    {
+                        var widgets = field.GetWidgets();
+                        if (widgets.Count > 0)
+                        {
+                            var rect = widgets[0].GetRectangle().ToRectangle();
+                            x = rect.GetX();
+                            y = rect.GetY();
+                            w = rect.GetWidth();
+                            h = rect.GetHeight();
+                        }
+                        form.RemoveField(cb.FieldName);
+                    }
+                    drawnCheckboxes.Add((x, y, w, h, cb.BoxSize, cb.IsChecked));
+                }
 
                 if (!string.IsNullOrWhiteSpace(model.OthersText))
                 {
@@ -61,10 +89,6 @@ public static class StatementOfAccountAcroFormFiller
                     SetField(form, "Other1Text", model.OthersText);
                     SetField(form, "Other2Text", model.OthersText);
                 }
-
-                // 3. Assessment / Endorsement Checkboxes
-                SetCheckbox(form, "Assessment", model.IsForAssessmentOnly);
-                SetCheckbox(form, "Endorsed", model.IsEndorsedForPayment);
 
                 // 4. Notes & Due Date
                 SetField(form, "Today", model.PaymentDueDate ?? model.Date);
@@ -94,9 +118,17 @@ public static class StatementOfAccountAcroFormFiller
 
                 // Flatten all form fields to bake text permanently into the official template
                 form.FlattenFields();
+
+                // 8. Render genuine vector checkboxes (empty square or square with checkmark)
+                var page = pdfDoc.GetFirstPage();
+                var pageCanvas = new PdfCanvas(page);
+                foreach (var cb in drawnCheckboxes)
+                {
+                    DrawCheckbox(pageCanvas, cb.X, cb.Y, cb.W, cb.H, cb.BoxSize, cb.IsChecked);
+                }
             }
 
-            // 8. Render TOTAL amount in the designated Sub-Total column (y ≈ 321f, x ≈ 544f)
+            // 9. Render TOTAL amount in the designated Sub-Total column (y ≈ 321f, x ≈ 544f)
             if (model.TotalAmount.HasValue && model.TotalAmount.Value > 0)
             {
                 var page = pdfDoc.GetFirstPage();
@@ -273,13 +305,33 @@ public static class StatementOfAccountAcroFormFiller
         }
     }
 
-    private static void SetCheckbox(PdfAcroForm form, string fieldName, bool isChecked)
+    private static void DrawCheckbox(PdfCanvas canvas, float x, float y, float w, float h, float boxSize, bool isChecked)
     {
-        if (!isChecked) return;
-        var field = form.GetField(fieldName);
-        if (field != null)
+        float bx = x + (w - boxSize) / 2f;
+        float by = y + (h - boxSize) / 2f;
+
+        canvas.SaveState();
+
+        // 1. Draw square checkbox with clean border and white interior
+        canvas.SetFillColor(iText.Kernel.Colors.ColorConstants.WHITE);
+        canvas.SetStrokeColor(iText.Kernel.Colors.ColorConstants.BLACK);
+        canvas.SetLineWidth(0.8f);
+        canvas.Rectangle(bx, by, boxSize, boxSize);
+        canvas.FillStroke();
+
+        // 2. If checked, draw sharp black vector checkmark inside the square box
+        if (isChecked)
         {
-            field.SetValue("Yes");
+            canvas.SetLineWidth(1.3f);
+            canvas.SetLineCapStyle(iText.Kernel.Pdf.Canvas.PdfCanvasConstants.LineCapStyle.ROUND);
+            canvas.SetLineJoinStyle(iText.Kernel.Pdf.Canvas.PdfCanvasConstants.LineJoinStyle.ROUND);
+            canvas.SetStrokeColor(iText.Kernel.Colors.ColorConstants.BLACK);
+            canvas.MoveTo(bx + boxSize * 0.18f, by + boxSize * 0.48f);
+            canvas.LineTo(bx + boxSize * 0.42f, by + boxSize * 0.20f);
+            canvas.LineTo(bx + boxSize * 0.82f, by + boxSize * 0.80f);
+            canvas.Stroke();
         }
+
+        canvas.RestoreState();
     }
 }

@@ -39,7 +39,17 @@ public class StatementOfAccountReportTests
             var soaTemplateBytes = inMs.ToArray();
 
             var soaModel = MockDataFactory.GetStatementOfAccountModel();
+
             var filledSoaBytes = EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(soaTemplateBytes, soaModel);
+
+            using (var filledReader = new iText.Kernel.Pdf.PdfReader(new MemoryStream(filledSoaBytes)))
+            using (var filledDoc = new iText.Kernel.Pdf.PdfDocument(filledReader))
+            {
+                var filledPage = filledDoc.GetPage(1);
+                var filledText = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(filledPage);
+                // Verify that checkboxes do not print literal "Yes"
+                Assert.DoesNotContain("Yes", filledText);
+            }
 
             Assert.NotNull(filledSoaBytes);
             Assert.True(filledSoaBytes.Length > 10000, "Filled SOA AcroForm should be substantial in size");
