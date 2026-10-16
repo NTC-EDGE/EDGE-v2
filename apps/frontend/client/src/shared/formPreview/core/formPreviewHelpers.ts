@@ -36,8 +36,28 @@ export const formatFieldKey = (key: string): string => {
     make: 'Make',
     typemodel: 'Type / Model',
     type_model: 'Type / Model',
+    devicetype: 'Device Type',
+    device_type: 'Device Type',
+    deviceequipmenttype: 'Device / Equipment Type',
+    device_equipment_type: 'Device / Equipment Type',
+    typeofequipmentdevice: 'Device / Equipment Type',
+    type_of_equipment_device: 'Device / Equipment Type',
+    maketypemodel: 'Make / Type / Model',
+    make_type_model: 'Make / Type / Model',
+    makemodel: 'Make / Model',
+    make_model: 'Make / Model',
+    equipmentserials: 'Equipment Serial',
+    equipment_serials: 'Equipment Serial',
+    equipmentserial: 'Equipment Serial',
+    equipment_serial: 'Equipment Serial',
+    equipmentserialnumbers: 'Equipment Serial Numbers',
+    equipment_serial_numbers: 'Equipment Serial Numbers',
+    serialnumbers: 'Serial Number',
+    serial_numbers: 'Serial Number',
     serialnumber: 'Serial Number',
     serial_number: 'Serial Number',
+    serialno: 'Serial No.',
+    serial_no: 'Serial No.',
     frequencyrange: 'Frequency Range',
     frequency_range: 'Frequency Range',
     outputpower: 'Output Power',
@@ -267,4 +287,74 @@ export function formatCompositeAddress(components?: AddressComponentsInput | nul
 
   return parts.length > 0 ? parts.join(', ') : null;
 }
+
+export function extractSerialNumbers(val: unknown): string[] | null {
+  if (val === null || val === undefined) return null;
+
+  // If already array of strings or numbers
+  if (Array.isArray(val) && val.length > 0 && val.every((item) => typeof item === 'string' || typeof item === 'number')) {
+    const list = val.map(String).map((s) => s.trim()).filter((s) => s.length > 0 && s !== 'null' && s !== 'undefined');
+    return list.length > 0 ? list : null;
+  }
+
+  // If array of objects (e.g. [{ id: 'serial-1', serialNumber: 'SN-001' }])
+  if (Array.isArray(val) && val.length > 0 && val.every(isRecord)) {
+    const serials: string[] = [];
+    for (const obj of val) {
+      const sn =
+        obj.serialNumber ??
+        obj.serial_number ??
+        obj.serial ??
+        obj.sn ??
+        obj.serialNo ??
+        obj.serial_no ??
+        obj.equipmentSerial ??
+        obj.equipment_serial ??
+        obj.number ??
+        obj.value;
+      if (sn !== undefined && sn !== null && String(sn).trim().length > 0) {
+        serials.push(String(sn).trim());
+      } else {
+        const nonIdVals = Object.entries(obj)
+          .filter(
+            ([k, sv]) =>
+              k !== 'id' &&
+              k !== '_id' &&
+              k !== 'key' &&
+              sv !== null &&
+              sv !== undefined &&
+              String(sv).trim().length > 0
+          )
+          .map(([, sv]) => String(sv).trim());
+        if (nonIdVals.length === 1 && nonIdVals[0]) {
+          serials.push(nonIdVals[0]);
+        }
+      }
+    }
+    if (serials.length > 0) return serials;
+  }
+
+  // If string, check if it's JSON or separated list
+  if (typeof val === 'string') {
+    const trimmed = val.trim();
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    ) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        return extractSerialNumbers(parsed);
+      } catch {
+        // Not valid JSON
+      }
+    }
+    if (trimmed.includes(',') && !trimmed.includes('{') && !trimmed.includes('[')) {
+      const parts = trimmed.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+      if (parts.length > 1) return parts;
+    }
+  }
+
+  return null;
+}
+
 

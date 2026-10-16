@@ -1,16 +1,87 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
-import { formatFieldKey, isRecord } from '../core/formPreviewHelpers';
+import { formatFieldKey, isRecord, extractSerialNumbers } from '../core/formPreviewHelpers';
 
 interface JsonTableSummaryRowProps {
   label: string;
   parsedArray: Array<Record<string, unknown>>;
 }
 
-function renderCellValue(v: unknown): React.ReactNode {
+function renderSerialBadges(serials: string[]): React.ReactNode {
+  if (serials.length === 0) {
+    return (
+      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, color: '#94A3B8' }}>
+        —
+      </Text>
+    );
+  }
+
+  return (
+    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+      {serials.map((sn, idx) => (
+        <View
+          key={idx}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: '#EFF6FF',
+            borderWidth: 1,
+            borderColor: '#BFDBFE',
+            borderRadius: 6,
+            paddingHorizontal: 8,
+            paddingVertical: 3,
+          }}
+        >
+          <Text
+            style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 11,
+              fontWeight: '700',
+              color: '#1D4ED8',
+            }}
+          >
+            {sn}
+          </Text>
+        </View>
+      ))}
+    </View>
+  );
+}
+
+function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
   if (v === null || v === undefined) return null;
 
+  // 1. Detect serial number values (by key or by value content)
+  const isSerialField = Boolean(
+    fieldKey &&
+      (fieldKey.toLowerCase().includes('serial') ||
+        fieldKey.toLowerCase().includes('equipmentserial') ||
+        fieldKey.toLowerCase().includes('sn'))
+  );
+
+  const extractedSerials = extractSerialNumbers(v);
+  if (extractedSerials !== null && (isSerialField || extractedSerials.length > 0)) {
+    return renderSerialBadges(extractedSerials);
+  }
+
+  // 2. Check if string is serialized JSON
+  if (typeof v === 'string') {
+    const trimmed = v.trim();
+    if (
+      (trimmed.startsWith('[') && trimmed.endsWith(']')) ||
+      (trimmed.startsWith('{') && trimmed.endsWith('}'))
+    ) {
+      try {
+        const parsed: unknown = JSON.parse(trimmed);
+        return renderCellValue(parsed, fieldKey);
+      } catch {
+        // Fall through to plain text
+      }
+    }
+  }
+
+  // 3. Array of items
   if (Array.isArray(v)) {
     if (v.length === 0) {
       return (
@@ -80,18 +151,22 @@ function renderCellValue(v: unknown): React.ReactNode {
                   >
                     {formatFieldKey(sk)}:
                   </Text>
-                  <Text
-                    style={{
-                      fontFamily: TYPOGRAPHY.fonts.primary,
-                      fontSize: 11,
-                      fontWeight: '600',
-                      color: '#0F172A',
-                      flex: 1,
-                      textAlign: 'right',
-                    }}
-                  >
-                    {String(sv)}
-                  </Text>
+                  {sk.toLowerCase().includes('serial') ? (
+                    renderCellValue(sv, sk)
+                  ) : (
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 11,
+                        fontWeight: '600',
+                        color: '#0F172A',
+                        flex: 1,
+                        textAlign: 'right',
+                      }}
+                    >
+                      {String(sv)}
+                    </Text>
+                  )}
                 </View>
               ))}
             </View>
@@ -101,6 +176,7 @@ function renderCellValue(v: unknown): React.ReactNode {
     );
   }
 
+  // 4. Record object
   if (isRecord(v)) {
     const subEntries = Object.entries(v).filter(
       ([sk, sv]) =>
@@ -135,18 +211,22 @@ function renderCellValue(v: unknown): React.ReactNode {
             >
               {formatFieldKey(sk)}:
             </Text>
-            <Text
-              style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 11,
-                fontWeight: '600',
-                color: '#0F172A',
-                flex: 1,
-                textAlign: 'right',
-              }}
-            >
-              {String(sv)}
-            </Text>
+            {sk.toLowerCase().includes('serial') ? (
+              renderCellValue(sv, sk)
+            ) : (
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 11,
+                  fontWeight: '600',
+                  color: '#0F172A',
+                  flex: 1,
+                  textAlign: 'right',
+                }}
+              >
+                {String(sv)}
+              </Text>
+            )}
           </View>
         ))}
       </View>
@@ -292,33 +372,38 @@ export function JsonTableSummaryRow({ label, parsedArray }: JsonTableSummaryRowP
               </View>
 
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, width: '100%' }}>
-                {entries.map(([k, v]) => (
-                  <View
-                    key={k}
-                    style={{
-                      flex: k.toLowerCase().includes('make') || k.toLowerCase().includes('model') ? 1.3 : 1,
-                      minWidth: 140,
-                      backgroundColor: '#F8FAFC',
-                      padding: 10,
-                      borderRadius: 8,
-                      borderWidth: 1,
-                      borderColor: '#E2E8F0',
-                    }}
-                  >
-                    <Text
+                {entries.map(([k, v]) => {
+                  const isSerial = k.toLowerCase().includes('serial');
+                  const isMakeOrModel = k.toLowerCase().includes('make') || k.toLowerCase().includes('model');
+                  const isDeviceType = k.toLowerCase().includes('device') || k.toLowerCase().includes('type');
+                  return (
+                    <View
+                      key={k}
                       style={{
-                        fontFamily: TYPOGRAPHY.fonts.primary,
-                        fontSize: 10,
-                        fontWeight: '700',
-                        color: '#64748B',
-                        marginBottom: 2,
+                        flex: isSerial ? 2 : isMakeOrModel ? 1.4 : isDeviceType ? 1.5 : 1,
+                        minWidth: isSerial ? 180 : 140,
+                        backgroundColor: '#F8FAFC',
+                        padding: 10,
+                        borderRadius: 8,
+                        borderWidth: 1,
+                        borderColor: '#E2E8F0',
                       }}
                     >
-                      {formatFieldKey(k)}
-                    </Text>
-                    {renderCellValue(v)}
-                  </View>
-                ))}
+                      <Text
+                        style={{
+                          fontFamily: TYPOGRAPHY.fonts.primary,
+                          fontSize: 10,
+                          fontWeight: '700',
+                          color: '#64748B',
+                          marginBottom: 2,
+                        }}
+                      >
+                        {formatFieldKey(k)}
+                      </Text>
+                      {renderCellValue(v, k)}
+                    </View>
+                  );
+                })}
               </View>
             </View>
           );
