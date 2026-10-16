@@ -20,6 +20,10 @@ public class StatementOfAccountDto
     public Guid? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? Remarks { get; set; }
+    public string? PreparedByName { get; set; }
+    public string? PreparedByTitle { get; set; }
+    public string? ApprovedByName { get; set; }
+    public string? ApprovedByTitle { get; set; }
     public List<SoaLineItemDto> LineItems { get; set; } = new();
     public List<SoaHistoryDto> Histories { get; set; } = new();
 }

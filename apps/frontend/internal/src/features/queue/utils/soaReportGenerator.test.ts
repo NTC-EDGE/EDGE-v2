@@ -223,6 +223,38 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain("CASHIER'S REPORT");
       expect(html).not.toContain('undefined');
     });
+
+    it('should display Evaluator and Chief of EOD names in SOA printable HTML without gray backgrounds', () => {
+      const soaWithSignatories: ApplicationData = {
+        ...mockApplication,
+        evaluatingOfficer: 'Engr. John Doe',
+        issuingOfficer: 'Dir. Jane Smith',
+        soaPreparedByName: 'Engr. Alice Officer',
+        soaPreparedByTitle: 'EVALUATOR, NTC',
+        soaApprovedByName: 'Atty. Roberto EOD Chief',
+        soaApprovedByTitle: 'CHIEF, ENFORCEMENT & OPERATIONS DIV.',
+      };
+      const html = generateSoaPrintableHtml(soaWithSignatories);
+      expect(html).toContain('Engr. Alice Officer');
+      expect(html).toContain('Atty. Roberto EOD Chief');
+      expect(html).toContain('EVALUATOR, NTC');
+      expect(html).toContain('CHIEF, ENFORCEMENT & OPERATIONS DIV.');
+      // Verify gray background colors are removed
+      expect(html).not.toContain('#f8fafc');
+      expect(html).not.toContain('#f1f5f9');
+      expect(html).not.toContain('#e2e8f0');
+    });
+
+    it('should fall back to evaluatingOfficer and issuingOfficer when SOA specific names are absent', () => {
+      const fallbackApp: ApplicationData = {
+        ...mockApplication,
+        evaluatingOfficer: 'Engr. Fallback Evaluator',
+        issuingOfficer: 'Chief Fallback Approver',
+      };
+      const html = generateSoaPrintableHtml(fallbackApp);
+      expect(html).toContain('Engr. Fallback Evaluator');
+      expect(html).toContain('Chief Fallback Approver');
+    });
   });
 
   describe('generateOpPrintableHtml', () => {

@@ -210,7 +210,12 @@ export function ClientSoaOpPreviewModal({
     }
 
     if (activeTab === 'soa') {
-      const html = generateSoaPrintableHtml(app);
+      const html = generateSoaPrintableHtml(
+        app,
+        app.office,
+        app.soa?.preparedByName || app.evaluatingOfficer,
+        app.soa?.approvedByName || app.issuingOfficer
+      );
       openPrintableDocumentWindow(html);
     } else if (activeTab === 'op') {
       const html = generateOpPrintableHtml(app);
@@ -700,12 +705,12 @@ export function ClientSoaOpPreviewModal({
                     {/* Signatories */}
                     <View style={[styles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
                       <View style={styles.sigBlock}>
-                        <Text style={styles.sigName}>REGIONAL ASSESSMENT OFFICER</Text>
-                        <Text style={styles.sigRole}>Authorized Assessment Officer</Text>
+                        <Text style={styles.sigName}>{app.soa?.preparedByName || app.evaluatingOfficer || 'EVALUATOR'}</Text>
+                        <Text style={styles.sigRole}>{app.soa?.preparedByTitle || 'Assessed & Prepared By'}</Text>
                       </View>
                       <View style={styles.sigBlock}>
-                        <Text style={styles.sigName}>COMMISSION AUDITOR</Text>
-                        <Text style={styles.sigRole}>Commission Representative</Text>
+                        <Text style={styles.sigName}>{app.soa?.approvedByName || app.issuingOfficer || 'CHIEF, EOD'}</Text>
+                        <Text style={styles.sigRole}>{app.soa?.approvedByTitle || 'Chief, Enforcement & Operations Div.'}</Text>
                       </View>
                     </View>
                   </View>
@@ -1302,7 +1307,7 @@ const styles = StyleSheet.create({
   modalBody: {
     flex: 1,
     minHeight: 500,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
   },
   modalBodyContent: {
     padding: SPACING[16],
@@ -1401,7 +1406,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   infoCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     borderRadius: 6,
     borderWidth: 1,
     borderColor: '#E2E8F0',
@@ -1446,7 +1451,7 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     flexDirection: 'row',
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderBottomWidth: 1,
@@ -1468,7 +1473,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#F1F5F9',
   },
   tableRowEven: {
-    backgroundColor: '#FAFAFA',
+    backgroundColor: '#FFFFFF',
   },
   tdParticularName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1491,7 +1496,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderTopWidth: 1.5,
@@ -1532,7 +1537,7 @@ const styles = StyleSheet.create({
     color: '#047857',
   },
   opPayorCard: {
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
     borderColor: '#E2E8F0',
     borderRadius: 6,

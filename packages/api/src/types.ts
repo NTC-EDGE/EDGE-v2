@@ -932,6 +932,10 @@ export interface StatementOfAccountDto {
   approvedByUserId?: string;
   approvedAt?: string;
   remarks?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
   lineItems: SoaLineItemDto[];
   histories: SoaHistoryDto[];
 }
@@ -1130,6 +1134,8 @@ export interface ApplicationDto {
   histories: ApplicationHistoryDto[];
   correctionAuditTrails: CorrectionAuditTrailDto[];
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
 }
 
 export interface IssuedDocumentDetailDto {
@@ -1232,6 +1238,8 @@ export interface ApplicationSummaryDto {
   histories?: ApplicationHistoryDto[];
   correctionAuditTrails?: CorrectionAuditTrailDto[];
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
 }
 
 // ─── Paged Applications & Statistics ────────────────────

@@ -273,8 +273,10 @@ export function generateSoaPrintableHtml(
     : '';
   const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
 
-  const prepName = safeString(preparerName || app.evaluatingOfficer, 'AUTHORIZED EVALUATOR');
-  const apprvName = safeString(approverName || app.issuingOfficer, 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION');
+  const prepName = safeString(preparerName || app.soaPreparedByName || app.evaluatingOfficer, 'AUTHORIZED EVALUATOR');
+  const apprvName = safeString(approverName || app.soaApprovedByName || app.issuingOfficer || app.endorsedTo, 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION');
+  const prepTitle = safeString(app.soaPreparedByTitle, 'EVALUATOR, NTC');
+  const apprvTitle = safeString(app.soaApprovedByTitle, 'CHIEF, ENFORCEMENT & OPERATIONS DIV.');
 
   return `<!DOCTYPE html>
 <html>
@@ -433,7 +435,7 @@ export function generateSoaPrintableHtml(
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
       border-bottom: none;
       padding: 2.5px 8px;
-      background: ${isOverlay ? 'transparent' : '#f8fafc'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
       font-family: Arial, sans-serif;
       font-size: 8.5px;
       margin-top: 2px;
@@ -470,7 +472,7 @@ export function generateSoaPrintableHtml(
       font-weight: bold;
       font-size: 11.5px;
       padding: 4px 4px;
-      background: ${isOverlay ? 'transparent' : '#f1f5f9'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
     }
     .report-title {
       font-size: 11px;
@@ -503,7 +505,7 @@ export function generateSoaPrintableHtml(
       font-size: 10.5px;
       text-transform: uppercase;
       padding: 2px 4px;
-      background: ${isOverlay ? 'transparent' : '#e2e8f0'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
     }
     .code-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
@@ -537,7 +539,7 @@ export function generateSoaPrintableHtml(
       font-weight: bold;
       font-size: 11.5px;
       padding: 3px 10px;
-      background: ${isOverlay ? 'transparent' : '#f8fafc'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
     }
     .total-amount-cell {
       border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'};
@@ -547,7 +549,7 @@ export function generateSoaPrintableHtml(
       font-size: 11.5px;
       padding: 3px 8px;
       font-family: Arial, sans-serif;
-      background: ${isOverlay ? 'transparent' : '#f8fafc'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
     }
 
     /* Words Row */
@@ -590,7 +592,7 @@ export function generateSoaPrintableHtml(
       text-align: center;
       font-weight: bold;
       font-size: 10.5px;
-      background: ${isOverlay ? 'transparent' : '#f1f5f9'};
+      background: ${isOverlay ? 'transparent' : '#ffffff'};
     }
 
     .sig-table {
@@ -794,13 +796,13 @@ export function generateSoaPrintableHtml(
                 <div style="font-size: 7.5px; color: #475569; text-align: left; margin-bottom: 2px;">Prepared By:</div>
                 <div class="sig-line"></div>
                 <div class="sig-name">${prepName}</div>
-                <div class="sig-title">EVALUATOR, NTC</div>
+                <div class="sig-title">${prepTitle}</div>
               </td>
               <td>
                 <div style="font-size: 7.5px; color: #475569; text-align: left; margin-bottom: 2px;">Approved By:</div>
                 <div class="sig-line"></div>
                 <div class="sig-name">${apprvName}</div>
-                <div class="sig-title">CHIEF, ENFORCEMENT &amp; OPERATIONS DIV.</div>
+                <div class="sig-title">${apprvTitle}</div>
               </td>
             </tr>
           </table>
@@ -1013,9 +1015,9 @@ export function generateOpPrintableHtml(
     
     .bank-instruction { font-size: 9.5px; font-weight: bold; margin-bottom: 3px; }
     .bank-grid { width: 100%; border-collapse: collapse; border: 1px solid #000000; font-size: 9.5px; }
-    .bank-grid th { border: 1px solid #000000; background: #f1f5f9; padding: 3px 6px; font-size: 9px; font-weight: bold; }
+    .bank-grid th { border: 1px solid #000000; background: #ffffff; padding: 3px 6px; font-size: 9px; font-weight: bold; }
     .bank-grid td { border: 1px solid #000000; padding: 3px 6px; }
-    .total-row { background: #f8fafc; }
+    .total-row { background: #ffffff; }
     
     .voucher-footer-table { width: 100%; border-collapse: collapse; margin-top: 6px; }
     .or-stamp-box { border: 1px solid #000000; border-collapse: collapse; font-size: 9px; width: 100%; }
@@ -1141,12 +1143,12 @@ export function generateFullApplicationSummaryHtml(app: ApplicationData, tenantN
     }
     .header-title { font-size: 16px; font-weight: 800; color: #0f172a; text-align: center; margin-bottom: 2px; }
     .sub-header { font-size: 11px; color: #64748b; text-align: center; margin-bottom: 18px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; }
+    .card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; margin-bottom: 14px; }
     .card-title { font-size: 11px; font-weight: 700; color: #0284c7; text-transform: uppercase; margin-bottom: 6px; }
     .grid-2 { display: flex; gap: 12px; }
     .grid-col { flex: 1; font-size: 11px; }
     .table { width: 100%; border-collapse: collapse; margin-top: 6px; }
-    .th { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
+    .th { background: #ffffff; border: 1px solid #cbd5e1; padding: 6px 8px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
     .print-btn-bar { position: fixed; top: 12px; right: 12px; z-index: 999; }
     .btn-print { background: #0f172a; color: #ffffff; border: none; padding: 10px 20px; border-radius: 6px; font-weight: 600; cursor: pointer; }
   </style>

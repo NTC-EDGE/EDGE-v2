@@ -185,6 +185,23 @@ export function generateSoaPrintableHtml(
     '30 days from issuance'
   );
 
+  const effectivePreparer = safeString(
+    preparerName || app.soa?.preparedByName || app.evaluatingOfficer,
+    'Assessing Officer / Evaluator'
+  );
+  const effectivePreparerTitle = safeString(
+    app.soa?.preparedByTitle,
+    'Assessed & Prepared By'
+  );
+  const effectiveApprover = safeString(
+    approverName || app.soa?.approvedByName || app.issuingOfficer,
+    'Chief, Enforcement & Operations Division'
+  );
+  const effectiveApproverTitle = safeString(
+    app.soa?.approvedByTitle,
+    'Noted & Certified Correct'
+  );
+
   const soaItemsList = getEffectiveLineItems(app);
   const lineItemsHtml = soaItemsList
     .map((item, index) => {
@@ -250,18 +267,18 @@ export function generateSoaPrintableHtml(
     .doc-title { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
     .doc-ref { font-size: 12px; font-family: monospace; color: #38bdf8; font-weight: 700; }
     .info-grid { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; }
+    .info-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 12px 16px; }
     .info-title { font-size: 10px; font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; }
     .info-name { font-size: 14px; font-weight: 700; color: #0f172a; margin-bottom: 2px; }
     .info-sub { font-size: 11px; color: #475569; }
     .data-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    .th-cell { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
-    .total-card { background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
+    .th-cell { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
+    .total-card { background: #ffffff; border: 1px solid #cbd5e1; border-radius: 6px; padding: 14px 18px; margin-bottom: 20px; }
     .total-row { display: flex; justify-content: space-between; align-items: center; }
     .total-amount { font-size: 20px; font-weight: 800; color: #0f172a; }
     .total-words { font-size: 11px; font-weight: 600; color: #0284c7; margin-top: 4px; }
     .due-date-badge { display: inline-block; background: #fef3c7; color: #92400e; padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 700; }
-    .guidelines { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px 16px; font-size: 10.5px; color: #166534; margin-bottom: 24px; }
+    .guidelines { background: #ffffff; border: 1px solid #bbf7d0; border-radius: 6px; padding: 12px 16px; font-size: 10.5px; color: #166534; margin-bottom: 24px; }
     .signatories { display: flex; justify-content: space-between; margin-top: 30px; }
     .sig-block { width: 45%; border-top: 1px solid #94a3b8; padding-top: 6px; text-align: center; }
     .sig-name { font-size: 12px; font-weight: 700; color: #0f172a; text-transform: uppercase; }
@@ -361,12 +378,12 @@ export function generateSoaPrintableHtml(
 
   <div class="signatories">
     <div class="sig-block">
-      <div class="sig-name">${safeString(preparerName, 'Assessing Officer / Evaluator')}</div>
-      <div class="sig-role">Assessed &amp; Prepared By</div>
+      <div class="sig-name">${effectivePreparer}</div>
+      <div class="sig-role">${effectivePreparerTitle}</div>
     </div>
     <div class="sig-block">
-      <div class="sig-name">${safeString(approverName, 'Chief, Enforcement &amp; Operations Division')}</div>
-      <div class="sig-role">Noted &amp; Certified Correct</div>
+      <div class="sig-name">${effectiveApprover}</div>
+      <div class="sig-role">${effectiveApproverTitle}</div>
     </div>
   </div>
 
@@ -456,12 +473,12 @@ export function generateOpPrintableHtml(
     }
     .doc-title { font-size: 16px; font-weight: 800; letter-spacing: 0.5px; }
     .doc-ref { font-size: 12px; font-family: monospace; color: #6ee7b7; font-weight: 700; }
-    .info-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; }
+    .info-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px 18px; margin-bottom: 16px; }
     .info-row { display: flex; justify-content: space-between; margin-bottom: 6px; }
     .info-label { font-size: 11px; color: #64748b; font-weight: 600; }
     .info-val { font-size: 12px; color: #0f172a; font-weight: 700; }
     .data-table { width: 100%; border-collapse: collapse; margin-bottom: 16px; }
-    .th-cell { background: #f1f5f9; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
+    .th-cell { background: #ffffff; border: 1px solid #cbd5e1; padding: 8px 10px; font-size: 10px; font-weight: 700; text-transform: uppercase; color: #475569; }
     .td-cell { border: 1px solid #cbd5e1; padding: 10px 12px; font-size: 11px; }
     .payment-box { background: #f0fdf4; border: 1px solid #86efac; border-radius: 6px; padding: 14px 18px; margin-bottom: 24px; }
     .signatories { display: flex; justify-content: space-between; margin-top: 30px; }
@@ -528,7 +545,7 @@ export function generateOpPrintableHtml(
     </thead>
     <tbody>
       ${lineItemsHtml}
-      <tr style="background: #f8fafc;">
+      <tr style="background: #ffffff;">
         <td colspan="2" class="td-cell" style="font-weight: 800; text-align: right; text-transform: uppercase;">Total Amount Payable:</td>
         <td class="td-cell" style="text-align: right; font-weight: 800; font-size: 13px; color: #059669;">${formatCurrency(totalAmount)}</td>
       </tr>
@@ -683,7 +700,7 @@ export function generateOrPrintableHtml(app: Application): string {
       border: 0.8pt solid #0f172a;
       padding: 4px 8px;
       margin-top: 6px;
-      background: #f8fafc;
+      background: #ffffff;
     }
     .or-no {
       font-size: 12pt;
@@ -704,7 +721,7 @@ export function generateOrPrintableHtml(app: Application): string {
       margin-top: 4px;
     }
     .items-table th {
-      background: #f1f5f9;
+      background: #ffffff;
       border-bottom: 0.8pt solid #0f172a;
       padding: 4px 6px;
       font-size: 8pt;
@@ -713,7 +730,7 @@ export function generateOrPrintableHtml(app: Application): string {
     }
     .total-row td {
       border-top: 1pt solid #0f172a;
-      background: #f8fafc;
+      background: #ffffff;
       padding: 5px 6px;
       font-weight: bold;
     }

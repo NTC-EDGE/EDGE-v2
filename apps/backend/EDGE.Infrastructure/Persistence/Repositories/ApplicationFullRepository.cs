@@ -870,8 +870,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     CreatedAt = s.CreatedAt,
                     PreparedByUserId = s.PreparedByUserId,
                     ApprovedByUserId = s.ApprovedByUserId,
-                    ApprovedAt = s.ApprovedAt,
                     Remarks = s.Remarks,
+                    PreparedByName = s.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
+                                     ?? app.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault() ?? "EVALUATOR",
+                    ApprovedByName = s.Histories.Where(h => h.StaffRole != null && (h.StaffRole.Contains("Chief") || h.StaffRole.Contains("Director"))).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
+                                     ?? app.Histories.Where(h => h.StaffRole != null && (h.StaffRole.Contains("Chief") || h.StaffRole.Contains("Director"))).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault() ?? "CHIEF, EOD",
                     LineItems = s.LineItems.Select(li => new EDGE.Application.Applications.Dtos.SoaLineItemDto
                     {
                         Id = li.Id,

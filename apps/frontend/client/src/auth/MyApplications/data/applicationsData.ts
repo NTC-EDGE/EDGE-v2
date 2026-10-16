@@ -72,6 +72,10 @@ export interface SoaData {
   totalAmount: number;
   dueDate?: string;
   remarks?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
   lineItems: SoaLineItem[];
 }
 
@@ -106,6 +110,8 @@ export interface SingleApplication {
   officialReceiptNumber?: string;
   amountPaid?: number;
   paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -290,6 +296,8 @@ export interface BulkApplication {
   officialReceiptNumber?: string;
   amountPaid?: number;
   paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -727,6 +735,8 @@ export interface ApiApplicationDto {
   AssessmentVersion?: number;
   assessmentRemarks?: string;
   AssessmentRemarks?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
   filingUser?: {
     id?: string;
     name?: string;
@@ -1139,6 +1149,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         totalAmount: typeof primarySoaDto.totalAmount === 'number' ? primarySoaDto.totalAmount : 0,
         dueDate: primarySoaDto.dueDate,
         remarks: primarySoaDto.remarks,
+        preparedByName: (primarySoaDto as { preparedByName?: string }).preparedByName,
+        preparedByTitle: (primarySoaDto as { preparedByTitle?: string }).preparedByTitle,
+        approvedByName: (primarySoaDto as { approvedByName?: string }).approvedByName,
+        approvedByTitle: (primarySoaDto as { approvedByTitle?: string }).approvedByTitle,
         lineItems: (primarySoaDto.lineItems || []).map((li) => ({
           id: li.id,
           particular: li.particular || 'Regulatory Fee Assessment',
@@ -1276,6 +1290,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       serviceVariantId: dto.serviceVariantId,
       histories: mappedHistories,
       history: mappedHistories,
+      evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+      issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
       filingUser: dto.filingUser,
       rawStatus,
     };
@@ -1339,6 +1355,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     paidAt: resolvedPaidAt,
     histories: mappedHistories,
     history: mappedHistories,
+    evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+    issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
     rawStatus,
   };
   return singleApp;

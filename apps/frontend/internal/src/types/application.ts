@@ -177,6 +177,10 @@ export interface ApplicationData {
   soaIssuedToType?: ApplicantType;
   soaDueDate?: string;
   soaCreatedAt?: string;
+  soaPreparedByName?: string;
+  soaPreparedByTitle?: string;
+  soaApprovedByName?: string;
+  soaApprovedByTitle?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

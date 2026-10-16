@@ -530,7 +530,7 @@ export function SoaReportPreviewModal({
           <View
             style={{
               flexDirection: 'row',
-              backgroundColor: isDark ? colors.neutral[800] : '#f1f5f9',
+              backgroundColor: isDark ? colors.neutral[800] : '#ffffff',
               borderBottomWidth: 1,
               borderBottomColor: isDark ? colors.neutral[600] : '#000000',
               paddingVertical: 4,
@@ -575,7 +575,7 @@ export function SoaReportPreviewModal({
             style={{
               flexDirection: 'row',
               paddingVertical: 5,
-              backgroundColor: isDark ? colors.neutral[800] : '#f8fafc',
+              backgroundColor: isDark ? colors.neutral[800] : '#ffffff',
             }}
           >
             <View style={{ flex: 1, paddingHorizontal: 8, alignItems: 'flex-end', borderRightWidth: 1, borderRightColor: isDark ? colors.neutral[600] : '#000000' }}>
@@ -1159,7 +1159,7 @@ export function SoaReportPreviewModal({
                     minHeight: 650,
                     justifyContent: 'center',
                     alignItems: 'center',
-                    backgroundColor: isDark ? colors.neutral[900] : '#f8fafc',
+                    backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
                     borderRadius: RADIUS.card,
                     borderWidth: 1,
                     borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
@@ -1366,7 +1366,7 @@ export function SoaReportPreviewModal({
                   alignItems: 'center',
                   justifyContent: 'center',
                   padding: SPACING[24],
-                  backgroundColor: isDark ? colors.neutral[900] : '#f8fafc',
+                  backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
                   borderRadius: RADIUS.card,
                   borderWidth: 1,
                   borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
@@ -1437,6 +1437,18 @@ export function SoaReportPreviewModal({
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Due Date:</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: '#dc2626' }}>
                       {app.dueDate || '30 days from issuance'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Prepared By (Evaluator):</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
+                      {app.soaPreparedByName || app.evaluatingOfficer || 'AUTHORIZED EVALUATOR'}
+                    </Text>
+                  </View>
+                  <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Approved By (Chief, EOD):</Text>
+                    <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
+                      {app.soaApprovedByName || app.issuingOfficer || app.endorsedTo || 'CHIEF, EOD'}
                     </Text>
                   </View>
                 </View>
