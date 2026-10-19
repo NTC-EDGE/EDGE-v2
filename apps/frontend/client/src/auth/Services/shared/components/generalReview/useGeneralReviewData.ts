@@ -5,6 +5,7 @@ import { resolveServiceCategoryFlags, resolveApplicantParticulars } from './gene
 import { buildDynamicSections } from '../../../../../shared/formPreview/core/buildDynamicSections';
 import { isExamEducationField, isExamAssistanceField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
 import { getPreviewExtension } from '../../../../../shared/formPreview/extensions';
+import { computePermitFees } from '../../../permits';
 
 export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const {
@@ -100,6 +101,55 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     return remainingFields.filter((f) => isExamAssistanceField(f.fieldLabel, f.fieldId));
   }, [categoryFlags.isExamService, remainingFields]);
 
+  const permitFeeComputation = useMemo(() => {
+    if (!categoryFlags.isPermitService) return null;
+
+    const matchedVariantObj = variants.find(
+      (v) => String(v.id).toLowerCase() === String(activeApplicant.selectedVariantId || '').toLowerCase()
+    );
+
+    const appType =
+      activeApplicant.permitData?.applicationType ||
+      matchedVariantObj?.description ||
+      matchedVariantObj?.name ||
+      activeApplicant.selectedVariantName ||
+      '';
+
+    const element =
+      activeApplicant.permitData?.stationClass ||
+      activeApplicant.selectedElementTitle ||
+      '';
+
+    let unitCount = 1;
+    if (activeApplicant.permitData) {
+      const p = activeApplicant.permitData;
+      if (Array.isArray(p.purchaseEquipments) && p.purchaseEquipments.length > 0) {
+        unitCount = p.purchaseEquipments.length;
+      } else if (Array.isArray(p.equipments) && p.equipments.length > 0) {
+        unitCount = p.equipments.length;
+      } else if (Array.isArray(p.stationParticulars) && p.stationParticulars.length > 0) {
+        unitCount = p.stationParticulars.length;
+      }
+    }
+
+    return computePermitFees({
+      activity: service.title,
+      applicationType: appType,
+      element,
+      validityYears: 1,
+      noOfUnits: unitCount,
+      asOfDate: new Date(),
+    });
+  }, [
+    categoryFlags.isPermitService,
+    service.title,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName,
+    activeApplicant.selectedElementTitle,
+    activeApplicant.permitData,
+  ]);
+
   return {
     ...categoryFlags,
     ...particulars,
@@ -112,5 +162,7 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     remainingFields,
     examEducationFields,
     examAssistanceFields,
+    permitFeeComputation,
   };
 }
+

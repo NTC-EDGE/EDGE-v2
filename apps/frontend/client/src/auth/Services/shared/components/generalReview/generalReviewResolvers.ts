@@ -22,7 +22,16 @@ export function resolveServiceCategoryFlags(service: NTCService) {
   const isPermitService =
     !isExamService &&
     (serviceCategoryLower.includes('permit') ||
-      serviceTitleLower.includes('permit'));
+      serviceTitleLower.includes('permit') ||
+      serviceCategoryLower.includes('purchase') ||
+      serviceTitleLower.includes('purchase') ||
+      serviceTitleLower.includes('possess') ||
+      serviceTitleLower.includes('dealer') ||
+      serviceTitleLower.includes('manufacturer') ||
+      serviceTitleLower.includes('retailer') ||
+      serviceTitleLower.includes('transport') ||
+      serviceTitleLower.includes('vanity') ||
+      serviceTitleLower.includes('special event'));
 
   const isCertificateService =
     !isExamService &&

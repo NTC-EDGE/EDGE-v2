@@ -15,6 +15,7 @@ import { TvroRegReviewCard } from './generalReview/TvroRegReviewCard';
 import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
+import { PermitFeeSummaryCard } from './generalReview/PermitFeeSummaryCard';
 import { UploadedDocumentsReviewCard } from './generalReview/UploadedDocumentsReviewCard';
 import { FilingIntentReviewCard } from './generalReview/FilingIntentReviewCard';
 
@@ -134,12 +135,20 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
           </>
         )}
         footerSlot={
-          <UploadedDocumentsReviewCard
-            activeApplicant={activeApplicant}
-            variantRequirements={variantRequirements}
-            service={service}
-            onPreviewFile={handlePreviewFile}
-          />
+          <>
+            {reviewData.permitFeeComputation && (
+              <PermitFeeSummaryCard
+                computation={reviewData.permitFeeComputation}
+                isAssessmentOnly={filingIntent === 'AssessmentOnly'}
+              />
+            )}
+            <UploadedDocumentsReviewCard
+              activeApplicant={activeApplicant}
+              variantRequirements={variantRequirements}
+              service={service}
+              onPreviewFile={handlePreviewFile}
+            />
+          </>
         }
         signatureEntry={reviewData.signatureEntry}
       />
