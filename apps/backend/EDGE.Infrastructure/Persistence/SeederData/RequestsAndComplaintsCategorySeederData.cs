@@ -20,7 +20,6 @@ public static class RequestsAndComplaintsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""personal_information"", ""required"": true },
             { ""key"": ""request_type_and_device_details"", ""required"": true },
             { ""key"": ""sim_details"", ""required"": true },
             { ""key"": ""supporting_documents"", ""required"": false },
@@ -43,11 +42,9 @@ public static class RequestsAndComplaintsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""complainants_details"", ""required"": true },
             { ""key"": ""particulars_of_service_provider"", ""required"": true },
             { ""key"": ""nature_of_complaint"", ""required"": true },
-            { ""key"": ""complaint_details"", ""required"": true },
-            { ""key"": ""signoff"", ""required"": true }
+            { ""key"": ""complaint_details"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -160,7 +157,6 @@ public static class RequestsAndComplaintsCategorySeederData
     {
         new("NTC_1_24", Guid.Parse("f2400000-0000-0000-0000-000000000001"), Guid.Parse("f24a0000-0000-0000-0000-000000000000"), new()
         {
-            new("personal_information", "Personal & Contact Information", new() { "full_name", "citizenship", "residential_address", "residence_telephone", "office_address", "office_telephone", "tin_number" }),
             new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "make_model_type", "imei_number" }),
             new("sim_details", "2. SIM Card / Mobile Number Details", new() { "mobile_number" }),
             new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
@@ -168,11 +164,9 @@ public static class RequestsAndComplaintsCategorySeederData
         }),
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("complainants_details", "Complainant's Details", new() { "name", "postal_address", "email_address", "contact_number" }),
             new("particulars_of_service_provider", "Particulars of Service Provider", new() { "provider_business_name", "provider_business_address", "provider_contact_number" }),
             new("nature_of_complaint", "Nature of Complaint", new() { "complaint_types", "others_specification", "date_of_incident", "time_of_incident" }),
-            new("complaint_details", "Details of Complaint", new() { "state_briefly_details", "attached_proof_documents" }),
-            new("signoff", "Complainant Declaration & Signature", new() { "complainant_signature", "date_accomplished" })
+            new("complaint_details", "Details of Complaint", new() { "state_briefly_details", "attached_proof_documents" })
         })
     };
 

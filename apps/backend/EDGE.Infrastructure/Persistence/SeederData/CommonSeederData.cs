@@ -259,12 +259,6 @@ public static class CommonSeederData
             ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false },
 
             // NTC 1-24 Fields (Affidavit of Ownership and Loss with Undertaking)
-            ["full_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000301"), FieldType = "text", Label = "Full Name of Affiant", SyncBackOnSubmit = true },
-            ["residential_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000302"), FieldType = "textarea", Label = "Residential Address", SyncBackOnSubmit = true },
-            ["residence_telephone"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000303"), FieldType = "text", Label = "Telephone Number", SyncBackOnSubmit = false },
-            ["office_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000304"), FieldType = "textarea", Label = "Office Address", SyncBackOnSubmit = false },
-            ["office_telephone"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000305"), FieldType = "text", Label = "Office Telephone Number", SyncBackOnSubmit = false },
-            ["tin_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000306"), FieldType = "text", Label = "TIN No.", SyncBackOnSubmit = false },
             ["action_requested"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000307"), FieldType = "dropdown", Label = "Action Requested", SyncBackOnSubmit = false, ValidationRules = @"[""BLOCK GSM Handset"",""UNBLOCK GSM Handset""]" },
             ["make_model_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000308"), FieldType = "text", Label = "Make / Model / Type", SyncBackOnSubmit = false },
             ["imei_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000309"), FieldType = "text", Label = "International Mobile Equipment Identification (IMEI)", SyncBackOnSubmit = false, ValidationRules = @"^[0-9]{15}$" },
@@ -278,10 +272,6 @@ public static class CommonSeederData
             ["time_of_day"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000317"), FieldType = "dropdown", Label = "Time of Incident", SyncBackOnSubmit = false, ValidationRules = @"[""Daytime"",""Nighttime""]" },
 
             // NTC 1-25 Fields (Complaint Form - Rev 03 03/31/2025)
-            ["name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000320"), FieldType = "text", Label = "Name", SyncBackOnSubmit = true },
-            ["postal_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000321"), FieldType = "textarea", Label = "Postal Address", SyncBackOnSubmit = true },
-            ["email_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000322"), FieldType = "text", Label = "Email Address", SyncBackOnSubmit = true },
-            ["contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000323"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = true },
             ["provider_business_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Business Name", SyncBackOnSubmit = false },
             ["provider_business_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "textarea", Label = "Business Address", SyncBackOnSubmit = false },
             ["provider_contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = false },
@@ -289,9 +279,7 @@ public static class CommonSeederData
             ["others_specification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "If Others, Please Specify", SyncBackOnSubmit = false },
             ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "text", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
             ["state_briefly_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "textarea", Label = "State Briefly the Details of Complaint", SyncBackOnSubmit = false },
-            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false },
-            ["complainant_signature"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000332"), FieldType = "signature", Label = "Signature over Printed Name of the Complainant", SyncBackOnSubmit = false },
-            ["date_accomplished"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000333"), FieldType = "date", Label = "Date Accomplished", SyncBackOnSubmit = false }
+            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false }
         };
     }
 }
