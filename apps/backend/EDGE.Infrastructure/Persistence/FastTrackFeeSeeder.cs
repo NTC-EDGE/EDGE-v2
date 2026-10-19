@@ -780,6 +780,14 @@ public static class FastTrackFeeSeeder
                 (LicensesCategorySeederData.VarLicTrueCopy, FeeConstants.Formulas.LicenseCertifiedTrueCopy, false),
                 (LicensesCategorySeederData.VarLicDuplicate, FeeConstants.Formulas.LicenseDuplicateCopy, false),
                 #endregion
+
+                #region Requests and Complaints Formulas
+                (RequestsAndComplaintsCategorySeederData.VarReqBlocking, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                (RequestsAndComplaintsCategorySeederData.VarReqUnblocking, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                (RequestsAndComplaintsCategorySeederData.VarReqSpam, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                (RequestsAndComplaintsCategorySeederData.VarReqProvider, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                (RequestsAndComplaintsCategorySeederData.VarReqTape, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                #endregion
             };
 
             var existingVariantFormulas = await context.ServiceVariantFormulas.IgnoreQueryFilters().ToListAsync();

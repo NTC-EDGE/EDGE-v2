@@ -7,6 +7,7 @@ import { isExamEducationField, isExamAssistanceField } from '../../../../../shar
 import { getPreviewExtension } from '../../../../../shared/formPreview/extensions';
 import { computePermitFees } from '../../../permits';
 import { calculateLicenseFee } from '../../../licenses';
+import { calculateRequestFee } from '../../../requests';
 
 export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const {
@@ -227,6 +228,36 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     activeApplicant.lifetimeLicenseData,
   ]);
 
+  const requestFeeComputation = useMemo(() => {
+    if (!categoryFlags.isRequestOrComplaintService) return null;
+
+    const matchedVariantObj = variants.find(
+      (v) => String(v.id).toLowerCase() === String(activeApplicant.selectedVariantId || '').toLowerCase()
+    );
+
+    const appType =
+      matchedVariantObj?.description ||
+      matchedVariantObj?.name ||
+      activeApplicant.selectedVariantName ||
+      service.title;
+
+    return calculateRequestFee({
+      serviceName: service.title,
+      serviceCategory: service.category,
+      applicationType: appType,
+      variantName: matchedVariantObj?.name || activeApplicant.selectedVariantName,
+      element: activeApplicant.selectedElementTitle,
+    });
+  }, [
+    categoryFlags.isRequestOrComplaintService,
+    service.title,
+    service.category,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName,
+    activeApplicant.selectedElementTitle,
+  ]);
+
   return {
     ...categoryFlags,
     ...particulars,
@@ -241,6 +272,7 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     examAssistanceFields,
     permitFeeComputation,
     licenseFeeComputation,
+    requestFeeComputation,
   };
 }
 

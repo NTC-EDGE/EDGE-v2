@@ -26,6 +26,7 @@ public static class FeeConstants
         public const string Accreditation = "ACCRED";
         public const string Surcharge = "SUR";
         public const string Request = "REQ_FEE";
+        public const string NoFee = "NO_FEE";
         public const string DefaultBase = "FEE_BASE";
 
         // Permits-specific codes
@@ -454,6 +455,7 @@ public static class FeeConstants
         public const string AccreditationNew = "FEEACCRED = FF + (ACCRED)(YR) + DST";
         public const string AccreditationRenewal = "FEEACCRED = FF + (ACCRED)(YR) + DST + SUR";
         public const string RequestStandard = "FEEREQ = REQ_FEE + DST";
+        public const string RequestsAndComplaintsFree = "TOTAL = 0";
         public const string DefaultStandard = "FEE = (RATE)(YR)(UNIT) + DST";
         public const string DefaultRenewal = "FEE = (RATE)(YR)(UNIT) + DST + SUR";
     }
