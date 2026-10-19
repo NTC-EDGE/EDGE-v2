@@ -541,4 +541,110 @@ public class UserAuthorizationCrossTenantTests : IDisposable
             hasPerm.Should().BeTrue($"SuperAdmin must have {requiredPerm} unconditionally");
         }
     }
+
+    [Fact]
+    public async Task ClientUser_WithClientRoleMembershipInTenantA_SubmittingToTenantB_ShouldHaveSubmitApplicationPermission()
+    {
+        // Arrange
+        var tenantA = Guid.NewGuid();
+        var tenantB = Guid.NewGuid();
+
+        var clientUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_client_crosstenant",
+            Email = "citizen@example.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        var clientRole = new Role
+        {
+            Id = Guid.NewGuid(),
+            Key = "client",
+            Name = "Client",
+            TenantId = null,
+            IsDeleted = false
+        };
+        var clientMembershipInA = new TenantMember
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantA,
+            UserId = clientUser.Id,
+            RoleId = clientRole.Id,
+            IsDeleted = false
+        };
+
+        _dbContext.Users.Add(clientUser);
+        _dbContext.Roles.Add(clientRole);
+        _dbContext.TenantMembers.Add(clientMembershipInA);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_client_crosstenant");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("citizen@example.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(clientUser);
+
+        // When submitting to Tenant B (e.g. POST /tenants/{tenantB}/applications)
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns(tenantB);
+
+        var service = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        // Act
+        var isInternal = await service.IsInternalUserAsync();
+        var canSubmit = await service.CanSubmitApplicationAsync();
+        var hasSubmitPerm = await service.HasPermissionAsync(Permissions.SubmitApplication);
+
+        // Assert
+        isInternal.Should().BeFalse("A user with role 'client' must not be classified as internal staff");
+        canSubmit.Should().BeTrue("Client user must be allowed to submit applications cross-tenant");
+        hasSubmitPerm.Should().BeTrue("Client user must satisfy SubmitApplication permission when applying to any regional tenant");
+    }
+
+    [Fact]
+    public async Task ClientUser_WithNoTenantMembership_SubmittingToTenantRoute_ShouldHaveSubmitApplicationPermission()
+    {
+        // Arrange
+        var targetTenant = Guid.NewGuid();
+
+        var clientUser = new User
+        {
+            Id = Guid.NewGuid(),
+            AuthUserId = "user_new_citizen",
+            Email = "newcitizen@example.com",
+            IsSuperAdmin = false,
+            IsDeleted = false
+        };
+        _dbContext.Users.Add(clientUser);
+        await _dbContext.SaveChangesAsync();
+
+        _currentUserServiceMock.Setup(s => s.UserId).Returns("user_new_citizen");
+        _currentUserServiceMock.Setup(s => s.Email).Returns("newcitizen@example.com");
+        _userRepositoryMock.Setup(r => r.ResolveCurrentUserAsync(It.IsAny<ICurrentUserService>(), default))
+            .ReturnsAsync(clientUser);
+
+        // Targeted tenant in route (e.g. POST /tenants/{targetTenant}/applications)
+        _tenantContextServiceMock.Setup(t => t.TenantId).Returns(targetTenant);
+
+        var service = new UserAuthorizationService(
+            _currentUserServiceMock.Object,
+            _tenantContextServiceMock.Object,
+            _userRepositoryMock.Object,
+            _dbContext,
+            _loggerMock.Object);
+
+        // Act
+        var isInternal = await service.IsInternalUserAsync();
+        var canSubmit = await service.CanSubmitApplicationAsync();
+        var hasSubmitPerm = await service.HasPermissionAsync(Permissions.SubmitApplication);
+
+        // Assert
+        isInternal.Should().BeFalse("Unassociated citizen applicant is not an internal user");
+        canSubmit.Should().BeTrue("Public citizen must be allowed to submit applications");
+        hasSubmitPerm.Should().BeTrue("Public citizen has SubmitApplication permission on tenant-scoped route");
+    }
 }

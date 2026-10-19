@@ -71,6 +71,11 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
+        if (permission == Permissions.SubmitApplication && await CanSubmitApplicationAsync(cancellationToken))
+        {
+            return true;
+        }
+
         var permissions = await GetUserPermissionsAsync(cancellationToken);
         return permissions.Contains(permission);
     }
@@ -83,6 +88,11 @@ public class UserAuthorizationService : IUserAuthorizationService
         }
 
         if (_currentUserService.IsSuperAdminClaim || _currentUserService.IsAdminClaim || AdministrativeIdentityPolicy.IsAdministrativeEmail(_currentUserService.Email))
+        {
+            return true;
+        }
+
+        if (permissions.Contains(Permissions.SubmitApplication) && await CanSubmitApplicationAsync(cancellationToken))
         {
             return true;
         }
@@ -196,7 +206,14 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        return await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+        // An internal user is an active tenant member whose role is NOT external 'client'
+        return await (
+            from tm in _dbContext.TenantMembers
+            join r in _dbContext.Roles on tm.RoleId equals r.Id
+            where tm.UserId == user.Id && !tm.IsDeleted && !r.IsDeleted
+            where r.Key.ToLower() != "client"
+            select tm.Id
+        ).AnyAsync(cancellationToken);
     }
 
     public async Task<bool> CanSubmitApplicationAsync(CancellationToken cancellationToken = default)
@@ -219,15 +236,21 @@ public class UserAuthorizationService : IUserAuthorizationService
             return true;
         }
 
-        var isInternal = await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+        var isInternal = await IsInternalUserAsync(cancellationToken);
         if (!isInternal)
         {
             // Public client applicant
             return true;
         }
 
-        // Internal staff account: strictly require Permissions.SubmitApplication
-        return await HasPermissionAsync(Permissions.SubmitApplication, cancellationToken);
+        // Internal staff account: check if user holds SubmitApplication permission in any active membership
+        return await (
+            from tm in _dbContext.TenantMembers
+            join rp in _dbContext.RolePermissions on tm.RoleId equals rp.RoleId
+            where tm.UserId == user.Id && !tm.IsDeleted
+            where rp.PermissionKey == Permissions.SubmitApplication
+            select rp.Id
+        ).AnyAsync(cancellationToken);
     }
 
     public async Task<List<string>> GetUserPermissionsAsync(CancellationToken cancellationToken = default)
@@ -272,7 +295,13 @@ public class UserAuthorizationService : IUserAuthorizationService
                 Permissions.ReadApplication,
                 Permissions.UploadStorage,
                 Permissions.ReadStorage,
-                Permissions.DownloadStorage
+                Permissions.DownloadStorage,
+                Permissions.ReadChat,
+                Permissions.SendChat,
+                Permissions.ReadMeetings,
+                Permissions.ReceiptsRead,
+                Permissions.ReadSchedules,
+                Permissions.ReadServiceVariantElements
             };
             return _cachedPermissions;
         }
@@ -286,7 +315,7 @@ public class UserAuthorizationService : IUserAuthorizationService
 
         try
         {
-            var isInternal = await _dbContext.TenantMembers.AnyAsync(tm => tm.UserId == user.Id && !tm.IsDeleted, cancellationToken);
+            var isInternal = await IsInternalUserAsync(cancellationToken);
             if (!isInternal)
             {
                 // Public client applicant permissions
@@ -304,7 +333,10 @@ public class UserAuthorizationService : IUserAuthorizationService
                     Permissions.DownloadStorage,
                     Permissions.ReadChat,
                     Permissions.SendChat,
-                    Permissions.ReadMeetings
+                    Permissions.ReadMeetings,
+                    Permissions.ReceiptsRead,
+                    Permissions.ReadSchedules,
+                    Permissions.ReadServiceVariantElements
                 };
                 return _cachedPermissions;
             }
