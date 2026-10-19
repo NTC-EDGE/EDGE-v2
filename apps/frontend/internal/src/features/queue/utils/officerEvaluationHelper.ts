@@ -65,6 +65,10 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === "ntc officer" ||
     n === "admin" ||
     n === "system admin" ||
+    n === "chief, eod" ||
+    n === "chief of eod" ||
+    n === "eod chief" ||
+    n === "regional director" ||
     n === (office ?? "").toLowerCase()
   );
 }

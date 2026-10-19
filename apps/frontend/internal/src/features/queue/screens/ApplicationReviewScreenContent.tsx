@@ -738,8 +738,7 @@ export function ApplicationReviewScreenContent({
     showStartEvalBtn ||
     ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
     (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
-    (isPendingPayment && isStageUnclaimed && canActAsCashier) ||
-    (isForIssuance && isStageUnclaimed && canActAsReleasing)
+    (isPendingPayment && isStageUnclaimed && canActAsCashier)
   );
 
   /** Show Cashier-specific payment verify button */
@@ -747,7 +746,7 @@ export function ApplicationReviewScreenContent({
   /** Show Accountant-specific SOA approve button */
   const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && canActAsAccountant && isStageClaimedByMe;
   /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
-  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing && isStageClaimedByMe;
+  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing;
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
   const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe;
 
@@ -766,7 +765,7 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = 'Approve & Issue OP';
     approveButtonIcon = 'check-circle';
   } else if (showIssueBtn) {
-    approveButtonLabel = 'Issue Document';
+    approveButtonLabel = 'Release Document';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
@@ -779,22 +778,27 @@ export function ApplicationReviewScreenContent({
   }
 
   // Primary action button (Approve / Start Evaluation / Take Application / Verify Payment / Approve SOA / Issue Document)
-  const canApproveAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
-    showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn
+  const canApproveAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && (showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn))
   );
 
   // Return button: Enabled for authorized officers reviewing an application across workflow stages.
   // Enforces the rule: "No one can transact an application without taking/claiming it first".
   // The Return button is ONLY enabled once the officer has claimed authority (or started evaluation).
   // On unclaimed applications (showClaimBtn is true), only Start Evaluation / Take Application is enabled.
-  const canDeclineAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && !showClaimBtn && (
-    ((isEvaluating || isReturned) && isStageClaimedByMe) ||
-    (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
-    (isPendingPayment && canActAsCashier && isStageClaimedByMe) ||
-    (isForIssuance && canActAsReleasing && isStageClaimedByMe)
+  const canDeclineAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && !showClaimBtn && (
+      ((isEvaluating || isReturned) && isStageClaimedByMe) ||
+      (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    ))
   );
 
-  const showReturnBtn = canDecline && !isEndorsedAwayFromMe && !isStageClaimedByOther && app.queueTab !== "history";
+  const showReturnBtn = canDecline && !isEndorsedAwayFromMe && app.queueTab !== "history" && (
+    (isForIssuance && canActAsReleasing) || !isStageClaimedByOther
+  );
   const isReturnDisabled = !canDeclineAction;
 
   // Endorse button: Available when actively evaluating, or when Cashier is reviewing in PendingPayment
@@ -922,23 +926,33 @@ export function ApplicationReviewScreenContent({
         </View>
       )}
 
+      {/* Ready for document release banner for ForIssuance */}
+      {!isEndorsedAwayFromMe && isForIssuance && canActAsReleasing && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5', borderBottomColor: isDark ? '#047857' : '#A7F3D0' }]}>
+          <Lucide name="award" size={14} color={isDark ? '#6EE7B7' : '#059669'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#D1FAE5' : '#065F46' }]}>
+            Application is verified and awaiting release. Click <Text style={{ fontWeight: '700' }}>"Release Document"</Text> to generate control numbers and issue document.
+          </Text>
+        </View>
+      )}
+
       {/* Locked / Under Review by another officer banner */}
-      {!isEndorsedAwayFromMe && !isEndorsedToMe && (isEvaluatedByOther || isStageClaimedByOther) && (
+      {!isEndorsedAwayFromMe && !isEndorsedToMe && !isForIssuance && (isEvaluatedByOther || isStageClaimedByOther) && (
         <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
           <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
           <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
-            Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : isForIssuance ? 'document release' : 'evaluation'} by{' '}
+            Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : 'evaluation'} by{' '}
             <Text style={{ fontWeight: '700' }}>{currentStageOfficer || evaluatingOfficer || 'another officer'}</Text>. Actions locked.
           </Text>
         </View>
       )}
 
       {/* Awaiting evaluation or authority claim banner for applications in queue */}
-      {!isEndorsedAwayFromMe && isStageUnclaimed && (
+      {!isEndorsedAwayFromMe && isStageUnclaimed && !isForIssuance && (
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF', borderBottomColor: isDark ? '#334155' : '#BFDBFE' }]}>
           <Lucide name="play-circle" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
-            Application is in queue. Click <Text style={{ fontWeight: '700' }}>{isSubmitted ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : isForIssuance ? 'document release' : 'evaluation'}.
+            Application is in queue. Click <Text style={{ fontWeight: '700' }}>{isSubmitted ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
           </Text>
         </View>
       )}
