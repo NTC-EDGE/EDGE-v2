@@ -48,7 +48,10 @@ export function usePendingPayments(tenantId?: string | null, search?: string) {
   const { data, error, isLoading, mutate } = useSWR<PendingPaymentDto[]>(
     key,
     () => {
-      const params: Record<string, string> = { tenantId: tenantId ?? '' };
+      const params: Record<string, string> = {};
+      if (tenantId && tenantId.trim().length > 0) {
+        params.tenantId = tenantId.trim();
+      }
       if (search) params.search = search;
       return fetcher<PendingPaymentDto[]>('/api/v2/receipts/pending-payments', params);
     },
@@ -71,7 +74,10 @@ export function useOrBooklets(tenantId?: string | null, status?: BookletStatus) 
   const { data, error, isLoading, mutate } = useSWR<OrBookletDto[]>(
     key,
     () => {
-      const params: Record<string, string> = { tenantId: tenantId ?? '' };
+      const params: Record<string, string> = {};
+      if (tenantId && tenantId.trim().length > 0) {
+        params.tenantId = tenantId.trim();
+      }
       if (status) params.status = status;
       return fetcher<OrBookletDto[]>('/api/v2/receipts/booklets', params);
     },
@@ -94,7 +100,10 @@ export function useNextAvailableOrNumber(tenantId?: string | null, cashierUserId
   const { data, error, isLoading, mutate } = useSWR<NextAvailableOrDto>(
     key,
     () => {
-      const params: Record<string, string> = { tenantId: tenantId ?? '' };
+      const params: Record<string, string> = {};
+      if (tenantId && tenantId.trim().length > 0) {
+        params.tenantId = tenantId.trim();
+      }
       if (cashierUserId) params.cashierUserId = cashierUserId;
       return fetcher<NextAvailableOrDto>('/api/v2/receipts/booklets/next-available', params);
     },
@@ -136,7 +145,10 @@ export function useOfficialReceipts(params: {
   const { data, error, isLoading, mutate } = useSWR<OfficialReceiptDto[]>(
     key,
     () => {
-      const queryParams: Record<string, string> = { tenantId: params.tenantId ?? '' };
+      const queryParams: Record<string, string> = {};
+      if (params.tenantId && params.tenantId.trim().length > 0) {
+        queryParams.tenantId = params.tenantId.trim();
+      }
       if (params.status) queryParams.status = params.status;
       if (params.paymentMethod) queryParams.paymentMethod = params.paymentMethod;
       if (params.fromDate) queryParams.fromDate = params.fromDate;

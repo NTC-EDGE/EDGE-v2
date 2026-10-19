@@ -96,6 +96,7 @@ export interface PendingPaymentDto {
   checkBank?: string | null;
   checkDate?: string | null;
   paymentReferenceNumber?: string | null;
+  payorName?: string | null;
 }
 
 export interface OfficialReceiptLineItemDto {
