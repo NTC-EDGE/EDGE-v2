@@ -53,11 +53,13 @@ export function ReceiptHeaderCard({
   const { colors } = useTheme();
 
   return (
-    <View style={[styles.mainCard, { borderColor: colors.border, backgroundColor: colors.neutral[50] }]}>
+    <View style={[styles.mainCard, { borderColor: colors.border, backgroundColor: '#FAFAFA' }]}>
       {/* Card Header: OR Serial Badge & Payment Method */}
       <View style={styles.summaryTopRow}>
         <View style={styles.orBadgeContainer}>
-          <Text style={[styles.orBadgeLabel, { color: colors.textMuted }]}>OFFICIAL RECEIPT SERIAL NUMBER</Text>
+          <Text style={[styles.orBadgeLabel, { color: colors.neutral[600] }]}>
+            OFFICIAL RECEIPT SERIAL NUMBER
+          </Text>
           <Text style={[styles.orBadgeValue, { color: colors.brand.primary }]}>
             {useManualOr
               ? (manualOrNumber.trim() ? `#${manualOrNumber.trim()}` : 'Enter Custom OR #')
@@ -67,26 +69,26 @@ export function ReceiptHeaderCard({
           {!useManualOr && nextOr?.hasActiveBooklet && (
             <View style={styles.seriesInfoPillRow}>
               <View style={[styles.seriesPill, { backgroundColor: colors.brand.indigoLight }]}>
-                <Lucide name="layers" size={11} color={colors.brand.primary} />
+                <Lucide name="layers" size={13} color={colors.brand.primary} />
                 <Text style={[styles.seriesPillText, { color: colors.brand.primary }]}>
                   Booklet {nextOr.bookletNumber ?? ''}
                 </Text>
               </View>
               {nextOr.formattedStartNumber && nextOr.formattedEndNumber && (
                 <View style={[styles.seriesPill, { backgroundColor: colors.neutral[200] }]}>
-                  <Text style={[styles.seriesPillText, { color: colors.neutral[700] }]}>
+                  <Text style={[styles.seriesPillText, { color: colors.neutral[800] }]}>
                     Series: {nextOr.formattedStartNumber} – {nextOr.formattedEndNumber}
                   </Text>
                 </View>
               )}
               <View style={[styles.seriesPill, { backgroundColor: colors.neutral[200] }]}>
-                <Text style={[styles.seriesPillText, { color: colors.neutral[700] }]}>
+                <Text style={[styles.seriesPillText, { color: colors.neutral[800] }]}>
                   {nextOr.remainingCount} remaining
                 </Text>
               </View>
               {nextOr.isShared && (
                 <View style={[styles.seriesPill, { backgroundColor: '#E0E7FF' }]}>
-                  <Lucide name="users" size={11} color={colors.brand.primary} />
+                  <Lucide name="users" size={13} color={colors.brand.primary} />
                   <Text style={[styles.seriesPillText, { color: colors.brand.primary }]}>
                     Shared ({nextOr.assignedUserNames?.length ?? 2} Cashiers)
                   </Text>
@@ -107,15 +109,15 @@ export function ReceiptHeaderCard({
 
         {/* Payment Method Selector */}
         <View style={styles.methodSelector}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 4, marginBottom: 4 }}>
-            <Text style={[styles.methodSelectorLabel, { color: colors.textMuted, marginBottom: 0 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 6, marginBottom: 6 }}>
+            <Text style={[styles.methodSelectorLabel, { color: colors.neutral[600], marginBottom: 0 }]}>
               PAYMENT METHOD
             </Text>
             {isFromPendingPayment && (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3, marginLeft: 4 }}>
-                <Lucide name="check-circle" size={10} color={colors.brand.primary} />
-                <Text style={{ fontSize: 9, color: colors.brand.primary, fontWeight: '700' }}>
-                  (Client Specified)
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#EDE9FE', paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 }}>
+                <Lucide name="check-circle" size={12} color="#6D28D9" />
+                <Text style={{ fontSize: 11, color: '#6D28D9', fontWeight: '800' }}>
+                  Client Specified
                 </Text>
               </View>
             )}
@@ -143,13 +145,13 @@ export function ReceiptHeaderCard({
                 >
                   <Lucide
                     name={method === 'Cash' ? 'dollar-sign' : method === 'Check' ? 'credit-card' : 'globe'}
-                    size={13}
-                    color={isSelected ? '#fff' : colors.neutral[700]}
+                    size={16}
+                    color={isSelected ? '#fff' : colors.neutral[800]}
                   />
                   <Text
                     style={[
                       styles.methodPillText,
-                      { color: colors.neutral[700] },
+                      { color: colors.neutral[800] },
                       isSelected && { color: '#fff' },
                     ]}
                   >
@@ -164,11 +166,11 @@ export function ReceiptHeaderCard({
 
       {/* Manual OR Input if enabled */}
       {useManualOr && (
-        <View style={styles.inlineManualOrBox}>
-          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Custom OR Number *</Text>
+        <View style={[styles.inlineManualOrBox, { borderTopColor: colors.neutral[200] }]}>
+          <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>Custom OR Number *</Text>
           <TextInput
-            style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
-            placeholder="e.g. 1002049"
+            style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
+            placeholder="e.g. 0010010"
             placeholderTextColor={colors.neutral[400]}
             value={manualOrNumber}
             onChangeText={setManualOrNumber}
@@ -179,20 +181,20 @@ export function ReceiptHeaderCard({
       {/* Online Reference Row (Only when Online is selected) */}
       {paymentMethod === 'Online' && (
         <View style={[styles.onlineInlineBox, { borderTopColor: colors.neutral[200] }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700], marginBottom: 0 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800], marginBottom: 0 }]}>
               Online Reference / E-Receipt / Transaction No. (Optional)
             </Text>
             {Boolean(clientSubmittedPayment?.onlineReference) && (
-              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#6D28D9' }}>
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#6D28D9' }}>
                   Auto-filled from Client Submission
                 </Text>
               </View>
             )}
           </View>
           <TextInput
-            style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+            style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
             placeholder="e.g. LBP-TXN-12345678, GCASH-REF-89012"
             placeholderTextColor={colors.neutral[400]}
             value={onlineReference}
@@ -204,40 +206,40 @@ export function ReceiptHeaderCard({
       {/* Check Details Row (Only when Check is selected) */}
       {paymentMethod === 'Check' && (
         <View style={[styles.checkInlineBox, { borderTopColor: colors.neutral[200] }]}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
-            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700], marginBottom: 0 }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800], marginBottom: 0 }]}>
               Check Details
             </Text>
             {Boolean(clientSubmittedPayment?.checkBank || clientSubmittedPayment?.checkNumber) && (
-              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
-                <Text style={{ fontSize: 10, fontWeight: '700', color: '#6D28D9' }}>
+              <View style={{ backgroundColor: '#EDE9FE', paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 }}>
+                <Text style={{ fontSize: 11, fontWeight: '800', color: '#6D28D9' }}>
                   Auto-filled from Client Submission
                 </Text>
               </View>
             )}
           </View>
           <View style={styles.checkFieldsRow}>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Check # *</Text>
+            <View style={{ flex: 1, minWidth: 160 }}>
+              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>Check # *</Text>
               <TextInput
-                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
                 placeholder="e.g. 00012389"
                 placeholderTextColor={colors.neutral[400]}
                 value={checkNumber}
                 onChangeText={setCheckNumber}
               />
             </View>
-            <View style={{ flex: 1, marginRight: 8 }}>
-              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>Drawee Bank *</Text>
+            <View style={{ flex: 1, minWidth: 160 }}>
+              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>Drawee Bank *</Text>
               <TextInput
-                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
                 placeholder="e.g. Land Bank / BDO"
                 placeholderTextColor={colors.neutral[400]}
                 value={checkBank}
                 onChangeText={setCheckBank}
               />
             </View>
-            <View style={{ flex: 1 }}>
+            <View style={{ flex: 1, minWidth: 160 }}>
               <DatePickerInput
                 label="Check Date"
                 placeholder="YYYY-MM-DD"

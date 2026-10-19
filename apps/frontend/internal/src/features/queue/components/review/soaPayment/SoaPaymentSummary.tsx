@@ -36,7 +36,7 @@ export function SoaPaymentSummary({
   }, [app.payment.orNumber, editingOrNumber]);
 
   const excess = app.payment.amountReceived - app.totalAmountDue;
-  const preferredBreakdown = parsePaymentBreakdown(app.note || app.payment.checkName || '');
+  const preferredBreakdown = parsePaymentBreakdown(app.payment.remarks || app.note || app.payment.checkName || '');
 
   return (
     <View
@@ -74,7 +74,7 @@ export function SoaPaymentSummary({
             <View style={styles.paymentMethodBlock}>
               <Text style={styles.paymentMethodLabel}>PAYMENT METHOD</Text>
               <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
-                {app.payment.method.toUpperCase()}
+                {preferredBreakdown?.isCombination ? 'COMBINATION / SPLIT' : (app.payment.paymentMethod || app.payment.method).toUpperCase()}
               </Text>
             </View>
           </View>
@@ -155,14 +155,23 @@ export function SoaPaymentSummary({
               </View>
             )}
 
-            {app.payment.method === "check" && (
+            {(app.payment.method === "check" || app.payment.paymentMethod === "Check") && (
               <View style={{ marginTop: SPACING[16] }}>
                 <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>CHECK DETAILS</Text>
                 <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
                   No: {app.payment.checkNumber || "—"}
                 </Text>
                 <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                  Bank: {app.payment.checkName || "—"}
+                  Bank: {app.payment.checkBank || "—"}
+                </Text>
+              </View>
+            )}
+
+            {Boolean(app.payment.payorName || app.payment.checkName || preferredBreakdown?.payorName) && (
+              <View style={{ marginTop: SPACING[12] }}>
+                <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>PAYEE / PAYOR</Text>
+                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[200] : colors.neutral[800], fontWeight: '600' }]}>
+                  {app.payment.payorName || app.payment.checkName || preferredBreakdown?.payorName}
                 </Text>
               </View>
             )}
@@ -277,49 +286,6 @@ export function SoaPaymentSummary({
                 ? 'Payment reference submitted. Ready for Cashier OR issuance.'
                 : 'Client has not paid. Cashier cannot issue OR until payment is made.'}
             </Text>
-          </View>
-        </View>
-      )}
-
-      {/* Client Preferred Payment Preview */}
-      {preferredBreakdown !== null && (
-        <View
-          style={{
-            marginTop: 12,
-            padding: 10,
-            borderRadius: RADIUS.sm,
-            backgroundColor: isDark ? '#1e1b4b' : '#f5f3ff',
-            borderColor: isDark ? '#4338ca' : '#ddd6fe',
-            borderWidth: 1,
-            gap: 6,
-          }}
-        >
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-            <Lucide name="layers" size={14} color={isDark ? '#a5b4fc' : '#6d28d9'} />
-            <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? '#e0e7ff' : '#4c1d95', fontFamily: TYPOGRAPHY.fonts.primary }}>
-              Client's Preferred Payment: {preferredBreakdown.isCombination ? 'Combination / Split' : preferredBreakdown.items[0]?.mode}
-            </Text>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-            {preferredBreakdown.items.map((item, idx) => (
-              <View
-                key={idx}
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 3,
-                  borderRadius: 4,
-                  backgroundColor: isDark ? '#312e81' : '#ffffff',
-                  borderWidth: 1,
-                  borderColor: isDark ? '#4338ca' : '#e9d5ff',
-                }}
-              >
-                <Text style={{ fontSize: 11, color: isDark ? '#c7d2fe' : '#5b21b6', fontFamily: TYPOGRAPHY.fonts.primary }}>
-                  <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                  {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
-                  {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
-                </Text>
-              </View>
-            ))}
           </View>
         </View>
       )}

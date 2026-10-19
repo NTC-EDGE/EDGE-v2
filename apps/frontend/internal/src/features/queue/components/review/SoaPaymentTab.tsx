@@ -42,7 +42,14 @@ export function SoaPaymentTab({
   const isPaymentSubmitted = Boolean(
     (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
-    (app.history && app.history.some((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+    (() => {
+      if (!app.history || app.history.length === 0) return false;
+      const paymentIdx = app.history.findIndex((h: AuditTrailEntry) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment'));
+      if (paymentIdx === -1) return false;
+      const resetIdx = app.history.findIndex((h: AuditTrailEntry) => h.action.toLowerCase().includes('returned') || h.action.toLowerCase().includes('soa approved by accountant'));
+      if (resetIdx !== -1 && resetIdx < paymentIdx) return false;
+      return true;
+    })()
   );
   const isSoaReturned =
     app.status === 'Returned' ||

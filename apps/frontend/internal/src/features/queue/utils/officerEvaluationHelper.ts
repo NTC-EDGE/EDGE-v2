@@ -137,7 +137,11 @@ export function computeOfficerEvaluationState(params: {
     }
   } else if (statusLower === "pendingpayment") {
     currentStageOfficer = application.cashierOfficer;
-    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+    if (isEndorsedToMe) {
+      isStageClaimedByMe = true;
+    } else if (isEndorsedAwayFromMe) {
+      isStageClaimedByOther = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
     } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;

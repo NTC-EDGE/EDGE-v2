@@ -30,6 +30,7 @@ import {
   useNextAvailableOrNumber,
   PendingPaymentDto,
   OfficialReceiptDto,
+  parsePaymentBreakdown,
 } from "@edge/api";
 import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -200,6 +201,21 @@ export function ApplicationReviewScreenContent({
       ? itemApp.referenceNumber
       : itemApp.id.slice(0, 8).toUpperCase();
 
+    const effectiveRemarks = itemApp.payment?.remarks || itemApp.note || null;
+    const parsedBreakdown = parsePaymentBreakdown(effectiveRemarks);
+
+    const originalApplicantName =
+      itemApp.applicantsList?.[selectedApplicantIndex]?.name ||
+      itemApp.applicant ||
+      itemApp.companyDetails?.name ||
+      'Applicant';
+
+    const effectivePayorName =
+      parsedBreakdown?.payorName ||
+      itemApp.payment?.payorName ||
+      itemApp.payment?.checkName ||
+      undefined;
+
     return {
       orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
       applicationId: itemApp.id,
@@ -209,16 +225,21 @@ export function ApplicationReviewScreenContent({
       soaNumber: `SOA-${refOrId}`,
       applicationNumber: itemApp.applicationNumber || '',
       referenceNumber: itemApp.referenceNumber || '',
-      applicantName: itemApp.applicant || itemApp.companyDetails?.name || 'Applicant',
+      applicantName: originalApplicantName,
+      payorName: effectivePayorName,
       applicantType: itemApp.applicantType || 'Individual',
       serviceName: itemApp.serviceName || itemApp.permitTitle || itemApp.category || 'NTC Service',
       serviceCategory: itemApp.serviceCategory || itemApp.category || 'Licensing',
       amountDue: itemApp.totalAmountDue || itemApp.payment?.amountReceived || 0,
       billedAt: itemApp.createdAt || new Date().toISOString(),
-      remarks: itemApp.note || null,
+      remarks: effectiveRemarks,
       lineItems,
+      paymentMethod: itemApp.payment?.paymentMethod || (itemApp.payment?.method === 'check' ? 'Check' : 'Cash'),
+      checkNumber: itemApp.payment?.checkNumber || undefined,
+      checkBank: itemApp.payment?.checkBank || undefined,
+      checkDate: itemApp.payment?.checkDate || undefined,
     };
-  }, [selectedApplication, user?.tenantId]);
+  }, [selectedApplication, user?.tenantId, selectedApplicantIndex]);
 
   useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
   useEffect(() => {
@@ -546,8 +567,8 @@ export function ApplicationReviewScreenContent({
     let actionTitle = 'Returned with Notice';
 
     if (isEndorsedToMe && app.endorsedBy) {
-      // Endorsed officer returns -> goes back to endorsing evaluator
-      targetStatus = 'Evaluating';
+      // Endorsed officer returns -> goes back to endorsing officer in current stage
+      targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
       successMessage = `Application returned to ${app.endorsedBy}.`;
       auditRemarks = `Returned by ${officerName} to ${app.endorsedBy}: ${trimmedNotice}`;
       actionTitle = `Returned to ${app.endorsedBy}`;
@@ -614,7 +635,16 @@ export function ApplicationReviewScreenContent({
     if (isEndorsedToMe && app.endorsedBy) {
       await updateApplication(app.id, {
         assignedTo: app.endorsedBy,
+        ...(isPendingPayment ? { cashierOfficer: app.endorsedBy } : {}),
       });
+    } else if (app.status === 'PendingPayment') {
+      const prevAccountant = app.accountingOfficer;
+      if (prevAccountant) {
+        await updateApplication(app.id, {
+          assignedTo: prevAccountant,
+          accountingOfficer: prevAccountant,
+        });
+      }
     } else if (app.status === 'ForAccountant' || app.status === 'ForIssuance') {
       const prevEvaluator = getApprovingEvaluator(app);
       if (prevEvaluator) {
@@ -629,19 +659,21 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Endorse to a specific person/evaluator for review */
+  /** Endorse to a specific person/officer for review */
   const handleEndorse = async (submission: EndorsementSubmission) => {
     setShowEndorse(false);
     const { person, notes } = submission;
     const notesSuffix = notes && notes.trim().length > 0 ? ` Instructions: ${notes.trim()}` : '';
-    const roleLabel = person.position || person.role || 'Evaluator';
+    const roleLabel = person.position || person.role || (isPendingPayment ? 'Cashier' : 'Evaluator');
     const remarks = `Application endorsed to ${person.name} (${roleLabel}) by ${officerName}.${notesSuffix}`;
 
+    const targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
+
     const [, err] = await applicationService.updateStatus(app.id, {
-      status: 'Evaluating',
+      status: targetStatus,
       action: `Endorsed to ${person.name}`,
       staffName: officerName,
-      staffRole: currentRole || 'Evaluating Officer',
+      staffRole: currentRole || (isPendingPayment ? 'Cashier' : 'Evaluating Officer'),
       remarks,
     });
     if (err !== null) {
@@ -650,6 +682,7 @@ export function ApplicationReviewScreenContent({
     }
     await updateApplication(app.id, {
       assignedTo: person.name,
+      ...(isPendingPayment ? { cashierOfficer: person.name } : {}),
     });
     toast.success(`Application endorsed to ${person.name}.`);
     await mutateApplications(app.id);
@@ -687,7 +720,14 @@ export function ApplicationReviewScreenContent({
   const isPaymentSubmitted = Boolean(
     (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
-    (app.history && app.history.some((h) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+    (() => {
+      if (!app.history || app.history.length === 0) return false;
+      const paymentIdx = app.history.findIndex(h => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment'));
+      if (paymentIdx === -1) return false;
+      const resetIdx = app.history.findIndex(h => h.action.toLowerCase().includes('returned') || h.action.toLowerCase().includes('soa approved by accountant'));
+      if (resetIdx !== -1 && resetIdx < paymentIdx) return false;
+      return true;
+    })()
   );
   const canActAsAccountant = currentRole === 'Accountant' || canApproveAsAccountant || isAdmin;
   const canActAsCashier = currentRole === 'Cashier' || canVerifyCashier || isAdmin;
@@ -720,13 +760,8 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = showStartEvalBtn ? 'Start Evaluation' : isReturned ? 'Resume Evaluation' : 'Take Application';
     approveButtonIcon = 'play-circle';
   } else if (showCashierBtn) {
-    if (isPaymentSubmitted) {
-      approveButtonLabel = 'Verify & Issue OR';
-      approveButtonIcon = 'credit-card';
-    } else {
-      approveButtonLabel = 'Awaiting Client Payment';
-      approveButtonIcon = 'play-circle';
-    }
+    approveButtonLabel = isPaymentSubmitted ? 'Verify & Issue OR' : 'Issue Official Receipt';
+    approveButtonIcon = 'credit-card';
   } else if (showAccountantBtn) {
     approveButtonLabel = 'Approve & Issue OP';
     approveButtonIcon = 'check-circle';
@@ -762,8 +797,15 @@ export function ApplicationReviewScreenContent({
   const showReturnBtn = canDecline && !isEndorsedAwayFromMe && !isStageClaimedByOther && app.queueTab !== "history";
   const isReturnDisabled = !canDeclineAction;
 
-  // Endorse button: ONLY available when actively evaluating (by current evaluator or endorsed officer)
-  const canEndorseAction = isActivelyEvaluating && canEndorse && !isEndorsedAwayFromMe;
+  // Endorse button: Available when actively evaluating, or when Cashier is reviewing in PendingPayment
+  const canEndorseAction =
+    canEndorse &&
+    !isEndorsedAwayFromMe &&
+    !isStageClaimedByOther &&
+    (
+      isActivelyEvaluating ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    );
 
   const handlePrimaryAction = () => {
     if (showClaimBtn) {
@@ -875,7 +917,7 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#14532D' : '#F0FDF4', borderBottomColor: isDark ? '#15803D' : '#BBF7D0' }]}>
           <Lucide name="share-2" size={14} color={isDark ? '#4ADE80' : '#16A34A'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DCFCE7' : '#14532D' }]}>
-            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''} for evaluation.
+            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}{isPendingPayment ? ' for payment verification.' : ' for evaluation.'}
           </Text>
         </View>
       )}
@@ -966,8 +1008,7 @@ export function ApplicationReviewScreenContent({
         canDecline={showReturnBtn}
         canEndorse={canEndorseAction}
         isApproveDisabled={
-          (showForwardBtn && hasIncompleteApplicants) ||
-          (showCashierBtn && !isPaymentSubmitted)
+          (showForwardBtn && hasIncompleteApplicants)
         }
         isReturnDisabled={isReturnDisabled}
         approveLabel={approveButtonLabel}
@@ -1146,7 +1187,7 @@ function WorkflowActionBar({
   const isClaimOrSpecial = approveIcon === 'play-circle' || approveLabel.includes('Start') || approveLabel.includes('Take') || approveLabel.includes('Verify') || approveLabel.includes('Issue') || approveLabel.includes('Approve');
   const approveEnabled = canApprove && !isApproveDisabled && (isEditable || isClaimOrSpecial);
   const returnEnabled = canDecline && !isReturnDisabled;
-  const endorseEnabled = isEditable && canEndorse;
+  const endorseEnabled = canEndorse;
 
   if (!canApprove && !canDecline && !endorseEnabled) {
     if (isCompleted) {

@@ -78,14 +78,20 @@ export function IssueReceiptModal({
     onSuccess,
   });
 
+  const formattedTotal = (totalAmount ?? 0).toLocaleString('en-US', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
         <View style={[styles.container, { backgroundColor: colors.cardBg }]}>
+          {/* Top Modal Header */}
           <View style={[styles.header, { borderBottomColor: colors.border }]}>
             <View style={styles.titleRow}>
               <View style={[styles.iconBox, { backgroundColor: colors.brand.indigoLight }]}>
-                <Lucide name="printer" size={18} color={colors.brand.primary} />
+                <Lucide name="printer" size={20} color={colors.brand.primary} />
               </View>
               <View>
                 <Text style={[styles.title, { color: colors.text }]}>
@@ -100,15 +106,15 @@ export function IssueReceiptModal({
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
-              <Lucide name="x" size={18} color={colors.neutral[500]} />
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} accessibilityLabel="Close Modal">
+              <Lucide name="x" size={20} color={colors.neutral[500]} />
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.body} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             {errorMsg !== null && (
               <View style={styles.errorBox}>
-                <Lucide name="alert-triangle" size={16} color={colors.semantic.error} />
+                <Lucide name="alert-triangle" size={18} color={colors.semantic.error} />
                 <Text style={[styles.errorText, { color: colors.semantic.error }]}>{errorMsg}</Text>
               </View>
             )}
@@ -167,11 +173,11 @@ export function IssueReceiptModal({
             />
 
             <View style={styles.remarksBox}>
-              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[700] }]}>
+              <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800] }]}>
                 Remarks / Reference Notes (Optional)
               </Text>
               <TextInput
-                style={[styles.input, { height: 44, borderColor: colors.neutral[300], color: colors.text, backgroundColor: '#fff' }]}
+                style={[styles.input, { borderColor: colors.neutral[300], color: colors.text }]}
                 placeholder="Optional notes, transaction numbers or references"
                 placeholderTextColor={colors.neutral[400]}
                 value={remarks}
@@ -180,6 +186,7 @@ export function IssueReceiptModal({
             </View>
           </ScrollView>
 
+          {/* Modal Footer with High-Contrast Action Buttons */}
           <View style={[styles.footer, { borderTopColor: colors.border }]}>
             <TouchableOpacity onPress={onClose} style={[styles.cancelBtn, { backgroundColor: colors.neutral[100] }]}>
               <Text style={[styles.cancelBtnText, { color: colors.neutral[700] }]}>Cancel</Text>
@@ -187,14 +194,20 @@ export function IssueReceiptModal({
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={isSubmitting}
-              style={[styles.submitBtn, { backgroundColor: colors.brand.primary }, isSubmitting && { opacity: 0.7 }]}
+              style={[
+                styles.submitBtn,
+                { backgroundColor: colors.brand.primary },
+                isSubmitting && { opacity: 0.7 },
+              ]}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color="#fff" />
               ) : (
                 <>
-                  <Lucide name="check-circle" size={15} color="#fff" />
-                  <Text style={styles.submitBtnText}>Issue Official Receipt</Text>
+                  <Lucide name="check-circle" size={18} color="#fff" />
+                  <Text style={styles.submitBtnText}>
+                    Issue Official Receipt ({totalAmount > 0 ? `₱${formattedTotal}` : 'Confirm'})
+                  </Text>
                 </>
               )}
             </TouchableOpacity>

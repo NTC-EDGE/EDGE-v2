@@ -50,9 +50,14 @@ export interface PaymentDetails {
   opNumber?: string;
   amountReceived: number;
   method: 'cash' | 'check';
+  paymentMethod?: string;
   orNumber: string;
   checkNumber: string;
   checkName: string;
+  checkBank?: string;
+  checkDate?: string;
+  payorName?: string;
+  remarks?: string;
   paidAt?: string;
 }
 

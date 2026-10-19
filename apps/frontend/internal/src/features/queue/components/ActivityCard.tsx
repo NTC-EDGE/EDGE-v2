@@ -54,15 +54,14 @@ function getAvatarInitials(name: string): string {
 function isSubjectForPayment(app: ApplicationData): boolean {
   return (
     app.status === 'PendingPayment' &&
-    app.totalAmountDue > 0 &&
-    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0)
+    app.totalAmountDue > 0
   );
 }
 
 function formatStatusDisplay(application: ApplicationData): string {
   const s = application.status.toLowerCase();
   if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
-  if (s === "pendingpayment" || isSubjectForPayment(application)) return "FOR PAYMENT";
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return "SUBJECT FOR PAYMENT";
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";

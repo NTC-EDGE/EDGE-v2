@@ -115,11 +115,28 @@ export function SoaReportPreviewModal({
   const [opCopyView, setOpCopyView] = useState<'both' | 'payor' | 'collecting'>('both');
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
 
+  const orRaw = app.payment?.orNumber ?? null;
+  const orList = orRaw
+    ? orRaw
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : [];
+  const [selectedOrNumber, setSelectedOrNumber] = useState<string | null>(null);
+  const effectiveSelectedOr = selectedOrNumber && orList.includes(selectedOrNumber)
+    ? selectedOrNumber
+    : (orList[0] || null);
+
   useEffect(() => {
     if (visible) {
       setDocType(initialDocType);
       setViewFormat('pdf');
       setShowActionMenu(false);
+      if (orList.length > 0) {
+        setSelectedOrNumber(orList[0]);
+      } else {
+        setSelectedOrNumber(null);
+      }
     }
   }, [visible, initialDocType]);
 
@@ -156,7 +173,7 @@ export function SoaReportPreviewModal({
             ? await applicationService.previewSoaPdf(app.id)
             : docType === 'op'
               ? await applicationService.previewOpPdf(app.id)
-              : await applicationService.previewOrPdf(app.id);
+              : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined);
 
           if (!active) {
             return;
@@ -185,6 +202,7 @@ export function SoaReportPreviewModal({
           setIsLoadingPdf(false);
         }
       };
+
       void loadBlob();
     } else {
       setIsLoadingPdf(false);
@@ -197,7 +215,7 @@ export function SoaReportPreviewModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [app.id, docType, viewFormat, reloadKey]);
+  }, [app.id, docType, viewFormat, reloadKey, effectiveSelectedOr]);
 
   const handleRetryPdf = () => {
     setReloadKey((prev) => prev + 1);
@@ -212,7 +230,7 @@ export function SoaReportPreviewModal({
           ? await applicationService.previewSoaPdf(app.id)
           : docType === 'op'
             ? await applicationService.previewOpPdf(app.id)
-            : await applicationService.previewOrPdf(app.id);
+            : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -230,7 +248,7 @@ export function SoaReportPreviewModal({
         ? applicationService.getSoaPrintUrl(app.id)
         : docType === 'op'
           ? applicationService.getOpPrintUrl(app.id)
-          : applicationService.getOrPrintUrl(app.id);
+          : applicationService.getOrPrintUrl(app.id, effectiveSelectedOr ?? undefined);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open(url, '_blank');
@@ -245,26 +263,28 @@ export function SoaReportPreviewModal({
     openPrintableDocumentWindow(html);
   };
 
-  const handleDownloadSpecificPdf = async (targetDoc: ReportDocumentType) => {
+  const handleDownloadSpecificPdf = async (targetDoc: ReportDocumentType, targetOrNumber?: string) => {
     if (targetDoc === 'summary') {
       const html = generateFullApplicationSummaryHtml(app);
       openPrintableDocumentWindow(html);
       return;
     }
 
+    const resolvedOr = targetOrNumber || effectiveSelectedOr || undefined;
+
     try {
       const [pdfBlob, err] = targetDoc === 'soa'
         ? await applicationService.downloadSoaPdf(app.id)
         : targetDoc === 'op'
           ? await applicationService.downloadOpPdf(app.id)
-          : await applicationService.downloadOrPdf(app.id);
+          : await applicationService.downloadOrPdf(app.id, resolvedOr);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
         const blobUrl = window.URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        const ref = targetDoc === 'or' && app.payment?.orNumber
-          ? app.payment.orNumber
+        const ref = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
+          ? (resolvedOr || app.payment?.orNumber)
           : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
         link.download = `${targetDoc.toUpperCase()}_${ref}.pdf`;
         document.body.appendChild(link);
@@ -281,7 +301,7 @@ export function SoaReportPreviewModal({
       ? applicationService.getSoaDownloadUrl(app.id)
       : targetDoc === 'op'
         ? applicationService.getOpDownloadUrl(app.id)
-        : applicationService.getOrDownloadUrl(app.id);
+        : applicationService.getOrDownloadUrl(app.id, resolvedOr);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.open(url, '_blank');
@@ -291,7 +311,7 @@ export function SoaReportPreviewModal({
   };
 
   const handleDownloadPdf = () => {
-    void handleDownloadSpecificPdf(docType);
+    void handleDownloadSpecificPdf(docType, effectiveSelectedOr ?? undefined);
   };
 
   const soaNumber = `SOA-${app.referenceNumber ?? app.id.slice(0, 8).toUpperCase()}`;
@@ -827,24 +847,53 @@ export function SoaReportPreviewModal({
                 </Pressable>
 
                 {Boolean((app.payment && app.payment.orNumber && app.payment.orNumber.trim().length > 0) || app.status === 'ForIssuance' || app.status === 'Completed') && (
-                  <Pressable
-                    style={styles.dropdownMenuItem}
-                    onPress={() => {
-                      setShowActionMenu(false);
-                      void handleDownloadSpecificPdf('or');
-                    }}
-                  >
-                    <Lucide name="check-circle" size={15} color={isDark ? '#34d399' : '#059669'} />
-                    <View style={styles.dropdownMenuTextContainer}>
-                      <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                        Official Receipt (OR)
-                      </Text>
-                      <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                        Accountable Form 51 • #{app.payment?.orNumber || 'Official'}
-                      </Text>
-                    </View>
-                    <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-                  </Pressable>
+                  <>
+                    {orList.length > 1 ? (
+                      orList.map((token, idx) => {
+                        const label = token.startsWith('#') ? token : `#${token}`;
+                        return (
+                          <Pressable
+                            key={token}
+                            style={styles.dropdownMenuItem}
+                            onPress={() => {
+                              setShowActionMenu(false);
+                              void handleDownloadSpecificPdf('or', token);
+                            }}
+                          >
+                            <Lucide name="check-circle" size={15} color={isDark ? '#34d399' : '#059669'} />
+                            <View style={styles.dropdownMenuTextContainer}>
+                              <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                                Official Receipt {label}
+                              </Text>
+                              <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                                Accountable Form 51 • Receipt {idx + 1} of {orList.length}
+                              </Text>
+                            </View>
+                            <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                          </Pressable>
+                        );
+                      })
+                    ) : (
+                      <Pressable
+                        style={styles.dropdownMenuItem}
+                        onPress={() => {
+                          setShowActionMenu(false);
+                          void handleDownloadSpecificPdf('or');
+                        }}
+                      >
+                        <Lucide name="check-circle" size={15} color={isDark ? '#34d399' : '#059669'} />
+                        <View style={styles.dropdownMenuTextContainer}>
+                          <Text style={[styles.dropdownMenuItemText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
+                            Official Receipt (OR)
+                          </Text>
+                          <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                            Accountable Form 51 • #{app.payment?.orNumber || 'Official'}
+                          </Text>
+                        </View>
+                        <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
+                      </Pressable>
+                    )}
+                  </>
                 )}
 
                 <Pressable
@@ -1034,7 +1083,7 @@ export function SoaReportPreviewModal({
                     },
                   ]}
                 >
-                  Official Receipt (OR)
+                  Official Receipt (OR) {orList.length > 1 ? `(${orList.length})` : ''}
                 </Text>
               </Pressable>
             )}
@@ -1082,6 +1131,73 @@ export function SoaReportPreviewModal({
               </Text>
             </Pressable>
           </View>
+
+          {/* Multi-OR Selector Bar for Cashier / Internal Users */}
+          {docType === 'or' && orList.length > 1 && (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                paddingHorizontal: SPACING[16],
+                paddingVertical: 8,
+                backgroundColor: isDark ? colors.neutral[800] : '#ECFDF5',
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? colors.neutral[700] : '#A7F3D0',
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 11,
+                  fontWeight: '700',
+                  color: isDark ? '#34D399' : '#065F46',
+                }}
+              >
+                MULTIPLE RECEIPTS ({orList.length}):
+              </Text>
+              {orList.map((token, idx) => {
+                const isSelected = effectiveSelectedOr === token;
+                const label = token.startsWith('#') ? token : `#${token}`;
+                return (
+                  <Pressable
+                    key={token}
+                    style={{
+                      flexDirection: 'row',
+                      alignItems: 'center',
+                      gap: 5,
+                      paddingHorizontal: 10,
+                      paddingVertical: 4,
+                      borderRadius: 6,
+                      backgroundColor: isSelected
+                        ? (isDark ? '#065F46' : '#10B981')
+                        : (isDark ? colors.neutral[800] : '#FFFFFF'),
+                      borderWidth: 1,
+                      borderColor: isSelected
+                        ? (isDark ? '#34D399' : '#059669')
+                        : (isDark ? colors.neutral[700] : '#CBD5E1'),
+                    }}
+                    onPress={() => setSelectedOrNumber(token)}
+                  >
+                    <Lucide
+                      name="check-circle"
+                      size={12}
+                      color={isSelected ? '#FFFFFF' : (isDark ? colors.neutral[400] : '#64748B')}
+                    />
+                    <Text
+                      style={{
+                        fontSize: 11,
+                        fontWeight: isSelected ? '700' : '500',
+                        color: isSelected ? '#FFFFFF' : (isDark ? colors.neutral[200] : '#334155'),
+                      }}
+                    >
+                      OR {label} {idx === 0 ? '(Part 1)' : `(Part ${idx + 1})`}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          )}
 
           {/* Format Selector on Web: Official PDF Template vs Data Grid */}
           {Platform.OS === 'web' && docType === 'op' && (

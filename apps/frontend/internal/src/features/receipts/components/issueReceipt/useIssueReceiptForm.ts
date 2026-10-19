@@ -56,9 +56,9 @@ export function useIssueReceiptForm({
 
   useEffect(() => {
     if (visible && pendingPayment !== undefined && pendingPayment !== null) {
-      setPayorName(pendingPayment.applicantName);
-
       const parsed = parsePaymentBreakdown(pendingPayment.remarks);
+      const resolvedPayorName = parsed?.payorName || pendingPayment.payorName || pendingPayment.applicantName || '';
+      setPayorName(resolvedPayorName);
       const parsedCheck = parsed?.items.find((i) => i.mode === 'Check');
       const parsedOnline = parsed?.items.find((i) => i.mode === 'Online');
 
@@ -75,6 +75,29 @@ export function useIssueReceiptForm({
       });
 
       if (parsed !== null && parsed.isCombination) {
+        const hasAnyIssued = parsed.items.some((i) => i.isIssued || i.orNumber);
+        const firstUnissuedIdx = parsed.items.findIndex((i) => !i.isIssued && !i.orNumber);
+
+        if (hasAnyIssued && firstUnissuedIdx !== -1) {
+          const target = parsed.items[firstUnissuedIdx];
+          setIssuanceStrategy('SplitPerMode');
+          setSelectedSplitIndex(firstUnissuedIdx);
+          setPaymentMethod(target.mode);
+          setCheckNumber(target.mode === 'Check' ? (target.checkNumber ?? '') : '');
+          setCheckBank(target.mode === 'Check' ? (target.checkBank ?? '') : '');
+          setCheckDate(target.mode === 'Check' ? (target.checkDate ?? '') : '');
+          setOnlineReference(target.mode === 'Online' ? (target.referenceNumber ?? '') : '');
+          setLineItems([{
+            feeCode: target.mode.toUpperCase(),
+            description: `Payment portion (${target.mode}) for ${pendingPayment.serviceName}`,
+            amount: target.amount,
+          }]);
+          const refSuffix = target.mode === 'Online' && target.referenceNumber ? ` [Ref: ${target.referenceNumber}]` : '';
+          setRemarks(`Payment portion (${target.mode}): ₱${target.amount.toFixed(2)}${refSuffix} for OP #${pendingPayment.opNumber}`);
+          setActiveSuggestionIndex(null);
+          return;
+        }
+
         setIssuanceStrategy('Consolidated');
         setSelectedSplitIndex(0);
         if (parsedCheck !== undefined) {
@@ -166,7 +189,7 @@ export function useIssueReceiptForm({
   const handleSelectSplitItem = (idx: number) => {
     if (!preferredBreakdown || !pendingPayment) return;
     const target = preferredBreakdown.items[idx];
-    if (target === undefined) return;
+    if (target === undefined || target.isIssued || target.orNumber) return;
     setSelectedSplitIndex(idx);
     setPaymentMethod(target.mode);
     setCheckNumber(target.mode === 'Check' ? (target.checkNumber ?? '') : '');
@@ -175,12 +198,16 @@ export function useIssueReceiptForm({
     setOnlineReference(target.mode === 'Online' ? (target.referenceNumber ?? '') : '');
     setLineItems([{ feeCode: target.mode.toUpperCase(), description: `Payment portion (${target.mode}) for ${pendingPayment.serviceName}`, amount: target.amount }]);
     const refSuffix = target.mode === 'Online' && target.referenceNumber ? ` [Ref: ${target.referenceNumber}]` : '';
-    setRemarks(`Split OR (${target.mode} portion): ₱${target.amount.toFixed(2)}${refSuffix} for OP #${pendingPayment.opNumber}`);
+    setRemarks(`Payment portion (${target.mode}): ₱${target.amount.toFixed(2)}${refSuffix} for OP #${pendingPayment.opNumber}`);
   };
 
   const handleSelectStrategy = (strat: 'Consolidated' | 'SplitPerMode') => {
-    setIssuanceStrategy(strat);
     if (!preferredBreakdown || !pendingPayment) return;
+    const hasAnyIssued = preferredBreakdown.items.some((i) => i.isIssued || i.orNumber);
+    if (hasAnyIssued && strat === 'Consolidated') {
+      return; // Cannot consolidate if a split receipt was already issued
+    }
+    setIssuanceStrategy(strat);
     if (strat === 'Consolidated') {
       if (pendingPayment.lineItems && pendingPayment.lineItems.length > 0) {
         setLineItems(pendingPayment.lineItems.map((li) => ({ feeCode: li.feeCode || 'FEE', description: li.description, amount: li.amount })));
@@ -205,7 +232,9 @@ export function useIssueReceiptForm({
       }
       setRemarks(`Payment for OP #${pendingPayment.opNumber} (Modes: ${preferredBreakdown.items.map((i) => `${i.mode}: ₱${i.amount.toFixed(2)}`).join(' + ')})`);
     } else {
-      handleSelectSplitItem(0);
+      const firstUnissued = preferredBreakdown.items.findIndex((i) => !i.isIssued && !i.orNumber);
+      const targetIdx = firstUnissued !== -1 ? firstUnissued : 0;
+      handleSelectSplitItem(targetIdx);
     }
   };
 

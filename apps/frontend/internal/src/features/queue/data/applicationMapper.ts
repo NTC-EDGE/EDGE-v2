@@ -584,6 +584,16 @@ export function mapApplicationDtoToUI(
         ? dto.paidAt
         : undefined;
 
+      const directOpId = 'orderOfPaymentId' in dto && typeof dto.orderOfPaymentId === 'string' ? dto.orderOfPaymentId : undefined;
+      const directOpNumber = 'opNumber' in dto && typeof dto.opNumber === 'string' ? dto.opNumber : undefined;
+      const directPaymentMethod = 'paymentMethod' in dto && typeof dto.paymentMethod === 'string' ? dto.paymentMethod : undefined;
+      const directCheckNumber = 'checkNumber' in dto && typeof dto.checkNumber === 'string' ? dto.checkNumber : '';
+      const directCheckName = 'checkName' in dto && typeof dto.checkName === 'string' ? dto.checkName : '';
+      const directCheckBank = 'checkBank' in dto && typeof dto.checkBank === 'string' ? dto.checkBank : '';
+      const directCheckDate = 'checkDate' in dto && typeof dto.checkDate === 'string' ? (dto.checkDate.split('T')[0] ?? '') : '';
+      const directPayorName = 'payorName' in dto && typeof dto.payorName === 'string' ? dto.payorName : '';
+      const directPaymentRemarks = 'paymentRemarks' in dto && typeof dto.paymentRemarks === 'string' ? dto.paymentRemarks : '';
+
       const resolvedOrNumber = (activeOp?.officialReceiptNumber && activeOp.officialReceiptNumber.trim().length > 0)
         ? activeOp.officialReceiptNumber
         : directOrNumber;
@@ -594,14 +604,23 @@ export function mapApplicationDtoToUI(
 
       const resolvedPaidAt = activeOp?.paidAt ?? directPaidAt;
 
+      const effectivePayorName = activeOp?.checkName || directPayorName || directCheckName;
+      const effectiveRemarks = activeOp?.remarks || directPaymentRemarks || ('remarks' in dto && typeof dto.remarks === 'string' ? dto.remarks : '');
+      const effectivePaymentMethod = activeOp?.paymentMethod || directPaymentMethod;
+
       return {
-        orderOfPaymentId: activeOp?.id,
-        opNumber: activeOp?.opNumber,
+        orderOfPaymentId: activeOp?.id ?? directOpId,
+        opNumber: activeOp?.opNumber ?? directOpNumber,
         amountReceived: resolvedAmount,
-        method: activeOp?.paymentMethod === 'Check' ? 'check' : 'cash',
+        method: effectivePaymentMethod === 'Check' ? 'check' : 'cash',
+        paymentMethod: effectivePaymentMethod,
         orNumber: resolvedOrNumber,
-        checkNumber: activeOp?.checkNumber ?? '',
-        checkName: activeOp?.checkName ?? '',
+        checkNumber: activeOp?.checkNumber ?? directCheckNumber,
+        checkName: activeOp?.checkName ?? directCheckName,
+        checkBank: activeOp?.checkBank ?? directCheckBank,
+        checkDate: activeOp?.checkDate ? (activeOp.checkDate.split('T')[0] ?? '') : directCheckDate,
+        payorName: effectivePayorName,
+        remarks: effectiveRemarks,
         paidAt: resolvedPaidAt,
       };
     })(),
