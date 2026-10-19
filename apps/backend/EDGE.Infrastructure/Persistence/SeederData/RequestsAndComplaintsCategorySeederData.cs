@@ -19,10 +19,11 @@ public static class RequestsAndComplaintsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""complainant"", ""required"": true },
-            { ""key"": ""serviceProvider"", ""required"": true },
-            { ""key"": ""natureOfComplaint"", ""required"": true },
-            { ""key"": ""details"", ""required"": true }
+            { ""key"": ""deviceParticulars"", ""required"": false },
+            { ""key"": ""incidentParticulars"", ""required"": false },
+            { ""key"": ""respondentParticulars"", ""required"": false },
+            { ""key"": ""complaintParticulars"", ""required"": true },
+            { ""key"": ""broadcastParticulars"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -132,9 +133,11 @@ public static class RequestsAndComplaintsCategorySeederData
     {
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("serviceProvider", "Particulars of Service Provider", new() { "dealerName", "sellerAddress", "contactNo" }),
-            new("natureOfComplaint", "Nature of Complaint", new() { "permitType", "specifyDetails" }),
-            new("details", "Details and Supporting Documents", new() { "circumstances" })
+            new("deviceParticulars", "Mobile Device and SIM Particulars (for Blocking/Unblocking)", new() { "blockingAction", "deviceBrand", "deviceModel", "deviceColor", "imei1", "imei2", "telcoProvider", "simMobileNumber", "simType" }),
+            new("incidentParticulars", "Incident and Loss Circumstances", new() { "incidentDate", "incidentTime", "incidentLocation", "policeBlotterDetails" }),
+            new("respondentParticulars", "Respondent Service Provider / Entity Information", new() { "serviceProviderName", "serviceProviderBranch", "subscriberAccountNo" }),
+            new("complaintParticulars", "Nature of Complaint and Desired Action", new() { "complaintType", "complaintSubject", "complaintNarrative", "desiredRelief" }),
+            new("broadcastParticulars", "Broadcast Particulars (for Tape Preservation)", new() { "broadcastStationName", "programTitle", "broadcastDate", "broadcastTime", "programHost", "preservationPurpose" })
         })
     };
 

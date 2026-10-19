@@ -256,7 +256,35 @@ public static class CommonSeederData
             ["carrierFrequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000295"), FieldType = "text", Label = "Carrier Frequency", SyncBackOnSubmit = false },
             ["channelCapacity"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000296"), FieldType = "text", Label = "Channel Capacity", SyncBackOnSubmit = false },
             ["azimuth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000297"), FieldType = "text", Label = "Azimuth Angle", SyncBackOnSubmit = false },
-            ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false }
+            ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false },
+
+            // Requests and Complaints Fields
+            ["blockingAction"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000301"), FieldType = "dropdown", Label = "Action Requested", SyncBackOnSubmit = false, ValidationRules = @"[""Blocking"",""Unblocking""]" },
+            ["deviceBrand"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000302"), FieldType = "text", Label = "Device Brand / Manufacturer", SyncBackOnSubmit = false },
+            ["deviceModel"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000303"), FieldType = "text", Label = "Device Model / Unit Name", SyncBackOnSubmit = false },
+            ["deviceColor"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000304"), FieldType = "text", Label = "Device Color", SyncBackOnSubmit = false },
+            ["imei1"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000305"), FieldType = "text", Label = "IMEI 1 (15 digits)", SyncBackOnSubmit = false },
+            ["imei2"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000306"), FieldType = "text", Label = "IMEI 2 (Optional for Dual SIM)", SyncBackOnSubmit = false },
+            ["telcoProvider"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000307"), FieldType = "dropdown", Label = "Telco / Network Provider", SyncBackOnSubmit = false, ValidationRules = @"[""Smart"",""Globe"",""DITO"",""TNT"",""TM"",""GOMO"",""Others""]" },
+            ["simMobileNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000308"), FieldType = "text", Label = "SIM Mobile Number (09XX-XXX-XXXX)", SyncBackOnSubmit = false },
+            ["simType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000309"), FieldType = "dropdown", Label = "SIM Line Type", SyncBackOnSubmit = false, ValidationRules = @"[""Prepaid"",""Postpaid""]" },
+            ["incidentDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000310"), FieldType = "date", Label = "Date of Incident / Loss", SyncBackOnSubmit = false },
+            ["incidentTime"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000311"), FieldType = "text", Label = "Approximate Time of Incident", SyncBackOnSubmit = false },
+            ["incidentLocation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000312"), FieldType = "text", Label = "Place / Location of Incident", SyncBackOnSubmit = false },
+            ["policeBlotterDetails"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000313"), FieldType = "text", Label = "Police Station / Blotter Entry Details (if filed)", SyncBackOnSubmit = false },
+            ["serviceProviderName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000314"), FieldType = "text", Label = "Respondent Entity / Service Provider / Sender", SyncBackOnSubmit = false },
+            ["serviceProviderBranch"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000315"), FieldType = "text", Label = "Branch / Office / Account Location", SyncBackOnSubmit = false },
+            ["subscriberAccountNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000316"), FieldType = "text", Label = "Subscriber Account / Reference Number", SyncBackOnSubmit = false },
+            ["complaintType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000317"), FieldType = "dropdown", Label = "Nature / Category of Complaint", SyncBackOnSubmit = false, ValidationRules = @"[""Billing / Overcharging"",""Poor Technical Service / Slow Internet"",""Poor Customer Service"",""Text Spam / Unsolicited Promotion"",""Text Scam / Phishing / Fraud"",""Threat / Harassment / Obscene Message"",""Fair Usage Policy (FUP) Dispute"",""Denial of Subscription / Disconnection"",""Broadcast Content / Signal Interference"",""Others""]" },
+            ["complaintSubject"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000318"), FieldType = "text", Label = "Subject of Complaint", SyncBackOnSubmit = false },
+            ["complaintNarrative"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000319"), FieldType = "textarea", Label = "Detailed Statement of Facts / Circumstances", SyncBackOnSubmit = false },
+            ["desiredRelief"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000320"), FieldType = "textarea", Label = "Desired Action / Relief Requested from NTC", SyncBackOnSubmit = false },
+            ["broadcastStationName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000321"), FieldType = "text", Label = "Broadcast Station Call Sign / Name / Channel", SyncBackOnSubmit = false },
+            ["programTitle"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000322"), FieldType = "text", Label = "Program Title / Segment", SyncBackOnSubmit = false },
+            ["broadcastDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000323"), FieldType = "date", Label = "Date of Broadcast Airing", SyncBackOnSubmit = false },
+            ["broadcastTime"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Air Time / Schedule (From - To)", SyncBackOnSubmit = false },
+            ["programHost"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "text", Label = "Program Host / Announcer / Anchor", SyncBackOnSubmit = false },
+            ["preservationPurpose"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "textarea", Label = "Purpose / Legal Basis for Preservation Request", SyncBackOnSubmit = false }
         };
     }
 }
