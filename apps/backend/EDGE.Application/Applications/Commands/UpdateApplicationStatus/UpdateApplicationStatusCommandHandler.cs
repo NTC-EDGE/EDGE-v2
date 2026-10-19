@@ -152,6 +152,19 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                             Timestamp = DateTime.UtcNow
                         }, cancellationToken);
                     }
+                    else
+                    {
+                        existingOp.Status = OpStatus.Returned;
+                        existingOp.AmountDue = latestSoa.TotalAmount;
+                        existingOp.AmountReceived = 0;
+                        existingOp.PaymentMethod = null;
+                        existingOp.CheckNumber = null;
+                        existingOp.CheckBank = null;
+                        existingOp.CheckDate = null;
+                        existingOp.PaidAt = null;
+                        existingOp.OfficialReceiptNumber = null;
+                        existingOp.Remarks = request.Remarks;
+                    }
                 }
             }
 

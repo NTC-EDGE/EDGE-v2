@@ -173,13 +173,23 @@ public static class ReceiptEndpoints
         return app;
     }
 
+    private static Guid ParseTenantId(string? tenantId)
+    {
+        if (!string.IsNullOrWhiteSpace(tenantId) && Guid.TryParse(tenantId, out var g))
+        {
+            return g;
+        }
+        return Guid.Empty;
+    }
+
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetOrBooklets(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] BookletStatus? status,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetOrBookletsQuery(tenantId ?? Guid.Empty, status));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetOrBookletsQuery(resolvedTenantId, status));
         return Results.Ok(result);
     }
 
@@ -232,17 +242,18 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetNextAvailableOrNumber(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] string? cashierUserId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetNextAvailableOrNumberQuery(tenantId ?? Guid.Empty, cashierUserId));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetNextAvailableOrNumberQuery(resolvedTenantId, cashierUserId));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetOfficialReceipts(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] ReceiptStatus? status,
         [FromQuery] PaymentMethod? paymentMethod,
         [FromQuery] DateTime? fromDate,
@@ -251,16 +262,18 @@ public static class ReceiptEndpoints
         [FromQuery] string? search,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetOfficialReceiptsQuery(tenantId ?? Guid.Empty, status, paymentMethod, fromDate, toDate, cashierUserId, search));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetOfficialReceiptsQuery(resolvedTenantId, status, paymentMethod, fromDate, toDate, cashierUserId, search));
         return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReceiptsDeposit)]
     public static async Task<IResult> GetUndepositedReceipts(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetUndepositedReceiptsQuery(tenantId ?? Guid.Empty));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetUndepositedReceiptsQuery(resolvedTenantId));
         return Results.Ok(result);
     }
 
@@ -349,6 +362,7 @@ public static class ReceiptEndpoints
 
     public static async Task<IResult> PrintApplicationOfficialReceipt(
         Guid id,
+        [FromQuery] string? orNumber,
         IApplicationFullRepository appRepository,
         IOfficialReceiptRepository receiptRepository,
         IFormPrintingService printingService,
@@ -367,15 +381,42 @@ public static class ReceiptEndpoints
             .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
         OfficialReceipt? receipt = null;
-        if (paidOp != null && !string.IsNullOrWhiteSpace(paidOp.OfficialReceiptNumber))
+
+        // 1. If explicit orNumber is requested, try finding that exact receipt
+        if (!string.IsNullOrWhiteSpace(orNumber))
         {
-            receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, paidOp.OfficialReceiptNumber, cancellationToken);
+            var cleanOr = orNumber.TrimStart('#').Trim();
+            receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
+                      ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
         }
 
+        // 2. If not found or not specified, parse tokens from paidOp.OfficialReceiptNumber
+        if (receipt == null && paidOp != null && !string.IsNullOrWhiteSpace(paidOp.OfficialReceiptNumber))
+        {
+            var tokens = paidOp.OfficialReceiptNumber.Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries);
+            foreach (var token in tokens)
+            {
+                var cleanToken = token.TrimStart('#').Trim();
+                receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanToken, cancellationToken)
+                          ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, token.Trim(), cancellationToken);
+                if (receipt != null) break;
+            }
+        }
+
+        // 3. Fallback: query by OrderOfPaymentId or ApplicationId
         if (receipt == null)
         {
-            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
-            receipt = receipts.FirstOrDefault(r => r.ApplicationId == id || (paidOp != null && r.OrderOfPaymentId == paidOp.Id));
+            if (paidOp != null)
+            {
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(paidOp.Id, cancellationToken);
+                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+            }
+
+            if (receipt == null)
+            {
+                var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+                receipt = receipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault(r => r.ApplicationId == id || (paidOp != null && r.OrderOfPaymentId == paidOp.Id));
+            }
         }
 
         if (paidOp == null && receipt == null)
@@ -479,12 +520,13 @@ public static class ReceiptEndpoints
 
     [HasPermission(Permissions.ReceiptsRead)]
     public static async Task<IResult> GetPendingPayments(
-        [FromQuery] Guid? tenantId,
+        [FromQuery] string? tenantId,
         [FromQuery] string? search,
         [FromQuery] string? fieldOffice,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetPendingPaymentsQuery(tenantId ?? Guid.Empty, search, fieldOffice));
+        var resolvedTenantId = ParseTenantId(tenantId);
+        var result = await mediator.Send(new GetPendingPaymentsQuery(resolvedTenantId, search, fieldOffice));
         return Results.Ok(result);
     }
 

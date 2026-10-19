@@ -261,13 +261,11 @@ public static class StatementOfAccountPrintMapper
         }
 
         // 9. Remarks
-        if (!string.IsNullOrWhiteSpace(soa?.Remarks))
+        // Statement of Account (SOA) is an assessment billing document, NOT a payment receipt.
+        // It must only contain assessment remarks from the evaluator/accountant, never payment submission notes or payment breakdowns.
+        if (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
         {
             model.Remarks = $"{soa.Remarks}\n\n{model.Remarks}";
-        }
-        else if (!string.IsNullOrWhiteSpace(activeOp?.Remarks))
-        {
-            model.Remarks = $"{activeOp.Remarks}\n\n{model.Remarks}";
         }
 
         return model;

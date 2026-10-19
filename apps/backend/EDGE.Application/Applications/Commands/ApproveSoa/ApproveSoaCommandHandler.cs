@@ -74,21 +74,14 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             return ApiResponse<Guid>.Fail("Application not found.");
         }
 
-        // 3. Idempotency Guard: If SOA is already approved and Order of Payment exists, return existing OP cleanly
-        if (soa.Status == SoaStatus.Approved)
+        // 3. Idempotency Guard: Only short-circuit if SOA is already approved, OP is already billed/active, AND application is already in PendingPayment
+        if (soa.Status == SoaStatus.Approved && app.Status == ApplicationStatus.PendingPayment)
         {
             var alreadyApprovedOp = app.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
                                     ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Paid);
 
-            if (alreadyApprovedOp != null)
+            if (alreadyApprovedOp != null && alreadyApprovedOp.Status != OpStatus.Returned)
             {
-                if (app.Status != ApplicationStatus.PendingPayment && app.Status != ApplicationStatus.ForIssuance && app.Status != ApplicationStatus.Completed)
-                {
-                    app.Status = ApplicationStatus.PendingPayment;
-                    await _repository.UpdateAsync(app, cancellationToken);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                }
-
                 return ApiResponse<Guid>.Success(alreadyApprovedOp.Id, "Statement of Account and Application are already approved. Existing Order of Payment returned.");
             }
         }
@@ -119,7 +112,7 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
         soa.ApprovedAt = DateTime.UtcNow;
 
         var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
-                         ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+                         ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing || o.Status == OpStatus.Returned);
 
         OrderOfPayment op;
         if (existingOp != null)
@@ -127,6 +120,14 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
             op = existingOp;
             op.Status = OpStatus.Billed;
             op.AmountDue = soa.TotalAmount;
+            op.AmountReceived = 0;
+            op.PaymentMethod = null;
+            op.CheckNumber = null;
+            op.CheckBank = null;
+            op.CheckDate = null;
+            op.PaidAt = null;
+            op.OfficialReceiptNumber = null;
+            op.Remarks = "Order of Payment issued. Ready for client payment.";
         }
         else
         {

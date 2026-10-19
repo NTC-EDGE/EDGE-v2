@@ -37,6 +37,16 @@ public class ApplicationSummaryDto
     public DateTime? PaidAt { get; set; }
     public decimal? TotalAmountDue { get; set; }
 
+    public string? PaymentMethod { get; set; }
+    public string? CheckNumber { get; set; }
+    public string? CheckName { get; set; }
+    public string? CheckBank { get; set; }
+    public DateTime? CheckDate { get; set; }
+    public string? PayorName { get; set; }
+    public string? PaymentRemarks { get; set; }
+    public Guid? OrderOfPaymentId { get; set; }
+    public string? OpNumber { get; set; }
+
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();

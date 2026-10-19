@@ -132,15 +132,22 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
             }
         }
 
+        if (!string.IsNullOrWhiteSpace(request.PayorName))
+        {
+            op.CheckName = request.PayorName.Trim();
+        }
+
         // Also check if remarks contains serialized breakdown with check details (e.g. combination or single check)
-        if (string.IsNullOrWhiteSpace(op.CheckBank) || string.IsNullOrWhiteSpace(op.CheckNumber))
+        if (string.IsNullOrWhiteSpace(op.CheckBank) || string.IsNullOrWhiteSpace(op.CheckNumber) || string.IsNullOrWhiteSpace(op.CheckName))
         {
             TryExtractCheckDetailsFromRemarks(request.Remarks, op);
         }
 
-        var clientName = !string.IsNullOrWhiteSpace(request.PayorName)
-            ? request.PayorName
-            : (_currentUserService.UserId != null ? $"User {_currentUserService.UserId}" : "Applicant");
+        var clientName = !string.IsNullOrWhiteSpace(op.CheckName)
+            ? op.CheckName
+            : (!string.IsNullOrWhiteSpace(request.PayorName)
+                ? request.PayorName.Trim()
+                : (_currentUserService.UserId != null ? $"User {_currentUserService.UserId}" : "Applicant"));
 
         var checkDetailStr = !string.IsNullOrWhiteSpace(op.CheckBank)
             ? $"Bank: {op.CheckBank}, Check #: {op.CheckNumber ?? request.ReferenceNumber ?? "N/A"}"
@@ -210,12 +217,60 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
         var startIdx = remarks.IndexOf(tagStart, StringComparison.Ordinal);
         if (startIdx < 0) return;
         var jsonStart = startIdx + tagStart.Length;
-        var endIdx = remarks.IndexOf(']', jsonStart);
-        if (endIdx < 0) return;
-        var json = remarks.Substring(jsonStart, endIdx - jsonStart);
+
+        string? json = null;
+        const string explicitEnd = ":END_PAYMENT_BREAKDOWN]";
+        var explicitEndIdx = remarks.IndexOf(explicitEnd, jsonStart, StringComparison.Ordinal);
+        if (explicitEndIdx >= 0)
+        {
+            json = remarks.Substring(jsonStart, explicitEndIdx - jsonStart).Trim();
+        }
+        else
+        {
+            int braceCount = 0;
+            bool started = false;
+            for (int i = jsonStart; i < remarks.Length; i++)
+            {
+                if (remarks[i] == '{')
+                {
+                    braceCount++;
+                    started = true;
+                }
+                else if (remarks[i] == '}')
+                {
+                    braceCount--;
+                    if (started && braceCount == 0)
+                    {
+                        json = remarks.Substring(jsonStart, i - jsonStart + 1).Trim();
+                        break;
+                    }
+                }
+            }
+
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                var lastBracket = remarks.LastIndexOf(']');
+                if (lastBracket > jsonStart)
+                {
+                    json = remarks.Substring(jsonStart, lastBracket - jsonStart).Trim();
+                }
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(json)) return;
+
         try
         {
             using var doc = System.Text.Json.JsonDocument.Parse(json);
+            if (doc.RootElement.TryGetProperty("payorName", out var payorElem))
+            {
+                var payor = payorElem.GetString()?.Trim();
+                if (!string.IsNullOrWhiteSpace(payor))
+                {
+                    op.CheckName = payor;
+                }
+            }
+
             if (doc.RootElement.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
             {
                 foreach (var item in itemsElem.EnumerateArray())

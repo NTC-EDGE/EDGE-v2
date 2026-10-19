@@ -45,7 +45,8 @@ public record PendingPaymentDto(
     string? CheckNumber = null,
     string? CheckBank = null,
     DateTime? CheckDate = null,
-    string? PaymentReferenceNumber = null
+    string? PaymentReferenceNumber = null,
+    string? PayorName = null
 );
 
 public record GetPendingPaymentsQuery(
@@ -207,11 +208,9 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
             var effectiveCheckBank = op.CheckBank;
             var effectiveCheckDate = op.CheckDate;
             string? paymentRefNumber = null;
+            string? effectivePayorName = !string.IsNullOrWhiteSpace(op.CheckName) ? op.CheckName.Trim() : null;
 
-            if (string.IsNullOrWhiteSpace(effectiveCheckBank) || string.IsNullOrWhiteSpace(effectiveCheckNumber))
-            {
-                TryExtractCheckAndRefDetails(op.Remarks, ref effectiveCheckNumber, ref effectiveCheckBank, ref effectiveCheckDate, ref paymentRefNumber);
-            }
+            TryExtractCheckAndRefDetails(op.Remarks, ref effectiveCheckNumber, ref effectiveCheckBank, ref effectiveCheckDate, ref paymentRefNumber, ref effectivePayorName);
 
             return new PendingPaymentDto(
                 op.Id,
@@ -236,7 +235,8 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 effectiveCheckNumber,
                 effectiveCheckBank,
                 effectiveCheckDate,
-                paymentRefNumber
+                paymentRefNumber,
+                effectivePayorName
             );
         }).ToList();
 
@@ -248,7 +248,8 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
         ref string? checkNumber,
         ref string? checkBank,
         ref DateTime? checkDate,
-        ref string? paymentRef)
+        ref string? paymentRef,
+        ref string? payorName)
     {
         if (string.IsNullOrWhiteSpace(remarks)) return;
         const string tagStart = "[PAYMENT_BREAKDOWN:";
@@ -256,13 +257,59 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
         if (startIdx >= 0)
         {
             var jsonStart = startIdx + tagStart.Length;
-            var endIdx = remarks.IndexOf(']', jsonStart);
-            if (endIdx > jsonStart)
+            string? json = null;
+            const string explicitEnd = ":END_PAYMENT_BREAKDOWN]";
+            var explicitEndIdx = remarks.IndexOf(explicitEnd, jsonStart, StringComparison.Ordinal);
+            if (explicitEndIdx >= 0)
             {
-                var json = remarks.Substring(jsonStart, endIdx - jsonStart);
+                json = remarks.Substring(jsonStart, explicitEndIdx - jsonStart).Trim();
+            }
+            else
+            {
+                int braceCount = 0;
+                bool started = false;
+                for (int i = jsonStart; i < remarks.Length; i++)
+                {
+                    if (remarks[i] == '{')
+                    {
+                        braceCount++;
+                        started = true;
+                    }
+                    else if (remarks[i] == '}')
+                    {
+                        braceCount--;
+                        if (started && braceCount == 0)
+                        {
+                            json = remarks.Substring(jsonStart, i - jsonStart + 1).Trim();
+                            break;
+                        }
+                    }
+                }
+
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    var lastBracket = remarks.LastIndexOf(']');
+                    if (lastBracket > jsonStart)
+                    {
+                        json = remarks.Substring(jsonStart, lastBracket - jsonStart).Trim();
+                    }
+                }
+            }
+
+            if (!string.IsNullOrWhiteSpace(json))
+            {
                 try
                 {
                     using var doc = System.Text.Json.JsonDocument.Parse(json);
+                    if (string.IsNullOrWhiteSpace(payorName) && doc.RootElement.TryGetProperty("payorName", out var payorElem))
+                    {
+                        var p = payorElem.GetString()?.Trim();
+                        if (!string.IsNullOrWhiteSpace(p))
+                        {
+                            payorName = p;
+                        }
+                    }
+
                     if (doc.RootElement.TryGetProperty("items", out var itemsElem) && itemsElem.ValueKind == System.Text.Json.JsonValueKind.Array)
                     {
                         foreach (var item in itemsElem.EnumerateArray())
