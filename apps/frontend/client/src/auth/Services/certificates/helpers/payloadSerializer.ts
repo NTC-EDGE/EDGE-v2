@@ -150,6 +150,14 @@ const FIELD_GUID_MAP: Record<string, string> = {
   "vas registration no. (assigned by ntc)":  "fd000000-0000-0000-0000-000000000236",
   "vas registration no":                     "fd000000-0000-0000-0000-000000000236",
   "vas registration":                        "fd000000-0000-0000-0000-000000000236",
+
+  // NTC 1-24 Blocking / Unblocking
+  "action requested":                        "fd000000-0000-0000-0000-000000000307",
+  "action_requested":                        "fd000000-0000-0000-0000-000000000307",
+  "device particulars":                      "fd000000-0000-0000-0000-000000000332",
+  "device_particulars":                      "fd000000-0000-0000-0000-000000000332",
+  "sim card / mobile numbers":               "fd000000-0000-0000-0000-000000000333",
+  "sim_mobile_numbers":                      "fd000000-0000-0000-0000-000000000333",
 };
 
 /**

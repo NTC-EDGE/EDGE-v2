@@ -464,6 +464,12 @@ export function handleWizardNext({
           idLower === "make / type / model" ||
           idLower === "deviceType" ||
           idLower === "device / equipment type" ||
+          idLower === "imei_number" ||
+          idLower === "imeinumber" ||
+          idLower === "imei" ||
+          idLower === "imei number" ||
+          idLower === "imei number (15 digits)" ||
+          idLower === "fd000000-0000-0000-0000-0000000308" ||
           idLower === "fd000000-0000-0000-0000-000000000084" ||
           idLower === "fd000000-0000-0000-0000-000000000085" ||
           idLower === "fd000000-0000-0000-0000-000000000087";
@@ -542,6 +548,23 @@ export function handleWizardNext({
             filledMap.get("applicant / named individual details");
         }
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+          // Resolve fallback for Action Requested (NTC 1-24 Blocking / Unblocking)
+          if (
+            idLower === "action_requested" ||
+            idLower === "action requested" ||
+            idLower === "fd000000-0000-0000-0000-000000000307" ||
+            idLower.includes("action requested")
+          ) {
+            const matchedVariantItem = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+            const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || activeApplicant.selectedVariantName || "").toLowerCase();
+            const varId = String(activeApplicant.selectedVariantId || "").toLowerCase();
+            const isUnblocking = desc.includes("unblock") || varId.includes("402");
+            const isBlocking = (desc.includes("block") || varId.includes("401")) && !isUnblocking;
+            if (isBlocking || isUnblocking) {
+              val = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+            }
+          }
+
           // Resolve fallback from activeApplicant properties
           if (
             (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name") || idLower.includes("applicant") || idLower.includes("company")) &&
@@ -650,6 +673,26 @@ export function handleWizardNext({
         if (trimmed === "" || trimmed === "false") {
           const fieldLabel = labelMap.get(idLower) || id;
           fieldErrors[id] = `${fieldLabel} is required and cannot be left blank.`;
+        } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          try {
+            const parsed: unknown = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              const hasFilledField = parsed.some((row: unknown) => {
+                if (typeof row === "object" && row !== null) {
+                  return Object.values(row).some(
+                    (v: unknown) => typeof v === "string" && v.trim().length > 0
+                  );
+                }
+                return false;
+              });
+              if (!hasFilledField) {
+                const fieldLabel = labelMap.get(idLower) || id;
+                fieldErrors[id] = `${fieldLabel} requires at least one entry.`;
+              }
+            }
+          } catch {
+            // Non-JSON string, treat as normal value
+          }
         }
       });
 

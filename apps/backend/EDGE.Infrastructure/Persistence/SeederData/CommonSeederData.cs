@@ -279,7 +279,23 @@ public static class CommonSeederData
             ["others_specification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "If Others, Please Specify", SyncBackOnSubmit = false },
             ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "text", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
             ["state_briefly_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "textarea", Label = "State Briefly the Details of Complaint", SyncBackOnSubmit = false },
-            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false }
+            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false },
+
+            // Repeater Fields for Blocking / Unblocking Devices & SIMs
+            ["device_particulars"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000332"),
+                FieldType = "repeater",
+                Label = "Device Particulars",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""make_model_type"",""label"":""Make / Type / Model"",""placeholder"":""e.g. Apple iPhone 15 Pro / Samsung Galaxy S24"",""required"":true,""type"":""text""},{""id"":""c2"",""key"":""imei_number"",""label"":""IMEI Number (15 Digits)"",""placeholder"":""e.g. 356789012345678"",""required"":true,""type"":""number""}],""addButtonLabel"":""Add Another Device (Dual SIM / Multiple Handsets)""}"
+            },
+            ["sim_mobile_numbers"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000333"),
+                FieldType = "repeater",
+                Label = "SIM Card / Mobile Numbers",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""mobile_number"",""label"":""Mobile Number"",""placeholder"":""09XXXXXXXXX or +639XXXXXXXXX"",""required"":true,""type"":""text""}],""addButtonLabel"":""Add Another Mobile Number""}"
+            }
         };
     }
 }

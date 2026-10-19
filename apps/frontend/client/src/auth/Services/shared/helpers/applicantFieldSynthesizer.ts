@@ -149,6 +149,10 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   // NTC 1-24 Blocking / Unblocking
   'action requested':         'fd000000-0000-0000-0000-000000000307',
   'action_requested':         'fd000000-0000-0000-0000-000000000307',
+  'device particulars':       'fd000000-0000-0000-0000-000000000332',
+  'device_particulars':       'fd000000-0000-0000-0000-000000000332',
+  'sim card / mobile numbers': 'fd000000-0000-0000-0000-000000000333',
+  'sim_mobile_numbers':       'fd000000-0000-0000-0000-000000000333',
 };
 
 const MONTH_NAMES = [
@@ -277,6 +281,19 @@ export function synthesizeAllApplicantFieldValues(
       value: trimmedVal,
     });
   };
+
+  // ── 0. Pre-synthesize locked / auto-determined fields ─────────────────────
+  // NTC 1-24 Blocking / Unblocking: "Action Requested" is locked by application type / variant
+  const varDesc = (applicant.selectedVariantName || "").toLowerCase();
+  const varId = (applicant.selectedVariantId || "").toLowerCase();
+  const isReqUnblocking = varDesc.includes("unblock") || varId.includes("402");
+  const isReqBlocking = (varDesc.includes("block") || varId.includes("401")) && !isReqUnblocking;
+
+  if (isReqBlocking || isReqUnblocking) {
+    const actionRequestedVal = isReqUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+    addField("fd000000-0000-0000-0000-000000000307", "Action Requested", actionRequestedVal);
+    addField("action_requested", "Action Requested", actionRequestedVal);
+  }
 
   // ── 1. Ingest existing dynamic formFieldValues ──────────────────────────────
   if (applicant.formFieldValues && Array.isArray(applicant.formFieldValues)) {

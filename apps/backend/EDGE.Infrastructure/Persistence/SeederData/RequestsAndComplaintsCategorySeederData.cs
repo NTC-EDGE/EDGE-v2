@@ -188,8 +188,8 @@ public static class RequestsAndComplaintsCategorySeederData
         new("NTC_REQ_COMPLAINTS", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
             // Sections for Blocking & Unblocking (NTC 1-24)
-            new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "make_model_type", "imei_number" }),
-            new("sim_details", "2. SIM Card / Mobile Number Details", new() { "mobile_number" }),
+            new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "device_particulars" }),
+            new("sim_details", "2. SIM Card / Mobile Number Details", new() { "sim_mobile_numbers" }),
             new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
             new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "sex", "age_group", "place_of_incident", "date_of_incident", "time_of_day" }),
 
@@ -200,8 +200,8 @@ public static class RequestsAndComplaintsCategorySeederData
         }),
         new("NTC_1_24", Guid.Parse("f2400000-0000-0000-0000-000000000001"), Guid.Parse("f24a0000-0000-0000-0000-000000000000"), new()
         {
-            new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "make_model_type", "imei_number" }),
-            new("sim_details", "2. SIM Card / Mobile Number Details", new() { "mobile_number" }),
+            new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "device_particulars" }),
+            new("sim_details", "2. SIM Card / Mobile Number Details", new() { "sim_mobile_numbers" }),
             new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
             new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "sex", "age_group", "place_of_incident", "date_of_incident", "time_of_day" })
         }),

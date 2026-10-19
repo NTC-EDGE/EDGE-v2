@@ -38,7 +38,7 @@ export function FormRepeaterTable({
   addButtonLabel,
   minRows = 1,
   maxRows = 20,
-  instruction = "Provide complete details for each equipment item / entry.",
+  instruction = "",
   fieldKey,
   parentMakeTypeModel,
   showCallSign = false,
@@ -70,6 +70,8 @@ export function FormRepeaterTable({
   const isPurchaseClassOnly = resolvedColumns.length === 1 && resolvedColumns[0].key === "classOfStation";
   const cleanLabel = label.replace(/Details|Particulars|Information|Technical/gi, "").trim() || "Item";
   const btnLabel = addButtonLabel || (isPurchaseClassOnly ? "Add Class of Station" : isDeviceTable ? "Add Another Equipment Device Group" : isEquipmentsTable ? "Add Another Equipment (Make/Type/Model)" : `Add ${cleanLabel}`);
+  const rowUnit = isDeviceTable ? "device group" : isEquipmentsTable ? "equipment" : cleanLabel.toLowerCase();
+  const rowUnitPlural = isDeviceTable ? "device groups" : isEquipmentsTable ? "equipments" : `${cleanLabel.toLowerCase()}s`;
 
   return (
     <View
@@ -88,7 +90,7 @@ export function FormRepeaterTable({
           {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
         </View>
         <Text style={styles.rowCountBadge}>
-          {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : isEquipmentsTable ? "equipment" : "entry") : (isDeviceTable ? "device groups" : isEquipmentsTable ? "equipments" : "entries")}
+          {rows.length} {rows.length === 1 ? rowUnit : rowUnitPlural}
         </Text>
       </View>
 

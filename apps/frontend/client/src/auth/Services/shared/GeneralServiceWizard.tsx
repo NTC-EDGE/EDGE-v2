@@ -262,11 +262,34 @@ export function GeneralServiceWizard({
     const currentAmateur = activeApplicant.amateurLicenseData;
     const currentRadio = activeApplicant.radioCertData;
 
+    const varNameLower = variantName.toLowerCase();
+    const varIdLower = variantId.toLowerCase();
+    const isUnblocking = varNameLower.includes("unblock") || varIdLower.includes("402");
+    const isBlocking = (varNameLower.includes("block") || varIdLower.includes("401")) && !isUnblocking;
+
+    const currentFieldValues = activeApplicant.formFieldValues || [];
+    let updatedFieldValues = currentFieldValues;
+    if (isBlocking || isUnblocking) {
+      const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+      const filtered = currentFieldValues.filter(
+        (fv) =>
+          fv.fieldId !== "fd000000-0000-0000-0000-000000000307" &&
+          fv.fieldId !== "action_requested" &&
+          (fv.fieldLabel || "").toLowerCase() !== "action requested"
+      );
+      updatedFieldValues = [
+        ...filtered,
+        { fieldId: "fd000000-0000-0000-0000-000000000307", fieldLabel: "Action Requested", value: targetVal },
+        { fieldId: "action_requested", fieldLabel: "Action Requested", value: targetVal },
+      ];
+    }
+
     updateActiveApplicant({
       selectedVariantId: variantId,
       selectedVariantName: variantName,
       selectedElementId: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementId : undefined,
       selectedElementTitle: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementTitle : undefined,
+      formFieldValues: updatedFieldValues,
       amateurLicenseData: currentAmateur
         ? { ...currentAmateur, appType }
         : undefined,

@@ -6,7 +6,54 @@ import { FormCol } from "../FormGrid";
 import { ValidatedInput } from "../ValidatedInput";
 import { Select } from "../Select";
 import { DatePickerInput } from "../DatePickerInput";
-import { FormRepeaterTable } from "../FormRepeaterTable";
+import { FormRepeaterTable, FormRepeaterColumn } from "../FormRepeaterTable";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function isRepeaterColumn(value: unknown): value is FormRepeaterColumn {
+  if (!isRecord(value)) return false;
+  return typeof value.key === "string" && typeof value.label === "string";
+}
+
+function parseRepeaterRules(rules?: string): {
+  columns?: FormRepeaterColumn[];
+  addButtonLabel?: string;
+  minRows?: number;
+  maxRows?: number;
+  helpText?: string;
+} {
+  if (!rules || typeof rules !== "string") return {};
+  try {
+    const parsed: unknown = JSON.parse(rules);
+    if (!isRecord(parsed)) return {};
+    const result: {
+      columns?: FormRepeaterColumn[];
+      addButtonLabel?: string;
+      minRows?: number;
+      maxRows?: number;
+      helpText?: string;
+    } = {};
+    if (typeof parsed.addButtonLabel === "string" && parsed.addButtonLabel.trim().length > 0) {
+      result.addButtonLabel = parsed.addButtonLabel;
+    }
+    if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
+      result.helpText = parsed.helpText;
+    }
+    if (typeof parsed.minRows === "number") result.minRows = parsed.minRows;
+    if (typeof parsed.maxRows === "number") result.maxRows = parsed.maxRows;
+    if (Array.isArray(parsed.repeaterColumns)) {
+      const validCols = parsed.repeaterColumns.filter(isRepeaterColumn);
+      if (validCols.length > 0) {
+        result.columns = validCols;
+      }
+    }
+    return result;
+  } catch {
+    return {};
+  }
+}
 import { ApplicantNameField, StructuredNameData } from "../ApplicantNameField";
 import { DeclarationCheckbox } from "../DeclarationCheckbox";
 import { FormSignatureInput } from "../FormSignatureInput";
@@ -96,6 +143,8 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   onStructuredNameChange,
   onDropdownChange,
 }) => {
+  const repeaterRules = isRepeaterField ? parseRepeaterRules(field.validationRules) : undefined;
+
   return (
     <FormCol key={targetId} span={span} compact={field.isCompact}>
       {isNameField ? (
@@ -122,10 +171,14 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             isRequired={isRequired}
             value={val}
             fieldKey={targetId}
+            columns={repeaterRules?.columns}
+            addButtonLabel={repeaterRules?.addButtonLabel}
+            instruction={repeaterRules?.helpText || field.placeholder || ""}
+            minRows={repeaterRules?.minRows}
+            maxRows={repeaterRules?.maxRows || maxRows}
             parentMakeTypeModel={parentMakeTypeModel}
             showCallSign={showCallSign || isForeignVisitor}
             hideAddButton={hideAddButton}
-            maxRows={maxRows}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}
           />

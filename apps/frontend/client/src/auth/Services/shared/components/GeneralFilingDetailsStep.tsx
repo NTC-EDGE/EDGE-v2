@@ -179,20 +179,45 @@ export function GeneralFilingDetailsStep({
 
   // Auto-set and lock "Action Requested" for NTC 1-24 Blocking / Unblocking service requests
   useEffect(() => {
-    if (!activeApplicant.selectedVariantId || !variants || variants.length === 0) return;
+    if (!activeApplicant.selectedVariantId) return;
     const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
-    const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
-    const isUnblocking = desc.includes("unblock");
-    const isBlocking = desc.includes("block") && !isUnblocking;
+    const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || activeApplicant.selectedVariantName || "").toLowerCase();
+    const varId = String(activeApplicant.selectedVariantId).toLowerCase();
+    const isUnblocking = desc.includes("unblock") || varId.includes("402");
+    const isBlocking = (desc.includes("block") || varId.includes("401")) && !isUnblocking;
 
     if (isBlocking || isUnblocking) {
       const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
-      const currentVal = dynamicValuesRecord["action_requested"] || dynamicValuesRecord["Action Requested"];
-      if (currentVal !== targetVal) {
-        handleDynamicFieldChange("action_requested", "Action Requested", targetVal);
+      let schemaFieldId = "fd000000-0000-0000-0000-000000000307";
+      if (form?.sections) {
+        for (const s of form.sections) {
+          const fld = s.fields?.find((f) => (f.label || "").toLowerCase().includes("action requested") || (f.fieldId || f.id) === "action_requested");
+          if (fld) {
+            schemaFieldId = fld.fieldId || fld.id || schemaFieldId;
+            break;
+          }
+        }
+      }
+
+      const currentValByGuid = dynamicValuesRecord[schemaFieldId];
+      const currentValByName = dynamicValuesRecord["action_requested"] || dynamicValuesRecord["Action Requested"];
+      if (currentValByGuid !== targetVal || currentValByName !== targetVal) {
+        updateActiveApplicant((prevApp) => {
+          const currentArr = prevApp.formFieldValues || [];
+          const filtered = currentArr.filter(
+            (item) => item.fieldId !== schemaFieldId && item.fieldId !== "action_requested" && item.fieldId !== "fd000000-0000-0000-0000-000000000307" && (item.fieldLabel || "").toLowerCase() !== "action requested"
+          );
+          return {
+            formFieldValues: [
+              ...filtered,
+              { fieldId: schemaFieldId, fieldLabel: "Action Requested", value: targetVal },
+              { fieldId: "action_requested", fieldLabel: "Action Requested", value: targetVal },
+            ],
+          };
+        });
       }
     }
-  }, [activeApplicant.selectedVariantId, variants, activeApplicant.formFieldValues]);
+  }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
   const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
   const allowCompany = matchedVariant?.isIndividual === false || (!matchedVariant && !isExamService);

@@ -62,9 +62,28 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const matchedElement = variantElements.find((e) => String(e.id) === String(selectedElementId));
 
   const varDesc = (matchedVariant?.description || matchedVariant?.name || matchedVariant?.type || "").toLowerCase();
-  const isUnblocking = varDesc.includes("unblock");
-  const isBlocking = varDesc.includes("block") && !isUnblocking;
+  const varId = String(selectedVariantId || "").toLowerCase();
+  const isUnblocking = varDesc.includes("unblock") || varId.includes("402");
+  const isBlocking = (varDesc.includes("block") || varId.includes("401")) && !isUnblocking;
   const isBlockingOrUnblocking = isBlocking || isUnblocking;
+
+  useEffect(() => {
+    if (!isBlockingOrUnblocking || !form?.sections) return;
+    const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+    for (const sec of form.sections) {
+      for (const f of sec.fields || []) {
+        const rawTargetId = f.fieldId || f.id;
+        const fIdLower = (rawTargetId || "").toLowerCase();
+        const labelLower = (f.label || "").toLowerCase().trim();
+        if (fIdLower === "action_requested" || labelLower.includes("action requested")) {
+          const currentVal = (rawTargetId && values[rawTargetId]) || (f.label && values[f.label]) || "";
+          if (currentVal !== targetVal && rawTargetId) {
+            onChange(rawTargetId, f.label, targetVal);
+          }
+        }
+      }
+    }
+  }, [isBlockingOrUnblocking, isUnblocking, form, values, onChange]);
 
   const evaluationContext: FormEvaluationContext = {
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
@@ -103,6 +122,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
     let span: 12 | 8 | 6 | 4 | 3 = 6;
     if (
+      isActionRequestedField ||
       isRepeaterField ||
       isSignature ||
       isCheckbox ||
