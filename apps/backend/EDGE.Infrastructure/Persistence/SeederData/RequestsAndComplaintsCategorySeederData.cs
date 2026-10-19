@@ -36,19 +36,22 @@ public static class RequestsAndComplaintsCategorySeederData
     public static readonly string Ntc125Contract = @"
     {
         ""formNo"": ""NTC 1-25"",
-        ""revisionNo"": ""02"",
-        ""revisionDate"": ""2023-03-31"",
+        ""revisionNo"": ""03"",
+        ""revisionDate"": ""2025-03-31"",
         ""serviceCategory"": ""Requests and Complaints"",
         ""group"": ""Complaint Form"",
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""respondentParticulars"", ""required"": true },
-            { ""key"": ""complaintParticulars"", ""required"": true },
-            { ""key"": ""broadcastParticulars"", ""required"": false }
+            { ""key"": ""complainants_details"", ""required"": true },
+            { ""key"": ""particulars_of_service_provider"", ""required"": true },
+            { ""key"": ""nature_of_complaint"", ""required"": true },
+            { ""key"": ""complaint_details"", ""required"": true },
+            { ""key"": ""signoff"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
+            ""notes"": ""THIS FORM IS NOT FOR SALE AND CAN BE REPRODUCED"",
             ""natureOfComplaint"": [""Billing Complaint"", ""Spam"", ""Poor Service (Technical Service/Customer Service)"", ""Scam"", ""Fair Use"", ""Denial of Subscription Plan"", ""Others, please specify""]
         },
         ""entityType"": ""Application""
@@ -165,9 +168,11 @@ public static class RequestsAndComplaintsCategorySeederData
         }),
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("respondentParticulars", "Respondent Service Provider / Entity Information", new() { "serviceProviderName", "serviceProviderBranch", "subscriberAccountNo" }),
-            new("complaintParticulars", "Nature of Complaint and Desired Action", new() { "complaintType", "complaintSubject", "complaintNarrative", "desiredRelief" }),
-            new("broadcastParticulars", "Broadcast Particulars (for Tape Preservation)", new() { "broadcastStationName", "programTitle", "broadcastDate", "broadcastTime", "programHost", "preservationPurpose" })
+            new("complainants_details", "Complainant's Details", new() { "name", "postal_address", "email_address", "contact_number" }),
+            new("particulars_of_service_provider", "Particulars of Service Provider", new() { "provider_business_name", "provider_business_address", "provider_contact_number" }),
+            new("nature_of_complaint", "Nature of Complaint", new() { "complaint_types", "others_specification", "date_of_incident", "time_of_incident" }),
+            new("complaint_details", "Details of Complaint", new() { "state_briefly_details", "attached_proof_documents" }),
+            new("signoff", "Complainant Declaration & Signature", new() { "complainant_signature", "date_accomplished" })
         })
     };
 

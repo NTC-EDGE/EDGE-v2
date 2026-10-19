@@ -277,20 +277,21 @@ public static class CommonSeederData
             ["date_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000316"), FieldType = "date", Label = "Date of Incident", SyncBackOnSubmit = false },
             ["time_of_day"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000317"), FieldType = "dropdown", Label = "Time of Incident", SyncBackOnSubmit = false, ValidationRules = @"[""Daytime"",""Nighttime""]" },
 
-            // NTC 1-25 Fields (Complaint Form)
-            ["serviceProviderName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000320"), FieldType = "text", Label = "Respondent Entity / Service Provider / Sender", SyncBackOnSubmit = false },
-            ["serviceProviderBranch"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000321"), FieldType = "text", Label = "Branch / Office / Account Location", SyncBackOnSubmit = false },
-            ["subscriberAccountNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000322"), FieldType = "text", Label = "Subscriber Account / Reference Number", SyncBackOnSubmit = false },
-            ["complaintType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000323"), FieldType = "dropdown", Label = "Nature / Category of Complaint", SyncBackOnSubmit = false, ValidationRules = @"[""Billing / Overcharging"",""Poor Technical Service / Slow Internet"",""Poor Customer Service"",""Text Spam / Unsolicited Promotion"",""Text Scam / Phishing / Fraud"",""Threat / Harassment / Obscene Message"",""Fair Usage Policy (FUP) Dispute"",""Denial of Subscription / Disconnection"",""Broadcast Content / Signal Interference"",""Others""]" },
-            ["complaintSubject"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Subject of Complaint", SyncBackOnSubmit = false },
-            ["complaintNarrative"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "textarea", Label = "Detailed Statement of Facts / Circumstances", SyncBackOnSubmit = false },
-            ["desiredRelief"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "textarea", Label = "Desired Action / Relief Requested from NTC", SyncBackOnSubmit = false },
-            ["broadcastStationName"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000327"), FieldType = "text", Label = "Broadcast Station Call Sign / Name / Channel", SyncBackOnSubmit = false },
-            ["programTitle"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "Program Title / Segment", SyncBackOnSubmit = false },
-            ["broadcastDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "date", Label = "Date of Broadcast Airing", SyncBackOnSubmit = false },
-            ["broadcastTime"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "text", Label = "Air Time / Schedule (From - To)", SyncBackOnSubmit = false },
-            ["programHost"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "text", Label = "Program Host / Announcer / Anchor", SyncBackOnSubmit = false },
-            ["preservationPurpose"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000332"), FieldType = "textarea", Label = "Purpose / Legal Basis for Preservation Request", SyncBackOnSubmit = false }
+            // NTC 1-25 Fields (Complaint Form - Rev 03 03/31/2025)
+            ["name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000320"), FieldType = "text", Label = "Name", SyncBackOnSubmit = true },
+            ["postal_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000321"), FieldType = "textarea", Label = "Postal Address", SyncBackOnSubmit = true },
+            ["email_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000322"), FieldType = "text", Label = "Email Address", SyncBackOnSubmit = true },
+            ["contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000323"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = true },
+            ["provider_business_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Business Name", SyncBackOnSubmit = false },
+            ["provider_business_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "textarea", Label = "Business Address", SyncBackOnSubmit = false },
+            ["provider_contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = false },
+            ["complaint_types"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000327"), FieldType = "checkbox_group", Label = "Complaint Category", SyncBackOnSubmit = false, ValidationRules = @"[""Billing Complaint"",""Spam"",""Poor Service (Technical Service/Customer Service)"",""Scam"",""Fair Use"",""Denial of Subscription Plan"",""Others, please specify""]" },
+            ["others_specification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "If Others, Please Specify", SyncBackOnSubmit = false },
+            ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "text", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
+            ["state_briefly_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "textarea", Label = "State Briefly the Details of Complaint", SyncBackOnSubmit = false },
+            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false },
+            ["complainant_signature"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000332"), FieldType = "signature", Label = "Signature over Printed Name of the Complainant", SyncBackOnSubmit = false },
+            ["date_accomplished"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000333"), FieldType = "date", Label = "Date Accomplished", SyncBackOnSubmit = false }
         };
     }
 }
