@@ -52,9 +52,9 @@ public static class AccreditationsCategorySeederData
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(VarCpeMobileNew, Svc118Id, ServiceVariantType.New, "MOBILE", false),
+        new(VarCpeMobileNew, Svc118Id, ServiceVariantType.New, "MOBILE PHONES", false),
         new(VarCpeMobileRen, Svc118Id, ServiceVariantType.Renewal, "MOBILE PHONES", false),
-        new(VarCpeMobileMod, Svc118Id, ServiceVariantType.Modification, "MOBILE", false),
+        new(VarCpeMobileMod, Svc118Id, ServiceVariantType.Modification, "MOBILE PHONES", false),
         new(VarCpeNonMobileNew, Svc118Id, ServiceVariantType.New, "NON-MOBILE PHONES", false),
         new(VarCpeNonMobileRen, Svc118Id, ServiceVariantType.Renewal, "NON-MOBILE PHONES", false),
         new(VarCpeNonMobileMod, Svc118Id, ServiceVariantType.Modification, "NON-MOBILE PHONES", false)
