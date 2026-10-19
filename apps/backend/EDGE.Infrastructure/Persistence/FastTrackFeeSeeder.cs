@@ -275,6 +275,11 @@ public static class FastTrackFeeSeeder
                 (PermitsCategorySeederData.VarMpSvcMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
                 (PermitsCategorySeederData.VarMpSvcMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
+                (PermitsCategorySeederData.VarMpDealerNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.MobilePhoneFilingFee),
+                (PermitsCategorySeederData.VarMpDealerNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneDealerInspectionRate),
+                (PermitsCategorySeederData.VarMpDealerNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMpDealerRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.MobilePhoneDealerInspectionRate),
+                (PermitsCategorySeederData.VarMpDealerRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
                 (PermitsCategorySeederData.VarMpDealerMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.PermitModificationFee),
                 (PermitsCategorySeederData.VarMpDealerMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
 
@@ -284,6 +289,111 @@ public static class FastTrackFeeSeeder
                 (PermitsCategorySeederData.VarPermitTrueCopy, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
                 (PermitsCategorySeederData.VarPermitDuplicate, FeeConstants.Codes.Duplicate, FeeConstants.Amounts.DuplicateCopyRate),
                 (PermitsCategorySeederData.VarPermitDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // 6. Power-Rated Station Permits
+                // Purchase
+                (PermitsCategorySeederData.VarAeroStnPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarAeroStnPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAirStnPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarAirStnPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarShipPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarShipPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPrivCoastPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarPrivCoastPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPubCoastPur, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarPubCoastPur, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPurVsat, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPurVsat, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPurPriv, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPurPriv, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPurCag, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPurCag, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPurGov, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPurGov, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // Possess / Storage
+                (PermitsCategorySeederData.VarAeroStnPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarAeroStnPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAeroStorage, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarAeroStorage, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAirStnPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarAirStnPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarShipPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarShipPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarShipStorage, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarShipStorage, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPrivCoastPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarPrivCoastPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPubCoastPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarPubCoastPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPossVsat, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPossVsat, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPossPriv, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPossPriv, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPossCag, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPossCag, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPossGov, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPossGov, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmStorage, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmStorage, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarPteStorage, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarPteStorage, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // Purchase/Possess
+                (PermitsCategorySeederData.VarAeroStnPurPoss, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarAeroStnPurPoss, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarAeroStnPurPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarAeroStnPurPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAirStnPurPoss, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarAirStnPurPoss, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarAirStnPurPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarAirStnPurPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarShipPurPoss, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarMarShipPurPoss, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarShipPurPoss, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarShipPurPoss, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPrivCoastPP, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarMarPrivCoastPP, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarPrivCoastPP, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarPrivCoastPP, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPubCoastPP, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarMarPubCoastPP, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarMarPubCoastPP, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarMarPubCoastPP, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPPVsat, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarFlmPPVsat, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPPVsat, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPPVsat, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPPPriv, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarFlmPPPriv, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPPPriv, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPPPriv, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPPCag, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarFlmPPCag, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPPCag, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPPCag, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmPPGov, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.PowerStationFilingFee),
+                (PermitsCategorySeederData.VarFlmPPGov, FeeConstants.Codes.Purchase, FeeConstants.Amounts.PowerHighPurchaseRate),
+                (PermitsCategorySeederData.VarFlmPPGov, FeeConstants.Codes.Possess, FeeConstants.Amounts.PowerHighPossessRate),
+                (PermitsCategorySeederData.VarFlmPPGov, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // Sell / Transfer
+                (PermitsCategorySeederData.VarAeroStnSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.PowerHighSellTransferRate),
+                (PermitsCategorySeederData.VarAeroStnSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarAirStnSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.PowerHighSellTransferRate),
+                (PermitsCategorySeederData.VarAirStnSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarShipSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.PowerHighSellTransferRate),
+                (PermitsCategorySeederData.VarMarShipSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarMarPubCoastSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.PowerHighSellTransferRate),
+                (PermitsCategorySeederData.VarMarPubCoastSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmSell, FeeConstants.Codes.SellTransfer, FeeConstants.Amounts.PowerHighSellTransferRate),
+                (PermitsCategorySeederData.VarFlmSell, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // Construction Permit
+                (PermitsCategorySeederData.VarFlmConstNew, FeeConstants.Codes.ConstructionPermit, FeeConstants.Amounts.FlmCpfStandard),
+                (PermitsCategorySeederData.VarFlmConstNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                (PermitsCategorySeederData.VarFlmConstMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.FlmModificationFee),
+                (PermitsCategorySeederData.VarFlmConstMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
                 #endregion
 
                 #region Licenses
@@ -518,6 +628,90 @@ public static class FastTrackFeeSeeder
                 (CertificatesCategorySeederData.VarVasRenewal, FeeConstants.Formulas.VasRenewalWithSurcharge, true),
                 (CertificatesCategorySeederData.VarCertTrueCopy, FeeConstants.Formulas.CertifiedTrueCopy, false),
                 (CertificatesCategorySeederData.VarCertDuplicate, FeeConstants.Formulas.DuplicateCopy, false),
+
+                #region Permits Formulas
+                // 1. Amateur Service Permits
+                (PermitsCategorySeederData.VarAmPur, FeeConstants.Formulas.PermitAmateurPurchase, false),
+                (PermitsCategorySeederData.VarAmStorage, FeeConstants.Formulas.PermitAmateurPossess, false),
+                (PermitsCategorySeederData.VarAmPurPoss, FeeConstants.Formulas.PermitAmateurPurchasePossess, false),
+                (PermitsCategorySeederData.VarAmSell, FeeConstants.Formulas.PermitAmateurSellTransfer, false),
+                (PermitsCategorySeederData.VarAmVanityNew, FeeConstants.Formulas.PermitAmateurVanity, false),
+                (PermitsCategorySeederData.VarAmVanityRen, FeeConstants.Formulas.PermitAmateurVanity, false),
+                (PermitsCategorySeederData.VarAmSpecialEvent, FeeConstants.Formulas.PermitAmateurSpecialEvent, false),
+
+                // 2. Operational & Equipment Permits
+                (PermitsCategorySeederData.VarFlmDemo, FeeConstants.Formulas.PermitDemoPropagate, false),
+                (PermitsCategorySeederData.VarEquipTransport, FeeConstants.Formulas.PermitTransport, false),
+                (PermitsCategorySeederData.VarEquipDealerNew, FeeConstants.Formulas.PermitDealerNew, false),
+                (PermitsCategorySeederData.VarEquipDealerRen, FeeConstants.Formulas.PermitDealerRenewal, true),
+                (PermitsCategorySeederData.VarEquipDealerMod, FeeConstants.Formulas.PermitDealerModification, false),
+                (PermitsCategorySeederData.VarEquipMfgNew, FeeConstants.Formulas.PermitDealerNew, false),
+                (PermitsCategorySeederData.VarEquipMfgRen, FeeConstants.Formulas.PermitDealerRenewal, true),
+                (PermitsCategorySeederData.VarEquipMfgMod, FeeConstants.Formulas.PermitDealerModification, false),
+                (PermitsCategorySeederData.VarEquipSvcNew, FeeConstants.Formulas.PermitDealerNew, false),
+                (PermitsCategorySeederData.VarEquipSvcRen, FeeConstants.Formulas.PermitDealerRenewal, true),
+                (PermitsCategorySeederData.VarEquipSvcMod, FeeConstants.Formulas.PermitDealerModification, false),
+
+                // 3. Mobile Phone Permits
+                (PermitsCategorySeederData.VarMpRetailerNew, FeeConstants.Formulas.PermitMobilePhoneRetailerNew, false),
+                (PermitsCategorySeederData.VarMpRetailerRen, FeeConstants.Formulas.PermitMobilePhoneRetailerRenewal, true),
+                (PermitsCategorySeederData.VarMpRetailerMod, FeeConstants.Formulas.PermitMobilePhoneRetailerModification, false),
+                (PermitsCategorySeederData.VarMpSvcNew, FeeConstants.Formulas.PermitMobilePhoneServiceCenterNew, false),
+                (PermitsCategorySeederData.VarMpSvcRen, FeeConstants.Formulas.PermitMobilePhoneServiceCenterRenewal, true),
+                (PermitsCategorySeederData.VarMpSvcMod, FeeConstants.Formulas.PermitMobilePhoneServiceCenterModification, false),
+                (PermitsCategorySeederData.VarMpDealerMod, FeeConstants.Formulas.PermitMobilePhoneDealerModification, false),
+
+                // 4. Copy of Permits
+                (PermitsCategorySeederData.VarPermitTrueCopy, FeeConstants.Formulas.PermitCertifiedTrueCopy, false),
+                (PermitsCategorySeederData.VarPermitDuplicate, FeeConstants.Formulas.PermitDuplicateCopy, false),
+
+                // 5. Power-Rated Station Permits
+                // Aero
+                (PermitsCategorySeederData.VarAeroStnPur, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarAeroStnPoss, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarAeroStnPurPoss, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarAeroStorage, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarAeroStnSell, FeeConstants.Formulas.PermitStationSellTransfer, false),
+                (PermitsCategorySeederData.VarAirStnPur, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarAirStnPoss, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarAirStnPurPoss, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarAirStnSell, FeeConstants.Formulas.PermitStationSellTransfer, false),
+
+                // Mar
+                (PermitsCategorySeederData.VarMarShipPur, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarMarShipPoss, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarMarShipStorage, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarMarShipPurPoss, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarMarShipSell, FeeConstants.Formulas.PermitStationSellTransfer, false),
+                (PermitsCategorySeederData.VarMarPrivCoastPur, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarMarPrivCoastPoss, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarMarPrivCoastPP, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarMarPubCoastPur, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarMarPubCoastPoss, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarMarPubCoastPP, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarMarPubCoastSell, FeeConstants.Formulas.PermitStationSellTransfer, false),
+
+                // FLM
+                (PermitsCategorySeederData.VarFlmPurVsat, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarFlmPurPriv, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarFlmPurCag, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarFlmPurGov, FeeConstants.Formulas.PermitStationPurchase, false),
+                (PermitsCategorySeederData.VarFlmPossVsat, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarFlmPossPriv, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarFlmPossCag, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarFlmPossGov, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarFlmPPVsat, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarFlmPPPriv, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarFlmPPCag, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarFlmPPGov, FeeConstants.Formulas.PermitStationPurchasePossess, false),
+                (PermitsCategorySeederData.VarFlmStorage, FeeConstants.Formulas.PermitStationPossess, false),
+                (PermitsCategorySeederData.VarFlmSell, FeeConstants.Formulas.PermitStationSellTransfer, false),
+                (PermitsCategorySeederData.VarFlmConstNew, FeeConstants.Codes.ConstructionPermit, false),
+                (PermitsCategorySeederData.VarFlmConstMod, FeeConstants.Codes.Modification, false),
+
+                // PTE
+                (PermitsCategorySeederData.VarPteStorage, FeeConstants.Formulas.PermitStationPossess, false),
+                #endregion
             };
 
             var existingVariantFormulas = await context.ServiceVariantFormulas.IgnoreQueryFilters().ToListAsync();
@@ -549,6 +743,7 @@ public static class FastTrackFeeSeeder
             // 5. Seed ServiceVariantElementFormulas
             var elementFormulasToSeed = new List<(Guid VariantId, string ElementCode, string Formula, bool ApplySurcharge)>
             {
+                #region Certificates Elements
                 // Commercial ROC New
                 (CertificatesCategorySeederData.VarRocCommNew, "1RTG", FeeConstants.Formulas.RocNew, false),
                 (CertificatesCategorySeederData.VarRocCommNew, "2RTG", FeeConstants.Formulas.RocNew, false),
@@ -572,6 +767,20 @@ public static class FastTrackFeeSeeder
                 (CertificatesCategorySeederData.VarRfidNonDealers, "RFID HIGH POWER", FeeConstants.Formulas.RfidRegistration, false),
                 (CertificatesCategorySeederData.VarRfidNonDealers, "RFID LOW POWER", FeeConstants.Formulas.RfidRegistration, false),
                 (CertificatesCategorySeederData.VarRfidNonDealers, "SRD/WDN", FeeConstants.Formulas.RfidRegistration, false),
+                #endregion
+
+                #region Permits Elements
+                // Foreign Visitor Amateur License
+                (PermitsCategorySeederData.VarAmForeign, "Class A", FeeConstants.Formulas.PermitAmateurForeignVisitor, false),
+                (PermitsCategorySeederData.VarAmForeign, "Class B", FeeConstants.Formulas.PermitAmateurForeignVisitor, false),
+                (PermitsCategorySeederData.VarAmForeign, "Class C", FeeConstants.Formulas.PermitAmateurForeignVisitor, false),
+
+                // Mobile Phone Dealer Main / Branch
+                (PermitsCategorySeederData.VarMpDealerNew, "MAIN", FeeConstants.Formulas.PermitMobilePhoneDealerNew, false),
+                (PermitsCategorySeederData.VarMpDealerNew, "BRANCH", FeeConstants.Formulas.PermitMobilePhoneDealerNew, false),
+                (PermitsCategorySeederData.VarMpDealerRen, "MAIN", FeeConstants.Formulas.PermitMobilePhoneDealerRenewal, true),
+                (PermitsCategorySeederData.VarMpDealerRen, "BRANCH", FeeConstants.Formulas.PermitMobilePhoneDealerRenewal, true),
+                #endregion
             };
 
             var existingElementFormulas = await context.ServiceVariantElementFormulas.IgnoreQueryFilters().ToListAsync();
