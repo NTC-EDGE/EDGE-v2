@@ -7,7 +7,31 @@ namespace EDGE.Infrastructure.Persistence.SeederData;
 public static class RequestsAndComplaintsCategorySeederData
 {
     public static readonly Guid CategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000006");
+    public static readonly Guid SvcReqBlockingId = Guid.Parse("50000000-0000-0000-0000-000000000081");
     public static readonly Guid SvcReqCompId = Guid.Parse("50000000-0000-0000-0000-000000000080");
+
+    public static readonly string Ntc124Contract = @"
+    {
+        ""formNo"": ""NTC 1-24"",
+        ""revisionNo"": ""02"",
+        ""revisionDate"": ""2023-03-31"",
+        ""serviceCategory"": ""Requests and Complaints"",
+        ""group"": ""Blocking and Unblocking Form"",
+        ""applicationTypes"": [""New""],
+        ""elements"": [],
+        ""requiredSections"": [
+            { ""key"": ""personal_information"", ""required"": true },
+            { ""key"": ""request_type_and_device_details"", ""required"": true },
+            { ""key"": ""sim_details"", ""required"": true },
+            { ""key"": ""supporting_documents"", ""required"": false },
+            { ""key"": ""incident_and_demographic_info"", ""required"": false }
+        ],
+        ""allowsBulkSubmission"": false,
+        ""categorySpecific"": {
+            ""action_requested"": [""BLOCK GSM Handset"", ""UNBLOCK GSM Handset""]
+        },
+        ""entityType"": ""Application""
+    }";
 
     public static readonly string Ntc125Contract = @"
     {
@@ -19,9 +43,7 @@ public static class RequestsAndComplaintsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""deviceParticulars"", ""required"": false },
-            { ""key"": ""incidentParticulars"", ""required"": false },
-            { ""key"": ""respondentParticulars"", ""required"": false },
+            { ""key"": ""respondentParticulars"", ""required"": true },
             { ""key"": ""complaintParticulars"", ""required"": true },
             { ""key"": ""broadcastParticulars"", ""required"": false }
         ],
@@ -36,13 +58,15 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static Dictionary<string, string> GetContractMapEntries() => new(StringComparer.OrdinalIgnoreCase)
     {
+        ["NTC_1_24"] = Ntc124Contract,
         ["NTC_1_25"] = Ntc125Contract,
         ["NTC_REQ_COMPLAINTS"] = Ntc125Contract
     };
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
-        new("NTC_1_25", SvcReqCompId, categoryId, "COMPLAINT FORM", "Requests and Complaints of Consumers/Subscribers", "NTC_1_25", "COMPLAINT FORM (NTC 1-25)", Ntc125Contract)
+        new("NTC_1_24", SvcReqBlockingId, categoryId, "AFFIDAVIT OF OWNERSHIP AND LOSS WITH UNDERTAKING", "Requests for Blocking and Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone", "NTC_1_24", "AFFIDAVIT OF OWNERSHIP AND LOSS WITH UNDERTAKING (NTC 1-24)", Ntc124Contract),
+        new("NTC_1_25", SvcReqCompId, categoryId, "COMPLAINT FORM", "Consumer Complaints and Broadcast Tape Preservation", "NTC_1_25", "COMPLAINT FORM (NTC 1-25)", Ntc125Contract)
     };
 
     // Variant IDs
@@ -54,8 +78,8 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static List<ServiceVariantDef> GetVariantDefs() => new()
     {
-        new(VarReqBlocking, SvcReqCompId, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
-        new(VarReqUnblocking, SvcReqCompId, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+        new(VarReqBlocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Blocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
+        new(VarReqUnblocking, SvcReqBlockingId, ServiceVariantType.NA, "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone"),
         new(VarReqSpam, SvcReqCompId, ServiceVariantType.NA, "Complaints on Text Spam, Text Scam, or Illegal/Obscene/Threat/Other Similar Text Messages", false),
         new(VarReqProvider, SvcReqCompId, ServiceVariantType.NA, "Complaints on Services Offered by Telecommunications or Broadcast Service Providers", false),
         new(VarReqTape, SvcReqCompId, ServiceVariantType.NA, "Request for Mandatory Tape Preservation", false)
@@ -131,10 +155,16 @@ public static class RequestsAndComplaintsCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
+        new("NTC_1_24", Guid.Parse("f2400000-0000-0000-0000-000000000001"), Guid.Parse("f24a0000-0000-0000-0000-000000000000"), new()
+        {
+            new("personal_information", "Personal & Contact Information", new() { "full_name", "citizenship", "residential_address", "residence_telephone", "office_address", "office_telephone", "tin_number" }),
+            new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "make_model_type", "imei_number" }),
+            new("sim_details", "2. SIM Card / Mobile Number Details", new() { "mobile_number" }),
+            new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
+            new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "sex", "age_group", "place_of_incident", "date_of_incident", "time_of_day" })
+        }),
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000001"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {
-            new("deviceParticulars", "Mobile Device and SIM Particulars (for Blocking/Unblocking)", new() { "blockingAction", "deviceBrand", "deviceModel", "deviceColor", "imei1", "imei2", "telcoProvider", "simMobileNumber", "simType" }),
-            new("incidentParticulars", "Incident and Loss Circumstances", new() { "incidentDate", "incidentTime", "incidentLocation", "policeBlotterDetails" }),
             new("respondentParticulars", "Respondent Service Provider / Entity Information", new() { "serviceProviderName", "serviceProviderBranch", "subscriberAccountNo" }),
             new("complaintParticulars", "Nature of Complaint and Desired Action", new() { "complaintType", "complaintSubject", "complaintNarrative", "desiredRelief" }),
             new("broadcastParticulars", "Broadcast Particulars (for Tape Preservation)", new() { "broadcastStationName", "programTitle", "broadcastDate", "broadcastTime", "programHost", "preservationPurpose" })
@@ -145,8 +175,14 @@ public static class RequestsAndComplaintsCategorySeederData
     {
         new(
             Guid.Parse("a1000000-0000-0000-0000-000000000024"),
-            new[] { "Requests and Complaints", "IMEI", "SIM Blocking" },
-            "Requests and Complaints of Consumers/Subscribers\n\nThe Commission acts on:\n\n(a) requests for blocking of mobile phone's IMEI (International Mobile Equipment Identity) and SIM (Subscriber Identity Module) due to lost/stolen cellphone units or unblocking of the same;\n\n(b) complaints of consumers/subscribers of telecommunications companies such as text scams, unwanted calls/texts and illegal/obscene/threat/other similar text messages; and\n\n(c) complaints of consumers/subscribers of telecommunications or broadcast Service Providers (i.e. Cable TV, DTH, etc.) such as billing complaint, poor customer service, poor technical service and fair usage issues.",
+            new[] { "Blocking", "Unblocking", "IMEI", "SIM Blocking", "NTC_1_24" },
+            "Requests for Blocking / Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone\n\nThe Commission acts on requests for blocking of mobile phone's IMEI (International Mobile Equipment Identity) and SIM (Subscriber Identity Module) due to lost/stolen cellphone units or unblocking of the same.",
+            "WHO MAY AVAIL:\n\n1. Individuals\n2. Private and Government Entities"
+        ),
+        new(
+            Guid.Parse("a1000000-0000-0000-0000-000000000025"),
+            new[] { "Complaints", "Complaint Form", "NTC_1_25", "Spam" },
+            "Complaints of Consumers/Subscribers and Broadcast Tape Preservation\n\nThe Commission acts on complaints of consumers/subscribers of telecommunications companies (text scams, spam, illegal/obscene text messages, billing complaints, poor service) and requests for mandatory broadcast tape preservation.",
             "WHO MAY AVAIL:\n\n1. Individuals\n2. Private and Government Entities"
         )
     };
