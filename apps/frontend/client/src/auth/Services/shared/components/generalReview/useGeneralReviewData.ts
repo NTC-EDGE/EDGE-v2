@@ -6,6 +6,7 @@ import { buildDynamicSections } from '../../../../../shared/formPreview/core/bui
 import { isExamEducationField, isExamAssistanceField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
 import { getPreviewExtension } from '../../../../../shared/formPreview/extensions';
 import { computePermitFees } from '../../../permits';
+import { calculateLicenseFee } from '../../../licenses';
 
 export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
   const {
@@ -150,6 +151,82 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     activeApplicant.permitData,
   ]);
 
+  const licenseFeeComputation = useMemo(() => {
+    if (!categoryFlags.isLicenseService) return null;
+
+    const matchedVariantObj = variants.find(
+      (v) => String(v.id).toLowerCase() === String(activeApplicant.selectedVariantId || '').toLowerCase()
+    );
+
+    const appType =
+      activeApplicant.amateurLicenseData?.appType ||
+      activeApplicant.lifetimeLicenseData?.appType ||
+      matchedVariantObj?.description ||
+      matchedVariantObj?.name ||
+      activeApplicant.selectedVariantName ||
+      '';
+
+    const element =
+      activeApplicant.amateurLicenseData?.classOfStation ||
+      activeApplicant.selectedElementTitle ||
+      '';
+
+    let unitCount = 1;
+    let validityYears = 1;
+    let expirationDate: string | Date | null = null;
+
+    if (activeApplicant.amateurLicenseData) {
+      const a = activeApplicant.amateurLicenseData;
+      if (a.noOfYears) {
+        const parsedYrs = parseInt(a.noOfYears, 10);
+        if (!isNaN(parsedYrs) && parsedYrs > 0) {
+          validityYears = parsedYrs;
+        }
+      }
+      if (a.dateOfExpiry) {
+        expirationDate = a.dateOfExpiry;
+      }
+      if (Array.isArray(a.particularsEquipment) && a.particularsEquipment.length > 0) {
+        let totalEquip = 0;
+        for (const grp of a.particularsEquipment) {
+          if (Array.isArray(grp.equipments)) {
+            totalEquip += grp.equipments.length;
+          }
+        }
+        if (totalEquip > 0) {
+          unitCount = totalEquip;
+        }
+      }
+    } else if (activeApplicant.lifetimeLicenseData) {
+      validityYears = 1;
+      if (activeApplicant.lifetimeLicenseData.licenseExpiryDate) {
+        expirationDate = activeApplicant.lifetimeLicenseData.licenseExpiryDate;
+      }
+    }
+
+    return calculateLicenseFee({
+      serviceName: service.title,
+      serviceCategory: service.category,
+      applicationType: appType,
+      variantName: matchedVariantObj?.name || activeApplicant.selectedVariantName,
+      element,
+      validityYears,
+      noOfUnits: unitCount,
+      expirationDate,
+      asOfDate: new Date(),
+    });
+  }, [
+    categoryFlags.isLicenseService,
+    service.title,
+    service.category,
+    variants,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedVariantName,
+    activeApplicant.selectedElementTitle,
+    activeApplicant.amateurLicenseData,
+    activeApplicant.lifetimeLicenseData,
+  ]);
+
   return {
     ...categoryFlags,
     ...particulars,
@@ -163,6 +240,7 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     examEducationFields,
     examAssistanceFields,
     permitFeeComputation,
+    licenseFeeComputation,
   };
 }
 

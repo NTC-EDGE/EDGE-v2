@@ -712,6 +712,74 @@ public static class FastTrackFeeSeeder
                 // PTE
                 (PermitsCategorySeederData.VarPteStorage, FeeConstants.Formulas.PermitStationPossess, false),
                 #endregion
+
+                #region Licenses Formulas
+                // 1. Amateur Service
+                (LicensesCategorySeederData.VarAmaRslNew, FeeConstants.Formulas.LicenseAmateurNew, false),
+                (LicensesCategorySeederData.VarAmaRslRen, FeeConstants.Formulas.LicenseAmateurRenewal, true),
+                (LicensesCategorySeederData.VarAmaRslMod, FeeConstants.Formulas.LicenseAmateurModification, false),
+                (LicensesCategorySeederData.VarAmaLifetimeNew, FeeConstants.Formulas.LicenseAmateurLifetimeNew, false),
+                (LicensesCategorySeederData.VarAmaLifetimeMod, FeeConstants.Formulas.LicenseAmateurLifetimeModification, false),
+                (LicensesCategorySeederData.VarAmaClubNew, FeeConstants.Formulas.LicenseAmateurClubNew, false),
+                (LicensesCategorySeederData.VarAmaClubRen, FeeConstants.Formulas.LicenseAmateurClubRenewal, true),
+                (LicensesCategorySeederData.VarAmaClubMod, FeeConstants.Formulas.LicenseAmateurClubModification, false),
+
+                // 2. Aeronautical Service
+                (LicensesCategorySeederData.VarAeroFixedNew, FeeConstants.Formulas.LicenseAeroFixedNew, false),
+                (LicensesCategorySeederData.VarAeroFixedRen, FeeConstants.Formulas.LicenseAeroFixedRenewal, true),
+                (LicensesCategorySeederData.VarAeroFixedMod, FeeConstants.Formulas.LicenseAeroFixedModification, false),
+                (LicensesCategorySeederData.VarAeroAircraftNew, FeeConstants.Formulas.LicenseAeroAircraftNew, false),
+                (LicensesCategorySeederData.VarAeroAircraftRen, FeeConstants.Formulas.LicenseAeroAircraftRenewal, true),
+                (LicensesCategorySeederData.VarAeroAircraftMod, FeeConstants.Formulas.LicenseAeroAircraftModification, false),
+
+                // 3. Maritime Service
+                (LicensesCategorySeederData.VarMarDomWithoutNew, FeeConstants.Formulas.LicenseMaritimeDomesticWithoutEquipNew, false),
+                (LicensesCategorySeederData.VarMarDomWithNew, FeeConstants.Formulas.LicenseMaritimeDomesticWithEquipNew, false),
+                (LicensesCategorySeederData.VarMarDomRen, FeeConstants.Formulas.LicenseMaritimeDomesticRenewal, true),
+                (LicensesCategorySeederData.VarMarDomMod, FeeConstants.Formulas.LicenseMaritimeDomesticModification, false),
+                (LicensesCategorySeederData.VarMarIntlRen, FeeConstants.Formulas.LicenseMaritimeIntlRenewal, true),
+                (LicensesCategorySeederData.VarMarIntlEarthRen, FeeConstants.Formulas.LicenseMaritimeIntlRenewal, true),
+                (LicensesCategorySeederData.VarMarIntlMod, FeeConstants.Formulas.LicenseMaritimeIntlModification, false),
+                (LicensesCategorySeederData.VarMarIntlEarthMod, FeeConstants.Formulas.LicenseMaritimeIntlModification, false),
+                (LicensesCategorySeederData.VarMarPrivCoastNew, FeeConstants.Formulas.LicenseMaritimePrivateCoastalNew, false),
+                (LicensesCategorySeederData.VarMarPrivCoastRen, FeeConstants.Formulas.LicenseMaritimePrivateCoastalRenewal, true),
+                (LicensesCategorySeederData.VarMarPrivCoastMod, FeeConstants.Formulas.LicenseMaritimePrivateCoastalModification, false),
+                (LicensesCategorySeederData.VarMarPubCoastNew, FeeConstants.Formulas.LicenseMaritimePublicCoastalNew, false),
+                (LicensesCategorySeederData.VarMarPubCoastRen, FeeConstants.Formulas.LicenseMaritimePublicCoastalRenewal, true),
+                (LicensesCategorySeederData.VarMarPubCoastMod, FeeConstants.Formulas.LicenseMaritimePublicCoastalModification, false),
+
+                // 4. Fixed & Land Mobile (FLM)
+                (LicensesCategorySeederData.VarFlmRslNew, FeeConstants.Formulas.LicenseFlmNew, false),
+                (LicensesCategorySeederData.VarFlmRslRen, FeeConstants.Formulas.LicenseFlmRenewal, true),
+                (LicensesCategorySeederData.VarFlmRslMod, FeeConstants.Formulas.LicenseFlmModification, false),
+
+                // 5. Other Radio Services
+                (LicensesCategorySeederData.VarOtherMicrowaveRen, FeeConstants.Formulas.LicenseOtherRenewal, true),
+                (LicensesCategorySeederData.VarOtherMicrowaveMod, FeeConstants.Formulas.LicenseFlmModification, false),
+                (LicensesCategorySeederData.VarOtherVsatRen, FeeConstants.Formulas.LicenseOtherRenewal, true),
+                (LicensesCategorySeederData.VarOtherVsatMod, FeeConstants.Formulas.LicenseFlmModification, false),
+                (LicensesCategorySeederData.VarOtherTrunkedRen, FeeConstants.Formulas.LicenseOtherRenewal, true),
+                (LicensesCategorySeederData.VarOtherTrunkedMod, FeeConstants.Formulas.LicenseFlmModification, false),
+                (LicensesCategorySeederData.VarOtherBwaRen, FeeConstants.Formulas.LicenseOtherRenewal, true),
+                (LicensesCategorySeederData.VarOtherBwaMod, FeeConstants.Formulas.LicenseFlmModification, false),
+                (LicensesCategorySeederData.VarOtherWdnNew, FeeConstants.Formulas.LicenseFlmNew, false),
+                (LicensesCategorySeederData.VarOtherWdnRen, FeeConstants.Formulas.LicenseFlmRenewal, true),
+                (LicensesCategorySeederData.VarOtherWdnMod, FeeConstants.Formulas.LicenseFlmModification, false),
+                (LicensesCategorySeederData.VarOtherBtsRen, FeeConstants.Formulas.LicenseOtherRenewal, true),
+                (LicensesCategorySeederData.VarOtherBtsMod, FeeConstants.Formulas.LicenseOtherBtsModification, false),
+
+                // 6. TVRO & CATV
+                (LicensesCategorySeederData.VarTvroNew, FeeConstants.Formulas.LicenseTvroNew, false),
+                (LicensesCategorySeederData.VarTvroRen, FeeConstants.Formulas.LicenseTvroRenewal, true),
+                (LicensesCategorySeederData.VarTvroMod, FeeConstants.Formulas.LicenseTvroModification, false),
+                (LicensesCategorySeederData.VarCatvNew, FeeConstants.Formulas.LicenseCatvNew, false),
+                (LicensesCategorySeederData.VarCatvRen, FeeConstants.Formulas.LicenseCatvRenewal, true),
+                (LicensesCategorySeederData.VarCatvMod, FeeConstants.Formulas.LicenseCatvModification, false),
+
+                // 7. Copy of Licenses
+                (LicensesCategorySeederData.VarLicTrueCopy, FeeConstants.Formulas.LicenseCertifiedTrueCopy, false),
+                (LicensesCategorySeederData.VarLicDuplicate, FeeConstants.Formulas.LicenseDuplicateCopy, false),
+                #endregion
             };
 
             var existingVariantFormulas = await context.ServiceVariantFormulas.IgnoreQueryFilters().ToListAsync();
@@ -780,6 +848,25 @@ public static class FastTrackFeeSeeder
                 (PermitsCategorySeederData.VarMpDealerNew, "BRANCH", FeeConstants.Formulas.PermitMobilePhoneDealerNew, false),
                 (PermitsCategorySeederData.VarMpDealerRen, "MAIN", FeeConstants.Formulas.PermitMobilePhoneDealerRenewal, true),
                 (PermitsCategorySeederData.VarMpDealerRen, "BRANCH", FeeConstants.Formulas.PermitMobilePhoneDealerRenewal, true),
+                #endregion
+
+                #region Licenses Elements
+                // Amateur Radio Station License
+                (LicensesCategorySeederData.VarAmaRslNew, "Class A", FeeConstants.Formulas.LicenseAmateurNew, false),
+                (LicensesCategorySeederData.VarAmaRslNew, "Class B", FeeConstants.Formulas.LicenseAmateurNew, false),
+                (LicensesCategorySeederData.VarAmaRslNew, "Class C", FeeConstants.Formulas.LicenseAmateurNew, false),
+                (LicensesCategorySeederData.VarAmaRslNew, "Class D", FeeConstants.Formulas.LicenseAmateurNew, false),
+
+                (LicensesCategorySeederData.VarAmaRslRen, "Class A", FeeConstants.Formulas.LicenseAmateurRenewal, true),
+                (LicensesCategorySeederData.VarAmaRslRen, "Class B", FeeConstants.Formulas.LicenseAmateurRenewal, true),
+                (LicensesCategorySeederData.VarAmaRslRen, "Class C", FeeConstants.Formulas.LicenseAmateurRenewal, true),
+                (LicensesCategorySeederData.VarAmaRslRen, "Class D", FeeConstants.Formulas.LicenseAmateurRenewal, true),
+
+                // Amateur Club License
+                (LicensesCategorySeederData.VarAmaClubNew, "Simplex", FeeConstants.Formulas.LicenseAmateurClubNew, false),
+                (LicensesCategorySeederData.VarAmaClubNew, "Duplex", FeeConstants.Formulas.LicenseAmateurClubNew, false),
+                (LicensesCategorySeederData.VarAmaClubRen, "Simplex", FeeConstants.Formulas.LicenseAmateurClubRenewal, true),
+                (LicensesCategorySeederData.VarAmaClubRen, "Duplex", FeeConstants.Formulas.LicenseAmateurClubRenewal, true),
                 #endregion
             };
 

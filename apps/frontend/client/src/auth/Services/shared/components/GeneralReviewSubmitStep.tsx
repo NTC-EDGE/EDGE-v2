@@ -16,6 +16,7 @@ import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
 import { PermitFeeSummaryCard } from './generalReview/PermitFeeSummaryCard';
+import { LicenseFeeSummaryCard } from './generalReview/LicenseFeeSummaryCard';
 import { UploadedDocumentsReviewCard } from './generalReview/UploadedDocumentsReviewCard';
 import { FilingIntentReviewCard } from './generalReview/FilingIntentReviewCard';
 
@@ -139,6 +140,12 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
             {reviewData.permitFeeComputation && (
               <PermitFeeSummaryCard
                 computation={reviewData.permitFeeComputation}
+                isAssessmentOnly={filingIntent === 'AssessmentOnly'}
+              />
+            )}
+            {reviewData.licenseFeeComputation && (
+              <LicenseFeeSummaryCard
+                computation={reviewData.licenseFeeComputation}
                 isAssessmentOnly={filingIntent === 'AssessmentOnly'}
               />
             )}
