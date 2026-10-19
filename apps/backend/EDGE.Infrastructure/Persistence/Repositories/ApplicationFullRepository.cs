@@ -98,6 +98,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.Histories)
             .Include(a => a.OrdersOfPayment)
                 .ThenInclude(o => o.Histories)
+            .Include(a => a.IssuedDocumentDetails)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
             .Include(a => a.Tenant)

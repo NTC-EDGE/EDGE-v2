@@ -55,6 +55,20 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
         var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();
 
+        var issuingHistory = allHistories.FirstOrDefault(h =>
+            h.ToStatus == Domain.Enums.ApplicationStatus.Completed ||
+            (h.Action != null && (
+                h.Action.Contains("Document & License issued", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("License issued", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase))));
+
+        var resolvedIssuingOfficer = app.IssuedDocumentDetails?
+            .OrderByDescending(d => d.IssueDate)
+            .Select(d => d.IssuedByStaffName)
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))
+            ?? issuingHistory?.StaffName;
+
         var dto = new ApplicationDto
         {
             Id = app.Id,
@@ -70,7 +84,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
             EvaluatingOfficer = resolvedEvaluatorName,
-            IssuingOfficer = resolvedApproverName,
+            IssuingOfficer = resolvedIssuingOfficer,
             Remarks = app.Remarks,
             UserId = app.UserId,
             IsGuest = app.IsGuest,
@@ -315,7 +329,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Timestamp = oh.Timestamp
                 }).ToList()
             }).ToList(),
-            Histories = app.Histories.Select(h => new ApplicationHistoryDto
+            Histories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>()).Select(h => new ApplicationHistoryDto
             {
                 Id = h.Id,
                 Action = h.Action,
