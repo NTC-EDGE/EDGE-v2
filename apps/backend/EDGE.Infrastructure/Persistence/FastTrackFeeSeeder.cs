@@ -444,7 +444,50 @@ public static class FastTrackFeeSeeder
                 (LicensesCategorySeederData.VarLicTrueCopy, FeeConstants.Codes.SucceedingCopies, FeeConstants.Amounts.PermitCertifiedTrueCopySucceedingPage),
                 (LicensesCategorySeederData.VarLicTrueCopy, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
                 (LicensesCategorySeederData.VarLicDuplicate, FeeConstants.Codes.Duplicate, FeeConstants.Amounts.DuplicateCopyRate),
-                (LicensesCategorySeederData.VarLicDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax)
+                (LicensesCategorySeederData.VarLicDuplicate, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                #endregion
+
+                #region Accreditations
+                // Mobile Phone CPE Supplier Accreditation
+                (AccreditationsCategorySeederData.VarCpeMobileNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.CpeFilingFee),
+                (AccreditationsCategorySeederData.VarCpeMobileNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.CpeMobilePermitRate),
+                (AccreditationsCategorySeederData.VarCpeMobileNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.CpeMobileInspectionRate),
+                (AccreditationsCategorySeederData.VarCpeMobileNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (AccreditationsCategorySeederData.VarCpeMobileRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.CpeMobilePermitRate),
+                (AccreditationsCategorySeederData.VarCpeMobileRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.CpeMobileInspectionRate),
+                (AccreditationsCategorySeederData.VarCpeMobileRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (AccreditationsCategorySeederData.VarCpeMobileMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CpeModificationFee),
+                (AccreditationsCategorySeederData.VarCpeMobileMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                // Non-Mobile Phone CPE Supplier Accreditation
+                (AccreditationsCategorySeederData.VarCpeNonMobileNew, FeeConstants.Codes.FilingFee, FeeConstants.Amounts.CpeFilingFee),
+                (AccreditationsCategorySeederData.VarCpeNonMobileNew, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.CpeNonMobilePermitRate),
+                (AccreditationsCategorySeederData.VarCpeNonMobileNew, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.CpeNonMobileInspectionRate),
+                (AccreditationsCategorySeederData.VarCpeNonMobileNew, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (AccreditationsCategorySeederData.VarCpeNonMobileRen, FeeConstants.Codes.PermitFee, FeeConstants.Amounts.CpeNonMobilePermitRate),
+                (AccreditationsCategorySeederData.VarCpeNonMobileRen, FeeConstants.Codes.InspectionFee, FeeConstants.Amounts.CpeNonMobileInspectionRate),
+                (AccreditationsCategorySeederData.VarCpeNonMobileRen, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+
+                (AccreditationsCategorySeederData.VarCpeNonMobileMod, FeeConstants.Codes.Modification, FeeConstants.Amounts.CpeModificationFee),
+                (AccreditationsCategorySeederData.VarCpeNonMobileMod, FeeConstants.Codes.Dst, FeeConstants.Amounts.DocumentaryStampTax),
+                #endregion
+
+                #region Exams
+                // Radio Operator Examinations
+                (ExamsCategorySeederData.VarRtgFirstTaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRtgRetaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRtgUpgrade, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRtpFirstTaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRtpRetaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRtpUpgrade, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarAmaFirstTaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarAmaRetaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarAmaUpgrade, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRrocAirFirstTaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate),
+                (ExamsCategorySeederData.VarRrocAirRetaker, FeeConstants.Codes.Exam, FeeConstants.Amounts.DefaultExamRate)
                 #endregion
             };
 
@@ -787,6 +830,29 @@ public static class FastTrackFeeSeeder
                 (RequestsAndComplaintsCategorySeederData.VarReqSpam, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
                 (RequestsAndComplaintsCategorySeederData.VarReqProvider, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
                 (RequestsAndComplaintsCategorySeederData.VarReqTape, FeeConstants.Formulas.RequestsAndComplaintsFree, false),
+                #endregion
+
+                #region Accreditations Formulas
+                (AccreditationsCategorySeederData.VarCpeMobileNew, FeeConstants.Formulas.CpeAccreditationNew, false),
+                (AccreditationsCategorySeederData.VarCpeMobileRen, FeeConstants.Formulas.CpeAccreditationRenewal, true),
+                (AccreditationsCategorySeederData.VarCpeMobileMod, FeeConstants.Formulas.CpeAccreditationModification, false),
+                (AccreditationsCategorySeederData.VarCpeNonMobileNew, FeeConstants.Formulas.CpeAccreditationNew, false),
+                (AccreditationsCategorySeederData.VarCpeNonMobileRen, FeeConstants.Formulas.CpeAccreditationRenewal, true),
+                (AccreditationsCategorySeederData.VarCpeNonMobileMod, FeeConstants.Formulas.CpeAccreditationModification, false),
+                #endregion
+
+                #region Exams Formulas
+                (ExamsCategorySeederData.VarRtgFirstTaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRtgRetaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRtgUpgrade, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRtpFirstTaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRtpRetaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRtpUpgrade, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarAmaFirstTaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarAmaRetaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarAmaUpgrade, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRrocAirFirstTaker, FeeConstants.Formulas.ExamStandard, false),
+                (ExamsCategorySeederData.VarRrocAirRetaker, FeeConstants.Formulas.ExamStandard, false)
                 #endregion
             };
 

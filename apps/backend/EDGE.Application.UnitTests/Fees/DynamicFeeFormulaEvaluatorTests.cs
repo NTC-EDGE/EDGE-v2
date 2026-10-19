@@ -128,6 +128,13 @@ public class DynamicFeeFormulaEvaluatorTests
     [InlineData("RATE * YEARS + (NAS * 1000) + DST")]
     [InlineData("180 * YR + 30")]
     [InlineData("(RATE + 50) * 2")]
+    [InlineData("FEEACCRED = FF + (ACCRED)(YR) + DST")]
+    [InlineData("FEEACCRED = FF + (ACCRED)(YR) + DST + SUR")]
+    [InlineData("FEEACCRED = FF + MOD + DST")]
+    [InlineData("FEECPE = FF + (PF)(YR) + (IF)(YR) + DST")]
+    [InlineData("FEECPE = (PF)(YR) + (IF)(YR) + DST + SUR")]
+    [InlineData("FEECPE = MOD + DST")]
+    [InlineData("FEEEXAM = EXAMFEE")]
     public void Validate_ValidFormulas_ShouldReturnSuccess(string formula)
     {
         var (isValid, errorMessage) = DynamicFeeFormulaEvaluator.Validate(formula);
