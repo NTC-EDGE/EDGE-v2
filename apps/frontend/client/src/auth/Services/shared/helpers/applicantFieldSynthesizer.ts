@@ -145,6 +145,10 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'cor / vas no.':            'fd000000-0000-0000-0000-000000000233',
   'operating trade name':     'fd000000-0000-0000-0000-000000000235',
   'cor / vas no. date of expiry': 'fd000000-0000-0000-0000-000000000238',
+
+  // NTC 1-24 Blocking / Unblocking
+  'action requested':         'fd000000-0000-0000-0000-000000000307',
+  'action_requested':         'fd000000-0000-0000-0000-000000000307',
 };
 
 const MONTH_NAMES = [

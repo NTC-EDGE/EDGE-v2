@@ -49,6 +49,7 @@ export interface DynamicFormFieldProps {
   parentMakeTypeModel?: string;
   hideAddButton?: boolean;
   maxRows?: number;
+  disabled?: boolean;
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
   onDropdownChange: (val: string) => void;
@@ -90,6 +91,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   parentMakeTypeModel,
   hideAddButton,
   maxRows,
+  disabled = false,
   onChange,
   onStructuredNameChange,
   onDropdownChange,
@@ -160,7 +162,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
               </Text>
             </View>
           )}
-          <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} />
+          <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} disabled={disabled} />
         </View>
       ) : isDate ? (
         <DatePickerInput label={displayLabel} required={isRequired} value={val} onChangeText={(v) => onChange(targetId, displayLabel, v)} error={err} />

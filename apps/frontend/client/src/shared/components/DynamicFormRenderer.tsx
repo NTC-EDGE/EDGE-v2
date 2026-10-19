@@ -61,6 +61,11 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const matchedVariant = variants.find((v) => String(v.id) === String(selectedVariantId));
   const matchedElement = variantElements.find((e) => String(e.id) === String(selectedElementId));
 
+  const varDesc = (matchedVariant?.description || matchedVariant?.name || matchedVariant?.type || "").toLowerCase();
+  const isUnblocking = varDesc.includes("unblock");
+  const isBlocking = varDesc.includes("block") && !isUnblocking;
+  const isBlockingOrUnblocking = isBlocking || isUnblocking;
+
   const evaluationContext: FormEvaluationContext = {
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
     variantId: selectedVariantId,
@@ -82,6 +87,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const labelLower = (field.label || "").toLowerCase().trim();
     const rawType = (field.fieldType || field.type || "").toLowerCase();
 
+    const isActionRequestedField = fIdLower === "action_requested" || labelLower.includes("action requested");
     const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails") || fIdLower.includes("devicesdetails");
     const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
     const isVasRegField = fIdLower.includes("vasregistration") || fIdLower.includes("vasregno");
@@ -89,7 +95,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || fIdLower === "bandwidthunit" || fIdLower === "frequencyunit" || fIdLower === "sex" || fIdLower === "stationclass";
+    const isDropdown = rawType === "dropdown" || rawType === "select" || rawType === "radio" || fIdLower === "bandwidthunit" || fIdLower === "frequencyunit" || fIdLower === "sex" || fIdLower === "stationclass" || isActionRequestedField;
     const isDate = rawType === "date" || labelLower.includes("date");
     const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts") || labelLower.includes("height") || labelLower.includes("weight") || labelLower.includes("gain") || labelLower.includes("diameter");
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
@@ -117,7 +123,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       span = 6;
     }
 
-    const val = (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
+    let val = (values && values[rawTargetId]) || (values && field.label && values[field.label]) || "";
+    if (isActionRequestedField && isBlockingOrUnblocking) {
+      val = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+    }
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
     if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
@@ -129,6 +138,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
     else if (labelLower.includes("city") || labelLower.includes("municipality") || fIdLower === "city" || fIdLower.includes("city") || fIdLower.includes("municipality")) dropdownOptions = municipalities.map((m: { id: string; name: string }) => ({ label: m.name, value: m.name }));
     else if (labelLower === "barangay" || fIdLower === "barangay" || fIdLower.includes("barangay")) dropdownOptions = barangays.map((b: { id: string; name: string }) => ({ label: b.name, value: b.name }));
+    else if (isActionRequestedField) {
+      dropdownOptions = [
+        { label: "BLOCK GSM Handset", value: "BLOCK GSM Handset" },
+        { label: "UNBLOCK GSM Handset", value: "UNBLOCK GSM Handset" },
+      ];
+    }
     else dropdownOptions = parseOptions(field);
 
     const isFieldRequired = field.isRequired ?? false;
@@ -139,6 +154,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         field={field}
         targetId={rawTargetId}
         val={val}
+        disabled={isActionRequestedField && isBlockingOrUnblocking}
         err={
           errors?.[rawTargetId] ||
           errors?.[field.label] ||
@@ -216,6 +232,31 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       k === "assistancerequest" ||
       t.includes("special needs")
     ) {
+      return false;
+    }
+
+    const isBlockingSection =
+      k === "request_type_and_device_details" ||
+      k === "sim_details" ||
+      k === "supporting_documents" ||
+      k === "incident_and_demographic_info" ||
+      t.includes("device particulars") ||
+      t.includes("sim card") ||
+      t.includes("proof of ownership") ||
+      t.includes("incident details");
+
+    const isComplaintSection =
+      k === "particulars_of_service_provider" ||
+      k === "nature_of_complaint" ||
+      k === "complaint_details" ||
+      t.includes("service provider") ||
+      t.includes("nature of complaint") ||
+      t.includes("details of complaint");
+
+    if (isBlockingOrUnblocking && isComplaintSection) {
+      return false;
+    }
+    if (!isBlockingOrUnblocking && isBlockingSection) {
       return false;
     }
 
