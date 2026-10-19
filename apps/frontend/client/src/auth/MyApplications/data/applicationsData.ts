@@ -380,7 +380,7 @@ export function getStatusLabel(status: ApplicationStatus): string {
     case 'APPROVED':         return 'Issued';
     case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
-    case 'READY_FOR_PAYMENT':return 'Ready For Payment';
+    case 'READY_FOR_PAYMENT':return 'For Payment';
     case 'PENDING':          return 'Submitted';
   }
 }
@@ -1114,8 +1114,18 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
   const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
-  const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;
-  const primaryOpDto = rawOps.length > 0 ? rawOps[0] : undefined;
+  const sortedSoas = [...rawSoas].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const sortedOps = [...rawOps].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const primarySoaDto = sortedSoas.length > 0 ? sortedSoas[0] : undefined;
+  const primaryOpDto = sortedOps.length > 0 ? sortedOps[0] : undefined;
 
   const resolvedOrNumber =
     dto.officialReceiptNumber ||

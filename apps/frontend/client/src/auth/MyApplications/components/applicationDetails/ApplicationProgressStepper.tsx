@@ -33,11 +33,15 @@ export function ApplicationProgressStepper({
   const statusLower = (typeof status === 'string' ? status : '').toLowerCase();
 
   const isPaymentSubmitted =
-    remarksLower.includes('payment submitted') ||
-    remarksLower.includes('waiting for cashier verification') ||
-    remarksLower.includes('verification in progress') ||
-    statusLower === 'payment_submitted' ||
-    statusLower === 'payment_processing';
+    statusLower !== 'ready_for_payment' &&
+    !remarksLower.includes('order of payment returned') &&
+    (
+      remarksLower.includes('payment submitted') ||
+      remarksLower.includes('waiting for cashier verification') ||
+      remarksLower.includes('verification in progress') ||
+      statusLower === 'payment_submitted' ||
+      statusLower === 'payment_processing'
+    );
 
   const paymentSubLabel =
     currentStepIndex > 3
@@ -45,7 +49,7 @@ export function ApplicationProgressStepper({
       : isPaymentSubmitted
         ? 'Verification in progress'
         : currentStepIndex === 3
-          ? 'Ready for payment'
+          ? 'For payment'
           : 'Fee assessment';
 
   const STEPS = [

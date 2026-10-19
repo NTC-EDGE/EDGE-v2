@@ -62,7 +62,7 @@ export function ClientPaymentSubmissionModal({
     handleRemoveCombinationRow,
     handleUpdateCombinationRow,
     handleSubmit,
-  } = useClientPaymentSubmission({ app, onClose, onSuccess });
+  } = useClientPaymentSubmission({ app, onClose, onSuccess, visible });
 
   const isSubmitDisabled = isExceedingTotal || (selectedMode === 'Combination' && !isAllocationBalanced);
 

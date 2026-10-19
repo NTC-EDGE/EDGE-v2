@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Application } from '../../../data/applicationsData';
 import {
   applicationService,
@@ -16,9 +16,10 @@ interface UseClientPaymentSubmissionProps {
   app: Application;
   onClose: () => void;
   onSuccess: () => void;
+  visible?: boolean;
 }
 
-export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClientPaymentSubmissionProps) {
+export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }: UseClientPaymentSubmissionProps) {
   const toast = useToast();
 
   const totalAmountDue = useMemo(() => {
@@ -73,6 +74,22 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
   };
 
   const [combinationRows, setCombinationRows] = useState<CombinationRow[]>(createDefaultCombinationItems);
+
+  // When modal is opened or when application / OP details change (e.g. after new accountant approval),
+  // reset payment mode and fields so the client can select and configure their mode of payment afresh.
+  useEffect(() => {
+    if (visible) {
+      setSelectedMode('LandBank');
+      setReferenceNumber('');
+      setPayorName(app.applicantName || app.companyName || '');
+      setRemarks('');
+      setCheckNumber('');
+      setCheckBank('');
+      setCheckDate('');
+      setErrorMessage(null);
+      setCombinationRows(createDefaultCombinationItems());
+    }
+  }, [visible, app.id, app.op?.id]);
 
   const combinationTotalAllocated = useMemo(() => {
     return combinationRows.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
@@ -281,6 +298,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
             remarks: 'Walk-in cash payment at NTC Regional Office Cashier',
           },
         ],
+        payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
       };
     } else if (selectedMode === 'Check') {
@@ -299,6 +317,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
             checkDate: checkDate.trim() || undefined,
           },
         ],
+        payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
       };
     } else if (selectedMode === 'Combination') {
@@ -324,6 +343,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
         isCombination: true,
         totalAmount: combinationTotalAllocated,
         items: breakdownItems,
+        payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
       };
     } else {
@@ -340,6 +360,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess }: UseClien
             remarks: `Gateway: ${selectedMode}`,
           },
         ],
+        payorName: payorName.trim() || undefined,
         userNotes: remarks.trim() || undefined,
       };
     }

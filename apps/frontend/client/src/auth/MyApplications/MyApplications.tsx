@@ -534,7 +534,7 @@ export function MyApplications() {
                           ["ALL", "All Statuses"],
                           ["PENDING", "Submitted"],
                           ["FOR_EVALUATION", "For Evaluation"],
-                          ["READY_FOR_PAYMENT", "Ready for Payment"],
+                          ["READY_FOR_PAYMENT", "For Payment"],
                           ["FOR_APPROVAL", "For Issuance"],
                           ["APPROVED", "Issued"],
                           ["DECLINED", "Returned"],
