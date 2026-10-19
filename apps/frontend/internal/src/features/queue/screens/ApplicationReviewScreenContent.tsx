@@ -30,6 +30,7 @@ import {
   useNextAvailableOrNumber,
   PendingPaymentDto,
   OfficialReceiptDto,
+  parsePaymentBreakdown,
 } from "@edge/api";
 import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
@@ -200,6 +201,21 @@ export function ApplicationReviewScreenContent({
       ? itemApp.referenceNumber
       : itemApp.id.slice(0, 8).toUpperCase();
 
+    const effectiveRemarks = itemApp.payment?.remarks || itemApp.note || null;
+    const parsedBreakdown = parsePaymentBreakdown(effectiveRemarks);
+
+    const originalApplicantName =
+      itemApp.applicantsList?.[selectedApplicantIndex]?.name ||
+      itemApp.applicant ||
+      itemApp.companyDetails?.name ||
+      'Applicant';
+
+    const effectivePayorName =
+      parsedBreakdown?.payorName ||
+      itemApp.payment?.payorName ||
+      itemApp.payment?.checkName ||
+      undefined;
+
     return {
       orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
       applicationId: itemApp.id,
@@ -209,16 +225,21 @@ export function ApplicationReviewScreenContent({
       soaNumber: `SOA-${refOrId}`,
       applicationNumber: itemApp.applicationNumber || '',
       referenceNumber: itemApp.referenceNumber || '',
-      applicantName: itemApp.applicant || itemApp.companyDetails?.name || 'Applicant',
+      applicantName: originalApplicantName,
+      payorName: effectivePayorName,
       applicantType: itemApp.applicantType || 'Individual',
       serviceName: itemApp.serviceName || itemApp.permitTitle || itemApp.category || 'NTC Service',
       serviceCategory: itemApp.serviceCategory || itemApp.category || 'Licensing',
       amountDue: itemApp.totalAmountDue || itemApp.payment?.amountReceived || 0,
       billedAt: itemApp.createdAt || new Date().toISOString(),
-      remarks: itemApp.note || null,
+      remarks: effectiveRemarks,
       lineItems,
+      paymentMethod: itemApp.payment?.paymentMethod || (itemApp.payment?.method === 'check' ? 'Check' : 'Cash'),
+      checkNumber: itemApp.payment?.checkNumber || undefined,
+      checkBank: itemApp.payment?.checkBank || undefined,
+      checkDate: itemApp.payment?.checkDate || undefined,
     };
-  }, [selectedApplication, user?.tenantId]);
+  }, [selectedApplication, user?.tenantId, selectedApplicantIndex]);
 
   useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
   useEffect(() => {
@@ -425,6 +446,13 @@ export function ApplicationReviewScreenContent({
       toast.error('Failed to claim application authority.');
       return;
     }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+      ...(isForAccountant ? { accountingOfficer: officerName } : {}),
+      ...(isPendingPayment ? { cashierOfficer: officerName } : {}),
+      ...(isForIssuance ? { issuingOfficer: officerName } : {}),
+      ...(isEvaluating || isSubmitted || isReturned ? { evaluatingOfficer: officerName } : {}),
+    });
     toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
     await mutateApplications(app.id);
     await refetch();
@@ -485,6 +513,9 @@ export function ApplicationReviewScreenContent({
       toast.error(`Approval failed: ${errMsg}`);
       return;
     }
+    await updateApplication(app.id, {
+      accountingOfficer: officerName,
+    });
     toast.success('Application and SOA approved. Order of Payment generated.');
     await mutateApplications(app.id);
     await refetch();
@@ -498,6 +529,7 @@ export function ApplicationReviewScreenContent({
     if (receipt && receipt.officialReceiptNumber) {
       updateApplication(app.id, {
         status: 'ForIssuance',
+        cashierOfficer: officerName,
         payment: {
           ...app.payment,
           orNumber: receipt.officialReceiptNumber,
@@ -535,8 +567,8 @@ export function ApplicationReviewScreenContent({
     let actionTitle = 'Returned with Notice';
 
     if (isEndorsedToMe && app.endorsedBy) {
-      // Endorsed officer returns -> goes back to endorsing evaluator
-      targetStatus = 'Evaluating';
+      // Endorsed officer returns -> goes back to endorsing officer in current stage
+      targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
       successMessage = `Application returned to ${app.endorsedBy}.`;
       auditRemarks = `Returned by ${officerName} to ${app.endorsedBy}: ${trimmedNotice}`;
       actionTitle = `Returned to ${app.endorsedBy}`;
@@ -603,7 +635,16 @@ export function ApplicationReviewScreenContent({
     if (isEndorsedToMe && app.endorsedBy) {
       await updateApplication(app.id, {
         assignedTo: app.endorsedBy,
+        ...(isPendingPayment ? { cashierOfficer: app.endorsedBy } : {}),
       });
+    } else if (app.status === 'PendingPayment') {
+      const prevAccountant = app.accountingOfficer;
+      if (prevAccountant) {
+        await updateApplication(app.id, {
+          assignedTo: prevAccountant,
+          accountingOfficer: prevAccountant,
+        });
+      }
     } else if (app.status === 'ForAccountant' || app.status === 'ForIssuance') {
       const prevEvaluator = getApprovingEvaluator(app);
       if (prevEvaluator) {
@@ -618,19 +659,21 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
-  /** Endorse to a specific person/evaluator for review */
+  /** Endorse to a specific person/officer for review */
   const handleEndorse = async (submission: EndorsementSubmission) => {
     setShowEndorse(false);
     const { person, notes } = submission;
     const notesSuffix = notes && notes.trim().length > 0 ? ` Instructions: ${notes.trim()}` : '';
-    const roleLabel = person.position || person.role || 'Evaluator';
+    const roleLabel = person.position || person.role || (isPendingPayment ? 'Cashier' : 'Evaluator');
     const remarks = `Application endorsed to ${person.name} (${roleLabel}) by ${officerName}.${notesSuffix}`;
 
+    const targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
+
     const [, err] = await applicationService.updateStatus(app.id, {
-      status: 'Evaluating',
+      status: targetStatus,
       action: `Endorsed to ${person.name}`,
       staffName: officerName,
-      staffRole: currentRole || 'Evaluating Officer',
+      staffRole: currentRole || (isPendingPayment ? 'Cashier' : 'Evaluating Officer'),
       remarks,
     });
     if (err !== null) {
@@ -639,6 +682,7 @@ export function ApplicationReviewScreenContent({
     }
     await updateApplication(app.id, {
       assignedTo: person.name,
+      ...(isPendingPayment ? { cashierOfficer: person.name } : {}),
     });
     toast.success(`Application endorsed to ${person.name}.`);
     await mutateApplications(app.id);
@@ -676,7 +720,14 @@ export function ApplicationReviewScreenContent({
   const isPaymentSubmitted = Boolean(
     (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
-    (app.history && app.history.some((h) => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment')))
+    (() => {
+      if (!app.history || app.history.length === 0) return false;
+      const paymentIdx = app.history.findIndex(h => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment'));
+      if (paymentIdx === -1) return false;
+      const resetIdx = app.history.findIndex(h => h.action.toLowerCase().includes('returned') || h.action.toLowerCase().includes('soa approved by accountant'));
+      if (resetIdx !== -1 && resetIdx < paymentIdx) return false;
+      return true;
+    })()
   );
   const canActAsAccountant = currentRole === 'Accountant' || canApproveAsAccountant || isAdmin;
   const canActAsCashier = currentRole === 'Cashier' || canVerifyCashier || isAdmin;
@@ -687,8 +738,7 @@ export function ApplicationReviewScreenContent({
     showStartEvalBtn ||
     ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
     (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
-    (isPendingPayment && isStageUnclaimed && canActAsCashier) ||
-    (isForIssuance && isStageUnclaimed && canActAsReleasing)
+    (isPendingPayment && isStageUnclaimed && canActAsCashier)
   );
 
   /** Show Cashier-specific payment verify button */
@@ -696,7 +746,7 @@ export function ApplicationReviewScreenContent({
   /** Show Accountant-specific SOA approve button */
   const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && canActAsAccountant && isStageClaimedByMe;
   /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
-  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing && isStageClaimedByMe;
+  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing;
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
   const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe;
 
@@ -709,18 +759,13 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = showStartEvalBtn ? 'Start Evaluation' : isReturned ? 'Resume Evaluation' : 'Take Application';
     approveButtonIcon = 'play-circle';
   } else if (showCashierBtn) {
-    if (isPaymentSubmitted) {
-      approveButtonLabel = 'Verify & Issue OR';
-      approveButtonIcon = 'credit-card';
-    } else {
-      approveButtonLabel = 'Awaiting Client Payment (Locked)';
-      approveButtonIcon = 'play-circle';
-    }
+    approveButtonLabel = isPaymentSubmitted ? 'Verify & Issue OR' : 'Issue Official Receipt';
+    approveButtonIcon = 'credit-card';
   } else if (showAccountantBtn) {
     approveButtonLabel = 'Approve & Issue OP';
     approveButtonIcon = 'check-circle';
   } else if (showIssueBtn) {
-    approveButtonLabel = 'Issue Document & License';
+    approveButtonLabel = 'Release Document';
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
@@ -733,26 +778,38 @@ export function ApplicationReviewScreenContent({
   }
 
   // Primary action button (Approve / Start Evaluation / Take Application / Verify Payment / Approve SOA / Issue Document)
-  const canApproveAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
-    showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn
+  const canApproveAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && (showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn))
   );
 
   // Return button: Enabled for authorized officers reviewing an application across workflow stages.
   // Enforces the rule: "No one can transact an application without taking/claiming it first".
   // The Return button is ONLY enabled once the officer has claimed authority (or started evaluation).
   // On unclaimed applications (showClaimBtn is true), only Start Evaluation / Take Application is enabled.
-  const canDeclineAction = !isEndorsedAwayFromMe && !isStageClaimedByOther && !showClaimBtn && (
-    ((isEvaluating || isReturned) && isStageClaimedByMe) ||
-    (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
-    (isPendingPayment && canActAsCashier && isStageClaimedByMe) ||
-    (isForIssuance && canActAsReleasing && isStageClaimedByMe)
+  const canDeclineAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && !showClaimBtn && (
+      ((isEvaluating || isReturned) && isStageClaimedByMe) ||
+      (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    ))
   );
 
-  const showReturnBtn = canDecline && !isEndorsedAwayFromMe && !isStageClaimedByOther && app.queueTab !== "history";
+  const showReturnBtn = canDecline && !isEndorsedAwayFromMe && app.queueTab !== "history" && (
+    (isForIssuance && canActAsReleasing) || !isStageClaimedByOther
+  );
   const isReturnDisabled = !canDeclineAction;
 
-  // Endorse button: ONLY available when actively evaluating (by current evaluator or endorsed officer)
-  const canEndorseAction = isActivelyEvaluating && canEndorse && !isEndorsedAwayFromMe;
+  // Endorse button: Available when actively evaluating, or when Cashier is reviewing in PendingPayment
+  const canEndorseAction =
+    canEndorse &&
+    !isEndorsedAwayFromMe &&
+    !isStageClaimedByOther &&
+    (
+      isActivelyEvaluating ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    );
 
   const handlePrimaryAction = () => {
     if (showClaimBtn) {
@@ -864,28 +921,38 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#14532D' : '#F0FDF4', borderBottomColor: isDark ? '#15803D' : '#BBF7D0' }]}>
           <Lucide name="share-2" size={14} color={isDark ? '#4ADE80' : '#16A34A'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DCFCE7' : '#14532D' }]}>
-            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''} for evaluation.
+            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}{isPendingPayment ? ' for payment verification.' : ' for evaluation.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Ready for document release banner for ForIssuance */}
+      {!isEndorsedAwayFromMe && isForIssuance && canActAsReleasing && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5', borderBottomColor: isDark ? '#047857' : '#A7F3D0' }]}>
+          <Lucide name="award" size={14} color={isDark ? '#6EE7B7' : '#059669'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#D1FAE5' : '#065F46' }]}>
+            Application is verified and awaiting release. Click <Text style={{ fontWeight: '700' }}>"Release Document"</Text> to generate control numbers and issue document.
           </Text>
         </View>
       )}
 
       {/* Locked / Under Review by another officer banner */}
-      {!isEndorsedAwayFromMe && !isEndorsedToMe && (isEvaluatedByOther || isStageClaimedByOther) && (
+      {!isEndorsedAwayFromMe && !isEndorsedToMe && !isForIssuance && (isEvaluatedByOther || isStageClaimedByOther) && (
         <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
           <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
           <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
-            Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : isForIssuance ? 'document release' : 'evaluation'} by{' '}
+            Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : 'evaluation'} by{' '}
             <Text style={{ fontWeight: '700' }}>{currentStageOfficer || evaluatingOfficer || 'another officer'}</Text>. Actions locked.
           </Text>
         </View>
       )}
 
       {/* Awaiting evaluation or authority claim banner for applications in queue */}
-      {!isEndorsedAwayFromMe && isStageUnclaimed && (
+      {!isEndorsedAwayFromMe && isStageUnclaimed && !isForIssuance && (
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF', borderBottomColor: isDark ? '#334155' : '#BFDBFE' }]}>
           <Lucide name="play-circle" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
-            Application is in queue. Click <Text style={{ fontWeight: '700' }}>{isSubmitted ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : isForIssuance ? 'document release' : 'evaluation'}.
+            Application is in queue. Click <Text style={{ fontWeight: '700' }}>{isSubmitted ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
           </Text>
         </View>
       )}
@@ -942,8 +1009,6 @@ export function ApplicationReviewScreenContent({
           isEditable={isEditable}
           updateApplication={updateApplication}
           onOpenGenerateSoa={() => setShowGenerateSoa(true)}
-          onPrintSoa={handlePrintSoa}
-          onPrintOp={handlePrintOp}
           onPreviewReport={handlePreviewReport}
         />
       )}
@@ -957,8 +1022,7 @@ export function ApplicationReviewScreenContent({
         canDecline={showReturnBtn}
         canEndorse={canEndorseAction}
         isApproveDisabled={
-          (showForwardBtn && hasIncompleteApplicants) ||
-          (showCashierBtn && !isPaymentSubmitted)
+          (showForwardBtn && hasIncompleteApplicants)
         }
         isReturnDisabled={isReturnDisabled}
         approveLabel={approveButtonLabel}
@@ -1064,6 +1128,10 @@ export function ApplicationReviewScreenContent({
         currentOfficerName={officerName}
         onClose={() => setShowIssueDoc(false)}
         onSuccess={async () => {
+          await updateApplication(app.id, {
+            issuingOfficer: officerName,
+            status: 'Completed',
+          });
           await mutateApplications(app.id);
           await refetch();
           onClose();
@@ -1133,7 +1201,7 @@ function WorkflowActionBar({
   const isClaimOrSpecial = approveIcon === 'play-circle' || approveLabel.includes('Start') || approveLabel.includes('Take') || approveLabel.includes('Verify') || approveLabel.includes('Issue') || approveLabel.includes('Approve');
   const approveEnabled = canApprove && !isApproveDisabled && (isEditable || isClaimOrSpecial);
   const returnEnabled = canDecline && !isReturnDisabled;
-  const endorseEnabled = isEditable && canEndorse;
+  const endorseEnabled = canEndorse;
 
   if (!canApprove && !canDecline && !endorseEnabled) {
     if (isCompleted) {
@@ -1162,7 +1230,7 @@ function WorkflowActionBar({
             >
               <Lucide name="file-text" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
               <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                SOA / OP Preview
+                View Application Reports
               </Text>
             </Pressable>
           )}

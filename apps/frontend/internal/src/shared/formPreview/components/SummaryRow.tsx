@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
-import { isRecord, isPreviewFileObject } from '../core/formPreviewHelpers';
+import { isRecord, isPreviewFileObject, extractSerialNumbers } from '../core/formPreviewHelpers';
 import { JsonTableSummaryRow } from './JsonTableSummaryRow';
 import { SignatureSummaryRow } from './SignatureSummaryRow';
 import { CheckboxSummaryRow } from './CheckboxSummaryRow';
@@ -37,6 +37,76 @@ export function SummaryRow({ label, value, onPreviewFile }: SummaryRowProps) {
   ) {
     try {
       const parsed: unknown = JSON.parse(trimmedVal);
+
+      // Check if it represents serial numbers array/objects (e.g. [{ id, serialNumber }])
+      const serials = extractSerialNumbers(parsed);
+      if (
+        serials !== null &&
+        serials.length > 0 &&
+        (labelLower.includes('serial') ||
+          (Array.isArray(parsed) &&
+            parsed.every(
+              (r) =>
+                isRecord(r) &&
+                Object.keys(r).every(
+                  (k) => k === 'id' || k === '_id' || k.toLowerCase().includes('serial')
+                )
+            )))
+      ) {
+        return (
+          <View
+            style={{
+              backgroundColor: '#F8FAFC',
+              padding: 12,
+              borderRadius: 10,
+              borderWidth: 1,
+              borderColor: '#E2E8F0',
+              marginBottom: 8,
+            }}
+          >
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 10,
+                fontWeight: '700',
+                color: '#64748B',
+                marginBottom: 6,
+                textTransform: 'uppercase',
+                letterSpacing: 0.5,
+              }}
+            >
+              {label}
+            </Text>
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+              {serials.map((sn, i) => (
+                <View
+                  key={i}
+                  style={{
+                    backgroundColor: '#EFF6FF',
+                    borderWidth: 1,
+                    borderColor: '#BFDBFE',
+                    borderRadius: 6,
+                    paddingHorizontal: 8,
+                    paddingVertical: 3,
+                  }}
+                >
+                  <Text
+                    style={{
+                      fontFamily: TYPOGRAPHY.fonts.primary,
+                      fontSize: 11,
+                      fontWeight: '700',
+                      color: '#1D4ED8',
+                    }}
+                  >
+                    {sn}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        );
+      }
+
       if (Array.isArray(parsed) && parsed.length > 0) {
         if (parsed.every((item): item is string => typeof item === 'string')) {
           return (

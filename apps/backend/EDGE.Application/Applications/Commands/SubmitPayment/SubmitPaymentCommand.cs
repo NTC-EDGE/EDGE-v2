@@ -13,5 +13,8 @@ public record SubmitPaymentCommand(
     string? PayorName = null,
     decimal? AmountPaid = null,
     string? Remarks = null,
-    Guid? ProofOfPaymentFileId = null
+    Guid? ProofOfPaymentFileId = null,
+    string? CheckNumber = null,
+    string? CheckBank = null,
+    DateTime? CheckDate = null
 ) : IRequest<ApiResponse<bool>>;

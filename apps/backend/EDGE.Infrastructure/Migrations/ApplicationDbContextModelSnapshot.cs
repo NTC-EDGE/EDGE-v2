@@ -1258,11 +1258,16 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.HasKey("Id");
 
                     b.HasIndex("CreatedAt");
 
                     b.HasIndex("Status");
+
+                    b.HasIndex("TenantId", "CreatedAt");
 
                     b.ToTable("Feedbacks", "public");
                 });

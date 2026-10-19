@@ -371,31 +371,42 @@ export const applicationService = {
     });
   },
 
-  getOrPrintUrl(applicationId: string): string {
+  getOrPrintUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/or/print`;
+    const q = orNumber ? `?orNumber=${encodeURIComponent(orNumber)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/or/print${q}`;
   },
 
-  getOrDownloadUrl(applicationId: string): string {
+  getOrDownloadUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/or/print?download=true`;
+    const q = orNumber ? `&orNumber=${encodeURIComponent(orNumber)}` : '';
+    return `${base}/api/v2/applications/${applicationId}/or/print?download=true${q}`;
   },
 
-  async previewOrPdf(applicationId: string) {
+  async previewOrPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/or/print`,
-        { responseType: 'blob' }
+        {
+          params: orNumber ? { orNumber } : undefined,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });
   },
 
-  async downloadOrPdf(applicationId: string) {
+  async downloadOrPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/or/print?download=true`,
-        { responseType: 'blob' }
+        `/api/v2/applications/${applicationId}/or/print`,
+        {
+          params: {
+            download: true,
+            ...(orNumber ? { orNumber } : {}),
+          },
+          responseType: 'blob',
+        }
       );
       return response.data;
     });

@@ -12,6 +12,7 @@ interface ClientBillingNoticeCardProps {
   app: Application;
   isDesktop: boolean;
   onProceedToPayment: () => void;
+  onViewReports?: (initialTab?: 'soa' | 'op' | 'or') => void;
   onViewSoa?: () => void;
   onViewOp?: () => void;
   onViewOr?: () => void;
@@ -23,6 +24,7 @@ export function ClientBillingNoticeCard({
   app,
   isDesktop,
   onProceedToPayment,
+  onViewReports,
   onViewSoa,
   onViewOp,
   onViewOr,
@@ -33,6 +35,33 @@ export function ClientBillingNoticeCard({
 
   const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
   const hasOr = Boolean(orNumber && orNumber.trim().length > 0);
+  const orList = orNumber
+    ? orNumber
+        .split(',')
+        .map((s) => s.trim())
+        .filter((s) => s.length > 0)
+    : [];
+
+  const orSubtitleText = (() => {
+    if (orList.length === 0) return '';
+    if (orList.length === 1) return `Official Receipt ${orList[0]} has been officially issued by the Cashier.`;
+    if (orList.length === 2) return `Official Receipts ${orList[0]} and ${orList[1]} have been officially issued by the Cashier.`;
+    return `Official Receipts ${orList.slice(0, -1).join(', ')}, and ${orList[orList.length - 1]} have been officially issued by the Cashier.`;
+  })();
+
+  const handleOpenReports = (tab?: 'soa' | 'op' | 'or') => {
+    const defaultTab: 'soa' | 'op' | 'or' = hasOr ? 'or' : (!app.isAssessmentOnly && app.intent !== 'AssessmentOnly' ? 'op' : 'soa');
+    const selectedTab = tab || defaultTab;
+    if (onViewReports) {
+      onViewReports(selectedTab);
+    } else if (selectedTab === 'or' && onViewOr) {
+      onViewOr();
+    } else if (selectedTab === 'op' && onViewOp) {
+      onViewOp();
+    } else if (onViewSoa) {
+      onViewSoa();
+    }
+  };
 
   const isAssessmentOnly = app.isAssessmentOnly || app.intent === 'AssessmentOnly';
 
@@ -42,15 +71,21 @@ export function ClientBillingNoticeCard({
       (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
     );
 
+  const opStatusLower = (app.op?.status ?? '').toLowerCase();
+  const isOpBilled = opStatusLower === 'billed' || opStatusLower === 'active';
+  const isOpReturned = opStatusLower === 'returned';
+
   const isPaymentSubmitted =
-    !hasOr && (
+    !hasOr &&
+    !isOpBilled &&
+    !isOpReturned && (
       (typeof app.remarks === 'string' &&
         (app.remarks.toLowerCase().includes('payment submitted') ||
          app.remarks.toLowerCase().includes('waiting for cashier verification') ||
          app.remarks.toLowerCase().includes('verification in progress'))) ||
       (app.op !== undefined &&
         typeof app.op.status === 'string' &&
-        (app.op.status.toLowerCase() === 'processing' || app.op.status.toLowerCase() === 'paid'))
+        (opStatusLower === 'processing' || opStatusLower === 'paid'))
     );
 
   if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly && !hasOr) {
@@ -105,7 +140,7 @@ export function ClientBillingNoticeCard({
               {isAssessmentOnly
                 ? 'Evaluator has assessed your submitted requirements and prepared your Statement of Account.'
                 : hasOr
-                ? `Official Receipt #${orNumber} has been officially issued by the Cashier.`
+                ? orSubtitleText
                 : isPaymentSubmitted
                 ? 'Payment details submitted — pending Cashier verification'
                 : 'Statement of Account has been assessed and issued for settlement'}
@@ -156,10 +191,12 @@ export function ClientBillingNoticeCard({
             {isAssessmentOnly
               ? 'Pre-Assessment Complete'
               : hasOr
-              ? `Paid • OR #${orNumber}`
+              ? (orList.length > 1
+                  ? `Paid • ${orList.length} Official Receipts Issued`
+                  : `Paid • OR ${orList[0] || orNumber}`)
               : isPaymentSubmitted
               ? 'Verification in Progress'
-              : 'Action Required: Pay Fees'}
+              : 'For Payment'}
           </Text>
         </View>
       </View>
@@ -255,38 +292,44 @@ export function ClientBillingNoticeCard({
       {/* Action Buttons Toolbar */}
       <View style={[styles.actionRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 10 }]}>
         <View style={styles.docButtonsGroup}>
-          {onViewSoa && (
-            <TouchableOpacity style={styles.viewDocBtn} onPress={onViewSoa} activeOpacity={0.75}>
-              <Icon name="file-text" size={14} color="#0369A1" />
-              <Text style={styles.viewDocBtnText}>View SOA Document</Text>
-            </TouchableOpacity>
-          )}
-
-          {onViewOp && !isAssessmentOnly && (
-            <TouchableOpacity style={styles.viewDocBtnOp} onPress={onViewOp} activeOpacity={0.75}>
-              <Icon name="credit-card" size={14} color="#047857" />
-              <Text style={styles.viewDocBtnTextOp}>View Order of Payment</Text>
-            </TouchableOpacity>
-          )}
-
-          {onViewOr && hasOr && (
-            <TouchableOpacity style={styles.viewDocBtnOr} onPress={onViewOr} activeOpacity={0.75}>
-              <Icon name="check-circle" size={14} color="#059669" />
-              <Text style={styles.viewDocBtnTextOr}>Official Receipt (OR #{orNumber})</Text>
-            </TouchableOpacity>
-          )}
+          <TouchableOpacity
+            style={styles.viewReportsBtn}
+            onPress={() => handleOpenReports()}
+            activeOpacity={0.8}
+          >
+            <Icon name="file-text" size={15} color="#0369A1" />
+            <Text style={styles.viewReportsBtnText}>
+              {hasOr
+                ? 'View Application Reports (SOA • OP • OR)'
+                : !isAssessmentOnly
+                ? 'View Application Reports (SOA • OP)'
+                : 'View Statement of Account (SOA)'}
+            </Text>
+            {hasOr && (
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 4 }}>
+                {orList.map((token) => {
+                  const label = token.startsWith('#') ? token : `#${token}`;
+                  return (
+                    <View key={token} style={styles.orBadge}>
+                      <Icon name="check-circle" size={12} color="#059669" />
+                      <Text style={styles.orBadgeText}>OR {label}</Text>
+                    </View>
+                  );
+                })}
+              </View>
+            )}
+          </TouchableOpacity>
         </View>
 
         {hasOr ? (
-          <TouchableOpacity
-            style={[styles.payBtn, { backgroundColor: '#059669' }]}
-            onPress={onViewOr}
-            activeOpacity={0.85}
-          >
-            <Icon name="check-circle" size={16} color="#FFFFFF" />
-            <Text style={styles.payBtnText}>View Official Receipt</Text>
-            <Icon name="arrow-right" size={16} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.paidConfirmedBadge}>
+            <Icon name="check-circle" size={16} color="#059669" />
+            <Text style={styles.paidConfirmedText}>
+              {orList.length > 1
+                ? `Payment Settled • ${orList.length} Official Receipts Issued`
+                : `Payment Settled • OR ${orList[0] || orNumber}`}
+            </Text>
+          </View>
         ) : isAssessmentOnly ? (
           <View style={{ flexDirection: isDesktop ? 'row' : 'column', gap: 10, alignItems: 'center' }}>
             {onRequestReassessment && (
@@ -593,55 +636,55 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
     gap: 8,
   },
-  viewDocBtn: {
+  viewReportsBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
     backgroundColor: '#F0F9FF',
     borderWidth: 1,
     borderColor: '#BAE6FD',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     borderRadius: 8,
   },
-  viewDocBtnText: {
+  viewReportsBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 12.5,
     fontWeight: TYPOGRAPHY.weights.semibold,
     color: '#0369A1',
   },
-  viewDocBtnOp: {
+  orBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    borderRadius: 6,
+  },
+  orBadgeText: {
+    fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }),
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#059669',
+  },
+  paidConfirmedBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
     backgroundColor: '#ECFDF5',
     borderWidth: 1,
     borderColor: '#A7F3D0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
     borderRadius: 8,
   },
-  viewDocBtnTextOp: {
+  paidConfirmedText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    color: '#047857',
-  },
-  viewDocBtnOr: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-  },
-  viewDocBtnTextOr: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 12.5,
+    fontWeight: TYPOGRAPHY.weights.bold,
     color: '#059669',
   },
   payBtn: {

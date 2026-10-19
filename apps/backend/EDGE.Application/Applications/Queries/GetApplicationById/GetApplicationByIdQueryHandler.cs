@@ -34,6 +34,41 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
             .FirstOrDefault(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
+        var regionalSignatories = await _repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
+
+        var allHistories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
+            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
+            .Concat(app.StatementsOfAccount.SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
+                .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
+            .OrderByDescending(h => h.Timestamp)
+            .ToList();
+
+        var evaluatorHistory = allHistories.FirstOrDefault(h =>
+            h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant ||
+            (h.StaffRole != null && h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase)) ||
+            ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) ||
+                                   h.Action.Contains("SOA", StringComparison.OrdinalIgnoreCase))) &&
+             (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))));
+
+        var resolvedEvaluatorName = evaluatorHistory?.StaffName;
+        var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
+        var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
+        var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();
+
+        var issuingHistory = allHistories.FirstOrDefault(h =>
+            h.ToStatus == Domain.Enums.ApplicationStatus.Completed ||
+            (h.Action != null && (
+                h.Action.Contains("Document & License issued", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("License issued", StringComparison.OrdinalIgnoreCase) ||
+                h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase))));
+
+        var resolvedIssuingOfficer = app.IssuedDocumentDetails?
+            .OrderByDescending(d => d.IssueDate)
+            .Select(d => d.IssuedByStaffName)
+            .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))
+            ?? issuingHistory?.StaffName;
+
         var dto = new ApplicationDto
         {
             Id = app.Id,
@@ -48,6 +83,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             QueueTab = ApplicationStatusHelper.DetermineQueueTab(app.Status),
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
+            EvaluatingOfficer = resolvedEvaluatorName,
+            IssuingOfficer = resolvedIssuingOfficer,
             Remarks = app.Remarks,
             UserId = app.UserId,
             IsGuest = app.IsGuest,
@@ -232,6 +269,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 ApprovedByUserId = s.ApprovedByUserId,
                 ApprovedAt = s.ApprovedAt,
                 Remarks = s.Remarks,
+                PreparedByName = resolvedEvaluatorName ?? "EVALUATOR",
+                PreparedByTitle = resolvedEvaluatorTitle,
+                ApprovedByName = resolvedApproverName,
+                ApprovedByTitle = resolvedApproverTitle,
                 LineItems = s.LineItems.Select(li => new SoaLineItemDto
                 {
                     Id = li.Id,
@@ -288,7 +329,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Timestamp = oh.Timestamp
                 }).ToList()
             }).ToList(),
-            Histories = app.Histories.Select(h => new ApplicationHistoryDto
+            Histories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>()).Select(h => new ApplicationHistoryDto
             {
                 Id = h.Id,
                 Action = h.Action,

@@ -34,7 +34,8 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
     {
-        var app = await _applicationRepository.GetByIdAsync(request.Id, cancellationToken);
+        var app = await _applicationRepository.GetByIdWithDetailsAsync(request.Id, cancellationToken)
+                  ?? await _applicationRepository.GetByIdAsync(request.Id, cancellationToken);
         if (app == null)
         {
             return ApiResponse<Guid>.Fail($"Application with ID '{request.Id}' was not found.");
@@ -97,6 +98,75 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                    newStatus == ApplicationStatus.PendingPayment ? "Accountant" :
                    newStatus == ApplicationStatus.Completed ? "Cashier" :
                    newStatus == ApplicationStatus.Returned ? "Return Officer" : "NTC Engineer");
+
+            // When Evaluator approves application/assessment to ForAccountant:
+            // SOA status changes to FOR Order of Payment, and Order of Payment is initialized for Accountant review
+            if (newStatus == ApplicationStatus.ForAccountant)
+            {
+                var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+                if (latestSoa != null)
+                {
+                    var prevSoaStatus = latestSoa.Status;
+                    latestSoa.Status = SoaStatus.ForOrderOfPayment;
+
+                    await _applicationRepository.AddSoaHistoryAsync(new SoaHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        StatementOfAccountId = latestSoa.Id,
+                        Action = "Assessment approved by Evaluator. SOA endorsed FOR Order of Payment.",
+                        FromStatus = prevSoaStatus,
+                        ToStatus = SoaStatus.ForOrderOfPayment,
+                        PerformedByUserId = actingUserId,
+                        StaffName = staffName,
+                        StaffRole = staffRole,
+                        Remarks = request.Remarks ?? "Endorsed for Order of Payment review",
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+
+                    var existingOp = app.OrdersOfPayment?.FirstOrDefault(o => o.StatementOfAccountId == latestSoa.Id)
+                                     ?? app.OrdersOfPayment?.OrderByDescending(o => o.CreatedAt).FirstOrDefault(o => o.Status == OpStatus.Billed || o.Status == OpStatus.Processing);
+
+                    if (existingOp == null)
+                    {
+                        var op = new OrderOfPayment
+                        {
+                            Id = Guid.NewGuid(),
+                            ApplicationId = app.Id,
+                            StatementOfAccountId = latestSoa.Id,
+                            OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                            AmountDue = latestSoa.TotalAmount,
+                            Status = OpStatus.Billed,
+                            CreatedAt = DateTime.UtcNow
+                        };
+                        await _applicationRepository.AddOpAsync(op, cancellationToken);
+
+                        await _applicationRepository.AddOpHistoryAsync(new OpHistory
+                        {
+                            Id = Guid.NewGuid(),
+                            OrderOfPaymentId = op.Id,
+                            Action = "Order of Payment initialized for Accountant review.",
+                            ToStatus = OpStatus.Billed,
+                            PerformedByUserId = actingUserId,
+                            StaffName = staffName,
+                            StaffRole = staffRole,
+                            Timestamp = DateTime.UtcNow
+                        }, cancellationToken);
+                    }
+                    else
+                    {
+                        existingOp.Status = OpStatus.Returned;
+                        existingOp.AmountDue = latestSoa.TotalAmount;
+                        existingOp.AmountReceived = 0;
+                        existingOp.PaymentMethod = null;
+                        existingOp.CheckNumber = null;
+                        existingOp.CheckBank = null;
+                        existingOp.CheckDate = null;
+                        existingOp.PaidAt = null;
+                        existingOp.OfficialReceiptNumber = null;
+                        existingOp.Remarks = request.Remarks;
+                    }
+                }
+            }
 
             await _applicationRepository.AddApplicationHistoryAsync(new ApplicationHistory
             {

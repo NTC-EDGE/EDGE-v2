@@ -44,6 +44,13 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
 
         op.Status = OpStatus.Returned;
         op.Remarks = request.Remarks;
+        op.AmountReceived = 0;
+        op.PaymentMethod = null;
+        op.CheckNumber = null;
+        op.CheckBank = null;
+        op.CheckDate = null;
+        op.PaidAt = null;
+        op.OfficialReceiptNumber = null;
 
         await _repository.AddOpHistoryAsync(new OpHistory
         {

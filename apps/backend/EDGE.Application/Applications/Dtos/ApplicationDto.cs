@@ -42,6 +42,8 @@ public class ApplicationDto
     public string? OfficialReceiptNumber { get; set; }
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
+    public string? EvaluatingOfficer { get; set; }
+    public string? IssuingOfficer { get; set; }
 
     public FilingUserDto? FilingUser { get; set; }
 

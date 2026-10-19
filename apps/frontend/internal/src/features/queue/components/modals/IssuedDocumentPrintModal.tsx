@@ -9,6 +9,7 @@ import {
   TextInput,
   useWindowDimensions,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import {
   COLORS,
@@ -20,6 +21,7 @@ import {
   TYPOGRAPHY,
   toast,
 } from '@edge/ui';
+import { applicationService } from '@edge/api';
 import { useAuthContext } from '../../../auth/context/AuthContext';
 import { ApplicationData } from '../../../../types/application';
 import {
@@ -94,6 +96,64 @@ export function IssuedDocumentPrintModal({
   const [customWidthMm, setCustomWidthMm] = useState<string>('215.9');
   const [customHeightMm, setCustomHeightMm] = useState<string>('279.4');
 
+  // PDF Preview State
+  const [viewFormat, setViewFormat] = useState<'pdf' | 'physical'>('pdf');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
+  // Load official statutory PDF from backend
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (visible && app?.id && Platform.OS === 'web') {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+      setPdfBlobUrl(null);
+
+      const loadBlob = async () => {
+        try {
+          const [blob, err] = await applicationService.previewIssuedDocumentPdf(app.id);
+
+          if (!active) return;
+
+          if (err !== null || blob === null) {
+            const errDetail = typeof err === 'string' && err.trim().length > 0
+              ? err
+              : 'Failed to load official statutory PDF template.';
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            createdUrl = window.URL.createObjectURL(blob);
+            setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
+          }
+        } catch (fetchErr: unknown) {
+          if (!active) return;
+          const msg = fetchErr instanceof Error ? fetchErr.message : 'Error loading official document';
+          setPdfError(msg);
+          setIsLoadingPdf(false);
+        }
+      };
+
+      void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl !== null && typeof window !== 'undefined') {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [visible, app.id, reloadKey]);
+
   // Load workstation saved preferences for this specific report/template and user
   useEffect(() => {
     if (!visible) return;
@@ -140,7 +200,38 @@ export function IssuedDocumentPrintModal({
     remarks: app.note || 'Standard statutory authorization',
   }), [paperSize, outputMode, orientation, customWidthMm, customHeightMm, offsetXmm, offsetYmm, showGhostWatermark, activeTemplate.id, app]);
 
+  const handlePrintOfficialPdf = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      if (pdfBlobUrl) {
+        const printWin = window.open(pdfBlobUrl, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      const url = applicationService.getIssuedDocumentPrintUrl(app.id);
+      const printWin = window.open(url, '_blank');
+      if (printWin !== null) {
+        printWin.focus();
+        return;
+      }
+    }
+    toast.error('Unable to open print window. Please allow popups.');
+  };
+
+  const handleDownloadOfficialPdf = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      const url = applicationService.getIssuedDocumentDownloadUrl(app.id);
+      window.open(url, '_blank');
+    }
+  };
+
   const handlePrint = () => {
+    if (viewFormat === 'pdf') {
+      handlePrintOfficialPdf();
+      return;
+    }
+
     let html = '';
     if (outputMode === 'plain_paper') {
       html = generateStatutoryDocumentHtml(app, currentPrintOptions);
@@ -564,93 +655,172 @@ export function IssuedDocumentPrintModal({
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <Lucide name="eye" size={14} color={isDark ? colors.neutral[400] : colors.neutral[600]} />
                   <Text style={[styles.previewHeaderTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                    LIVE PRINT PREVIEW ({paperSize.toUpperCase()} • {orientation.toUpperCase()})
+                    LIVE PRINT PREVIEW
                   </Text>
                 </View>
-                <View style={styles.previewBadge}>
-                  <Text style={styles.previewBadgeText}>
-                    {outputMode === 'plain_paper' ? 'PLAIN BOND PAPER' : 'DATA OVERLAY (ACCOUNTABLE)'}
-                  </Text>
+
+                {/* Format Toggle: Official PDF vs Physical Feed Calibration */}
+                <View style={styles.viewFormatToggle}>
+                  <TouchableOpacity
+                    onPress={() => setViewFormat('pdf')}
+                    style={[
+                      styles.viewFormatBtn,
+                      viewFormat === 'pdf' && (isDark ? { backgroundColor: colors.neutral[800] } : styles.viewFormatBtnActive),
+                    ]}
+                  >
+                    <Lucide name="file-text" size={13} color={viewFormat === 'pdf' ? (isDark ? colors.brand[400] : colors.brand[600]) : colors.neutral[400]} />
+                    <Text
+                      style={[
+                        styles.viewFormatBtnText,
+                        viewFormat === 'pdf' && (isDark ? { color: colors.neutral[100], fontWeight: '700' } : styles.viewFormatBtnTextActive),
+                      ]}
+                    >
+                      Official Template PDF
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setViewFormat('physical')}
+                    style={[
+                      styles.viewFormatBtn,
+                      viewFormat === 'physical' && (isDark ? { backgroundColor: colors.neutral[800] } : styles.viewFormatBtnActive),
+                    ]}
+                  >
+                    <Lucide name="sliders" size={13} color={viewFormat === 'physical' ? (isDark ? colors.brand[400] : colors.brand[600]) : colors.neutral[400]} />
+                    <Text
+                      style={[
+                        styles.viewFormatBtnText,
+                        viewFormat === 'physical' && (isDark ? { color: colors.neutral[100], fontWeight: '700' } : styles.viewFormatBtnTextActive),
+                      ]}
+                    >
+                      Feed Calibration
+                    </Text>
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              {/* Scaled Preview Sheet Container */}
-              <View style={styles.previewSheetFrame}>
-                <View
-                  style={[
-                    styles.previewSheet,
-                    {
-                      aspectRatio: orientation === 'landscape' ? 1.35 : 0.75,
-                      backgroundColor: '#FFFFFF',
-                    },
-                  ]}
-                >
-                  {outputMode === 'plain_paper' ? (
-                    /* Plain Bond Paper Mock Preview */
-                    <View style={styles.plainSheetContent}>
-                      <View style={styles.plainSheetBorder}>
-                        <View style={styles.mockHeader}>
-                          <View style={{ flex: 1, alignItems: 'center' }}>
-                            <Text style={styles.mockAgency}>REPUBLIC OF THE PHILIPPINES</Text>
-                            <Text style={styles.mockDept}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
-                            <Text style={styles.mockTitle}>{app.serviceName || 'RADIO STATION LICENSE'}</Text>
-                          </View>
-                        </View>
-                        <View style={styles.mockLicensee}>
-                          <Text style={styles.mockLicenseeName}>{app.applicant}</Text>
-                          <Text style={styles.mockLicenseeAddr}>{app.address?.city || 'Quezon City'}, Philippines</Text>
-                        </View>
-                        <View style={styles.mockGrid}>
-                          <Text style={styles.mockGridCell}>Call Sign: <strong>DX7NTC</strong></Text>
-                          <Text style={styles.mockGridCell}>Form No: <strong>{app.applicationNumber}</strong></Text>
-                        </View>
-                        <View style={styles.mockSign}>
-                          <View style={styles.mockSignLine} />
-                          <Text style={styles.mockSignName}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
-                        </View>
-                      </View>
+              {/* Preview Content */}
+              {viewFormat === 'pdf' ? (
+                <View style={{ flex: 1, width: '100%' }}>
+                  {isLoadingPdf ? (
+                    <View style={styles.pdfLoadingContainer}>
+                      <ActivityIndicator size="large" color={colors.brand[600]} />
+                      <Text style={[styles.pdfLoadingText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
+                        Generating authentic statutory document from NTC template...
+                      </Text>
+                    </View>
+                  ) : pdfError ? (
+                    <View style={styles.pdfErrorContainer}>
+                      <Lucide name="alert-triangle" size={32} color="#EF4444" />
+                      <Text style={styles.pdfErrorText}>{pdfError}</Text>
+                      <TouchableOpacity onPress={() => setReloadKey((k) => k + 1)} style={styles.retryBtn}>
+                        <Lucide name="refresh-cw" size={14} color="#EF4444" />
+                        <Text style={styles.retryBtnText}>Retry Loading Official PDF</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ) : pdfBlobUrl && Platform.OS === 'web' ? (
+                    <View style={styles.pdfViewerContainer}>
+                      {React.createElement('iframe', {
+                        src: `${pdfBlobUrl}#toolbar=0&navpanes=0`,
+                        style: {
+                          width: '100%',
+                          height: '100%',
+                          minHeight: '620px',
+                          border: 'none',
+                          borderRadius: '8px',
+                          backgroundColor: isDark ? '#1e293b' : '#525659',
+                        },
+                        title: 'Official Statutory Document PDF',
+                      })}
                     </View>
                   ) : (
-                    /* Accountable Form Precision Overlay Mock Preview */
-                    <View style={styles.accountableSheetContent}>
-                      {showGhostWatermark && (
-                        <View style={styles.ghostLayer}>
-                          <Text style={styles.ghostWatermarkText}>[PRE-PRINTED OFFICIAL GOVERNMENT STATIONERY]</Text>
-                          <View style={[styles.ghostBox, { top: '18%', left: '12%', width: '76%', height: '10%' }]}>
-                            <Text style={styles.ghostBoxLabel}>NAME OF LICENSEE / GRANTEE</Text>
-                          </View>
-                          <View style={[styles.ghostBox, { top: '30%', left: '12%', width: '35%', height: '8%' }]}>
-                            <Text style={styles.ghostBoxLabel}>CALL SIGN</Text>
-                          </View>
-                          <View style={[styles.ghostBox, { top: '30%', left: '52%', width: '36%', height: '8%' }]}>
-                            <Text style={styles.ghostBoxLabel}>CLASS OF STATION</Text>
-                          </View>
-                          <View style={[styles.ghostBox, { top: '75%', left: '55%', width: '35%', height: '12%' }]}>
-                            <Text style={styles.ghostBoxLabel}>SIGNATURE OF ISSUING OFFICER</Text>
-                          </View>
-                        </View>
-                      )}
-
-                      {/* Calibrated Dynamic Text Elements */}
-                      <View style={[styles.overlayItem, { top: '6%', right: '7%' }]}>
-                        <Lucide name="grid" size={14} color="#000000" />
-                      </View>
-                      <View style={[styles.overlayItem, { top: '19%', left: '14%' }]}>
-                        <Text style={styles.overlayTextBold}>{app.applicant}</Text>
-                      </View>
-                      <View style={[styles.overlayItem, { top: '31%', left: '14%' }]}>
-                        <Text style={[styles.overlayTextBold, { fontFamily: 'monospace' }]}>DX7NTC</Text>
-                      </View>
-                      <View style={[styles.overlayItem, { top: '31%', left: '54%' }]}>
-                        <Text style={styles.overlayText}>Land Mobile Station</Text>
-                      </View>
-                      <View style={[styles.overlayItem, { top: '78%', left: '58%' }]}>
-                        <Text style={styles.overlayTextSign}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
-                      </View>
+                    <View style={styles.pdfLoadingContainer}>
+                      <ActivityIndicator size="small" color={colors.brand[600]} />
+                      <Text style={[styles.pdfLoadingText, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                        Preparing document preview...
+                      </Text>
                     </View>
                   )}
                 </View>
-              </View>
+              ) : (
+                /* Scaled Preview Sheet Container (Physical Tray Calibration) */
+                <View style={styles.previewSheetFrame}>
+                  <View
+                    style={[
+                      styles.previewSheet,
+                      {
+                        aspectRatio: orientation === 'landscape' ? 1.35 : 0.75,
+                        backgroundColor: '#FFFFFF',
+                      },
+                    ]}
+                  >
+                    {outputMode === 'plain_paper' ? (
+                      /* Plain Bond Paper Mock Preview */
+                      <View style={styles.plainSheetContent}>
+                        <View style={styles.plainSheetBorder}>
+                          <View style={styles.mockHeader}>
+                            <View style={{ flex: 1, alignItems: 'center' }}>
+                              <Text style={styles.mockAgency}>REPUBLIC OF THE PHILIPPINES</Text>
+                              <Text style={styles.mockDept}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                              <Text style={styles.mockTitle}>{app.serviceName || 'RADIO STATION LICENSE'}</Text>
+                            </View>
+                          </View>
+                          <View style={styles.mockLicensee}>
+                            <Text style={styles.mockLicenseeName}>{app.applicant}</Text>
+                            <Text style={styles.mockLicenseeAddr}>{app.address?.city || 'Quezon City'}, Philippines</Text>
+                          </View>
+                          <View style={styles.mockGrid}>
+                            <Text style={styles.mockGridCell}>Call Sign: <strong>DX7NTC</strong></Text>
+                            <Text style={styles.mockGridCell}>Form No: <strong>{app.applicationNumber}</strong></Text>
+                          </View>
+                          <View style={styles.mockSign}>
+                            <View style={styles.mockSignLine} />
+                            <Text style={styles.mockSignName}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
+                          </View>
+                        </View>
+                      </View>
+                    ) : (
+                      /* Accountable Form Precision Overlay Mock Preview */
+                      <View style={styles.accountableSheetContent}>
+                        {showGhostWatermark && (
+                          <View style={styles.ghostLayer}>
+                            <Text style={styles.ghostWatermarkText}>[PRE-PRINTED OFFICIAL GOVERNMENT STATIONERY]</Text>
+                            <View style={[styles.ghostBox, { top: '18%', left: '12%', width: '76%', height: '10%' }]}>
+                              <Text style={styles.ghostBoxLabel}>NAME OF LICENSEE / GRANTEE</Text>
+                            </View>
+                            <View style={[styles.ghostBox, { top: '30%', left: '12%', width: '35%', height: '8%' }]}>
+                              <Text style={styles.ghostBoxLabel}>CALL SIGN</Text>
+                            </View>
+                            <View style={[styles.ghostBox, { top: '30%', left: '52%', width: '36%', height: '8%' }]}>
+                              <Text style={styles.ghostBoxLabel}>CLASS OF STATION</Text>
+                            </View>
+                            <View style={[styles.ghostBox, { top: '75%', left: '55%', width: '35%', height: '12%' }]}>
+                              <Text style={styles.ghostBoxLabel}>SIGNATURE OF ISSUING OFFICER</Text>
+                            </View>
+                          </View>
+                        )}
+
+                        {/* Calibrated Dynamic Text Elements */}
+                        <View style={[styles.overlayItem, { top: '6%', right: '7%' }]}>
+                          <Lucide name="grid" size={14} color="#000000" />
+                        </View>
+                        <View style={[styles.overlayItem, { top: '19%', left: '14%' }]}>
+                          <Text style={styles.overlayTextBold}>{app.applicant}</Text>
+                        </View>
+                        <View style={[styles.overlayItem, { top: '31%', left: '14%' }]}>
+                          <Text style={[styles.overlayTextBold, { fontFamily: 'monospace' }]}>DX7NTC</Text>
+                        </View>
+                        <View style={[styles.overlayItem, { top: '31%', left: '54%' }]}>
+                          <Text style={styles.overlayText}>Land Mobile Station</Text>
+                        </View>
+                        <View style={[styles.overlayItem, { top: '78%', left: '58%' }]}>
+                          <Text style={styles.overlayTextSign}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
+                        </View>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              )}
             </View>
           </View>
 
@@ -662,18 +832,30 @@ export function IssuedDocumentPrintModal({
             ]}
           >
             <View style={styles.footerLeftActions}>
-              <TouchableOpacity
-                onPress={handleSavePreferences}
-                style={[styles.savePrefBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-              >
-                <Lucide name="save" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
-                <Text style={[styles.savePrefBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  Save Calibration Defaults
-                </Text>
-              </TouchableOpacity>
+              {viewFormat === 'physical' && (
+                <TouchableOpacity
+                  onPress={handleSavePreferences}
+                  style={[styles.savePrefBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+                >
+                  <Lucide name="save" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
+                  <Text style={[styles.savePrefBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                    Save Calibration Defaults
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
 
             <View style={styles.footerRightActions}>
+              <TouchableOpacity
+                onPress={handleDownloadOfficialPdf}
+                style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
+              >
+                <Lucide name="download" size={15} color={isDark ? colors.neutral[200] : colors.neutral[700]} />
+                <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
+                  Download PDF
+                </Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={onClose}
                 style={[styles.cancelBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
@@ -685,15 +867,27 @@ export function IssuedDocumentPrintModal({
 
               <TouchableOpacity
                 onPress={handlePrint}
-                style={[styles.printBtn, { backgroundColor: outputMode === 'accountable_form' ? '#D97706' : colors.brand[600] }]}
+                style={[
+                  styles.printBtn,
+                  {
+                    backgroundColor:
+                      viewFormat === 'pdf'
+                        ? colors.brand[600]
+                        : outputMode === 'accountable_form'
+                          ? '#D97706'
+                          : colors.brand[600],
+                  },
+                ]}
               >
                 <Lucide name="printer" size={16} color="#FFFFFF" />
                 <Text style={styles.printBtnText}>
-                  {outputMode === 'plain_paper'
-                    ? 'Print Full Document'
-                    : outputMode === 'accountable_form'
-                      ? 'Print Accountable Form Overlay'
-                      : 'Print Alignment Test Sheet'}
+                  {viewFormat === 'pdf'
+                    ? 'Print Official Document'
+                    : outputMode === 'plain_paper'
+                      ? 'Print Full Document'
+                      : outputMode === 'accountable_form'
+                        ? 'Print Accountable Form Overlay'
+                        : 'Print Alignment Test Sheet'}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -1192,5 +1386,98 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: TYPOGRAPHY.weights.bold,
     color: '#FFFFFF',
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingVertical: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  viewFormatToggle: {
+    flexDirection: 'row',
+    gap: 4,
+    backgroundColor: 'rgba(0,0,0,0.06)',
+    borderRadius: RADIUS.button,
+    padding: 3,
+  },
+  viewFormatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: RADIUS.button - 2,
+  },
+  viewFormatBtnActive: {
+    backgroundColor: '#FFFFFF',
+    ...SHADOWS.card,
+  },
+  viewFormatBtnText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#64748B',
+  },
+  viewFormatBtnTextActive: {
+    color: '#0F172A',
+    fontWeight: '700',
+  },
+  pdfViewerContainer: {
+    flex: 1,
+    width: '100%',
+    minHeight: 620,
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
+  },
+  pdfLoadingContainer: {
+    flex: 1,
+    minHeight: 400,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  pdfLoadingText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#64748B',
+    textAlign: 'center',
+  },
+  pdfErrorContainer: {
+    flex: 1,
+    minHeight: 300,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    gap: 12,
+  },
+  pdfErrorText: {
+    fontSize: 13,
+    color: '#EF4444',
+    textAlign: 'center',
+    maxWidth: 360,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+    borderColor: '#EF4444',
+    marginTop: 8,
+  },
+  retryBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#EF4444',
   },
 });

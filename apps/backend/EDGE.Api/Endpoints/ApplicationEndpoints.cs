@@ -741,7 +741,10 @@ public static class ApplicationEndpoints
             request.PayorName,
             request.AmountPaid,
             request.Remarks,
-            request.ProofOfPaymentFileId);
+            request.ProofOfPaymentFileId,
+            request.CheckNumber,
+            request.CheckBank,
+            request.CheckDate);
 
         var validationResult = await validator.ValidateAsync(command, cancellationToken);
         if (!validationResult.IsValid)
@@ -888,6 +891,9 @@ public record SubmitPaymentRequest(
     string? PayorName,
     decimal? AmountPaid,
     string? Remarks,
-    Guid? ProofOfPaymentFileId
+    Guid? ProofOfPaymentFileId,
+    string? CheckNumber = null,
+    string? CheckBank = null,
+    DateTime? CheckDate = null
 );
 

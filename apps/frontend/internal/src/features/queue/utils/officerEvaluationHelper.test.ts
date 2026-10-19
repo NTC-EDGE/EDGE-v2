@@ -161,6 +161,9 @@ describe("officerEvaluationHelper", () => {
       expect(isGenericOfficer("NTC Officer")).toBe(true);
       expect(isGenericOfficer("Admin")).toBe(true);
       expect(isGenericOfficer("System Admin")).toBe(true);
+      expect(isGenericOfficer("CHIEF, EOD")).toBe(true);
+      expect(isGenericOfficer("Chief of EOD")).toBe(true);
+      expect(isGenericOfficer("Regional Director")).toBe(true);
       expect(isGenericOfficer("National Capital Region", "National Capital Region")).toBe(true);
     });
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Text.Json.Nodes;
 using FluentValidation;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -27,7 +28,8 @@ public record IssueOfficialReceiptCommand(
     string? CheckBank = null,
     DateTime? CheckDate = null,
     string? Remarks = null,
-    List<CreateReceiptLineItemInput>? LineItems = null
+    List<CreateReceiptLineItemInput>? LineItems = null,
+    bool AllowPartialPayment = false
 ) : IRequest<ApiResponse<OfficialReceiptDto>>;
 
 public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOfficialReceiptCommand>
@@ -219,10 +221,19 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             return (null, null, null, $"Cannot issue Official Receipt: The application is currently in '{app.Status}' status. Payment can only be accepted when the application is in 'PendingPayment' status.");
         }
 
-        if (request.Amount < op.AmountDue)
+        var existingReceipts = await _receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+        var priorValidReceipts = (existingReceipts ?? new List<OfficialReceipt>())
+            .Where(r => r.Status != ReceiptStatus.Cancelled)
+            .ToList();
+        var priorAmount = priorValidReceipts.Sum(r => r.Amount);
+        var totalAmountCovered = priorAmount + request.Amount;
+
+        if (!request.AllowPartialPayment && totalAmountCovered < op.AmountDue)
         {
             return (null, null, null, $"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the required amount due ({op.AmountDue:N2}).");
         }
+
+        bool isFullyPaid = totalAmountCovered >= op.AmountDue;
 
         applicationId = op.ApplicationId;
         if (app != null)
@@ -230,62 +241,124 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             appNumber = app.ApplicationNumber;
         }
 
-        // Update OP Status to Paid
         var prevOpStatus = op.Status;
-        op.Status = OpStatus.Paid;
-        op.OfficialReceiptNumber = orNumber;
-        op.AmountReceived = request.Amount;
+        op.AmountReceived = totalAmountCovered;
+
+        var existingOrList = (op.OfficialReceiptNumber ?? string.Empty)
+            .Split(new[] { ',', ' ' }, StringSplitOptions.RemoveEmptyEntries)
+            .Select(s => s.Trim())
+            .ToList();
+        if (!existingOrList.Contains(orNumber))
+        {
+            existingOrList.Add(orNumber);
+        }
+        op.OfficialReceiptNumber = string.Join(", ", existingOrList);
+
         op.PaymentMethod = request.PaymentMethod;
-        op.CheckNumber = request.CheckNumber;
-        op.CheckBank = request.CheckBank;
-        op.CheckDate = request.CheckDate;
-        op.VerifiedByCashierId = validUserId;
-        op.PaidAt = DateTime.UtcNow;
-
-        await _appRepository.AddOpHistoryAsync(new OpHistory
+        if (!string.IsNullOrWhiteSpace(request.PayorName))
         {
-            Id = Guid.NewGuid(),
-            OrderOfPaymentId = op.Id,
-            Action = $"Payment verified and Official Receipt issued: {orNumber}",
-            FromStatus = prevOpStatus,
-            ToStatus = OpStatus.Paid,
-            PerformedByUserId = validUserId,
-            StaffName = cashierContext.StaffName,
-            StaffRole = cashierContext.StaffRole,
-            OfficialReceiptNumber = orNumber,
-            Timestamp = DateTime.UtcNow
-        }, cancellationToken);
-
-        if (app != null)
+            op.CheckName = request.PayorName.Trim();
+        }
+        if (request.PaymentMethod == PaymentMethod.Check)
         {
-            var prevAppStatus = app.Status;
-            app.Status = ApplicationStatus.ForIssuance;
-            app.Remarks = $"Payment verified via Official Receipt #{orNumber}. Forwarded for Document & License Issuance.";
-            await _appRepository.UpdateAsync(app, cancellationToken);
+            op.CheckNumber = request.CheckNumber;
+            op.CheckBank = request.CheckBank;
+            op.CheckDate = request.CheckDate;
+        }
 
-            await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+        // Tag the matching payment breakdown item as issued in op.Remarks
+        UpdateOpRemarksWithIssuedOr(op, orNumber, request.PaymentMethod, request.Amount, request.CheckNumber);
+
+        if (isFullyPaid)
+        {
+            op.Status = OpStatus.Paid;
+            op.VerifiedByCashierId = validUserId;
+            op.PaidAt = DateTime.UtcNow;
+
+            await _appRepository.AddOpHistoryAsync(new OpHistory
             {
                 Id = Guid.NewGuid(),
-                ApplicationId = app.Id,
-                Status = ApplicationStatus.ForIssuance,
-                Remarks = $"Official Receipt #{orNumber} issued by Cashier. Forwarded for Document Issuance.",
-                Timestamp = DateTime.UtcNow,
-                UserId = validUserId
-            }, cancellationToken);
-
-            await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
-            {
-                Id = Guid.NewGuid(),
-                ApplicationId = app.Id,
-                Action = $"Payment verified via OR #{orNumber}. Forwarded for Document & License Issuance.",
-                FromStatus = prevAppStatus,
-                ToStatus = ApplicationStatus.ForIssuance,
+                OrderOfPaymentId = op.Id,
+                Action = $"Payment completed and Official Receipt issued: {orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). All ORs: {op.OfficialReceiptNumber}.",
+                FromStatus = prevOpStatus,
+                ToStatus = OpStatus.Paid,
                 PerformedByUserId = validUserId,
                 StaffName = cashierContext.StaffName,
                 StaffRole = cashierContext.StaffRole,
-                Remarks = request.Remarks ?? $"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued.",
+                OfficialReceiptNumber = orNumber,
                 Timestamp = DateTime.UtcNow
             }, cancellationToken);
+
+            if (app != null)
+            {
+                var prevAppStatus = app.Status;
+                app.Status = ApplicationStatus.ForIssuance;
+                app.Remarks = $"Payment verified via Official Receipt #{op.OfficialReceiptNumber}. Forwarded for Document & License Issuance.";
+                await _appRepository.UpdateAsync(app, cancellationToken);
+
+                await _appRepository.AddApplicationStatusHistoryAsync(new ApplicationStatusHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Status = ApplicationStatus.ForIssuance,
+                    Remarks = $"Payment completed under Official Receipt #{op.OfficialReceiptNumber}. Forwarded for Document Issuance.",
+                    Timestamp = DateTime.UtcNow,
+                    UserId = validUserId
+                }, cancellationToken);
+
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Action = $"Payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). Total paid under: {op.OfficialReceiptNumber}.",
+                    FromStatus = prevAppStatus,
+                    ToStatus = ApplicationStatus.ForIssuance,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Remarks = request.Remarks ?? $"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued.",
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+        }
+        else
+        {
+            op.Status = OpStatus.Processing;
+            var remainingBalance = op.AmountDue - totalAmountCovered;
+
+            await _appRepository.AddOpHistoryAsync(new OpHistory
+            {
+                Id = Guid.NewGuid(),
+                OrderOfPaymentId = op.Id,
+                Action = $"Partial payment received (₱{request.Amount:N2}) via {request.PaymentMethod}. Official Receipt #{orNumber} issued. Remaining balance: ₱{remainingBalance:N2}.",
+                FromStatus = prevOpStatus,
+                ToStatus = OpStatus.Processing,
+                PerformedByUserId = validUserId,
+                StaffName = cashierContext.StaffName,
+                StaffRole = cashierContext.StaffRole,
+                OfficialReceiptNumber = orNumber,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+
+            if (app != null)
+            {
+                app.Remarks = $"Partial Official Receipt #{orNumber} issued for ₱{request.Amount:N2} ({request.PaymentMethod}). Remaining balance: ₱{remainingBalance:N2}.";
+                await _appRepository.UpdateAsync(app, cancellationToken);
+
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Action = $"Partial payment of ₱{request.Amount:N2} ({request.PaymentMethod}) accepted via OR #{orNumber}. Remaining balance: ₱{remainingBalance:N2}.",
+                    FromStatus = app.Status,
+                    ToStatus = app.Status,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Remarks = request.Remarks,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
         }
 
         return (op, applicationId, appNumber, null);
@@ -390,5 +463,142 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             receipt.Remarks,
             receipt.LineItems.Select(l => new OfficialReceiptLineItemDto(l.Id, l.FeeCode, l.Description, l.Amount)).ToList()
         );
+    }
+
+    private static void UpdateOpRemarksWithIssuedOr(
+        OrderOfPayment op,
+        string orNumber,
+        PaymentMethod paymentMethod,
+        decimal amount,
+        string? checkNumber)
+    {
+        if (string.IsNullOrWhiteSpace(op.Remarks)) return;
+
+        const string tagStart = "[PAYMENT_BREAKDOWN:";
+        var startIdx = op.Remarks.IndexOf(tagStart, StringComparison.Ordinal);
+        if (startIdx < 0) return;
+
+        var jsonStart = startIdx + tagStart.Length;
+        const string explicitEnd = ":END_PAYMENT_BREAKDOWN]";
+        var explicitEndIdx = op.Remarks.IndexOf(explicitEnd, jsonStart, StringComparison.Ordinal);
+
+        string jsonString;
+        int fullEndIdx;
+
+        if (explicitEndIdx >= 0)
+        {
+            jsonString = op.Remarks.Substring(jsonStart, explicitEndIdx - jsonStart).Trim();
+            fullEndIdx = explicitEndIdx + explicitEnd.Length;
+        }
+        else
+        {
+            int braceCount = 0;
+            bool started = false;
+            int jsonEnd = -1;
+            for (int i = jsonStart; i < op.Remarks.Length; i++)
+            {
+                if (op.Remarks[i] == '{')
+                {
+                    braceCount++;
+                    started = true;
+                }
+                else if (op.Remarks[i] == '}')
+                {
+                    braceCount--;
+                    if (started && braceCount == 0)
+                    {
+                        jsonEnd = i + 1;
+                        break;
+                    }
+                }
+            }
+
+            if (jsonEnd < 0) return;
+            jsonString = op.Remarks.Substring(jsonStart, jsonEnd - jsonStart).Trim();
+            fullEndIdx = jsonEnd;
+            if (fullEndIdx < op.Remarks.Length && op.Remarks[fullEndIdx] == ']')
+            {
+                fullEndIdx++;
+            }
+        }
+
+        try
+        {
+            var node = JsonNode.Parse(jsonString);
+            if (node == null) return;
+
+            var items = node["items"]?.AsArray();
+            if (items == null || items.Count == 0) return;
+
+            var methodStr = paymentMethod.ToString();
+            JsonObject? matchedItem = null;
+
+            // 1. Try matching by mode + checkNumber/amount and not already issued
+            foreach (var it in items)
+            {
+                if (it is JsonObject obj)
+                {
+                    var isIssued = obj["isIssued"]?.GetValue<bool>() ?? false;
+                    if (isIssued) continue;
+
+                    var mode = obj["mode"]?.GetValue<string>();
+                    if (string.Equals(mode, methodStr, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (paymentMethod == PaymentMethod.Check && !string.IsNullOrWhiteSpace(checkNumber))
+                        {
+                            var cNum = obj["checkNumber"]?.GetValue<string>();
+                            if (string.Equals(cNum, checkNumber, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedItem = obj;
+                                break;
+                            }
+                        }
+                        else
+                        {
+                            matchedItem = obj;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // Fallback: match any unissued item with matching mode
+            if (matchedItem == null)
+            {
+                foreach (var it in items)
+                {
+                    if (it is JsonObject obj)
+                    {
+                        var isIssued = obj["isIssued"]?.GetValue<bool>() ?? false;
+                        if (!isIssued)
+                        {
+                            var mode = obj["mode"]?.GetValue<string>();
+                            if (string.Equals(mode, methodStr, StringComparison.OrdinalIgnoreCase))
+                            {
+                                matchedItem = obj;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
+            if (matchedItem != null)
+            {
+                matchedItem["isIssued"] = true;
+                matchedItem["orNumber"] = orNumber;
+                matchedItem["issuedAt"] = DateTime.UtcNow.ToString("o");
+            }
+
+            var updatedJson = node.ToJsonString();
+            var beforeTag = op.Remarks.Substring(0, startIdx);
+            var afterTag = fullEndIdx < op.Remarks.Length ? op.Remarks.Substring(fullEndIdx) : string.Empty;
+
+            op.Remarks = $"{beforeTag.TrimEnd()} {tagStart}{updatedJson}{explicitEnd}{afterTag}".Trim();
+        }
+        catch
+        {
+            // If parsing fails, leave remarks intact
+        }
     }
 }

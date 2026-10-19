@@ -39,7 +39,17 @@ public class StatementOfAccountReportTests
             var soaTemplateBytes = inMs.ToArray();
 
             var soaModel = MockDataFactory.GetStatementOfAccountModel();
+
             var filledSoaBytes = EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(soaTemplateBytes, soaModel);
+
+            using (var filledReader = new iText.Kernel.Pdf.PdfReader(new MemoryStream(filledSoaBytes)))
+            using (var filledDoc = new iText.Kernel.Pdf.PdfDocument(filledReader))
+            {
+                var filledPage = filledDoc.GetPage(1);
+                var filledText = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(filledPage);
+                // Verify that checkboxes do not print literal "Yes"
+                Assert.DoesNotContain("Yes", filledText);
+            }
 
             Assert.NotNull(filledSoaBytes);
             Assert.True(filledSoaBytes.Length > 10000, "Filled SOA AcroForm should be substantial in size");
@@ -250,6 +260,110 @@ public class StatementOfAccountReportTests
         Assert.Equal("OR-2026-7788", model.OrNo);
         Assert.NotNull(pdfBytes);
         Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_ResolvesLastEvaluator_InMultiEvaluatorChain()
+    {
+        // Arrange
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Status = Domain.Enums.ApplicationStatus.ForAccountant,
+            Histories = new System.Collections.Generic.List<Domain.Entities.ApplicationHistory>
+            {
+                new()
+                {
+                    StaffName = "Engr. Initial Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Initial Assessment",
+                    ToStatus = Domain.Enums.ApplicationStatus.Evaluating,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-3)
+                },
+                new()
+                {
+                    StaffName = "Engr. Final Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Assessment Approved for Accountant",
+                    ToStatus = Domain.Enums.ApplicationStatus.ForAccountant,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-1)
+                }
+            }
+        };
+
+        var soa = new Domain.Entities.StatementOfAccount
+        {
+            ApplicationId = appId,
+            SoaNumber = "SOA-2026-MULTI-01",
+            Status = Domain.Enums.SoaStatus.Pending,
+            DueDate = System.DateTime.UtcNow.AddDays(15)
+        };
+
+        var signatories = new EDGE.Application.Applications.Dtos.RegionalSignatoriesDto
+        {
+            ChiefEodName = "Engr. Roberto Chief",
+            ChiefEodTitle = "Chief, Enforcement & Operations Division",
+            RegionCode = "R10",
+            RegionName = "Region X"
+        };
+
+        // Act
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: signatories);
+
+        // Assert: Prepared by should be the last evaluator (Engr. Final Evaluator)
+        Assert.Equal("Engr. Final Evaluator", model.PreparedByName);
+        Assert.Equal("Engr. Roberto Chief", model.ApprovedByName);
+        Assert.Contains("Chief", model.ApprovedByTitle);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_FallsBackToRegionalDirector_WhenNoChiefInRegion()
+    {
+        // Arrange: Region has NO Chief of EOD, only Regional Director
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Status = Domain.Enums.ApplicationStatus.ForAccountant,
+            Histories = new System.Collections.Generic.List<Domain.Entities.ApplicationHistory>
+            {
+                new()
+                {
+                    StaffName = "Engr. Solo Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Evaluation Completed",
+                    ToStatus = Domain.Enums.ApplicationStatus.ForAccountant,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-2)
+                }
+            }
+        };
+
+        var soa = new Domain.Entities.StatementOfAccount
+        {
+            ApplicationId = appId,
+            SoaNumber = "SOA-2026-FALLBACK-01",
+            Status = Domain.Enums.SoaStatus.Pending,
+            DueDate = System.DateTime.UtcNow.AddDays(15)
+        };
+
+        var signatories = new EDGE.Application.Applications.Dtos.RegionalSignatoriesDto
+        {
+            ChiefEodName = null, // No Chief in this region!
+            ChiefEodTitle = null,
+            RegionalDirectorName = "Dir. Teodoro Regional",
+            RegionalDirectorTitle = "Regional Director",
+            RegionCode = "R07",
+            RegionName = "Region VII"
+        };
+
+        // Act
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: signatories);
+
+        // Assert: Automatically defaults to Regional Director
+        Assert.Equal("Engr. Solo Evaluator", model.PreparedByName);
+        Assert.Equal("Dir. Teodoro Regional", model.ApprovedByName);
+        Assert.Contains("Regional Director", model.ApprovedByTitle);
     }
 
     private static void SavePdfToTemp(string filename, byte[] bytes)

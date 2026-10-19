@@ -65,6 +65,10 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === "ntc officer" ||
     n === "admin" ||
     n === "system admin" ||
+    n === "chief, eod" ||
+    n === "chief of eod" ||
+    n === "eod chief" ||
+    n === "regional director" ||
     n === (office ?? "").toLowerCase()
   );
 }
@@ -137,7 +141,11 @@ export function computeOfficerEvaluationState(params: {
     }
   } else if (statusLower === "pendingpayment") {
     currentStageOfficer = application.cashierOfficer;
-    if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
+    if (isEndorsedToMe) {
+      isStageClaimedByMe = true;
+    } else if (isEndorsedAwayFromMe) {
+      isStageClaimedByOther = true;
+    } else if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
     } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
       isStageClaimedByMe = true;

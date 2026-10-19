@@ -33,7 +33,39 @@ public class RequestsAndComplaintsFeeCalculationStrategy : IFeeCalculationStrate
         var appType = request.ApplicationType.SafeTrim();
         var element = request.Element.SafeTrim();
 
-        // Filing / Processing Fee
+        var isAdministrativePaidRequest =
+            appType.SafeContains("Verification") ||
+            appType.SafeContains("Record") ||
+            activity.SafeContains("ADMINISTRATIVE REQUEST");
+
+        // Consumer Requests and Complaints are statutory free of charge pursuant to NTC Citizen's Charter
+        if (!isAdministrativePaidRequest)
+        {
+            lineItems.Add(new CalculatedFeeLineItemDto(
+                Particular: "Statutory Fee (Free of Charge)",
+                ItemCode: FeeConstants.Codes.NoFee,
+                Description: "No Fees for Requests and Complaints pursuant to NTC Citizen's Charter",
+                ValidityYears: 1,
+                NoOfUnits: 1,
+                FeeRate: 0m,
+                Amount: 0m
+            ));
+
+            return new FeeCalculationResultDto(
+                Activity: activity,
+                ApplicationType: appType,
+                Element: string.IsNullOrWhiteSpace(element) ? null : element,
+                FormulaApplied: FeeConstants.Formulas.RequestsAndComplaintsFree,
+                SubTotal: 0m,
+                SurchargeAmount: 0m,
+                TaxAmount: 0m,
+                TotalAmount: 0m,
+                LineItems: lineItems,
+                Category: ServiceCategoryType.RequestsAndComplaints
+            );
+        }
+
+        // Filing / Processing Fee for non-consumer administrative requests
         decimal feeRate = FeeConstants.Amounts.DefaultRequestRate;
         lineItems.Add(new CalculatedFeeLineItemDto(
             Particular: string.IsNullOrWhiteSpace(element) ? "Processing Fee" : $"Processing Fee ({element})",

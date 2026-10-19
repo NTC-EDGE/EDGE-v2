@@ -15,6 +15,9 @@ import { TvroRegReviewCard } from './generalReview/TvroRegReviewCard';
 import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
+import { PermitFeeSummaryCard } from './generalReview/PermitFeeSummaryCard';
+import { LicenseFeeSummaryCard } from './generalReview/LicenseFeeSummaryCard';
+import { RequestFeeSummaryCard } from './generalReview/RequestFeeSummaryCard';
 import { UploadedDocumentsReviewCard } from './generalReview/UploadedDocumentsReviewCard';
 import { FilingIntentReviewCard } from './generalReview/FilingIntentReviewCard';
 
@@ -134,12 +137,31 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
           </>
         )}
         footerSlot={
-          <UploadedDocumentsReviewCard
-            activeApplicant={activeApplicant}
-            variantRequirements={variantRequirements}
-            service={service}
-            onPreviewFile={handlePreviewFile}
-          />
+          <>
+            {reviewData.permitFeeComputation && (
+              <PermitFeeSummaryCard
+                computation={reviewData.permitFeeComputation}
+                isAssessmentOnly={filingIntent === 'AssessmentOnly'}
+              />
+            )}
+            {reviewData.licenseFeeComputation && (
+              <LicenseFeeSummaryCard
+                computation={reviewData.licenseFeeComputation}
+                isAssessmentOnly={filingIntent === 'AssessmentOnly'}
+              />
+            )}
+            {reviewData.requestFeeComputation && (
+              <RequestFeeSummaryCard
+                computation={reviewData.requestFeeComputation}
+              />
+            )}
+            <UploadedDocumentsReviewCard
+              activeApplicant={activeApplicant}
+              variantRequirements={variantRequirements}
+              service={service}
+              onPreviewFile={handlePreviewFile}
+            />
+          </>
         }
         signatureEntry={reviewData.signatureEntry}
       />

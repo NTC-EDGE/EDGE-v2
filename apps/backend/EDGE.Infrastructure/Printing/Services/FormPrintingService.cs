@@ -402,6 +402,48 @@ public class FormPrintingService : IFormPrintingService
     public byte[] PrintIssuedDocument(IssuedDocumentModel? model = null)
     {
         model ??= new IssuedDocumentModel();
+
+        if (!string.IsNullOrWhiteSpace(model.TemplateName))
+        {
+            byte[]? templateBytes = null;
+            if (_fillerService != null)
+            {
+                try
+                {
+                    templateBytes = _fillerService.GetTemplate(model.TemplateName);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogWarning(ex, "Failed to retrieve template {TemplateName} from filler service.", model.TemplateName);
+                }
+            }
+
+            if (templateBytes == null || templateBytes.Length == 0)
+            {
+                var asm = typeof(FormPrintingService).Assembly;
+                var resName = $"EDGE.Infrastructure.Printing.Templates.{model.TemplateName}";
+                using var stream = asm.GetManifestResourceStream(resName);
+                if (stream != null)
+                {
+                    using var ms = new System.IO.MemoryStream();
+                    stream.CopyTo(ms);
+                    templateBytes = ms.ToArray();
+                }
+            }
+
+            if (templateBytes != null && templateBytes.Length > 0)
+            {
+                try
+                {
+                    return EDGE.Infrastructure.Printing.Services.AcroForm.IssuedDocumentAcroFormFiller.Fill(templateBytes, model);
+                }
+                catch (Exception ex)
+                {
+                    _logger?.LogError(ex, "Failed to fill issued document AcroForm template {TemplateName}. Falling back to QuestPDF generator.", model.TemplateName);
+                }
+            }
+        }
+
         return new IssuedDocumentReport(model).GeneratePdf();
     }
 }

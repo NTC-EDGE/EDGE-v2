@@ -109,7 +109,7 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
     canIssueDocument: false,
     canApprove: false,
     canDecline: true,
-    canEndorse: false,
+    canEndorse: true,
   },
 };
 

@@ -70,6 +70,8 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             .Include(r => r.IssuedByUser)
             .Include(r => r.CancelledByUser)
             .Include(r => r.Deposit)
+            .Include(r => r.OrderOfPayment)
+            .Include(r => r.Application)
             .Where(r => tenantId == Guid.Empty || r.TenantId == tenantId);
 
         if (status.HasValue)
@@ -105,7 +107,9 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
             query = query.Where(r =>
                 r.OfficialReceiptNumber.ToLower().Contains(s) ||
                 r.PayorName.ToLower().Contains(s) ||
-                (r.CheckNumber != null && r.CheckNumber.ToLower().Contains(s)));
+                (r.CheckNumber != null && r.CheckNumber.ToLower().Contains(s)) ||
+                (r.OrderOfPayment != null && r.OrderOfPayment.OpNumber.ToLower().Contains(s)) ||
+                (r.Application != null && r.Application.ApplicationNumber != null && r.Application.ApplicationNumber.ToLower().Contains(s)));
         }
 
         return await query
@@ -174,6 +178,17 @@ public class OfficialReceiptRepository : IOfficialReceiptRepository
 
         return await query
             .OrderByDescending(op => op.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
+    public async Task<List<OfficialReceipt>> GetByOrderOfPaymentIdAsync(Guid orderOfPaymentId, CancellationToken cancellationToken = default)
+    {
+        return await _context.OfficialReceipts
+            .AsNoTracking()
+            .Include(r => r.LineItems)
+            .Include(r => r.IssuedByUser)
+            .Where(r => r.OrderOfPaymentId == orderOfPaymentId)
+            .OrderBy(r => r.IssuedAt)
             .ToListAsync(cancellationToken);
     }
 

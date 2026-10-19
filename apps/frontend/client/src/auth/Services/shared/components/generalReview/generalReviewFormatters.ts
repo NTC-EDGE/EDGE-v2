@@ -8,8 +8,8 @@ export function isRecord(val: unknown): val is Record<string, unknown> {
 
 export function isPreviewFileObject(file: unknown): file is PreviewFileObject {
   if (typeof file !== 'object' || file === null || !('name' in file)) return false;
-  const candidate = file as { name: unknown };
-  return typeof candidate.name === 'string';
+  const candidate = file;
+  return 'name' in candidate && typeof candidate.name === 'string';
 }
 
 export const formatFieldKey = (key: string): string => {
@@ -99,13 +99,10 @@ export const getRequirementLabel = (
   }
   if (service.requirements && Array.isArray(service.requirements)) {
     const matchedFromSvc = service.requirements.find((r) => {
-      if (typeof r === 'string') return false;
-      const rObj = r as unknown as { id?: string; name?: string; label?: string; description?: string };
-      return rObj.id === cleanKey;
+      return typeof r === 'string' && r.toLowerCase().includes(cleanKey.toLowerCase());
     });
-    if (matchedFromSvc && typeof matchedFromSvc === 'object') {
-      const rObj = matchedFromSvc as unknown as { id?: string; name?: string; label?: string; description?: string };
-      return (rObj.name || rObj.label || rObj.description || cleanKey).replace(/\*$/, '').trim();
+    if (matchedFromSvc) {
+      return matchedFromSvc.replace(/\*$/, '').trim();
     }
   }
   return cleanKey.replace(/[-_]/g, ' ').toUpperCase();

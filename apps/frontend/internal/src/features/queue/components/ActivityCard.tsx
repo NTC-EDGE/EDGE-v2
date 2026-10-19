@@ -23,6 +23,7 @@ import {
   resolveUserIdentifiers,
   computeOfficerEvaluationState,
   getApprovingEvaluator,
+  isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -52,34 +53,31 @@ function getAvatarInitials(name: string): string {
 
 function isSubjectForPayment(app: ApplicationData): boolean {
   return (
-    app.totalAmountDue > 0 &&
-    (!app.payment?.orNumber || app.payment.orNumber.trim().length === 0) &&
-    app.status !== 'Completed' &&
-    app.status !== 'ForIssuance' &&
-    app.status !== 'Draft'
+    app.status === 'PendingPayment' &&
+    app.totalAmountDue > 0
   );
 }
 
 function formatStatusDisplay(application: ApplicationData): string {
-  if (isSubjectForPayment(application)) return "FOR PAYMENT";
   const s = application.status.toLowerCase();
+  if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return "SUBJECT FOR PAYMENT";
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
-  if (s === "foraccountant") return "FOR SOA";
-  if (s === "pendingpayment") return "FOR PAYMENT";
   if (s === "forissuance") return "FOR ISSUANCE";
+  if (s === "returned") return "RETURNED";
+  if (s === "completed" || s === "approved") return "APPROVED";
   return application.status.toUpperCase();
 }
 
 function getStatusStyle(application: ApplicationData): { bg: string; text: string } {
-  if (isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
   const s = application.status.toLowerCase();
+  if (s === "foraccountant") return { bg: '#4F46E5', text: COLORS.neutral.white };
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return { bg: '#16A34A', text: COLORS.neutral.white };
   if (s === "completed" || s === "approved") return { bg: COLORS.brand[800],    text: COLORS.neutral.white };
   if (s === "evaluating")                   return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
   if (s === "submitted")                    return { bg: COLORS.semantic.info,    text: COLORS.neutral.white };
   if (s === "returned")                     return { bg: COLORS.semantic.error,   text: COLORS.neutral.white };
-  if (s === "foraccountant")                return { bg: '#0284C7',               text: COLORS.neutral.white };
-  if (s === "pendingpayment")               return { bg: '#16A34A',               text: COLORS.neutral.white };
   if (s === "forissuance")                  return { bg: '#059669',               text: COLORS.neutral.white };
   if (s === "draft")                        return { bg: COLORS.neutral[400],     text: COLORS.neutral.white };
   return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };
@@ -134,6 +132,8 @@ export function ActivityCard({
     isEndorsedAwayFromMe,
     isEvaluatedByMe,
     isEvaluatedByOther,
+    currentStageOfficer,
+    isStageClaimedByOther,
   } = useMemo(
     () =>
       computeOfficerEvaluationState({
@@ -148,6 +148,129 @@ export function ActivityCard({
     () => getApprovingEvaluator(application),
     [application]
   );
+
+  const assignmentDisplay = useMemo(() => {
+    if (application.endorsedTo) {
+      return {
+        label: `Endorsed to: ${application.endorsedTo}`,
+        icon: "share-2" as const,
+        color: isDark ? "#818CF8" : "#4F46E5",
+        textColor: isDark ? "#C7D2FE" : "#4338CA",
+      };
+    }
+
+    const st = application.status.toLowerCase();
+    if (st === "evaluating") {
+      const name =
+        evaluatingOfficer ||
+        application.evaluatingOfficer ||
+        (!isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : "Unassigned");
+      return {
+        label: `Evaluating: ${name}`,
+        icon: isEvaluatedByOther ? ("lock" as const) : ("user-check" as const),
+        color: isDark ? colors.brand[400] : colors.brand[700],
+        textColor: isDark ? colors.brand[300] : colors.brand[900],
+      };
+    }
+
+    if (st === "foraccountant") {
+      const name =
+        application.accountingOfficer ||
+        (!isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : "Unassigned");
+      return {
+        label: `Accountant: ${name}`,
+        icon: isStageClaimedByOther
+          ? ("lock" as const)
+          : name !== "Unassigned"
+            ? ("user-check" as const)
+            : ("user-plus" as const),
+        color: isDark ? "#38BDF8" : "#0284C7",
+        textColor: isDark ? "#BAE6FD" : "#0369A1",
+      };
+    }
+
+    if (st === "pendingpayment") {
+      const name =
+        application.cashierOfficer ||
+        (!isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : "Unassigned");
+      return {
+        label: `Cashier: ${name}`,
+        icon: isStageClaimedByOther
+          ? ("lock" as const)
+          : name !== "Unassigned"
+            ? ("user-check" as const)
+            : ("user-plus" as const),
+        color: isDark ? "#34D399" : "#059669",
+        textColor: isDark ? "#A7F3D0" : "#047857",
+      };
+    }
+
+    if (st === "forissuance") {
+      const name =
+        application.issuingOfficer ||
+        (!isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : "Unassigned");
+      return {
+        label: `Issuing: ${name}`,
+        icon: isStageClaimedByOther
+          ? ("lock" as const)
+          : name !== "Unassigned"
+            ? ("user-check" as const)
+            : ("user-plus" as const),
+        color: isDark ? "#A78BFA" : "#7C3AED",
+        textColor: isDark ? "#DDD6FE" : "#6D28D9",
+      };
+    }
+
+    if (st === "completed" || st === "approved") {
+      const name =
+        application.issuingOfficer ||
+        application.evaluatingOfficer ||
+        (!isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : "Authorized Officer");
+      return {
+        label: `Issued by: ${name}`,
+        icon: "check-circle" as const,
+        color: isDark ? "#34D399" : "#059669",
+        textColor: isDark ? "#A7F3D0" : "#065F46",
+      };
+    }
+
+    return {
+      label:
+        application.assignedTo &&
+        !isGenericOfficer(application.assignedTo, application.office)
+          ? application.assignedTo
+          : (application.office || "Unassigned"),
+      icon: "user-plus" as const,
+      color: textMuted,
+      textColor: textSub,
+    };
+  }, [
+    application.endorsedTo,
+    application.status,
+    application.evaluatingOfficer,
+    application.accountingOfficer,
+    application.cashierOfficer,
+    application.issuingOfficer,
+    application.assignedTo,
+    application.office,
+    evaluatingOfficer,
+    isEvaluatedByOther,
+    isStageClaimedByOther,
+    isDark,
+    colors.brand,
+    textMuted,
+    textSub,
+  ]);
 
   const displayFilingName =
     application.filingUser?.accountType === "Company"
@@ -362,23 +485,19 @@ export function ActivityCard({
         <View style={styles.bottomRow}>
           <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
             <Lucide
-              name={application.endorsedTo ? "share-2" : isEvaluating ? (isEvaluatedByOther ? "lock" : "user-check") : "user-plus"}
+              name={assignmentDisplay.icon}
               size={10}
-              color={application.endorsedTo ? (isDark ? '#818CF8' : '#4F46E5') : isEvaluating ? (isDark ? colors.brand[400] : colors.brand[700]) : textMuted}
+              color={assignmentDisplay.color}
             />
             <Text
               style={[
                 styles.assignText,
-                { color: application.endorsedTo ? (isDark ? '#C7D2FE' : '#4338CA') : isEvaluating ? (isDark ? colors.brand[300] : colors.brand[900]) : textSub },
+                { color: assignmentDisplay.textColor },
               ]}
               numberOfLines={1}
               ellipsizeMode="tail"
             >
-              {application.endorsedTo
-                ? `Endorsed to: ${application.endorsedTo}`
-                : isEvaluating && evaluatingOfficer
-                  ? `Evaluating: ${evaluatingOfficer}`
-                  : (application.office || application.assignedTo || 'Unassigned')}
+              {assignmentDisplay.label}
             </Text>
           </View>
           {approvingEvaluator && application.status !== 'Evaluating' && application.status !== 'Submitted' && (

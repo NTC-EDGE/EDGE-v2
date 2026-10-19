@@ -341,7 +341,7 @@ public class StatementOfAccountReport : IDocument
                         sig.Item().Text("APPROVED BY:").FontSize(7f);
                     }
                     sig.Item().PaddingTop(isOverlay ? 8 : 12).LineHorizontal(isOverlay ? 0f : 0.8f).LineColor(Colors.Black);
-                    sig.Item().AlignCenter().Text(_model.ApprovedByName ?? "REGIONAL DIRECTOR").Bold().FontSize(8f);
+                    sig.Item().AlignCenter().Text(_model.ApprovedByName ?? "CHIEF, EOD").Bold().FontSize(8f);
                     if (!isOverlay)
                     {
                         sig.Item().AlignCenter().Text(_model.ApprovedByTitle).FontSize(6.5f).Italic();

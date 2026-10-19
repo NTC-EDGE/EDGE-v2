@@ -221,7 +221,15 @@ export const isExamAssistanceField = (label: string, fieldId: string): boolean =
   );
 };
 
-export const isRepeaterSubField = (_label: string, _fieldId: string): boolean => {
+export const isRepeaterSubField = (label: string, fieldId?: string): boolean => {
+  const lbl = (label || '').toLowerCase().trim();
+  const id = (fieldId || '').toLowerCase().trim();
+
+  if (/^device\s*#\d+/i.test(lbl) || /^device\s*#\d+/i.test(id)) return true;
+  if (/^tvro\s*equipment\s*#\d+/i.test(lbl) || /^tvro\s*equipment\s*#\d+/i.test(id)) return true;
+  if (/^equipment\s*(unit)?\s*#\d+/i.test(lbl) || /^equipment\s*(unit)?\s*#\d+/i.test(id)) return true;
+  if (/^radio\s*officer\s*#\d+/i.test(lbl) || /^radio\s*officer\s*#\d+/i.test(id)) return true;
+
   return false;
 };
 

@@ -22,7 +22,16 @@ export function resolveServiceCategoryFlags(service: NTCService) {
   const isPermitService =
     !isExamService &&
     (serviceCategoryLower.includes('permit') ||
-      serviceTitleLower.includes('permit'));
+      serviceTitleLower.includes('permit') ||
+      serviceCategoryLower.includes('purchase') ||
+      serviceTitleLower.includes('purchase') ||
+      serviceTitleLower.includes('possess') ||
+      serviceTitleLower.includes('dealer') ||
+      serviceTitleLower.includes('manufacturer') ||
+      serviceTitleLower.includes('retailer') ||
+      serviceTitleLower.includes('transport') ||
+      serviceTitleLower.includes('vanity') ||
+      serviceTitleLower.includes('special event'));
 
   const isCertificateService =
     !isExamService &&
@@ -39,7 +48,26 @@ export function resolveServiceCategoryFlags(service: NTCService) {
       (service.id || '').toLowerCase().includes('103') ||
       (service.id || '').toLowerCase().includes('ntc_1_03'));
 
-  return { isExamService, isLicenseService, isPermitService, isCertificateService, isAmateurCertService };
+  const isRequestOrComplaintService =
+    !isExamService &&
+    (serviceCategoryLower.includes('request') ||
+      serviceCategoryLower.includes('complaint') ||
+      serviceTitleLower.includes('request') ||
+      serviceTitleLower.includes('complaint') ||
+      serviceTitleLower.includes('imei') ||
+      serviceTitleLower.includes('blocking') ||
+      serviceTitleLower.includes('spam') ||
+      serviceTitleLower.includes('scam') ||
+      serviceTitleLower.includes('tape preservation'));
+
+  return {
+    isExamService,
+    isLicenseService,
+    isPermitService,
+    isCertificateService,
+    isAmateurCertService,
+    isRequestOrComplaintService,
+  };
 }
 
 export function resolveApplicantParticulars(

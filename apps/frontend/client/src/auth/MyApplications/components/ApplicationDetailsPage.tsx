@@ -287,6 +287,15 @@ export function ApplicationDetailsPage({
             app={app}
             isDesktop={isDesktop}
             onProceedToPayment={() => setIsPaymentModalOpen(true)}
+            onViewReports={(tab) => {
+              const orNum = app.officialReceiptNumber || app.op?.officialReceiptNumber;
+              const hasOr = Boolean(typeof orNum === 'string' && orNum.trim().length > 0);
+              const defaultTab: 'soa' | 'op' | 'or' = hasOr
+                ? 'or'
+                : (app.isAssessmentOnly || app.intent === 'AssessmentOnly' ? 'soa' : 'op');
+              setSoaOpInitialTab(tab || defaultTab);
+              setSoaOpModalVisible(true);
+            }}
             onViewSoa={() => {
               setSoaOpInitialTab('soa');
               setSoaOpModalVisible(true);

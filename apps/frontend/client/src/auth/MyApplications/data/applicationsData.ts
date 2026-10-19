@@ -72,6 +72,10 @@ export interface SoaData {
   totalAmount: number;
   dueDate?: string;
   remarks?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
   lineItems: SoaLineItem[];
 }
 
@@ -106,6 +110,8 @@ export interface SingleApplication {
   officialReceiptNumber?: string;
   amountPaid?: number;
   paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -290,6 +296,8 @@ export interface BulkApplication {
   officialReceiptNumber?: string;
   amountPaid?: number;
   paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
@@ -372,7 +380,7 @@ export function getStatusLabel(status: ApplicationStatus): string {
     case 'APPROVED':         return 'Issued';
     case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
-    case 'READY_FOR_PAYMENT':return 'Ready For Payment';
+    case 'READY_FOR_PAYMENT':return 'For Payment';
     case 'PENDING':          return 'Submitted';
   }
 }
@@ -608,10 +616,10 @@ export function normalizeApplicationStatus(rawStatus: string | undefined | null)
   if (!rawStatus) return 'PENDING';
   const s = rawStatus.toUpperCase().replace(/\s+/g, '_').replace(/_/g, '');
   if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
-  if (s.includes('EVALUAT') || s.includes('UNDEREVALUATION') || s.includes('FORACCOUNTANT')) return 'FOR_EVALUATION';
+  if (s.includes('FORORDEROFPAYMENT') || s.includes('FORACCOUNTANT') || s.includes('EVALUAT') || s.includes('UNDEREVALUATION')) return 'FOR_EVALUATION';
   if (s.includes('APPROV') || s.includes('COMPLET') || s.includes('ISSUED')) return 'APPROVED';
   if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
-  if (s.includes('PAYMENT') || s.includes('READYFORPAYMENT') || s.includes('PENDINGPAYMENT') || s.includes('FORPAYMENT')) return 'READY_FOR_PAYMENT';
+  if (s.includes('PENDINGPAYMENT') || s.includes('READYFORPAYMENT') || s.includes('FORPAYMENT') || s === 'PAYMENT' || s === 'FOR_PAYMENT') return 'READY_FOR_PAYMENT';
   if (s.includes('EXPIR')) return 'EXPIRING_SOON';
   if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
   return 'PENDING';
@@ -727,6 +735,8 @@ export interface ApiApplicationDto {
   AssessmentVersion?: number;
   assessmentRemarks?: string;
   AssessmentRemarks?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
   filingUser?: {
     id?: string;
     name?: string;
@@ -1104,8 +1114,18 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
   const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
-  const primarySoaDto = rawSoas.length > 0 ? rawSoas[0] : undefined;
-  const primaryOpDto = rawOps.length > 0 ? rawOps[0] : undefined;
+  const sortedSoas = [...rawSoas].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const sortedOps = [...rawOps].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const primarySoaDto = sortedSoas.length > 0 ? sortedSoas[0] : undefined;
+  const primaryOpDto = sortedOps.length > 0 ? sortedOps[0] : undefined;
 
   const resolvedOrNumber =
     dto.officialReceiptNumber ||
@@ -1139,6 +1159,10 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
         totalAmount: typeof primarySoaDto.totalAmount === 'number' ? primarySoaDto.totalAmount : 0,
         dueDate: primarySoaDto.dueDate,
         remarks: primarySoaDto.remarks,
+        preparedByName: (primarySoaDto as { preparedByName?: string }).preparedByName,
+        preparedByTitle: (primarySoaDto as { preparedByTitle?: string }).preparedByTitle,
+        approvedByName: (primarySoaDto as { approvedByName?: string }).approvedByName,
+        approvedByTitle: (primarySoaDto as { approvedByTitle?: string }).approvedByTitle,
         lineItems: (primarySoaDto.lineItems || []).map((li) => ({
           id: li.id,
           particular: li.particular || 'Regulatory Fee Assessment',
@@ -1276,6 +1300,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       serviceVariantId: dto.serviceVariantId,
       histories: mappedHistories,
       history: mappedHistories,
+      evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+      issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
       filingUser: dto.filingUser,
       rawStatus,
     };
@@ -1339,6 +1365,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     paidAt: resolvedPaidAt,
     histories: mappedHistories,
     history: mappedHistories,
+    evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+    issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
     rawStatus,
   };
   return singleApp;

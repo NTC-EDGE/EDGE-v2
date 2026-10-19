@@ -61,6 +61,10 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === 'ntc officer' ||
     n === 'admin' ||
     n === 'system admin' ||
+    n === 'chief, eod' ||
+    n === 'chief of eod' ||
+    n === 'eod chief' ||
+    n === 'regional director' ||
     n === (office ?? '').toLowerCase()
   );
 }
@@ -243,29 +247,69 @@ export type ApplicationHistoryLike = {
 };
 
 export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
-  const claim = reversedHistories.find(
-    (h) => (h.action && h.action.toLowerCase().includes('financial review')) ||
-           (h.remarks && h.remarks.toLowerCase().includes('financial review started'))
-  );
-  if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+  const match = reversedHistories.find((h) => {
+    if (!h.staffName || h.staffName.trim().length === 0) return false;
+    const actionLower = (h.action || '').toLowerCase();
+    const remarksLower = (h.remarks || '').toLowerCase();
+    const roleLower = (h.staffRole || '').toLowerCase();
+
+    return (
+      roleLower.includes('accountant') ||
+      actionLower.includes('financial review') ||
+      actionLower.includes('soa approved') ||
+      actionLower.includes('approved by accountant') ||
+      actionLower.includes('returned by accountant') ||
+      remarksLower.includes('financial review started') ||
+      remarksLower.includes('approved by accountant') ||
+      remarksLower.includes('returned by accountant')
+    );
+  });
+  if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
   return undefined;
 }
 
 export function resolveCashierOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
-  const claim = reversedHistories.find(
-    (h) => (h.action && h.action.toLowerCase().includes('payment verification')) ||
-           (h.remarks && h.remarks.toLowerCase().includes('payment verification started'))
-  );
-  if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+  const match = reversedHistories.find((h) => {
+    if (!h.staffName || h.staffName.trim().length === 0) return false;
+    const actionLower = (h.action || '').toLowerCase();
+    const remarksLower = (h.remarks || '').toLowerCase();
+    const roleLower = (h.staffRole || '').toLowerCase();
+
+    return (
+      roleLower.includes('cashier') ||
+      actionLower.includes('payment verification') ||
+      actionLower.includes('payment verified') ||
+      actionLower.includes('official receipt') ||
+      actionLower.includes('or issued') ||
+      actionLower.includes('returned by cashier') ||
+      remarksLower.includes('payment verification started') ||
+      remarksLower.includes('official receipt') ||
+      remarksLower.includes('returned by cashier')
+    );
+  });
+  if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
   return undefined;
 }
 
 export function resolveIssuingOfficer(reversedHistories: ApplicationHistoryLike[]): string | undefined {
-  const claim = reversedHistories.find(
-    (h) => (h.action && (h.action.toLowerCase().includes('document issuance started') || h.action.toLowerCase().includes('issuance started'))) ||
-           (h.remarks && h.remarks.toLowerCase().includes('document release process started'))
-  );
-  if (claim?.staffName && claim.staffName.trim().length > 0) return claim.staffName.trim();
+  const match = reversedHistories.find((h) => {
+    if (!h.staffName || h.staffName.trim().length === 0) return false;
+    const actionLower = (h.action || '').toLowerCase();
+    const remarksLower = (h.remarks || '').toLowerCase();
+
+    return (
+      actionLower.includes('document issuance') ||
+      actionLower.includes('issuance started') ||
+      actionLower.includes('document & license issued') ||
+      actionLower.includes('license issued') ||
+      actionLower.includes('statutory document') ||
+      actionLower.includes('issued by') ||
+      remarksLower.includes('document release process started') ||
+      remarksLower.includes('statutory document and license issued') ||
+      h.toStatus === 'Completed'
+    );
+  });
+  if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
   return undefined;
 }
 
@@ -381,6 +425,15 @@ export function resolveAssignedTo(
   if (feStatus === 'ForIssuance') {
     if (issuingOfficer && !isGenericOfficer(issuingOfficer, office)) {
       return issuingOfficer;
+    }
+    return office ?? '';
+  }
+  if (feStatus === 'Completed' || feStatus === 'Approved') {
+    if (issuingOfficer && !isGenericOfficer(issuingOfficer, office)) {
+      return issuingOfficer;
+    }
+    if (evaluatingOfficer && !isGenericOfficer(evaluatingOfficer, office)) {
+      return evaluatingOfficer;
     }
     return office ?? '';
   }

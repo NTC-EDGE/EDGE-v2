@@ -50,9 +50,14 @@ export interface PaymentDetails {
   opNumber?: string;
   amountReceived: number;
   method: 'cash' | 'check';
+  paymentMethod?: string;
   orNumber: string;
   checkNumber: string;
   checkName: string;
+  checkBank?: string;
+  checkDate?: string;
+  payorName?: string;
+  remarks?: string;
   paidAt?: string;
 }
 
@@ -177,6 +182,10 @@ export interface ApplicationData {
   soaIssuedToType?: ApplicantType;
   soaDueDate?: string;
   soaCreatedAt?: string;
+  soaPreparedByName?: string;
+  soaPreparedByTitle?: string;
+  soaApprovedByName?: string;
+  soaApprovedByTitle?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

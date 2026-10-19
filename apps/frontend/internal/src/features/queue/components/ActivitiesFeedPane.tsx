@@ -43,7 +43,7 @@ type SortOrder = "newest" | "oldest";
 
 type FilterStatus = Extract<
   ApplicationStatus,
-  "Approved" | "Returned" | "Completed" | "ForIssuance"
+  "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
 >;
 
 type FilterMode = "SINGLE" | "BULK";
@@ -62,12 +62,13 @@ const FILTER_MODES: {
 const FILTER_STATUSES: {
   label: string;
   value: FilterStatus;
-  icon: "check-circle" | "x-circle" | "calendar" | "award";
+  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card";
 }[] = [
-  { label: "Approved",     value: "Approved",    icon: "check-circle" },
-  { label: "Returned",     value: "Returned",    icon: "x-circle" },
-  { label: "Completed",    value: "Completed",   icon: "calendar" },
-  { label: "For Issuance", value: "ForIssuance", icon: "award" },
+  { label: "Subject for Payment", value: "PendingPayment", icon: "credit-card" },
+  { label: "Approved",            value: "Approved",       icon: "check-circle" },
+  { label: "Returned",            value: "Returned",       icon: "x-circle" },
+  { label: "Completed",           value: "Completed",      icon: "calendar" },
+  { label: "For Issuance",        value: "ForIssuance",    icon: "award" },
 ];
 
 const FILTER_CATEGORIES: {
@@ -378,7 +379,12 @@ export function ActivitiesFeedPane({
     dateFrom.length > 0 ||
     dateTo.length > 0;
 
-  const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key));
+  const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key)).map((t) => {
+    if (t.key === 'pending' && currentRole === 'Cashier') {
+      return { ...t, label: 'Subject for Payment' };
+    }
+    return t;
+  });
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
