@@ -7,53 +7,6 @@ import { ValidatedInput } from "../ValidatedInput";
 import { Select } from "../Select";
 import { DatePickerInput } from "../DatePickerInput";
 import { FormRepeaterTable, FormRepeaterColumn } from "../FormRepeaterTable";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function isRepeaterColumn(value: unknown): value is FormRepeaterColumn {
-  if (!isRecord(value)) return false;
-  return typeof value.key === "string" && typeof value.label === "string";
-}
-
-function parseRepeaterRules(rules?: string): {
-  columns?: FormRepeaterColumn[];
-  addButtonLabel?: string;
-  minRows?: number;
-  maxRows?: number;
-  helpText?: string;
-} {
-  if (!rules || typeof rules !== "string") return {};
-  try {
-    const parsed: unknown = JSON.parse(rules);
-    if (!isRecord(parsed)) return {};
-    const result: {
-      columns?: FormRepeaterColumn[];
-      addButtonLabel?: string;
-      minRows?: number;
-      maxRows?: number;
-      helpText?: string;
-    } = {};
-    if (typeof parsed.addButtonLabel === "string" && parsed.addButtonLabel.trim().length > 0) {
-      result.addButtonLabel = parsed.addButtonLabel;
-    }
-    if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
-      result.helpText = parsed.helpText;
-    }
-    if (typeof parsed.minRows === "number") result.minRows = parsed.minRows;
-    if (typeof parsed.maxRows === "number") result.maxRows = parsed.maxRows;
-    if (Array.isArray(parsed.repeaterColumns)) {
-      const validCols = parsed.repeaterColumns.filter(isRepeaterColumn);
-      if (validCols.length > 0) {
-        result.columns = validCols;
-      }
-    }
-    return result;
-  } catch {
-    return {};
-  }
-}
 import { ApplicantNameField, StructuredNameData } from "../ApplicantNameField";
 import { DeclarationCheckbox } from "../DeclarationCheckbox";
 import { FormSignatureInput } from "../FormSignatureInput";
@@ -61,6 +14,149 @@ import { IntendedUseCheckboxGroup } from "../IntendedUseCheckboxGroup";
 import { VasServicesCheckboxGroup } from "../VasServicesCheckboxGroup";
 import { NatureOfComplaintCheckboxGroup } from "../NatureOfComplaintCheckboxGroup";
 import { HourAmPmInput } from "../HourAmPmInput";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeColumnType(rawType: unknown): "text" | "number" | "select" | "date" | "serials" | "equipments" | "file" {
+  if (typeof rawType !== "string") return "text";
+  const lower = rawType.toLowerCase().trim();
+  if (lower === "file" || lower === "attachment" || lower === "upload") return "file";
+  if (lower === "number" || lower === "numeric") return "number";
+  if (lower === "select" || lower === "dropdown") return "select";
+  if (lower === "date") return "date";
+  if (lower === "serials") return "serials";
+  if (lower === "equipments") return "equipments";
+  return "text";
+}
+
+function normalizeRepeaterColumn(value: unknown, index: number): FormRepeaterColumn | null {
+  if (!isRecord(value)) return null;
+
+  const rawKey =
+    typeof value.key === "string" && value.key.trim().length > 0
+      ? value.key.trim()
+      : typeof value.id === "string" && value.id.trim().length > 0
+      ? value.id.trim()
+      : typeof value.name === "string" && value.name.trim().length > 0
+      ? value.name.trim()
+      : typeof value.label === "string" && value.label.trim().length > 0
+      ? value.label.trim().toLowerCase().replace(/[^a-z0-9]+/g, "_")
+      : `col_${index + 1}`;
+
+  const rawLabel =
+    typeof value.label === "string" && value.label.trim().length > 0
+      ? value.label.trim()
+      : typeof value.name === "string" && value.name.trim().length > 0
+      ? value.name.trim()
+      : rawKey;
+
+  const type = normalizeColumnType(value.type);
+  const placeholder = typeof value.placeholder === "string" ? value.placeholder : undefined;
+  const required = typeof value.required === "boolean" ? value.required : undefined;
+
+  let options: Array<{ label: string; value: string }> | undefined;
+  if (Array.isArray(value.options)) {
+    const parsedOptions: Array<{ label: string; value: string }> = [];
+    value.options.forEach((opt) => {
+      if (isRecord(opt)) {
+        const l = typeof opt.label === "string" ? opt.label : typeof opt.value === "string" ? opt.value : "";
+        const v = typeof opt.value === "string" ? opt.value : typeof opt.label === "string" ? opt.label : "";
+        if (l.length > 0 || v.length > 0) {
+          parsedOptions.push({ label: l || v, value: v || l });
+        }
+      } else if (typeof opt === "string" && opt.trim().length > 0) {
+        parsedOptions.push({ label: opt.trim(), value: opt.trim() });
+      }
+    });
+    if (parsedOptions.length > 0) {
+      options = parsedOptions;
+    }
+  }
+
+  return {
+    key: rawKey,
+    label: rawLabel,
+    type,
+    placeholder,
+    required,
+    options,
+  };
+}
+
+function parseRepeaterRules(
+  rules?: unknown,
+  directColumns?: unknown
+): {
+  columns?: FormRepeaterColumn[];
+  addButtonLabel?: string;
+  minRows?: number;
+  maxRows?: number;
+  helpText?: string;
+} {
+  const result: {
+    columns?: FormRepeaterColumn[];
+    addButtonLabel?: string;
+    minRows?: number;
+    maxRows?: number;
+    helpText?: string;
+  } = {};
+
+  let parsed: unknown = null;
+
+  if (isRecord(rules)) {
+    parsed = rules;
+  } else if (typeof rules === "string" && rules.trim().length > 0) {
+    try {
+      parsed = JSON.parse(rules);
+    } catch {
+      parsed = null;
+    }
+  }
+
+  if (isRecord(parsed)) {
+    if (typeof parsed.addButtonLabel === "string" && parsed.addButtonLabel.trim().length > 0) {
+      result.addButtonLabel = parsed.addButtonLabel.trim();
+    }
+    if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
+      result.helpText = parsed.helpText.trim();
+    }
+    if (typeof parsed.minRows === "number") result.minRows = parsed.minRows;
+    if (typeof parsed.maxRows === "number") result.maxRows = parsed.maxRows;
+
+    const rawCols = Array.isArray(parsed.repeaterColumns)
+      ? parsed.repeaterColumns
+      : Array.isArray(parsed.columns)
+      ? parsed.columns
+      : null;
+
+    if (rawCols !== null) {
+      const validCols: FormRepeaterColumn[] = [];
+      rawCols.forEach((col, idx) => {
+        const norm = normalizeRepeaterColumn(col, idx);
+        if (norm !== null) validCols.push(norm);
+      });
+      if (validCols.length > 0) {
+        result.columns = validCols;
+      }
+    }
+  }
+
+  // Fallback to directColumns on field if columns were not defined in validationRules
+  if (!result.columns && Array.isArray(directColumns)) {
+    const validCols: FormRepeaterColumn[] = [];
+    directColumns.forEach((col, idx) => {
+      const norm = normalizeRepeaterColumn(col, idx);
+      if (norm !== null) validCols.push(norm);
+    });
+    if (validCols.length > 0) {
+      result.columns = validCols;
+    }
+  }
+
+  return result;
+}
 
 export interface DynamicFormFieldProps {
   field: FieldDto;
@@ -153,7 +249,7 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   onStructuredNameChange,
   onDropdownChange,
 }) => {
-  const repeaterRules = isRepeaterField ? parseRepeaterRules(field.validationRules) : undefined;
+  const repeaterRules = isRepeaterField ? parseRepeaterRules(field.validationRules, field.repeaterColumns) : undefined;
 
   return (
     <FormCol key={targetId} span={span} compact={field.isCompact}>

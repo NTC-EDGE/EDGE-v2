@@ -23,7 +23,7 @@ export interface RepeaterColumn {
   id: string;
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'date';
+  type: 'text' | 'number' | 'select' | 'date' | 'file';
   placeholder?: string;
   required?: boolean;
   options?: FieldOption[];

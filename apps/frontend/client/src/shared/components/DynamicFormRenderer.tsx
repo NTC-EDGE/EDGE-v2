@@ -110,7 +110,22 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isNatureOfComplaintField = fIdLower === "complaint_types" || fIdLower === "fd000000-0000-0000-0000-000000000327" || labelLower === "nature of complaint" || labelLower.includes("nature of complaint") || labelLower.includes("complaint category");
     const isOthersSpecificationField = fIdLower === "others_specification" || fIdLower === "fd000000-0000-0000-0000-000000000328" || labelLower.includes("if others, please specify");
     const isTimeField = rawType === "time" || fIdLower === "time_of_incident" || fIdLower === "fd000000-0000-0000-0000-000000000329" || labelLower.includes("time of incident") || labelLower.includes("time of transaction");
-    const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails") || fIdLower.includes("devicesdetails") || fIdLower === "attached_proof_documents" || fIdLower === "fd000000-0000-0000-0000-000000000331" || labelLower.includes("attached proof");
+    const isRepeaterField =
+      rawType === "repeater" ||
+      rawType === "table" ||
+      rawType === "repeatable" ||
+      fIdLower.includes("equipmentdetails") ||
+      fIdLower.includes("devicesdetails") ||
+      fIdLower.includes("device_particulars") ||
+      fIdLower.includes("sim_mobile_numbers") ||
+      fIdLower.includes("attached_proof_documents") ||
+      fIdLower === "fd000000-0000-0000-0000-000000000331" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000332" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000333" ||
+      labelLower.includes("attached proof") ||
+      labelLower.includes("device particulars") ||
+      labelLower.includes("sim card / mobile numbers") ||
+      Boolean(field.repeaterColumns && Array.isArray(field.repeaterColumns) && field.repeaterColumns.length > 0);
 
     if (isOthersSpecificationField) {
       return null;

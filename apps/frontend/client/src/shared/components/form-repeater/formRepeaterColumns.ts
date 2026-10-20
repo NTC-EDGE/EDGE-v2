@@ -135,6 +135,33 @@ export const DEFAULT_TVRO_SIGNAL_COLUMNS: FormRepeaterColumn[] = [
   { key: "nameOfPrograms", label: "Name of Programs", placeholder: "e.g. News, Educational Feeds", required: false },
 ];
 
+export const DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "make_model_type", label: "Make / Type / Model", placeholder: "e.g. Apple iPhone 15 Pro / Samsung Galaxy S24", required: true },
+  { key: "imei_number", label: "IMEI Number (15 Digits)", type: "number", placeholder: "e.g. 356789012345678", required: true },
+];
+
+export const DEFAULT_REQUEST_SIM_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "mobile_number", label: "Mobile Number", placeholder: "09XXXXXXXXX or +639XXXXXXXXX", required: true },
+  {
+    key: "telco_provider",
+    label: "Network / Telco Provider",
+    type: "select",
+    placeholder: "Select provider...",
+    required: false,
+    options: [
+      { label: "Smart / TNT", value: "Smart / TNT" },
+      { label: "Globe / TM", value: "Globe / TM" },
+      { label: "DITO", value: "DITO" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+];
+
+export const DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "document_description", label: "Document Description", placeholder: "e.g. Screenshot of Spam / Billing Statement / Official Receipt", required: true },
+  { key: "attachment_file", label: "Attached Document / File", type: "file", placeholder: "Upload file", required: true },
+];
+
 export function resolveRepeaterColumns(
   fieldKey?: string,
   fieldLabel?: string,
@@ -146,6 +173,41 @@ export function resolveRepeaterColumns(
 
   const keyLower = (fieldKey || "").toLowerCase();
   const labelLower = (fieldLabel || "").toLowerCase();
+
+  // Requests: SIM Card / Mobile Numbers
+  if (
+    keyLower.includes("sim_mobile_numbers") ||
+    keyLower.includes("simmobilenumbers") ||
+    keyLower.includes("sim_details") ||
+    keyLower.includes("simcard") ||
+    labelLower.includes("sim card") ||
+    labelLower.includes("mobile number")
+  ) {
+    return DEFAULT_REQUEST_SIM_REPEATER_COLUMNS;
+  }
+
+  // Complaints / General: Attached Proof Documents
+  if (
+    keyLower.includes("attached_proof_documents") ||
+    keyLower.includes("attachedproof") ||
+    keyLower.includes("complaint_proof") ||
+    labelLower.includes("attached proof") ||
+    labelLower.includes("supporting document")
+  ) {
+    return DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS;
+  }
+
+  // Requests: Blocking / Unblocking GSM Handset Device Particulars
+  if (
+    keyLower.includes("device_particulars") ||
+    keyLower.includes("deviceparticulars") ||
+    keyLower.includes("imei") ||
+    labelLower.includes("device particulars") ||
+    labelLower.includes("imei") ||
+    labelLower.includes("handset")
+  ) {
+    return DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS;
+  }
 
   // TVRO specific matchers
   if (

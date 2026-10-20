@@ -19,7 +19,11 @@ import {
   Sparkles,
 } from "lucide-react";
 import { FormField, FormSchema, FieldType, RepeaterColumn } from "./types";
-import { generateId, getFieldLabel, getFieldIcon, DEFAULT_EQUIPMENT_COLUMNS } from "./utils";
+import { generateId, getFieldLabel, getFieldIcon, DEFAULT_EQUIPMENT_COLUMNS,
+  DEFAULT_REQUEST_DEVICE_COLUMNS,
+  DEFAULT_REQUEST_SIM_COLUMNS,
+  DEFAULT_COMPLAINT_ATTACHMENT_COLUMNS,
+} from "./utils";
 
 interface FieldEditorProps {
   field: FormField | null;
@@ -375,6 +379,36 @@ export function FieldEditor({
     });
   };
 
+  const handleLoadRequestDevicePreset = () => {
+    onUpdateField({
+      label: "Device Particulars",
+      helpText: "List all mobile phone handsets to be blocked/unblocked.",
+      addButtonLabel: "Add Another Device (Dual SIM / Multiple Handsets)",
+      repeaterColumns: [...DEFAULT_REQUEST_DEVICE_COLUMNS],
+      minRows: 1,
+    });
+  };
+
+  const handleLoadRequestSimPreset = () => {
+    onUpdateField({
+      label: "SIM Card / Mobile Numbers",
+      helpText: "Enter all mobile numbers and SIM details associated with this request.",
+      addButtonLabel: "Add Another Mobile Number",
+      repeaterColumns: [...DEFAULT_REQUEST_SIM_COLUMNS],
+      minRows: 1,
+    });
+  };
+
+  const handleLoadComplaintAttachmentPreset = () => {
+    onUpdateField({
+      label: "Attached Proof / Supporting Documents",
+      helpText: "Upload evidence, screenshots, or billing statements supporting the complaint.",
+      addButtonLabel: "Add Another Proof / Attachment",
+      repeaterColumns: [...DEFAULT_COMPLAINT_ATTACHMENT_COLUMNS],
+      minRows: 1,
+    });
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
       {/* Editor Header */}
@@ -658,15 +692,44 @@ export function FieldEditor({
             icon={Table}
             description="Define the table columns for each repeatable equipment entry."
           >
-            {/* Quick Preset Button */}
-            <button
-              type="button"
-              onClick={handleLoadEquipmentPreset}
-              className="w-full flex items-center justify-center gap-1.5 py-1.5 px-3 mb-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-xs text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold transition-colors"
-            >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>Load Standard Radio Equipment Preset</span>
-            </button>
+            {/* Quick Preset Buttons */}
+            <div className="space-y-1 mb-2">
+              <span className="text-[10px] font-semibold text-slate-400 block">Quick Presets:</span>
+              <div className="grid grid-cols-2 gap-1.5">
+                <button
+                  type="button"
+                  onClick={handleLoadEquipmentPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800/60 text-[11px] text-emerald-700 dark:text-emerald-300 hover:bg-emerald-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>Radio Equipment</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadRequestDevicePreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-800/60 text-[11px] text-blue-700 dark:text-blue-300 hover:bg-blue-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>Device / Handset</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadRequestSimPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800/60 text-[11px] text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>SIM / Mobile No.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadComplaintAttachmentPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 text-[11px] text-amber-700 dark:text-amber-300 hover:bg-amber-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>Proof Documents</span>
+                </button>
+              </div>
+            </div>
 
             {/* Columns List */}
             <div className="space-y-2">
@@ -726,7 +789,7 @@ export function FieldEditor({
                         value={col.type}
                         onChange={(e) =>
                           handleUpdateColumn(col.id, {
-                            type: e.target.value as "text" | "number" | "select" | "date",
+                            type: e.target.value as "text" | "number" | "select" | "date" | "file",
                           })
                         }
                         className={inputClass}
@@ -735,6 +798,7 @@ export function FieldEditor({
                         <option value="number">Number</option>
                         <option value="select">Dropdown</option>
                         <option value="date">Date Picker</option>
+                        <option value="file">File Upload</option>
                       </select>
                     </div>
                   </div>
@@ -749,6 +813,56 @@ export function FieldEditor({
                       placeholder="e.g. Motorola / IC-7300..."
                     />
                   </div>
+
+                  {col.type === "select" && (
+                    <div className="pt-1.5 border-t border-slate-100 dark:border-slate-800 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <label className="text-[9px] font-semibold text-slate-400">Dropdown Options</label>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const currentOpts = col.options ?? [];
+                            const nextNum = currentOpts.length + 1;
+                            const newOpt = { id: generateId(), label: `Option ${nextNum}`, value: `option_${nextNum}` };
+                            handleUpdateColumn(col.id, { options: [...currentOpts, newOpt] });
+                          }}
+                          className="text-[9px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold"
+                        >
+                          + Add Option
+                        </button>
+                      </div>
+                      <div className="space-y-1">
+                        {(col.options ?? []).map((opt, oIdx) => (
+                          <div key={opt.id} className="flex items-center gap-1">
+                            <input
+                              type="text"
+                              value={opt.label}
+                              onChange={(e) => {
+                                const currentOpts = col.options ?? [];
+                                const updated = currentOpts.map((o) =>
+                                  o.id === opt.id ? { ...o, label: e.target.value, value: e.target.value } : o
+                                );
+                                handleUpdateColumn(col.id, { options: updated });
+                              }}
+                              className={inputClass}
+                              placeholder={`Option ${oIdx + 1}`}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const currentOpts = col.options ?? [];
+                                handleUpdateColumn(col.id, { options: currentOpts.filter((o) => o.id !== opt.id) });
+                              }}
+                              className="p-1 text-slate-400 hover:text-rose-500 rounded"
+                              title="Delete option"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
 

@@ -281,6 +281,13 @@ function RepeaterFieldPreview({ field }: { field: FormField }) {
                             </option>
                           ))}
                         </select>
+                      ) : col.type === "file" ? (
+                        <input
+                          type="file"
+                          onChange={(e) => handleCellChange(row.id, col.key, e.target.files?.[0]?.name ?? "")}
+                          required={col.required}
+                          className={`${inputClass} cursor-pointer file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[11px] file:bg-slate-100 dark:file:bg-slate-800`}
+                        />
                       ) : (
                         <input
                           type={

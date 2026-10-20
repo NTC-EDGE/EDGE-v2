@@ -23,6 +23,9 @@ export {
   DEFAULT_TVRO_EQUIPMENT_COLUMNS,
   DEFAULT_TVRO_ANTENNA_COLUMNS,
   DEFAULT_TVRO_SIGNAL_COLUMNS,
+  DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS,
+  DEFAULT_REQUEST_SIM_REPEATER_COLUMNS,
+  DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS,
   resolveRepeaterColumns,
 } from "./form-repeater/formRepeaterColumns";
 export { parseSerialEntries, parseEquipmentEntries } from "./form-repeater/formRepeaterUtils";

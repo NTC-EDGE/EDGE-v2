@@ -62,8 +62,33 @@ function renderCellValue(v: unknown, fieldKey?: string): React.ReactNode {
     fieldKey &&
       (fieldKey.toLowerCase().includes('serial') ||
         fieldKey.toLowerCase().includes('equipmentserial') ||
-        fieldKey.toLowerCase().includes('sn'))
+        fieldKey.toLowerCase().includes('sn') ||
+        fieldKey.toLowerCase().includes('imei'))
   );
+
+  // Detect file attachment object
+  if (isRecord(v) && typeof v.name === 'string') {
+    return (
+      <View
+        style={{
+          flexDirection: 'row',
+          alignItems: 'center',
+          backgroundColor: '#EFF6FF',
+          borderWidth: 1,
+          borderColor: '#BFDBFE',
+          borderRadius: 6,
+          paddingHorizontal: 8,
+          paddingVertical: 4,
+          gap: 5,
+          marginTop: 2,
+        }}
+      >
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '600', color: '#1D4ED8' }}>
+          📄 {v.name}
+        </Text>
+      </View>
+    );
+  }
 
   const extractedSerials = extractSerialNumbers(v);
   if (extractedSerials !== null && extractedSerials.length > 0) {

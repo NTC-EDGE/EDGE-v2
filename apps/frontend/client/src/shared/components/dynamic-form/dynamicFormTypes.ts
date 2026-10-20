@@ -13,6 +13,7 @@ export interface FieldDto {
   orderIndex?: number;
   validationRules?: string;
   visibilityCondition?: string;
+  repeaterColumns?: unknown[];
 }
 
 export interface FormSectionDto {
@@ -92,4 +93,3 @@ export interface FormVariantFlags {
   showNumberOfYears: boolean;
   isPermitService: boolean;
 }
-
