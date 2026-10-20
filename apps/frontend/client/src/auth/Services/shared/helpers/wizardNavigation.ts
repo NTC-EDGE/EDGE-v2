@@ -347,7 +347,38 @@ export function handleWizardNext({
           idLower === "othertradename" ||
           idLower === "other_trade_name" ||
           idLower === "fd000000-0000-0000-0000-000000000235" ||
-          idLower.includes("please specify");
+          idLower === "please specify";
+        if (isOtherTradeName) {
+          const knownVal = (
+            filledMap.get("knownbyanothername") ||
+            filledMap.get("known_by_other_name") ||
+            filledMap.get("known by other name") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000234") ||
+            ""
+          ).toLowerCase().trim();
+          if (knownVal !== "yes") {
+            return;
+          }
+        }
+
+        // Skip others_specification if Nature of Complaint does not include "Others"
+        const isOthersComplaintSpec =
+          idLower === "others_specification" ||
+          idLower === "othersspecification" ||
+          idLower === "fd000000-0000-0000-0000-000000000328" ||
+          idLower.includes("if others");
+        if (isOthersComplaintSpec) {
+          const complaintVal = (
+            filledMap.get("complaint_types") ||
+            filledMap.get("nature of complaint") ||
+            filledMap.get("complaint category") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000327") ||
+            ""
+          ).toLowerCase();
+          if (!complaintVal.includes("other")) {
+            return;
+          }
+        }
         if (isOtherTradeName) {
           const knownVal = (
             filledMap.get("knownbyanothername") ||
@@ -472,7 +503,13 @@ export function handleWizardNext({
           idLower === "fd000000-0000-0000-0000-0000000308" ||
           idLower === "fd000000-0000-0000-0000-000000000084" ||
           idLower === "fd000000-0000-0000-0000-000000000085" ||
-          idLower === "fd000000-0000-0000-0000-000000000087";
+          idLower === "fd000000-0000-0000-0000-000000000087" ||
+          idLower === "document_description" ||
+          idLower === "document description" ||
+          idLower === "attachment_file" ||
+          idLower === "attachment" ||
+          idLower === "attached document / file" ||
+          idLower === "file_name";
         if (isRepeaterSubField) {
           return;
         }

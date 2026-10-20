@@ -59,6 +59,8 @@ import { DeclarationCheckbox } from "../DeclarationCheckbox";
 import { FormSignatureInput } from "../FormSignatureInput";
 import { IntendedUseCheckboxGroup } from "../IntendedUseCheckboxGroup";
 import { VasServicesCheckboxGroup } from "../VasServicesCheckboxGroup";
+import { NatureOfComplaintCheckboxGroup } from "../NatureOfComplaintCheckboxGroup";
+import { HourAmPmInput } from "../HourAmPmInput";
 
 export interface DynamicFormFieldProps {
   field: FieldDto;
@@ -76,6 +78,10 @@ export interface DynamicFormFieldProps {
   isVasRegField: boolean;
   isIntendedUseField: boolean;
   isVasServicesField: boolean;
+  isNatureOfComplaintField?: boolean;
+  isTimeField?: boolean;
+  othersSpecifyValue?: string;
+  onOthersSpecifyChange?: (text: string) => void;
   isSignature: boolean;
   isCheckbox: boolean;
   isDropdown: boolean;
@@ -118,6 +124,10 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isVasRegField,
   isIntendedUseField,
   isVasServicesField,
+  isNatureOfComplaintField = false,
+  isTimeField = false,
+  othersSpecifyValue,
+  onOthersSpecifyChange,
   isSignature,
   isCheckbox,
   isDropdown,
@@ -200,6 +210,26 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
         </View>
       ) : isIntendedUseField ? (
         <IntendedUseCheckboxGroup label={displayLabel} required={isRequired} value={val} onChange={(newVal) => onChange(targetId, displayLabel, newVal)} error={err} />
+      ) : isNatureOfComplaintField ? (
+        <NatureOfComplaintCheckboxGroup
+          label={displayLabel}
+          required={isRequired}
+          value={val}
+          options={field.options}
+          onChange={(newVal) => onChange(targetId, displayLabel, newVal)}
+          onOthersSpecifyChange={onOthersSpecifyChange}
+          othersSpecifyValue={othersSpecifyValue}
+          error={err}
+        />
+      ) : isTimeField ? (
+        <HourAmPmInput
+          label={displayLabel}
+          required={isRequired}
+          value={val}
+          onChangeText={(newVal) => onChange(targetId, displayLabel, newVal)}
+          error={err}
+          disabled={disabled}
+        />
       ) : isVasServicesField ? (
         <VasServicesCheckboxGroup label={displayLabel} required={isRequired} value={val} onChange={(newVal) => onChange(targetId, displayLabel, newVal)} error={err} />
       ) : isSignature ? (

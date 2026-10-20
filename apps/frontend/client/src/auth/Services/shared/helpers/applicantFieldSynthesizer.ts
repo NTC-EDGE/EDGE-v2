@@ -153,6 +153,22 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'device_particulars':       'fd000000-0000-0000-0000-000000000332',
   'sim card / mobile numbers': 'fd000000-0000-0000-0000-000000000333',
   'sim_mobile_numbers':       'fd000000-0000-0000-0000-000000000333',
+
+  // NTC 1-25 Complaints
+  'nature of complaint':      'fd000000-0000-0000-0000-000000000327',
+  'complaint category':       'fd000000-0000-0000-0000-000000000327',
+  'complaint_types':          'fd000000-0000-0000-0000-000000000327',
+  'if others, please specify': 'fd000000-0000-0000-0000-000000000328',
+  'others_specification':     'fd000000-0000-0000-0000-000000000328',
+  'time of incident/transaction': 'fd000000-0000-0000-0000-000000000329',
+  'time of incident':         'fd000000-0000-0000-0000-000000000329',
+  'time_of_incident':         'fd000000-0000-0000-0000-000000000329',
+  'state briefly the details of complaint': 'fd000000-0000-0000-0000-000000000330',
+  'details of complaint':     'fd000000-0000-0000-0000-000000000330',
+  'state_briefly_details':    'fd000000-0000-0000-0000-000000000330',
+  'attached proof / supporting documents': 'fd000000-0000-0000-0000-000000000331',
+  'attached proof documents': 'fd000000-0000-0000-0000-000000000331',
+  'attached_proof_documents': 'fd000000-0000-0000-0000-000000000331',
 };
 
 const MONTH_NAMES = [

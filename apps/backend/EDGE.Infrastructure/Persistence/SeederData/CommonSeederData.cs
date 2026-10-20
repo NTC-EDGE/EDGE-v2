@@ -275,11 +275,17 @@ public static class CommonSeederData
             ["provider_business_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Business Name", SyncBackOnSubmit = false },
             ["provider_business_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "textarea", Label = "Business Address", SyncBackOnSubmit = false },
             ["provider_contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = false },
-            ["complaint_types"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000327"), FieldType = "checkbox_group", Label = "Complaint Category", SyncBackOnSubmit = false, ValidationRules = @"[""Billing Complaint"",""Spam"",""Poor Service (Technical Service/Customer Service)"",""Scam"",""Fair Use"",""Denial of Subscription Plan"",""Others, please specify""]" },
+            ["complaint_types"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000327"), FieldType = "checkbox_group", Label = "Nature of Complaint", SyncBackOnSubmit = false, ValidationRules = @"[""Billing Complaint"",""Spam"",""Poor Service (Technical Service/Customer Service)"",""Scam"",""Fair Use"",""Denial of Subscription Plan"",""Others, please specify""]" },
             ["others_specification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "If Others, Please Specify", SyncBackOnSubmit = false },
-            ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "text", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
+            ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "time", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
             ["state_briefly_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "textarea", Label = "State Briefly the Details of Complaint", SyncBackOnSubmit = false },
-            ["attached_proof_documents"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"), FieldType = "file", Label = "Attached Proof / Supporting Documents", SyncBackOnSubmit = false },
+            ["attached_proof_documents"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"),
+                FieldType = "repeater",
+                Label = "Attached Proof / Supporting Documents",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""document_description"",""label"":""Document Description"",""placeholder"":""e.g. Screenshot of Spam / Billing Statement / Official Receipt"",""required"":true,""type"":""text""},{""id"":""c2"",""key"":""attachment_file"",""label"":""Attached Document / File"",""placeholder"":""Upload file"",""required"":true,""type"":""file""}],""addButtonLabel"":""Add Another Proof / Attachment""}"
+            },
 
             // Repeater Fields for Blocking / Unblocking Devices & SIMs
             ["device_particulars"] = new() {

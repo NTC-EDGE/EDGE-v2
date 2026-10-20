@@ -8,6 +8,7 @@ import { FormGrid, FormCol } from "../FormGrid";
 import { FormRepeaterColumn } from "./formRepeaterTypes";
 import { FormRepeaterEquipmentsField } from "./FormRepeaterEquipmentsField";
 import { FormRepeaterSerialsField } from "./FormRepeaterSerialsField";
+import { FormRepeaterFileField } from "./FormRepeaterFileField";
 import { styles } from "./formRepeaterStyles";
 
 interface FormRepeaterRowProps {
@@ -91,6 +92,7 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
           const isSelect = col.type === "select";
           const isDate = col.type === "date";
           const isNumber = col.type === "number";
+          const isFile = col.type === "file" || col.key === "attachment_file" || col.key === "attachment" || col.key === "file_name";
 
           if (isEquipments) {
             return (
@@ -123,7 +125,13 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
 
           return (
             <FormCol key={`${rowId}-${col.key}`} span={isEquipmentsTable || resolvedColumns.length === 1 ? 12 : 6}>
-              {isSelect ? (
+              {isFile ? (
+                <FormRepeaterFileField
+                  col={col}
+                  value={cellVal}
+                  onChange={(v) => onCellChange(rowIndex, col.key, v)}
+                />
+              ) : isSelect ? (
                 <Select
                   label={col.label}
                   required={col.required}

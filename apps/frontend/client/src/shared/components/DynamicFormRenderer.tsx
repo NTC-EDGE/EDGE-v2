@@ -107,7 +107,14 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const rawType = (field.fieldType || field.type || "").toLowerCase();
 
     const isActionRequestedField = fIdLower === "action_requested" || labelLower.includes("action requested");
-    const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails") || fIdLower.includes("devicesdetails");
+    const isNatureOfComplaintField = fIdLower === "complaint_types" || fIdLower === "fd000000-0000-0000-0000-000000000327" || labelLower === "nature of complaint" || labelLower.includes("nature of complaint") || labelLower.includes("complaint category");
+    const isOthersSpecificationField = fIdLower === "others_specification" || fIdLower === "fd000000-0000-0000-0000-000000000328" || labelLower.includes("if others, please specify");
+    const isTimeField = rawType === "time" || fIdLower === "time_of_incident" || fIdLower === "fd000000-0000-0000-0000-000000000329" || labelLower.includes("time of incident") || labelLower.includes("time of transaction");
+    const isRepeaterField = rawType === "repeater" || rawType === "table" || fIdLower.includes("equipmentdetails") || fIdLower.includes("devicesdetails") || fIdLower === "attached_proof_documents" || fIdLower === "fd000000-0000-0000-0000-000000000331" || labelLower.includes("attached proof");
+
+    if (isOthersSpecificationField) {
+      return null;
+    }
     const isBsdField = fIdLower.includes("bsd") || labelLower.includes("bsd no");
     const isVasRegField = fIdLower.includes("vasregistration") || fIdLower.includes("vasregno");
     const isIntendedUseField = fIdLower.includes("intendeduse") || labelLower.includes("intended use");
@@ -123,6 +130,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     let span: 12 | 8 | 6 | 4 | 3 = 6;
     if (
       isActionRequestedField ||
+      isNatureOfComplaintField ||
       isRepeaterField ||
       isSignature ||
       isCheckbox ||
@@ -139,7 +147,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       labelLower.includes("details and supporting")
     ) {
       span = 12;
-    } else if (isDropdown || isDate || isNumber) {
+    } else if (isDropdown || isDate || isNumber || isTimeField) {
       span = 6;
     }
 
@@ -192,6 +200,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isVasRegField={isVasRegField}
         isIntendedUseField={isIntendedUseField}
         isVasServicesField={isVasServicesField}
+        isNatureOfComplaintField={isNatureOfComplaintField}
+        isTimeField={isTimeField}
+        othersSpecifyValue={(values && values["others_specification"]) || (values && values["If Others, Please Specify"]) || ""}
+        onOthersSpecifyChange={(text) => onChange("others_specification", "If Others, Please Specify", text)}
         isSignature={isSignature}
         isCheckbox={isCheckbox}
         isDropdown={isDropdown}
