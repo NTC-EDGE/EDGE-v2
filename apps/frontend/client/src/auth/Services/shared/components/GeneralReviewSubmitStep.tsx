@@ -133,6 +133,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
             <PermitDataReviewCard
               isPermitService={reviewData.isPermitService}
               permitData={activeApplicant.permitData}
+              hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
             />
           </>
         )}

@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { View, Text } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
-import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext } from "./dynamic-form/dynamicFormUtils";
+import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
+import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
@@ -35,7 +36,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
 
   // Auto-sync location IDs from existing values on load
   useEffect(() => {
-    const rVal = (values?.["region"] || values?.["Region"] || "") as string;
+    const rawRVal = values?.["region"] ?? values?.["Region"] ?? "";
+    const rVal = typeof rawRVal === "string" ? rawRVal : "";
     if (rVal && regions.length > 0 && !selectedRegionId) {
       const match = regions.find((r) => r.name.toLowerCase() === rVal.toLowerCase() || r.id === rVal);
       if (match) setSelectedRegionId(match.id);
@@ -43,7 +45,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   }, [values, regions, selectedRegionId]);
 
   useEffect(() => {
-    const pVal = (values?.["province"] || values?.["Province"] || "") as string;
+    const rawPVal = values?.["province"] ?? values?.["Province"] ?? "";
+    const pVal = typeof rawPVal === "string" ? rawPVal : "";
     if (pVal && provinces.length > 0 && !selectedProvinceId) {
       const match = provinces.find((p) => p.name.toLowerCase() === pVal.toLowerCase() || p.id === pVal);
       if (match) setSelectedProvinceId(match.id);
@@ -51,7 +54,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   }, [values, provinces, selectedProvinceId]);
 
   useEffect(() => {
-    const cVal = (values?.["city"] || values?.["City"] || values?.["cityMunicipality"] || values?.["city_municipality"] || "") as string;
+    const rawCVal = values?.["city"] ?? values?.["City"] ?? values?.["cityMunicipality"] ?? values?.["city_municipality"] ?? "";
+    const cVal = typeof rawCVal === "string" ? rawCVal : "";
     if (cVal && municipalities.length > 0 && !selectedMunicipalityId) {
       const match = municipalities.find((m) => m.name.toLowerCase() === cVal.toLowerCase() || m.id === cVal);
       if (match) setSelectedMunicipalityId(match.id);
@@ -66,6 +70,20 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   const isUnblocking = varDesc.includes("unblock") || varId.includes("402");
   const isBlocking = (varDesc.includes("block") || varId.includes("401")) && !isUnblocking;
   const isBlockingOrUnblocking = isBlocking || isUnblocking;
+
+  const flags = buildFormVariantFlags(
+    serviceCategory,
+    serviceTitle,
+    selectedVariantId,
+    variants,
+    variantElements,
+    applicantType
+  );
+
+  const isPermitService =
+    flags.isPermitService ||
+    Boolean(serviceCategory && serviceCategory.toLowerCase().includes("permit")) ||
+    Boolean(serviceTitle && serviceTitle.toLowerCase().includes("permit"));
 
   useEffect(() => {
     if (!isBlockingOrUnblocking || !form?.sections) return;
@@ -187,9 +205,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         { label: "UNBLOCK GSM Handset", value: "UNBLOCK GSM Handset" },
       ];
     }
-    else dropdownOptions = parseOptions(field);
+    else dropdownOptions = parseOptions(field) ?? [];
 
     const isFieldRequired = field.isRequired ?? false;
+
+    const isAmateurPurchaseParticulars =
+      flags.isAmateurPurchasePossessVariant &&
+      (fIdLower.includes("particular") ||
+        labelLower.includes("particular") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000340");
+
+    const customRepeaterColumns = isAmateurPurchaseParticulars
+      ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
+      : undefined;
+
+    const customAddButtonLabel = isAmateurPurchaseParticulars
+      ? "Add Station / Class Particulars"
+      : undefined;
 
     return (
       <DynamicFormField
@@ -227,13 +259,21 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         isContactField={isContactField}
         isEmailField={isEmailField}
         isNonIndividualEntity={applicantType === "company"}
-        isAmateurPermitService={false}
+        isAmateurPermitService={isPermitService}
         isIndividualVar={applicantType === "individual"}
-        showCallSign={true}
+        showCallSign={!isPermitService}
+        hideAddButton={
+          isPermitService &&
+          !fIdLower.includes("particular") &&
+          !labelLower.includes("particular") &&
+          rawTargetId !== "fd000000-0000-0000-0000-000000000340"
+        }
         structuredNameData={structuredNameData}
         applicantName={applicantName}
         isBulk={isBulk}
         appMode={appMode}
+        customRepeaterColumns={customRepeaterColumns}
+        customAddButtonLabel={customAddButtonLabel}
         onChange={onChange}
         onStructuredNameChange={onStructuredNameChange}
         onDropdownChange={(v) => {
@@ -307,6 +347,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       return false;
     }
 
+    if (flags.isAmateurPurchasePossessVariant) {
+      const isStationEquipmentSec =
+        k === "stationequipment" ||
+        k.includes("station") ||
+        t.includes("station") ||
+        k.includes("particular") ||
+        t.includes("particular");
+      const isIntendedUseSec =
+        k === "intendeduse" ||
+        k.includes("intended") ||
+        t.includes("intended");
+
+      if (!isStationEquipmentSec && !isIntendedUseSec) {
+        return false;
+      }
+    }
+
     return evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext);
   });
 
@@ -332,6 +389,26 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             ) {
               return false;
             }
+
+            if (flags.isAmateurPurchasePossessVariant) {
+              const secKey = (section.key || section.id || "").toLowerCase();
+              const secTitle = (section.title || "").toLowerCase();
+              const isStationSec =
+                secKey.includes("station") ||
+                secTitle.includes("station") ||
+                secKey.includes("particular") ||
+                secTitle.includes("particular");
+              if (isStationSec) {
+                const isParticulars =
+                  rawTargetId.includes("particular") ||
+                  labelLower.includes("particular") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000340";
+                if (!isParticulars) {
+                  return false;
+                }
+              }
+            }
+
             return true;
           })
           .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));

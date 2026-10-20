@@ -21,13 +21,40 @@ export const DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = 
   { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
 ];
 
-export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+export const DEFAULT_STATION_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
   {
-    key: "classOfStation",
-    label: "Class of Station",
+    key: "stationClass",
+    label: "Station Class",
     type: "select",
     required: true,
-    placeholder: "Select Class of Station...",
+    placeholder: "Select Station Class...",
+    options: [
+      { label: "RT", value: "RT" },
+      { label: "FX", value: "FX" },
+      { label: "FB", value: "FB" },
+      { label: "FX/FB", value: "FX/FB" },
+      { label: "ML", value: "ML" },
+      { label: "P", value: "P" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+  { key: "exactLocation", label: "Exact Location", placeholder: "Enter Exact Station Location...", required: true },
+  { key: "longitude", label: "Longitude", placeholder: "e.g. 121° 02' 35'' E", required: false },
+  { key: "latitude", label: "Latitude", placeholder: "e.g. 14° 38' 20'' N", required: false },
+  { key: "configuration", label: "Configuration", placeholder: "e.g. Simplex, Duplex, Repeater", required: false },
+  { key: "dataRate", label: "Data Rate", placeholder: "e.g. 1200 bps, 9600 bps", required: false },
+  { key: "remarks", label: "Remarks", placeholder: "e.g. Station remarks", required: false },
+  { key: "makeTypeModel", label: "Particulars of Equipment (Make / Type / Model)", placeholder: "e.g. ICOM IC-7300 / Kenwood TS-590SG", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
+];
+
+export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "stationClass",
+    label: "Station Class",
+    type: "select",
+    required: true,
+    placeholder: "Select Station Class...",
     options: [
       { label: "RT", value: "RT" },
       { label: "FX", value: "FX" },
@@ -253,6 +280,15 @@ export function resolveRepeaterColumns(
 
   if (
     keyLower === "particulars" ||
+    keyLower === "stationparticulars" ||
+    keyLower.includes("station_particulars") ||
+    keyLower.includes("stationparticulars") ||
+    (keyLower.includes("particulars") && !keyLower.includes("purchase") && !keyLower.includes("aero"))
+  ) {
+    return DEFAULT_STATION_PARTICULARS_COLUMNS;
+  }
+
+  if (
     keyLower.includes("purchaseparticulars") ||
     keyLower.includes("classofstationparticulars") ||
     keyLower.includes("purchaseequipments")

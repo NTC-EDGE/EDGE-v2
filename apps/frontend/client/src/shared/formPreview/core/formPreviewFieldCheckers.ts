@@ -265,6 +265,13 @@ export const isSuppressedValue = (value: string): boolean => {
     v === '' ||
     u === 'N/A' ||
     u === 'NA' ||
+    u === 'NONE' ||
+    u === 'NOT APPLICABLE' ||
+    u === 'NULL' ||
+    u === 'UNDEFINED' ||
+    v === '—' ||
+    v === '--' ||
+    v === '[{}]' ||
     v === '-' ||
     v === '[]' ||
     v === '{}' ||

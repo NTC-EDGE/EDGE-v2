@@ -199,6 +199,8 @@ export interface DynamicFormFieldProps {
   hideAddButton?: boolean;
   maxRows?: number;
   disabled?: boolean;
+  customRepeaterColumns?: FormRepeaterColumn[];
+  customAddButtonLabel?: string;
   onChange: (fieldId: string, label: string, value: string) => void;
   onStructuredNameChange?: (data: StructuredNameData) => void;
   onDropdownChange: (val: string) => void;
@@ -245,6 +247,8 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   hideAddButton,
   maxRows,
   disabled = false,
+  customRepeaterColumns,
+  customAddButtonLabel,
   onChange,
   onStructuredNameChange,
   onDropdownChange,
@@ -277,13 +281,13 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             isRequired={isRequired}
             value={val}
             fieldKey={targetId}
-            columns={repeaterRules?.columns}
-            addButtonLabel={repeaterRules?.addButtonLabel}
+            columns={customRepeaterColumns || repeaterRules?.columns}
+            addButtonLabel={customAddButtonLabel || repeaterRules?.addButtonLabel}
             instruction={repeaterRules?.helpText || field.placeholder || ""}
             minRows={repeaterRules?.minRows}
             maxRows={repeaterRules?.maxRows || maxRows}
             parentMakeTypeModel={parentMakeTypeModel}
-            showCallSign={showCallSign || isForeignVisitor}
+            showCallSign={showCallSign}
             hideAddButton={hideAddButton}
             onChange={(json) => onChange(targetId, displayLabel, json)}
             error={err}

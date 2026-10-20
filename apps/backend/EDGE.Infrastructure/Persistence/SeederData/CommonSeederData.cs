@@ -301,6 +301,25 @@ public static class CommonSeederData
                 Label = "SIM Card / Mobile Numbers",
                 SyncBackOnSubmit = false,
                 ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""mobile_number"",""label"":""Mobile Number"",""placeholder"":""09XXXXXXXXX or +639XXXXXXXXX"",""required"":true,""type"":""text""}],""addButtonLabel"":""Add Another Mobile Number""}"
+            },
+            // Repeater Field for Station Particulars (Amateur Permits NTC 1-09)
+            ["particulars"] = new()
+            {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000340"),
+                FieldType = "repeater",
+                Label = "Particulars",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[" +
+                    @"{""id"":""c1"",""key"":""stationClass"",""label"":""Station Class"",""required"":true,""type"":""select"",""options"":[{""label"":""RT"",""value"":""RT""},{""label"":""FX"",""value"":""FX""},{""label"":""FB"",""value"":""FB""},{""label"":""FX/FB"",""value"":""FX/FB""},{""label"":""ML"",""value"":""ML""},{""label"":""P"",""value"":""P""},{""label"":""Others"",""value"":""Others""}]}," +
+                    @"{""id"":""c2"",""key"":""exactLocation"",""label"":""Exact Location"",""placeholder"":""Enter Exact Station Location..."",""required"":true,""type"":""text""}," +
+                    @"{""id"":""c3"",""key"":""longitude"",""label"":""Longitude"",""placeholder"":""e.g. 121° 02' 35'''' E"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c4"",""key"":""latitude"",""label"":""Latitude"",""placeholder"":""e.g. 14° 38' 20'''' N"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c5"",""key"":""configuration"",""label"":""Configuration"",""placeholder"":""e.g. Simplex, Duplex, Repeater"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c6"",""key"":""dataRate"",""label"":""Data Rate"",""placeholder"":""e.g. 1200 bps, 9600 bps"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c7"",""key"":""remarks"",""label"":""Remarks"",""placeholder"":""e.g. Station remarks"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c8"",""key"":""makeTypeModel"",""label"":""Particulars of Equipment (Make / Type / Model)"",""placeholder"":""e.g. ICOM IC-7300 / Kenwood TS-590SG"",""required"":true,""type"":""text""}," +
+                    @"{""id"":""c9"",""key"":""equipments"",""label"":""Equipment Units (Unique Frequency & Serial Number)"",""required"":true,""type"":""equipments""}" +
+                @"],""addButtonLabel"":""Add Station / Class Particulars""}"
             }
         };
     }

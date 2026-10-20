@@ -322,7 +322,12 @@ export function synthesizeAllApplicantFieldValues(
 
   // ── 2. Specialized Models ──────────────────────────────────────────────────
   // 2a. Permit Data (NTC 1-09)
-  const pData = applicant.permitData;
+  const hasDynamicFieldValues = Boolean(
+    applicant.formFieldValues &&
+    applicant.formFieldValues.length > 0 &&
+    applicant.formFieldValues.some((fv) => fv.value && !isSuppressedValue(fv.value))
+  );
+  const pData = hasDynamicFieldValues ? null : applicant.permitData;
   if (pData) {
     addField(undefined, 'Application Type', pData.applicationType);
     addField(undefined, 'Call Sign', pData.callSign);

@@ -55,14 +55,24 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
   onRemoveSerialEntry,
 }) => {
   const rowId = rowItem._id || `row-${rowIndex}`;
+  const isStationParticularsTable = resolvedColumns.some(
+    (c) => c.key === "stationClass" && resolvedColumns.some((col) => col.key === "exactLocation" || col.type === "equipments")
+  );
+  const isPurchaseClassOnly =
+    resolvedColumns.length === 1 &&
+    (resolvedColumns[0].key === "classOfStation" || resolvedColumns[0].key === "stationClass");
 
   return (
-    <View style={[styles.rowCard, isEquipmentsTable && totalRows === 1 && styles.rowCardMinimal]}>
-      {(totalRows > 1 || !isEquipmentsTable) && (
+    <View style={[styles.rowCard, !isStationParticularsTable && isEquipmentsTable && totalRows === 1 && styles.rowCardMinimal]}>
+      {(totalRows > 1 || !isEquipmentsTable || isStationParticularsTable || isPurchaseClassOnly) && (
         <View style={styles.rowCardHeader}>
           <View style={styles.rowNumberPill}>
             <Text style={styles.rowNumberText}>
-              {isDeviceTable
+              {isStationParticularsTable
+                ? `Station Profile #${rowIndex + 1}`
+                : isPurchaseClassOnly
+                ? `Station Class #${rowIndex + 1}`
+                : isDeviceTable
                 ? `Device Group #${rowIndex + 1}`
                 : isEquipmentsTable
                 ? `Equipment Item #${rowIndex + 1}`
@@ -77,7 +87,15 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
             >
               <Icon name="trash-2" size={13} color="#DC2626" />
               <Text style={styles.deleteButtonText}>
-                {isDeviceTable ? "Remove Group" : isEquipmentsTable ? "Remove Equipment" : "Remove"}
+                {isStationParticularsTable
+                  ? "Remove Station"
+                  : isPurchaseClassOnly
+                  ? "Remove Station Class"
+                  : isDeviceTable
+                  ? "Remove Group"
+                  : isEquipmentsTable
+                  ? "Remove Equipment"
+                  : "Remove"}
               </Text>
             </TouchableOpacity>
           )}
@@ -86,7 +104,15 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
 
       <FormGrid>
         {resolvedColumns.map((col) => {
-          const cellVal = rowItem[col.key] ?? "";
+          const rawVal = rowItem[col.key];
+          const cellVal =
+            rawVal !== undefined && rawVal !== null
+              ? String(rawVal)
+              : col.key === "stationClass" && rowItem.classOfStation !== undefined && rowItem.classOfStation !== null
+              ? String(rowItem.classOfStation)
+              : col.key === "classOfStation" && rowItem.stationClass !== undefined && rowItem.stationClass !== null
+              ? String(rowItem.stationClass)
+              : "";
           const isEquipments = col.type === "equipments";
           const isSerials = col.type === "serials";
           const isSelect = col.type === "select";
@@ -123,8 +149,16 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
             );
           }
 
+          const isFullWidth =
+            isEquipments ||
+            col.key === "exactLocation" ||
+            col.key === "remarks" ||
+            col.key === "makeTypeModel" ||
+            (!isStationParticularsTable && isEquipmentsTable) ||
+            resolvedColumns.length === 1;
+
           return (
-            <FormCol key={`${rowId}-${col.key}`} span={isEquipmentsTable || resolvedColumns.length === 1 ? 12 : 6}>
+            <FormCol key={`${rowId}-${col.key}`} span={isFullWidth ? 12 : 6}>
               {isFile ? (
                 <FormRepeaterFileField
                   col={col}

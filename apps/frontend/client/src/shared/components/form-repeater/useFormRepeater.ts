@@ -119,6 +119,10 @@ export function useFormRepeater({
           updatedRow.typeOfEquipmentDevice = cellValue;
         } else if (columnKey === "makeTypeModel") {
           updatedRow.nameTypeModel = cellValue;
+        } else if (columnKey === "stationClass") {
+          updatedRow.classOfStation = cellValue;
+        } else if (columnKey === "classOfStation") {
+          updatedRow.stationClass = cellValue;
         }
         return updatedRow;
       }
