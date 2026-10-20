@@ -3,7 +3,7 @@ import { View, Text } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
-import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
+import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS, DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
@@ -215,13 +215,22 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
 
+    const isAmateurSellTransferParticulars =
+      flags.isAmateurSellTransfer &&
+      (fIdLower.includes("particular") ||
+        labelLower.includes("particular") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000340");
+
     const customRepeaterColumns = isAmateurPurchaseParticulars
       ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
+      : isAmateurSellTransferParticulars
+      ? DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS
       : undefined;
 
-    const customAddButtonLabel = isAmateurPurchaseParticulars
-      ? "Add Station / Class Particulars"
-      : undefined;
+    const customAddButtonLabel =
+      isAmateurPurchaseParticulars || isAmateurSellTransferParticulars
+        ? "Add Station / Class Particulars"
+        : undefined;
 
     return (
       <DynamicFormField

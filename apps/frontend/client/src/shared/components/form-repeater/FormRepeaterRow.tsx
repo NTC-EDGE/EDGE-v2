@@ -1,6 +1,6 @@
 import React from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { Icon } from "@edge/ui";
+import { Icon, TYPOGRAPHY } from "@edge/ui";
 import { ValidatedInput } from "../ValidatedInput";
 import { Select } from "../Select";
 import { DatePickerInput } from "../DatePickerInput";
@@ -112,6 +112,34 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
               ? String(rowItem.classOfStation)
               : col.key === "classOfStation" && rowItem.stationClass !== undefined && rowItem.stationClass !== null
               ? String(rowItem.stationClass)
+              : col.key === "antennaType" && rowItem.type !== undefined && rowItem.type !== null
+              ? String(rowItem.type)
+              : col.key === "type" && rowItem.antennaType !== undefined && rowItem.antennaType !== null
+              ? String(rowItem.antennaType)
+              : col.key === "height" && rowItem.antennaHeight !== undefined && rowItem.antennaHeight !== null
+              ? String(rowItem.antennaHeight)
+              : col.key === "antennaHeight" && rowItem.height !== undefined && rowItem.height !== null
+              ? String(rowItem.height)
+              : col.key === "gain" && rowItem.antennaGain !== undefined && rowItem.antennaGain !== null
+              ? String(rowItem.antennaGain)
+              : col.key === "antennaGain" && rowItem.gain !== undefined && rowItem.gain !== null
+              ? String(rowItem.gain)
+              : col.key === "directivity" && rowItem.antennaDirectivity !== undefined && rowItem.antennaDirectivity !== null
+              ? String(rowItem.antennaDirectivity)
+              : col.key === "antennaDirectivity" && rowItem.directivity !== undefined && rowItem.directivity !== null
+              ? String(rowItem.directivity)
+              : col.key === "diameter" && rowItem.antennaDiameter !== undefined && rowItem.antennaDiameter !== null
+              ? String(rowItem.antennaDiameter)
+              : col.key === "antennaDiameter" && rowItem.diameter !== undefined && rowItem.diameter !== null
+              ? String(rowItem.diameter)
+              : col.key === "polarization" && rowItem.antennaPolarization !== undefined && rowItem.antennaPolarization !== null
+              ? String(rowItem.antennaPolarization)
+              : col.key === "antennaPolarization" && rowItem.polarization !== undefined && rowItem.polarization !== null
+              ? String(rowItem.polarization)
+              : col.key === "beamwidth" && rowItem.antennaBeamwidth !== undefined && rowItem.antennaBeamwidth !== null
+              ? String(rowItem.antennaBeamwidth)
+              : col.key === "antennaBeamwidth" && rowItem.beamwidth !== undefined && rowItem.beamwidth !== null
+              ? String(rowItem.beamwidth)
               : "";
           const isEquipments = col.type === "equipments";
           const isSerials = col.type === "serials";
@@ -153,45 +181,80 @@ export const FormRepeaterRow: React.FC<FormRepeaterRowProps> = ({
             isEquipments ||
             col.key === "exactLocation" ||
             col.key === "remarks" ||
+            col.key === "antennaRemarks" ||
             col.key === "makeTypeModel" ||
             (!isStationParticularsTable && isEquipmentsTable) ||
             resolvedColumns.length === 1;
 
+          const isAntennaSectionStart =
+            (col.key === "antennaType" || col.key === "type") &&
+            resolvedColumns.some((c) => c.key === "equipments");
+
           return (
-            <FormCol key={`${rowId}-${col.key}`} span={isFullWidth ? 12 : 6}>
-              {isFile ? (
-                <FormRepeaterFileField
-                  col={col}
-                  value={cellVal}
-                  onChange={(v) => onCellChange(rowIndex, col.key, v)}
-                />
-              ) : isSelect ? (
-                <Select
-                  label={col.label}
-                  required={col.required}
-                  value={cellVal}
-                  options={col.options || []}
-                  placeholder={col.placeholder || `Select ${col.label}...`}
-                  onValueChange={(v) => onCellChange(rowIndex, col.key, v)}
-                />
-              ) : isDate ? (
-                <DatePickerInput
-                  label={col.label}
-                  required={col.required}
-                  value={cellVal}
-                  onChangeText={(v) => onCellChange(rowIndex, col.key, v)}
-                />
-              ) : (
-                <ValidatedInput
-                  label={col.label}
-                  required={col.required}
-                  placeholder={col.placeholder || `Enter ${col.label}...`}
-                  value={cellVal}
-                  keyboardType={isNumber ? "numeric" : "default"}
-                  onChangeText={(v) => onCellChange(rowIndex, col.key, v)}
-                />
+            <React.Fragment key={`${rowId}-${col.key}-group`}>
+              {isAntennaSectionStart && (
+                <FormCol span={12}>
+                  <View
+                    style={{
+                      marginTop: 14,
+                      marginBottom: 6,
+                      paddingTop: 10,
+                      borderTopWidth: 1,
+                      borderTopColor: "#E2E8F0",
+                      flexDirection: "row",
+                      alignItems: "center",
+                      gap: 6,
+                    }}
+                  >
+                    <Icon name="radio" size={14} color="#0F2C59" />
+                    <Text
+                      style={{
+                        fontFamily: TYPOGRAPHY.fonts.primary,
+                        fontSize: 13,
+                        fontWeight: "700",
+                        color: "#0F2C59",
+                      }}
+                    >
+                      Particulars of Antenna
+                    </Text>
+                  </View>
+                </FormCol>
               )}
-            </FormCol>
+              <FormCol span={isFullWidth ? 12 : 6}>
+                {isFile ? (
+                  <FormRepeaterFileField
+                    col={col}
+                    value={cellVal}
+                    onChange={(v) => onCellChange(rowIndex, col.key, v)}
+                  />
+                ) : isSelect ? (
+                  <Select
+                    label={col.label}
+                    required={col.required}
+                    value={cellVal}
+                    options={col.options || []}
+                    placeholder={col.placeholder || `Select ${col.label}...`}
+                    onValueChange={(v) => onCellChange(rowIndex, col.key, v)}
+                  />
+                ) : isDate ? (
+                  <DatePickerInput
+                    label={col.label}
+                    required={col.required}
+                    value={cellVal}
+                    onChangeText={(v) => onCellChange(rowIndex, col.key, v)}
+                  />
+                ) : (
+                  <ValidatedInput
+                    label={col.label}
+                    required={col.required}
+                    placeholder={col.placeholder || `Enter ${col.label}...`}
+                    value={cellVal}
+                    keyboardType={isNumber ? "numeric" : "default"}
+                    onChangeText={(v) => onCellChange(rowIndex, col.key, v)}
+                  />
+                )}
+              </FormCol>
+            </React.Fragment>
           );
         })}
       </FormGrid>

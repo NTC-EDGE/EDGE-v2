@@ -70,7 +70,7 @@ export function buildFormVariantFlags(
       (varDesc.includes("purchase") && !varDesc.includes("sell")));
   const isAmateurSellTransfer =
     isAmateurPermitService &&
-    (varDesc.includes("sell") || varDesc.includes("transfer"));
+    (varDesc.includes("sell") || varDesc.includes("transfer") || titLower.includes("sell") || titLower.includes("transfer"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
   const isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));

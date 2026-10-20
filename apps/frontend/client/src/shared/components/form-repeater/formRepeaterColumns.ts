@@ -67,6 +67,42 @@ export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] 
   },
 ];
 
+export const DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "stationClass",
+    label: "Station Class",
+    type: "select",
+    required: true,
+    placeholder: "Select Station Class...",
+    options: [
+      { label: "RT", value: "RT" },
+      { label: "FX", value: "FX" },
+      { label: "FB", value: "FB" },
+      { label: "FX/FB", value: "FX/FB" },
+      { label: "ML", value: "ML" },
+      { label: "P", value: "P" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+  { key: "exactLocation", label: "Exact Location", placeholder: "Enter Exact Station Location...", required: true },
+  { key: "longitude", label: "Longitude", placeholder: "e.g. 121° 02' 35'' E", required: false },
+  { key: "latitude", label: "Latitude", placeholder: "e.g. 14° 38' 20'' N", required: false },
+  { key: "configuration", label: "Configuration", placeholder: "e.g. Simplex, Duplex, Repeater", required: false },
+  { key: "dataRate", label: "Data Rate", placeholder: "e.g. 1200 bps, 9600 bps", required: false },
+  { key: "remarks", label: "Remarks", placeholder: "e.g. Station remarks", required: false },
+  { key: "makeTypeModel", label: "Particulars of Equipment (Make / Type / Model)", placeholder: "e.g. ICOM IC-7300 / Kenwood TS-590SG", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
+  // Particulars of Antenna (after the Repeater of Equipments as part of Station Class)
+  { key: "antennaType", label: "Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: false },
+  { key: "height", label: "Height (cm.)", placeholder: "e.g. 1500 cm", required: false },
+  { key: "gain", label: "Gain (dB)", placeholder: "e.g. 9 dB", required: false },
+  { key: "directivity", label: "Directivity", placeholder: "e.g. Directional, Omnidirectional", required: false },
+  { key: "diameter", label: "Diameter", placeholder: "e.g. 2.5m", required: false },
+  { key: "polarization", label: "Polarization", placeholder: "e.g. Vertical, Horizontal", required: false },
+  { key: "beamwidth", label: "Beamwidth", placeholder: "e.g. 60°", required: false },
+  { key: "antennaRemarks", label: "Remarks", placeholder: "e.g. Antenna remarks / notes", required: false },
+];
+
 export const DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
   {
     key: "classOfStation",
@@ -294,6 +330,13 @@ export function resolveRepeaterColumns(
     keyLower.includes("purchaseequipments")
   ) {
     return DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS;
+  }
+
+  if (
+    keyLower.includes("selltransfer") ||
+    keyLower.includes("sell_transfer")
+  ) {
+    return DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS;
   }
 
   if (
