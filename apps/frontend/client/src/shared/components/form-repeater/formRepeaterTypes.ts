@@ -1,7 +1,7 @@
 export interface FormRepeaterColumn {
   key: string;
   label: string;
-  type?: "text" | "number" | "select" | "date" | "serials" | "equipments";
+  type?: "text" | "number" | "select" | "date" | "serials" | "equipments" | "file";
   placeholder?: string;
   required?: boolean;
   options?: Array<{ label: string; value: string }>;

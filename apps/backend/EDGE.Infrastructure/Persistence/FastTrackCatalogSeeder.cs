@@ -104,6 +104,22 @@ public static class FastTrackCatalogSeeder
             }
         }
 
+        var activeReqServiceIds = serviceDefs
+            .Where(d => d.CategoryId == categoryIds["RequestsAndComplaints"])
+            .Select(d => d.Id)
+            .ToHashSet();
+
+        var obsoleteReqServices = existingServices
+            .Where(x => x.ServiceCategoryId == categoryIds["RequestsAndComplaints"] && !activeReqServiceIds.Contains(x.Id) && !x.IsDeleted)
+            .ToList();
+
+        foreach (var obs in obsoleteReqServices)
+        {
+            obs.IsDeleted = true;
+            obs.IsDeletedBy = "System";
+            anyChange = true;
+        }
+
         if (anyChange)
             await context.SaveChangesAsync();
     }

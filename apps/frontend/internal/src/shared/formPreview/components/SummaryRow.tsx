@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { TYPOGRAPHY } from '@edge/ui';
 import { isRecord, isPreviewFileObject, extractSerialNumbers } from '../core/formPreviewHelpers';
+import { isSuppressedValue } from '../core/formPreviewFieldCheckers';
 import { JsonTableSummaryRow } from './JsonTableSummaryRow';
 import { SignatureSummaryRow } from './SignatureSummaryRow';
 import { CheckboxSummaryRow } from './CheckboxSummaryRow';
@@ -21,7 +22,8 @@ export function SummaryRow({ label, value, onPreviewFile }: SummaryRowProps) {
     value.trim().toUpperCase() === 'NA' ||
     value.trim() === '-' ||
     value.trim() === '[]' ||
-    value.trim() === '{}'
+    value.trim() === '{}' ||
+    isSuppressedValue(value)
   ) {
     return null;
   }

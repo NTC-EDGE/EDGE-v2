@@ -119,6 +119,33 @@ export function useFormRepeater({
           updatedRow.typeOfEquipmentDevice = cellValue;
         } else if (columnKey === "makeTypeModel") {
           updatedRow.nameTypeModel = cellValue;
+        } else if (columnKey === "stationClass") {
+          updatedRow.classOfStation = cellValue;
+        } else if (columnKey === "classOfStation") {
+          updatedRow.stationClass = cellValue;
+        } else if (columnKey === "antennaType" || columnKey === "type") {
+          updatedRow.antennaType = cellValue;
+          updatedRow.type = cellValue;
+        } else if (columnKey === "antennaHeight" || columnKey === "height") {
+          updatedRow.antennaHeight = cellValue;
+          updatedRow.height = cellValue;
+        } else if (columnKey === "antennaGain" || columnKey === "gain") {
+          updatedRow.antennaGain = cellValue;
+          updatedRow.gain = cellValue;
+        } else if (columnKey === "antennaDirectivity" || columnKey === "directivity") {
+          updatedRow.antennaDirectivity = cellValue;
+          updatedRow.directivity = cellValue;
+        } else if (columnKey === "antennaDiameter" || columnKey === "diameter") {
+          updatedRow.antennaDiameter = cellValue;
+          updatedRow.diameter = cellValue;
+        } else if (columnKey === "antennaPolarization" || columnKey === "polarization") {
+          updatedRow.antennaPolarization = cellValue;
+          updatedRow.polarization = cellValue;
+        } else if (columnKey === "antennaBeamwidth" || columnKey === "beamwidth") {
+          updatedRow.antennaBeamwidth = cellValue;
+          updatedRow.beamwidth = cellValue;
+        } else if (columnKey === "antennaRemarks") {
+          updatedRow.antennaRemarks = cellValue;
         }
         return updatedRow;
       }

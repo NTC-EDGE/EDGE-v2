@@ -101,6 +101,32 @@ export function GeneralFilingDetailsStep({
         return;
       }
 
+      const isBlockingSection =
+        k === "request_type_and_device_details" ||
+        k === "sim_details" ||
+        k === "supporting_documents" ||
+        k === "incident_and_demographic_info" ||
+        t.includes("device particulars") ||
+        t.includes("sim card") ||
+        t.includes("proof of ownership") ||
+        t.includes("incident details");
+
+      const isComplaintSection =
+        k === "particulars_of_service_provider" ||
+        k === "nature_of_complaint" ||
+        k === "complaint_details" ||
+        t.includes("service provider") ||
+        t.includes("nature of complaint") ||
+        t.includes("details of complaint");
+
+      const vDesc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
+      const isUnblock = vDesc.includes("unblock");
+      const isBlock = vDesc.includes("block") && !isUnblock;
+      const isBlockOrUnblock = isBlock || isUnblock;
+
+      if (isBlockOrUnblock && isComplaintSection) return;
+      if (!isBlockOrUnblock && isBlockingSection) return;
+
       if (!evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext)) {
         return;
       }
@@ -138,6 +164,7 @@ export function GeneralFilingDetailsStep({
     activeApplicant.selectedElementId,
     activeApplicant.applicantType,
     onRequiredFieldsChange,
+    variants,
   ]);
 
   const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
@@ -149,6 +176,48 @@ export function GeneralFilingDetailsStep({
       };
     });
   };
+
+  // Auto-set and lock "Action Requested" for NTC 1-24 Blocking / Unblocking service requests
+  useEffect(() => {
+    if (!activeApplicant.selectedVariantId) return;
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || activeApplicant.selectedVariantName || "").toLowerCase();
+    const varId = String(activeApplicant.selectedVariantId).toLowerCase();
+    const isUnblocking = desc.includes("unblock") || varId.includes("402");
+    const isBlocking = (desc.includes("block") || varId.includes("401")) && !isUnblocking;
+
+    if (isBlocking || isUnblocking) {
+      const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+      let schemaFieldId = "fd000000-0000-0000-0000-000000000307";
+      if (form?.sections) {
+        for (const s of form.sections) {
+          const fld = s.fields?.find((f) => (f.label || "").toLowerCase().includes("action requested") || (f.fieldId || f.id) === "action_requested");
+          if (fld) {
+            schemaFieldId = fld.fieldId || fld.id || schemaFieldId;
+            break;
+          }
+        }
+      }
+
+      const currentValByGuid = dynamicValuesRecord[schemaFieldId];
+      const currentValByName = dynamicValuesRecord["action_requested"] || dynamicValuesRecord["Action Requested"];
+      if (currentValByGuid !== targetVal || currentValByName !== targetVal) {
+        updateActiveApplicant((prevApp) => {
+          const currentArr = prevApp.formFieldValues || [];
+          const filtered = currentArr.filter(
+            (item) => item.fieldId !== schemaFieldId && item.fieldId !== "action_requested" && item.fieldId !== "fd000000-0000-0000-0000-000000000307" && (item.fieldLabel || "").toLowerCase() !== "action requested"
+          );
+          return {
+            formFieldValues: [
+              ...filtered,
+              { fieldId: schemaFieldId, fieldLabel: "Action Requested", value: targetVal },
+              { fieldId: "action_requested", fieldLabel: "Action Requested", value: targetVal },
+            ],
+          };
+        });
+      }
+    }
+  }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
   const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
   const allowCompany = matchedVariant?.isIndividual === false || (!matchedVariant && !isExamService);

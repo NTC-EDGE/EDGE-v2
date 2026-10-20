@@ -36,36 +36,104 @@ public class AccreditationFeeCalculationStrategy : IFeeCalculationStrategy
         var element = request.Element.SafeTrim();
 
         var isRenewal = appType.SafeContains("RENEWAL");
-
-        // Filing Fee
-        lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Accreditation Filing Fee", 1, 1, FeeConstants.Amounts.AccreditationFilingFee, FeeConstants.Amounts.AccreditationFilingFee));
-
-        // Accreditation Fee
-        decimal baseRate = FeeConstants.Amounts.DefaultAccreditationRate;
-        lineItems.Add(new CalculatedFeeLineItemDto(
-            Particular: string.IsNullOrWhiteSpace(element) ? "Accreditation Fee" : $"Accreditation Fee ({element})",
-            ItemCode: FeeConstants.Codes.Accreditation,
-            Description: "Annual Accreditation Assessment Fee",
-            ValidityYears: years,
-            NoOfUnits: 1,
-            FeeRate: baseRate,
-            Amount: baseRate * years
-        ));
+        var isModification = appType.SafeContains("MOD");
+        var isCpe = activity.SafeContains("CPE") || activity.SafeContains("PREMISES") || activity.SafeContains("CUSTOMER") || element.SafeContains("MOBILE") || appType.SafeContains("MOBILE");
 
         string formulaApplied;
-        if (isRenewal && request.ExpirationDate.HasValue)
+
+        if (isCpe)
         {
-            var (multiplier, description) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
-            if (multiplier > 0)
+            var isNonMobile = activity.SafeContains("NON-MOBILE") || element.SafeContains("NON-MOBILE") || appType.SafeContains("NON-MOBILE");
+            decimal pfRate = isNonMobile ? FeeConstants.Amounts.CpeNonMobilePermitRate : FeeConstants.Amounts.CpeMobilePermitRate;
+            decimal ifRate = isNonMobile ? FeeConstants.Amounts.CpeNonMobileInspectionRate : FeeConstants.Amounts.CpeMobileInspectionRate;
+
+            if (isModification)
             {
-                var surcharge = baseRate * multiplier;
-                lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", FeeConstants.Codes.Surcharge, description, 1, 1, surcharge, surcharge, IsSurcharge: true));
+                lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "CPE Supplier Accreditation Modification Fee", 1, 1, FeeConstants.Amounts.CpeModificationFee, FeeConstants.Amounts.CpeModificationFee));
+                formulaApplied = FeeConstants.Formulas.CpeAccreditationModification;
             }
-            formulaApplied = FeeConstants.Formulas.AccreditationRenewal;
+            else if (isRenewal)
+            {
+                // Permit/Accreditation Fee (PF)
+                lineItems.Add(new CalculatedFeeLineItemDto("Permit/Accreditation Fee", FeeConstants.Codes.PermitFee, "CPE Supplier Accreditation Assessment Fee", years, 1, pfRate, pfRate * years));
+
+                // Inspection Fee (IF)
+                lineItems.Add(new CalculatedFeeLineItemDto("Inspection Fee", FeeConstants.Codes.InspectionFee, "CPE Supplier Inspection Fee", years, 1, ifRate, ifRate * years));
+
+                if (request.ExpirationDate.HasValue)
+                {
+                    var (multiplier, description) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
+                    if (multiplier > 0)
+                    {
+                        var surcharge = (pfRate * years) * multiplier;
+                        lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", FeeConstants.Codes.Surcharge, description, 1, 1, surcharge, surcharge, IsSurcharge: true));
+                    }
+                }
+                formulaApplied = FeeConstants.Formulas.CpeAccreditationRenewal;
+            }
+            else
+            {
+                // Filing Fee (FF)
+                lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "CPE Supplier Accreditation Filing Fee", 1, 1, FeeConstants.Amounts.CpeFilingFee, FeeConstants.Amounts.CpeFilingFee));
+
+                // Permit/Accreditation Fee (PF)
+                lineItems.Add(new CalculatedFeeLineItemDto("Permit/Accreditation Fee", FeeConstants.Codes.PermitFee, "CPE Supplier Accreditation Assessment Fee", years, 1, pfRate, pfRate * years));
+
+                // Inspection Fee (IF)
+                lineItems.Add(new CalculatedFeeLineItemDto("Inspection Fee", FeeConstants.Codes.InspectionFee, "CPE Supplier Inspection Fee", years, 1, ifRate, ifRate * years));
+
+                formulaApplied = FeeConstants.Formulas.CpeAccreditationNew;
+            }
         }
         else
         {
-            formulaApplied = FeeConstants.Formulas.AccreditationNew;
+            // Generic Service Center / Training Provider Accreditation
+            decimal baseRate = FeeConstants.Amounts.DefaultAccreditationRate;
+
+            if (isModification)
+            {
+                lineItems.Add(new CalculatedFeeLineItemDto("Modification Fee", FeeConstants.Codes.Modification, "Accreditation Modification Fee", 1, 1, FeeConstants.Amounts.CertificateModification, FeeConstants.Amounts.CertificateModification));
+                formulaApplied = FeeConstants.Formulas.AccreditationModification;
+            }
+            else if (isRenewal)
+            {
+                lineItems.Add(new CalculatedFeeLineItemDto(
+                    Particular: string.IsNullOrWhiteSpace(element) ? "Accreditation Fee" : $"Accreditation Fee ({element})",
+                    ItemCode: FeeConstants.Codes.Accreditation,
+                    Description: "Annual Accreditation Assessment Fee",
+                    ValidityYears: years,
+                    NoOfUnits: 1,
+                    FeeRate: baseRate,
+                    Amount: baseRate * years
+                ));
+
+                if (request.ExpirationDate.HasValue)
+                {
+                    var (multiplier, description) = SurchargeCalculator.CalculateSurchargeTier(request.ExpirationDate.Value, asOfDate);
+                    if (multiplier > 0)
+                    {
+                        var surcharge = (baseRate * years) * multiplier;
+                        lineItems.Add(new CalculatedFeeLineItemDto("Surcharge (Late Renewal Penalty)", FeeConstants.Codes.Surcharge, description, 1, 1, surcharge, surcharge, IsSurcharge: true));
+                    }
+                }
+                formulaApplied = FeeConstants.Formulas.AccreditationRenewal;
+            }
+            else
+            {
+                lineItems.Add(new CalculatedFeeLineItemDto("Filing Fee", FeeConstants.Codes.FilingFee, "Accreditation Filing Fee", 1, 1, FeeConstants.Amounts.AccreditationFilingFee, FeeConstants.Amounts.AccreditationFilingFee));
+
+                lineItems.Add(new CalculatedFeeLineItemDto(
+                    Particular: string.IsNullOrWhiteSpace(element) ? "Accreditation Fee" : $"Accreditation Fee ({element})",
+                    ItemCode: FeeConstants.Codes.Accreditation,
+                    Description: "Annual Accreditation Assessment Fee",
+                    ValidityYears: years,
+                    NoOfUnits: 1,
+                    FeeRate: baseRate,
+                    Amount: baseRate * years
+                ));
+
+                formulaApplied = FeeConstants.Formulas.AccreditationNew;
+            }
         }
 
         // DST

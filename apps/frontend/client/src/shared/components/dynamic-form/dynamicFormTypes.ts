@@ -13,6 +13,7 @@ export interface FieldDto {
   orderIndex?: number;
   validationRules?: string;
   visibilityCondition?: string;
+  repeaterColumns?: unknown[];
 }
 
 export interface FormSectionDto {
@@ -72,6 +73,7 @@ export interface FormVariantFlags {
   isAeroStationPurchase: boolean;
   isAeroStationPossess: boolean;
   isAmateurPurchaseVariant: boolean;
+  isAmateurPurchasePossessVariant: boolean;
   isAmateurSellTransfer: boolean;
   isAmateurCert: boolean;
   isCpeAccreditation: boolean;
@@ -92,4 +94,3 @@ export interface FormVariantFlags {
   showNumberOfYears: boolean;
   isPermitService: boolean;
 }
-

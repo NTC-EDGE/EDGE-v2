@@ -87,7 +87,9 @@ public static class FeeConstants
             Codes.SpecialPermit, Codes.ConstructionPermit, Codes.SpectrumUsage,
             Codes.AnnualRegistration1, Codes.AnnualRegistration2, Codes.FilingFee,
             Codes.ApplicationFee, Codes.Seminar, Codes.Modification, Codes.Duplicate,
-            Codes.FirstCopy, Codes.SucceedingCopies
+            Codes.FirstCopy, Codes.SucceedingCopies,
+            Codes.Exam, Codes.Accreditation, Codes.License, Codes.Permit, Codes.Request,
+            Codes.InspectionFee
         };
 
         public static bool HasYears(string? formula) =>
@@ -334,6 +336,14 @@ public static class FeeConstants
         public const decimal AccreditationFilingFee = 300.00m;
         public const decimal DefaultAccreditationRate = 1200.00m;
         public const decimal DefaultRequestRate = 150.00m;
+
+        // CPE Supplier Accreditation Rates (per Google Sheet)
+        public const decimal CpeFilingFee = 500.00m;
+        public const decimal CpeMobilePermitRate = 2500.00m;
+        public const decimal CpeMobileInspectionRate = 1500.00m;
+        public const decimal CpeNonMobilePermitRate = 1200.00m;
+        public const decimal CpeNonMobileInspectionRate = 720.00m;
+        public const decimal CpeModificationFee = 120.00m;
     }
 
     public static class Surcharges
@@ -454,6 +464,10 @@ public static class FeeConstants
         public const string ExamStandard = "FEEEXAM = EXAMFEE";
         public const string AccreditationNew = "FEEACCRED = FF + (ACCRED)(YR) + DST";
         public const string AccreditationRenewal = "FEEACCRED = FF + (ACCRED)(YR) + DST + SUR";
+        public const string AccreditationModification = "FEEACCRED = FF + MOD + DST";
+        public const string CpeAccreditationNew = "FEECPE = FF + (PF)(YR) + (IF)(YR) + DST";
+        public const string CpeAccreditationRenewal = "FEECPE = (PF)(YR) + (IF)(YR) + DST + SUR";
+        public const string CpeAccreditationModification = "FEECPE = MOD + DST";
         public const string RequestStandard = "FEEREQ = REQ_FEE + DST";
         public const string RequestsAndComplaintsFree = "TOTAL = 0";
         public const string DefaultStandard = "FEE = (RATE)(YR)(UNIT) + DST";

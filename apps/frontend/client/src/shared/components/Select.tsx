@@ -31,6 +31,7 @@ interface SelectProps {
   style?: ViewStyle;
   iconName?: LucideIconName;
   required?: boolean;
+  disabled?: boolean;
 }
 
 export function Select({
@@ -44,6 +45,7 @@ export function Select({
   style,
   iconName,
   required,
+  disabled = false,
 }: SelectProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
@@ -82,6 +84,7 @@ export function Select({
             </View>
           ) : null}
           <select
+            disabled={disabled}
             value={selectedOption ? selectedOption.value : (value || '')}
             onChange={(e) => onValueChange(e.target.value)}
             style={{
@@ -93,11 +96,11 @@ export function Select({
               borderWidth: error ? 1.5 : 1,
               borderStyle: 'solid',
               borderColor: error ? '#EF4444' : '#CBD5E1',
-              backgroundColor: '#FFFFFF',
+              backgroundColor: disabled ? '#F8FAFC' : '#FFFFFF',
               fontSize: 14,
-              color: value ? '#0F172A' : '#94A3B8',
+              color: disabled ? '#475569' : (value ? '#0F172A' : '#94A3B8'),
               outlineStyle: 'none',
-              cursor: 'pointer',
+              cursor: disabled ? 'not-allowed' : 'pointer',
               // Suppress the browser's native dropdown arrow so only our custom chevron shows
               appearance: 'none',
               WebkitAppearance: 'none',
@@ -144,8 +147,9 @@ export function Select({
 
       <TouchableOpacity
         activeOpacity={0.8}
+        disabled={disabled}
         onPress={() => setModalVisible(true)}
-        style={getRowStyles()}
+        style={[...getRowStyles(), disabled && { backgroundColor: '#F8FAFC', opacity: 0.8 }]}
       >
         {iconName !== undefined && iconName !== null ? (
           <Lucide name={iconName} size={16} color="#64748B" style={styles.icon} />

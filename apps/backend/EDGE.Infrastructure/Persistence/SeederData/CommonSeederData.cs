@@ -256,7 +256,71 @@ public static class CommonSeederData
             ["carrierFrequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000295"), FieldType = "text", Label = "Carrier Frequency", SyncBackOnSubmit = false },
             ["channelCapacity"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000296"), FieldType = "text", Label = "Channel Capacity", SyncBackOnSubmit = false },
             ["azimuth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000297"), FieldType = "text", Label = "Azimuth Angle", SyncBackOnSubmit = false },
-            ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false }
+            ["elevation"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000298"), FieldType = "text", Label = "Elevation Angle", SyncBackOnSubmit = false },
+
+            // NTC 1-24 Fields (Affidavit of Ownership and Loss with Undertaking)
+            ["action_requested"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000307"), FieldType = "dropdown", Label = "Action Requested", SyncBackOnSubmit = false, ValidationRules = @"[""BLOCK GSM Handset"",""UNBLOCK GSM Handset""]" },
+            ["make_model_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000308"), FieldType = "text", Label = "Make / Model / Type", SyncBackOnSubmit = false },
+            ["imei_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000309"), FieldType = "text", Label = "International Mobile Equipment Identification (IMEI)", SyncBackOnSubmit = false, ValidationRules = @"^[0-9]{15}$" },
+            ["mobile_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000310"), FieldType = "text", Label = "Subscriber Identity Module (SIM) / Cell Phone Number", SyncBackOnSubmit = false, ValidationRules = @"^09[0-9]{9}$" },
+            ["identity_proof_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000311"), FieldType = "dropdown", Label = "Government Identification Attached", SyncBackOnSubmit = false, ValidationRules = @"[""Copy of government-issued ID or Passport"",""Copy of school ID (for students)"",""Copy of Birth Certificate or NBI Clearance""]" },
+            ["proof_of_ownership_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000312"), FieldType = "dropdown", Label = "Proof of Ownership", SyncBackOnSubmit = false, ValidationRules = @"[""Official Receipt of Mobile Phone"",""Original Phone Box with IMEI"",""Certificate of Purchase from Authorized Seller"",""Affidavit of Loss with Police Blotter""]" },
+            ["loss_reason"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000313"), FieldType = "dropdown", Label = "Incident Type", SyncBackOnSubmit = false, ValidationRules = @"[""Lost / Misplaced"",""Stolen (Theft / Robbery / Hold-up)""]" },
+            ["age_group"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000314"), FieldType = "dropdown", Label = "Age Group", SyncBackOnSubmit = false, ValidationRules = @"[""Below 18"",""18 - 29"",""30 - 39"",""40 - 49"",""50 - 59"",""60 up""]" },
+            ["place_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000315"), FieldType = "text", Label = "Place of Incident", SyncBackOnSubmit = false },
+            ["date_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000316"), FieldType = "date", Label = "Date of Incident", SyncBackOnSubmit = false },
+            ["time_of_day"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000317"), FieldType = "dropdown", Label = "Time of Incident", SyncBackOnSubmit = false, ValidationRules = @"[""Daytime"",""Nighttime""]" },
+
+            // NTC 1-25 Fields (Complaint Form - Rev 03 03/31/2025)
+            ["provider_business_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000324"), FieldType = "text", Label = "Business Name", SyncBackOnSubmit = false },
+            ["provider_business_address"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000325"), FieldType = "textarea", Label = "Business Address", SyncBackOnSubmit = false },
+            ["provider_contact_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000326"), FieldType = "text", Label = "Contact Number", SyncBackOnSubmit = false },
+            ["complaint_types"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000327"), FieldType = "checkbox_group", Label = "Nature of Complaint", SyncBackOnSubmit = false, ValidationRules = @"[""Billing Complaint"",""Spam"",""Poor Service (Technical Service/Customer Service)"",""Scam"",""Fair Use"",""Denial of Subscription Plan"",""Others, please specify""]" },
+            ["others_specification"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000328"), FieldType = "text", Label = "If Others, Please Specify", SyncBackOnSubmit = false },
+            ["time_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000329"), FieldType = "time", Label = "Time of incident/transaction", SyncBackOnSubmit = false },
+            ["state_briefly_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000330"), FieldType = "textarea", Label = "State Briefly the Details of Complaint", SyncBackOnSubmit = false },
+            ["attached_proof_documents"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000331"),
+                FieldType = "repeater",
+                Label = "Attached Proof / Supporting Documents",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""document_description"",""label"":""Document Description"",""placeholder"":""e.g. Screenshot of Spam / Billing Statement / Official Receipt"",""required"":true,""type"":""text""},{""id"":""c2"",""key"":""attachment_file"",""label"":""Attached Document / File"",""placeholder"":""Upload file"",""required"":true,""type"":""file""}],""addButtonLabel"":""Add Another Proof / Attachment""}"
+            },
+
+            // Repeater Fields for Blocking / Unblocking Devices & SIMs
+            ["device_particulars"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000332"),
+                FieldType = "repeater",
+                Label = "Device Particulars",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""make_model_type"",""label"":""Make / Type / Model"",""placeholder"":""e.g. Apple iPhone 15 Pro / Samsung Galaxy S24"",""required"":true,""type"":""text""},{""id"":""c2"",""key"":""imei_number"",""label"":""IMEI Number (15 Digits)"",""placeholder"":""e.g. 356789012345678"",""required"":true,""type"":""number""}],""addButtonLabel"":""Add Another Device (Dual SIM / Multiple Handsets)""}"
+            },
+            ["sim_mobile_numbers"] = new() {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000333"),
+                FieldType = "repeater",
+                Label = "SIM Card / Mobile Numbers",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""mobile_number"",""label"":""Mobile Number"",""placeholder"":""09XXXXXXXXX or +639XXXXXXXXX"",""required"":true,""type"":""text""}],""addButtonLabel"":""Add Another Mobile Number""}"
+            },
+            // Repeater Field for Station Particulars (Amateur Permits NTC 1-09)
+            ["particulars"] = new()
+            {
+                Id = Guid.Parse("fd000000-0000-0000-0000-000000000340"),
+                FieldType = "repeater",
+                Label = "Particulars",
+                SyncBackOnSubmit = false,
+                ValidationRules = @"{""repeaterColumns"":[" +
+                    @"{""id"":""c1"",""key"":""stationClass"",""label"":""Station Class"",""required"":true,""type"":""select"",""options"":[{""label"":""RT"",""value"":""RT""},{""label"":""FX"",""value"":""FX""},{""label"":""FB"",""value"":""FB""},{""label"":""FX/FB"",""value"":""FX/FB""},{""label"":""ML"",""value"":""ML""},{""label"":""P"",""value"":""P""},{""label"":""Others"",""value"":""Others""}]}," +
+                    @"{""id"":""c2"",""key"":""exactLocation"",""label"":""Exact Location"",""placeholder"":""Enter Exact Station Location..."",""required"":true,""type"":""text""}," +
+                    @"{""id"":""c3"",""key"":""longitude"",""label"":""Longitude"",""placeholder"":""e.g. 121° 02' 35'''' E"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c4"",""key"":""latitude"",""label"":""Latitude"",""placeholder"":""e.g. 14° 38' 20'''' N"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c5"",""key"":""configuration"",""label"":""Configuration"",""placeholder"":""e.g. Simplex, Duplex, Repeater"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c6"",""key"":""dataRate"",""label"":""Data Rate"",""placeholder"":""e.g. 1200 bps, 9600 bps"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c7"",""key"":""remarks"",""label"":""Remarks"",""placeholder"":""e.g. Station remarks"",""required"":false,""type"":""text""}," +
+                    @"{""id"":""c8"",""key"":""makeTypeModel"",""label"":""Particulars of Equipment (Make / Type / Model)"",""placeholder"":""e.g. ICOM IC-7300 / Kenwood TS-590SG"",""required"":true,""type"":""text""}," +
+                    @"{""id"":""c9"",""key"":""equipments"",""label"":""Equipment Units (Unique Frequency & Serial Number)"",""required"":true,""type"":""equipments""}" +
+                @"],""addButtonLabel"":""Add Station / Class Particulars""}"
+            }
         };
     }
 }

@@ -47,16 +47,30 @@ export function buildFormVariantFlags(
     !varDesc.includes("purchase") &&
     !varDesc.includes("storage") &&
     (varDesc.includes("aeronautical station") || !varDesc.includes("aircraft"));
+  const isAmateurPurchasePossessVariant =
+    isAmateurPermitService &&
+    !varDesc.includes("storage") &&
+    (varDesc.includes("purchase/possess") ||
+      varDesc.includes("purchase / possess") ||
+      varDesc.includes("purchase to possess") ||
+      varDesc.includes("purchase and possess") ||
+      titLower.includes("purchase/possess") ||
+      titLower.includes("purchase / possess") ||
+      titLower.includes("purchase to possess") ||
+      titLower.includes("purchase and possess"));
   const isAmateurPurchaseVariant =
     isAmateurPermitService &&
     !varDesc.includes("storage") &&
     (varDesc.includes("permit to purchase") ||
       varDesc.includes("purchase/possess") ||
       varDesc.includes("purchase to possess") ||
+      titLower.includes("permit to purchase") ||
+      titLower.includes("purchase/possess") ||
+      titLower.includes("purchase to possess") ||
       (varDesc.includes("purchase") && !varDesc.includes("sell")));
   const isAmateurSellTransfer =
     isAmateurPermitService &&
-    (varDesc.includes("sell") || varDesc.includes("transfer"));
+    (varDesc.includes("sell") || varDesc.includes("transfer") || titLower.includes("sell") || titLower.includes("transfer"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
   const isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
@@ -94,6 +108,7 @@ export function buildFormVariantFlags(
     isAeroStationPurchase,
     isAeroStationPossess,
     isAmateurPurchaseVariant,
+    isAmateurPurchasePossessVariant,
     isAmateurSellTransfer,
     isAmateurCert,
     isCpeAccreditation,

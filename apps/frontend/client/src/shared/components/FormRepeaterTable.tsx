@@ -23,6 +23,9 @@ export {
   DEFAULT_TVRO_EQUIPMENT_COLUMNS,
   DEFAULT_TVRO_ANTENNA_COLUMNS,
   DEFAULT_TVRO_SIGNAL_COLUMNS,
+  DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS,
+  DEFAULT_REQUEST_SIM_REPEATER_COLUMNS,
+  DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS,
   resolveRepeaterColumns,
 } from "./form-repeater/formRepeaterColumns";
 export { parseSerialEntries, parseEquipmentEntries } from "./form-repeater/formRepeaterUtils";
@@ -38,7 +41,7 @@ export function FormRepeaterTable({
   addButtonLabel,
   minRows = 1,
   maxRows = 20,
-  instruction = "Provide complete details for each equipment item / entry.",
+  instruction = "",
   fieldKey,
   parentMakeTypeModel,
   showCallSign = false,
@@ -66,10 +69,14 @@ export function FormRepeaterTable({
   });
 
   const isDeviceTable = resolvedColumns.some((c) => c.type === "serials" || c.key === "deviceType");
-  const isEquipmentsTable = resolvedColumns.some((c) => c.type === "equipments" || c.key === "equipments");
-  const isPurchaseClassOnly = resolvedColumns.length === 1 && resolvedColumns[0].key === "classOfStation";
+  const isStationParticularsTable = resolvedColumns.some((c) => c.key === "stationClass" && resolvedColumns.some((col) => col.key === "exactLocation" || col.type === "equipments"));
+  const isPurchaseClassOnly = resolvedColumns.length === 1 && (resolvedColumns[0].key === "classOfStation" || resolvedColumns[0].key === "stationClass");
+  const shouldHideAddButton = !isStationParticularsTable && !isPurchaseClassOnly && hideAddButton;
+  const isEquipmentsTable = !isStationParticularsTable && resolvedColumns.some((c) => c.type === "equipments" || c.key === "equipments");
   const cleanLabel = label.replace(/Details|Particulars|Information|Technical/gi, "").trim() || "Item";
-  const btnLabel = addButtonLabel || (isPurchaseClassOnly ? "Add Class of Station" : isDeviceTable ? "Add Another Equipment Device Group" : isEquipmentsTable ? "Add Another Equipment (Make/Type/Model)" : `Add ${cleanLabel}`);
+  const btnLabel = addButtonLabel || (isStationParticularsTable || isPurchaseClassOnly ? "Add Station / Class Particulars" : isDeviceTable ? "Add Another Equipment Device Group" : isEquipmentsTable ? "Add Another Equipment (Make/Type/Model)" : `Add ${cleanLabel}`);
+  const rowUnit = isStationParticularsTable ? "station profile" : isPurchaseClassOnly ? "station class" : isDeviceTable ? "device group" : isEquipmentsTable ? "equipment" : cleanLabel.toLowerCase();
+  const rowUnitPlural = isStationParticularsTable ? "station profiles" : isPurchaseClassOnly ? "station classes" : isDeviceTable ? "device groups" : isEquipmentsTable ? "equipments" : `${cleanLabel.toLowerCase()}s`;
 
   return (
     <View
@@ -88,7 +95,7 @@ export function FormRepeaterTable({
           {isRequired && <Text style={styles.requiredAsterisk}>*</Text>}
         </View>
         <Text style={styles.rowCountBadge}>
-          {rows.length} {rows.length === 1 ? (isDeviceTable ? "device group" : isEquipmentsTable ? "equipment" : "entry") : (isDeviceTable ? "device groups" : isEquipmentsTable ? "equipments" : "entries")}
+          {rows.length} {rows.length === 1 ? rowUnit : rowUnitPlural}
         </Text>
       </View>
 
@@ -120,7 +127,7 @@ export function FormRepeaterTable({
         ))}
       </View>
 
-      {!hideAddButton && rows.length < maxRows && (
+      {!shouldHideAddButton && rows.length < maxRows && (
         <TouchableOpacity
           onPress={handleAddRow}
           style={styles.addButton}

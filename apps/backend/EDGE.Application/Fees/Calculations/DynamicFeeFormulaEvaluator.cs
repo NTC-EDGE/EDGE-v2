@@ -443,7 +443,7 @@ public static partial class DynamicFeeFormulaEvaluator
     [GeneratedRegex(@"\{[A-Za-z0-9_]+\}")]
     private static partial Regex GenericBracketsRegex();
 
-    [GeneratedRegex(@"\b(ROC|LF|PF|PUR|POS|STF|REG|DEMO|PTR|SP|CPF|SUF|ARF1|ARF2|FF|AF|SEM|MOD|DUP|FC|SC)\b", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"\b(ROC|LF|PF|IF|PUR|POS|STF|REG|DEMO|PTR|SP|CPF|SUF|ARF1|ARF2|FF|AF|SEM|MOD|DUP|FC|SC|ACCRED|EXAM|EXAMFEE|PERMIT|LIC|REQ_FEE)\b", RegexOptions.IgnoreCase)]
     private static partial Regex StatutoryAcronymsRegex();
 
     [GeneratedRegex(@"\)\s*\(")]

@@ -21,13 +21,13 @@ export const DEFAULT_AMATEUR_PROPOSED_EQUIPMENT_COLUMNS: FormRepeaterColumn[] = 
   { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
 ];
 
-export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+export const DEFAULT_STATION_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
   {
-    key: "classOfStation",
-    label: "Class of Station",
+    key: "stationClass",
+    label: "Station Class",
     type: "select",
     required: true,
-    placeholder: "Select Class of Station...",
+    placeholder: "Select Station Class...",
     options: [
       { label: "RT", value: "RT" },
       { label: "FX", value: "FX" },
@@ -38,6 +38,69 @@ export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] 
       { label: "Others", value: "Others" },
     ],
   },
+  { key: "exactLocation", label: "Exact Location", placeholder: "Enter Exact Station Location...", required: true },
+  { key: "longitude", label: "Longitude", placeholder: "e.g. 121° 02' 35'' E", required: false },
+  { key: "latitude", label: "Latitude", placeholder: "e.g. 14° 38' 20'' N", required: false },
+  { key: "configuration", label: "Configuration", placeholder: "e.g. Simplex, Duplex, Repeater", required: false },
+  { key: "dataRate", label: "Data Rate", placeholder: "e.g. 1200 bps, 9600 bps", required: false },
+  { key: "remarks", label: "Remarks", placeholder: "e.g. Station remarks", required: false },
+  { key: "makeTypeModel", label: "Particulars of Equipment (Make / Type / Model)", placeholder: "e.g. ICOM IC-7300 / Kenwood TS-590SG", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
+];
+
+export const DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "stationClass",
+    label: "Station Class",
+    type: "select",
+    required: true,
+    placeholder: "Select Station Class...",
+    options: [
+      { label: "RT", value: "RT" },
+      { label: "FX", value: "FX" },
+      { label: "FB", value: "FB" },
+      { label: "FX/FB", value: "FX/FB" },
+      { label: "ML", value: "ML" },
+      { label: "P", value: "P" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+];
+
+export const DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
+  {
+    key: "stationClass",
+    label: "Station Class",
+    type: "select",
+    required: true,
+    placeholder: "Select Station Class...",
+    options: [
+      { label: "RT", value: "RT" },
+      { label: "FX", value: "FX" },
+      { label: "FB", value: "FB" },
+      { label: "FX/FB", value: "FX/FB" },
+      { label: "ML", value: "ML" },
+      { label: "P", value: "P" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+  { key: "exactLocation", label: "Exact Location", placeholder: "Enter Exact Station Location...", required: true },
+  { key: "longitude", label: "Longitude", placeholder: "e.g. 121° 02' 35'' E", required: false },
+  { key: "latitude", label: "Latitude", placeholder: "e.g. 14° 38' 20'' N", required: false },
+  { key: "configuration", label: "Configuration", placeholder: "e.g. Simplex, Duplex, Repeater", required: false },
+  { key: "dataRate", label: "Data Rate", placeholder: "e.g. 1200 bps, 9600 bps", required: false },
+  { key: "remarks", label: "Remarks", placeholder: "e.g. Station remarks", required: false },
+  { key: "makeTypeModel", label: "Particulars of Equipment (Make / Type / Model)", placeholder: "e.g. ICOM IC-7300 / Kenwood TS-590SG", required: true },
+  { key: "equipments", label: "Equipment Units (Unique Frequency & Serial Number)", type: "equipments", required: true },
+  // Particulars of Antenna (after the Repeater of Equipments as part of Station Class)
+  { key: "antennaType", label: "Type", placeholder: "e.g. Yagi-Uda, Dipole, Vertical", required: false },
+  { key: "height", label: "Height (cm.)", placeholder: "e.g. 1500 cm", required: false },
+  { key: "gain", label: "Gain (dB)", placeholder: "e.g. 9 dB", required: false },
+  { key: "directivity", label: "Directivity", placeholder: "e.g. Directional, Omnidirectional", required: false },
+  { key: "diameter", label: "Diameter", placeholder: "e.g. 2.5m", required: false },
+  { key: "polarization", label: "Polarization", placeholder: "e.g. Vertical, Horizontal", required: false },
+  { key: "beamwidth", label: "Beamwidth", placeholder: "e.g. 60°", required: false },
+  { key: "antennaRemarks", label: "Remarks", placeholder: "e.g. Antenna remarks / notes", required: false },
 ];
 
 export const DEFAULT_AERO_PURCHASE_PARTICULARS_COLUMNS: FormRepeaterColumn[] = [
@@ -135,6 +198,33 @@ export const DEFAULT_TVRO_SIGNAL_COLUMNS: FormRepeaterColumn[] = [
   { key: "nameOfPrograms", label: "Name of Programs", placeholder: "e.g. News, Educational Feeds", required: false },
 ];
 
+export const DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "make_model_type", label: "Make / Type / Model", placeholder: "e.g. Apple iPhone 15 Pro / Samsung Galaxy S24", required: true },
+  { key: "imei_number", label: "IMEI Number (15 Digits)", type: "number", placeholder: "e.g. 356789012345678", required: true },
+];
+
+export const DEFAULT_REQUEST_SIM_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "mobile_number", label: "Mobile Number", placeholder: "09XXXXXXXXX or +639XXXXXXXXX", required: true },
+  {
+    key: "telco_provider",
+    label: "Network / Telco Provider",
+    type: "select",
+    placeholder: "Select provider...",
+    required: false,
+    options: [
+      { label: "Smart / TNT", value: "Smart / TNT" },
+      { label: "Globe / TM", value: "Globe / TM" },
+      { label: "DITO", value: "DITO" },
+      { label: "Others", value: "Others" },
+    ],
+  },
+];
+
+export const DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS: FormRepeaterColumn[] = [
+  { key: "document_description", label: "Document Description", placeholder: "e.g. Screenshot of Spam / Billing Statement / Official Receipt", required: true },
+  { key: "attachment_file", label: "Attached Document / File", type: "file", placeholder: "Upload file", required: true },
+];
+
 export function resolveRepeaterColumns(
   fieldKey?: string,
   fieldLabel?: string,
@@ -146,6 +236,41 @@ export function resolveRepeaterColumns(
 
   const keyLower = (fieldKey || "").toLowerCase();
   const labelLower = (fieldLabel || "").toLowerCase();
+
+  // Requests: SIM Card / Mobile Numbers
+  if (
+    keyLower.includes("sim_mobile_numbers") ||
+    keyLower.includes("simmobilenumbers") ||
+    keyLower.includes("sim_details") ||
+    keyLower.includes("simcard") ||
+    labelLower.includes("sim card") ||
+    labelLower.includes("mobile number")
+  ) {
+    return DEFAULT_REQUEST_SIM_REPEATER_COLUMNS;
+  }
+
+  // Complaints / General: Attached Proof Documents
+  if (
+    keyLower.includes("attached_proof_documents") ||
+    keyLower.includes("attachedproof") ||
+    keyLower.includes("complaint_proof") ||
+    labelLower.includes("attached proof") ||
+    labelLower.includes("supporting document")
+  ) {
+    return DEFAULT_COMPLAINT_ATTACHMENT_REPEATER_COLUMNS;
+  }
+
+  // Requests: Blocking / Unblocking GSM Handset Device Particulars
+  if (
+    keyLower.includes("device_particulars") ||
+    keyLower.includes("deviceparticulars") ||
+    keyLower.includes("imei") ||
+    labelLower.includes("device particulars") ||
+    labelLower.includes("imei") ||
+    labelLower.includes("handset")
+  ) {
+    return DEFAULT_REQUEST_DEVICE_REPEATER_COLUMNS;
+  }
 
   // TVRO specific matchers
   if (
@@ -191,11 +316,27 @@ export function resolveRepeaterColumns(
 
   if (
     keyLower === "particulars" ||
+    keyLower === "stationparticulars" ||
+    keyLower.includes("station_particulars") ||
+    keyLower.includes("stationparticulars") ||
+    (keyLower.includes("particulars") && !keyLower.includes("purchase") && !keyLower.includes("aero"))
+  ) {
+    return DEFAULT_STATION_PARTICULARS_COLUMNS;
+  }
+
+  if (
     keyLower.includes("purchaseparticulars") ||
     keyLower.includes("classofstationparticulars") ||
     keyLower.includes("purchaseequipments")
   ) {
     return DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS;
+  }
+
+  if (
+    keyLower.includes("selltransfer") ||
+    keyLower.includes("sell_transfer")
+  ) {
+    return DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS;
   }
 
   if (

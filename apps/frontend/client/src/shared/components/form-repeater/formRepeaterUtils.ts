@@ -132,7 +132,7 @@ export function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): A
             rowRecord.nameTypeModel = rowRecord.makeTypeModel;
           }
 
-          if (!rowRecord.equipmentSerials) {
+          if (!rowRecord.equipmentSerials && activeCols.some((c) => c.type === "serials" || c.key === "equipmentSerials")) {
             const fallbackSerials = rowRecord.serialNumbers || rowRecord.serialNumber || rowRecord.serials;
             if (fallbackSerials) {
               const entries = parseSerialEntries(fallbackSerials);
@@ -140,7 +140,7 @@ export function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): A
             }
           }
 
-          if (!rowRecord.equipments) {
+          if (isEquipments && !rowRecord.equipments) {
             const fallbackEq = rowRecord.serialNumber || rowRecord.frequency || rowRecord.frequencyRange;
             if (fallbackEq) {
               const entries = parseEquipmentEntries([
@@ -165,8 +165,15 @@ export function parseInitialRows(value?: string, cols?: FormRepeaterColumn[]): A
       });
     }
   } catch {
-    const defaultColKey = (activeCols && activeCols[0]?.key) || "makeTypeModel";
-    return [{ [defaultColKey]: value, equipments: JSON.stringify([{ id: `eq-1`, serialNumber: "", frequency: "" }]), _id: String(Date.now() + Math.random()) }];
+    const defaultColKey = (activeCols && activeCols[0]?.key) || "item";
+    const fallbackRow: Record<string, string> = {
+      [defaultColKey]: value,
+      _id: String(Date.now() + Math.random()),
+    };
+    if (isEquipments) {
+      fallbackRow.equipments = JSON.stringify([{ id: `eq-1`, serialNumber: "", frequency: "" }]);
+    }
+    return [fallbackRow];
   }
 
   return [createEmptyRow(activeCols)];

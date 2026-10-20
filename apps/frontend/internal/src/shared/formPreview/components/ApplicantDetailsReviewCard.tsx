@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text } from 'react-native';
 import { SectionCard } from './SectionCard';
 import { SummaryRow } from './SummaryRow';
+import { isSuppressedValue } from '../core/formPreviewFieldCheckers';
 
 const MONTH_NAMES = [
   'January', 'February', 'March', 'April', 'May', 'June',
@@ -170,7 +171,7 @@ export function ApplicantDetailsReviewCard({
           {(companyName || resolvedFullName) ? (
             <SummaryRow
               label="Registered Business / Corporate Name"
-              value={companyName || resolvedFullName || '—'}
+              value={companyName || resolvedFullName}
             />
           ) : null}
           {registrationNumber ? (
@@ -241,24 +242,24 @@ export function ApplicantDetailsReviewCard({
         {!isCompany && (
           <>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {formattedBirthDate !== null ? (
+              {formattedBirthDate !== null && !isSuppressedValue(formattedBirthDate) ? (
                 <View style={{ flex: 1 }}>
                   <SummaryRow label="Date of Birth" value={formattedBirthDate} />
                 </View>
               ) : null}
-              {resolvedSex !== null ? (
+              {resolvedSex !== null && !isSuppressedValue(resolvedSex) ? (
                 <View style={{ flex: 1 }}>
                   <SummaryRow label="Sex / Gender" value={resolvedSex} />
                 </View>
               ) : null}
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
-              {resolvedCivilStatus !== null ? (
+              {resolvedCivilStatus !== null && !isSuppressedValue(resolvedCivilStatus) ? (
                 <View style={{ flex: 1 }}>
                   <SummaryRow label="Civil Status" value={resolvedCivilStatus} />
                 </View>
               ) : null}
-              {resolvedNationality !== null ? (
+              {resolvedNationality !== null && !isSuppressedValue(resolvedNationality) ? (
                 <View style={{ flex: 1 }}>
                   <SummaryRow label="Nationality / Citizenship" value={resolvedNationality} />
                 </View>

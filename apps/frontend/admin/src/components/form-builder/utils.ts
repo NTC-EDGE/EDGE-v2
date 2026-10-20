@@ -16,6 +16,48 @@ export const DEFAULT_EQUIPMENT_COLUMNS: RepeaterColumn[] = [
   { id: 'col-6', key: 'frequency', label: 'Frequency (MHz)', type: 'text', placeholder: 'e.g. 144-148 MHz', required: false },
 ];
 
+export const DEFAULT_REQUEST_DEVICE_COLUMNS: RepeaterColumn[] = [
+  { id: 'col-1', key: 'make_model_type', label: 'Make / Type / Model', type: 'text', placeholder: 'e.g. Apple iPhone 15 Pro / Samsung Galaxy S24', required: true },
+  { id: 'col-2', key: 'imei_number', label: 'IMEI Number (15 Digits)', type: 'number', placeholder: 'e.g. 356789012345678', required: true },
+];
+
+export const DEFAULT_REQUEST_SIM_COLUMNS: RepeaterColumn[] = [
+  { id: 'col-1', key: 'mobile_number', label: 'Mobile Number', type: 'text', placeholder: '09XXXXXXXXX or +639XXXXXXXXX', required: true },
+  {
+    id: 'col-2',
+    key: 'telco_provider',
+    label: 'Network / Telco Provider',
+    type: 'select',
+    required: false,
+    options: [
+      { id: 'opt-1', label: 'Smart / TNT', value: 'Smart / TNT' },
+      { id: 'opt-2', label: 'Globe / TM', value: 'Globe / TM' },
+      { id: 'opt-3', label: 'DITO', value: 'DITO' },
+      { id: 'opt-4', label: 'Others', value: 'Others' },
+    ],
+  },
+];
+
+export const DEFAULT_COMPLAINT_ATTACHMENT_COLUMNS: RepeaterColumn[] = [
+  { id: 'col-1', key: 'document_description', label: 'Document Description', type: 'text', placeholder: 'e.g. Screenshot of Spam / Billing Statement / Official Receipt', required: true },
+  { id: 'col-2', key: 'attachment_file', label: 'Attached Document / File', type: 'file', placeholder: 'Upload file', required: true },
+];
+
+export function resolveDefaultRepeaterColumns(label?: string, fieldId?: string): RepeaterColumn[] {
+  const lbl = (label || '').toLowerCase();
+  const fid = (fieldId || '').toLowerCase();
+  if (lbl.includes('device') || fid.includes('device_particulars') || lbl.includes('imei') || lbl.includes('handset')) {
+    return [...DEFAULT_REQUEST_DEVICE_COLUMNS];
+  }
+  if (lbl.includes('sim') || fid.includes('sim_mobile_numbers') || lbl.includes('mobile number')) {
+    return [...DEFAULT_REQUEST_SIM_COLUMNS];
+  }
+  if (lbl.includes('proof') || lbl.includes('attachment') || fid.includes('attached_proof_documents')) {
+    return [...DEFAULT_COMPLAINT_ATTACHMENT_COLUMNS];
+  }
+  return [...DEFAULT_EQUIPMENT_COLUMNS];
+}
+
 export function getFieldIcon(type: FieldType): string {
   const icons: Record<FieldType, string> = {
     text: '✏️',
@@ -285,11 +327,15 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
             repeaterColumns: Array.isArray(parsedRules.repeaterColumns)
               ? (parsedRules.repeaterColumns as RepeaterColumn[])
               : normType === 'repeater'
-              ? [...DEFAULT_EQUIPMENT_COLUMNS]
+              ? resolveDefaultRepeaterColumns(f.label, f.fieldId)
               : undefined,
             minRows: typeof parsedRules.minRows === 'number' ? parsedRules.minRows : undefined,
             maxRows: typeof parsedRules.maxRows === 'number' ? parsedRules.maxRows : undefined,
-            addButtonLabel: typeof parsedRules.addButtonLabel === 'string' ? parsedRules.addButtonLabel : 'Add Equipment',
+            addButtonLabel: typeof parsedRules.addButtonLabel === 'string'
+              ? parsedRules.addButtonLabel
+              : normType === 'repeater'
+              ? (f.label?.toLowerCase().includes('device') ? 'Add Another Device' : f.label?.toLowerCase().includes('sim') ? 'Add Another Mobile Number' : f.label?.toLowerCase().includes('proof') ? 'Add Another Proof / Attachment' : 'Add Equipment')
+              : 'Add Equipment',
           });
         }
       }

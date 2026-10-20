@@ -120,12 +120,24 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'remarks':                  'fd000000-0000-0000-0000-000000000110',
   'serial number':            'fd000000-0000-0000-0000-000000000111',
   'frequency range':          'fd000000-0000-0000-0000-000000000112',
+  'antenna type':             'fd000000-0000-0000-0000-000000000113',
+  'antenna height':           'fd000000-0000-0000-0000-000000000114',
+  'antenna gain':             'fd000000-0000-0000-0000-000000000115',
+  'antenna directivity':      'fd000000-0000-0000-0000-000000000116',
+  'antenna diameter':         'fd000000-0000-0000-0000-000000000117',
+  'antenna polarization':     'fd000000-0000-0000-0000-000000000118',
+  'antenna beamwidth':        'fd000000-0000-0000-0000-000000000119',
+  'antenna remarks':          'fd000000-0000-0000-0000-000000000128',
   'dealer name':              'fd000000-0000-0000-0000-000000000120',
   'authorized seller / buyer': 'fd000000-0000-0000-0000-000000000121',
   'or / invoice no':          'fd000000-0000-0000-0000-000000000122',
   'permit / rsl no':          'fd000000-0000-0000-0000-000000000123',
   'seller address':           'fd000000-0000-0000-0000-000000000124',
   'amateur license no':       'fd000000-0000-0000-0000-000000000125',
+  'intended use of equipment': 'fd000000-0000-0000-0000-000000000126',
+  'intended use type':        'fd000000-0000-0000-0000-000000000126',
+  'intended use':             'fd000000-0000-0000-0000-000000000126',
+  'specify details':          'fd000000-0000-0000-0000-000000000127',
 
   // Amateur station license
   'application type':         'fd000000-0000-0000-0000-000000000200',
@@ -136,15 +148,93 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'place of exam / seminar':  'fd000000-0000-0000-0000-000000000205',
   'date of exam / seminar':   'fd000000-0000-0000-0000-000000000206',
   'ratings / exam score details': 'fd000000-0000-0000-0000-000000000207',
+  'particulars of radio equipment (json)': 'fd000000-0000-0000-0000-000000000208',
   'station location / installation address': 'fd000000-0000-0000-0000-000000000209',
+  'middle name':              'fd000000-0000-0000-0000-000000000210',
+  'suffix':                   'fd000000-0000-0000-0000-000000000211',
 
   // VAS Registration
   'type of entity':           'fd000000-0000-0000-0000-000000000230',
+  'entity type':              'fd000000-0000-0000-0000-000000000230',
   'cpcn / pa / ca no.':       'fd000000-0000-0000-0000-000000000231',
+  'cpcn / pa / ca no':        'fd000000-0000-0000-0000-000000000231',
+  'cpcn / pa / ca license no': 'fd000000-0000-0000-0000-000000000231',
+  'cpcn/pa/ca license no':    'fd000000-0000-0000-0000-000000000231',
   'cpcn / pa / ca no. date of expiry': 'fd000000-0000-0000-0000-000000000232',
+  'cpcn / pa / ca date of expiry': 'fd000000-0000-0000-0000-000000000232',
+  'cpcn date of expiry':      'fd000000-0000-0000-0000-000000000232',
+  'cpcn/pa/ca expiration date': 'fd000000-0000-0000-0000-000000000232',
   'cor / vas no.':            'fd000000-0000-0000-0000-000000000233',
-  'operating trade name':     'fd000000-0000-0000-0000-000000000235',
+  'cor / vas no':             'fd000000-0000-0000-0000-000000000233',
+  'cor/vas certificate no':   'fd000000-0000-0000-0000-000000000233',
   'cor / vas no. date of expiry': 'fd000000-0000-0000-0000-000000000238',
+  'cor / vas no. expiry date': 'fd000000-0000-0000-0000-000000000238',
+  'cor / vas date of expiry': 'fd000000-0000-0000-0000-000000000238',
+  'cor/vas expiry date':      'fd000000-0000-0000-0000-000000000238',
+  'known by other name':      'fd000000-0000-0000-0000-000000000234',
+  'known by another name':    'fd000000-0000-0000-0000-000000000234',
+  'please specify':           'fd000000-0000-0000-0000-000000000235',
+  'other trade name':         'fd000000-0000-0000-0000-000000000235',
+  'operating trade name':     'fd000000-0000-0000-0000-000000000235',
+  'vas registration no. (assigned by ntc)': 'fd000000-0000-0000-0000-000000000236',
+  'vas registration no':      'fd000000-0000-0000-0000-000000000236',
+  'vas registration':         'fd000000-0000-0000-0000-000000000236',
+
+  // NTC 1-24 Blocking / Unblocking
+  'action requested':         'fd000000-0000-0000-0000-000000000307',
+  'action_requested':         'fd000000-0000-0000-0000-000000000307',
+  'make / model / type':      'fd000000-0000-0000-0000-000000000308',
+  'make_model_type':          'fd000000-0000-0000-0000-000000000308',
+  'international mobile equipment identification (imei)': 'fd000000-0000-0000-0000-000000000309',
+  'imei number':              'fd000000-0000-0000-0000-000000000309',
+  'imei_number':              'fd000000-0000-0000-0000-000000000309',
+  'subscriber identity module (sim) / cell phone number': 'fd000000-0000-0000-0000-000000000310',
+  'government identification attached': 'fd000000-0000-0000-0000-000000000311',
+  'identity_proof_type':      'fd000000-0000-0000-0000-000000000311',
+  'proof of ownership':       'fd000000-0000-0000-0000-000000000312',
+  'proof_of_ownership_type':  'fd000000-0000-0000-0000-000000000312',
+  'incident type':            'fd000000-0000-0000-0000-000000000313',
+  'loss_reason':              'fd000000-0000-0000-0000-000000000313',
+  'age group':                'fd000000-0000-0000-0000-000000000314',
+  'age_group':                'fd000000-0000-0000-0000-000000000314',
+  'place of incident':        'fd000000-0000-0000-0000-000000000315',
+  'place_of_incident':        'fd000000-0000-0000-0000-000000000315',
+  'date of incident':         'fd000000-0000-0000-0000-000000000316',
+  'date_of_incident':         'fd000000-0000-0000-0000-000000000316',
+  'time of incident (daytime/nighttime)': 'fd000000-0000-0000-0000-000000000317',
+  'time_of_day':              'fd000000-0000-0000-0000-000000000317',
+  'device particulars':       'fd000000-0000-0000-0000-000000000332',
+  'device_particulars':       'fd000000-0000-0000-0000-000000000332',
+  'sim card / mobile numbers': 'fd000000-0000-0000-0000-000000000333',
+  'sim_mobile_numbers':       'fd000000-0000-0000-0000-000000000333',
+
+  // NTC 1-25 Complaints
+  'provider business name':   'fd000000-0000-0000-0000-000000000324',
+  'provider_business_name':   'fd000000-0000-0000-0000-000000000324',
+  'provider business address': 'fd000000-0000-0000-0000-000000000325',
+  'provider_business_address': 'fd000000-0000-0000-0000-000000000325',
+  'provider contact number':  'fd000000-0000-0000-0000-000000000326',
+  'provider_contact_number':  'fd000000-0000-0000-0000-000000000326',
+  'nature of complaint':      'fd000000-0000-0000-0000-000000000327',
+  'complaint category':       'fd000000-0000-0000-0000-000000000327',
+  'complaint_types':          'fd000000-0000-0000-0000-000000000327',
+  'if others, please specify': 'fd000000-0000-0000-0000-000000000328',
+  'others_specification':     'fd000000-0000-0000-0000-000000000328',
+  'time of incident/transaction': 'fd000000-0000-0000-0000-000000000329',
+  'time of incident':         'fd000000-0000-0000-0000-000000000329',
+  'time_of_incident':         'fd000000-0000-0000-0000-000000000329',
+  'state briefly the details of complaint': 'fd000000-0000-0000-0000-000000000330',
+  'details of complaint':     'fd000000-0000-0000-0000-000000000330',
+  'state_briefly_details':    'fd000000-0000-0000-0000-000000000330',
+  'attached proof / supporting documents': 'fd000000-0000-0000-0000-000000000331',
+  'attached proof documents': 'fd000000-0000-0000-0000-000000000331',
+  'attached_proof_documents': 'fd000000-0000-0000-0000-000000000331',
+
+  // Repeater Field for Station Particulars (Amateur Permits NTC 1-09)
+  'particulars':              'fd000000-0000-0000-0000-000000000340',
+  'station particulars':      'fd000000-0000-0000-0000-000000000340',
+  'station / class particulars': 'fd000000-0000-0000-0000-000000000340',
+  'particulars of radio station': 'fd000000-0000-0000-0000-000000000340',
 };
 
 const MONTH_NAMES = [
@@ -274,6 +364,19 @@ export function synthesizeAllApplicantFieldValues(
     });
   };
 
+  // ── 0. Pre-synthesize locked / auto-determined fields ─────────────────────
+  // NTC 1-24 Blocking / Unblocking: "Action Requested" is locked by application type / variant
+  const varDesc = (applicant.selectedVariantName || "").toLowerCase();
+  const varId = (applicant.selectedVariantId || "").toLowerCase();
+  const isReqUnblocking = varDesc.includes("unblock") || varId.includes("402");
+  const isReqBlocking = (varDesc.includes("block") || varId.includes("401")) && !isReqUnblocking;
+
+  if (isReqBlocking || isReqUnblocking) {
+    const actionRequestedVal = isReqUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+    addField("fd000000-0000-0000-0000-000000000307", "Action Requested", actionRequestedVal);
+    addField("action_requested", "Action Requested", actionRequestedVal);
+  }
+
   // ── 1. Ingest existing dynamic formFieldValues ──────────────────────────────
   if (applicant.formFieldValues && Array.isArray(applicant.formFieldValues)) {
     applicant.formFieldValues.forEach((fv) => {
@@ -285,7 +388,12 @@ export function synthesizeAllApplicantFieldValues(
 
   // ── 2. Specialized Models ──────────────────────────────────────────────────
   // 2a. Permit Data (NTC 1-09)
-  const pData = applicant.permitData;
+  const hasDynamicFieldValues = Boolean(
+    applicant.formFieldValues &&
+    applicant.formFieldValues.length > 0 &&
+    applicant.formFieldValues.some((fv) => fv.value && !isSuppressedValue(fv.value))
+  );
+  const pData = hasDynamicFieldValues ? null : applicant.permitData;
   if (pData) {
     addField(undefined, 'Application Type', pData.applicationType);
     addField(undefined, 'Call Sign', pData.callSign);

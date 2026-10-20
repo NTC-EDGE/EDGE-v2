@@ -638,6 +638,62 @@ public class FeeCalculationEngineTests
     }
 
     [Fact]
+    public void Calculate_CpeMobileAccreditation_ShouldProduceExactSpreadsheetAmounts()
+    {
+        // 1. Mobile New: FF(500) + PF(2500) + IF(1500) + DST(30) = 4530
+        var newReq = new FeeCalculationRequest(
+            Activity: "Customer Premises Equipment Supplier Accreditation",
+            ApplicationType: "NEW",
+            Element: "MOBILE",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Accreditation
+        );
+        var newRes = _engine.Calculate(newReq);
+        newRes.FormulaApplied.Should().Be("FEECPE = FF + (PF)(YR) + (IF)(YR) + DST");
+        newRes.SubTotal.Should().Be(4500.00m);
+        newRes.TotalAmount.Should().Be(4530.00m);
+
+        // 2. Mobile Renewal: PF(2500) + IF(1500) + DST(30) = 4030
+        var renReq = new FeeCalculationRequest(
+            Activity: "Customer Premises Equipment Supplier Accreditation",
+            ApplicationType: "RENEWAL",
+            Element: "MOBILE PHONES",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Accreditation
+        );
+        var renRes = _engine.Calculate(renReq);
+        renRes.FormulaApplied.Should().Be("FEECPE = (PF)(YR) + (IF)(YR) + DST + SUR");
+        renRes.SubTotal.Should().Be(4000.00m);
+        renRes.TotalAmount.Should().Be(4030.00m);
+
+        // 3. Mobile Modification: MOD(120) + DST(30) = 150
+        var modReq = new FeeCalculationRequest(
+            Activity: "Customer Premises Equipment Supplier Accreditation",
+            ApplicationType: "MODIFICATION",
+            Element: "MOBILE",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Accreditation
+        );
+        var modRes = _engine.Calculate(modReq);
+        modRes.FormulaApplied.Should().Be("FEECPE = MOD + DST");
+        modRes.SubTotal.Should().Be(120.00m);
+        modRes.TotalAmount.Should().Be(150.00m);
+
+        // 4. Non-Mobile New: FF(500) + PF(1200) + IF(720) + DST(30) = 2450
+        var nonMobileReq = new FeeCalculationRequest(
+            Activity: "Customer Premises Equipment Supplier Accreditation",
+            ApplicationType: "NEW",
+            Element: "NON-MOBILE PHONES",
+            ValidityYears: 1,
+            Category: ServiceCategoryType.Accreditation
+        );
+        var nonMobileRes = _engine.Calculate(nonMobileReq);
+        nonMobileRes.FormulaApplied.Should().Be("FEECPE = FF + (PF)(YR) + (IF)(YR) + DST");
+        nonMobileRes.SubTotal.Should().Be(2420.00m);
+        nonMobileRes.TotalAmount.Should().Be(2450.00m);
+    }
+
+    [Fact]
     public void Calculate_RequestsCategory_ShouldRouteToRequestsStrategy()
     {
         var request = new FeeCalculationRequest(

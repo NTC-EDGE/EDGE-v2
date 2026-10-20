@@ -6,12 +6,15 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 interface PermitDataReviewCardProps {
   isPermitService: boolean;
   permitData?: AmateurPermitData | null;
+  hasDynamicForm?: boolean;
 }
 
 export function PermitDataReviewCard({
   isPermitService,
   permitData,
+  hasDynamicForm = false,
 }: PermitDataReviewCardProps) {
+  if (hasDynamicForm) return null;
   const hasPermitData =
     isPermitService &&
     Boolean(
@@ -41,7 +44,7 @@ export function PermitDataReviewCard({
     permitData.intendedUseNewRadioStation ? `New Station (${permitData.newRadioStationSpecify || 'Standard'})` : '',
     permitData.intendedUseAdditionalRadioEquipment ? 'Additional Radio Equipment' : '',
     permitData.intendedUseChangeOfEquipment ? 'Change of Equipment' : '',
-    permitData.intendedUseOthers ? `Other (${permitData.othersSpecify || 'N/A'})` : '',
+    permitData.intendedUseOthers ? (permitData.othersSpecify ? `Other (${permitData.othersSpecify})` : 'Other') : '',
   ].filter(Boolean);
 
   return (
