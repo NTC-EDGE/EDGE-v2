@@ -137,6 +137,21 @@ export function ProfileSettingsTab({
           </View>
 
           <View style={styles.col6}>
+            <Text style={styles.selectLabel}>Civil Status</Text>
+            <Select
+              value={profile.civilStatus || ""}
+              onValueChange={(val) => onUpdateProfile({ civilStatus: val })}
+              options={[
+                { label: "Single", value: "Single" },
+                { label: "Married", value: "Married" },
+                { label: "Widowed", value: "Widowed" },
+                { label: "Separated", value: "Separated" },
+              ]}
+              placeholder="Select Civil Status..."
+            />
+          </View>
+
+          <View style={styles.col6}>
             <Input
               label="Nationality"
               placeholder="e.g. Filipino"

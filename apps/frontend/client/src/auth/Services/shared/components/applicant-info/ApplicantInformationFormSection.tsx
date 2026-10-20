@@ -362,10 +362,12 @@ export function ApplicantInformationFormSection({
             <ValidatedInput
               label="Mobile / Contact Number"
               required
-              placeholder="e.g. 09171234567"
+              placeholder="e.g. 09171234567 or +639171234567"
               value={applicant.contactNo || ""}
               error={errors["contactNo"]}
               onChangeText={(val) => onChange({ contactNo: val })}
+              keyboardType="phone-pad"
+              maxLength={13}
             />
           </FormCol>
           <FormCol span={6}>
@@ -376,6 +378,8 @@ export function ApplicantInformationFormSection({
               value={applicant.email || ""}
               error={errors["email"]}
               onChangeText={(val) => onChange({ email: val })}
+              keyboardType="email-address"
+              autoCapitalize="none"
             />
           </FormCol>
         </FormGrid>
