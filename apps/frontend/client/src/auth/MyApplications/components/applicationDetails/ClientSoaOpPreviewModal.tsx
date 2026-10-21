@@ -69,6 +69,8 @@ export function ClientSoaOpPreviewModal({
             orList={p.orList}
             effectiveSelectedOr={p.effectiveSelectedOr}
             onSelectOrNumber={p.setSelectedOrNumber}
+            orTemplate={p.orTemplate}
+            onSelectOrTemplate={p.setOrTemplate}
           />
 
           {Platform.OS === 'web' && p.viewFormat === 'pdf' ? (

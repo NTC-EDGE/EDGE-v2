@@ -28,8 +28,9 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useAdminApplications, applicationService, mutateApplications } from "@edge/api";
+import { useAdminApplications, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { isEvaluatorOrSupervisorRole } from "../data/officerResolutionHelpers";
 import {
   usePermissions,
   QueueTab,
@@ -41,10 +42,12 @@ import { useAuthContext } from "../../auth/context/AuthContext";
 
 type SortOrder = "newest" | "oldest";
 
-type FilterStatus = Extract<
-  ApplicationStatus,
-  "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
->;
+type FilterStatus =
+  | Extract<
+      ApplicationStatus,
+      "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
+    >
+  | "ForAssessment";
 
 type FilterMode = "SINGLE" | "BULK";
 
@@ -62,9 +65,10 @@ const FILTER_MODES: {
 const FILTER_STATUSES: {
   label: string;
   value: FilterStatus;
-  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card";
+  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card" | "file-text";
 }[] = [
-  { label: "Subject for Payment", value: "PendingPayment", icon: "credit-card" },
+  { label: "For Assessment",      value: "ForAssessment",  icon: "file-text" },
+  { label: "For Payment", value: "PendingPayment", icon: "credit-card" },
   { label: "Approved",            value: "Approved",       icon: "check-circle" },
   { label: "Returned",            value: "Returned",       icon: "x-circle" },
   { label: "Completed",           value: "Completed",      icon: "calendar" },
@@ -103,13 +107,16 @@ function buildDateGroups(
   apps: ApplicationData[],
   sortOrder: SortOrder,
 ): DateGroup[] {
+  const pinnedItems = apps.filter((a) => Boolean(a.isPinned));
+  const unpinnedApps = apps.filter((a) => !a.isPinned);
+
   const groupMap = new Map<
     string,
     { label: string; items: ApplicationData[]; ts: number }
   >();
 
-  for (const app of apps) {
-    const dateStr = app.updatedAt ?? app.createdAt;
+  for (const app of unpinnedApps) {
+    const dateStr = app.createdAt;
     const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
     if (!groupMap.has(dateKey)) {
@@ -125,15 +132,33 @@ function buildDateGroups(
     sortOrder === "newest" ? b.ts - a.ts : a.ts - b.ts,
   );
 
-  return sorted.map(([dateKey, { label, items }]) => ({
-    label,
-    dateKey,
-    items: [...items].sort((a, b) => {
-      const aTime = new Date(a.updatedAt ?? a.createdAt).getTime();
-      const bTime = new Date(b.updatedAt ?? b.createdAt).getTime();
-      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
-    }),
-  }));
+  const result: DateGroup[] = [];
+
+  if (pinnedItems.length > 0) {
+    result.push({
+      label: "PINNED TO TOP",
+      dateKey: "pinned",
+      items: [...pinnedItems].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  for (const [dateKey, { label, items }] of sorted) {
+    result.push({
+      label,
+      dateKey,
+      items: [...items].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  return result;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -157,10 +182,21 @@ export function ActivitiesFeedPane({
   const { currentRole } = useRole();
   const isAdmin = currentRole === "Admin";
   const officerName = user?.name || user?.email || "Evaluating Officer";
+  const { config: tenantConfig } = useTenantConfig();
 
   const PAGE_SIZE_STEP = 15;
   const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
 
   const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
@@ -169,6 +205,10 @@ export function ActivitiesFeedPane({
     scope: "queue",
     pageSize,
     pageNumber: 1,
+    searchTerm: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
+  }, {
+    refreshInterval: 3000,
+    revalidateOnFocus: true,
   });
 
   const applications = useMemo(() => {
@@ -199,23 +239,67 @@ export function ActivitiesFeedPane({
 
   const togglePinApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    const [res, err] = await applicationService.togglePin(id, app?.isPinned !== true);
+    const nextPinned = app?.isPinned !== true;
+
+    // 1. Optimistic update in SWR cache for immediate UI re-sorting
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.togglePin(id, nextPinned);
     if (err !== null) {
       toast.error("Failed to pin/unpin application.");
+      await refetch();
       return;
     }
+    toast.success(nextPinned ? "Application pinned to top." : "Application unpinned.");
     await mutateApplications(id);
     await refetch();
   }, [applications, refetch]);
 
   const toggleArchiveApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    const [res, err] = await applicationService.toggleArchive(id, app?.isArchived !== true);
+    const nextArchived = app?.isArchived !== true;
+
+    // 1. Optimistic update in SWR cache
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.toggleArchive(id, nextArchived);
     if (err !== null) {
       toast.error("Failed to archive/unarchive application.");
+      await refetch();
       return;
     }
     if (selectedId === id) setSelectedId?.(null);
+    toast.success(nextArchived ? "Application archived." : "Application unarchived.");
     await mutateApplications(id);
     await refetch();
   }, [applications, selectedId, setSelectedId, refetch]);
@@ -229,7 +313,10 @@ export function ActivitiesFeedPane({
       remarks: `Technical evaluation started by ${officerName}.`,
     });
     if (err !== null) {
-      toast.error("Failed to start evaluation.");
+      const errMsg = typeof err === "object" && err !== null && Reflect.has(err, "message")
+        ? String(Reflect.get(err, "message"))
+        : "Failed to start evaluation.";
+      toast.error(errMsg);
       return;
     }
     toast.success(`Evaluation started by ${officerName}.`);
@@ -259,7 +346,6 @@ export function ActivitiesFeedPane({
     refetch();
   }, [refetch]);
 
-  const [searchQuery,       setSearchQuery]       = useState("");
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
   const [activeStatuses,    setActiveStatuses]    = useState<Set<string>>(new Set());
   const [activeCategories,  setActiveCategories]  = useState<Set<ApplicationCategory>>(new Set());
@@ -319,6 +405,7 @@ export function ActivitiesFeedPane({
 
   const handleReset = useCallback(() => {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setSortOrder("newest");
     setActiveStatuses(new Set());
     setActiveCategories(new Set());
@@ -341,21 +428,112 @@ export function ActivitiesFeedPane({
       } else if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) {
         return false;
       }
+
+      // Legal & Evaluator role separation for statutory complaints vs commercial applications
+      if (activeQueueTab === "pending") {
+        const complaintRouting = tenantConfig.requestAndComplaintRouting ?? "DirectToLegal";
+        if (complaintRouting === "DirectToLegal") {
+          if (currentRole === "Legal") {
+            // Legal Officer pending queue focuses exclusively on Complaints & Requests
+            if (app.category !== "Complaints and Request") return false;
+          } else if (currentRole === "Evaluator") {
+            // Regional Evaluator pending queue focuses on commercial spectrum/permits; complaints are routed directly to Legal
+            if (app.category === "Complaints and Request") return false;
+          }
+        } else {
+          // DirectToEvaluator:
+          // Regional Evaluators receive complaints directly to evaluate and endorse to Legal
+          // Legal Officers see complaints once endorsed or assigned to Legal
+          if (currentRole === "Legal") {
+            const isAssignedOrEndorsedToLegal =
+              (app.assignedTo !== null && app.assignedTo !== undefined && app.assignedTo.toLowerCase().includes("legal")) ||
+              (app.endorsedTo !== null && app.endorsedTo !== undefined && app.endorsedTo.toLowerCase().includes("legal"));
+            if (app.category !== "Complaints and Request" || !isAssignedOrEndorsedToLegal) return false;
+          }
+        }
+      }
       if (q.length > 0) {
-        const matchesApplicant = app.applicant.toLowerCase().includes(q);
-        const matchesTitle = app.permitTitle.toLowerCase().includes(q);
-        const matchesRef = app.referenceNumber.toLowerCase().includes(q);
-        const matchesAppNum = app.applicationNumber.toLowerCase().includes(q);
-        const matchesType = app.applicationType.toLowerCase().includes(q);
+        // 1. Applicant Name & Details
+        const matchesApplicant =
+          (typeof app.applicant === "string" && app.applicant.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.firstName === "string" && app.basicInfo.firstName.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.lastName === "string" && app.basicInfo.lastName.toLowerCase().includes(q)) ||
+          (typeof app.companyDetails?.name === "string" && app.companyDetails.name.toLowerCase().includes(q)) ||
+          (typeof app.filingUser?.name === "string" && app.filingUser.name.toLowerCase().includes(q)) ||
+          (Array.isArray(app.applicantsList) &&
+            app.applicantsList.some(
+              (a) =>
+                (typeof a.name === "string" && a.name.toLowerCase().includes(q)) ||
+                (typeof a.email === "string" && a.email.toLowerCase().includes(q))
+            ));
+
+        // 2. Reference & Application Number
+        const matchesRef =
+          (typeof app.referenceNumber === "string" && app.referenceNumber.toLowerCase().includes(q)) ||
+          (typeof app.applicationNumber === "string" && app.applicationNumber.toLowerCase().includes(q));
+
+        // 3. Official Receipt (OR) Number
+        const matchesOrNumber =
+          (typeof app.payment?.orNumber === "string" && app.payment.orNumber.toLowerCase().includes(q)) ||
+          (typeof app.officialReceiptNumber === "string" && app.officialReceiptNumber.toLowerCase().includes(q)) ||
+          (typeof app.payment?.opNumber === "string" && app.payment.opNumber.toLowerCase().includes(q));
+
+        // 4. Statement of Account (SOA) Number
+        const matchesSoaNumber =
+          (typeof app.soaNumber === "string" && app.soaNumber.toLowerCase().includes(q)) ||
+          (typeof app.soaId === "string" && app.soaId.toLowerCase().includes(q));
+
+        // 5. Service Variant & Service Title
+        const matchesServiceVariant =
+          (typeof app.serviceVariantName === "string" && app.serviceVariantName.toLowerCase().includes(q)) ||
+          (typeof app.permitTitle === "string" && app.permitTitle.toLowerCase().includes(q)) ||
+          (typeof app.serviceName === "string" && app.serviceName.toLowerCase().includes(q)) ||
+          (Array.isArray(app.services) &&
+            app.services.some(
+              (s) =>
+                (typeof s.serviceVariantName === "string" && s.serviceVariantName.toLowerCase().includes(q)) ||
+                (typeof s.serviceName === "string" && s.serviceName.toLowerCase().includes(q))
+            ));
+
+        // 6. Personnel Name (Assigned, Evaluating, Accounting, Cashier, Issuing, Endorsed, or History)
+        const matchesPersonnel =
+          (typeof app.assignedTo === "string" && app.assignedTo.toLowerCase().includes(q)) ||
+          (typeof app.evaluatingOfficer === "string" && app.evaluatingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.accountingOfficer === "string" && app.accountingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.cashierOfficer === "string" && app.cashierOfficer.toLowerCase().includes(q)) ||
+          (typeof app.issuingOfficer === "string" && app.issuingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.endorsedTo === "string" && app.endorsedTo.toLowerCase().includes(q)) ||
+          (typeof app.endorsedBy === "string" && app.endorsedBy.toLowerCase().includes(q)) ||
+          (Array.isArray(app.history) &&
+            app.history.some(
+              (h) =>
+                (typeof h.staff === "string" && h.staff.toLowerCase().includes(q)) ||
+                (typeof h.role === "string" && h.role.toLowerCase().includes(q))
+            ));
+
+        const matchesType = typeof app.applicationType === "string" && app.applicationType.toLowerCase().includes(q);
         const matchesMode =
           (app.applicationType === "BULK" && "bulk application".includes(q)) ||
           (app.applicationType === "SINGLE" && "single application".includes(q));
 
-        if (!matchesApplicant && !matchesTitle && !matchesRef && !matchesAppNum && !matchesType && !matchesMode) {
+        if (
+          !matchesApplicant &&
+          !matchesRef &&
+          !matchesOrNumber &&
+          !matchesSoaNumber &&
+          !matchesServiceVariant &&
+          !matchesPersonnel &&
+          !matchesType &&
+          !matchesMode
+        ) {
           return false;
         }
       }
-      if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
+      if (activeStatuses.size > 0) {
+        const matchesStatus = activeStatuses.has(app.status);
+        const matchesAssessment = activeStatuses.has("ForAssessment") && (Boolean(app.isAssessmentOnly) || app.intent === "AssessmentOnly");
+        if (!matchesStatus && !matchesAssessment) return false;
+      }
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;
       if (activeModes.size > 0 && !activeModes.has(app.applicationType)) return false;
       if (dateFrom.length === 10) {
@@ -370,7 +548,7 @@ export function ActivitiesFeedPane({
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user, currentRole]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||
@@ -381,7 +559,7 @@ export function ActivitiesFeedPane({
 
   const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key)).map((t) => {
     if (t.key === 'pending' && currentRole === 'Cashier') {
-      return { ...t, label: 'Subject for Payment' };
+      return { ...t, label: 'For Payment' };
     }
     return t;
   });
@@ -556,10 +734,11 @@ export function ActivitiesFeedPane({
         <Lucide name="search" size={14} color={textMuted} />
         <TextInput
           style={[styles.searchInput, { color: text }]}
-          placeholder="Search applications…"
+          placeholder="Search by Ref, OR, SOA, applicant, variant, personnel..."
           placeholderTextColor={textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel="Search applications by Reference, OR, SOA, applicant, variant, or personnel"
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery("")}>
@@ -637,27 +816,42 @@ export function ActivitiesFeedPane({
                   />
                 </Pressable>
                 {!isCollapsed &&
-                  group.items.map((app) => (
-                    <ActivityCard
-                      key={app.id}
-                      application={app}
-                      isActive={selectedId === app.id}
-                      onPress={() => setSelectedId?.(app.id)}
-                      currentUserName={officerName}
-                      isAdmin={isAdmin}
-                      onMenuAction={(action, id) => {
-                        if (action === "evaluate") {
-                          void evaluateApplication(id);
-                        } else if (action === "release_evaluation") {
-                          void releaseEvaluation(id);
-                        } else if (action === "pin") {
-                          void togglePinApplication(id);
-                        } else if (action === "archive") {
-                          void toggleArchiveApplication(id);
-                        }
-                      }}
-                    />
-                  ))}
+                  group.items.map((app) => {
+                    const isComplaintOrRequest =
+                      app.category === "Complaints and Request" ||
+                      (typeof app.permitTitle === "string" &&
+                        (app.permitTitle.includes("1-24") ||
+                          app.permitTitle.includes("1-25") ||
+                          app.permitTitle.toLowerCase().includes("complaint") ||
+                          app.permitTitle.toLowerCase().includes("blocking")));
+                    const canEvaluate =
+                      isEvaluatorOrSupervisorRole(currentRole) ||
+                      (isComplaintOrRequest && currentRole === "Legal") ||
+                      isAdmin;
+
+                    return (
+                      <ActivityCard
+                        key={app.id}
+                        application={app}
+                        isActive={selectedId === app.id}
+                        onPress={() => setSelectedId?.(app.id)}
+                        currentUserName={officerName}
+                        isAdmin={isAdmin}
+                        canEvaluate={canEvaluate}
+                        onMenuAction={(action, id) => {
+                          if (action === "evaluate") {
+                            void evaluateApplication(id);
+                          } else if (action === "release_evaluation") {
+                            void releaseEvaluation(id);
+                          } else if (action === "pin") {
+                            void togglePinApplication(id);
+                          } else if (action === "archive") {
+                            void toggleArchiveApplication(id);
+                          }
+                        }}
+                      />
+                    );
+                  })}
               </View>
             );
           })

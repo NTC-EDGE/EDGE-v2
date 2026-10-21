@@ -5,13 +5,13 @@ using System.Threading.Tasks;
 using FluentAssertions;
 using Moq;
 using Xunit;
+using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.SoaNotes.Commands.CreateSoaNote;
 using EDGE.Application.SoaNotes.Commands.UpdateSoaNote;
 using EDGE.Application.SoaNotes.Commands.DeleteSoaNote;
 using EDGE.Application.SoaNotes.Queries.GetAllSoaNotes;
 using EDGE.Application.SoaNotes.Queries.GetSoaNoteById;
-using EDGE.Domain.Entities;
 
 namespace EDGE.Application.UnitTests.SoaNotes;
 
@@ -24,8 +24,9 @@ public class SoaNoteHandlerTests
     public async Task CreateSoaNoteCommandHandler_ShouldCreateAndReturnDto()
     {
         // Arrange
+        var tenantId = Guid.NewGuid();
         var handler = new CreateSoaNoteCommandHandler(_repositoryMock.Object, _unitOfWorkMock.Object);
-        var command = new CreateSoaNoteCommand("Standard billing terms and conditions.", "TERMS_STD", "Standard Terms");
+        var command = new CreateSoaNoteCommand("Standard billing terms and conditions.", "TERMS_STD", "Standard Terms", tenantId);
 
         SoaNote? addedNote = null;
         _repositoryMock
@@ -38,12 +39,14 @@ public class SoaNoteHandlerTests
 
         // Assert
         result.Should().NotBeNull();
+        result.TenantId.Should().Be(tenantId);
         result.Code.Should().Be("TERMS_STD");
         result.Title.Should().Be("Standard Terms");
         result.Notes.Should().Be("Standard billing terms and conditions.");
 
         addedNote.Should().NotBeNull();
-        addedNote!.Code.Should().Be("TERMS_STD");
+        addedNote!.TenantId.Should().Be(tenantId);
+        addedNote.Code.Should().Be("TERMS_STD");
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -52,12 +55,14 @@ public class SoaNoteHandlerTests
     {
         // Arrange
         var noteId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
         var existingNote = new SoaNote
         {
             Id = noteId,
+            TenantId = tenantId,
+            Notes = "Old notes",
             Code = "OLD_CODE",
-            Title = "Old Title",
-            Notes = "Old notes content"
+            Title = "Old Title"
         };
 
         _repositoryMock
@@ -65,22 +70,21 @@ public class SoaNoteHandlerTests
             .ReturnsAsync(existingNote);
 
         var handler = new UpdateSoaNoteCommandHandler(_repositoryMock.Object, _unitOfWorkMock.Object);
-        var command = new UpdateSoaNoteCommand(noteId, "Updated notes content", "NEW_CODE", "New Title");
+        var command = new UpdateSoaNoteCommand(noteId, "Updated notes content", "NEW_CODE", "New Title", tenantId);
 
         // Act
         var result = await handler.Handle(command, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.Id.Should().Be(noteId);
+        result.TenantId.Should().Be(tenantId);
+        result.Notes.Should().Be("Updated notes content");
         result.Code.Should().Be("NEW_CODE");
         result.Title.Should().Be("New Title");
-        result.Notes.Should().Be("Updated notes content");
 
+        existingNote.Notes.Should().Be("Updated notes content");
         existingNote.Code.Should().Be("NEW_CODE");
         existingNote.Title.Should().Be("New Title");
-        existingNote.Notes.Should().Be("Updated notes content");
-
         _unitOfWorkMock.Verify(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -142,18 +146,19 @@ public class SoaNoteHandlerTests
     public async Task GetAllSoaNotesQueryHandler_ShouldReturnPaginatedResponse()
     {
         // Arrange
+        var tenantId = Guid.NewGuid();
         var items = new List<SoaNote>
         {
-            new() { Id = Guid.NewGuid(), Code = "CODE1", Title = "Title 1", Notes = "Note 1" },
-            new() { Id = Guid.NewGuid(), Code = "CODE2", Title = "Title 2", Notes = "Note 2" }
+            new() { Id = Guid.NewGuid(), TenantId = tenantId, Code = "CODE1", Title = "Title 1", Notes = "Note 1" },
+            new() { Id = Guid.NewGuid(), TenantId = tenantId, Code = "CODE2", Title = "Title 2", Notes = "Note 2" }
         };
 
         _repositoryMock
-            .Setup(r => r.GetPagedAsync(1, 10, "search", It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPagedAsync(1, 10, "search", tenantId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((items, 2));
 
         var handler = new GetAllSoaNotesQueryHandler(_repositoryMock.Object);
-        var query = new GetAllSoaNotesQuery(1, 10, "search");
+        var query = new GetAllSoaNotesQuery(1, 10, "search", tenantId);
 
         // Act
         var result = await handler.Handle(query, CancellationToken.None);
@@ -164,6 +169,7 @@ public class SoaNoteHandlerTests
         result.TotalCount.Should().Be(2);
         result.PageNumber.Should().Be(1);
         result.PageSize.Should().Be(10);
+        result.Data[0].TenantId.Should().Be(tenantId);
     }
 
     [Fact]
@@ -171,7 +177,8 @@ public class SoaNoteHandlerTests
     {
         // Arrange
         var noteId = Guid.NewGuid();
-        var note = new SoaNote { Id = noteId, Code = "TEST", Title = "Test Title", Notes = "Test Content" };
+        var tenantId = Guid.NewGuid();
+        var note = new SoaNote { Id = noteId, TenantId = tenantId, Code = "TEST", Title = "Test Title", Notes = "Test Content" };
 
         _repositoryMock
             .Setup(r => r.GetByIdAsync(noteId, It.IsAny<CancellationToken>()))
@@ -186,6 +193,7 @@ public class SoaNoteHandlerTests
         // Assert
         result.Should().NotBeNull();
         result!.Id.Should().Be(noteId);
+        result.TenantId.Should().Be(tenantId);
         result.Code.Should().Be("TEST");
         result.Title.Should().Be("Test Title");
     }

@@ -119,8 +119,19 @@ export function deriveQueueTab(
     hasAccountantHistory?: boolean;
     hasCashierHistory?: boolean;
     remarks?: string;
+    category?: string;
   }
 ): QueueTab {
+  if (role?.toLowerCase().includes('legal')) {
+    if (context?.category === 'Complaints and Request') {
+      if (status === 'Submitted' || status === 'Evaluating' || status === 'Returned') return 'pending';
+      if (status === 'Completed' || status === 'Approved') return 'history';
+      return 'activity';
+    }
+    if (status === 'Completed' || status === 'Approved') return 'history';
+    return 'activity';
+  }
+
   if (isAccountantRole(role)) {
     if (status === 'ForAccountant') return 'pending';
     const hasAccountantTouch =
@@ -255,10 +266,12 @@ export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLi
 
     return (
       roleLower.includes('accountant') ||
+      actionLower.includes('accountant') ||
       actionLower.includes('financial review') ||
       actionLower.includes('soa approved') ||
       actionLower.includes('approved by accountant') ||
       actionLower.includes('returned by accountant') ||
+      (actionLower.includes('take application') && h.toStatus === 'ForAccountant') ||
       remarksLower.includes('financial review started') ||
       remarksLower.includes('approved by accountant') ||
       remarksLower.includes('returned by accountant')
@@ -277,11 +290,13 @@ export function resolveCashierOfficer(reversedHistories: ApplicationHistoryLike[
 
     return (
       roleLower.includes('cashier') ||
+      actionLower.includes('cashier') ||
       actionLower.includes('payment verification') ||
       actionLower.includes('payment verified') ||
       actionLower.includes('official receipt') ||
       actionLower.includes('or issued') ||
       actionLower.includes('returned by cashier') ||
+      (actionLower.includes('take application') && h.toStatus === 'PendingPayment') ||
       remarksLower.includes('payment verification started') ||
       remarksLower.includes('official receipt') ||
       remarksLower.includes('returned by cashier')
@@ -300,10 +315,12 @@ export function resolveIssuingOfficer(reversedHistories: ApplicationHistoryLike[
     return (
       actionLower.includes('document issuance') ||
       actionLower.includes('issuance started') ||
+      actionLower.includes('document release') ||
       actionLower.includes('document & license issued') ||
       actionLower.includes('license issued') ||
       actionLower.includes('statutory document') ||
       actionLower.includes('issued by') ||
+      (actionLower.includes('take application') && h.toStatus === 'ForIssuance') ||
       remarksLower.includes('document release process started') ||
       remarksLower.includes('statutory document and license issued') ||
       h.toStatus === 'Completed'

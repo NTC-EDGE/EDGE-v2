@@ -305,6 +305,91 @@ public static class IssuedDocumentPrintMapper
             return;
         }
 
+        // 6. Aeronautical / Aircraft Station License (Service-4)
+        if (sCode.StartsWith("NTC_1_04") || sName.Contains("AIRCRAFT") || sName.Contains("AERONAUTICAL") || sName.Contains("ASL"))
+        {
+            if (sName.Contains("PURCHASE") || vName.Contains("PURCHASE"))
+                model.TemplateName = "Service-4-Permit-to-Purchase.pdf";
+            else if (sName.Contains("POSSESS") || vName.Contains("POSSESS"))
+                model.TemplateName = "Service-4-Permit-to-Possess.pdf";
+            else if (sName.Contains("FASL") || sName.Contains("FIXED"))
+                model.TemplateName = "Service-4-FASL.pdf";
+            else
+                model.TemplateName = "Service-4-ASL.pdf";
+            return;
+        }
+
+        // 7. Maritime / Ship Station License (Service-5)
+        if (sCode.StartsWith("NTC_1_05") || sName.Contains("SHIP") || sName.Contains("VESSEL"))
+        {
+            if (sName.Contains("PURCHASE") || vName.Contains("PURCHASE"))
+                model.TemplateName = "Service-5-Permit-to-Purchase.pdf";
+            else if (sName.Contains("POSSESS") || vName.Contains("POSSESS"))
+                model.TemplateName = "Service-5-Permit-to-Possess.pdf";
+            else
+                model.TemplateName = "Service-5-Ship-Station-License.pdf";
+            return;
+        }
+
+        // 8. Coastal Station License (Service-6)
+        if (sCode.StartsWith("NTC_1_06") || sName.Contains("COASTAL"))
+        {
+            if (sName.Contains("PRIVATE"))
+                model.TemplateName = "Service-6-Private-Coastal-Station-License.pdf";
+            else
+                model.TemplateName = "Service-6-Public-Coastal-Station-License.pdf";
+            return;
+        }
+
+        // 9. Cellular / Network / BTS Radio Station License (Service-8)
+        if (sCode.StartsWith("NTC_1_08") || sName.Contains("BTS") || sName.Contains("CELLULAR") || sName.Contains("BASE TRANSCEIVER"))
+        {
+            if (sName.Contains("BTS"))
+                model.TemplateName = "Service-8-Radio-Station-License-BTS.pdf";
+            else if (sName.Contains("NETWORK"))
+                model.TemplateName = "Service-8-Network-Radio-Station-License.pdf";
+            else
+                model.TemplateName = "Service-8-Radio-Station-License.pdf";
+            return;
+        }
+
+        // 10. Commercial / Private Radio Station License & Permits (Service-9)
+        if (sCode.StartsWith("NTC_1_09") || sName.Contains("RADIO STATION LICENSE") || sName.Contains("COMMERCIAL RADIO") || cName.Contains("LICENSE"))
+        {
+            if (sName.Contains("DEALER") || vName.Contains("DEALER"))
+                model.TemplateName = "Service-9-Dealers-Permit.pdf";
+            else if (sName.Contains("PURCHASE") || vName.Contains("PURCHASE"))
+                model.TemplateName = "Service-9-Permit-to-Purchase.pdf";
+            else if (sName.Contains("POSSESS") || vName.Contains("POSSESS"))
+                model.TemplateName = "Service-9-Permit-to-Possess.pdf";
+            else if (sName.Contains("TRANSPORT") || vName.Contains("TRANSPORT"))
+                model.TemplateName = "Service-9-Permit-To-Transport.pdf";
+            else
+                model.TemplateName = "Service-9-Radio-Station-License.pdf";
+            return;
+        }
+
+        // 11. Construction Permit & License (Service-10)
+        if (sCode.StartsWith("NTC_1_10") || sName.Contains("CONSTRUCTION PERMIT"))
+        {
+            model.TemplateName = "Service-10-Construction-Permit-And-License.pdf";
+            return;
+        }
+
+        // 12. Temporary Permit to Demonstrate (Service-13)
+        if (sCode.StartsWith("NTC_1_13") || sName.Contains("DEMONSTRATE"))
+        {
+            model.TemplateName = "Service-13-Temporary-Permit-to-Demonstrate.pdf";
+            return;
+        }
+
+        // 13. Permit to Transport (Service-14)
+        if (sCode.StartsWith("NTC_1_14") || sName.Contains("TRANSPORT"))
+        {
+            model.TemplateName = "Service-14-Permit-To-Transport.pdf";
+            return;
+        }
+
         // Default Title based on DocumentType
         if (model.DocumentType.Equals("Certificate", StringComparison.OrdinalIgnoreCase))
             model.DocumentTitle = $"CERTIFICATE OF {sName}";

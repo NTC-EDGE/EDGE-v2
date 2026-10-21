@@ -23,6 +23,8 @@ public class GetSoaNoteByIdQueryHandler : IRequestHandler<GetSoaNoteByIdQuery, S
         return new SoaNoteDto
         {
             Id = soaNote.Id,
+            TenantId = soaNote.TenantId,
+            TenantName = soaNote.Tenant?.Name,
             Code = soaNote.Code,
             Title = soaNote.Title,
             Notes = soaNote.Notes,

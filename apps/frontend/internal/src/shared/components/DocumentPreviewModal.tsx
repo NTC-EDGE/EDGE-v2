@@ -71,6 +71,24 @@ export function DocumentPreviewModal({
       (isObj && fileType === "IMAGE") ||
       (uriLower.startsWith("blob:") && !isPdf));
 
+  const [scale, setScale] = React.useState(1);
+  const [rotation, setRotation] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setScale(1);
+      setRotation(0);
+    }
+  }, [visible]);
+
+  const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 3));
+  const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
+  const handleRotate = () => setRotation((r) => (r + 90) % 360);
+  const handleResetZoom = () => {
+    setScale(1);
+    setRotation(0);
+  };
+
   const handleOpenExternal = async () => {
     if (!fileUri) return;
     try {
@@ -130,7 +148,48 @@ export function DocumentPreviewModal({
                 </Text>
               </View>
             </View>
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
+
+            {isImage ? (
+              <View style={styles.imageControlsRow}>
+                <TouchableOpacity
+                  onPress={handleZoomOut}
+                  style={styles.controlIconBtn}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Zoom Out"
+                >
+                  <Icon name="zoom-out" size={16} color="#0F2C59" />
+                </TouchableOpacity>
+                <Text style={styles.zoomText}>{Math.round(scale * 100)}%</Text>
+                <TouchableOpacity
+                  onPress={handleZoomIn}
+                  style={styles.controlIconBtn}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Zoom In"
+                >
+                  <Icon name="zoom-in" size={16} color="#0F2C59" />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleRotate}
+                  style={styles.controlIconBtn}
+                  activeOpacity={0.7}
+                  accessibilityLabel="Rotate 90 degrees"
+                >
+                  <Icon name="rotate-cw" size={16} color="#0F2C59" />
+                </TouchableOpacity>
+                {scale !== 1 || rotation !== 0 ? (
+                  <TouchableOpacity
+                    onPress={handleResetZoom}
+                    style={styles.resetBtn}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Reset Zoom and Rotation"
+                  >
+                    <Text style={styles.resetBtnText}>Reset</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            ) : null}
+
+            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7} accessibilityLabel="Close">
               <Icon name="x" size={20} color="#64748B" />
             </TouchableOpacity>
           </View>
@@ -154,7 +213,15 @@ export function DocumentPreviewModal({
               <View style={styles.imageWrapper}>
                 <Image
                   source={{ uri: fileUri }}
-                  style={styles.previewImage}
+                  style={[
+                    styles.previewImage,
+                    {
+                      transform: [
+                        { scale },
+                        { rotate: `${rotation}deg` },
+                      ],
+                    },
+                  ]}
                   resizeMode="contain"
                 />
               </View>
@@ -202,8 +269,8 @@ export function DocumentPreviewModal({
           </ScrollView>
 
           {/* Footer Actions */}
-          <View style={styles.footer}>
-            {fileUri ? (
+          {fileUri ? (
+            <View style={styles.footer}>
               <TouchableOpacity
                 onPress={handleOpenExternal}
                 style={styles.footerActionBtn}
@@ -212,12 +279,8 @@ export function DocumentPreviewModal({
                 <Icon name="external-link" size={15} color="#0F2C59" style={{ marginRight: 6 }} />
                 <Text style={styles.footerActionText}>Open Fullscreen / Download</Text>
               </TouchableOpacity>
-            ) : null}
-
-            <TouchableOpacity onPress={onClose} style={styles.footerCloseBtn} activeOpacity={0.8}>
-              <Text style={styles.footerCloseText}>Close</Text>
-            </TouchableOpacity>
-          </View>
+            </View>
+          ) : null}
         </View>
       </View>
     </Modal>
@@ -286,6 +349,43 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: "#EDF2F7",
+  },
+  imageControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginRight: 10,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  controlIconBtn: {
+    padding: 4,
+    borderRadius: 4,
+  },
+  zoomText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0F2C59",
+    minWidth: 36,
+    textAlign: "center",
+  },
+  resetBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 4,
+    marginLeft: 2,
+  },
+  resetBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#475569",
   },
   bodyContent: {
     padding: 16,

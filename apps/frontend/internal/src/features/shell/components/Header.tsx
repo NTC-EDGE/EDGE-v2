@@ -127,6 +127,124 @@ function getBreadcrumb(
   return { group: found.group, screen: found.name };
 }
 
+function getApplicationNotificationDetails(
+  app: {
+    referenceNumber?: string | null;
+    applicationNumber?: string | null;
+    serviceName?: string | null;
+    serviceCategory?: string | null;
+    status?: string | null;
+  },
+  role: UserRole
+): { title: string; description: string } | null {
+  const ref = app.referenceNumber ?? app.applicationNumber ?? 'N/A';
+  const name = app.serviceName ?? 'Application';
+  const status = (app.status ?? '').trim().toLowerCase();
+
+  switch (role) {
+    case 'Evaluator': {
+      // 1. Application Submitted: Notify the Evaluator responsible for reviewing the application.
+      if (status === 'submitted') {
+        return {
+          title: 'Application Submitted',
+          description: `Ref #${ref}: ${name} awaiting technical evaluation`,
+        };
+      }
+      if (status === 'returned') {
+        return {
+          title: 'Application Resubmitted',
+          description: `Ref #${ref}: ${name} returned for re-evaluation`,
+        };
+      }
+      return null;
+    }
+
+    case 'Accountant': {
+      // 2. Application Approved by Evaluator: Notify the Accountant for the next step in processing.
+      if (status === 'foraccountant') {
+        return {
+          title: 'Application Approved by Evaluator',
+          description: `Ref #${ref}: ${name} awaiting accounting review & Order of Payment (OP)`,
+        };
+      }
+      return null;
+    }
+
+    case 'Cashier': {
+      // 3. Client Proceeds to Payment: Notify the Cashier to process the payment.
+      if (status === 'pendingpayment') {
+        return {
+          title: 'Client Proceeds to Payment',
+          description: `Ref #${ref}: ${name} awaiting payment receipt & Official Receipt (OR) issuance`,
+        };
+      }
+      return null;
+    }
+
+    case 'Chief of EOD':
+    case 'Regional Director': {
+      if (status === 'forissuance') {
+        return {
+          title: 'Document Ready for Issuance',
+          description: `Ref #${ref}: ${name} awaiting final endorsement & document release`,
+        };
+      }
+      return null;
+    }
+
+    case 'Legal': {
+      const isLegal =
+        (app.serviceCategory !== null && app.serviceCategory !== undefined && (app.serviceCategory.toLowerCase().includes('complaint') || app.serviceCategory.toLowerCase().includes('request'))) ||
+        (app.serviceName !== null && app.serviceName !== undefined && (app.serviceName.toLowerCase().includes('complaint') || app.serviceName.toLowerCase().includes('request')));
+
+      if (isLegal && (status === 'submitted' || status === 'evaluating')) {
+        return {
+          title: 'Legal Assessment Required',
+          description: `Ref #${ref}: ${name} awaiting legal review`,
+        };
+      }
+      return null;
+    }
+
+    case 'Admin': {
+      if (status === 'submitted') {
+        return {
+          title: 'Application Submitted',
+          description: `Ref #${ref}: ${name} awaiting evaluation`,
+        };
+      }
+      if (status === 'foraccountant') {
+        return {
+          title: 'Application Approved by Evaluator',
+          description: `Ref #${ref}: ${name} awaiting accounting review & OP`,
+        };
+      }
+      if (status === 'pendingpayment') {
+        return {
+          title: 'Client Proceeds to Payment',
+          description: `Ref #${ref}: ${name} awaiting payment receipt & OR`,
+        };
+      }
+      if (status === 'forissuance') {
+        return {
+          title: 'Document Ready for Issuance',
+          description: `Ref #${ref}: ${name} awaiting document release`,
+        };
+      }
+      if (status === 'returned') {
+        return {
+          title: 'Application Returned',
+          description: `Ref #${ref}: ${name} returned for re-evaluation`,
+        };
+      }
+      return null;
+    }
+
+    default:
+      return null;
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function Header({
@@ -166,7 +284,7 @@ export function Header({
   // Applications and Announcements
   const { applications } = useAdminApplications(
     {
-      queueTab: 'pending',
+      queueTab: (currentRole === 'Chief of EOD' || currentRole === 'Regional Director') ? 'issuance' : 'pending',
       scope: 'queue',
       role: currentRole,
     },
@@ -230,11 +348,15 @@ export function Header({
 
     if (Array.isArray(applications)) {
       for (const app of applications) {
+        const notifDetails = getApplicationNotificationDetails(app, currentRole);
+        if (notifDetails === null) {
+          continue;
+        }
         list.push({
           id: `app_${app.id}`,
           appId: app.id,
-          title: 'Application Submitted',
-          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? 'N/A'}: ${app.serviceName ?? 'Application'} awaiting evaluation`,
+          title: notifDetails.title,
+          description: notifDetails.description,
           timestamp: app.createdAt,
           type: 'evaluation',
           screen: 'Activities',

@@ -47,14 +47,14 @@ public static class StatementOfAccountPrintMapper
             ? soa.CreatedAt
             : (activeOp != null && activeOp.CreatedAt != default ? activeOp.CreatedAt : (app != null && app.CreatedAt != default ? app.CreatedAt : DateTime.UtcNow));
 
-        model.Date = creationDate.ToString("MMM dd yyyy");
+        model.Date = creationDate.ToString("MMMM dd, yyyy");
         model.MonthOf = creationDate.ToString("MMMM yyyy").ToUpperInvariant();
 
         var dueDate = soa != null && soa.DueDate != default
             ? soa.DueDate
             : creationDate.AddDays(30);
 
-        model.PaymentDueDate = dueDate.ToString("MM/dd/yyyy");
+        model.PaymentDueDate = dueDate.ToString("MMMM dd, yyyy");
 
         // 3. Transaction Type Checkboxes
         var primaryVariant = app?.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
@@ -101,14 +101,12 @@ public static class StatementOfAccountPrintMapper
 
         // 4. Assessment Checkboxes
         model.IsForAssessmentOnly = app?.Intent == ApplicationIntent.AssessmentOnly;
-        model.IsEndorsedForPayment = (soa != null && soa.Status == SoaStatus.Approved) ||
-                                     app?.Status == ApplicationStatus.PendingPayment ||
-                                     app?.Status == ApplicationStatus.Completed ||
-                                     (activeOp != null && (activeOp.PaidAt.HasValue || activeOp.Status == OpStatus.Paid));
+        model.IsEndorsedForPayment = !model.IsForAssessmentOnly;
 
         // 5. Particular Headers & Periods
         var firstItemWithPeriod = soa?.LineItems.FirstOrDefault(li => li.PeriodOfCoverageStart.HasValue && li.PeriodOfCoverageEnd.HasValue);
-        model.Particular1Header = model.AccountNo;
+        var particularNumber = ResolveParticularNumber(app);
+        model.Particular1Header = !string.IsNullOrWhiteSpace(particularNumber) ? particularNumber : model.AccountNo;
         if (firstItemWithPeriod != null && firstItemWithPeriod.PeriodOfCoverageStart.HasValue && firstItemWithPeriod.PeriodOfCoverageEnd.HasValue)
         {
             model.Particular1PeriodCovered = $"{firstItemWithPeriod.PeriodOfCoverageStart.Value:MM/dd/yyyy} to {firstItemWithPeriod.PeriodOfCoverageEnd.Value:MM/dd/yyyy}";
@@ -145,20 +143,26 @@ public static class StatementOfAccountPrintMapper
                     (!string.IsNullOrWhiteSpace(li.Particular) && i.Description.Contains(li.Particular, StringComparison.OrdinalIgnoreCase)) ||
                     (!string.IsNullOrWhiteSpace(li.Particular) && li.Particular.Contains(i.Description, StringComparison.OrdinalIgnoreCase)));
 
+                var feeRate = li.FeeRate > 0 ? li.FeeRate : (li.NoOfUnits > 1 ? li.Amount / li.NoOfUnits : li.Amount);
                 if (matched != null)
                 {
-                    matched.Particular1.Fees = (matched.Particular1.Fees ?? 0) + li.Amount;
+                    matched.Particular1.Fees = feeRate;
+                    matched.Particular1.Amount = (matched.Particular1.Amount ?? 0) + li.Amount;
                     if (li.ValidityYears > 0) matched.Particular1.NoOfYrs = li.ValidityYears.ToString();
                     if (li.NoOfUnits > 0) matched.Particular1.NoOfUnits = li.NoOfUnits.ToString();
                 }
                 else
                 {
-                    var othersItem = model.Items.FirstOrDefault(i => i.Category == SoaCategory.OtherApplication && i.Description == "Others");
-                    if (othersItem != null && (othersItem.Particular1.Fees == null || othersItem.Particular1.Fees == 0))
+                    var othersItem = model.Items.FirstOrDefault(i => i.Category == SoaCategory.OtherApplication && 
+                        (i.Description == "Others" || i.Description.StartsWith("Others", StringComparison.OrdinalIgnoreCase)));
+                    if (othersItem != null && (othersItem.Particular1.Amount == null || othersItem.Particular1.Amount == 0))
                     {
-                        othersItem.Description = $"Others: {li.Particular}";
-                        othersItem.Code = li.ItemCode;
-                        othersItem.Particular1.Fees = li.Amount;
+                        othersItem.Description = li.Particular.StartsWith("Others", StringComparison.OrdinalIgnoreCase)
+                            ? li.Particular
+                            : $"Others: {li.Particular}";
+                        othersItem.Code = !string.IsNullOrWhiteSpace(li.ItemCode) ? li.ItemCode : "4-02-01-990";
+                        othersItem.Particular1.Fees = feeRate;
+                        othersItem.Particular1.Amount = li.Amount;
                         if (li.ValidityYears > 0) othersItem.Particular1.NoOfYrs = li.ValidityYears.ToString();
                         if (li.NoOfUnits > 0) othersItem.Particular1.NoOfUnits = li.NoOfUnits.ToString();
                     }
@@ -171,7 +175,8 @@ public static class StatementOfAccountPrintMapper
                             Category = SoaCategory.OtherApplication,
                             Particular1 = new StatementOfAccountFeeDetail
                             {
-                                Fees = li.Amount,
+                                Fees = feeRate,
+                                Amount = li.Amount,
                                 NoOfYrs = li.ValidityYears > 0 ? li.ValidityYears.ToString() : null,
                                 NoOfUnits = li.NoOfUnits > 0 ? li.NoOfUnits.ToString() : null
                             }
@@ -186,7 +191,7 @@ public static class StatementOfAccountPrintMapper
         {
             model.OrNo = activeOp.OfficialReceiptNumber;
             model.OrAmount = activeOp.AmountReceived > 0 ? $"P{activeOp.AmountReceived:N2}" : $"P{activeOp.AmountDue:N2}";
-            model.OrDate = activeOp.PaidAt?.ToString("MMM dd yyyy") ?? activeOp.CreatedAt.ToString("MMM dd yyyy");
+            model.OrDate = activeOp.PaidAt?.ToString("MMMM dd, yyyy") ?? activeOp.CreatedAt.ToString("MMMM dd, yyyy");
             model.OrBy = activeOp.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
         }
 
@@ -267,7 +272,62 @@ public static class StatementOfAccountPrintMapper
         {
             model.Remarks = $"{soa.Remarks}\n\n{model.Remarks}";
         }
+        else if (soa?.SoaNote != null && !string.IsNullOrWhiteSpace(soa.SoaNote.Notes))
+        {
+            model.Remarks = $"{soa.SoaNote.Notes}\n\n{model.Remarks}";
+        }
 
         return model;
+    }
+
+    public static string ResolveParticularNumber(EDGE.Domain.Entities.Application? app)
+    {
+        if (app == null) return string.Empty;
+
+        // 1. License Number or Form Number from Issued Document Details
+        if (app.IssuedDocumentDetails != null && app.IssuedDocumentDetails.Any())
+        {
+            var issuedLic = app.IssuedDocumentDetails
+                .Select(d => !string.IsNullOrWhiteSpace(d.LicenseNumber) ? d.LicenseNumber.Trim() : d.FormNumber?.Trim())
+                .FirstOrDefault(num => !string.IsNullOrWhiteSpace(num));
+            if (!string.IsNullOrWhiteSpace(issuedLic))
+                return issuedLic;
+        }
+
+        // 2. Permit, License, Certificate, Registration, or Call Sign from FormFieldValues
+        if (app.FormSubmissions != null && app.FormSubmissions.Any())
+        {
+            foreach (var sub in app.FormSubmissions)
+            {
+                if (sub.FieldValues == null) continue;
+                foreach (var fv in sub.FieldValues)
+                {
+                    if (string.IsNullOrWhiteSpace(fv.Value)) continue;
+                    var label = (fv.CustomLabel ?? fv.Field?.Label)?.ToLowerInvariant() ?? string.Empty;
+                    var key = label;
+
+                    if (label.Contains("license number") || key.Contains("licensenumber") ||
+                        label.Contains("permit number") || key.Contains("permitnumber") ||
+                        label.Contains("certificate number") || key.Contains("certificatenumber") ||
+                        label.Contains("registration number") || key.Contains("registrationnumber") ||
+                        label.Contains("call sign") || key.Contains("callsign") ||
+                        label.Contains("roc number") || key.Contains("rocnumber") ||
+                        label.Contains("rsl number") || key.Contains("rslnumber"))
+                    {
+                        return fv.Value.Trim();
+                    }
+                }
+            }
+        }
+
+        // 3. Application Number
+        if (!string.IsNullOrWhiteSpace(app.ApplicationNumber))
+            return app.ApplicationNumber.Trim();
+
+        // 4. Reference Number
+        if (!string.IsNullOrWhiteSpace(app.ReferenceNumber))
+            return app.ReferenceNumber.Trim();
+
+        return app.Id != Guid.Empty ? $"APP-{app.Id.ToString()[..8].ToUpper()}" : string.Empty;
     }
 }

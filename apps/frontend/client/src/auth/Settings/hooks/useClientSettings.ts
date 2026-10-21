@@ -35,6 +35,7 @@ export interface UserProfileSettings {
   phone: string;
   dob: string;
   sex: string;
+  civilStatus?: string;
   nationality: string;
   height?: string;
   weight?: string;
@@ -70,6 +71,7 @@ const DEFAULT_PROFILE: UserProfileSettings = {
   phone: "",
   dob: "",
   sex: "",
+  civilStatus: "",
   nationality: "Filipino",
   height: "",
   weight: "",
@@ -155,6 +157,7 @@ export function useClientSettings() {
         phone,
         dob: metaProfile?.dob || "",
         sex: metaProfile?.sex || "",
+        civilStatus: metaProfile?.civilStatus || "",
         nationality: metaProfile?.nationality || "Filipino",
         height: metaProfile?.height || "",
         weight: metaProfile?.weight || "",
@@ -229,6 +232,7 @@ export function useClientSettings() {
             extensionName: prev.extensionName || dbUser.suffix || "",
             phone: prev.phone || dbUser.contactNumber || "",
             sex: prev.sex || dbUser.sex || "",
+            civilStatus: prev.civilStatus || dbUser.civilStatus || "",
             nationality: prev.nationality || dbUser.nationality || "Filipino",
             height: prev.height || (dbUser.height ? String(dbUser.height) : ""),
             weight: prev.weight || (dbUser.weight ? String(dbUser.weight) : ""),

@@ -124,7 +124,17 @@ export function useApplicationDetailsData(initialApp: Application) {
         }
       };
       loadFullDetails();
-      return () => { isMounted = false; };
+
+      const timer = setInterval(() => {
+        if (isMounted) {
+          loadFullDetails();
+        }
+      }, 3000);
+
+      return () => {
+        isMounted = false;
+        clearInterval(timer);
+      };
     }
   }, [initialApp.id, initialApp.status, initialApp.remarks, refreshTrigger]);
 
@@ -456,7 +466,47 @@ export function useApplicationDetailsData(initialApp: Application) {
           uploadedAt: app.submittedAt || new Date().toISOString(),
           url: applicationService.getIssuedDocumentPrintUrl(app.id),
         };
-        return [issuedDocEntry, ...resolvedDocs];
+        resolvedDocs = [issuedDocEntry, ...resolvedDocs];
+      }
+    }
+
+    // For Request & Complaint applications, include official printable application form
+    const serviceNameLower = (app.serviceName || '').toLowerCase();
+    const serviceCategoryLower = (app.serviceCategory || '').toLowerCase();
+    const isRequestOrComplaint =
+      serviceNameLower.includes('request') ||
+      serviceNameLower.includes('complaint') ||
+      serviceCategoryLower.includes('request') ||
+      serviceCategoryLower.includes('complaint') ||
+      serviceNameLower.includes('blocking') ||
+      serviceNameLower.includes('unblocking') ||
+      serviceNameLower.includes('spam') ||
+      serviceNameLower.includes('scam') ||
+      serviceNameLower.includes('tape preservation');
+
+    if (isRequestOrComplaint && typeof app.id === 'string' && app.id.trim().length > 0) {
+      const isBlocking =
+        serviceNameLower.includes('blocking') ||
+        serviceNameLower.includes('unblocking');
+      const formDocName = isBlocking
+        ? 'Official_Application_Form_NTC_1-24.pdf'
+        : 'Official_Complaint_Form_NTC_1-25.pdf';
+
+      const alreadyHasForm = resolvedDocs.some(
+        (d) => d.id === `official-application-form-${app.id}` || d.name === formDocName
+      );
+
+      if (!alreadyHasForm) {
+        const formDocEntry: ApplicationDocument = {
+          id: `official-application-form-${app.id}`,
+          name: formDocName,
+          type: 'PDF',
+          size: '1.2 MB',
+          category: 'ATTACHMENT',
+          uploadedAt: app.submittedAt || new Date().toISOString(),
+          url: applicationService.getApplicationFormPrintUrl(app.id),
+        };
+        resolvedDocs = [formDocEntry, ...resolvedDocs];
       }
     }
 

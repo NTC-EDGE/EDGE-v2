@@ -189,7 +189,7 @@ export function ApplicationCard({
         </View>
 
         <Text style={styles.serviceName} numberOfLines={2}>
-          {app.serviceName}
+          {isBulk && ((typeof app.serviceCategory === 'string' && app.serviceCategory.toLowerCase().includes('exam')) || (typeof app.serviceName === 'string' && (app.serviceName.toLowerCase().includes('exam') || app.serviceName.toLowerCase().includes('admission slip')))) ? 'Bulk Examination Application' : app.serviceName}
         </Text>
 
         <View style={styles.detailsMetaRow}>

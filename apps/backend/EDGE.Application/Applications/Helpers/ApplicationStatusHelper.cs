@@ -74,8 +74,16 @@ public static class ApplicationStatusHelper
     public static bool IsCashierRole(string? role) =>
         string.Equals(role, SystemRoles.Cashier, StringComparison.OrdinalIgnoreCase);
 
-    public static bool IsEvaluatorOrSupervisorRole(string? role) =>
-        string.Equals(role, SystemRoles.Evaluator, StringComparison.OrdinalIgnoreCase) ||
+    public static bool IsEvaluatorRole(string? role) =>
+        string.Equals(role, SystemRoles.Evaluator, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsSupervisorOrDirectorRole(string? role) =>
         string.Equals(role, SystemRoles.ChiefOfEod, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(role, SystemRoles.RegionalDirector, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsLegalRole(string? role) =>
+        string.Equals(role, SystemRoles.Legal, StringComparison.OrdinalIgnoreCase);
+
+    public static bool IsEvaluatorOrSupervisorRole(string? role) =>
+        IsEvaluatorRole(role) || IsSupervisorOrDirectorRole(role);
 }

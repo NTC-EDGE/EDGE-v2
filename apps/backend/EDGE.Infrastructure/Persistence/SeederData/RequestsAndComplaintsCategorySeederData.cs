@@ -191,7 +191,9 @@ public static class RequestsAndComplaintsCategorySeederData
             new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "device_particulars" }),
             new("sim_details", "2. SIM Card / Mobile Number Details", new() { "sim_mobile_numbers" }),
             new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
-            new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "sex", "age_group", "place_of_incident", "date_of_incident", "time_of_day" }),
+            new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "incident_others_specify", "place_of_incident", "date_of_incident", "time_of_day" }),
+            new("unblocking_details_section", "Details of Unblocking", new() { "date_of_filing", "date_of_recovery", "unblocking_details" }),
+            new("broadcast_details", "Broadcast Details", new() { "broadcast_station", "program_name", "time_of_airing", "anchor_commentator" }),
 
             // Sections for Complaints & Tape Preservation (NTC 1-25)
             new("particulars_of_service_provider", "Particulars of Service Provider", new() { "provider_business_name", "provider_business_address", "provider_contact_number" }),
@@ -203,7 +205,8 @@ public static class RequestsAndComplaintsCategorySeederData
             new("request_type_and_device_details", "1. Action Requested & Device Particulars", new() { "action_requested", "device_particulars" }),
             new("sim_details", "2. SIM Card / Mobile Number Details", new() { "sim_mobile_numbers" }),
             new("supporting_documents", "4. Proof of Ownership & Supporting Documents", new() { "identity_proof_type", "proof_of_ownership_type" }),
-            new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "sex", "age_group", "place_of_incident", "date_of_incident", "time_of_day" })
+            new("incident_and_demographic_info", "Additional Information & Incident Details", new() { "loss_reason", "incident_others_specify", "place_of_incident", "date_of_incident", "time_of_day" }),
+            new("unblocking_details_section", "Details of Unblocking", new() { "date_of_filing", "date_of_recovery", "unblocking_details" })
         }),
         new("NTC_1_25", Guid.Parse("f2500000-0000-0000-0000-000000000002"), Guid.Parse("f25a0000-0000-0000-0000-000000000000"), new()
         {

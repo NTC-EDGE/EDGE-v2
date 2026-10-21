@@ -74,7 +74,9 @@ public static class SoaEndpoints
             request?.NoOfUnits,
             request?.ExpirationDate,
             request?.AdditionalServicesCount,
-            request?.NoOfCopies);
+            request?.NoOfCopies,
+            request?.Remarks,
+            request?.SoaNoteId);
 
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)

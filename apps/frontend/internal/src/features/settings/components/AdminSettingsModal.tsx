@@ -71,6 +71,10 @@ export interface ModalInitialData {
   feeBreakdown?: FeeBreakdownItemInput[];
   status?: 'Published' | 'Draft';
   serviceType?: string;
+  rcCodeSoa?: string;
+  rcCodeOp?: string;
+  fundCluster?: string;
+  requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
 }
 
 interface AdminSettingsModalProps {
@@ -101,6 +105,10 @@ interface AdminSettingsModalProps {
     feeBreakdown?: FeeBreakdownItemInput[];
     status?: 'Published' | 'Draft';
     serviceType?: string;
+  rcCodeSoa?: string;
+  rcCodeOp?: string;
+  fundCluster?: string;
+  requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
   }) => void;
 }
 
@@ -154,6 +162,10 @@ export function AdminSettingsModal({
   const [allowComplaintReceptionToggle, setAllowComplaintReceptionToggle] = useState(true);
   const [isActiveToggle, setIsActiveToggle] = useState(true);
   const [formStatus, setFormStatus] = useState<'Published' | 'Draft'>('Draft');
+  const [rcCodeSoaInput, setRcCodeSoaInput] = useState('61');
+  const [rcCodeOpInput, setRcCodeOpInput] = useState('61');
+  const [fundClusterInput, setFundClusterInput] = useState('01');
+  const [routingInput, setRoutingInput] = useState<'DirectToLegal' | 'DirectToEvaluator'>('DirectToLegal');
 
   // Error & Loading States
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -273,6 +285,10 @@ export function AdminSettingsModal({
       setAmountInput(initialData.amount !== undefined ? String(initialData.amount) : '');
       setInstructionsInput(initialData.instructions ?? '1.\n2.\n3.');
       setIsActiveToggle(initialData.isActive ?? true);
+      setRcCodeSoaInput(initialData.rcCodeSoa ?? '61');
+      setRcCodeOpInput(initialData.rcCodeOp ?? '61');
+      setFundClusterInput(initialData.fundCluster ?? '01');
+      setRoutingInput(initialData.requestAndComplaintRouting === 'DirectToEvaluator' ? 'DirectToEvaluator' : 'DirectToLegal');
       setMappedDocs(
         initialData.mappedDocuments && initialData.mappedDocuments.length > 0
           ? initialData.mappedDocuments
@@ -308,6 +324,10 @@ export function AdminSettingsModal({
       setAmountInput('');
       setInstructionsInput('1.\n2.\n3.');
       setIsActiveToggle(true);
+      setRcCodeSoaInput('61');
+      setRcCodeOpInput('61');
+      setFundClusterInput('01');
+      setRoutingInput('DirectToLegal');
       setMappedDocs([
         { id: 'doc-1', name: 'Valid Government Issued ID', isRequired: true },
         { id: 'doc-2', name: 'Barangay Clearance', isRequired: true },
@@ -531,6 +551,10 @@ export function AdminSettingsModal({
         feeBreakdown: feeBreakdowns,
         status: formStatus,
         serviceType: titleInput,
+        rcCodeSoa: rcCodeSoaInput,
+        rcCodeOp: rcCodeOpInput,
+        fundCluster: fundClusterInput,
+        requestAndComplaintRouting: routingInput,
       });
       onClose();
     } catch (err: unknown) {
@@ -726,28 +750,135 @@ export function AdminSettingsModal({
                   </>
                 )}
 
-                {categoryName === 'Region Summary' && (
+                {categoryName !== 'Commissioner' && categoryName !== 'Support Contact' && categoryName !== 'Office Details' && (
                   <>
                     <View style={styles.inputGroup}>
                       <Text style={styles.inputLabel}>REGION NAME</Text>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="Region XIV"
+                        placeholder="Region X - Northern Mindanao"
                         placeholderTextColor={COLORS.neutral[400]}
                         value={nameInput}
                         onChangeText={setNameInput}
                       />
                     </View>
 
+                    <View style={styles.twoColumnRow}>
+                      <View style={[styles.inputGroup, styles.flexColumn]}>
+                        <Text style={styles.inputLabel}>RC CODE (SOA)</Text>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="61"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={rcCodeSoaInput}
+                          onChangeText={setRcCodeSoaInput}
+                        />
+                      </View>
+                      <View style={[styles.inputGroup, styles.flexColumn]}>
+                        <Text style={styles.inputLabel}>RC CODE (OP)</Text>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="61"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={rcCodeOpInput}
+                          onChangeText={setRcCodeOpInput}
+                        />
+                      </View>
+                    </View>
+
                     <View style={styles.inputGroup}>
-                      <Text style={styles.inputLabel}>GLOBAL CONFIG & ALERTS</Text>
+                      <Text style={styles.inputLabel}>FUND CLUSTER</Text>
                       <TextInput
                         style={styles.textInput}
-                        placeholder="XIV · Alerts: off"
+                        placeholder="01"
                         placeholderTextColor={COLORS.neutral[400]}
-                        value={subLabelInput}
-                        onChangeText={setSubLabelInput}
+                        value={fundClusterInput}
+                        onChangeText={setFundClusterInput}
                       />
+                    </View>
+
+                    <View style={styles.twoColumnRow}>
+                      <View style={[styles.inputGroup, styles.flexColumn]}>
+                        <Text style={styles.inputLabel}>SUPPORT EMAIL</Text>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="region10@ntc.gov.ph"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={contactEmailInput}
+                          onChangeText={setContactEmailInput}
+                          autoCapitalize="none"
+                          keyboardType="email-address"
+                        />
+                      </View>
+                      <View style={[styles.inputGroup, styles.flexColumn]}>
+                        <Text style={styles.inputLabel}>SUPPORT PHONE</Text>
+                        <TextInput
+                          style={styles.textInput}
+                          placeholder="(088) 856-1234"
+                          placeholderTextColor={COLORS.neutral[400]}
+                          value={contactPhoneInput}
+                          onChangeText={setContactPhoneInput}
+                        />
+                      </View>
+                    </View>
+
+                    <View style={styles.inputGroup}>
+                      <Text style={styles.inputLabel}>REQUESTS & COMPLAINTS ROUTING</Text>
+                      <View style={styles.routingOptionsRow}>
+                        <Pressable
+                          style={[
+                            styles.routingOptionCard,
+                            routingInput === 'DirectToLegal' && styles.routingOptionCardActive,
+                          ]}
+                          onPress={() => setRoutingInput('DirectToLegal')}
+                        >
+                          <Lucide
+                            name="shield"
+                            size={18}
+                            color={routingInput === 'DirectToLegal' ? COLORS.brand.indigo : COLORS.neutral[400]}
+                          />
+                          <View style={{ flex: 1, marginLeft: 8 }}>
+                            <Text
+                              style={[
+                                styles.routingOptionTitle,
+                                routingInput === 'DirectToLegal' && styles.routingOptionTitleActive,
+                              ]}
+                            >
+                              Direct to Legal
+                            </Text>
+                            <Text style={styles.routingOptionSub}>
+                              Complaints & requests appear directly in Legal Officer pending queue
+                            </Text>
+                          </View>
+                        </Pressable>
+
+                        <Pressable
+                          style={[
+                            styles.routingOptionCard,
+                            routingInput === 'DirectToEvaluator' && styles.routingOptionCardActive,
+                          ]}
+                          onPress={() => setRoutingInput('DirectToEvaluator')}
+                        >
+                          <Lucide
+                            name="users"
+                            size={18}
+                            color={routingInput === 'DirectToEvaluator' ? COLORS.brand.indigo : COLORS.neutral[400]}
+                          />
+                          <View style={{ flex: 1, marginLeft: 8 }}>
+                            <Text
+                              style={[
+                                styles.routingOptionTitle,
+                                routingInput === 'DirectToEvaluator' && styles.routingOptionTitleActive,
+                              ]}
+                            >
+                              Direct to Evaluator
+                            </Text>
+                            <Text style={styles.routingOptionSub}>
+                              Evaluator reviews & endorses to Legal Officer
+                            </Text>
+                          </View>
+                        </Pressable>
+                      </View>
                     </View>
 
                     <View style={styles.switchRow}>
@@ -2288,5 +2419,39 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
     fontWeight: '700',
     color: COLORS.brand.indigo,
+  },
+  routingOptionsRow: {
+    flexDirection: 'row',
+    gap: 10,
+    marginTop: 4,
+  },
+  routingOptionCard: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: COLORS.neutral[50],
+    borderWidth: 1.5,
+    borderColor: COLORS.neutral[200],
+    borderRadius: 8,
+    padding: 10,
+  },
+  routingOptionCardActive: {
+    borderColor: COLORS.brand.indigo,
+    backgroundColor: '#EEF2FF',
+  },
+  routingOptionTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: COLORS.neutral[700],
+    fontFamily: TYPOGRAPHY.fonts.primary,
+  },
+  routingOptionTitleActive: {
+    color: COLORS.brand.indigo,
+  },
+  routingOptionSub: {
+    fontSize: 11,
+    color: COLORS.neutral[500],
+    marginTop: 2,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
 });

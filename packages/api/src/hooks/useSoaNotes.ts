@@ -6,6 +6,7 @@ export interface UseSoaNotesParams {
   pageNumber?: number;
   pageSize?: number;
   searchTerm?: string;
+  tenantId?: string;
   enabled?: boolean;
 }
 
@@ -18,12 +19,13 @@ export interface UseSoaNotesReturn {
 }
 
 export function useSoaNotes(params?: UseSoaNotesParams): UseSoaNotesReturn {
-  const { pageNumber = 1, pageSize = 20, searchTerm, enabled = true } = params ?? {};
+  const { pageNumber = 1, pageSize = 20, searchTerm, tenantId, enabled = true } = params ?? {};
 
   const queryParams = new URLSearchParams();
   queryParams.append("pageNumber", pageNumber.toString());
   queryParams.append("pageSize", pageSize.toString());
   if (searchTerm) queryParams.append("searchTerm", searchTerm);
+  if (tenantId) queryParams.append("tenantId", tenantId);
 
   const url = enabled ? `/api/v2/soa-notes?${queryParams.toString()}` : null;
 

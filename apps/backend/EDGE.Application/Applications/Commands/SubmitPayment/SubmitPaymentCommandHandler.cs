@@ -18,19 +18,22 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
     private readonly ILogger<SubmitPaymentCommandHandler> _logger;
+    private readonly INumberingSeriesService? _numberingSeriesService;
 
     public SubmitPaymentCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
         IUserRepository userRepository,
-        ILogger<SubmitPaymentCommandHandler> logger)
+        ILogger<SubmitPaymentCommandHandler> logger,
+        INumberingSeriesService? numberingSeriesService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
         _logger = logger;
+        _numberingSeriesService = numberingSeriesService;
     }
 
     public async Task<ApiResponse<bool>> Handle(SubmitPaymentCommand request, CancellationToken cancellationToken)
@@ -85,7 +88,9 @@ public class SubmitPaymentCommandHandler : IRequestHandler<SubmitPaymentCommand,
                 Id = Guid.NewGuid(),
                 ApplicationId = app.Id,
                 StatementOfAccountId = latestSoa?.Id ?? Guid.NewGuid(),
-                OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                OpNumber = _numberingSeriesService != null
+                    ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                    : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                 AmountDue = amountDue > 0 ? amountDue : 1000.00m,
                 AmountReceived = request.AmountPaid ?? (amountDue > 0 ? amountDue : 1000.00m),
                 Status = OpStatus.Billed,

@@ -22,7 +22,6 @@ import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   resolveUserIdentifiers,
   computeOfficerEvaluationState,
-  getApprovingEvaluator,
   isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
 
@@ -35,6 +34,7 @@ interface ActivityCardProps {
   onMenuAction: (action: "evaluate" | "release_evaluation" | "pin" | "archive", id: string) => void;
   currentUserName?: string;
   isAdmin?: boolean;
+  canEvaluate?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -61,7 +61,7 @@ function isSubjectForPayment(app: ApplicationData): boolean {
 function formatStatusDisplay(application: ApplicationData): string {
   const s = application.status.toLowerCase();
   if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
-  if (s === "pendingpayment" || isSubjectForPayment(application)) return "SUBJECT FOR PAYMENT";
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return "FOR PAYMENT";
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";
@@ -99,6 +99,7 @@ export function ActivityCard({
   onMenuAction,
   currentUserName,
   isAdmin,
+  canEvaluate = true,
 }: ActivityCardProps) {
   const { colors, isDark } = useTheme();
   const { user, clerkUser } = useAuthContext();
@@ -144,10 +145,21 @@ export function ActivityCard({
     [application, currentUserIdentifiers, isAdmin]
   );
 
-  const approvingEvaluator = useMemo(
-    () => getApprovingEvaluator(application),
-    [application]
-  );
+
+  const effectiveOffice = useMemo(() => {
+    if (typeof application.office === 'string' && application.office.trim().length > 0) {
+      return application.office.trim();
+    }
+    if (
+      typeof application.assignedTo === 'string' &&
+      application.assignedTo.trim().length > 0 &&
+      application.assignedTo.toLowerCase().includes('office') &&
+      !isGenericOfficer(application.assignedTo)
+    ) {
+      return application.assignedTo.trim();
+    }
+    return '';
+  }, [application.office, application.assignedTo]);
 
   const assignmentDisplay = useMemo(() => {
     if (application.endorsedTo) {
@@ -249,7 +261,7 @@ export function ActivityCard({
         application.assignedTo &&
         !isGenericOfficer(application.assignedTo, application.office)
           ? application.assignedTo
-          : (application.office || "Unassigned"),
+          : "Unassigned",
       icon: "user-plus" as const,
       color: textMuted,
       textColor: textSub,
@@ -483,45 +495,36 @@ export function ActivityCard({
 
         {/* Bottom row: Assignment + Evaluator Indicator + Type badges */}
         <View style={styles.bottomRow}>
-          <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
-            <Lucide
-              name={assignmentDisplay.icon}
-              size={10}
-              color={assignmentDisplay.color}
-            />
-            <Text
-              style={[
-                styles.assignText,
-                { color: assignmentDisplay.textColor },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {assignmentDisplay.label}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 }}>
+            {effectiveOffice.length > 0 ? (
+              <View style={[styles.assignPill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Lucide name="map-pin" size={10} color={textMuted} />
+                <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
+                  {effectiveOffice}
+                </Text>
+              </View>
+            ) : null}
+            {(assignmentDisplay.label !== "Unassigned" || effectiveOffice.length === 0) && (
+              <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
+                <Lucide
+                  name={assignmentDisplay.icon}
+                  size={10}
+                  color={assignmentDisplay.color}
+                />
+                <Text
+                  style={[
+                    styles.assignText,
+                    { color: assignmentDisplay.textColor },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {assignmentDisplay.label}
+                </Text>
+              </View>
+            )}
           </View>
-          {approvingEvaluator && application.status !== 'Evaluating' && application.status !== 'Submitted' && (
-            <View
-              style={[
-                styles.evaluatorBadge,
-                {
-                  backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
-                  borderColor: isDark ? '#059669' : '#A7F3D0',
-                },
-              ]}
-            >
-              <Lucide name="user-check" size={10} color={isDark ? '#34D399' : '#059669'} />
-              <Text
-                style={[
-                  styles.evaluatorBadgeText,
-                  { color: isDark ? '#34D399' : '#065F46' },
-                ]}
-                numberOfLines={1}
-              >
-                Evaluated by: {approvingEvaluator}
-              </Text>
-            </View>
-          )}
+          
           <View style={styles.badgeRow}>
             {application.isBeingViewed && (
               <View style={[styles.viewingBadge, { backgroundColor: COLORS.semantic.warningBg, borderColor: COLORS.semantic.warningBorder }]}>
@@ -567,7 +570,7 @@ export function ActivityCard({
             )}
 
             {/* If Submitted (and not endorsed away): Start Evaluation */}
-            {!isEndorsedAwayFromMe && application.status.toLowerCase() === "submitted" && (
+            {!isEndorsedAwayFromMe && canEvaluate && application.status.toLowerCase() === "submitted" && (
               <Pressable
                 style={styles.menuItem}
                 onPress={() => { setMenuVisible(false); onMenuAction("evaluate", application.id); }}
@@ -810,23 +813,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.caption,
     flexShrink: 1,
   },
-  evaluatorBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    maxWidth: 220,
-    flexShrink: 1,
-  },
-  evaluatorBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  badgeRow: {
+    badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],

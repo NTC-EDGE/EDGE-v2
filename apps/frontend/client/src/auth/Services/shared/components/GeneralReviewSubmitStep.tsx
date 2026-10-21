@@ -37,6 +37,11 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
   const [previewLabel, setPreviewLabel] = useState<string>('');
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
 
+  const isComplaintsOrRequest = Boolean(
+    (service?.category && (service.category.toLowerCase().includes("complaint") || service.category.toLowerCase().includes("request"))) ||
+    (service?.title && (service.title.toLowerCase().includes("complaint") || service.title.toLowerCase().includes("blocking")))
+  );
+
   const reviewData = useGeneralReviewData(props);
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
 
@@ -67,10 +72,12 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         headerSlot={
           <>
             <HeroReviewHeader />
-            <FilingIntentReviewCard
-              filingIntent={filingIntent}
-              onFilingIntentChange={onFilingIntentChange}
-            />
+            {!isComplaintsOrRequest && (
+              <FilingIntentReviewCard
+                filingIntent={filingIntent}
+                onFilingIntentChange={onFilingIntentChange}
+              />
+            )}
             <JurisdictionParametersCard
               service={service}
               isExamService={reviewData.isExamService}

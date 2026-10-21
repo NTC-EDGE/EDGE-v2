@@ -16,17 +16,20 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly IUserRepository _userRepository;
+    private readonly INumberingSeriesService? _numberingSeriesService;
 
     public ApproveSoaCommandHandler(
         IApplicationFullRepository repository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        IUserRepository userRepository)
+        IUserRepository userRepository,
+        INumberingSeriesService? numberingSeriesService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _userRepository = userRepository;
+        _numberingSeriesService = numberingSeriesService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(ApproveSoaCommand request, CancellationToken cancellationToken)
@@ -136,7 +139,9 @@ public class ApproveSoaCommandHandler : IRequestHandler<ApproveSoaCommand, ApiRe
                 Id = Guid.NewGuid(),
                 ApplicationId = soa.ApplicationId,
                 StatementOfAccountId = soa.Id,
-                OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                OpNumber = _numberingSeriesService != null
+                    ? await _numberingSeriesService.GenerateOpNumberAsync(app?.TenantId ?? soa.Application?.TenantId ?? Guid.Empty, cancellationToken)
+                    : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                 AmountDue = soa.TotalAmount,
                 Status = OpStatus.Billed,
                 CreatedAt = DateTime.UtcNow

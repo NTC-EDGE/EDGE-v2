@@ -162,24 +162,25 @@ public static class ApplicationEndpoints
             .WithDescription("Requests re-evaluation and recalculation of SOA for an assessment-only application.");
 
         group.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
 
         group.MapPatch("/{id:guid}/admin-update", AdminUpdateApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateApplication")
             .WithSummary("Agency administrative correction update")
             .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateApplicantProfile")
             .WithSummary("Agency administrative update for applicant profile")
             .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateFormValues")
             .WithSummary("Agency administrative update for form field values")
             .WithDescription("Updates form field values during review and records CorrectionAuditTrail entries.");
@@ -191,13 +192,13 @@ public static class ApplicationEndpoints
             .WithDescription("Transitions application status to Evaluating and logs status history.");
 
         group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("TogglePinApplication")
             .WithSummary("Toggle pin status")
             .WithDescription("Pins or unpins an application for top-of-feed display.");
 
         group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("ToggleArchiveApplication")
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
@@ -231,6 +232,38 @@ public static class ApplicationEndpoints
             .WithName("PrintIssuance")
             .WithSummary("Print Issuance Document")
             .WithDescription("Alias for PrintIssuedDocument.");
+
+        group.MapGet("/{id:guid}/form/print", PrintApplicationFormEndpoint)
+            .RequireAuthorization()
+            .WithName("PrintApplicationForm")
+            .WithSummary("Print Application Form")
+            .WithDescription("Generates and downloads official printable PDF statutory application form (e.g. NTC 1-24 Blocking/Unblocking, NTC 1-25 Complaints) for the application.");
+
+        group.MapGet("/{id:guid}/form/download", (
+            Guid id,
+            IApplicationFullRepository repository,
+            IFormPrintingService printingService,
+            HttpContext httpContext,
+            ICurrentUserService currentUserService,
+            IUserAuthorizationService userAuthorizationService,
+            ITenantContextService tenantContextService,
+            IUserRepository userRepository,
+            CancellationToken cancellationToken) =>
+            PrintApplicationFormEndpoint(
+                id,
+                repository,
+                printingService,
+                httpContext,
+                currentUserService,
+                userAuthorizationService,
+                tenantContextService,
+                userRepository,
+                download: true,
+                cancellationToken))
+            .RequireAuthorization()
+            .WithName("DownloadApplicationForm")
+            .WithSummary("Download Application Form")
+            .WithDescription("Alias for PrintApplicationForm with download=true.");
 
         group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
@@ -458,7 +491,7 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.DeleteApplication)]
+    [HasPermission(Permissions.ViewOwnApplications)]
     public static async Task<IResult> DeleteDraftApplication(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new DeleteDraftApplicationCommand(id));
@@ -590,7 +623,7 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> TogglePinApplicationEndpoint(
         Guid id,
         [FromBody] TogglePinRequest? request,
@@ -603,7 +636,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> ToggleArchiveApplicationEndpoint(
         Guid id,
         [FromBody] ToggleArchiveRequest? request,
@@ -634,7 +667,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateApplicationEndpoint(
         Guid id,
         [FromBody] AdminUpdateApplicationCommand command,
@@ -646,7 +679,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateApplicantProfileEndpoint(
         Guid id,
         Guid applicantId,
@@ -659,7 +692,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateFormValuesEndpoint(
         Guid id,
         Guid applicantId,
@@ -827,6 +860,11 @@ public static class ApplicationEndpoints
 
     public static async Task<IResult> PrintIssuedDocumentEndpoint(
         Guid id,
+        [FromQuery] string? formNumber,
+        [FromQuery] string? licenseNumber,
+        [FromQuery] string? issueDate,
+        [FromQuery] string? expiryDate,
+        [FromQuery] string? documentType,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
@@ -842,18 +880,19 @@ public static class ApplicationEndpoints
         var issuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
         if (issuedDoc == null)
         {
-            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved)
+            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved || app.Status == ApplicationStatus.ForIssuance)
             {
                 var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+                var defaultDocType = app.ApplicationApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Statutory License";
                 issuedDoc = new IssuedDocumentDetail
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
-                    DocumentType = "License",
-                    FormNumber = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString(),
-                    LicenseNumber = app.ApplicationNumber ?? app.ReferenceNumber,
-                    IssueDate = app.LastModifiedAt ?? app.CreatedAt,
-                    ExpiryDate = (app.LastModifiedAt ?? app.CreatedAt).AddYears(3),
+                    DocumentType = !string.IsNullOrWhiteSpace(documentType) ? documentType.Trim() : defaultDocType,
+                    FormNumber = !string.IsNullOrWhiteSpace(formNumber) ? formNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString()),
+                    LicenseNumber = !string.IsNullOrWhiteSpace(licenseNumber) ? licenseNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber),
+                    IssueDate = DateTime.UtcNow,
+                    ExpiryDate = DateTime.UtcNow.AddYears(3),
                     OfficialReceiptNumber = paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
                     IssuedByStaffName = "Authorized Licensing Officer",
                     QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}"
@@ -863,6 +902,21 @@ public static class ApplicationEndpoints
             {
                 return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
             }
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(formNumber)) issuedDoc.FormNumber = formNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(licenseNumber)) issuedDoc.LicenseNumber = licenseNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(documentType)) issuedDoc.DocumentType = documentType.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(issueDate) && DateTime.TryParse(issueDate, out var parsedIssue))
+        {
+            issuedDoc.IssueDate = parsedIssue;
+        }
+        if (!string.IsNullOrWhiteSpace(expiryDate) && DateTime.TryParse(expiryDate, out var parsedExpiry))
+        {
+            issuedDoc.ExpiryDate = parsedExpiry;
         }
 
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
@@ -875,6 +929,96 @@ public static class ApplicationEndpoints
         }
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeDocName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    public static async Task<IResult> PrintApplicationFormEndpoint(
+        Guid id,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        HttpContext httpContext,
+        ICurrentUserService currentUserService,
+        IUserAuthorizationService userAuthorizationService,
+        ITenantContextService tenantContextService,
+        IUserRepository userRepository,
+        [FromQuery] bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var authUserId = currentUserService.UserId;
+        if (string.IsNullOrWhiteSpace(authUserId))
+        {
+            return Results.Unauthorized();
+        }
+
+        var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var currentUser = await userRepository.ResolveCurrentUserAsync(currentUserService, cancellationToken);
+        var isSuperAdmin = currentUser?.IsSuperAdmin == true ||
+                           currentUserService.IsSuperAdminClaim ||
+                           await tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
+
+        var isOwner = (currentUser != null && app.UserId == currentUser.Id) ||
+                      (Guid.TryParse(authUserId, out var parsedGuid) && app.UserId == parsedGuid) ||
+                      (app.User != null && !string.IsNullOrEmpty(app.User.AuthUserId) && string.Equals(app.User.AuthUserId, authUserId, StringComparison.OrdinalIgnoreCase)) ||
+                      (currentUser != null && app.User != null && !string.IsNullOrEmpty(currentUser.Email) && string.Equals(currentUser.Email, app.User.Email, StringComparison.OrdinalIgnoreCase));
+
+        var hasStaffPermission = await userAuthorizationService.HasAnyPermissionAsync(new[]
+        {
+            Permissions.ReadApplication,
+            Permissions.ViewAllApplications,
+            Permissions.EvaluateApplication,
+            Permissions.IssueApplication
+        }, cancellationToken);
+
+        if (!isSuperAdmin && !isOwner)
+        {
+            if (!hasStaffPermission)
+            {
+                return Results.Forbid();
+            }
+
+            // If accessing as staff, validate tenant isolation
+            if (app.TenantId != Guid.Empty)
+            {
+                var isTenantMember = await tenantContextService.IsUserActiveMemberAsync(app.TenantId, cancellationToken);
+                if (!isTenantMember)
+                {
+                    return Results.Problem(
+                        title: "Cross-Tenant Access Denied",
+                        detail: $"Access denied: You are not authorized to view applications belonging to tenant '{app.TenantId}'.",
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+            }
+        }
+
+        byte[] pdfBytes;
+        string safeFileName;
+
+        if (ApplicationFormPrintMapper.IsBlockingOrUnblocking(app))
+        {
+            var model124 = ApplicationFormPrintMapper.MapToNtc124(app);
+            pdfBytes = printingService.PrintNtc124(model124);
+            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
+            safeFileName = $"NTC_1-24_Affidavit_{refCode}.pdf".Replace(" ", "_");
+        }
+        else
+        {
+            var model125 = ApplicationFormPrintMapper.MapToNtc125(app);
+            pdfBytes = printingService.PrintNtc125(model125);
+            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
+            safeFileName = $"NTC_1-25_Complaint_{refCode}.pdf".Replace(" ", "_");
+        }
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", safeFileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeFileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }

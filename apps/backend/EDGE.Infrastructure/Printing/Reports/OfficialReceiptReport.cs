@@ -159,7 +159,7 @@ public class OfficialReceiptReport : IDocument
             });
 
             // Expanded Height Table Area (205pt) with Large 185x185pt Faint 12% Translucent Watermark
-            box.Item().Height(205).Layers(layers =>
+            box.Item().Height(180).Layers(layers =>
             {
                 // Background Faint Translucent Watermark (ONLY in Landscape mode)
                 layers.Layer().AlignCenter().AlignMiddle().Element(wm =>
@@ -194,15 +194,25 @@ public class OfficialReceiptReport : IDocument
                                     c.Item().PaddingBottom(3).AlignRight().Text(amtStr).FontSize(9f);
                                 }
 
-                                c.Item().PaddingVertical(2).AlignRight().Text("----------------").FontSize(8.5f);
-
-                                if (_model.TotalAmount.HasValue)
-                                {
-                                    c.Item().AlignRight().Text($"P{_model.TotalAmount.Value:F2}").FontSize(9f).Bold();
-                                }
                             }
                         });
                 });
+            });
+
+            // Dedicated Total Row aligned with table columns
+            box.Item().BorderTop(1f).BorderColor(Colors.Black).Row(row =>
+            {
+                row.RelativeItem(0.68f).PaddingHorizontal(8).PaddingVertical(3.5f).AlignRight()
+                    .Text(text =>
+                    {
+                        text.Span("TOTAL ").FontSize(9.5f).FontFamily(Fonts.TimesNewRoman).Bold();
+                        text.Span("► ").FontSize(9.5f);
+                    });
+
+                row.RelativeItem(0.32f).BorderLeft(1f).BorderColor(Colors.Black)
+                    .PaddingHorizontal(10).PaddingVertical(3.5f).AlignRight()
+                    .Text(_model.TotalAmount.HasValue ? $"P{_model.TotalAmount.Value:F2}" : string.Empty)
+                    .FontSize(9.5f).Bold();
             });
         });
     }
@@ -428,7 +438,7 @@ public class OfficialReceiptReport : IDocument
             // Total Row
             box.Item().BorderTop(1.2f).BorderColor(Colors.Black).Row(row =>
             {
-                row.RelativeItem(0.70f).Padding(3.5f).AlignRight()
+                row.RelativeItem(0.70f).PaddingHorizontal(6).PaddingVertical(3.5f).AlignRight()
                     .Text(text =>
                     {
                         text.Span("TOTAL ").FontSize(9.5f).FontFamily(Fonts.TimesNewRoman).Bold();
@@ -437,7 +447,7 @@ public class OfficialReceiptReport : IDocument
 
                 row.RelativeItem(0.30f).BorderLeft(1.2f).BorderColor(Colors.Black).Row(r =>
                 {
-                    r.RelativeItem(0.75f).Padding(3.5f).AlignRight()
+                    r.RelativeItem(0.75f).PaddingHorizontal(4).PaddingVertical(3.5f).AlignRight()
                         .Text(_model.TotalAmount.HasValue ? $"₱ {_model.TotalAmount.Value:F2}" : string.Empty)
                         .FontSize(9.5f).Bold();
 

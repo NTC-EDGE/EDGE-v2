@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   StyleSheet,
   View,
@@ -10,6 +10,8 @@ import {
   useWindowDimensions,
   Platform,
   ActivityIndicator,
+  Animated,
+  Linking,
 } from 'react-native';
 import {
   COLORS,
@@ -44,7 +46,63 @@ import {
   openDocumentPrintWindow,
 } from '../../utils/documentPrintGenerator';
 
-const STORAGE_CALIBRATION_KEY = 'ntc_edge_printer_calibration_prefs';
+interface PdfLoadBarProps {
+  height?: number;
+}
+
+function PdfLoadBar({ height = 5 }: PdfLoadBarProps) {
+  const { colors, isDark } = useTheme();
+  const anim = useRef(new Animated.Value(0)).current;
+  const [containerWidth, setContainerWidth] = useState(300);
+
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.timing(anim, {
+        toValue: 1,
+        duration: 1200,
+        useNativeDriver: false,
+      })
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [anim]);
+
+  const translateX = anim.interpolate({
+    inputRange: [0, 1],
+    outputRange: [-containerWidth * 0.4, containerWidth],
+  });
+
+  return (
+    <View
+      onLayout={(e) => {
+        const w = e.nativeEvent.layout.width;
+        if (w > 0) {
+          setContainerWidth(w);
+        }
+      }}
+      style={{
+        width: '100%',
+        height,
+        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200],
+        borderRadius: height / 2,
+        overflow: 'hidden',
+        position: 'relative',
+      }}
+    >
+      <Animated.View
+        style={{
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          width: '35%',
+          backgroundColor: isDark ? colors.brand[400] : colors.brand[600],
+          borderRadius: height / 2,
+          transform: [{ translateX }],
+        }}
+      />
+    </View>
+  );
+}
 
 interface IssuedDocumentPrintModalProps {
   visible: boolean;
@@ -52,6 +110,8 @@ interface IssuedDocumentPrintModalProps {
   initialOptions?: Partial<DocumentPrintOptions>;
   onClose: () => void;
 }
+
+export type IssuedPrintTargetMode = 'pdf' | 'accountable' | 'calibration';
 
 export function IssuedDocumentPrintModal({
   visible,
@@ -72,6 +132,9 @@ export function IssuedDocumentPrintModal({
   const defaultTemplate = useMemo(() => {
     return eligibleTemplates[0] ?? findMatchingTemplate(app);
   }, [eligibleTemplates, app]);
+
+  // Primary active print target mode: Defaults to real cloud PDF template preview
+  const [activeTarget, setActiveTarget] = useState<IssuedPrintTargetMode>('pdf');
 
   // Printing Configurations
   const [outputMode, setOutputMode] = useState<PrintOutputMode>(
@@ -96,33 +159,39 @@ export function IssuedDocumentPrintModal({
   const [customWidthMm, setCustomWidthMm] = useState<string>('215.9');
   const [customHeightMm, setCustomHeightMm] = useState<string>('279.4');
 
-  // PDF Preview State
-  const [viewFormat, setViewFormat] = useState<'pdf' | 'physical'>('pdf');
+  // Real Cloud PDF Preview State
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState<number>(0);
 
-  // Load official statutory PDF from backend
+  // Load official statutory PDF from backend / cloud template
   useEffect(() => {
     let active = true;
     let createdUrl: string | null = null;
 
-    if (visible && app?.id && Platform.OS === 'web') {
+    if (visible && app?.id && Platform.OS === 'web' && activeTarget === 'pdf') {
       setIsLoadingPdf(true);
       setPdfError(null);
       setPdfBlobUrl(null);
 
       const loadBlob = async () => {
         try {
-          const [blob, err] = await applicationService.previewIssuedDocumentPdf(app.id);
+          const [blob, err] = await applicationService.previewIssuedDocumentPdf(app.id, {
+            formNumber: initialOptions?.formNumber,
+            licenseNumber: initialOptions?.licenseNumber,
+            issueDate: initialOptions?.issueDate,
+            expiryDate: initialOptions?.expiryDate,
+            documentType: initialOptions?.issuedDocumentType,
+          });
 
           if (!active) return;
 
           if (err !== null || blob === null) {
-            const errDetail = typeof err === 'string' && err.trim().length > 0
-              ? err
-              : 'Failed to load official statutory PDF template.';
+            const errDetail =
+              typeof err === 'string' && err.trim().length > 0
+                ? err
+                : 'Failed to load official statutory PDF template from cloud.';
             setPdfError(errDetail);
             setIsLoadingPdf(false);
             return;
@@ -135,7 +204,8 @@ export function IssuedDocumentPrintModal({
           }
         } catch (fetchErr: unknown) {
           if (!active) return;
-          const msg = fetchErr instanceof Error ? fetchErr.message : 'Error loading official document';
+          const msg =
+            fetchErr instanceof Error ? fetchErr.message : 'Error loading official document template';
           setPdfError(msg);
           setIsLoadingPdf(false);
         }
@@ -152,7 +222,7 @@ export function IssuedDocumentPrintModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [visible, app.id, reloadKey]);
+  }, [visible, app.id, activeTarget, initialOptions, reloadKey]);
 
   // Load workstation saved preferences for this specific report/template and user
   useEffect(() => {
@@ -175,7 +245,7 @@ export function IssuedDocumentPrintModal({
 
   const currentPrintOptions = useMemo<DocumentPrintOptions>(() => ({
     paperSize,
-    outputMode,
+    outputMode: activeTarget === 'accountable' ? 'accountable_form' : outputMode,
     orientation,
     customWidthMm: parseFloat(customWidthMm) || 215.9,
     customHeightMm: parseFloat(customHeightMm) || 279.4,
@@ -186,61 +256,137 @@ export function IssuedDocumentPrintModal({
     },
     showGhostWatermark,
     selectedTemplateId: activeTemplate.id,
-    issuedDocumentType: app.serviceName || 'Statutory License & Certificate',
-    formNumber: app.applicationNumber,
-    licenseNumber: app.applicationNumber,
-    callSign: app.formFieldValues?.find((f) => f.fieldLabel.toLowerCase().includes('call sign'))?.value || 'DX7NTC',
-    stationClass: 'Commercial Fixed / Mobile Station',
-    frequencyBand: '144.0000 MHz - 146.0000 MHz',
-    issueDate: new Date().toISOString(),
-    expiryDate: new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString(),
-    officialReceiptNumber: app.payment?.orNumber || 'OR-PENDING',
-    signatoryName: app.issuingOfficer || app.evaluatingOfficer || 'REGIONAL DIRECTOR',
+    issuedDocumentType: initialOptions?.issuedDocumentType || app.serviceName || 'Statutory License & Certificate',
+    formNumber: initialOptions?.formNumber || app.applicationNumber,
+    licenseNumber: initialOptions?.licenseNumber || app.applicationNumber,
+    stationClass: initialOptions?.stationClass || 'Commercial Fixed / Mobile Station',
+    frequencyBand: initialOptions?.frequencyBand || '144.0000 MHz - 146.0000 MHz',
+    issueDate: initialOptions?.issueDate || new Date().toISOString(),
+    expiryDate: initialOptions?.expiryDate || new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString(),
+    officialReceiptNumber: initialOptions?.officialReceiptNumber || app.payment?.orNumber || 'OR-RECORDED',
+    signatoryName: initialOptions?.signatoryName || app.issuingOfficer || app.evaluatingOfficer || 'REGIONAL DIRECTOR',
     signatoryTitle: 'Regional Director / Authorized Officer',
-    remarks: app.note || 'Standard statutory authorization',
-  }), [paperSize, outputMode, orientation, customWidthMm, customHeightMm, offsetXmm, offsetYmm, showGhostWatermark, activeTemplate.id, app]);
+    remarks: initialOptions?.remarks || app.note || 'Standard statutory authorization',
+  }), [
+    paperSize,
+    outputMode,
+    activeTarget,
+    orientation,
+    customWidthMm,
+    customHeightMm,
+    offsetXmm,
+    offsetYmm,
+    showGhostWatermark,
+    activeTemplate.id,
+    initialOptions,
+    app,
+  ]);
 
-  const handlePrintOfficialPdf = () => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      if (pdfBlobUrl) {
-        const printWin = window.open(pdfBlobUrl, '_blank');
-        if (printWin !== null) {
-          printWin.focus();
+  // Accountable Form Overlay HTML
+  const accountableOverlayHtml = useMemo(() => {
+    try {
+      return generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+    } catch {
+      return '';
+    }
+  }, [app, currentPrintOptions, activeTemplate]);
+
+  // Alignment test sheet HTML
+  const alignmentTestHtml = useMemo(() => {
+    try {
+      return generateAlignmentTestSheetHtml(currentPrintOptions, activeTemplate);
+    } catch {
+      return '';
+    }
+  }, [currentPrintOptions, activeTemplate]);
+
+  const handlePrint = async () => {
+    if (activeTarget === 'pdf') {
+      try {
+        const [pdfBlob, err] = await applicationService.previewIssuedDocumentPdf(app.id, {
+          formNumber: initialOptions?.formNumber,
+          licenseNumber: initialOptions?.licenseNumber,
+          issueDate: initialOptions?.issueDate,
+          expiryDate: initialOptions?.expiryDate,
+          documentType: initialOptions?.issuedDocumentType,
+        });
+
+        if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
+          const blobUrl = window.URL.createObjectURL(pdfBlob);
+          const printWindow = window.open(blobUrl, '_blank');
+          if (printWindow !== null) {
+            printWindow.focus();
+          }
           return;
         }
+      } catch (err) {
+        console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
       }
+
       const url = applicationService.getIssuedDocumentPrintUrl(app.id);
-      const printWin = window.open(url, '_blank');
-      if (printWin !== null) {
-        printWin.focus();
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWindow = window.open(url, '_blank');
+        if (printWindow !== null) {
+          printWindow.focus();
+        }
         return;
       }
-    }
-    toast.error('Unable to open print window. Please allow popups.');
-  };
-
-  const handleDownloadOfficialPdf = () => {
-    if (Platform.OS === 'web' && typeof window !== 'undefined') {
-      const url = applicationService.getIssuedDocumentDownloadUrl(app.id);
-      window.open(url, '_blank');
-    }
-  };
-
-  const handlePrint = () => {
-    if (viewFormat === 'pdf') {
-      handlePrintOfficialPdf();
-      return;
-    }
-
-    let html = '';
-    if (outputMode === 'plain_paper') {
-      html = generateStatutoryDocumentHtml(app, currentPrintOptions);
-    } else if (outputMode === 'accountable_form') {
-      html = generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+    } else if (activeTarget === 'accountable') {
+      const html = generateAccountableFormOverlayHtml(app, currentPrintOptions, activeTemplate);
+      openDocumentPrintWindow(html);
     } else {
-      html = generateAlignmentTestSheetHtml(currentPrintOptions, activeTemplate);
+      const html = generateAlignmentTestSheetHtml(currentPrintOptions, activeTemplate);
+      openDocumentPrintWindow(html);
     }
-    openDocumentPrintWindow(html);
+  };
+
+  const handleDownload = async () => {
+    try {
+      const [pdfBlob, err] = await applicationService.downloadIssuedDocumentPdf(app.id, {
+        formNumber: initialOptions?.formNumber,
+        licenseNumber: initialOptions?.licenseNumber,
+        issueDate: initialOptions?.issueDate,
+        expiryDate: initialOptions?.expiryDate,
+        documentType: initialOptions?.issuedDocumentType,
+      });
+
+      if (
+        pdfBlob !== null &&
+        err === null &&
+        Platform.OS === 'web' &&
+        typeof window !== 'undefined' &&
+        typeof document !== 'undefined'
+      ) {
+        const blobUrl = window.URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        const docTitle = (initialOptions?.issuedDocumentType || app.serviceName || 'Document').replace(
+          /\s+/g,
+          '_'
+        );
+        const ref =
+          initialOptions?.licenseNumber ||
+          initialOptions?.formNumber ||
+          app.referenceNumber ||
+          app.id.slice(0, 8);
+        link.download = `${docTitle}_${ref}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => window.URL.revokeObjectURL(blobUrl), 10000);
+        toast.success('Official statutory document downloaded successfully.');
+        return;
+      }
+    } catch (err) {
+      console.warn('Direct blob download failed, falling back to direct URL open:', err);
+    }
+
+    const url = applicationService.getIssuedDocumentDownloadUrl(app.id);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    } else {
+      void Linking.openURL(url);
+    }
   };
 
   const handleSavePreferences = () => {
@@ -270,8 +416,6 @@ export function IssuedDocumentPrintModal({
     toast.info('Calibration offsets reset to 0 mm.');
   };
 
-  const currentPaperDim = PAPER_DIMENSIONS[paperSize] || PAPER_DIMENSIONS.letter;
-
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.modalOverlay}>
@@ -284,7 +428,7 @@ export function IssuedDocumentPrintModal({
             },
           ]}
         >
-          {/* Header */}
+          {/* Top Header Bar */}
           <View
             style={[
               styles.modalHeader,
@@ -298,7 +442,11 @@ export function IssuedDocumentPrintModal({
                   { backgroundColor: isDark ? colors.brand[900] : colors.brand[50] },
                 ]}
               >
-                <Lucide name="printer" size={22} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                <Lucide
+                  name="award"
+                  size={22}
+                  color={isDark ? colors.brand[400] : colors.brand[600]}
+                />
               </View>
               <View>
                 <Text
@@ -315,152 +463,444 @@ export function IssuedDocumentPrintModal({
                     { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                   ]}
                 >
-                  Configure output target, paper size, and physical tray coordinate calibration for{' '}
-                  <Text style={{ fontWeight: '700', color: isDark ? colors.neutral[200] : colors.neutral[800] }}>
+                  Authentic statutory license, certificate, or permit filled from official cloud template for{' '}
+                  <Text
+                    style={{
+                      fontWeight: '700',
+                      color: isDark ? colors.neutral[200] : colors.neutral[800],
+                    }}
+                  >
                     {app.applicant}
                   </Text>
                 </Text>
               </View>
             </View>
 
-            <TouchableOpacity onPress={onClose} style={styles.closeBtn} activeOpacity={0.7}>
-              <Lucide name="x" size={20} color={isDark ? colors.neutral[400] : colors.neutral[600]} />
-            </TouchableOpacity>
-          </View>
-
-          {/* Modal Main Content */}
-          <View style={[styles.modalBody, isDesktop ? styles.desktopBody : styles.mobileBody]}>
-            {/* Left Column: Configuration Controls */}
-            <ScrollView style={styles.configColumn} showsVerticalScrollIndicator={false}>
-              {/* 1. Print Target / Mode */}
-              <View style={styles.controlGroup}>
-                <Text style={[styles.sectionHeading, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  1. SELECT OUTPUT TARGET
-                </Text>
-                <View style={styles.modeCardsWrap}>
-                  <TouchableOpacity
-                    onPress={() => setOutputMode('plain_paper')}
+            {/* Header Right Actions */}
+            <View style={styles.headerRightActions}>
+              {/* Target / Mode Switcher Pills */}
+              <View
+                style={[
+                  styles.modePillGroup,
+                  { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                ]}
+              >
+                <TouchableOpacity
+                  onPress={() => setActiveTarget('pdf')}
+                  style={[
+                    styles.modePill,
+                    activeTarget === 'pdf' && {
+                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                      ...SHADOWS.card,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={13}
+                    color={
+                      activeTarget === 'pdf'
+                        ? isDark
+                          ? colors.neutral[100]
+                          : colors.brand[600]
+                        : colors.neutral[500]
+                    }
+                  />
+                  <Text
                     style={[
-                      styles.modeCard,
-                      outputMode === 'plain_paper' && styles.modeCardActive,
+                      styles.modePillText,
                       {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                        borderColor: outputMode === 'plain_paper' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
+                        color:
+                          activeTarget === 'pdf'
+                            ? isDark
+                              ? colors.neutral[100]
+                              : colors.brand[700]
+                            : isDark
+                              ? colors.neutral[400]
+                              : colors.neutral[600],
+                        fontWeight: activeTarget === 'pdf' ? '700' : '500',
                       },
                     ]}
-                    activeOpacity={0.8}
                   >
-                    <View style={styles.modeCardHeader}>
-                      <Lucide
-                        name="file-text"
-                        size={18}
-                        color={outputMode === 'plain_paper' ? colors.brand[600] : colors.neutral[500]}
-                      />
-                      <Text
-                        style={[
-                          styles.modeCardTitle,
-                          { color: outputMode === 'plain_paper' ? colors.brand[600] : isDark ? colors.neutral[200] : colors.neutral[800] },
-                        ]}
-                      >
-                        Plain Bond Paper
-                      </Text>
-                    </View>
-                    <Text style={[styles.modeCardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      Prints full document with Republic of the Philippines seal, NTC letterhead, decorative borders, and dynamic data.
-                    </Text>
-                  </TouchableOpacity>
+                    Official Cloud PDF
+                  </Text>
+                </TouchableOpacity>
 
-                  <TouchableOpacity
-                    onPress={() => setOutputMode('accountable_form')}
+                <TouchableOpacity
+                  onPress={() => setActiveTarget('accountable')}
+                  style={[
+                    styles.modePill,
+                    activeTarget === 'accountable' && {
+                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                      ...SHADOWS.card,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Lucide
+                    name="layers"
+                    size={13}
+                    color={
+                      activeTarget === 'accountable'
+                        ? isDark
+                          ? colors.neutral[100]
+                          : colors.brand[600]
+                        : colors.neutral[500]
+                    }
+                  />
+                  <Text
                     style={[
-                      styles.modeCard,
-                      outputMode === 'accountable_form' && styles.modeCardActive,
+                      styles.modePillText,
                       {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                        borderColor: outputMode === 'accountable_form' ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
+                        color:
+                          activeTarget === 'accountable'
+                            ? isDark
+                              ? colors.neutral[100]
+                              : colors.brand[700]
+                            : isDark
+                              ? colors.neutral[400]
+                              : colors.neutral[600],
+                        fontWeight: activeTarget === 'accountable' ? '700' : '500',
                       },
                     ]}
-                    activeOpacity={0.8}
                   >
-                    <View style={styles.modeCardHeader}>
-                      <Lucide
-                        name="layers"
-                        size={18}
-                        color={outputMode === 'accountable_form' ? '#D97706' : colors.neutral[500]}
-                      />
-                      <Text
-                        style={[
-                          styles.modeCardTitle,
-                          { color: outputMode === 'accountable_form' ? '#D97706' : isDark ? colors.neutral[200] : colors.neutral[800] },
-                        ]}
-                      >
-                        Pre-Printed Accountable Form
-                      </Text>
-                    </View>
-                    <Text style={[styles.modeCardDesc, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                      Suppresses borders &amp; static labels. Appends ONLY dynamic fields calibrated to pre-printed physical paper boxes.
-                    </Text>
-                  </TouchableOpacity>
-                </View>
+                    Accountable Form
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setActiveTarget('calibration')}
+                  style={[
+                    styles.modePill,
+                    activeTarget === 'calibration' && {
+                      backgroundColor: isDark ? colors.brand[700] : COLORS.neutral.white,
+                      ...SHADOWS.card,
+                    },
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <Lucide
+                    name="sliders"
+                    size={13}
+                    color={
+                      activeTarget === 'calibration'
+                        ? isDark
+                          ? colors.neutral[100]
+                          : colors.brand[600]
+                        : colors.neutral[500]
+                    }
+                  />
+                  <Text
+                    style={[
+                      styles.modePillText,
+                      {
+                        color:
+                          activeTarget === 'calibration'
+                            ? isDark
+                              ? colors.neutral[100]
+                              : colors.brand[700]
+                            : isDark
+                              ? colors.neutral[400]
+                              : colors.neutral[600],
+                        fontWeight: activeTarget === 'calibration' ? '700' : '500',
+                      },
+                    ]}
+                  >
+                    Tray Calibration
+                  </Text>
+                </TouchableOpacity>
               </View>
 
-              {/* 2. Accountable Form Template Preset */}
-              {outputMode === 'accountable_form' && (
-                <View style={styles.controlGroup}>
-                  <Text style={[styles.sectionHeading, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                    2. ACCOUNTABLE FORM TEMPLATE
-                  </Text>
-                  {eligibleTemplates.length === 1 ? (
-                    <View
-                      style={[
-                        styles.templateOptionRow,
-                        styles.templateOptionRowSelected,
-                        {
-                          backgroundColor: isDark ? 'rgba(217, 119, 6, 0.12)' : '#FFFBEB',
-                          borderColor: '#D97706',
-                          paddingVertical: 12,
-                        },
-                      ]}
-                    >
-                      <View style={{ flex: 1 }}>
-                        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                          <Lucide name="lock" size={13} color="#D97706" />
-                          <Text style={[styles.templateOptionCode, { color: '#D97706', fontWeight: 'bold' }]}>
-                            {eligibleTemplates[0].code} • {eligibleTemplates[0].title}
-                          </Text>
-                        </View>
-                        <Text style={[styles.templateOptionMeta, { color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
-                          Auto-matched for {app.serviceName || 'this service'} ({eligibleTemplates[0].dimensions.widthMm} x {eligibleTemplates[0].dimensions.heightMm} mm)
+              {/* Action Buttons: Refresh, Download, Print */}
+              <TouchableOpacity
+                onPress={() => setReloadKey((k) => k + 1)}
+                style={[
+                  styles.actionIconBtn,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="refresh-cw"
+                  size={15}
+                  color={isDark ? colors.neutral[300] : colors.neutral[700]}
+                />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => void handleDownload()}
+                style={[
+                  styles.downloadBtn,
+                  {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                  },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="download"
+                  size={14}
+                  color={isDark ? colors.neutral[200] : colors.neutral[800]}
+                />
+                <Text
+                  style={[
+                    styles.downloadBtnText,
+                    { color: isDark ? colors.neutral[200] : colors.neutral[800] },
+                  ]}
+                >
+                  Download PDF
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => void handlePrint()}
+                style={[styles.printBtn, { backgroundColor: colors.brand[600] }]}
+                activeOpacity={0.7}
+              >
+                <Lucide name="printer" size={15} color={COLORS.neutral.white} />
+                <Text style={styles.printBtnText}>Print Document</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={onClose}
+                style={[
+                  styles.closeBtn,
+                  { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                ]}
+                activeOpacity={0.7}
+              >
+                <Lucide
+                  name="x"
+                  size={18}
+                  color={isDark ? colors.neutral[400] : colors.neutral[600]}
+                />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* Animated Progress Bar during PDF generation from Cloud */}
+          {activeTarget === 'pdf' && isLoadingPdf && (
+            <View style={{ width: '100%', height: 3, overflow: 'hidden' }}>
+              <PdfLoadBar height={3} />
+            </View>
+          )}
+
+          {/* Modal Main View */}
+          <View style={styles.modalBody}>
+            {/* Mode 1: Authentic Official Cloud PDF (Default) */}
+            {activeTarget === 'pdf' && (
+              <View style={styles.pdfFullViewerWrapper}>
+                {isLoadingPdf ? (
+                  <View
+                    style={[
+                      styles.pdfLoadingCard,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
+                        borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                      },
+                    ]}
+                  >
+                    <View style={styles.loadingInnerContent}>
+                      <View
+                        style={[
+                          styles.loadingIconCircle,
+                          {
+                            backgroundColor: isDark ? colors.brand[900] : colors.brand[50],
+                            borderColor: isDark ? colors.brand[700] : colors.brand[200],
+                          },
+                        ]}
+                      >
+                        <Lucide
+                          name="file-text"
+                          size={28}
+                          color={isDark ? colors.brand[400] : colors.brand[600]}
+                        />
+                      </View>
+
+                      <View style={{ alignItems: 'center', gap: 6 }}>
+                        <Text
+                          style={[
+                            styles.loadingTitle,
+                            { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                          ]}
+                        >
+                          Generating Authentic Statutory Document from Cloud Template...
+                        </Text>
+                        <Text
+                          style={[
+                            styles.loadingDesc,
+                            { color: isDark ? colors.neutral[400] : colors.neutral[600] },
+                          ]}
+                        >
+                          Fetching official statutory template from Cloudflare R2 / NTC repository and overlaying AcroForm vector fields.
                         </Text>
                       </View>
-                      <Lucide name="check-circle" size={18} color="#D97706" />
+
+                      <View style={{ width: '100%', marginTop: SPACING[8] }}>
+                        <PdfLoadBar height={6} />
+                      </View>
+
+                      <View
+                        style={[
+                          styles.templateStatusBadge,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.templateStatusBadgeText,
+                            { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                          ]}
+                        >
+                          Target: {activeTemplate.code} • {activeTemplate.title}
+                        </Text>
+                      </View>
                     </View>
-                  ) : (
-                    <View style={{ gap: 6 }}>
+                  </View>
+                ) : pdfError ? (
+                  <View
+                    style={[
+                      styles.pdfErrorCard,
+                      {
+                        backgroundColor: isDark ? colors.neutral[900] : '#ffffff',
+                        borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                      },
+                    ]}
+                  >
+                    <Lucide name="alert-triangle" size={36} color="#EF4444" />
+                    <Text
+                      style={[
+                        styles.pdfErrorTitle,
+                        { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                      ]}
+                    >
+                      Unable to Load Cloud PDF Template
+                    </Text>
+                    <Text style={styles.pdfErrorSubtitle}>{pdfError}</Text>
+                    <TouchableOpacity
+                      onPress={() => setReloadKey((k) => k + 1)}
+                      style={[styles.retryBtn, { backgroundColor: colors.brand[600] }]}
+                      activeOpacity={0.8}
+                    >
+                      <Lucide name="refresh-cw" size={14} color={COLORS.neutral.white} />
+                      <Text style={styles.retryBtnText}>Retry Loading Cloud PDF</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : pdfBlobUrl && Platform.OS === 'web' ? (
+                  <View style={styles.pdfFrameHolder}>
+                    {React.createElement('iframe', {
+                      src: `${pdfBlobUrl}#toolbar=0&navpanes=0`,
+                      style: {
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '660px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: isDark ? '#1e293b' : '#525659',
+                      },
+                      title: 'Authentic Official Statutory Document PDF',
+                    })}
+                  </View>
+                ) : (
+                  <View style={styles.pdfLoadingCard}>
+                    <ActivityIndicator size="small" color={colors.brand[600]} />
+                    <Text
+                      style={[
+                        styles.pdfLoadingText,
+                        { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                      ]}
+                    >
+                      Preparing document preview...
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Mode 2: Pre-Printed Accountable Form (Physical Stationery Overlay) */}
+            {activeTarget === 'accountable' && (
+              <View style={[styles.splitBody, isDesktop ? styles.desktopSplit : styles.mobileSplit]}>
+                {/* Left Controls: Select Accountable Form Stationery */}
+                <View
+                  style={[
+                    styles.sideConfigPanel,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                      borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                    },
+                    isDesktop && { width: 340 },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.sectionHeading,
+                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                    ]}
+                  >
+                    ACCOUNTABLE FORM TEMPLATE
+                  </Text>
+                  <ScrollView style={{ maxHeight: 360 }} showsVerticalScrollIndicator={false}>
+                    <View style={{ gap: SPACING[8] }}>
                       {eligibleTemplates.map((tmpl) => {
-                        const isSelected = tmpl.id === selectedTemplateId;
+                        const isSelected = selectedTemplateId === tmpl.id;
                         return (
                           <TouchableOpacity
                             key={tmpl.id}
-                            onPress={() => {
-                              setSelectedTemplateId(tmpl.id);
-                              setPaperSize(tmpl.defaultPaperSize);
-                            }}
+                            onPress={() => setSelectedTemplateId(tmpl.id)}
                             style={[
                               styles.templateOptionRow,
-                              isSelected && styles.templateOptionRowSelected,
+                              isSelected && {
+                                borderColor: '#D97706',
+                                backgroundColor: isDark
+                                  ? 'rgba(217, 119, 6, 0.15)'
+                                  : '#FEF3C7',
+                              },
                               {
-                                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                                borderColor: isSelected ? '#D97706' : isDark ? colors.neutral[700] : colors.neutral[200],
+                                backgroundColor: isDark
+                                  ? colors.neutral[800]
+                                  : colors.neutral[100],
+                                borderColor: isSelected
+                                  ? '#D97706'
+                                  : isDark
+                                    ? colors.neutral[700]
+                                    : colors.neutral[200],
                               },
                             ]}
                             activeOpacity={0.7}
                           >
                             <View style={{ flex: 1 }}>
-                              <Text style={[styles.templateOptionCode, { color: isSelected ? '#D97706' : isDark ? colors.neutral[200] : colors.neutral[800] }]}>
+                              <Text
+                                style={[
+                                  styles.templateOptionCode,
+                                  {
+                                    color: isSelected
+                                      ? '#D97706'
+                                      : isDark
+                                        ? colors.neutral[200]
+                                        : colors.neutral[800],
+                                  },
+                                ]}
+                              >
                                 {tmpl.code} • {tmpl.title}
                               </Text>
-                              <Text style={[styles.templateOptionMeta, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                              <Text
+                                style={[
+                                  styles.templateOptionMeta,
+                                  {
+                                    color: isDark
+                                      ? colors.neutral[400]
+                                      : colors.neutral[500],
+                                  },
+                                ]}
+                              >
                                 {tmpl.dimensions.widthMm} x {tmpl.dimensions.heightMm} mm ({tmpl.defaultPaperSize.toUpperCase()})
                               </Text>
                             </View>
@@ -469,428 +909,247 @@ export function IssuedDocumentPrintModal({
                         );
                       })}
                     </View>
-                  )}
-                </View>
-              )}
+                  </ScrollView>
 
-              {/* 3. Paper Size & Orientation */}
-              <View style={styles.controlGroup}>
-                <Text style={[styles.sectionHeading, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                  {outputMode === 'accountable_form' ? '3.' : '2.'} PAPER SIZE &amp; ORIENTATION
-                </Text>
-                <View style={styles.paperSizePillsWrap}>
-                  {(['letter', 'a4', 'folio', 'legal', 'custom'] as PaperSize[]).map((sizeKey) => {
-                    const isSelected = paperSize === sizeKey;
-                    const dim = PAPER_DIMENSIONS[sizeKey];
-                    return (
-                      <TouchableOpacity
-                        key={sizeKey}
-                        onPress={() => setPaperSize(sizeKey)}
-                        style={[
-                          styles.paperPill,
-                          isSelected && styles.paperPillActive,
-                          {
-                            backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                            borderColor: isSelected ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
-                          },
-                        ]}
-                        activeOpacity={0.7}
-                      >
-                        <Text
-                          style={[
-                            styles.paperPillText,
-                            isSelected && styles.paperPillTextActive,
-                            { color: isSelected ? colors.brand[600] : isDark ? colors.neutral[300] : colors.neutral[700] },
-                          ]}
-                        >
-                          {sizeKey.toUpperCase()}
-                        </Text>
-                        <Text style={[styles.paperPillSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                          {dim.widthMm.toFixed(0)}x{dim.heightMm.toFixed(0)}mm
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-
-                {paperSize === 'custom' && (
-                  <View style={styles.customDimensionsRow}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dimLabel}>Width (mm):</Text>
-                      <TextInput
-                        style={[styles.dimInput, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300], color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
-                        value={customWidthMm}
-                        onChangeText={setCustomWidthMm}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.dimLabel}>Height (mm):</Text>
-                      <TextInput
-                        style={[styles.dimInput, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300], color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
-                        value={customHeightMm}
-                        onChangeText={setCustomHeightMm}
-                        keyboardType="numeric"
-                      />
-                    </View>
-                  </View>
-                )}
-
-                {/* Orientation Selector */}
-                <View style={styles.orientationRow}>
-                  <TouchableOpacity
-                    onPress={() => setOrientation('portrait')}
-                    style={[
-                      styles.orientationBtn,
-                      orientation === 'portrait' && styles.orientationBtnActive,
-                      {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                        borderColor: orientation === 'portrait' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
-                      },
-                    ]}
-                  >
-                    <Lucide name="file" size={15} color={orientation === 'portrait' ? colors.brand[600] : colors.neutral[500]} />
-                    <Text style={[styles.orientationBtnText, orientation === 'portrait' && { color: colors.brand[600], fontWeight: '700' }]}>
-                      Portrait
-                    </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => setOrientation('landscape')}
-                    style={[
-                      styles.orientationBtn,
-                      orientation === 'landscape' && styles.orientationBtnActive,
-                      {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.neutral[50],
-                        borderColor: orientation === 'landscape' ? colors.brand[600] : isDark ? colors.neutral[700] : colors.neutral[200],
-                      },
-                    ]}
-                  >
-                    <Lucide name="layout" size={15} color={orientation === 'landscape' ? colors.brand[600] : colors.neutral[500]} />
-                    <Text style={[styles.orientationBtnText, orientation === 'landscape' && { color: colors.brand[600], fontWeight: '700' }]}>
-                      Landscape
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* 4. Tray Coordinate Calibration Controls */}
-              {outputMode === 'accountable_form' && (
-                <View style={styles.controlGroup}>
-                  <View style={styles.calibrationHeaderRow}>
-                    <Text style={[styles.sectionHeading, { color: isDark ? colors.neutral[300] : colors.neutral[700], marginBottom: 0 }]}>
-                      4. TRAY MARGIN CALIBRATION (MM)
-                    </Text>
-                    <TouchableOpacity onPress={handleResetCalibration}>
-                      <Text style={{ fontSize: 11, color: colors.brand[600], fontWeight: '600' }}>Reset (0,0)</Text>
-                    </TouchableOpacity>
-                  </View>
-                  <Text style={[styles.controlSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                    Nudge print output to align with the physical printer feeder tray.
-                  </Text>
-
-                  <View style={styles.calibrationControls}>
-                    {/* Horizontal Offset X */}
-                    <View style={styles.nudgeControlRow}>
-                      <Text style={[styles.nudgeLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                        Horizontal Offset (X):
-                      </Text>
-                      <View style={styles.nudgeBtnGroup}>
-                        <TouchableOpacity onPress={() => setOffsetXmm((x) => Math.round((x - 1) * 10) / 10)} style={styles.nudgeBtn}>
-                          <Text style={styles.nudgeBtnText}>-1mm</Text>
-                        </TouchableOpacity>
-                        <View style={[styles.nudgeValueDisplay, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}>
-                          <Text style={[styles.nudgeValueText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                            {offsetXmm > 0 ? `+${offsetXmm.toFixed(1)}` : offsetXmm.toFixed(1)} mm
-                          </Text>
-                        </View>
-                        <TouchableOpacity onPress={() => setOffsetXmm((x) => Math.round((x + 1) * 10) / 10)} style={styles.nudgeBtn}>
-                          <Text style={styles.nudgeBtnText}>+1mm</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-
-                    {/* Vertical Offset Y */}
-                    <View style={styles.nudgeControlRow}>
-                      <Text style={[styles.nudgeLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                        Vertical Offset (Y):
-                      </Text>
-                      <View style={styles.nudgeBtnGroup}>
-                        <TouchableOpacity onPress={() => setOffsetYmm((y) => Math.round((y - 1) * 10) / 10)} style={styles.nudgeBtn}>
-                          <Text style={styles.nudgeBtnText}>-1mm</Text>
-                        </TouchableOpacity>
-                        <View style={[styles.nudgeValueDisplay, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}>
-                          <Text style={[styles.nudgeValueText, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-                            {offsetYmm > 0 ? `+${offsetYmm.toFixed(1)}` : offsetYmm.toFixed(1)} mm
-                          </Text>
-                        </View>
-                        <TouchableOpacity onPress={() => setOffsetYmm((y) => Math.round((y + 1) * 10) / 10)} style={styles.nudgeBtn}>
-                          <Text style={styles.nudgeBtnText}>+1mm</Text>
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  </View>
-
-                  {/* Ghost Guide Toggle */}
-                  <TouchableOpacity
-                    onPress={() => setShowGhostWatermark(!showGhostWatermark)}
-                    style={styles.ghostToggleRow}
-                  >
-                    <Lucide
-                      name={showGhostWatermark ? 'check-square' : 'square'}
-                      size={16}
-                      color={showGhostWatermark ? '#D97706' : colors.neutral[400]}
-                    />
-                    <Text style={[styles.ghostToggleText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                      Show faint ghost outline of pre-printed boxes in preview
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              )}
-            </ScrollView>
-
-            {/* Right Column: Live Visual Document Preview */}
-            <View style={[styles.previewColumn, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }]}>
-              <View style={styles.previewHeaderBar}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <Lucide name="eye" size={14} color={isDark ? colors.neutral[400] : colors.neutral[600]} />
-                  <Text style={[styles.previewHeaderTitle, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                    LIVE PRINT PREVIEW
-                  </Text>
-                </View>
-
-                {/* Format Toggle: Official PDF vs Physical Feed Calibration */}
-                <View style={styles.viewFormatToggle}>
-                  <TouchableOpacity
-                    onPress={() => setViewFormat('pdf')}
-                    style={[
-                      styles.viewFormatBtn,
-                      viewFormat === 'pdf' && (isDark ? { backgroundColor: colors.neutral[800] } : styles.viewFormatBtnActive),
-                    ]}
-                  >
-                    <Lucide name="file-text" size={13} color={viewFormat === 'pdf' ? (isDark ? colors.brand[400] : colors.brand[600]) : colors.neutral[400]} />
+                  <View style={{ marginTop: SPACING[16], gap: SPACING[8] }}>
                     <Text
                       style={[
-                        styles.viewFormatBtnText,
-                        viewFormat === 'pdf' && (isDark ? { color: colors.neutral[100], fontWeight: '700' } : styles.viewFormatBtnTextActive),
+                        styles.sectionHeading,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                       ]}
                     >
-                      Official Template PDF
+                      PAPER SIZE
                     </Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    onPress={() => setViewFormat('physical')}
-                    style={[
-                      styles.viewFormatBtn,
-                      viewFormat === 'physical' && (isDark ? { backgroundColor: colors.neutral[800] } : styles.viewFormatBtnActive),
-                    ]}
-                  >
-                    <Lucide name="sliders" size={13} color={viewFormat === 'physical' ? (isDark ? colors.brand[400] : colors.brand[600]) : colors.neutral[400]} />
-                    <Text
-                      style={[
-                        styles.viewFormatBtnText,
-                        viewFormat === 'physical' && (isDark ? { color: colors.neutral[100], fontWeight: '700' } : styles.viewFormatBtnTextActive),
-                      ]}
-                    >
-                      Feed Calibration
-                    </Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              {/* Preview Content */}
-              {viewFormat === 'pdf' ? (
-                <View style={{ flex: 1, width: '100%' }}>
-                  {isLoadingPdf ? (
-                    <View style={styles.pdfLoadingContainer}>
-                      <ActivityIndicator size="large" color={colors.brand[600]} />
-                      <Text style={[styles.pdfLoadingText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>
-                        Generating authentic statutory document from NTC template...
-                      </Text>
-                    </View>
-                  ) : pdfError ? (
-                    <View style={styles.pdfErrorContainer}>
-                      <Lucide name="alert-triangle" size={32} color="#EF4444" />
-                      <Text style={styles.pdfErrorText}>{pdfError}</Text>
-                      <TouchableOpacity onPress={() => setReloadKey((k) => k + 1)} style={styles.retryBtn}>
-                        <Lucide name="refresh-cw" size={14} color="#EF4444" />
-                        <Text style={styles.retryBtnText}>Retry Loading Official PDF</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ) : pdfBlobUrl && Platform.OS === 'web' ? (
-                    <View style={styles.pdfViewerContainer}>
-                      {React.createElement('iframe', {
-                        src: `${pdfBlobUrl}#toolbar=0&navpanes=0`,
-                        style: {
-                          width: '100%',
-                          height: '100%',
-                          minHeight: '620px',
-                          border: 'none',
-                          borderRadius: '8px',
-                          backgroundColor: isDark ? '#1e293b' : '#525659',
-                        },
-                        title: 'Official Statutory Document PDF',
+                    <View style={styles.paperSizePillsWrap}>
+                      {(['letter', 'a4', 'folio', 'legal'] as PaperSize[]).map((sizeKey) => {
+                        const isSelected = paperSize === sizeKey;
+                        return (
+                          <TouchableOpacity
+                            key={sizeKey}
+                            onPress={() => setPaperSize(sizeKey)}
+                            style={[
+                              styles.paperPill,
+                              isSelected && {
+                                borderColor: colors.brand[600],
+                                backgroundColor: isDark
+                                  ? colors.brand[900]
+                                  : colors.brand[50],
+                              },
+                              {
+                                backgroundColor: isDark
+                                  ? colors.neutral[800]
+                                  : colors.neutral[100],
+                                borderColor: isSelected
+                                  ? colors.brand[600]
+                                  : isDark
+                                    ? colors.neutral[700]
+                                    : colors.neutral[200],
+                              },
+                            ]}
+                            activeOpacity={0.7}
+                          >
+                            <Text
+                              style={[
+                                styles.paperPillText,
+                                isSelected && { color: colors.brand[600], fontWeight: '700' },
+                              ]}
+                            >
+                              {sizeKey.toUpperCase()}
+                            </Text>
+                          </TouchableOpacity>
+                        );
                       })}
                     </View>
+                  </View>
+                </View>
+
+                {/* Right Frame: Live HTML Stationery Overlay */}
+                <View style={styles.overlayFrameHolder}>
+                  {Platform.OS === 'web' ? (
+                    React.createElement('iframe', {
+                      srcDoc: accountableOverlayHtml,
+                      style: {
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '640px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: '#FFFFFF',
+                      },
+                      title: 'Pre-Printed Accountable Form Live Overlay',
+                    })
                   ) : (
-                    <View style={styles.pdfLoadingContainer}>
-                      <ActivityIndicator size="small" color={colors.brand[600]} />
-                      <Text style={[styles.pdfLoadingText, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                        Preparing document preview...
+                    <View style={styles.pdfLoadingCard}>
+                      <Text style={styles.loadingDesc}>
+                        Accountable form live overlay preview is available on web.
                       </Text>
                     </View>
                   )}
                 </View>
-              ) : (
-                /* Scaled Preview Sheet Container (Physical Tray Calibration) */
-                <View style={styles.previewSheetFrame}>
-                  <View
+              </View>
+            )}
+
+            {/* Mode 3: Workstation Tray Calibration & Alignment Sheet */}
+            {activeTarget === 'calibration' && (
+              <View style={[styles.splitBody, isDesktop ? styles.desktopSplit : styles.mobileSplit]}>
+                {/* Calibration Controls Panel */}
+                <View
+                  style={[
+                    styles.sideConfigPanel,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                      borderColor: isDark ? colors.neutral[800] : colors.neutral[200],
+                    },
+                    isDesktop && { width: 360 },
+                  ]}
+                >
+                  <Text
                     style={[
-                      styles.previewSheet,
-                      {
-                        aspectRatio: orientation === 'landscape' ? 1.35 : 0.75,
-                        backgroundColor: '#FFFFFF',
-                      },
+                      styles.sectionHeading,
+                      { color: isDark ? colors.neutral[300] : colors.neutral[700] },
                     ]}
                   >
-                    {outputMode === 'plain_paper' ? (
-                      /* Plain Bond Paper Mock Preview */
-                      <View style={styles.plainSheetContent}>
-                        <View style={styles.plainSheetBorder}>
-                          <View style={styles.mockHeader}>
-                            <View style={{ flex: 1, alignItems: 'center' }}>
-                              <Text style={styles.mockAgency}>REPUBLIC OF THE PHILIPPINES</Text>
-                              <Text style={styles.mockDept}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
-                              <Text style={styles.mockTitle}>{app.serviceName || 'RADIO STATION LICENSE'}</Text>
-                            </View>
-                          </View>
-                          <View style={styles.mockLicensee}>
-                            <Text style={styles.mockLicenseeName}>{app.applicant}</Text>
-                            <Text style={styles.mockLicenseeAddr}>{app.address?.city || 'Quezon City'}, Philippines</Text>
-                          </View>
-                          <View style={styles.mockGrid}>
-                            <Text style={styles.mockGridCell}>Call Sign: <strong>DX7NTC</strong></Text>
-                            <Text style={styles.mockGridCell}>Form No: <strong>{app.applicationNumber}</strong></Text>
-                          </View>
-                          <View style={styles.mockSign}>
-                            <View style={styles.mockSignLine} />
-                            <Text style={styles.mockSignName}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ) : (
-                      /* Accountable Form Precision Overlay Mock Preview */
-                      <View style={styles.accountableSheetContent}>
-                        {showGhostWatermark && (
-                          <View style={styles.ghostLayer}>
-                            <Text style={styles.ghostWatermarkText}>[PRE-PRINTED OFFICIAL GOVERNMENT STATIONERY]</Text>
-                            <View style={[styles.ghostBox, { top: '18%', left: '12%', width: '76%', height: '10%' }]}>
-                              <Text style={styles.ghostBoxLabel}>NAME OF LICENSEE / GRANTEE</Text>
-                            </View>
-                            <View style={[styles.ghostBox, { top: '30%', left: '12%', width: '35%', height: '8%' }]}>
-                              <Text style={styles.ghostBoxLabel}>CALL SIGN</Text>
-                            </View>
-                            <View style={[styles.ghostBox, { top: '30%', left: '52%', width: '36%', height: '8%' }]}>
-                              <Text style={styles.ghostBoxLabel}>CLASS OF STATION</Text>
-                            </View>
-                            <View style={[styles.ghostBox, { top: '75%', left: '55%', width: '35%', height: '12%' }]}>
-                              <Text style={styles.ghostBoxLabel}>SIGNATURE OF ISSUING OFFICER</Text>
-                            </View>
-                          </View>
-                        )}
+                    WORKSTATION TRAY OFFSET CALIBRATION
+                  </Text>
+                  <Text
+                    style={[
+                      styles.calibrationHelperText,
+                      { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                    ]}
+                  >
+                    Fine-tune hardware margins to compensate for printer tractor feed or paper guide variance.
+                  </Text>
 
-                        {/* Calibrated Dynamic Text Elements */}
-                        <View style={[styles.overlayItem, { top: '6%', right: '7%' }]}>
-                          <Lucide name="grid" size={14} color="#000000" />
-                        </View>
-                        <View style={[styles.overlayItem, { top: '19%', left: '14%' }]}>
-                          <Text style={styles.overlayTextBold}>{app.applicant}</Text>
-                        </View>
-                        <View style={[styles.overlayItem, { top: '31%', left: '14%' }]}>
-                          <Text style={[styles.overlayTextBold, { fontFamily: 'monospace' }]}>DX7NTC</Text>
-                        </View>
-                        <View style={[styles.overlayItem, { top: '31%', left: '54%' }]}>
-                          <Text style={styles.overlayText}>Land Mobile Station</Text>
-                        </View>
-                        <View style={[styles.overlayItem, { top: '78%', left: '58%' }]}>
-                          <Text style={styles.overlayTextSign}>{app.issuingOfficer || 'REGIONAL DIRECTOR'}</Text>
-                        </View>
+                  {/* Horizontal Offset X */}
+                  <View style={styles.nudgeControlRow}>
+                    <Text
+                      style={[
+                        styles.nudgeLabel,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                      ]}
+                    >
+                      X Offset (Horizontal)
+                    </Text>
+                    <View style={styles.nudgeBtnGroup}>
+                      <TouchableOpacity
+                        onPress={() => setOffsetXmm((v) => Math.round((v - 0.5) * 10) / 10)}
+                        style={styles.nudgeBtn}
+                      >
+                        <Text style={styles.nudgeBtnText}>-0.5</Text>
+                      </TouchableOpacity>
+                      <View style={styles.nudgeValueDisplay}>
+                        <Text
+                          style={[
+                            styles.nudgeValueText,
+                            { color: offsetXmm !== 0 ? colors.brand[600] : '#334155' },
+                          ]}
+                        >
+                          {offsetXmm > 0 ? `+${offsetXmm}` : offsetXmm} mm
+                        </Text>
                       </View>
-                    )}
+                      <TouchableOpacity
+                        onPress={() => setOffsetXmm((v) => Math.round((v + 0.5) * 10) / 10)}
+                        style={styles.nudgeBtn}
+                      >
+                        <Text style={styles.nudgeBtnText}>+0.5</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  {/* Vertical Offset Y */}
+                  <View style={styles.nudgeControlRow}>
+                    <Text
+                      style={[
+                        styles.nudgeLabel,
+                        { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                      ]}
+                    >
+                      Y Offset (Vertical)
+                    </Text>
+                    <View style={styles.nudgeBtnGroup}>
+                      <TouchableOpacity
+                        onPress={() => setOffsetYmm((v) => Math.round((v - 0.5) * 10) / 10)}
+                        style={styles.nudgeBtn}
+                      >
+                        <Text style={styles.nudgeBtnText}>-0.5</Text>
+                      </TouchableOpacity>
+                      <View style={styles.nudgeValueDisplay}>
+                        <Text
+                          style={[
+                            styles.nudgeValueText,
+                            { color: offsetYmm !== 0 ? colors.brand[600] : '#334155' },
+                          ]}
+                        >
+                          {offsetYmm > 0 ? `+${offsetYmm}` : offsetYmm} mm
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        onPress={() => setOffsetYmm((v) => Math.round((v + 0.5) * 10) / 10)}
+                        style={styles.nudgeBtn}
+                      >
+                        <Text style={styles.nudgeBtnText}>+0.5</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={styles.calibActionButtonsRow}>
+                    <TouchableOpacity
+                      onPress={handleResetCalibration}
+                      style={[
+                        styles.resetBtn,
+                        {
+                          backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                          borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                        },
+                      ]}
+                      activeOpacity={0.7}
+                    >
+                      <Text
+                        style={[
+                          styles.resetBtnText,
+                          { color: isDark ? colors.neutral[300] : colors.neutral[700] },
+                        ]}
+                      >
+                        Reset Offsets
+                      </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      onPress={handleSavePreferences}
+                      style={[styles.savePrefsBtn, { backgroundColor: colors.brand[600] }]}
+                      activeOpacity={0.8}
+                    >
+                      <Lucide name="save" size={13} color={COLORS.neutral.white} />
+                      <Text style={styles.savePrefsBtnText}>Save Preferences</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
-              )}
-            </View>
-          </View>
 
-          {/* Modal Footer Actions */}
-          <View
-            style={[
-              styles.modalFooter,
-              { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[200] },
-            ]}
-          >
-            <View style={styles.footerLeftActions}>
-              {viewFormat === 'physical' && (
-                <TouchableOpacity
-                  onPress={handleSavePreferences}
-                  style={[styles.savePrefBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-                >
-                  <Lucide name="save" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
-                  <Text style={[styles.savePrefBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
-                    Save Calibration Defaults
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            <View style={styles.footerRightActions}>
-              <TouchableOpacity
-                onPress={handleDownloadOfficialPdf}
-                style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-              >
-                <Lucide name="download" size={15} color={isDark ? colors.neutral[200] : colors.neutral[700]} />
-                <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                  Download PDF
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={onClose}
-                style={[styles.cancelBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[300] }]}
-              >
-                <Text style={[styles.cancelBtnText, { color: isDark ? colors.neutral[400] : colors.neutral[600] }]}>
-                  Close
-                </Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                onPress={handlePrint}
-                style={[
-                  styles.printBtn,
-                  {
-                    backgroundColor:
-                      viewFormat === 'pdf'
-                        ? colors.brand[600]
-                        : outputMode === 'accountable_form'
-                          ? '#D97706'
-                          : colors.brand[600],
-                  },
-                ]}
-              >
-                <Lucide name="printer" size={16} color="#FFFFFF" />
-                <Text style={styles.printBtnText}>
-                  {viewFormat === 'pdf'
-                    ? 'Print Official Document'
-                    : outputMode === 'plain_paper'
-                      ? 'Print Full Document'
-                      : outputMode === 'accountable_form'
-                        ? 'Print Accountable Form Overlay'
-                        : 'Print Alignment Test Sheet'}
-                </Text>
-              </TouchableOpacity>
-            </View>
+                {/* Right Frame: Live Alignment Test Sheet */}
+                <View style={styles.overlayFrameHolder}>
+                  {Platform.OS === 'web' ? (
+                    React.createElement('iframe', {
+                      srcDoc: alignmentTestHtml,
+                      style: {
+                        width: '100%',
+                        height: '100%',
+                        minHeight: '640px',
+                        border: 'none',
+                        borderRadius: '8px',
+                        backgroundColor: '#FFFFFF',
+                      },
+                      title: 'Printer Alignment Test Sheet Preview',
+                    })
+                  ) : (
+                    <View style={styles.pdfLoadingCard}>
+                      <Text style={styles.loadingDesc}>
+                        Alignment test sheet preview is available on web.
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </View>
+            )}
           </View>
         </View>
       </View>
@@ -901,33 +1160,37 @@ export function IssuedDocumentPrintModal({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(15, 23, 42, 0.72)',
-    justifyContent: 'center',
+    backgroundColor: 'rgba(15, 23, 42, 0.75)',
     alignItems: 'center',
+    justifyContent: 'center',
     padding: SPACING[16],
   },
   modalContainer: {
     width: '100%',
-    maxWidth: 1060,
-    maxHeight: '92%',
-    borderRadius: RADIUS.card,
+    maxWidth: 1240,
+    maxHeight: '94%',
+    borderRadius: RADIUS.dialog,
     borderWidth: 1,
     overflow: 'hidden',
+    flexDirection: 'column',
     ...SHADOWS.modal,
   },
   modalHeader: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
+    justifyContent: 'space-between',
     paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[16],
+    paddingVertical: SPACING[12],
     borderBottomWidth: 1,
+    flexWrap: 'wrap',
+    gap: SPACING[12],
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[12],
     flex: 1,
+    minWidth: 260,
   },
   iconCircle: {
     width: 44,
@@ -935,6 +1198,7 @@ const styles = StyleSheet.create({
     borderRadius: 22,
     alignItems: 'center',
     justifyContent: 'center',
+    flexShrink: 0,
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -943,92 +1207,214 @@ const styles = StyleSheet.create({
   },
   modalSubtitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 12.5,
     marginTop: 2,
   },
-  closeBtn: {
-    padding: SPACING[8],
-  },
-  modalBody: {
-    flex: 1,
-  },
-  desktopBody: {
-    flexDirection: 'row',
-    minHeight: 520,
-  },
-  mobileBody: {
-    flexDirection: 'column',
-  },
-  configColumn: {
-    flex: 1.1,
-    padding: SPACING[20],
-    borderRightWidth: 1,
-    borderRightColor: '#E2E8F0',
-  },
-  previewColumn: {
-    flex: 1.2,
-    padding: SPACING[16],
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  controlGroup: {
-    marginBottom: SPACING[20],
-  },
-  sectionHeading: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11.5,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.6,
-    marginBottom: SPACING[10],
-  },
-  controlSubtext: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11.5,
-    marginTop: 3,
-    marginBottom: SPACING[8],
-  },
-  modeCardsWrap: {
-    gap: SPACING[10],
-  },
-  modeCard: {
-    padding: SPACING[12],
-    borderRadius: RADIUS.card,
-    borderWidth: 1.5,
-  },
-  modeCardActive: {
-    backgroundColor: '#FAF5FF',
-  },
-  modeCardHeader: {
+  headerRightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: SPACING[8],
-    marginBottom: 4,
+    flexWrap: 'wrap',
   },
-  modeCardTitle: {
+  modePillGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: RADIUS.circle,
+    padding: 3,
+    gap: 3,
+  },
+  modePill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 5,
+    borderRadius: RADIUS.circle,
+    gap: 6,
+  },
+  modePillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13.5,
-    fontWeight: TYPOGRAPHY.weights.bold,
+    fontSize: 12,
   },
-  modeCardDesc: {
+  actionIconBtn: {
+    width: 34,
+    height: 34,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  downloadBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING[12],
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
+  },
+  downloadBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: '600',
+  },
+  printBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+  },
+  printBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: COLORS.neutral.white,
+  },
+  closeBtn: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: SPACING[4],
+  },
+  modalBody: {
+    flex: 1,
+    minHeight: 660,
+  },
+  pdfFullViewerWrapper: {
+    flex: 1,
+    padding: SPACING[16],
+  },
+  pdfFrameHolder: {
+    flex: 1,
+    minHeight: 660,
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
+  },
+  pdfLoadingCard: {
+    flex: 1,
+    minHeight: 640,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    padding: SPACING[24],
+  },
+  loadingInnerContent: {
+    width: '100%',
+    maxWidth: 480,
+    alignItems: 'center',
+    gap: SPACING[16],
+  },
+  loadingIconCircle: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+  },
+  loadingTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  loadingDesc: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 18,
+  },
+  templateStatusBadge: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: RADIUS.circle,
+    borderWidth: 1,
+  },
+  templateStatusBadgeText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11.5,
-    lineHeight: 16,
+    fontWeight: '600',
+  },
+  pdfErrorCard: {
+    flex: 1,
+    minHeight: 640,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    padding: SPACING[32],
+    gap: SPACING[12],
+  },
+  pdfErrorTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  pdfErrorSubtitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: '#EF4444',
+    textAlign: 'center',
+    maxWidth: 440,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[8],
+    borderRadius: RADIUS.button,
+    marginTop: SPACING[8],
+  },
+  retryBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.neutral.white,
+  },
+  pdfLoadingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+  },
+  splitBody: {
+    flex: 1,
+    padding: SPACING[16],
+    gap: SPACING[16],
+  },
+  desktopSplit: {
+    flexDirection: 'row',
+  },
+  mobileSplit: {
+    flexDirection: 'column',
+  },
+  sideConfigPanel: {
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    padding: SPACING[16],
+    gap: SPACING[12],
+  },
+  sectionHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   templateOptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
     padding: SPACING[10],
     borderRadius: RADIUS.sm,
     borderWidth: 1,
-  },
-  templateOptionRowSelected: {
-    backgroundColor: '#FFFBEB',
+    gap: SPACING[8],
   },
   templateOptionCode: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12.5,
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    fontSize: 12,
+    fontWeight: '700',
   },
   templateOptionMeta: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -1038,91 +1424,40 @@ const styles = StyleSheet.create({
   paperSizePillsWrap: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: SPACING[8],
+    gap: 6,
   },
   paperPill: {
-    paddingVertical: SPACING[8],
-    paddingHorizontal: SPACING[12],
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: RADIUS.sm,
-    borderWidth: 1.2,
-    alignItems: 'center',
-    minWidth: 70,
-  },
-  paperPillActive: {
-    backgroundColor: '#EFF6FF',
+    borderWidth: 1,
   },
   paperPillText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11.5,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  paperPillTextActive: {
-    color: '#1D4ED8',
-  },
-  paperPillSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    marginTop: 2,
-  },
-  customDimensionsRow: {
-    flexDirection: 'row',
-    gap: SPACING[12],
-    marginTop: SPACING[10],
-  },
-  dimLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
     color: '#64748B',
-    marginBottom: 3,
   },
-  dimInput: {
-    borderWidth: 1,
-    borderRadius: RADIUS.sm,
-    paddingHorizontal: SPACING[10],
-    paddingVertical: SPACING[6],
-    fontSize: 12,
-  },
-  orientationRow: {
-    flexDirection: 'row',
-    gap: SPACING[10],
-    marginTop: SPACING[12],
-  },
-  orientationBtn: {
+  overlayFrameHolder: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.sm,
-    borderWidth: 1.2,
+    minHeight: 640,
+    borderRadius: RADIUS.card,
+    overflow: 'hidden',
   },
-  orientationBtnActive: {
-    backgroundColor: '#EFF6FF',
-  },
-  orientationBtnText: {
+  calibrationHelperText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    color: '#64748B',
-  },
-  calibrationHeaderRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING[4],
-  },
-  calibrationControls: {
-    gap: SPACING[8],
-    marginTop: SPACING[6],
+    fontSize: 11.5,
+    lineHeight: 16,
   },
   nudgeControlRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    paddingVertical: SPACING[6],
   },
   nudgeLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
+    fontWeight: '500',
   },
   nudgeBtnGroup: {
     flexDirection: 'row',
@@ -1143,6 +1478,7 @@ const styles = StyleSheet.create({
   nudgeValueDisplay: {
     minWidth: 64,
     borderWidth: 1,
+    borderColor: '#E2E8F0',
     borderRadius: 4,
     paddingVertical: 4,
     paddingHorizontal: 6,
@@ -1154,330 +1490,37 @@ const styles = StyleSheet.create({
     fontSize: 11.5,
     fontWeight: 'bold',
   },
-  ghostToggleRow: {
+  calibActionButtonsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: SPACING[10],
+    gap: SPACING[8],
+    marginTop: SPACING[12],
   },
-  ghostToggleText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11.5,
-  },
-  previewHeaderBar: {
-    width: '100%',
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: SPACING[10],
-  },
-  previewHeaderTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 0.5,
-  },
-  previewBadge: {
-    backgroundColor: '#EEF2FF',
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 12,
-  },
-  previewBadgeText: {
-    fontSize: 9,
-    fontWeight: 'bold',
-    color: '#4338CA',
-  },
-  previewSheetFrame: {
-    width: '100%',
+  resetBtn: {
     flex: 1,
+    paddingVertical: SPACING[8],
+    borderRadius: RADIUS.button,
+    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    padding: SPACING[8],
   },
-  previewSheet: {
-    width: '92%',
-    maxWidth: 380,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: '#CBD5E1',
-    overflow: 'hidden',
-    position: 'relative',
-    ...SHADOWS.card,
-  },
-  plainSheetContent: {
-    flex: 1,
-    padding: 10,
-  },
-  plainSheetBorder: {
-    flex: 1,
-    borderWidth: 2,
-    borderColor: '#1E3A8A',
-    padding: 8,
-    justifyContent: 'space-between',
-  },
-  mockHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: '#1E3A8A',
-    paddingBottom: 4,
-  },
-  mockAgency: {
-    fontSize: 7,
-    fontWeight: 'bold',
-    color: '#1E293B',
-  },
-  mockDept: {
-    fontSize: 5.5,
-    color: '#475569',
-  },
-  mockTitle: {
-    fontSize: 8.5,
-    fontWeight: 'bold',
-    color: '#1E3A8A',
-    marginTop: 2,
-  },
-  mockLicensee: {
-    backgroundColor: '#F8FAFC',
-    padding: 4,
-    marginVertical: 4,
-  },
-  mockLicenseeName: {
-    fontSize: 7.5,
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  mockLicenseeAddr: {
-    fontSize: 6,
-    color: '#475569',
-  },
-  mockGrid: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: 3,
-    borderWidth: 0.5,
-    borderColor: '#CBD5E1',
-  },
-  mockGridCell: {
-    fontSize: 6,
-    color: '#334155',
-  },
-  mockSign: {
-    alignItems: 'flex-end',
-    marginTop: 4,
-  },
-  mockSignLine: {
-    width: 60,
-    borderBottomWidth: 1,
-    borderBottomColor: '#000',
-    marginBottom: 2,
-  },
-  mockSignName: {
-    fontSize: 6,
-    fontWeight: 'bold',
-    color: '#0F172A',
-  },
-  accountableSheetContent: {
-    flex: 1,
-    position: 'relative',
-  },
-  ghostLayer: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-  },
-  ghostWatermarkText: {
-    position: 'absolute',
-    top: 8,
-    left: 0,
-    right: 0,
-    textAlign: 'center',
-    fontSize: 6.5,
-    color: '#CBD5E1',
-    fontWeight: 'bold',
-  },
-  ghostBox: {
-    position: 'absolute',
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#FCD34D',
-    backgroundColor: 'rgba(254, 243, 199, 0.4)',
-    padding: 2,
-  },
-  ghostBoxLabel: {
-    fontSize: 4.5,
-    color: '#B45309',
-    fontWeight: 'bold',
-  },
-  overlayItem: {
-    position: 'absolute',
-  },
-  overlayText: {
-    fontSize: 7,
-    color: '#000000',
-  },
-  overlayTextBold: {
-    fontSize: 7.5,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  overlayTextSign: {
-    fontSize: 6.5,
-    fontWeight: 'bold',
-    color: '#000000',
-  },
-  modalFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: SPACING[12],
-    borderTopWidth: 1,
-  },
-  footerLeftActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  savePrefBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: SPACING[8],
-    paddingHorizontal: SPACING[12],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-  },
-  savePrefBtnText: {
+  resetBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  footerRightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: SPACING[10],
-  },
-  cancelBtn: {
-    paddingVertical: SPACING[8],
-    paddingHorizontal: SPACING[16],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-  },
-  cancelBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  printBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: SPACING[8],
-    paddingHorizontal: SPACING[16],
-    borderRadius: RADIUS.button,
-    ...SHADOWS.card,
-  },
-  printBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: '#FFFFFF',
-  },
-  downloadBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: SPACING[8],
-    paddingHorizontal: SPACING[12],
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-  },
-  downloadBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 13,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  viewFormatToggle: {
-    flexDirection: 'row',
-    gap: 4,
-    backgroundColor: 'rgba(0,0,0,0.06)',
-    borderRadius: RADIUS.button,
-    padding: 3,
-  },
-  viewFormatBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: RADIUS.button - 2,
-  },
-  viewFormatBtnActive: {
-    backgroundColor: '#FFFFFF',
-    ...SHADOWS.card,
-  },
-  viewFormatBtnText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#64748B',
   },
-  viewFormatBtnTextActive: {
-    color: '#0F172A',
-    fontWeight: '700',
-  },
-  pdfViewerContainer: {
-    flex: 1,
-    width: '100%',
-    minHeight: 620,
-    borderRadius: RADIUS.card,
-    overflow: 'hidden',
-  },
-  pdfLoadingContainer: {
-    flex: 1,
-    minHeight: 400,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  pdfLoadingText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#64748B',
-    textAlign: 'center',
-  },
-  pdfErrorContainer: {
-    flex: 1,
-    minHeight: 300,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-    gap: 12,
-  },
-  pdfErrorText: {
-    fontSize: 13,
-    color: '#EF4444',
-    textAlign: 'center',
-    maxWidth: 360,
-  },
-  retryBtn: {
+  savePrefsBtn: {
+    flex: 1.5,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 6,
-    paddingHorizontal: 14,
-    paddingVertical: 8,
+    paddingVertical: SPACING[8],
     borderRadius: RADIUS.button,
-    borderWidth: 1,
-    borderColor: '#EF4444',
-    marginTop: 8,
   },
-  retryBtnText: {
+  savePrefsBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 12,
     fontWeight: '700',
-    color: '#EF4444',
+    color: COLORS.neutral.white,
   },
 });

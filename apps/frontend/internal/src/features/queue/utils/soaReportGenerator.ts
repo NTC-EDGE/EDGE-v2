@@ -239,13 +239,14 @@ export function generateSoaPrintableHtml(
   const payorName = safeString(app.applicant, 'Applicant');
   const payorAddress = formatAddress(app);
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
+  const particularNumber = resolveParticularNumber(app);
   const soaNumber = `SOA-${refNum}`;
   const totalInWords = numberToWords(totalAmount);
 
   // Compute due date (30 days from created date)
   const dueDateObj = new Date(dateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Classify transaction type checkboxes
   const variantLower = (app.serviceVariantName || app.serviceName || app.category || '').toLowerCase();
@@ -260,12 +261,8 @@ export function generateSoaPrintableHtml(
   const isNew = !isRen && !isMod && !isDup && !isCv && !isRoc && !isCo && !isMa && !isMs;
 
   const isForAssessmentOnly = app.intent === 'AssessmentOnly' || app.isAssessmentOnly === true;
-  const isEndorsedForPayment = !isForAssessmentOnly && (
-    app.status === 'PendingPayment' ||
-    app.status === 'Completed' ||
-    app.status === 'ForIssuance' ||
-    app.soaStatus === 'Approved'
-  );
+  const isOfficialApplication = !isForAssessmentOnly;
+  const isEndorsedForPayment = isOfficialApplication;
 
   const orNumber = app.payment?.orNumber ?? '';
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
@@ -273,8 +270,8 @@ export function generateSoaPrintableHtml(
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
   const orDate = app.payment?.orNumber
     ? (app.updatedAt
-        ? new Date(app.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+        ? new Date(app.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
     : '';
   const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
 
@@ -715,19 +712,25 @@ export function generateSoaPrintableHtml(
           <span class="meta-val" style="color: #b91c1c;">${dueDateStr}</span>
         </td>
       </tr>
+      <tr>
+        <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
+          <span class="meta-label">Particular (App/Permit/Lic/Cert No.): </span>
+          <span class="meta-val" style="font-weight: bold; color: #1e3a8a;">${particularNumber}</span>
+        </td>
+      </tr>
     </table>
 
     <!-- Transaction Checkbox Strip -->
     <div class="checkbox-bar">
-      <span class="cb-item"><span class="cb-mark">${isNew ? '[X]' : '[ ]'}</span> <span class="cb-label">New</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMod ? '[X]' : '[ ]'}</span> <span class="cb-label">Mod</span></span>
-      <span class="cb-item"><span class="cb-mark">${isCo ? '[X]' : '[ ]'}</span> <span class="cb-label">Co</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMa ? '[X]' : '[ ]'}</span> <span class="cb-label">Ma</span></span>
-      <span class="cb-item"><span class="cb-mark">${isRen ? '[X]' : '[ ]'}</span> <span class="cb-label">Ren</span></span>
-      <span class="cb-item"><span class="cb-mark">${isDup ? '[X]' : '[ ]'}</span> <span class="cb-label">Dup</span></span>
-      <span class="cb-item"><span class="cb-mark">${isCv ? '[X]' : '[ ]'}</span> <span class="cb-label">Cv</span></span>
-      <span class="cb-item"><span class="cb-mark">${isRoc ? '[X]' : '[ ]'}</span> <span class="cb-label">ROC</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMs ? '[X]' : '[ ]'}</span> <span class="cb-label">MS</span></span>
+      <span class="cb-item"><span class="cb-mark">${isNew ? '[✓]' : '[ ]'}</span> <span class="cb-label">New</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMod ? '[✓]' : '[ ]'}</span> <span class="cb-label">Mod</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCo ? '[✓]' : '[ ]'}</span> <span class="cb-label">Co</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMa ? '[✓]' : '[ ]'}</span> <span class="cb-label">Ma</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRen ? '[✓]' : '[ ]'}</span> <span class="cb-label">Ren</span></span>
+      <span class="cb-item"><span class="cb-mark">${isDup ? '[✓]' : '[ ]'}</span> <span class="cb-label">Dup</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCv ? '[✓]' : '[ ]'}</span> <span class="cb-label">Cv</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRoc ? '[✓]' : '[ ]'}</span> <span class="cb-label">ROC</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMs ? '[✓]' : '[ ]'}</span> <span class="cb-label">MS</span></span>
       <span class="cb-item"><span class="cb-mark">[ ]</span> <span class="cb-label">Others</span></span>
     </div>
 
@@ -766,14 +769,21 @@ export function generateSoaPrintableHtml(
       <div><span class="meta-label">TOTAL: </span><strong>₱ ${formattedTotal}</strong></div>
     </div>
 
+    <!-- Official SOA Remarks Box -->
+    ${(app.soaRemarks || app.remarks) ? `
+    <div style="border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'}; border-top: none; padding: 3px 8px; font-size: 8.5px; font-family: Arial, sans-serif; background: ${isOverlay ? 'transparent' : '#ffffff'};">
+      <span style="font-weight: bold;">REMARKS: </span><span>${safeString(app.soaRemarks || app.remarks, '')}</span>
+    </div>
+    ` : ''}
+
     <!-- Bottom Section: Assessment Stamp, O.R. Box, & Signatures -->
     <table class="bottom-grid">
       <tr>
         <!-- Left: Conditions & O.R. Stamp -->
         <td style="width: 48%; padding-top: 4px;">
           <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
-            <span><strong>${isForAssessmentOnly ? '[X]' : '[ ]'}</strong> For Assessment Only</span>
-            <span><strong>${isEndorsedForPayment ? '[X]' : '[ ]'}</strong> Endorsed for Payment</span>
+            <span><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
+            <span><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
           </div>
 
           <table class="or-stamp-table">
@@ -846,7 +856,9 @@ export function generateOpPrintableHtml(
   const orNumber = app.payment?.orNumber;
 
   const applicantAddress = safeString(
-    formatAddress(app),
+    (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
+      ? app.soaIssuedToAddress.trim()
+      : formatAddress(app),
     'Cebu City, Philippines'
   );
 
@@ -1252,4 +1264,42 @@ export function openPrintableDocumentWindow(htmlContent: string): void {
       printWindow.document.close();
     }
   }
+}
+
+export function resolveParticularNumber(app: ApplicationData): string {
+  // 1. License, Permit, Certificate, Registration, or Call Sign in formFieldValues
+  if (app.formFieldValues && app.formFieldValues.length > 0) {
+    const match = app.formFieldValues.find((fv) => {
+      const label = (fv.fieldLabel || fv.fieldId || '').toLowerCase();
+      return (
+        label.includes('license number') ||
+        label.includes('licensenumber') ||
+        label.includes('permit number') ||
+        label.includes('permitnumber') ||
+        label.includes('certificate number') ||
+        label.includes('certificatenumber') ||
+        label.includes('registration number') ||
+        label.includes('registrationnumber') ||
+        label.includes('call sign') ||
+        label.includes('callsign') ||
+        label.includes('roc number') ||
+        label.includes('rsl number')
+      );
+    });
+    if (match && match.value && match.value.trim().length > 0) {
+      return match.value.trim();
+    }
+  }
+
+  // 2. Application Number
+  if (app.applicationNumber && app.applicationNumber.trim().length > 0) {
+    return app.applicationNumber.trim();
+  }
+
+  // 3. Reference Number
+  if (app.referenceNumber && app.referenceNumber.trim().length > 0) {
+    return app.referenceNumber.trim();
+  }
+
+  return app.id ? `APP-${app.id.slice(0, 8).toUpperCase()}` : '';
 }

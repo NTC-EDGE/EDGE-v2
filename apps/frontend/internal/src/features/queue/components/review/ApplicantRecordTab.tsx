@@ -132,7 +132,7 @@ export function ApplicantRecordTab({
       )}
 
       {/* Applicant nav bar */}
-      {localApplicants.length > 0 && (
+      {localApplicants.length > 1 && (
         <View style={[styles.applicantSelectorBar, { backgroundColor: isDark ? colors.neutral[900] : colors.brand[50], borderColor: isDark ? colors.neutral[700] : colors.brand[200], marginTop: SPACING[8], marginBottom: SPACING[4], zIndex: 10 }]}>
           {localApplicants.length > 1 && (
             <Pressable disabled={activeIdx === 0} onPress={() => onSelectApplicantIndex?.(Math.max(0, activeIdx - 1))} style={[styles.selectorNavBtn, activeIdx === 0 && { opacity: 0.3 }]}>

@@ -33,6 +33,7 @@ public class ApplicationSummaryDto
     public string? ServiceVariantName { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
+    public string? SoaNumber { get; set; }
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
     public decimal? TotalAmountDue { get; set; }
@@ -46,6 +47,14 @@ public class ApplicationSummaryDto
     public string? PaymentRemarks { get; set; }
     public Guid? OrderOfPaymentId { get; set; }
     public string? OpNumber { get; set; }
+
+    public string? EvaluatingOfficer { get; set; }
+    public string? AccountingOfficer { get; set; }
+    public string? CashierOfficer { get; set; }
+    public string? IssuingOfficer { get; set; }
+    public string? AssignedOfficerName { get; set; }
+    public string? AssignedOfficerRole { get; set; }
+    public List<ApplicationHistoryDto> Histories { get; set; } = new();
 
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();

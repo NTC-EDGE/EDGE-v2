@@ -5,21 +5,30 @@
 /**
  * Validates Philippine contact numbers:
  * Must start with:
- * - '0' followed by exactly 10 digits (11 digits total, e.g. 09171234567)
- * - '+63' followed by exactly 10 digits (13 characters total, e.g. +639171234567)
- * - '63' followed by exactly 10 digits (12 digits total, e.g. 639171234567)
+ * - '09' followed by exactly 9 digits (11 digits total, e.g. 09171234567)
+ * - '+639' followed by exactly 9 digits (13 characters total, e.g. +639171234567)
+ * - '639' followed by exactly 9 digits (12 digits total, e.g. 639171234567)
  */
 export function validateContactNumber(value: string | undefined | null): string | null {
   if (!value || value.trim() === "") {
     return "Contact number is required.";
   }
   const clean = value.trim().replace(/[\s\-\(\)\.]/g, "");
-  const contactRegex = /^(0\d{10}|\+63\d{10}|63\d{10})$/;
+  const contactRegex = /^(09\d{9}|\+639\d{9}|639\d{9})$/;
   if (!contactRegex.test(clean)) {
-    if (!clean.startsWith("0") && !clean.startsWith("+63") && !clean.startsWith("63")) {
-      return "Contact number must start with 0 or +63.";
+    if (!clean.startsWith("09") && !clean.startsWith("+639") && !clean.startsWith("639")) {
+      return "Contact number must start with 09 (e.g. 09XXXXXXXXX) or +639 (e.g. +639XXXXXXXXX).";
     }
-    return "Contact number must be exactly 10 digits after 0 or +63 (e.g., 09171234567 or +639171234567).";
+    if (clean.startsWith("09") && clean.length !== 11) {
+      return `Contact number starting with 09 must be exactly 11 digits (currently ${clean.length} digits).`;
+    }
+    if (clean.startsWith("+639") && clean.length !== 13) {
+      return `Contact number starting with +639 must be exactly 13 characters (currently ${clean.length} characters).`;
+    }
+    if (clean.startsWith("639") && clean.length !== 12) {
+      return `Contact number starting with 639 must be exactly 12 digits (currently ${clean.length} digits).`;
+    }
+    return "Please enter a valid Philippine mobile number (e.g., 09171234567 or +639171234567).";
   }
   return null;
 }

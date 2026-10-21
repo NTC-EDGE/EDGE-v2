@@ -46,7 +46,8 @@ public record PendingPaymentDto(
     string? CheckBank = null,
     DateTime? CheckDate = null,
     string? PaymentReferenceNumber = null,
-    string? PayorName = null
+    string? PayorName = null,
+    string? PayorAddress = null
 );
 
 public record GetPendingPaymentsQuery(
@@ -236,7 +237,8 @@ public class GetPendingPaymentsQueryHandler : IRequestHandler<GetPendingPayments
                 effectiveCheckBank,
                 effectiveCheckDate,
                 paymentRefNumber,
-                effectivePayorName
+                effectivePayorName,
+                op.StatementOfAccount?.IssuedToAddress
             );
         }).ToList();
 

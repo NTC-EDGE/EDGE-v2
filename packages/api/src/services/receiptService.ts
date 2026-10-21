@@ -97,6 +97,7 @@ export interface PendingPaymentDto {
   checkDate?: string | null;
   paymentReferenceNumber?: string | null;
   payorName?: string | null;
+  payorAddress?: string | null;
 }
 
 export interface OfficialReceiptLineItemDto {
@@ -273,6 +274,8 @@ export interface IssueOfficialReceiptPayload {
   remarks?: string | null;
   lineItems?: IssueReceiptLineItemInput[];
   allowPartialPayment?: boolean;
+  issueDate?: string | null;
+  dateChangeReason?: string | null;
 }
 
 export interface EditOfficialReceiptPayload {
@@ -409,31 +412,39 @@ export const receiptService = {
     });
   },
 
-  getReceiptPrintUrl: (id: string) => {
+  getReceiptPrintUrl: (id: string, template?: 'portrait' | 'landscape') => {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/receipts/${id}/print`;
+    const tmplParam = template ? `template=${encodeURIComponent(template)}` : '';
+    return `${base}/api/v2/receipts/${id}/print${tmplParam ? `?${tmplParam}` : ''}`;
   },
 
-  getReceiptDownloadUrl: (id: string) => {
+  getReceiptDownloadUrl: (id: string, template?: 'portrait' | 'landscape') => {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/receipts/${id}/print?download=true`;
+    const tmplParam = template ? `&template=${encodeURIComponent(template)}` : '';
+    return `${base}/api/v2/receipts/${id}/print?download=true${tmplParam}`;
   },
 
-  previewReceiptPdf: async (id: string) => {
+  previewReceiptPdf: async (id: string, template?: 'portrait' | 'landscape') => {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/receipts/${id}/print`,
-        { responseType: 'blob' }
+        {
+          params: template ? { template } : undefined,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });
   },
 
-  downloadReceiptPdf: async (id: string) => {
+  downloadReceiptPdf: async (id: string, template?: 'portrait' | 'landscape') => {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
-        `/api/v2/receipts/${id}/print?download=true`,
-        { responseType: 'blob' }
+        `/api/v2/receipts/${id}/print`,
+        {
+          params: { download: true, ...(template ? { template } : {}) },
+          responseType: 'blob',
+        }
       );
       return response.data;
     });

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -29,7 +30,9 @@ public record IssueOfficialReceiptCommand(
     DateTime? CheckDate = null,
     string? Remarks = null,
     List<CreateReceiptLineItemInput>? LineItems = null,
-    bool AllowPartialPayment = false
+    bool AllowPartialPayment = false,
+    DateTime? IssueDate = null,
+    string? DateChangeReason = null
 ) : IRequest<ApiResponse<OfficialReceiptDto>>;
 
 public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOfficialReceiptCommand>
@@ -44,6 +47,12 @@ public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOffic
         {
             RuleFor(x => x.CheckNumber).NotEmpty().WithMessage("Check number is required for check payments.");
             RuleFor(x => x.CheckBank).NotEmpty().WithMessage("Bank name is required for check payments.");
+        });
+        When(x => x.IssueDate.HasValue && x.IssueDate.Value.Date != DateTime.UtcNow.Date, () =>
+        {
+            RuleFor(x => x.DateChangeReason)
+                .NotEmpty()
+                .WithMessage("A reason is required when overriding the Official Receipt issue date.");
         });
     }
 }
@@ -230,7 +239,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
 
         if (!request.AllowPartialPayment && totalAmountCovered < op.AmountDue)
         {
-            return (null, null, null, $"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the required amount due ({op.AmountDue:N2}).");
+            return (null, null, null, FormattableString.Invariant($"Cannot issue Official Receipt: Received amount ({request.Amount:N2}) is less than the required amount due ({op.AmountDue:N2})."));
         }
 
         bool isFullyPaid = totalAmountCovered >= op.AmountDue;
@@ -279,7 +288,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             {
                 Id = Guid.NewGuid(),
                 OrderOfPaymentId = op.Id,
-                Action = $"Payment completed and Official Receipt issued: {orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). All ORs: {op.OfficialReceiptNumber}.",
+                Action = FormattableString.Invariant($"Payment completed and Official Receipt issued: {orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). All ORs: {op.OfficialReceiptNumber}."),
                 FromStatus = prevOpStatus,
                 ToStatus = OpStatus.Paid,
                 PerformedByUserId = validUserId,
@@ -310,13 +319,13 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
-                    Action = $"Payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). Total paid under: {op.OfficialReceiptNumber}.",
+                    Action = FormattableString.Invariant($"Payment verified via OR #{orNumber} ({request.PaymentMethod}: ₱{request.Amount:N2}). Total paid under: {op.OfficialReceiptNumber}."),
                     FromStatus = prevAppStatus,
                     ToStatus = ApplicationStatus.ForIssuance,
                     PerformedByUserId = validUserId,
                     StaffName = cashierContext.StaffName,
                     StaffRole = cashierContext.StaffRole,
-                    Remarks = request.Remarks ?? $"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued.",
+                    Remarks = request.Remarks ?? FormattableString.Invariant($"Payment received via {request.PaymentMethod}. Official Receipt #{orNumber} issued."),
                     Timestamp = DateTime.UtcNow
                 }, cancellationToken);
             }
@@ -330,7 +339,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             {
                 Id = Guid.NewGuid(),
                 OrderOfPaymentId = op.Id,
-                Action = $"Partial payment received (₱{request.Amount:N2}) via {request.PaymentMethod}. Official Receipt #{orNumber} issued. Remaining balance: ₱{remainingBalance:N2}.",
+                Action = FormattableString.Invariant($"Partial payment received (₱{request.Amount:N2}) via {request.PaymentMethod}. Official Receipt #{orNumber} issued. Remaining balance: ₱{remainingBalance:N2}."),
                 FromStatus = prevOpStatus,
                 ToStatus = OpStatus.Processing,
                 PerformedByUserId = validUserId,
@@ -342,14 +351,14 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
 
             if (app != null)
             {
-                app.Remarks = $"Partial Official Receipt #{orNumber} issued for ₱{request.Amount:N2} ({request.PaymentMethod}). Remaining balance: ₱{remainingBalance:N2}.";
+                app.Remarks = FormattableString.Invariant($"Partial Official Receipt #{orNumber} issued for ₱{request.Amount:N2} ({request.PaymentMethod}). Remaining balance: ₱{remainingBalance:N2}.");
                 await _appRepository.UpdateAsync(app, cancellationToken);
 
                 await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
-                    Action = $"Partial payment of ₱{request.Amount:N2} ({request.PaymentMethod}) accepted via OR #{orNumber}. Remaining balance: ₱{remainingBalance:N2}.",
+                    Action = FormattableString.Invariant($"Partial payment of ₱{request.Amount:N2} ({request.PaymentMethod}) accepted via OR #{orNumber}. Remaining balance: ₱{remainingBalance:N2}."),
                     FromStatus = app.Status,
                     ToStatus = app.Status,
                     PerformedByUserId = validUserId,
@@ -359,6 +368,45 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
                     Timestamp = DateTime.UtcNow
                 }, cancellationToken);
             }
+        }
+
+        if (request.IssueDate.HasValue && request.IssueDate.Value.Date != DateTime.UtcNow.Date)
+        {
+            var originalDate = DateTime.UtcNow.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var modifiedDate = request.IssueDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+            var dateAuditRemark = FormattableString.Invariant($"OR Issue Date manually overridden from {originalDate} to {modifiedDate}. Reason: {request.DateChangeReason?.Trim()}");
+
+            if (app != null)
+            {
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Action = FormattableString.Invariant($"OR Date Override ({orNumber})"),
+                    FromStatus = app.Status,
+                    ToStatus = app.Status,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Remarks = dateAuditRemark,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+
+            await _appRepository.AddOpHistoryAsync(new OpHistory
+            {
+                Id = Guid.NewGuid(),
+                OrderOfPaymentId = op.Id,
+                Action = FormattableString.Invariant($"OR Date Override ({orNumber}): {originalDate} -> {modifiedDate}"),
+                FromStatus = op.Status,
+                ToStatus = op.Status,
+                PerformedByUserId = validUserId,
+                StaffName = cashierContext.StaffName,
+                StaffRole = cashierContext.StaffRole,
+                OfficialReceiptNumber = orNumber,
+                Remarks = dateAuditRemark,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
         }
 
         return (op, applicationId, appNumber, null);
@@ -376,6 +424,20 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             ? request.TenantId
             : (op?.Application?.TenantId ?? booklet?.TenantId ?? Guid.Empty);
 
+        var formattedIssueDate = request.IssueDate.HasValue
+            ? request.IssueDate.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
+            : string.Empty;
+
+        var dateOverrideSuffix = !string.IsNullOrWhiteSpace(request.DateChangeReason)
+            ? FormattableString.Invariant($"[Date Override: {formattedIssueDate}. Reason: {request.DateChangeReason.Trim()}]")
+            : null;
+
+        var combinedRemarks = dateOverrideSuffix != null
+            ? (string.IsNullOrWhiteSpace(request.Remarks)
+                ? dateOverrideSuffix
+                : FormattableString.Invariant($"{request.Remarks.Trim()} {dateOverrideSuffix}"))
+            : request.Remarks?.Trim();
+
         var receipt = new OfficialReceipt
         {
             Id = Guid.NewGuid(),
@@ -392,9 +454,9 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             CheckBank = request.CheckBank?.Trim(),
             CheckDate = request.CheckDate,
             Status = ReceiptStatus.Issued,
-            IssuedAt = DateTime.UtcNow,
+            IssuedAt = request.IssueDate.HasValue ? DateTime.SpecifyKind(request.IssueDate.Value, DateTimeKind.Utc) : DateTime.UtcNow,
             IssuedByUserId = validUserId,
-            Remarks = request.Remarks?.Trim()
+            Remarks = combinedRemarks
         };
 
         if (request.LineItems != null && request.LineItems.Count > 0)
@@ -587,7 +649,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             {
                 matchedItem["isIssued"] = true;
                 matchedItem["orNumber"] = orNumber;
-                matchedItem["issuedAt"] = DateTime.UtcNow.ToString("o");
+                matchedItem["issuedAt"] = DateTime.UtcNow.ToString("o", CultureInfo.InvariantCulture);
             }
 
             var updatedJson = node.ToJsonString();

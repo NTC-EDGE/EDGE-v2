@@ -193,6 +193,15 @@ public class StatementOfAccountReport : IDocument
                     r.AutoItem().Text("ACCOUNT / REF NO.: ").FontSize(7.5f);
                     r.RelativeItem().Text(_model.AccountNo ?? string.Empty).FontSize(7.5f);
                 });
+
+                if (!string.IsNullOrWhiteSpace(_model.Particular1Header) && _model.Particular1Header != _model.AccountNo)
+                {
+                    c.Item().PaddingTop(1).Row(r =>
+                    {
+                        r.AutoItem().Text("PARTICULAR: ").Bold().FontSize(7.5f);
+                        r.RelativeItem().Text(_model.Particular1Header).FontSize(7.5f);
+                    });
+                }
             });
 
             // Right Side: Date & Due Date
@@ -201,7 +210,7 @@ public class StatementOfAccountReport : IDocument
                 c.Item().Row(r =>
                 {
                     r.AutoItem().Text("DATE: ").Bold().FontSize(8f);
-                    r.RelativeItem().Text(_model.Date ?? DateTime.UtcNow.ToString("MMM dd yyyy")).FontSize(8f);
+                    r.RelativeItem().Text(_model.Date ?? DateTime.UtcNow.ToString("MMMM dd, yyyy")).FontSize(8f);
                 });
 
                 if (!string.IsNullOrWhiteSpace(_model.PaymentDueDate))
@@ -314,7 +323,7 @@ public class StatementOfAccountReport : IDocument
                         statusRow.AutoItem().PaddingLeft(2).Text("FOR ASSESSMENT ONLY").FontSize(7.5f);
 
                         statusRow.AutoItem().PaddingLeft(8).Text(_model.IsEndorsedForPayment ? "[✔]" : "[ ]").Bold().FontSize(7.5f);
-                        statusRow.AutoItem().PaddingLeft(2).Text("ENDORSED FOR PAYMENT").FontSize(7.5f);
+                        statusRow.AutoItem().PaddingLeft(2).Text("OFFICIAL APPLICATION").FontSize(7.5f);
                     });
                 }
 
@@ -375,11 +384,7 @@ public class StatementOfAccountReport : IDocument
                 .Text(isOverlay ? "" : item.Description).FontSize(7.5f);
 
             // Column 3: Amount (Right aligned)
-            decimal? feeVal = item.Particular1.Fees;
-            if (feeVal == null || feeVal == 0)
-            {
-                feeVal = item.SubTotal;
-            }
+            decimal? feeVal = item.Particular1.Amount ?? item.SubTotal ?? item.Particular1.Fees;
 
             string amountStr = feeVal.HasValue && feeVal.Value > 0
                 ? feeVal.Value.ToString("N2")

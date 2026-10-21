@@ -157,7 +157,9 @@ public static class StatementOfAccountAcroFormFiller
 
             string feeStr = item.SubTotal.HasValue && item.SubTotal.Value > 0
                 ? item.SubTotal.Value.ToString("N2")
-                : (item.Particular1.Fees.HasValue && item.Particular1.Fees.Value > 0 ? item.Particular1.Fees.Value.ToString("N2") : string.Empty);
+                : (item.Particular1.Amount.HasValue && item.Particular1.Amount.Value > 0
+                    ? item.Particular1.Amount.Value.ToString("N2")
+                    : (item.Particular1.Fees.HasValue && item.Particular1.Fees.Value > 0 ? item.Particular1.Fees.Value.ToString("N2") : string.Empty));
 
             var desc = item.Description.ToLowerInvariant();
             var code = item.Code.Trim();

@@ -122,6 +122,8 @@ public static class DependencyInjection
         services.AddScoped<IStorageService, CloudflareR2StorageService>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
+        services.AddScoped<IRegionalConfigurationService, RegionalConfigurationService>();
+        services.AddScoped<INumberingSeriesService, NumberingSeriesService>();
 
         // Register Printing & PDF Rendering Services
         services.AddSingleton<IPdfTemplateProvider, CloudflareR2PdfTemplateProvider>();

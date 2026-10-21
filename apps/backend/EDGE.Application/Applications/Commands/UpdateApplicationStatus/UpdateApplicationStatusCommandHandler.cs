@@ -19,17 +19,20 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
     private readonly IUnitOfWork _unitOfWork;
     private readonly ICurrentUserService _currentUserService;
     private readonly ILogger<UpdateApplicationStatusCommandHandler> _logger;
+    private readonly INumberingSeriesService? _numberingSeriesService;
 
     public UpdateApplicationStatusCommandHandler(
         IApplicationFullRepository applicationRepository,
         IUnitOfWork unitOfWork,
         ICurrentUserService currentUserService,
-        ILogger<UpdateApplicationStatusCommandHandler> logger)
+        ILogger<UpdateApplicationStatusCommandHandler> logger,
+        INumberingSeriesService? numberingSeriesService = null)
     {
         _applicationRepository = applicationRepository;
         _unitOfWork = unitOfWork;
         _currentUserService = currentUserService;
         _logger = logger;
+        _numberingSeriesService = numberingSeriesService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationStatusCommand request, CancellationToken cancellationToken)
@@ -133,7 +136,9 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
                             Id = Guid.NewGuid(),
                             ApplicationId = app.Id,
                             StatementOfAccountId = latestSoa.Id,
-                            OpNumber = $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+                            OpNumber = _numberingSeriesService != null
+                                ? await _numberingSeriesService.GenerateOpNumberAsync(app.TenantId, cancellationToken)
+                                : $"OP-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
                             AmountDue = latestSoa.TotalAmount,
                             Status = OpStatus.Billed,
                             CreatedAt = DateTime.UtcNow

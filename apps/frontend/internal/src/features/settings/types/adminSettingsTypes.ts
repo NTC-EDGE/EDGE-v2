@@ -8,6 +8,10 @@ export interface RegionalConfigCard {
   subLabel?: string;
   rcCode?: string;
   officeCode?: string;
+  rcCodeSoa?: string;
+  rcCodeOp?: string;
+  fundCluster?: string;
+  requestAndComplaintRouting?: 'DirectToLegal' | 'DirectToEvaluator';
   commissionerName?: string;
   supportEmail?: string;
   supportPhone?: string;

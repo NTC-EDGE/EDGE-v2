@@ -176,6 +176,7 @@ export interface ApplicationData {
   soaId?: string;
   statementOfAccountId?: string;
   soaNumber?: string;
+  officialReceiptNumber?: string;
   soaStatus?: string;
   soaIssuedToName?: string;
   soaIssuedToAddress?: string;
@@ -186,6 +187,7 @@ export interface ApplicationData {
   soaPreparedByTitle?: string;
   soaApprovedByName?: string;
   soaApprovedByTitle?: string;
+  soaNoteId?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';
@@ -255,4 +257,6 @@ export interface ApplicationData {
   };
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   note: string;
+  remarks?: string;
+  soaRemarks?: string;
 }

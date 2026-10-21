@@ -71,10 +71,10 @@ export function useAdminApplications(
       return res.data;
     },
     {
-      revalidateOnFocus: options?.revalidateOnFocus ?? false,
-      revalidateIfStale: options?.revalidateIfStale,
-      refreshInterval: options?.refreshInterval,
-      dedupingInterval: options?.dedupingInterval ?? 5000,
+      revalidateOnFocus: options?.revalidateOnFocus ?? true,
+      revalidateIfStale: options?.revalidateIfStale ?? true,
+      refreshInterval: options?.refreshInterval ?? 3000,
+      dedupingInterval: options?.dedupingInterval ?? 1500,
     }
   );
 

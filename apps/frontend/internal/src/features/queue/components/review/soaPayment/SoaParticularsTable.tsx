@@ -3,6 +3,7 @@ import { View, Text, Pressable, Platform } from "react-native";
 import { useTheme, COLORS, RADIUS, TYPOGRAPHY, Icon as Lucide, DatePickerInput } from "@edge/ui";
 import { ApplicationData, SoaItem } from "../../../../../types/application";
 import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "../reviewFormatters";
+import { resolveParticularNumber } from "../../../utils/soaReportGenerator";
 import { reviewStyles as styles } from "../reviewStyles";
 
 interface SoaParticularsTableProps {
@@ -57,6 +58,11 @@ export function SoaParticularsTable({
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
                 {app.soaNumber}
               </Text>
+              {Boolean(resolveParticularNumber(app)) && (
+                <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? colors.neutral[300] : colors.neutral[600] }}>
+                  • Particular: <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[700] }}>{resolveParticularNumber(app)}</Text>
+                </Text>
+              )}
               <View
                 style={{
                   paddingHorizontal: 8,
@@ -225,7 +231,7 @@ export function SoaParticularsTable({
               {item.noOfUnits}
             </Text>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-              {item.fees}
+              {typeof item.fees === 'number' ? formatAmount(item.fees) : (item.fees || '₱0.00')}
             </Text>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
               {formatAmount(item.amount)}
@@ -334,6 +340,59 @@ export function SoaParticularsTable({
                 </Text>
               </View>
             )}
+          </View>
+
+          {/* Enhanced Official SOA Remarks Banner Card */}
+          <View
+            style={[
+              styles.dueDateHighlightCard,
+              {
+                backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100],
+                borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                marginTop: 10,
+              },
+            ]}
+          >
+            <View style={styles.dueDateHeaderRow}>
+              <View style={styles.dueDateLabelGroup}>
+                <Lucide name="file-text" size={15} color={isDark ? colors.brand[400] : colors.brand[600]} />
+                <Text style={[styles.dueDateHighlightLabel, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                  SOA REMARKS & INSTRUCTIONS:
+                </Text>
+              </View>
+
+              {isEditable && !hasPayment && !isForAccountant && (
+                <Pressable
+                  style={[
+                    styles.editDueDateBtn,
+                    {
+                      backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                      borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                    },
+                    Platform.select({ web: { cursor: 'pointer' } as object }),
+                  ]}
+                  onPress={onOpenGenerateSoa}
+                >
+                  <Lucide name="edit-2" size={12} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                  <Text style={[styles.editDueDateBtnText, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
+                    Edit Remarks
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+
+            <View style={{ marginTop: 6, paddingHorizontal: 2 }}>
+              <Text
+                style={{
+                  fontSize: 12,
+                  lineHeight: 18,
+                  color: isDark ? colors.neutral[200] : colors.neutral[800],
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                }}
+              >
+                {app.soaRemarks || app.remarks || 'Please settle this Statement of Account on or before the due date.'}
+              </Text>
+            </View>
           </View>
         </View>
       </View>

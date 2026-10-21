@@ -9,6 +9,7 @@ export interface ResolvedUserProfile {
   email: string;
   phone: string;
   sex: string;
+  civilStatus: string;
   nationality: string;
   height: string;
   weight: string;
@@ -156,6 +157,12 @@ export function extractUserProfile(
     str(db.sex) ||
     str(metaProfile.sex) ||
     "Male";
+
+  const civilStatus =
+    str(localProfile?.civilStatus) ||
+    str(db.civilStatus) ||
+    str(metaProfile.civilStatus) ||
+    "";
 
   const nationality =
     str(localProfile?.nationality) ||
@@ -389,6 +396,7 @@ export function extractUserProfile(
     email,
     phone,
     sex,
+    civilStatus,
     nationality,
     height,
     weight,

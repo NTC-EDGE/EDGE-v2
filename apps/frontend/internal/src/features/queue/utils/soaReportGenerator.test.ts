@@ -2,6 +2,7 @@ import { ApplicationData } from '../../../types/application';
 import {
   generateSoaPrintableHtml,
   generateOpPrintableHtml,
+  resolveParticularNumber,
   generateFullApplicationSummaryHtml,
 } from './soaReportGenerator';
 
@@ -254,6 +255,84 @@ describe('SOA and OP Report Generator', () => {
       const html = generateSoaPrintableHtml(fallbackApp);
       expect(html).toContain('Engr. Fallback Evaluator');
       expect(html).toContain('Chief Fallback Approver');
+    });
+
+    it('should display checkmarks instead of [X] or YES in checkbox strip and endorsement', () => {
+      const html = generateSoaPrintableHtml(mockApplication);
+      expect(html).toContain('[✓]');
+      expect(html).not.toContain('[X]');
+    });
+
+    it('should format dates with complete month name and comma (e.g. October 13, 2026)', () => {
+      const html = generateSoaPrintableHtml(mockApplication);
+      expect(html).toContain('September 21, 2026');
+      expect(html).toContain('October 21, 2026');
+    });
+
+    it('should mark Official Application checked and For Assessment Only unchecked when filed officially', () => {
+      const officialApp: ApplicationData = {
+        ...mockApplication,
+        intent: 'Regular',
+        isAssessmentOnly: false,
+      };
+      const html = generateSoaPrintableHtml(officialApp);
+      expect(html).toContain('[✓]</strong> Official Application');
+      expect(html).toContain('[ ]</strong> For Assessment Only');
+    });
+
+    it('should render official SOA remarks when soaRemarks is present', () => {
+      const appWithRemarks: ApplicationData = {
+        ...mockApplication,
+        soaRemarks: 'Payment via Landbank on or before October 30, 2026. Official Region VII terms apply.',
+      };
+      const html = generateSoaPrintableHtml(appWithRemarks);
+      expect(html).toContain('REMARKS:');
+      expect(html).toContain('Payment via Landbank on or before October 30, 2026. Official Region VII terms apply.');
+    });
+
+    it('should resolve particular number from license, permit, or certificate number in formFieldValues', () => {
+      const appWithLicense: ApplicationData = {
+        ...mockApplication,
+        applicationNumber: 'APP-2026-0001',
+        referenceNumber: 'REF-2026-0001',
+        formFieldValues: [
+          { fieldId: 'lic-num', fieldLabel: 'License Number', value: 'RSL-2026-9999' }
+        ],
+      };
+      expect(resolveParticularNumber(appWithLicense)).toBe('RSL-2026-9999');
+
+      const html = generateSoaPrintableHtml(appWithLicense);
+      expect(html).toContain('Particular (App/Permit/Lic/Cert No.):');
+      expect(html).toContain('RSL-2026-9999');
+    });
+
+    it('should fall back to applicationNumber and referenceNumber when formFieldValues has no license or permit', () => {
+      const appWithAppNum: ApplicationData = {
+        ...mockApplication,
+        applicationNumber: 'APP-2026-7777',
+        referenceNumber: 'REF-2026-8888',
+        formFieldValues: [],
+      };
+      expect(resolveParticularNumber(appWithAppNum)).toBe('APP-2026-7777');
+
+      const appWithRefOnly: ApplicationData = {
+        ...mockApplication,
+        applicationNumber: '',
+        referenceNumber: 'REF-2026-8888',
+        formFieldValues: [],
+      };
+      expect(resolveParticularNumber(appWithRefOnly)).toBe('REF-2026-8888');
+    });
+
+    it('should mark For Assessment Only checked and Official Application unchecked when filed as assessment only', () => {
+      const assessmentApp: ApplicationData = {
+        ...mockApplication,
+        intent: 'AssessmentOnly',
+        isAssessmentOnly: true,
+      };
+      const html = generateSoaPrintableHtml(assessmentApp);
+      expect(html).toContain('[✓]</strong> For Assessment Only');
+      expect(html).toContain('[ ]</strong> Official Application');
     });
   });
 

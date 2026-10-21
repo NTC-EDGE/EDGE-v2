@@ -44,6 +44,7 @@ export function ReceiptPrintPreviewModal({
   const [showCalibrationSettings, setShowCalibrationSettings] = useState<boolean>(false);
   const [isSavedFeedback, setIsSavedFeedback] = useState<boolean>(false);
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
+  const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
   const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
   const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
@@ -52,6 +53,7 @@ export function ReceiptPrintPreviewModal({
   useEffect(() => {
     if (visible) {
       setViewFormat('pdf');
+      setOrTemplate('landscape');
       setShowActionMenu(false);
       const savedConfig = loadUserReportPrintConfig('AF-51', userId);
       if (savedConfig !== null && savedConfig !== undefined) {
@@ -77,7 +79,7 @@ export function ReceiptPrintPreviewModal({
 
       const loadBlob = async () => {
         try {
-          const [blob, err] = await receiptService.previewReceiptPdf(receipt.id);
+          const [blob, err] = await receiptService.previewReceiptPdf(receipt.id, orTemplate);
 
           if (!active) return;
 
@@ -115,7 +117,7 @@ export function ReceiptPrintPreviewModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [visible, receipt?.id, viewFormat, reloadKey]);
+  }, [visible, receipt?.id, viewFormat, reloadKey, orTemplate]);
 
   useEffect(() => {
     if (!showActionMenu) return;
@@ -158,7 +160,7 @@ export function ReceiptPrintPreviewModal({
   const handlePrint = async () => {
     if (viewFormat === 'pdf') {
       try {
-        const [pdfBlob, err] = await receiptService.previewReceiptPdf(receipt.id);
+        const [pdfBlob, err] = await receiptService.previewReceiptPdf(receipt.id, orTemplate);
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
           const printWindow = window.open(blobUrl, '_blank');
@@ -171,7 +173,7 @@ export function ReceiptPrintPreviewModal({
         console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
       }
 
-      const url = receiptService.getReceiptPrintUrl(receipt.id);
+      const url = receiptService.getReceiptPrintUrl(receipt.id, orTemplate);
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWin = window.open(url, '_blank');
         if (printWin !== null) {
@@ -184,7 +186,7 @@ export function ReceiptPrintPreviewModal({
     const printOptions: OfficialReceiptPrintOptions = {
       outputMode,
       paperSize: 'letter',
-      orientation: 'portrait',
+      orientation: orTemplate === 'landscape' ? 'landscape' : 'portrait',
       calibration: {
         offsetXmm: offsetX,
         offsetYmm: offsetY,
@@ -198,8 +200,9 @@ export function ReceiptPrintPreviewModal({
     openDocumentPrintWindow(html);
   };
 
-  const handleDownloadPdf = () => {
-    const url = receiptService.getReceiptDownloadUrl(receipt.id);
+  const handleDownloadPdf = (targetTemplate?: 'portrait' | 'landscape') => {
+    const chosenTemplate = targetTemplate || orTemplate;
+    const url = receiptService.getReceiptDownloadUrl(receipt.id, chosenTemplate);
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.open(url, '_blank');
     }
@@ -337,14 +340,29 @@ export function ReceiptPrintPreviewModal({
                   style={styles.dropdownMenuItem}
                   onPress={() => {
                     setShowActionMenu(false);
-                    handleDownloadPdf();
+                    handleDownloadPdf('landscape');
                   }}
                   activeOpacity={0.7}
                 >
-                  <Lucide name="download" size={16} color={colors.brand.primary} />
+                  <Lucide name="layout" size={16} color={colors.brand.primary} />
                   <View style={styles.dropdownMenuTextContainer}>
-                    <Text style={styles.dropdownMenuItemText}>Download Official PDF</Text>
-                    <Text style={styles.dropdownMenuItemSubtext}>Canonical vector PDF template</Text>
+                    <Text style={styles.dropdownMenuItemText}>Download Landscape (AF-51)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Accountable Form 51 wide vector template</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadPdf('portrait');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="file-text" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Download Portrait (Standard)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Accountable Form 51 standard template</Text>
                   </View>
                 </TouchableOpacity>
 
@@ -394,6 +412,65 @@ export function ReceiptPrintPreviewModal({
               </View>
             )}
           </View>
+
+          {/* Template Format Selector for PDF: Landscape vs Portrait */}
+          {Platform.OS === 'web' && viewFormat === 'pdf' && (
+            <View style={styles.templateSwitcherBar}>
+              <View style={styles.templateSwitcherLabelRow}>
+                <Lucide name="printer" size={13} color={colors.neutral[600]} />
+                <Text style={[styles.templateSwitcherLabel, { color: colors.neutral[600] }]}>
+                  OR TEMPLATE FORMAT:
+                </Text>
+              </View>
+              <View style={styles.templateSwitcherButtonsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.templateOptionBtn,
+                    orTemplate === 'landscape' && styles.templateOptionBtnActive,
+                  ]}
+                  onPress={() => setOrTemplate('landscape')}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="layout"
+                    size={12}
+                    color={orTemplate === 'landscape' ? '#059669' : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.templateOptionBtnText,
+                      orTemplate === 'landscape' && styles.templateOptionBtnTextActive,
+                    ]}
+                  >
+                    Landscape (AF-51 Template)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.templateOptionBtn,
+                    orTemplate === 'portrait' && styles.templateOptionBtnActive,
+                  ]}
+                  onPress={() => setOrTemplate('portrait')}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={12}
+                    color={orTemplate === 'portrait' ? '#059669' : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.templateOptionBtnText,
+                      orTemplate === 'portrait' && styles.templateOptionBtnTextActive,
+                    ]}
+                  >
+                    Portrait (Standard)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
 
           {Platform.OS === 'web' && viewFormat === 'pdf' ? (
             <View style={styles.pdfContainer}>
@@ -1409,5 +1486,56 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: '#64748b',
     marginTop: 4,
+  },
+  templateSwitcherBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  templateSwitcherLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  templateSwitcherLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  templateSwitcherButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  templateOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  templateOptionBtnActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#059669',
+  },
+  templateOptionBtnText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  templateOptionBtnTextActive: {
+    color: '#065F46',
+    fontWeight: '700',
   },
 });

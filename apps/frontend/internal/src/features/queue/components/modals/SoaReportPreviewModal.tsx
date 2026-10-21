@@ -96,6 +96,7 @@ interface SoaReportPreviewModalProps {
   initialDocType?: ReportDocumentType;
   onClose: () => void;
   onOpenGenerateSoa?: () => void;
+  onApproveOp?: () => void;
 }
 
 export function SoaReportPreviewModal({
@@ -104,6 +105,7 @@ export function SoaReportPreviewModal({
   initialDocType = 'soa',
   onClose,
   onOpenGenerateSoa,
+  onApproveOp,
 }: SoaReportPreviewModalProps) {
   const { colors, isDark } = useTheme();
   const [docType, setDocType] = useState<ReportDocumentType>(initialDocType);
@@ -114,6 +116,7 @@ export function SoaReportPreviewModal({
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [opCopyView, setOpCopyView] = useState<'both' | 'payor' | 'collecting'>('both');
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
+  const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
 
   const orRaw = app.payment?.orNumber ?? null;
   const orList = orRaw
@@ -131,6 +134,7 @@ export function SoaReportPreviewModal({
     if (visible) {
       setDocType(initialDocType);
       setViewFormat('pdf');
+      setOrTemplate('landscape');
       setShowActionMenu(false);
       if (orList.length > 0) {
         setSelectedOrNumber(orList[0]);
@@ -173,7 +177,7 @@ export function SoaReportPreviewModal({
             ? await applicationService.previewSoaPdf(app.id)
             : docType === 'op'
               ? await applicationService.previewOpPdf(app.id)
-              : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined);
+              : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
           if (!active) {
             return;
@@ -215,7 +219,7 @@ export function SoaReportPreviewModal({
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [app.id, docType, viewFormat, reloadKey, effectiveSelectedOr]);
+  }, [app.id, docType, viewFormat, reloadKey, effectiveSelectedOr, orTemplate]);
 
   const handleRetryPdf = () => {
     setReloadKey((prev) => prev + 1);
@@ -230,7 +234,7 @@ export function SoaReportPreviewModal({
           ? await applicationService.previewSoaPdf(app.id)
           : docType === 'op'
             ? await applicationService.previewOpPdf(app.id)
-            : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined);
+            : await applicationService.previewOrPdf(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
         if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
           const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -248,7 +252,7 @@ export function SoaReportPreviewModal({
         ? applicationService.getSoaPrintUrl(app.id)
         : docType === 'op'
           ? applicationService.getOpPrintUrl(app.id)
-          : applicationService.getOrPrintUrl(app.id, effectiveSelectedOr ?? undefined);
+          : applicationService.getOrPrintUrl(app.id, effectiveSelectedOr ?? undefined, orTemplate);
 
       if (Platform.OS === 'web' && typeof window !== 'undefined') {
         const printWindow = window.open(url, '_blank');
@@ -263,7 +267,11 @@ export function SoaReportPreviewModal({
     openPrintableDocumentWindow(html);
   };
 
-  const handleDownloadSpecificPdf = async (targetDoc: ReportDocumentType, targetOrNumber?: string) => {
+  const handleDownloadSpecificPdf = async (
+    targetDoc: ReportDocumentType,
+    targetOrNumber?: string,
+    targetTemplate?: 'portrait' | 'landscape'
+  ) => {
     if (targetDoc === 'summary') {
       const html = generateFullApplicationSummaryHtml(app);
       openPrintableDocumentWindow(html);
@@ -271,13 +279,14 @@ export function SoaReportPreviewModal({
     }
 
     const resolvedOr = targetOrNumber || effectiveSelectedOr || undefined;
+    const resolvedTemplate = targetTemplate || orTemplate;
 
     try {
       const [pdfBlob, err] = targetDoc === 'soa'
         ? await applicationService.downloadSoaPdf(app.id)
         : targetDoc === 'op'
           ? await applicationService.downloadOpPdf(app.id)
-          : await applicationService.downloadOrPdf(app.id, resolvedOr);
+          : await applicationService.downloadOrPdf(app.id, resolvedOr, resolvedTemplate);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined' && typeof document !== 'undefined') {
         const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -286,7 +295,8 @@ export function SoaReportPreviewModal({
         const ref = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
           ? (resolvedOr || app.payment?.orNumber)
           : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
-        link.download = `${targetDoc.toUpperCase()}_${ref}.pdf`;
+        const suffix = targetDoc === 'or' ? `_${resolvedTemplate.toUpperCase()}` : '';
+        link.download = `${targetDoc.toUpperCase()}_${ref}${suffix}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -301,7 +311,7 @@ export function SoaReportPreviewModal({
       ? applicationService.getSoaDownloadUrl(app.id)
       : targetDoc === 'op'
         ? applicationService.getOpDownloadUrl(app.id)
-        : applicationService.getOrDownloadUrl(app.id, resolvedOr);
+        : applicationService.getOrDownloadUrl(app.id, resolvedOr, resolvedTemplate);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       window.open(url, '_blank');
@@ -1260,6 +1270,90 @@ export function SoaReportPreviewModal({
             </View>
           )}
 
+          {/* Template Selector on Web for OR: Landscape vs Portrait */}
+          {Platform.OS === 'web' && docType === 'or' && (
+            <View
+              style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: SPACING[16],
+                paddingVertical: SPACING[6],
+                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                borderBottomWidth: 1,
+                borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[200],
+              }}
+            >
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Lucide name="printer" size={13} color={isDark ? colors.neutral[400] : colors.neutral[600]} />
+                <Text style={{ fontSize: 11, fontWeight: '700', color: isDark ? colors.neutral[400] : colors.neutral[600] }}>
+                  OR TEMPLATE FORMAT:
+                </Text>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: RADIUS.xs,
+                    backgroundColor: orTemplate === 'landscape' ? (isDark ? colors.brand[900] : colors.brand[100]) : 'transparent',
+                    borderWidth: 1,
+                    borderColor: orTemplate === 'landscape' ? (isDark ? colors.brand[500] : colors.brand[600]) : 'transparent',
+                  }}
+                  onPress={() => setOrTemplate('landscape')}
+                >
+                  <Lucide
+                    name="layout"
+                    size={12}
+                    color={orTemplate === 'landscape' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[600])}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: orTemplate === 'landscape' ? '700' : '500',
+                      color: orTemplate === 'landscape' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[600]),
+                    }}
+                  >
+                    Landscape (AF-51 Template)
+                  </Text>
+                </Pressable>
+
+                <Pressable
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 4,
+                    paddingHorizontal: 10,
+                    paddingVertical: 4,
+                    borderRadius: RADIUS.xs,
+                    backgroundColor: orTemplate === 'portrait' ? (isDark ? colors.brand[900] : colors.brand[100]) : 'transparent',
+                    borderWidth: 1,
+                    borderColor: orTemplate === 'portrait' ? (isDark ? colors.brand[500] : colors.brand[600]) : 'transparent',
+                  }}
+                  onPress={() => setOrTemplate('portrait')}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={12}
+                    color={orTemplate === 'portrait' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[600])}
+                  />
+                  <Text
+                    style={{
+                      fontSize: 11,
+                      fontWeight: orTemplate === 'portrait' ? '700' : '500',
+                      color: orTemplate === 'portrait' ? (isDark ? colors.brand[300] : colors.brand[700]) : (isDark ? colors.neutral[400] : colors.neutral[600]),
+                    }}
+                  >
+                    Portrait (Standard)
+                  </Text>
+                </Pressable>
+              </View>
+            </View>
+          )}
+
           {Platform.OS === 'web' && (docType === 'soa' || docType === 'op' || docType === 'or') && isLoadingPdf && (
             <View style={{ width: '100%', height: 3, overflow: 'hidden' }}>
               <PdfLoadBar height={3} />
@@ -1841,6 +1935,26 @@ export function SoaReportPreviewModal({
                 Close
               </Text>
             </Pressable>
+
+            {docType === 'op' && onApproveOp !== undefined && (
+              <Pressable
+                style={[
+                  styles.printBtn,
+                  {
+                    backgroundColor: isDark ? '#166534' : '#15803D',
+                  },
+                ]}
+                onPress={() => {
+                  onClose();
+                  onApproveOp();
+                }}
+              >
+                <Lucide name="check-circle" size={14} color={COLORS.neutral.white} />
+                <Text style={styles.printBtnText}>
+                  Approve & Issue OP
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>

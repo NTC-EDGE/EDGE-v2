@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useApi } from "../../shared/hooks/useApi";
@@ -19,6 +20,27 @@ import {
   ApiApplicationDto,
   mapApiApplicationToApplication,
 } from "./data/applicationsData";
+
+function mapStatusFilterToBackend(status: StatusFilterOption): string | null {
+  switch (status) {
+    case 'PENDING':
+      return 'Submitted';
+    case 'FOR_EVALUATION':
+      return 'Evaluating';
+    case 'READY_FOR_PAYMENT':
+      return 'PendingPayment';
+    case 'FOR_APPROVAL':
+      return 'ForIssuance';
+    case 'APPROVED':
+      return 'Completed';
+    case 'DECLINED':
+      return 'Returned';
+    case 'EXPIRING_SOON':
+      return null;
+    default:
+      return null;
+  }
+}
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
 import { ClientAppLayout } from "../../shared/components/ClientAppLayout";
 import {
@@ -127,11 +149,13 @@ export function MyApplications() {
   }, [filterText, debouncedSearch]);
 
   // Fetch applications from /api/v2/applications/me with pagination, search, and mode/status filters
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (isSilent = false) => {
     let isMounted = true;
     try {
-      setIsLoading(true);
-      setErrorMessage(null);
+      if (!isSilent) {
+        setIsLoading(true);
+        setErrorMessage(null);
+      }
 
       const params = new URLSearchParams();
       params.set("pageNumber", String(currentPage));
@@ -146,7 +170,10 @@ export function MyApplications() {
         }
       }
       if (selectedStatus !== "ALL") {
-        params.set("status", selectedStatus);
+        const backendStatus = mapStatusFilterToBackend(selectedStatus);
+        if (backendStatus !== null) {
+          params.set("status", backendStatus);
+        }
       }
 
       const res = await api.get<unknown>(`/api/v2/applications/me?${params.toString()}`);
@@ -201,6 +228,13 @@ export function MyApplications() {
           )
         );
         setApplications(mappedList);
+
+        // Keep active detail modal up to date in real-time when status changes
+        setSelectedApp((prev) => {
+          if (!prev) return null;
+          const updated = mappedList.find((a) => a.id === prev.id);
+          return updated || prev;
+        });
       } else {
         setApplications([]);
         setServerTotalCount(0);
@@ -208,18 +242,48 @@ export function MyApplications() {
       }
     } catch (err) {
       console.error("Failed to load user applications:", err);
-      if (isMounted) {
+      if (isMounted && !isSilent) {
         setErrorMessage("Unable to load applications. Please check your connection.");
       }
     } finally {
-      if (isMounted) {
+      if (isMounted && !isSilent) {
         setIsLoading(false);
       }
     }
   }, [currentPage, debouncedSearch, selectedMode, selectedStatus]);
 
+  const handleManualRefresh = useCallback(() => {
+    fetchApplications(false);
+  }, [fetchApplications]);
+
   useEffect(() => {
-    fetchApplications();
+    let isMounted = true;
+    fetchApplications(false);
+
+    // Live background polling every 3 seconds so status changes reflect without page refresh
+    const timer = setInterval(() => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    }, 3000);
+
+    const handleFocus = () => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+    }
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+      }
+    };
   }, [fetchApplications]);
 
   // Sorted & Filtered Applications
@@ -300,7 +364,7 @@ export function MyApplications() {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={fetchApplications}
+                onPress={handleManualRefresh}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -651,7 +715,7 @@ export function MyApplications() {
                     {errorMessage}
                   </Text>
                   <TouchableOpacity
-                    onPress={fetchApplications}
+                    onPress={handleManualRefresh}
                     style={{
                       marginTop: 16,
                       backgroundColor: "#DC2626",
@@ -670,7 +734,7 @@ export function MyApplications() {
                   <Icon name="file-text" size={36} color="#CBD5E1" />
                   <Text style={styles.emptyStateTitle}>
                     {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
-                      ? "No applications match your filter"
+                      ? "No applications found matching your criteria"
                       : "No filed applications yet"}
                   </Text>
                   <Text style={styles.emptyStateSub}>
@@ -691,7 +755,7 @@ export function MyApplications() {
             </View>
 
             {/* ── Pagination Bar ────────────────────────────────────────────── */}
-            {serverTotalPages > 1 && (
+            {serverTotalPages > 1 && serverTotalCount > 0 && displayedApps.length > 0 && (
               <View style={styles.paginationBar}>
                 <Text style={styles.paginationSummary}>
                   Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{" "}

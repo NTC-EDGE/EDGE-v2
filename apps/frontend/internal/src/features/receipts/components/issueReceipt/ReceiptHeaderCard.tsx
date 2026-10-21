@@ -28,6 +28,11 @@ interface ReceiptHeaderCardProps {
   setCheckDate: (v: string) => void;
   onlineReference?: string;
   setOnlineReference?: (v: string) => void;
+  issueDate?: string;
+  setIssueDate?: (v: string) => void;
+  dateChangeReason?: string;
+  setDateChangeReason?: (v: string) => void;
+  todayStr?: string;
 }
 
 export function ReceiptHeaderCard({
@@ -49,6 +54,11 @@ export function ReceiptHeaderCard({
   setCheckDate,
   onlineReference = '',
   setOnlineReference,
+  issueDate,
+  setIssueDate,
+  dateChangeReason,
+  setDateChangeReason,
+  todayStr,
 }: ReceiptHeaderCardProps) {
   const { colors } = useTheme();
 
@@ -248,6 +258,48 @@ export function ReceiptHeaderCard({
               />
             </View>
           </View>
+        </View>
+      )}
+
+      {/* OR Issue Date Row */}
+      {issueDate !== undefined && setIssueDate !== undefined && (
+        <View style={[styles.onlineInlineBox, { borderTopColor: colors.neutral[200] }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+            <Text style={[styles.inlineFieldLabel, { color: colors.neutral[800], marginBottom: 0 }]}>
+              Official Receipt Issue Date
+            </Text>
+            {Boolean(todayStr && issueDate !== todayStr) && (
+              <View style={{ backgroundColor: '#FEF3C7', paddingHorizontal: 8, paddingVertical: 2, borderRadius: 4 }}>
+                <Text style={{ fontSize: 11, fontWeight: '700', color: '#B45309' }}>
+                  Date Overridden (Default: {todayStr})
+                </Text>
+              </View>
+            )}
+          </View>
+          <View style={{ maxWidth: 220 }}>
+            <DatePickerInput
+              label="OR Issue Date"
+              placeholder="YYYY-MM-DD"
+              value={issueDate}
+              onChangeText={setIssueDate}
+            />
+          </View>
+
+          {/* Reason for Override when not today */}
+          {Boolean(todayStr && issueDate !== todayStr && setDateChangeReason !== undefined) && (
+            <View style={{ marginTop: 8 }}>
+              <Text style={[styles.inlineFieldLabel, { color: '#B45309', marginBottom: 4, fontWeight: '700' }]}>
+                Reason for Date Override *
+              </Text>
+              <TextInput
+                style={[styles.input, { borderColor: '#F59E0B', color: colors.text, backgroundColor: '#FFFBEB' }]}
+                placeholder="Required: State why OR date differs from today (e.g., offline collection, mobile licensing)"
+                placeholderTextColor={colors.neutral[400]}
+                value={dateChangeReason ?? ''}
+                onChangeText={setDateChangeReason}
+              />
+            </View>
+          )}
         </View>
       )}
     </View>

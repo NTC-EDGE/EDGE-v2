@@ -761,6 +761,8 @@ export type Note = ServiceNote;
 
 export interface SoaNote {
   id: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
   code?: string | null;
   title?: string | null;
   notes: string;
@@ -913,6 +915,7 @@ export interface SoaHistoryDto {
   staffName: string;
   staffRole: string;
   remarks?: string;
+  soaNoteId?: string;
   timestamp: string;
 }
 
@@ -932,6 +935,7 @@ export interface StatementOfAccountDto {
   approvedByUserId?: string;
   approvedAt?: string;
   remarks?: string;
+  soaNoteId?: string;
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;
@@ -1123,6 +1127,8 @@ export interface ApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  soaNumber?: string;
+  opNumber?: string;
   amountPaid?: number;
   paidAt?: string;
   filingUser?: FilingUserDto;
@@ -1136,6 +1142,10 @@ export interface ApplicationDto {
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
   evaluatingOfficer?: string;
   issuingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  assignedOfficerName?: string;
+  assignedOfficerRole?: string;
 }
 
 export interface IssuedDocumentDetailDto {
@@ -1227,6 +1237,8 @@ export interface ApplicationSummaryDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  soaNumber?: string;
+  opNumber?: string;
   amountPaid?: number;
   paidAt?: string;
   totalAmountDue?: number;
@@ -1240,6 +1252,10 @@ export interface ApplicationSummaryDto {
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
   evaluatingOfficer?: string;
   issuingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  assignedOfficerName?: string;
+  assignedOfficerRole?: string;
 }
 
 // ─── Paged Applications & Statistics ────────────────────
@@ -1324,6 +1340,8 @@ export interface CreateSoaRequest {
   expirationDate?: string | null;
   additionalServicesCount?: number | null;
   noOfCopies?: number | null;
+  remarks?: string | null;
+  soaNoteId?: string | null;
 }
 
 export interface VerifyPaymentRequest {

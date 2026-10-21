@@ -41,8 +41,10 @@ public static class Ntc124FlatPdfOverlayMapper
 
         // 5. Incident Details
         var inc = app.Incident;
-        var incidentTypeField = inc.IncidentType == IncidentType124.Stolen ? Ntc124Fields.Incident.Stolen : Ntc124Fields.Incident.LostMisplaced;
-        items.Add(new CheckboxFieldOverlay(incidentTypeField, true));
+        var incidentTypeField = inc.IncidentType == IncidentType124.Stolen ? Ntc124Fields.Incident.Stolen : inc.IncidentType == IncidentType124.LostMisplaced ? Ntc124Fields.Incident.LostMisplaced : null;
+        if (incidentTypeField != null) items.Add(new CheckboxFieldOverlay(incidentTypeField, true));
+
+
 
         var sexField = inc.Sex == Sex.Male ? Ntc124Fields.Incident.Male : Ntc124Fields.Incident.Female;
         items.Add(new CheckboxFieldOverlay(sexField, true));

@@ -412,10 +412,25 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const accountingOfficer = resolveAccountingOfficer(reversedHistories);
-  const cashierOfficer = resolveCashierOfficer(reversedHistories);
-  const issuingOfficer = resolveIssuingOfficer(reversedHistories);
-  const evaluatingOfficer = resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+  const accountingOfficer =
+    ('accountingOfficer' in dto && typeof dto.accountingOfficer === 'string' && dto.accountingOfficer.trim().length > 0)
+      ? dto.accountingOfficer.trim()
+      : resolveAccountingOfficer(reversedHistories);
+
+  const cashierOfficer =
+    ('cashierOfficer' in dto && typeof dto.cashierOfficer === 'string' && dto.cashierOfficer.trim().length > 0)
+      ? dto.cashierOfficer.trim()
+      : resolveCashierOfficer(reversedHistories);
+
+  const issuingOfficer =
+    ('issuingOfficer' in dto && typeof dto.issuingOfficer === 'string' && dto.issuingOfficer.trim().length > 0)
+      ? dto.issuingOfficer.trim()
+      : resolveIssuingOfficer(reversedHistories);
+
+  const evaluatingOfficer =
+    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
+      ? dto.evaluatingOfficer.trim()
+      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
   const assignedTo = resolveAssignedTo(
     feStatus,
     evaluatingOfficer,
@@ -425,6 +440,21 @@ export function mapApplicationDtoToUI(
     endorsementState,
     dto.office
   );
+
+  const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
+    ? [...dto.ordersOfPayment].sort((a, b) => {
+        const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
+        const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
+        if (hasOrA && !hasOrB) return -1;
+        if (!hasOrA && hasOrB) return 1;
+
+        const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+        const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+        return timeB - timeA;
+      })[0]
+    : undefined;
 
   return {
     id: dto.id,
@@ -443,6 +473,7 @@ export function mapApplicationDtoToUI(
       hasAccountantHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('accountant') || (h.action || '').toLowerCase().includes('accountant') || (h.remarks || '').toLowerCase().includes('accountant')),
       hasCashierHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('cashier') || (h.action || '').toLowerCase().includes('cashier') || (h.remarks || '').toLowerCase().includes('cashier')),
       remarks: dto.remarks ?? undefined,
+      category: resolvedCategory,
     }),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',
@@ -489,7 +520,10 @@ export function mapApplicationDtoToUI(
     issuingOfficer: issuingOfficer || dto.issuingOfficer,
     soaId: activeSoa?.id,
     statementOfAccountId: activeSoa?.id,
-    soaNumber: activeSoa?.soaNumber,
+    soaNumber: activeSoa?.soaNumber ?? ('soaNumber' in dto && typeof dto.soaNumber === 'string' ? dto.soaNumber : undefined),
+    officialReceiptNumber: ('officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string' && dto.officialReceiptNumber.trim().length > 0)
+      ? dto.officialReceiptNumber
+      : (activeOp?.officialReceiptNumber ?? undefined),
     soaStatus: activeSoa?.status,
     soaIssuedToName: activeSoa?.issuedToName,
     soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
@@ -500,14 +534,16 @@ export function mapApplicationDtoToUI(
     soaPreparedByTitle: activeSoa?.preparedByTitle,
     soaApprovedByName: activeSoa?.approvedByName,
     soaApprovedByTitle: activeSoa?.approvedByTitle,
+    soaRemarks: activeSoa?.remarks ?? undefined,
+    soaNoteId: activeSoa?.soaNoteId ?? undefined,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
     isUrgent: false,
     isPinned: Boolean(dto.isPinned),
     isArchived: Boolean(dto.isArchived),
-    intent: (dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1) ? 'AssessmentOnly' : 'Regular',
-    isAssessmentOnly: dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1,
+    intent: (dto.intent === 'AssessmentOnly' || (typeof dto.intent === 'number' && dto.intent === 1)) ? 'AssessmentOnly' : 'Regular',
+    isAssessmentOnly: dto.intent === 'AssessmentOnly' || (typeof dto.intent === 'number' && dto.intent === 1),
     address: {
       streetAddress: primaryStreet,
       address: primaryStreet,
@@ -559,21 +595,6 @@ export function mapApplicationDtoToUI(
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',
     payment: (() => {
-      const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
-        ? [...dto.ordersOfPayment].sort((a, b) => {
-            const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
-            const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
-            if (hasOrA && !hasOrB) return -1;
-            if (!hasOrA && hasOrB) return 1;
-
-            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
-            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
-            return timeB - timeA;
-          })[0]
-        : undefined;
-
       const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
         ? dto.officialReceiptNumber
         : '';
