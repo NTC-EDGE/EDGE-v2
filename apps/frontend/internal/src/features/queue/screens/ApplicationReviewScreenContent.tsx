@@ -1089,7 +1089,7 @@ export function ApplicationReviewScreenContent({
         onEndorse={() => setShowEndorse(true)}
         onPrintAccountableForm={() => handlePrintAccountableForm()}
         onPrintSoa={() => handlePreviewReport('soa')}
-        onPreviewOp={(isForAccountant || showAccountantBtn || hasSoa) ? () => handlePreviewReport('op') : undefined}
+        onPreviewOp={(isForAccountant || showAccountantBtn) ? () => handlePreviewReport('op') : undefined}
         onPreviewOr={(isPendingPayment || showCashierBtn) ? () => handlePreviewReport('or') : undefined}
       />
 
