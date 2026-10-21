@@ -106,12 +106,15 @@ function buildDateGroups(
   apps: ApplicationData[],
   sortOrder: SortOrder,
 ): DateGroup[] {
+  const pinnedItems = apps.filter((a) => Boolean(a.isPinned));
+  const unpinnedApps = apps.filter((a) => !a.isPinned);
+
   const groupMap = new Map<
     string,
     { label: string; items: ApplicationData[]; ts: number }
   >();
 
-  for (const app of apps) {
+  for (const app of unpinnedApps) {
     const dateStr = app.createdAt;
     const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
@@ -128,15 +131,33 @@ function buildDateGroups(
     sortOrder === "newest" ? b.ts - a.ts : a.ts - b.ts,
   );
 
-  return sorted.map(([dateKey, { label, items }]) => ({
-    label,
-    dateKey,
-    items: [...items].sort((a, b) => {
-      const aTime = new Date(a.createdAt).getTime();
-      const bTime = new Date(b.createdAt).getTime();
-      return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
-    }),
-  }));
+  const result: DateGroup[] = [];
+
+  if (pinnedItems.length > 0) {
+    result.push({
+      label: "PINNED TO TOP",
+      dateKey: "pinned",
+      items: [...pinnedItems].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  for (const [dateKey, { label, items }] of sorted) {
+    result.push({
+      label,
+      dateKey,
+      items: [...items].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  return result;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -214,23 +235,67 @@ export function ActivitiesFeedPane({
 
   const togglePinApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    const [res, err] = await applicationService.togglePin(id, app?.isPinned !== true);
+    const nextPinned = app?.isPinned !== true;
+
+    // 1. Optimistic update in SWR cache for immediate UI re-sorting
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.togglePin(id, nextPinned);
     if (err !== null) {
       toast.error("Failed to pin/unpin application.");
+      await refetch();
       return;
     }
+    toast.success(nextPinned ? "Application pinned to top." : "Application unpinned.");
     await mutateApplications(id);
     await refetch();
   }, [applications, refetch]);
 
   const toggleArchiveApplication = useCallback(async (id: string) => {
     const app = applications.find((a) => a.id === id);
-    const [res, err] = await applicationService.toggleArchive(id, app?.isArchived !== true);
+    const nextArchived = app?.isArchived !== true;
+
+    // 1. Optimistic update in SWR cache
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.toggleArchive(id, nextArchived);
     if (err !== null) {
       toast.error("Failed to archive/unarchive application.");
+      await refetch();
       return;
     }
     if (selectedId === id) setSelectedId?.(null);
+    toast.success(nextArchived ? "Application archived." : "Application unarchived.");
     await mutateApplications(id);
     await refetch();
   }, [applications, selectedId, setSelectedId, refetch]);
