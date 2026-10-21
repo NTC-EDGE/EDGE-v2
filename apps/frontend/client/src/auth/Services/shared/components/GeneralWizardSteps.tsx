@@ -119,6 +119,7 @@ export function GeneralWizardSteps({
           errors={errors}
           filingIntent={filingIntent}
           onFilingIntentChange={onFilingIntentChange}
+          service={service}
         />
       );
     case 2:

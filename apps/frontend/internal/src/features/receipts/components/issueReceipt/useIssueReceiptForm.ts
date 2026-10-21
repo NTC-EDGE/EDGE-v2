@@ -49,6 +49,9 @@ export function useIssueReceiptForm({
   const [lineItems, setLineItems] = useState<IssueReceiptLineItemInput[]>([{ feeCode: 'FEE', description: '', amount: 0 }]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const todayStr = useMemo(() => new Date().toISOString().split('T')[0] ?? '', []);
+  const [issueDate, setIssueDate] = useState(() => new Date().toISOString().split('T')[0] ?? '');
+  const [dateChangeReason, setDateChangeReason] = useState('');
 
   const isFromPendingPayment = pendingPayment !== undefined && pendingPayment !== null;
   const preferredBreakdown = useMemo(() => parsePaymentBreakdown(pendingPayment?.remarks), [pendingPayment?.remarks]);
@@ -59,6 +62,9 @@ export function useIssueReceiptForm({
       const parsed = parsePaymentBreakdown(pendingPayment.remarks);
       const resolvedPayorName = parsed?.payorName || pendingPayment.payorName || pendingPayment.applicantName || '';
       setPayorName(resolvedPayorName);
+      if (pendingPayment.payorAddress) {
+        setPayorAddress(pendingPayment.payorAddress);
+      }
       const parsedCheck = parsed?.items.find((i) => i.mode === 'Check');
       const parsedOnline = parsed?.items.find((i) => i.mode === 'Online');
 
@@ -283,6 +289,10 @@ export function useIssueReceiptForm({
       setErrorMsg('No active OR booklet series found. Please register an OR booklet first or use manual override.');
       return;
     }
+    if (issueDate !== todayStr && !dateChangeReason.trim()) {
+      setErrorMsg('A reason is required when overriding the Official Receipt issue date.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg(null);
@@ -312,6 +322,8 @@ export function useIssueReceiptForm({
       remarks: finalRemarks,
       lineItems: validLineItems,
       allowPartialPayment: issuanceStrategy === 'SplitPerMode',
+      issueDate: issueDate !== todayStr ? issueDate : undefined,
+      dateChangeReason: issueDate !== todayStr ? dateChangeReason.trim() : undefined,
     });
 
     setIsSubmitting(false);
@@ -325,6 +337,8 @@ export function useIssueReceiptForm({
       setCheckDate('');
       setOnlineReference('');
       setRemarks('');
+      setIssueDate(todayStr);
+      setDateChangeReason('');
       onSuccess(res ?? undefined);
       onClose();
     }
@@ -359,6 +373,11 @@ export function useIssueReceiptForm({
     isSubmitting,
     errorMsg,
     isFromPendingPayment,
+    issueDate,
+    setIssueDate,
+    dateChangeReason,
+    setDateChangeReason,
+    todayStr,
     preferredBreakdown,
     totalAmount,
     handleSelectSplitItem,

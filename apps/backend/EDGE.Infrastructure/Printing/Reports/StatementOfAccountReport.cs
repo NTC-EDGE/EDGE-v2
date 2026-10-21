@@ -201,7 +201,7 @@ public class StatementOfAccountReport : IDocument
                 c.Item().Row(r =>
                 {
                     r.AutoItem().Text("DATE: ").Bold().FontSize(8f);
-                    r.RelativeItem().Text(_model.Date ?? DateTime.UtcNow.ToString("MMM dd yyyy")).FontSize(8f);
+                    r.RelativeItem().Text(_model.Date ?? DateTime.UtcNow.ToString("MMMM dd, yyyy")).FontSize(8f);
                 });
 
                 if (!string.IsNullOrWhiteSpace(_model.PaymentDueDate))

@@ -97,6 +97,7 @@ export interface PendingPaymentDto {
   checkDate?: string | null;
   paymentReferenceNumber?: string | null;
   payorName?: string | null;
+  payorAddress?: string | null;
 }
 
 export interface OfficialReceiptLineItemDto {
@@ -273,6 +274,8 @@ export interface IssueOfficialReceiptPayload {
   remarks?: string | null;
   lineItems?: IssueReceiptLineItemInput[];
   allowPartialPayment?: boolean;
+  issueDate?: string | null;
+  dateChangeReason?: string | null;
 }
 
 export interface EditOfficialReceiptPayload {

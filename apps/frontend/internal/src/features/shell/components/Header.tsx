@@ -127,6 +127,43 @@ function getBreadcrumb(
   return { group: found.group, screen: found.name };
 }
 
+function getApplicationNotificationDetails(
+  app: { referenceNumber?: string | null; applicationNumber?: string | null; serviceName?: string | null; status?: string | null },
+  role: UserRole
+): { title: string; description: string } {
+  const ref = app.referenceNumber ?? app.applicationNumber ?? 'N/A';
+  const name = app.serviceName ?? 'Application';
+  switch (role) {
+    case 'Accountant':
+      return {
+        title: 'SOA Review Required',
+        description: `Ref #${ref}: ${name} awaiting accounting review & OP generation`,
+      };
+    case 'Cashier':
+      return {
+        title: 'Payment Processing Required',
+        description: `Ref #${ref}: ${name} awaiting payment receipt verification`,
+      };
+    case 'Chief of EOD':
+    case 'Regional Director':
+      return {
+        title: 'Application Endorsement Required',
+        description: `Ref #${ref}: ${name} awaiting final endorsement & approval`,
+      };
+    case 'Legal':
+      return {
+        title: 'Legal Assessment Required',
+        description: `Ref #${ref}: ${name} awaiting legal review`,
+      };
+    case 'Evaluator':
+    default:
+      return {
+        title: 'Application Submitted',
+        description: `Ref #${ref}: ${name} awaiting evaluation`,
+      };
+  }
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 export function Header({
@@ -233,8 +270,8 @@ export function Header({
         list.push({
           id: `app_${app.id}`,
           appId: app.id,
-          title: 'Application Submitted',
-          description: `Ref #${app.referenceNumber ?? app.applicationNumber ?? 'N/A'}: ${app.serviceName ?? 'Application'} awaiting evaluation`,
+          title: getApplicationNotificationDetails(app, currentRole).title,
+          description: getApplicationNotificationDetails(app, currentRole).description,
           timestamp: app.createdAt,
           type: 'evaluation',
           screen: 'Activities',

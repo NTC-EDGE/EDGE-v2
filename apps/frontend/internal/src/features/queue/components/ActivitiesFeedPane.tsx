@@ -41,10 +41,12 @@ import { useAuthContext } from "../../auth/context/AuthContext";
 
 type SortOrder = "newest" | "oldest";
 
-type FilterStatus = Extract<
-  ApplicationStatus,
-  "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
->;
+type FilterStatus =
+  | Extract<
+      ApplicationStatus,
+      "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
+    >
+  | "ForAssessment";
 
 type FilterMode = "SINGLE" | "BULK";
 
@@ -62,8 +64,9 @@ const FILTER_MODES: {
 const FILTER_STATUSES: {
   label: string;
   value: FilterStatus;
-  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card";
+  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card" | "file-text";
 }[] = [
+  { label: "For Assessment",      value: "ForAssessment",  icon: "file-text" },
   { label: "Subject for Payment", value: "PendingPayment", icon: "credit-card" },
   { label: "Approved",            value: "Approved",       icon: "check-circle" },
   { label: "Returned",            value: "Returned",       icon: "x-circle" },
@@ -109,7 +112,7 @@ function buildDateGroups(
   >();
 
   for (const app of apps) {
-    const dateStr = app.updatedAt ?? app.createdAt;
+    const dateStr = app.createdAt;
     const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
     if (!groupMap.has(dateKey)) {
@@ -129,8 +132,8 @@ function buildDateGroups(
     label,
     dateKey,
     items: [...items].sort((a, b) => {
-      const aTime = new Date(a.updatedAt ?? a.createdAt).getTime();
-      const bTime = new Date(b.updatedAt ?? b.createdAt).getTime();
+      const aTime = new Date(a.createdAt).getTime();
+      const bTime = new Date(b.createdAt).getTime();
       return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
     }),
   }));
@@ -380,7 +383,11 @@ export function ActivitiesFeedPane({
           return false;
         }
       }
-      if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
+      if (activeStatuses.size > 0) {
+        const matchesStatus = activeStatuses.has(app.status);
+        const matchesAssessment = activeStatuses.has("ForAssessment") && (Boolean(app.isAssessmentOnly) || app.intent === "AssessmentOnly");
+        if (!matchesStatus && !matchesAssessment) return false;
+      }
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;
       if (activeModes.size > 0 && !activeModes.has(app.applicationType)) return false;
       if (dateFrom.length === 10) {

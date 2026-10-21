@@ -761,6 +761,8 @@ export type Note = ServiceNote;
 
 export interface SoaNote {
   id: string;
+  tenantId?: string | null;
+  tenantName?: string | null;
   code?: string | null;
   title?: string | null;
   notes: string;
@@ -1332,6 +1334,8 @@ export interface CreateSoaRequest {
   expirationDate?: string | null;
   additionalServicesCount?: number | null;
   noOfCopies?: number | null;
+  remarks?: string | null;
+  soaNoteId?: string | null;
 }
 
 export interface VerifyPaymentRequest {

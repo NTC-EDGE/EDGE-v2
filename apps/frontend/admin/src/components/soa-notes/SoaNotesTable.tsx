@@ -73,26 +73,39 @@ export function SoaNotesTable({
       ),
     },
     {
+      key: "tenant",
+      header: "Region / Tenant",
+      cell: (item) => (
+        <span className="text-xs font-medium text-slate-700 dark:text-slate-300">
+          {item.tenantName || (item.tenantId ? `Tenant ${item.tenantId.substring(0, 8)}` : <span className="text-slate-400 italic">Global / All</span>)}
+        </span>
+      ),
+    },
+    {
       key: "notes",
       header: "Note Content / Terms",
       cell: (item) => {
         const isExpanded = expandedRowId === item.id;
         const isLong = item.notes.length > 120;
         return (
-          <div className="max-w-md">
-            <p className={`text-xs text-slate-700 dark:text-slate-300 whitespace-pre-wrap leading-relaxed ${!isExpanded && isLong ? "line-clamp-2" : ""}`}>
-              {item.notes}
+          <div className="flex flex-col gap-1 max-w-xl">
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed font-sans">
+              {isExpanded || !isLong ? item.notes : `${item.notes.substring(0, 120)}...`}
             </p>
             {isLong && (
               <button
                 type="button"
                 onClick={() => setExpandedRowId(isExpanded ? null : item.id)}
-                className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-0.5 mt-1"
+                className="text-[11px] font-medium text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1 self-start"
               >
                 {isExpanded ? (
-                  <>Show less <ChevronUp className="h-3 w-3" /></>
+                  <>
+                    <ChevronUp className="h-3 w-3" /> Show less
+                  </>
                 ) : (
-                  <>Read full terms <ChevronDown className="h-3 w-3" /></>
+                  <>
+                    <ChevronDown className="h-3 w-3" /> Show full note
+                  </>
                 )}
               </button>
             )}
@@ -104,8 +117,8 @@ export function SoaNotesTable({
       key: "createdAt",
       header: "Created",
       cell: (item) => (
-        <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
-          <Calendar className="h-3.5 w-3.5" />
+        <div className="flex items-center gap-1 text-xs text-slate-500 font-mono">
+          <Calendar className="h-3.5 w-3.5 text-slate-400" />
           <span>{item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "—"}</span>
         </div>
       ),
@@ -114,13 +127,17 @@ export function SoaNotesTable({
 
   return (
     <DataTable
-      columns={columns}
       data={notes}
-      loading={loading}
-      emptyState={{
-        title: "No SOA note templates found",
-        description: "Click 'New SOA Note' above to create standard billing terms and instructions.",
+      columns={columns}
+      pagination={{
+        currentPage,
+        totalItems: totalCount,
+        pageSize,
+        onPageChange,
+        onPageSizeChange,
       }}
+      loading={loading}
+      getItemKey={(item) => item.id}
       rowActionMenu={(item) => [
         ...(onViewDetails
           ? [
@@ -132,32 +149,30 @@ export function SoaNotesTable({
             ]
           : []),
         {
-          label: copiedId === item.id ? "Copied!" : "Copy Template Text",
+          label: copiedId === item.id ? "Copied" : "Copy Content",
           icon: copiedId === item.id ? Check : Copy,
           onClick: () => handleCopy(item.notes, item.id),
         },
         ...(canManage
           ? [
               {
-                label: "Edit SOA Note",
+                label: "Edit Template",
                 icon: Edit2,
                 onClick: () => onEdit(item),
               },
               {
-                label: "Delete SOA Note",
+                label: "Delete Template",
                 icon: Trash2,
-                onClick: () => onDelete(item),
                 variant: "destructive" as const,
+                onClick: () => onDelete(item),
               },
             ]
           : []),
       ]}
-      pagination={{
-        currentPage,
-        totalItems: totalCount,
-        pageSize,
-        onPageChange,
-        onPageSizeChange,
+      emptyState={{
+        icon: <FileText className="w-8 h-8 text-slate-400" />,
+        title: "No SOA note templates found",
+        description: "Configure your regional/tenant Statement of Account notes and payment instructions.",
       }}
     />
   );

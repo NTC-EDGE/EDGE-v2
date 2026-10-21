@@ -47,7 +47,7 @@ public static class StatementOfAccountPrintMapper
             ? soa.CreatedAt
             : (activeOp != null && activeOp.CreatedAt != default ? activeOp.CreatedAt : (app != null && app.CreatedAt != default ? app.CreatedAt : DateTime.UtcNow));
 
-        model.Date = creationDate.ToString("MMM dd yyyy");
+        model.Date = creationDate.ToString("MMMM dd, yyyy");
         model.MonthOf = creationDate.ToString("MMMM yyyy").ToUpperInvariant();
 
         var dueDate = soa != null && soa.DueDate != default
@@ -186,7 +186,7 @@ public static class StatementOfAccountPrintMapper
         {
             model.OrNo = activeOp.OfficialReceiptNumber;
             model.OrAmount = activeOp.AmountReceived > 0 ? $"P{activeOp.AmountReceived:N2}" : $"P{activeOp.AmountDue:N2}";
-            model.OrDate = activeOp.PaidAt?.ToString("MMM dd yyyy") ?? activeOp.CreatedAt.ToString("MMM dd yyyy");
+            model.OrDate = activeOp.PaidAt?.ToString("MMMM dd, yyyy") ?? activeOp.CreatedAt.ToString("MMMM dd, yyyy");
             model.OrBy = activeOp.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
         }
 
@@ -266,6 +266,10 @@ public static class StatementOfAccountPrintMapper
         if (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
         {
             model.Remarks = $"{soa.Remarks}\n\n{model.Remarks}";
+        }
+        else if (soa?.SoaNote != null && !string.IsNullOrWhiteSpace(soa.SoaNote.Notes))
+        {
+            model.Remarks = $"{soa.SoaNote.Notes}\n\n{model.Remarks}";
         }
 
         return model;

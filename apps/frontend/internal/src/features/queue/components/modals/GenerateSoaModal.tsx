@@ -27,6 +27,7 @@ import {
   CreateSoaLineItemRequest,
   IssuedToTypeDto,
   FeeCalculationResultDto,
+  useSoaNotes,
 } from '@edge/api';
 import { ApplicationData, SoaItem } from '../../../../types/application';
 import {
@@ -66,6 +67,10 @@ export function GenerateSoaModal({
   const [issuedToType, setIssuedToType] = useState<IssuedToTypeDto>('Individual');
   const [issuedToAddress, setIssuedToAddress] = useState('');
   const [dueDate, setDueDate] = useState('');
+  const [remarks, setRemarks] = useState('');
+  const [selectedSoaNoteId, setSelectedSoaNoteId] = useState<string | null>(null);
+
+  const { notes: tenantSoaNotes } = useSoaNotes({ tenantId: app.tenantId, enabled: visible });
 
   // Calculation state from backend calculation engine
   const [calculatedFees, setCalculatedFees] = useState<FeeCalculationResultDto | null>(null);
@@ -125,9 +130,20 @@ export function GenerateSoaModal({
         setIsManualMode(false);
       }
 
+      setRemarks(app.remarks || 'Please settle this Statement of Account on or before the due date.');
       fetchBackendCalculatedFees();
     }
   }, [visible, app, isExistingSoa, fetchBackendCalculatedFees]);
+
+  useEffect(() => {
+    if (visible && tenantSoaNotes.length > 0 && (!remarks || remarks === 'Please settle this Statement of Account on or before the due date.')) {
+      const match = tenantSoaNotes.find((n) => n.tenantId === app.tenantId) ?? tenantSoaNotes[0];
+      if (match?.notes) {
+        setRemarks(match.notes);
+        setSelectedSoaNoteId(match.id);
+      }
+    }
+  }, [visible, tenantSoaNotes, app.tenantId]);
 
   // Apply statutory calculated fees to the editable lines
   const handleApplyStatutoryFees = () => {
@@ -210,6 +226,22 @@ export function GenerateSoaModal({
       return;
     }
 
+    if (isManualMode) {
+      const seen = new Set<string>();
+      for (const item of customLineItems) {
+        const norm = item.particular.trim().toLowerCase();
+        if (norm.length === 0) {
+          toast.error('All fee line items must have a particular description.');
+          return;
+        }
+        if (seen.has(norm)) {
+          toast.error('Particular already exists.');
+          return;
+        }
+        seen.add(norm);
+      }
+    }
+
     setSubmitting(true);
 
     let lineItemRequests: CreateSoaLineItemRequest[] | undefined = undefined;
@@ -234,6 +266,8 @@ export function GenerateSoaModal({
       issuedToAddress: issuedToAddress.trim(),
       dueDate: resolvedDue,
       lineItems: lineItemRequests,
+      remarks: remarks.trim() || undefined,
+      soaNoteId: selectedSoaNoteId || undefined,
     });
 
     setSubmitting(false);
@@ -1020,6 +1054,44 @@ export function GenerateSoaModal({
                   ))}
                 </View>
               )}
+
+              {/* ── Remarks & Notes ── */}
+              <View
+                style={[
+                  styles.sectionCard,
+                  {
+                    backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                    borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                    marginBottom: 16,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.sectionTitle,
+                    { color: isDark ? colors.neutral[100] : colors.neutral[900], marginBottom: 6 },
+                  ]}
+                >
+                  SOA Remarks & Assessment Instructions
+                </Text>
+                <TextInput
+                  style={[
+                    styles.input,
+                    {
+                      minHeight: 54,
+                      textAlignVertical: 'top',
+                      backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
+                      color: isDark ? colors.neutral[100] : colors.neutral[900],
+                      borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                    },
+                  ]}
+                  multiline
+                  numberOfLines={2}
+                  value={remarks}
+                  onChangeText={setRemarks}
+                  placeholder="Enter remarks or payment instructions for this Statement of Account..."
+                />
+              </View>
 
               {/* ── Total Assessment Summary Card ── */}
               <View

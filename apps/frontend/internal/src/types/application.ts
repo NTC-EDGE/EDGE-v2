@@ -255,4 +255,6 @@ export interface ApplicationData {
   };
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   note: string;
+  remarks?: string;
+  soaRemarks?: string;
 }

@@ -244,7 +244,7 @@ export function ActivityCard({
         application.assignedTo &&
         !isGenericOfficer(application.assignedTo, application.office)
           ? application.assignedTo
-          : (application.office || "Unassigned"),
+          : "Unassigned",
       icon: "user-plus" as const,
       color: textMuted,
       textColor: textSub,
@@ -478,22 +478,32 @@ export function ActivityCard({
 
         {/* Bottom row: Assignment + Evaluator Indicator + Type badges */}
         <View style={styles.bottomRow}>
-          <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
-            <Lucide
-              name={assignmentDisplay.icon}
-              size={10}
-              color={assignmentDisplay.color}
-            />
-            <Text
-              style={[
-                styles.assignText,
-                { color: assignmentDisplay.textColor },
-              ]}
-              numberOfLines={1}
-              ellipsizeMode="tail"
-            >
-              {assignmentDisplay.label}
-            </Text>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 }}>
+            {application.office ? (
+              <View style={[styles.assignPill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                <Lucide name="map-pin" size={10} color={textMuted} />
+                <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
+                  {application.office}
+                </Text>
+              </View>
+            ) : null}
+            <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
+              <Lucide
+                name={assignmentDisplay.icon}
+                size={10}
+                color={assignmentDisplay.color}
+              />
+              <Text
+                style={[
+                  styles.assignText,
+                  { color: assignmentDisplay.textColor },
+                ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {assignmentDisplay.label}
+              </Text>
+            </View>
           </View>
           
           <View style={styles.badgeRow}>

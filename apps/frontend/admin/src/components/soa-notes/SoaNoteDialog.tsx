@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { AlertCircle, FileText, Sparkles } from "lucide-react";
+import { AlertCircle, FileText, Sparkles, Building2 } from "lucide-react";
 import { SoaNote } from "@edge/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -17,8 +17,10 @@ export interface SoaNoteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   editingNote: SoaNote | null;
-  onSubmit: (data: { code?: string; title?: string; notes: string }) => Promise<void>;
+  onSubmit: (data: { code?: string; title?: string; notes: string; tenantId?: string | null }) => Promise<void>;
   isSubmitting: boolean;
+  tenants?: Array<{ id: string; name: string; code: string }>;
+  defaultTenantId?: string | null;
 }
 
 export function SoaNoteDialog({
@@ -27,10 +29,13 @@ export function SoaNoteDialog({
   editingNote,
   onSubmit,
   isSubmitting,
+  tenants = [],
+  defaultTenantId = null,
 }: SoaNoteDialogProps) {
   const [code, setCode] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
+  const [tenantId, setTenantId] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   useEffect(() => {
@@ -39,14 +44,16 @@ export function SoaNoteDialog({
         setCode(editingNote.code ?? "");
         setTitle(editingNote.title ?? "");
         setNotes(editingNote.notes ?? "");
+        setTenantId(editingNote.tenantId ?? "");
       } else {
         setCode("");
         setTitle("");
         setNotes("");
+        setTenantId(defaultTenantId ?? "");
       }
       setErrorMsg(null);
     }
-  }, [open, editingNote]);
+  }, [open, editingNote, defaultTenantId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -61,6 +68,7 @@ export function SoaNoteDialog({
         code: code.trim() || undefined,
         title: title.trim() || undefined,
         notes: notes.trim(),
+        tenantId: tenantId.trim() ? tenantId : null,
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Failed to save SOA note template.";
@@ -97,57 +105,78 @@ export function SoaNoteDialog({
             </div>
           )}
 
+          {tenants.length > 0 && (
+            <div className="space-y-1.5">
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-1.5">
+                <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                Regional Tenant Scope
+              </label>
+              <select
+                value={tenantId}
+                onChange={(e) => setTenantId(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
+              >
+                <option value="">Global (All Tenants)</option>
+                {tenants.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name} ({t.code})
+                  </option>
+                ))}
+              </select>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Select the region/tenant that owns this SOA Note template.
+              </p>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Template Code
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Code / Key (Optional)
               </label>
               <input
                 type="text"
+                placeholder="e.g. TERMS_STD, PAYMENT_INST"
                 value={code}
-                onChange={(e) => setCode(e.target.value.toUpperCase())}
-                placeholder="e.g. TERMS_STD, LATE_FEE"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs font-mono focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:outline-none transition-all placeholder:text-slate-400"
+                onChange={(e) => setCode(e.target.value)}
+                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-mono"
               />
-              <span className="text-[10px] text-slate-500">Short unique identifier for quick lookup</span>
             </div>
 
             <div className="space-y-1.5">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Template Title
+              <label className="text-xs font-semibold text-slate-700 dark:text-slate-300">
+                Title / Name (Optional)
               </label>
               <input
                 type="text"
+                placeholder="e.g. Standard Payment Terms"
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="e.g. Standard Billing Terms"
-                className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl px-3.5 py-2 text-xs focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:outline-none transition-all placeholder:text-slate-400"
+                className="w-full h-10 px-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-medium"
               />
-              <span className="text-[10px] text-slate-500">Descriptive name shown in dropdowns</span>
             </div>
           </div>
 
           <div className="space-y-1.5">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
-                Note Content / Terms & Conditions <span className="text-rose-500">*</span>
-              </label>
-              <span className="text-[10px] text-slate-500">{notes.length} / 4000 chars</span>
-            </div>
+            <label className="text-xs font-semibold text-slate-700 dark:text-slate-300 flex items-center justify-between">
+              <span>
+                Notes / Terms Content <span className="text-rose-500">*</span>
+              </span>
+              <span className="text-[11px] text-slate-400 font-normal">
+                Pre-populates Evaluator SOA remarks
+              </span>
+            </label>
             <textarea
               rows={5}
+              placeholder="Enter official notes, bank payment instructions, check settlement rules, or statutory reminders..."
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              placeholder="Enter the standard terms, payment reminders, banking instructions, or regulatory guidance..."
-              className="w-full bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl p-3.5 text-xs leading-relaxed focus:ring-2 focus:ring-indigo-500 dark:focus:ring-indigo-400 focus:outline-none transition-all resize-y placeholder:text-slate-400 font-sans"
+              className="w-full p-3 rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 font-sans leading-relaxed resize-y"
               required
             />
-            <p className="text-[10px] text-slate-500">
-              When an SOA is generated, this text can be prefilled and further customized per applicant if needed.
-            </p>
           </div>
 
-          <DialogFooter className="gap-2 pt-2">
+          <DialogFooter className="pt-2 gap-2 sm:gap-0">
             <Button
               type="button"
               variant="outline"
@@ -159,10 +188,17 @@ export function SoaNoteDialog({
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold px-4"
+              disabled={isSubmitting || !notes.trim()}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs gap-1.5"
             >
-              {isSubmitting ? "Saving..." : editingNote ? "Update Template" : "Create Template"}
+              {isSubmitting ? (
+                <>Saving...</>
+              ) : (
+                <>
+                  <Sparkles className="h-3.5 w-3.5" />
+                  {editingNote ? "Save Changes" : "Create SOA Note"}
+                </>
+              )}
             </Button>
           </DialogFooter>
         </form>

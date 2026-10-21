@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using FluentValidation;
 
 namespace EDGE.Application.Applications.Commands.CreateSoa;
@@ -35,6 +36,18 @@ public class CreateSoaCommandValidator : AbstractValidator<CreateSoaCommand>
             .When(x => x.NoOfCopies.HasValue)
             .WithMessage("NoOfCopies must be greater than zero when provided.");
 
+        RuleFor(x => x.LineItems)
+            .Must(items =>
+            {
+                if (items == null || items.Count <= 1) return true;
+                var particulars = items.Select(i => (i.Particular ?? string.Empty).Trim().ToLowerInvariant())
+                                       .Where(p => !string.IsNullOrEmpty(p))
+                                       .ToList();
+                return particulars.Distinct().Count() == particulars.Count;
+            })
+            .WithMessage("Particular already exists.")
+            .When(x => x.LineItems != null && x.LineItems.Count > 1);
+
         RuleForEach(x => x.LineItems)
             .SetValidator(new CreateSoaLineItemRequestValidator())
             .When(x => x.LineItems != null && x.LineItems.Count > 0);
@@ -66,4 +79,3 @@ public class CreateSoaLineItemRequestValidator : AbstractValidator<CreateSoaLine
             .WithMessage("Line item ValidityYears cannot be negative.");
     }
 }
-

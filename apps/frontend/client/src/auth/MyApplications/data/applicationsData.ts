@@ -617,11 +617,11 @@ export function normalizeApplicationStatus(rawStatus: string | undefined | null)
   const s = rawStatus.toUpperCase().replace(/\s+/g, '_').replace(/_/g, '');
   if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
   if (s.includes('FORORDEROFPAYMENT') || s.includes('FORACCOUNTANT') || s.includes('EVALUAT') || s.includes('UNDEREVALUATION')) return 'FOR_EVALUATION';
-  if (s.includes('APPROV') || s.includes('COMPLET') || s.includes('ISSUED')) return 'APPROVED';
   if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
   if (s.includes('PENDINGPAYMENT') || s.includes('READYFORPAYMENT') || s.includes('FORPAYMENT') || s === 'PAYMENT' || s === 'FOR_PAYMENT') return 'READY_FOR_PAYMENT';
   if (s.includes('EXPIR')) return 'EXPIRING_SOON';
   if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
+  if (s === 'APPROVED' || s === 'COMPLETED' || s === 'ISSUED') return 'APPROVED';
   return 'PENDING';
 }
 
@@ -959,7 +959,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     );
 
     const appType = ap.applicantType || 'Individual';
-    const appStatus = normalizeApplicationStatus(ap.status || rawStatus);
+    const appStatus = normalizeApplicationStatus(rawStatus);
 
     const compName =
       apDetails.companyName ||

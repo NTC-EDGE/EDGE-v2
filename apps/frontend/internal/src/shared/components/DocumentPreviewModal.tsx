@@ -71,6 +71,24 @@ export function DocumentPreviewModal({
       (isObj && fileType === "IMAGE") ||
       (uriLower.startsWith("blob:") && !isPdf));
 
+  const [scale, setScale] = React.useState(1);
+  const [rotation, setRotation] = React.useState(0);
+
+  React.useEffect(() => {
+    if (!visible) {
+      setScale(1);
+      setRotation(0);
+    }
+  }, [visible]);
+
+  const handleZoomIn = () => setScale((s) => Math.min(s + 0.25, 3));
+  const handleZoomOut = () => setScale((s) => Math.max(s - 0.25, 0.5));
+  const handleRotate = () => setRotation((r) => (r + 90) % 360);
+  const handleResetZoom = () => {
+    setScale(1);
+    setRotation(0);
+  };
+
   const handleOpenExternal = async () => {
     if (!fileUri) return;
     try {
@@ -286,6 +304,43 @@ const styles = StyleSheet.create({
     padding: 6,
     borderRadius: 8,
     backgroundColor: "#EDF2F7",
+  },
+  imageControlsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginRight: 10,
+    backgroundColor: "#F8FAFC",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  controlIconBtn: {
+    padding: 4,
+    borderRadius: 4,
+  },
+  zoomText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "600",
+    color: "#0F2C59",
+    minWidth: 36,
+    textAlign: "center",
+  },
+  resetBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    backgroundColor: "#E2E8F0",
+    borderRadius: 4,
+    marginLeft: 2,
+  },
+  resetBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: "700",
+    color: "#475569",
   },
   bodyContent: {
     padding: 16,

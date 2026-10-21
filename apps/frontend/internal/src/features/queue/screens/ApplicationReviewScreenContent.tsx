@@ -1088,6 +1088,8 @@ export function ApplicationReviewScreenContent({
         onEndorse={() => setShowEndorse(true)}
         onPrintAccountableForm={() => handlePrintAccountableForm()}
         onPrintSoa={() => handlePreviewReport('soa')}
+        onPreviewOp={(isForAccountant || showAccountantBtn || hasSoa) ? () => handlePreviewReport('op') : undefined}
+        onPreviewOr={(isPendingPayment || showCashierBtn) ? () => handlePreviewReport('or') : undefined}
       />
 
       {/* ── Modals ── */}
@@ -1230,6 +1232,8 @@ interface WorkflowActionBarProps {
   onEndorse: () => void;
   onPrintAccountableForm?: () => void;
   onPrintSoa?: () => void;
+  onPreviewOp?: () => void;
+  onPreviewOr?: () => void;
 }
 
 function WorkflowActionBar({
@@ -1249,6 +1253,8 @@ function WorkflowActionBar({
   onEndorse,
   onPrintAccountableForm,
   onPrintSoa,
+  onPreviewOp,
+  onPreviewOr,
 }: WorkflowActionBarProps) {
   const primaryGreen = isDark ? '#166534' : '#15803D';
   const primaryBlue = isDark ? colors.brand[600] : colors.brand[700];
@@ -1385,6 +1391,58 @@ function WorkflowActionBar({
             ]}
           >
             Endorse
+          </Text>
+        </Pressable>
+      )}
+
+      {/* ── Preview OP Button (for Accountant) ── */}
+      {onPreviewOp !== undefined && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onPreviewOp}
+        >
+          <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Preview OP
+          </Text>
+        </Pressable>
+      )}
+
+      {/* ── Preview OR Button (for Cashier) ── */}
+      {onPreviewOr !== undefined && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onPreviewOr}
+        >
+          <Lucide name="printer" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Preview OR
           </Text>
         </Pressable>
       )}

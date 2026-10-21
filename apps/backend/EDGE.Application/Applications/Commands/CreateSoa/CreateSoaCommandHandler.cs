@@ -34,7 +34,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
         IServiceVariantFormulaRepository? formulaRepository = null,
-        INumberingSeriesService? numberingSeriesService = null)
+        INumberingSeriesService? numberingSeriesService = null,
+        ISoaNoteRepository? soaNoteRepository = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -130,7 +131,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             IssuedToName = resolvedIssuedToName,
             IssuedToAddress = resolvedIssuedToAddress,
             DueDate = resolvedDueDate,
-            PreparedByUserId = userContext.UserId
+            PreparedByUserId = userContext.UserId,
+            Remarks = request.Remarks
         };
 
         if (request.LineItems != null && request.LineItems.Count > 0)

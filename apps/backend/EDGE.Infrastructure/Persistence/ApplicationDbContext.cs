@@ -744,6 +744,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Notes).IsRequired();
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Code).HasMaxLength(50);
+            entity.HasIndex(e => e.TenantId);
+            entity.HasOne(e => e.Tenant)
+                  .WithMany()
+                  .HasForeignKey(e => e.TenantId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
 
         modelBuilder.Entity<OrderOfPayment>(entity =>

@@ -228,7 +228,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
@@ -287,7 +287,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         var results = await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationSummaryDto
             {
                 Id = app.Id,
@@ -472,9 +472,20 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 (a.ReferenceNumber != null && a.ReferenceNumber.ToLower().Contains(term)) ||
                 (a.ApplicationNumber != null && a.ApplicationNumber.ToLower().Contains(term)) ||
                 (a.Office != null && a.Office.ToLower().Contains(term)) ||
-                a.ApplicationApplicants.Any(aa => aa.Applicant != null && aa.Applicant.ApplicantDetail != null &&
-                    ((aa.Applicant.ApplicantDetail.FirstName + " " + aa.Applicant.ApplicantDetail.LastName).ToLower().Contains(term) ||
-                     (aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term)))));
+                a.ApplicationApplicants.Any(aa => aa.Applicant != null &&
+                    ((aa.Applicant.ApplicantDetail != null &&
+                        (((aa.Applicant.ApplicantDetail.FirstName ?? "") + " " + (aa.Applicant.ApplicantDetail.LastName ?? "")).ToLower().Contains(term) ||
+                         (aa.Applicant.ApplicantDetail.EmailAddress != null && aa.Applicant.ApplicantDetail.EmailAddress.ToLower().Contains(term)))) ||
+                     (aa.Applicant.CompanyDetail != null && aa.Applicant.CompanyDetail.Name != null && aa.Applicant.CompanyDetail.Name.ToLower().Contains(term)) ||
+                     (aa.Applicant.Service != null && aa.Applicant.Service.Name.ToLower().Contains(term)) ||
+                     (aa.Applicant.ServiceVariant != null && aa.Applicant.ServiceVariant.Description != null && aa.Applicant.ServiceVariant.Description.ToLower().Contains(term)))) ||
+                a.OrdersOfPayment.Any(op =>
+                    (op.OfficialReceiptNumber != null && op.OfficialReceiptNumber.ToLower().Contains(term)) ||
+                    (op.OpNumber != null && op.OpNumber.ToLower().Contains(term))) ||
+                a.StatementsOfAccount.Any(soa =>
+                    soa.SoaNumber != null && soa.SoaNumber.ToLower().Contains(term)) ||
+                a.Histories.Any(h =>
+                    h.StaffName != null && h.StaffName.ToLower().Contains(term)));
         }
 
         if (!string.IsNullOrWhiteSpace(queueTab))
@@ -581,7 +592,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         var rawList = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt)
             .Skip((page - 1) * size)
             .Take(size)
             .Select(app => new
@@ -812,7 +823,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         return await query
             .OrderByDescending(a => a.IsPinned)
-            .ThenByDescending(a => a.LastModifiedAt ?? a.CreatedAt)
+            .ThenByDescending(a => a.CreatedAt)
             .Select(app => new EDGE.Application.Applications.Dtos.ApplicationDto
             {
                 Id = app.Id,

@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { Select } from "../../../../shared/components/Select";
 import { TenantInfo, OfficeInfo, ExamScheduleItem } from "../hooks/useGeneralServiceWizard";
+import { NTCService } from "../../data/servicesData";
 import { ExamScheduleCard, isScheduleOpenForFiling } from "./ExamScheduleCard";
 import { FilingIntentReviewCard } from "./generalReview/FilingIntentReviewCard";
 
@@ -21,6 +22,7 @@ interface GeneralRegionOfficeStepProps {
   errors?: Record<string, string>;
   filingIntent?: "Regular" | "AssessmentOnly";
   onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;
+  service?: NTCService;
 }
 
 export function GeneralRegionOfficeStep({
@@ -38,7 +40,13 @@ export function GeneralRegionOfficeStep({
   errors = {},
   filingIntent = "Regular",
   onFilingIntentChange,
+  service,
 }: GeneralRegionOfficeStepProps) {
+  const isComplaintsOrRequest = Boolean(
+    (service?.category && (service.category.toLowerCase().includes("complaint") || service.category.toLowerCase().includes("request"))) ||
+    (service?.title && (service.title.toLowerCase().includes("complaint") || service.title.toLowerCase().includes("blocking"))) ||
+    (service?.name && (service.name.toLowerCase().includes("complaint") || service.name.toLowerCase().includes("blocking")))
+  );
   const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
   const hasOpenSchedule = schedules.some((s) => isScheduleOpenForFiling(s));
   const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId);
@@ -46,11 +54,13 @@ export function GeneralRegionOfficeStep({
 
   return (
     <View style={{ gap: 18 }}>
-      {/* ── 1. Select Filing Mode & Intent ── */}
-      <FilingIntentReviewCard
-        filingIntent={filingIntent}
-        onFilingIntentChange={onFilingIntentChange}
-      />
+      {/* ── 1. Select Filing Mode & Intent (Omitted for free Complaints/Requests) ── */}
+      {!isComplaintsOrRequest && (
+        <FilingIntentReviewCard
+          filingIntent={filingIntent}
+          onFilingIntentChange={onFilingIntentChange}
+        />
+      )}
 
       {/* ── 2. Regional Office & Schedule Selection ── */}
       <View

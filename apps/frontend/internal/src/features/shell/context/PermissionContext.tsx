@@ -82,7 +82,7 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
     canEndorse: true,
   },
   Legal: {
-    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
+    visibleTabs: ['activity', 'pending', 'history'],
     canForwardToAccountant: false,
     canApproveAsAccountant: false,
     canVerifyCashier: false,
@@ -92,7 +92,7 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
     canEndorse: true,
   },
   Accountant: {
-    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
+    visibleTabs: ['activity', 'pending', 'history'],
     canForwardToAccountant: false,
     canApproveAsAccountant: true,
     canVerifyCashier: false,
@@ -102,7 +102,7 @@ const DEFAULT_PERMISSIONS: PermissionMap = {
     canEndorse: false,
   },
   Cashier: {
-    visibleTabs: ['activity', 'pending', 'history', 'issuance'],
+    visibleTabs: ['activity', 'pending', 'history'],
     canForwardToAccountant: false,
     canApproveAsAccountant: false,
     canVerifyCashier: true,

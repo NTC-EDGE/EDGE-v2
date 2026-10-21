@@ -167,19 +167,19 @@ public static class ApplicationEndpoints
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");
 
         group.MapPatch("/{id:guid}/admin-update", AdminUpdateApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateApplication")
             .WithSummary("Agency administrative correction update")
             .WithDescription("Updates application fields during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/admin-update", AdminUpdateApplicantProfileEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateApplicantProfile")
             .WithSummary("Agency administrative update for applicant profile")
             .WithDescription("Updates applicant profile details during review and records CorrectionAuditTrail entries.");
 
         group.MapPatch("/{id:guid}/applicants/{applicantId:guid}/form-values/admin-update", AdminUpdateFormValuesEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("AdminUpdateFormValues")
             .WithSummary("Agency administrative update for form field values")
             .WithDescription("Updates form field values during review and records CorrectionAuditTrail entries.");
@@ -191,13 +191,13 @@ public static class ApplicationEndpoints
             .WithDescription("Transitions application status to Evaluating and logs status history.");
 
         group.MapPatch("/{id:guid}/pin", TogglePinApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("TogglePinApplication")
             .WithSummary("Toggle pin status")
             .WithDescription("Pins or unpins an application for top-of-feed display.");
 
         group.MapPatch("/{id:guid}/archive", ToggleArchiveApplicationEndpoint)
-            .RequireAuthorization(new HasPermissionAttribute(Permissions.EvaluateApplication))
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("ToggleArchiveApplication")
             .WithSummary("Toggle archive status")
             .WithDescription("Archives or unarchives an application.");
@@ -471,7 +471,7 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.DeleteApplication)]
+    [HasPermission(Permissions.ViewOwnApplications)]
     public static async Task<IResult> DeleteDraftApplication(Guid id, IMediator mediator)
     {
         var result = await mediator.Send(new DeleteDraftApplicationCommand(id));
@@ -603,7 +603,7 @@ public static class ApplicationEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> TogglePinApplicationEndpoint(
         Guid id,
         [FromBody] TogglePinRequest? request,
@@ -616,7 +616,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> ToggleArchiveApplicationEndpoint(
         Guid id,
         [FromBody] ToggleArchiveRequest? request,
@@ -647,7 +647,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateApplicationEndpoint(
         Guid id,
         [FromBody] AdminUpdateApplicationCommand command,
@@ -659,7 +659,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateApplicantProfileEndpoint(
         Guid id,
         Guid applicantId,
@@ -672,7 +672,7 @@ public static class ApplicationEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.EvaluateApplication)]
+    [HasPermission(Permissions.UpdateApplication)]
     public static async Task<IResult> AdminUpdateFormValuesEndpoint(
         Guid id,
         Guid applicantId,

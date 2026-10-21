@@ -19,6 +19,27 @@ import {
   ApiApplicationDto,
   mapApiApplicationToApplication,
 } from "./data/applicationsData";
+
+function mapStatusFilterToBackend(status: StatusFilterOption): string | null {
+  switch (status) {
+    case 'PENDING':
+      return 'Submitted';
+    case 'FOR_EVALUATION':
+      return 'Evaluating';
+    case 'READY_FOR_PAYMENT':
+      return 'PendingPayment';
+    case 'FOR_APPROVAL':
+      return 'ForIssuance';
+    case 'APPROVED':
+      return 'Completed';
+    case 'DECLINED':
+      return 'Returned';
+    case 'EXPIRING_SOON':
+      return null;
+    default:
+      return null;
+  }
+}
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
 import { ClientAppLayout } from "../../shared/components/ClientAppLayout";
 import {
@@ -146,7 +167,10 @@ export function MyApplications() {
         }
       }
       if (selectedStatus !== "ALL") {
-        params.set("status", selectedStatus);
+        const backendStatus = mapStatusFilterToBackend(selectedStatus);
+        if (backendStatus !== null) {
+          params.set("status", backendStatus);
+        }
       }
 
       const res = await api.get<unknown>(`/api/v2/applications/me?${params.toString()}`);
@@ -670,7 +694,7 @@ export function MyApplications() {
                   <Icon name="file-text" size={36} color="#CBD5E1" />
                   <Text style={styles.emptyStateTitle}>
                     {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
-                      ? "No applications match your filter"
+                      ? "No applications found matching your criteria"
                       : "No filed applications yet"}
                   </Text>
                   <Text style={styles.emptyStateSub}>
@@ -691,7 +715,7 @@ export function MyApplications() {
             </View>
 
             {/* ── Pagination Bar ────────────────────────────────────────────── */}
-            {serverTotalPages > 1 && (
+            {serverTotalPages > 1 && serverTotalCount > 0 && displayedApps.length > 0 && (
               <View style={styles.paginationBar}>
                 <Text style={styles.paginationSummary}>
                   Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{" "}

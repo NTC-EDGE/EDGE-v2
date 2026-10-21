@@ -5,6 +5,7 @@ using FluentValidation;
 using MediatR;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
@@ -29,7 +30,7 @@ public static class SoaNoteEndpoints
             .WithName("CreateSoaNote")
             .WithTags("SOA Notes")
             .WithSummary("Create new SOA note template")
-            .WithDescription("Creates a new reusable Statement of Account note or terms template.")
+            .WithDescription("Creates a new reusable Statement of Account note or terms template scoped by tenant.")
             .Produces<SoaNoteDto>(StatusCodes.Status201Created)
             .ProducesValidationProblem()
             .Produces(StatusCodes.Status401Unauthorized)
@@ -39,7 +40,7 @@ public static class SoaNoteEndpoints
             .WithName("GetAllSoaNotes")
             .WithTags("SOA Notes")
             .WithSummary("Retrieve all SOA note templates")
-            .WithDescription("Retrieves a paginated list of reusable Statement of Account note templates.")
+            .WithDescription("Retrieves a paginated list of reusable Statement of Account note templates, filtered by tenant.")
             .Produces<PaginatedApiResponse<SoaNoteDto>>(StatusCodes.Status200OK)
             .Produces(StatusCodes.Status401Unauthorized)
             .Produces(StatusCodes.Status403Forbidden);
@@ -82,16 +83,21 @@ public static class SoaNoteEndpoints
     [HasPermission(Permissions.CreateSoaNotes)]
     public static async Task<IResult> CreateSoaNote(
         CreateSoaNoteCommand command,
+        [FromQuery] Guid? tenantId,
         IValidator<CreateSoaNoteCommand> validator,
         IMediator mediator)
     {
-        var validationResult = await validator.ValidateAsync(command);
+        var effectiveCommand = (tenantId.HasValue && !command.TenantId.HasValue)
+            ? command with { TenantId = tenantId.Value }
+            : command;
+
+        var validationResult = await validator.ValidateAsync(effectiveCommand);
         if (!validationResult.IsValid)
         {
             return Results.ValidationProblem(validationResult.ToDictionary());
         }
 
-        var result = await mediator.Send(command);
+        var result = await mediator.Send(effectiveCommand);
         return Results.Created($"/api/v2/soa-notes/{result.Id}", result);
     }
 
@@ -100,9 +106,10 @@ public static class SoaNoteEndpoints
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
+        [FromQuery] Guid? tenantId,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetAllSoaNotesQuery(pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetAllSoaNotesQuery(pageNumber, pageSize, searchTerm, tenantId));
         return Results.Ok(result);
     }
 
@@ -117,6 +124,7 @@ public static class SoaNoteEndpoints
     public static async Task<IResult> UpdateSoaNote(
         Guid id,
         UpdateSoaNoteCommand command,
+        [FromQuery] Guid? tenantId,
         IValidator<UpdateSoaNoteCommand> validator,
         IMediator mediator)
     {
@@ -125,7 +133,11 @@ public static class SoaNoteEndpoints
             return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
         }
 
-        var validationResult = await validator.ValidateAsync(command);
+        var effectiveCommand = (tenantId.HasValue && !command.TenantId.HasValue)
+            ? command with { TenantId = tenantId.Value }
+            : command;
+
+        var validationResult = await validator.ValidateAsync(effectiveCommand);
         if (!validationResult.IsValid)
         {
             return Results.ValidationProblem(validationResult.ToDictionary());
@@ -133,7 +145,7 @@ public static class SoaNoteEndpoints
 
         try
         {
-            var result = await mediator.Send(command);
+            var result = await mediator.Send(effectiveCommand);
             return Results.Ok(result);
         }
         catch (KeyNotFoundException ex)

@@ -26,19 +26,41 @@ public class SoaNoteRepository : ISoaNoteRepository
     public async Task<SoaNote?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         return await _context.SoaNotes
+            .Include(n => n.Tenant)
             .FirstOrDefaultAsync(n => n.Id == id, cancellationToken);
     }
 
-    public async Task<List<SoaNote>> GetAllAsync(CancellationToken cancellationToken = default)
+    public async Task<List<SoaNote>> GetAllAsync(Guid? tenantId = null, CancellationToken cancellationToken = default)
     {
-        return await _context.SoaNotes
+        var query = _context.SoaNotes
+            .Include(n => n.Tenant)
+            .AsNoTracking();
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(n => n.TenantId == tenantId.Value);
+        }
+
+        return await query
             .OrderByDescending(n => n.CreatedAt)
             .ToListAsync(cancellationToken);
     }
 
-    public async Task<(List<SoaNote> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, string? searchTerm, CancellationToken cancellationToken = default)
+    public async Task<(List<SoaNote> Items, int TotalCount)> GetPagedAsync(
+        int pageNumber,
+        int pageSize,
+        string? searchTerm,
+        Guid? tenantId = null,
+        CancellationToken cancellationToken = default)
     {
-        var query = _context.SoaNotes.AsNoTracking();
+        var query = _context.SoaNotes
+            .Include(n => n.Tenant)
+            .AsNoTracking();
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(n => n.TenantId == tenantId.Value);
+        }
 
         if (!string.IsNullOrWhiteSpace(searchTerm))
         {

@@ -244,8 +244,8 @@ export function generateSoaPrintableHtml(
 
   // Compute due date (30 days from created date)
   const dueDateObj = new Date(dateObj.getTime() + 30 * 24 * 60 * 60 * 1000);
-  const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  const dueDateStr = dueDateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  const formattedDate = dateObj.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
   // Classify transaction type checkboxes
   const variantLower = (app.serviceVariantName || app.serviceName || app.category || '').toLowerCase();
@@ -273,8 +273,8 @@ export function generateSoaPrintableHtml(
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
   const orDate = app.payment?.orNumber
     ? (app.updatedAt
-        ? new Date(app.updatedAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-        : new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }))
+        ? new Date(app.updatedAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+        : new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }))
     : '';
   const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
 

@@ -15,4 +15,6 @@ public record CreateSoaRequest(
     int? NoOfUnits = null,
     DateTime? ExpirationDate = null,
     int? AdditionalServicesCount = null,
-    int? NoOfCopies = null);
+    int? NoOfCopies = null,
+    string? Remarks = null,
+    Guid? SoaNoteId = null);

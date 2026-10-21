@@ -268,7 +268,8 @@ export function useFeesService() {
     pageNumber = 1,
     pageSize = 20,
     searchTerm?: string,
-    enabled = true
+    enabled = true,
+    tenantId?: string | null
   ) => {
     let url: string | null = null;
     if (enabled) {
@@ -276,6 +277,7 @@ export function useFeesService() {
       params.append('pageNumber', pageNumber.toString());
       params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
+      if (tenantId) params.append('tenantId', tenantId);
       url = `/api/v2/soa-notes?${params.toString()}`;
     }
     const query = useQuery<PaginatedApiResponse<SoaNote>>(url);
@@ -287,12 +289,12 @@ export function useFeesService() {
     };
   };
 
-  const createSoaNote = async (data: { notes: string; code?: string | null; title?: string | null }): Promise<SoaNote> => {
-    return await post<SoaNote, { notes: string; code?: string | null; title?: string | null }>('/api/v2/soa-notes', data);
+  const createSoaNote = async (data: { notes: string; code?: string | null; title?: string | null; tenantId?: string | null }): Promise<SoaNote> => {
+    return await post<SoaNote, { notes: string; code?: string | null; title?: string | null; tenantId?: string | null }>('/api/v2/soa-notes', data);
   };
 
-  const updateSoaNote = async (id: string, data: { id: string; notes: string; code?: string | null; title?: string | null }): Promise<SoaNote> => {
-    return await put<SoaNote, { id: string; notes: string; code?: string | null; title?: string | null }>(`/api/v2/soa-notes/${id}`, data);
+  const updateSoaNote = async (id: string, data: { id: string; notes: string; code?: string | null; title?: string | null; tenantId?: string | null }): Promise<SoaNote> => {
+    return await put<SoaNote, { id: string; notes: string; code?: string | null; title?: string | null; tenantId?: string | null }>(`/api/v2/soa-notes/${id}`, data);
   };
 
   const deleteSoaNote = async (id: string): Promise<void> => {

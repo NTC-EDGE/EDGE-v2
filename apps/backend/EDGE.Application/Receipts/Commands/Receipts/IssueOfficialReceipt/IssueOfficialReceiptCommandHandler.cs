@@ -29,7 +29,9 @@ public record IssueOfficialReceiptCommand(
     DateTime? CheckDate = null,
     string? Remarks = null,
     List<CreateReceiptLineItemInput>? LineItems = null,
-    bool AllowPartialPayment = false
+    bool AllowPartialPayment = false,
+    DateTime? IssueDate = null,
+    string? DateChangeReason = null
 ) : IRequest<ApiResponse<OfficialReceiptDto>>;
 
 public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOfficialReceiptCommand>
@@ -44,6 +46,12 @@ public class IssueOfficialReceiptCommandValidator : AbstractValidator<IssueOffic
         {
             RuleFor(x => x.CheckNumber).NotEmpty().WithMessage("Check number is required for check payments.");
             RuleFor(x => x.CheckBank).NotEmpty().WithMessage("Bank name is required for check payments.");
+        });
+        When(x => x.IssueDate.HasValue && x.IssueDate.Value.Date != DateTime.UtcNow.Date, () =>
+        {
+            RuleFor(x => x.DateChangeReason)
+                .NotEmpty()
+                .WithMessage("A reason is required when overriding the Official Receipt issue date.");
         });
     }
 }
@@ -392,7 +400,7 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             CheckBank = request.CheckBank?.Trim(),
             CheckDate = request.CheckDate,
             Status = ReceiptStatus.Issued,
-            IssuedAt = DateTime.UtcNow,
+            IssuedAt = request.IssueDate.HasValue ? DateTime.SpecifyKind(request.IssueDate.Value, DateTimeKind.Utc) : DateTime.UtcNow,
             IssuedByUserId = validUserId,
             Remarks = request.Remarks?.Trim()
         };

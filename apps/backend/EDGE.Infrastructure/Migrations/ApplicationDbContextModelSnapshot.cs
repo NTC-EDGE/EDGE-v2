@@ -3596,11 +3596,16 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("TenantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Title")
                         .HasMaxLength(200)
                         .HasColumnType("character varying(200)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TenantId");
 
                     b.ToTable("SoaNotes", "public");
                 });
@@ -5274,6 +5279,16 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("StatementOfAccount");
+                });
+
+            modelBuilder.Entity("EDGE.Domain.Entities.SoaNote", b =>
+                {
+                    b.HasOne("EDGE.Domain.Entities.Tenant", "Tenant")
+                        .WithMany()
+                        .HasForeignKey("TenantId")
+                        .OnDelete(DeleteBehavior.Cascade);
+
+                    b.Navigation("Tenant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.StatementOfAccount", b =>
