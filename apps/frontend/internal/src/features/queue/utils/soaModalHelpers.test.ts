@@ -1,3 +1,4 @@
+import { ApplicationData } from '../../../../types/application';
 import {
   SOA_STANDARD_PARTICULARS,
   normalizeParticularKey,
@@ -5,6 +6,7 @@ import {
   getAvailableStandardParticular,
   mapExistingSoaItemsToEditableItems,
   calculateLineItemAmount,
+  resolveInitialAddress,
 } from './soaModalHelpers';
 
 describe('soaModalHelpers - SOA Item 9 & Item 10', () => {
@@ -138,6 +140,73 @@ describe('soaModalHelpers - SOA Item 9 & Item 10', () => {
         expect(first.description).toBe('Penalty for late delivery');
         expect(first.amount).toBe(250);
       }
+    });
+  });
+
+  describe('resolveInitialAddress - complete address resolution', () => {
+    const baseApp: ApplicationData = {
+      id: 'app-addr-test',
+      tenantId: 'tenant-1',
+      referenceNumber: 'REF-2026-ADDR',
+      applicationNumber: 'APP-2026-ADDR',
+      applicant: 'Test Applicant',
+      permitTitle: 'Radio Station Permit',
+      category: 'Commercial',
+      status: 'Evaluating',
+      queueTab: 'queue',
+      payment: {
+        amountReceived: 0,
+        orNumber: '',
+        orDate: '',
+        feeAmount: 1000,
+        status: 'Unpaid',
+        paymentMethod: 'Cash',
+      },
+      soaItems: [],
+      totalAmountDue: 1000,
+      assignedTo: 'NTC Regional Office',
+      createdAt: '2026-10-21T00:00:00Z',
+      dateLabel: 'Oct 21, 2026',
+      isBeingViewed: false,
+      isUrgent: false,
+      isPinned: false,
+      isArchived: false,
+      address: {
+        streetAddress: '123 Main St',
+        barangay: 'Barangay Central',
+        city: 'Cebu City',
+        province: 'Cebu',
+        region: 'Region VII',
+        zipCode: '6000',
+      },
+      contactDetails: {
+        contactNumber: '09123456789',
+        email: 'test@example.com',
+      },
+      documents: [],
+      history: [],
+      correctionAuditTrail: [],
+      rejectionNotes: [],
+      requirements: [],
+    };
+
+    it('constructs complete address with barangay, city, province, region, and zip code', () => {
+      const resolved = resolveInitialAddress(baseApp);
+      expect(resolved).toBe('123 Main St, Barangay Central, Cebu City, Cebu, Region VII, 6000');
+    });
+
+    it('prefers existing soaIssuedToAddress when already set', () => {
+      const appWithIssued: ApplicationData = {
+        ...baseApp,
+        soaIssuedToAddress: 'Custom Issued Address, Mandaue City, 6014',
+      };
+      const resolved = resolveInitialAddress(appWithIssued);
+      expect(resolved).toBe('Custom Issued Address, Mandaue City, 6014');
+    });
+
+    it('returns empty string when app is null or undefined', () => {
+      expect(resolveInitialAddress(null)).toBe('');
+      expect(resolveInitialAddress(undefined)).toBe('');
     });
   });
 });

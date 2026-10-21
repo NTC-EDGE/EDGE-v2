@@ -178,6 +178,7 @@ export function ApplicationReviewScreenContent({
   const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
   const [showIssuedPrintModal, setShowIssuedPrintModal] = useState(false);
   const [issuedPrintInitialOptions, setIssuedPrintInitialOptions] = useState<Partial<DocumentPrintOptions> | undefined>(undefined);
+  const [hasPreviewedOp, setHasPreviewedOp] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const tabScrollRef = useRef<ScrollView>(null);
@@ -247,7 +248,10 @@ export function ApplicationReviewScreenContent({
     };
   }, [selectedApplication, user?.tenantId, selectedApplicantIndex]);
 
-  useEffect(() => { setSelectedApplicantIndex(0); }, [selectedApplication?.id]);
+  useEffect(() => {
+    setSelectedApplicantIndex(0);
+    setHasPreviewedOp(false);
+  }, [selectedApplication?.id]);
   useEffect(() => {
     fadeAnim.setValue(0);
     Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
@@ -307,6 +311,9 @@ export function ApplicationReviewScreenContent({
   }, [selectedApplication]);
 
   const handlePreviewReport = useCallback((docType: ReportDocumentType) => {
+    if (docType === 'op') {
+      setHasPreviewedOp(true);
+    }
     setReportPreviewInitialDoc(docType);
     setShowReportPreview(true);
   }, []);
@@ -821,8 +828,13 @@ export function ApplicationReviewScreenContent({
     approveButtonLabel = isPaymentSubmitted ? 'Verify & Issue OR' : 'Issue Official Receipt';
     approveButtonIcon = 'credit-card';
   } else if (showAccountantBtn) {
-    approveButtonLabel = 'Approve & Issue OP';
-    approveButtonIcon = 'check-circle';
+    if (!hasPreviewedOp) {
+      approveButtonLabel = 'Preview OP';
+      approveButtonIcon = 'play-circle';
+    } else {
+      approveButtonLabel = 'Approve & Issue OP';
+      approveButtonIcon = 'check-circle';
+    }
   } else if (showIssueBtn) {
     approveButtonLabel = 'Release Document';
     approveButtonIcon = 'check-circle';
@@ -892,6 +904,12 @@ export function ApplicationReviewScreenContent({
       }
       setShowApprove(true);
     } else if (showAccountantBtn) {
+      if (!hasPreviewedOp) {
+        toast.info("Please preview Order of Payment first before approving.");
+        setHasPreviewedOp(true);
+        handlePreviewReport('op');
+        return;
+      }
       setShowApprove(true);
     } else {
       setShowApprove(true);
@@ -1102,7 +1120,7 @@ export function ApplicationReviewScreenContent({
         onEndorse={() => setShowEndorse(true)}
         onPrintAccountableForm={() => handlePrintAccountableForm()}
         onPrintSoa={() => handlePreviewReport('soa')}
-        onPreviewOp={(isForAccountant || showAccountantBtn) ? () => handlePreviewReport('op') : undefined}
+        onPreviewOp={(isForAccountant || showAccountantBtn) && (hasPreviewedOp || !showAccountantBtn) ? () => handlePreviewReport('op') : undefined}
         onPreviewOr={(isPendingPayment || showCashierBtn) ? () => handlePreviewReport('or') : undefined}
       />
 
@@ -1216,7 +1234,17 @@ export function ApplicationReviewScreenContent({
         }}
       />
       <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
-      <SoaReportPreviewModal visible={showReportPreview} app={app} initialDocType={reportPreviewInitialDoc} onClose={() => setShowReportPreview(false)} onOpenGenerateSoa={() => setShowGenerateSoa(true)} />
+      <SoaReportPreviewModal
+        visible={showReportPreview}
+        app={app}
+        initialDocType={reportPreviewInitialDoc}
+        onClose={() => setShowReportPreview(false)}
+        onOpenGenerateSoa={() => setShowGenerateSoa(true)}
+        onApproveOp={showAccountantBtn ? () => {
+          setHasPreviewedOp(true);
+          setShowApprove(true);
+        } : undefined}
+      />
       <IssuedDocumentPrintModal
         visible={showIssuedPrintModal}
         app={app}

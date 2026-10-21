@@ -96,6 +96,7 @@ interface SoaReportPreviewModalProps {
   initialDocType?: ReportDocumentType;
   onClose: () => void;
   onOpenGenerateSoa?: () => void;
+  onApproveOp?: () => void;
 }
 
 export function SoaReportPreviewModal({
@@ -104,6 +105,7 @@ export function SoaReportPreviewModal({
   initialDocType = 'soa',
   onClose,
   onOpenGenerateSoa,
+  onApproveOp,
 }: SoaReportPreviewModalProps) {
   const { colors, isDark } = useTheme();
   const [docType, setDocType] = useState<ReportDocumentType>(initialDocType);
@@ -1933,6 +1935,26 @@ export function SoaReportPreviewModal({
                 Close
               </Text>
             </Pressable>
+
+            {docType === 'op' && onApproveOp !== undefined && (
+              <Pressable
+                style={[
+                  styles.printBtn,
+                  {
+                    backgroundColor: isDark ? '#166534' : '#15803D',
+                  },
+                ]}
+                onPress={() => {
+                  onClose();
+                  onApproveOp();
+                }}
+              >
+                <Lucide name="check-circle" size={14} color={COLORS.neutral.white} />
+                <Text style={styles.printBtnText}>
+                  Approve & Issue OP
+                </Text>
+              </Pressable>
+            )}
           </View>
         </View>
       </View>

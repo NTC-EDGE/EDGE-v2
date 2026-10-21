@@ -42,7 +42,9 @@ export const resolveInitialAddress = (app?: ApplicationData | null): string => {
     app.address?.barangay,
     app.address?.city,
     app.address?.province,
-  ].filter(Boolean);
+    app.address?.region,
+    app.address?.zipCode,
+  ].filter((p): p is string => typeof p === 'string' && p.trim().length > 0);
 
   if (parts.length > 0) {
     return parts.join(', ');

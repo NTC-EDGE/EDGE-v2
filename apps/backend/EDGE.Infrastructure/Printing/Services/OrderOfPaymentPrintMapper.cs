@@ -32,6 +32,26 @@ public static class OrderOfPaymentPrintMapper
             ? op.CreatedAt.ToString("MMMM dd, yyyy")
             : DateTime.UtcNow.ToString("MMMM dd, yyyy");
 
+        static string BuildFullAddress(ApplicantDetail? detail, CompanyDetail? comp)
+        {
+            var street = !string.IsNullOrWhiteSpace(detail?.Address)
+                ? detail.Address
+                : comp?.Address;
+            var brgy = detail?.Barangay?.Name ?? comp?.Barangay?.Name;
+            var muni = detail?.Barangay?.Municipality?.Name ?? comp?.Barangay?.Municipality?.Name;
+            var prov = detail?.Barangay?.Municipality?.Province?.Name ?? comp?.Barangay?.Municipality?.Province?.Name;
+            var reg = detail?.Barangay?.Municipality?.Province?.Region?.Name ?? comp?.Barangay?.Municipality?.Province?.Region?.Name;
+            var zip = detail?.ZipCode;
+
+            var parts = new[] { street, brgy, muni, prov, reg, zip }
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p!.Trim())
+                .Distinct()
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : string.Empty;
+        }
+
         var fallbackApplicantName = app?.ApplicationApplicants
             .Select(aa => aa.Applicant)
             .Where(a => a != null)
@@ -41,8 +61,17 @@ public static class OrderOfPaymentPrintMapper
         var fallbackAddress = app?.ApplicationApplicants
             .Select(aa => aa.Applicant)
             .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null))
+            .Select(a =>
+            {
+                var full = BuildFullAddress(a?.ApplicantDetail, a?.CompanyDetail);
+                if (!string.IsNullOrWhiteSpace(full)) return full;
+                return a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null);
+            })
             .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
+
+        var fallbackUserAddress = app?.User?.CompanyDetail != null
+            ? (BuildFullAddress(null, app.User.CompanyDetail) is var uAddr && !string.IsNullOrWhiteSpace(uAddr) ? uAddr : app.User.CompanyDetail.Address)
+            : null;
 
         model.PayorName = !string.IsNullOrWhiteSpace(soa?.IssuedToName)
             ? soa.IssuedToName
@@ -50,7 +79,9 @@ public static class OrderOfPaymentPrintMapper
 
         model.PayorAddress = !string.IsNullOrWhiteSpace(soa?.IssuedToAddress)
             ? soa.IssuedToAddress
-            : (fallbackAddress ?? (app?.User?.CompanyDetail != null ? app.User.CompanyDetail.Address : "N/A"));
+            : (!string.IsNullOrWhiteSpace(fallbackAddress)
+                ? fallbackAddress
+                : (fallbackUserAddress ?? "N/A"));
 
         model.Amount = op.AmountDue;
         model.TotalAmount = op.AmountDue;

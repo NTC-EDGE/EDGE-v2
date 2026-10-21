@@ -856,7 +856,9 @@ export function generateOpPrintableHtml(
   const orNumber = app.payment?.orNumber;
 
   const applicantAddress = safeString(
-    formatAddress(app),
+    (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
+      ? app.soaIssuedToAddress.trim()
+      : formatAddress(app),
     'Cebu City, Philippines'
   );
 
