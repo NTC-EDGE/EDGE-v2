@@ -5,6 +5,7 @@ import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
 import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
 import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
+import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
@@ -273,6 +274,7 @@ export function GeneralFilingDetailsStep({
         onChange={(partial) => updateActiveApplicant(partial)}
         allowCompany={allowCompany}
         isExamService={isExamService}
+        includeSignature={false}
         errors={errors}
         title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Particulars"}
       />
@@ -302,6 +304,31 @@ export function GeneralFilingDetailsStep({
           isBulk={isBulk}
         />
       ) : null}
+
+      {/* 3. Acknowledgement & Digital Signature (Standardized at the end of the form) */}
+      <View style={styles.signatureCard}>
+        <View style={styles.signatureHeaderRow}>
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconCircleText}>✓</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.signatureHeading}>Acknowledgement & Digital Signature</Text>
+            <Text style={styles.signatureSubtext}>
+              Please affix or upload your digital signature below. By signing, you certify that all information submitted in this application is true, correct, and complete.
+            </Text>
+          </View>
+        </View>
+        <FormSignatureInput
+          label="Applicant / Authorized Representative Signature"
+          isRequired={true}
+          value={activeApplicant.signatureUrl || ""}
+          onChange={(sigUrl) => updateActiveApplicant({ signatureUrl: sigUrl })}
+          applicantName={getApplicantDisplayName(activeApplicant)}
+          isBulk={isBulk}
+          appMode={appMode}
+          error={errors["signatureUrl"] || errors["signature"]}
+        />
+      </View>
     </View>
   );
 }
@@ -380,6 +407,54 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     gap: 8,
     padding: 24,
+  },
+  signatureCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: COLORS.neutral[900],
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    gap: 14,
+  },
+  signatureHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.brand[50],
+    borderWidth: 1,
+    borderColor: COLORS.brand[200],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconCircleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.brand[700],
+  },
+  signatureHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.neutral[900],
+  },
+  signatureSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    marginTop: 2,
   },
   loadingText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

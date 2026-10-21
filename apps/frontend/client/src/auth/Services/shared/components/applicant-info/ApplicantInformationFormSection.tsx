@@ -13,6 +13,7 @@ export interface ApplicantInformationFormSectionProps {
   onChange: (fields: Partial<GeneralApplicantData>) => void;
   allowCompany?: boolean;
   isExamService?: boolean;
+  includeSignature?: boolean;
   errors?: Record<string, string>;
   title?: string;
 }
@@ -52,6 +53,7 @@ export function ApplicantInformationFormSection({
   onChange,
   allowCompany = true,
   isExamService = false,
+  includeSignature = true,
   errors = {},
   title = "Applicant Particulars",
 }: ApplicantInformationFormSectionProps) {
@@ -500,20 +502,22 @@ export function ApplicantInformationFormSection({
       )}
 
       {/* 5. Applicant Signature */}
-      <View style={{ marginTop: 14 }}>
-        <Text style={styles.subheading}>Applicant Signature</Text>
-        <FormSignatureInput
-          label="Digital Signature / E-Signature"
-          value={applicant.signatureUrl || ""}
-          onChange={(sigUrl) => onChange({ signatureUrl: sigUrl })}
-          applicantName={
-            isCompany
-              ? applicant.representativeName || applicant.companyName || "Representative"
-              : `${applicant.firstName || ""} ${applicant.lastName || ""}`.trim() || "Applicant"
-          }
-          error={errors["signatureUrl"] || errors["signature"]}
-        />
-      </View>
+      {includeSignature && (
+        <View style={{ marginTop: 14 }}>
+          <Text style={styles.subheading}>Applicant Signature</Text>
+          <FormSignatureInput
+            label="Digital Signature / E-Signature"
+            value={applicant.signatureUrl || ""}
+            onChange={(sigUrl) => onChange({ signatureUrl: sigUrl })}
+            applicantName={
+              isCompany
+                ? applicant.representativeName || applicant.companyName || "Representative"
+                : `${applicant.firstName || ""} ${applicant.lastName || ""}`.trim() || "Applicant"
+            }
+            error={errors["signatureUrl"] || errors["signature"]}
+          />
+        </View>
+      )}
     </View>
   );
 }
