@@ -144,6 +144,21 @@ export function ActivityCard({
   );
 
 
+  const effectiveOffice = useMemo(() => {
+    if (typeof application.office === 'string' && application.office.trim().length > 0) {
+      return application.office.trim();
+    }
+    if (
+      typeof application.assignedTo === 'string' &&
+      application.assignedTo.trim().length > 0 &&
+      application.assignedTo.toLowerCase().includes('office') &&
+      !isGenericOfficer(application.assignedTo)
+    ) {
+      return application.assignedTo.trim();
+    }
+    return '';
+  }, [application.office, application.assignedTo]);
+
   const assignmentDisplay = useMemo(() => {
     if (application.endorsedTo) {
       return {
@@ -479,31 +494,33 @@ export function ActivityCard({
         {/* Bottom row: Assignment + Evaluator Indicator + Type badges */}
         <View style={styles.bottomRow}>
           <View style={{ flexDirection: "row", alignItems: "center", gap: 6, flexShrink: 1, minWidth: 0 }}>
-            {application.office ? (
+            {effectiveOffice.length > 0 ? (
               <View style={[styles.assignPill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                 <Lucide name="map-pin" size={10} color={textMuted} />
                 <Text style={[styles.assignText, { color: textSub }]} numberOfLines={1} ellipsizeMode="tail">
-                  {application.office}
+                  {effectiveOffice}
                 </Text>
               </View>
             ) : null}
-            <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
-              <Lucide
-                name={assignmentDisplay.icon}
-                size={10}
-                color={assignmentDisplay.color}
-              />
-              <Text
-                style={[
-                  styles.assignText,
-                  { color: assignmentDisplay.textColor },
-                ]}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-              >
-                {assignmentDisplay.label}
-              </Text>
-            </View>
+            {(assignmentDisplay.label !== "Unassigned" || effectiveOffice.length === 0) && (
+              <View style={[styles.assignPill, { backgroundColor: pillBg }]}>
+                <Lucide
+                  name={assignmentDisplay.icon}
+                  size={10}
+                  color={assignmentDisplay.color}
+                />
+                <Text
+                  style={[
+                    styles.assignText,
+                    { color: assignmentDisplay.textColor },
+                  ]}
+                  numberOfLines={1}
+                  ellipsizeMode="tail"
+                >
+                  {assignmentDisplay.label}
+                </Text>
+              </View>
+            )}
           </View>
           
           <View style={styles.badgeRow}>

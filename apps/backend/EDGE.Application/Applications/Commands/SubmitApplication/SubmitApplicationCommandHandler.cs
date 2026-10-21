@@ -151,6 +151,10 @@ public class SubmitApplicationCommandHandler
                 }
             }
         }
+        else if (tenant != null && !string.IsNullOrWhiteSpace(tenant.Name))
+        {
+            officeName = tenant.Name;
+        }
 
         // 2c. Resolve effective scheduleId
         Guid? effectiveScheduleId = request.ScheduleId;

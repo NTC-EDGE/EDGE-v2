@@ -418,6 +418,7 @@ export function ApplicationReviewScreenContent({
     await updateApplication(app.id, {
       assignedTo: officerName,
       evaluatingOfficer: officerName,
+      office: app.office || undefined,
     });
     toast.success(
       isComplaintOrRequest
@@ -1174,7 +1175,7 @@ export function ApplicationReviewScreenContent({
         visible={showEndorse}
         applicantName={app.applicant}
         tenantId={app.tenantId}
-        appliedFieldOffice={app.office || app.assignedTo}
+        appliedFieldOffice={app.office || (app.assignedTo?.toLowerCase().includes('office') ? app.assignedTo : undefined)}
         onConfirm={handleEndorse}
         onCancel={() => setShowEndorse(false)}
       />

@@ -75,7 +75,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             TenantId = app.TenantId,
             ScheduleId = app.ScheduleId,
             RegionId = app.RegionId,
-            Office = app.Office,
+            Office = app.Office ?? (app.Tenant != null ? app.Tenant.Name : null),
             ApplicationNumber = app.ApplicationNumber,
             ReferenceNumber = app.ReferenceNumber,
             Status = app.Status.ToString(),
