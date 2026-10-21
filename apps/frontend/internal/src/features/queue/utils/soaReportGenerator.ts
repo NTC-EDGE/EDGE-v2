@@ -719,15 +719,15 @@ export function generateSoaPrintableHtml(
 
     <!-- Transaction Checkbox Strip -->
     <div class="checkbox-bar">
-      <span class="cb-item"><span class="cb-mark">${isNew ? '[X]' : '[ ]'}</span> <span class="cb-label">New</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMod ? '[X]' : '[ ]'}</span> <span class="cb-label">Mod</span></span>
-      <span class="cb-item"><span class="cb-mark">${isCo ? '[X]' : '[ ]'}</span> <span class="cb-label">Co</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMa ? '[X]' : '[ ]'}</span> <span class="cb-label">Ma</span></span>
-      <span class="cb-item"><span class="cb-mark">${isRen ? '[X]' : '[ ]'}</span> <span class="cb-label">Ren</span></span>
-      <span class="cb-item"><span class="cb-mark">${isDup ? '[X]' : '[ ]'}</span> <span class="cb-label">Dup</span></span>
-      <span class="cb-item"><span class="cb-mark">${isCv ? '[X]' : '[ ]'}</span> <span class="cb-label">Cv</span></span>
-      <span class="cb-item"><span class="cb-mark">${isRoc ? '[X]' : '[ ]'}</span> <span class="cb-label">ROC</span></span>
-      <span class="cb-item"><span class="cb-mark">${isMs ? '[X]' : '[ ]'}</span> <span class="cb-label">MS</span></span>
+      <span class="cb-item"><span class="cb-mark">${isNew ? '[✓]' : '[ ]'}</span> <span class="cb-label">New</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMod ? '[✓]' : '[ ]'}</span> <span class="cb-label">Mod</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCo ? '[✓]' : '[ ]'}</span> <span class="cb-label">Co</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMa ? '[✓]' : '[ ]'}</span> <span class="cb-label">Ma</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRen ? '[✓]' : '[ ]'}</span> <span class="cb-label">Ren</span></span>
+      <span class="cb-item"><span class="cb-mark">${isDup ? '[✓]' : '[ ]'}</span> <span class="cb-label">Dup</span></span>
+      <span class="cb-item"><span class="cb-mark">${isCv ? '[✓]' : '[ ]'}</span> <span class="cb-label">Cv</span></span>
+      <span class="cb-item"><span class="cb-mark">${isRoc ? '[✓]' : '[ ]'}</span> <span class="cb-label">ROC</span></span>
+      <span class="cb-item"><span class="cb-mark">${isMs ? '[✓]' : '[ ]'}</span> <span class="cb-label">MS</span></span>
       <span class="cb-item"><span class="cb-mark">[ ]</span> <span class="cb-label">Others</span></span>
     </div>
 
@@ -772,8 +772,8 @@ export function generateSoaPrintableHtml(
         <!-- Left: Conditions & O.R. Stamp -->
         <td style="width: 48%; padding-top: 4px;">
           <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
-            <span><strong>${isForAssessmentOnly ? '[X]' : '[ ]'}</strong> For Assessment Only</span>
-            <span><strong>${isEndorsedForPayment ? '[X]' : '[ ]'}</strong> Endorsed for Payment</span>
+            <span><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
+            <span><strong>${isEndorsedForPayment ? '[✓]' : '[ ]'}</strong> Endorsed for Payment</span>
           </div>
 
           <table class="or-stamp-table">

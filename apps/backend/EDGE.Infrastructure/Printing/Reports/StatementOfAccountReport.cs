@@ -375,11 +375,7 @@ public class StatementOfAccountReport : IDocument
                 .Text(isOverlay ? "" : item.Description).FontSize(7.5f);
 
             // Column 3: Amount (Right aligned)
-            decimal? feeVal = item.Particular1.Fees;
-            if (feeVal == null || feeVal == 0)
-            {
-                feeVal = item.SubTotal;
-            }
+            decimal? feeVal = item.Particular1.Amount ?? item.SubTotal ?? item.Particular1.Fees;
 
             string amountStr = feeVal.HasValue && feeVal.Value > 0
                 ? feeVal.Value.ToString("N2")

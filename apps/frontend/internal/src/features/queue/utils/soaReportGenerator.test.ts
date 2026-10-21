@@ -255,6 +255,18 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('Engr. Fallback Evaluator');
       expect(html).toContain('Chief Fallback Approver');
     });
+
+    it('should display checkmarks instead of [X] or YES in checkbox strip and endorsement', () => {
+      const html = generateSoaPrintableHtml(mockApplication);
+      expect(html).toContain('[✓]');
+      expect(html).not.toContain('[X]');
+    });
+
+    it('should format dates with complete month name and comma (e.g. October 13, 2026)', () => {
+      const html = generateSoaPrintableHtml(mockApplication);
+      expect(html).toContain('September 21, 2026');
+      expect(html).toContain('October 21, 2026');
+    });
   });
 
   describe('generateOpPrintableHtml', () => {

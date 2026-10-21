@@ -22,6 +22,7 @@ public class StatementOfAccountFeeDetail
     public string? Percent { get; set; }
     public string? NoOfUnits { get; set; }
     public decimal? Fees { get; set; }
+    public decimal? Amount { get; set; }
 }
 
 /// <summary>
@@ -43,9 +44,15 @@ public class StatementOfAccountItem
         {
             decimal sum = 0;
             bool hasValue = false;
-            if (Particular1.Fees.HasValue) { sum += Particular1.Fees.Value; hasValue = true; }
-            if (Particular2.Fees.HasValue) { sum += Particular2.Fees.Value; hasValue = true; }
-            if (Particular3.Fees.HasValue) { sum += Particular3.Fees.Value; hasValue = true; }
+            if (Particular1.Amount.HasValue) { sum += Particular1.Amount.Value; hasValue = true; }
+            else if (Particular1.Fees.HasValue) { sum += Particular1.Fees.Value; hasValue = true; }
+
+            if (Particular2.Amount.HasValue) { sum += Particular2.Amount.Value; hasValue = true; }
+            else if (Particular2.Fees.HasValue) { sum += Particular2.Fees.Value; hasValue = true; }
+
+            if (Particular3.Amount.HasValue) { sum += Particular3.Amount.Value; hasValue = true; }
+            else if (Particular3.Fees.HasValue) { sum += Particular3.Fees.Value; hasValue = true; }
+
             return hasValue ? sum : null;
         }
     }

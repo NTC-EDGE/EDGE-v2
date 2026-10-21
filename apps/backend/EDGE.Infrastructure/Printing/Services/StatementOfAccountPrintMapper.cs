@@ -54,7 +54,7 @@ public static class StatementOfAccountPrintMapper
             ? soa.DueDate
             : creationDate.AddDays(30);
 
-        model.PaymentDueDate = dueDate.ToString("MM/dd/yyyy");
+        model.PaymentDueDate = dueDate.ToString("MMMM dd, yyyy");
 
         // 3. Transaction Type Checkboxes
         var primaryVariant = app?.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
@@ -145,20 +145,23 @@ public static class StatementOfAccountPrintMapper
                     (!string.IsNullOrWhiteSpace(li.Particular) && i.Description.Contains(li.Particular, StringComparison.OrdinalIgnoreCase)) ||
                     (!string.IsNullOrWhiteSpace(li.Particular) && li.Particular.Contains(i.Description, StringComparison.OrdinalIgnoreCase)));
 
+                var feeRate = li.FeeRate > 0 ? li.FeeRate : (li.NoOfUnits > 1 ? li.Amount / li.NoOfUnits : li.Amount);
                 if (matched != null)
                 {
-                    matched.Particular1.Fees = (matched.Particular1.Fees ?? 0) + li.Amount;
+                    matched.Particular1.Fees = feeRate;
+                    matched.Particular1.Amount = (matched.Particular1.Amount ?? 0) + li.Amount;
                     if (li.ValidityYears > 0) matched.Particular1.NoOfYrs = li.ValidityYears.ToString();
                     if (li.NoOfUnits > 0) matched.Particular1.NoOfUnits = li.NoOfUnits.ToString();
                 }
                 else
                 {
                     var othersItem = model.Items.FirstOrDefault(i => i.Category == SoaCategory.OtherApplication && i.Description == "Others");
-                    if (othersItem != null && (othersItem.Particular1.Fees == null || othersItem.Particular1.Fees == 0))
+                    if (othersItem != null && (othersItem.Particular1.Amount == null || othersItem.Particular1.Amount == 0))
                     {
                         othersItem.Description = $"Others: {li.Particular}";
                         othersItem.Code = li.ItemCode;
-                        othersItem.Particular1.Fees = li.Amount;
+                        othersItem.Particular1.Fees = feeRate;
+                        othersItem.Particular1.Amount = li.Amount;
                         if (li.ValidityYears > 0) othersItem.Particular1.NoOfYrs = li.ValidityYears.ToString();
                         if (li.NoOfUnits > 0) othersItem.Particular1.NoOfUnits = li.NoOfUnits.ToString();
                     }
@@ -171,7 +174,8 @@ public static class StatementOfAccountPrintMapper
                             Category = SoaCategory.OtherApplication,
                             Particular1 = new StatementOfAccountFeeDetail
                             {
-                                Fees = li.Amount,
+                                Fees = feeRate,
+                                Amount = li.Amount,
                                 NoOfYrs = li.ValidityYears > 0 ? li.ValidityYears.ToString() : null,
                                 NoOfUnits = li.NoOfUnits > 0 ? li.NoOfUnits.ToString() : null
                             }

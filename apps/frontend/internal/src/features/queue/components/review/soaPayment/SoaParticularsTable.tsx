@@ -225,7 +225,7 @@ export function SoaParticularsTable({
               {item.noOfUnits}
             </Text>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-              {item.fees}
+              {typeof item.fees === 'number' ? formatAmount(item.fees) : (item.fees || '₱0.00')}
             </Text>
             <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
               {formatAmount(item.amount)}
