@@ -265,7 +265,13 @@ public static class CommonSeederData
             ["mobile_number"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000310"), FieldType = "text", Label = "Subscriber Identity Module (SIM) / Cell Phone Number", SyncBackOnSubmit = false, ValidationRules = @"^09[0-9]{9}$" },
             ["identity_proof_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000311"), FieldType = "dropdown", Label = "Government Identification Attached", SyncBackOnSubmit = false, ValidationRules = @"[""Copy of government-issued ID or Passport"",""Copy of school ID (for students)"",""Copy of Birth Certificate or NBI Clearance""]" },
             ["proof_of_ownership_type"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000312"), FieldType = "dropdown", Label = "Proof of Ownership", SyncBackOnSubmit = false, ValidationRules = @"[""Official Receipt of Mobile Phone"",""Original Phone Box with IMEI"",""Certificate of Purchase from Authorized Seller"",""Affidavit of Loss with Police Blotter""]" },
-            ["loss_reason"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000313"), FieldType = "dropdown", Label = "Incident Type", SyncBackOnSubmit = false, ValidationRules = @"[""Lost / Misplaced"",""Stolen (Theft / Robbery / Hold-up)""]" },
+            ["loss_reason"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000313"), FieldType = "dropdown", Label = "Incident Type", SyncBackOnSubmit = false, ValidationRules = @"[""Lost / Misplaced"",""Stolen (Theft / Robbery / Hold-up)"",""Others""]" },
+            ["incident_others_specify"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000318"), FieldType = "text", Label = "Please specify", SyncBackOnSubmit = false },
+            ["date_of_filing"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000319"), FieldType = "date", Label = "Date of Filing", SyncBackOnSubmit = false },
+            ["date_of_recovery"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000320"), FieldType = "date", Label = "Date of Recovery", SyncBackOnSubmit = false },
+            ["unblocking_details"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000321"), FieldType = "dropdown", Label = "Details", SyncBackOnSubmit = false, ValidationRules = @"[""It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;"",""It has not been blocked yet and thus I am withdrawing the affidavit of ownership and loss with undertaking I filed with the NTC for blocking of said cellphone to exclude said phone from being blocked.""]" },
+            ["program_name"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000322"), FieldType = "text", Label = "Program Name", SyncBackOnSubmit = false },
+            ["anchor_commentator"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000323"), FieldType = "text", Label = "Anchor/Commentator", SyncBackOnSubmit = false },
             ["age_group"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000314"), FieldType = "dropdown", Label = "Age Group", SyncBackOnSubmit = false, ValidationRules = @"[""Below 18"",""18 - 29"",""30 - 39"",""40 - 49"",""50 - 59"",""60 up""]" },
             ["place_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000315"), FieldType = "text", Label = "Place of Incident", SyncBackOnSubmit = false },
             ["date_of_incident"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000316"), FieldType = "date", Label = "Date of Incident", SyncBackOnSubmit = false },
@@ -302,6 +308,9 @@ public static class CommonSeederData
                 SyncBackOnSubmit = false,
                 ValidationRules = @"{""repeaterColumns"":[{""id"":""c1"",""key"":""mobile_number"",""label"":""Mobile Number"",""placeholder"":""09XXXXXXXXX or +639XXXXXXXXX"",""required"":true,""type"":""text""}],""addButtonLabel"":""Add Another Mobile Number""}"
             },
+            ["broadcast_station"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000334"), FieldType = "text", Label = "Broadcast Station", SyncBackOnSubmit = false },
+            ["time_of_airing"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000335"), FieldType = "time", Label = "Time of Airing", SyncBackOnSubmit = false },
+
             // Repeater Field for Station Particulars (Amateur Permits NTC 1-09)
             ["particulars"] = new()
             {

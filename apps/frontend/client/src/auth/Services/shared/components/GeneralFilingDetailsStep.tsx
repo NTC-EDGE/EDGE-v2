@@ -121,12 +121,33 @@ export function GeneralFilingDetailsStep({
         t.includes("details of complaint");
 
       const vDesc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
-      const isUnblock = vDesc.includes("unblock");
-      const isBlock = vDesc.includes("block") && !isUnblock;
+      const vId = String(activeApplicant.selectedVariantId || "").toLowerCase();
+      const isUnblock = vDesc.includes("unblock") || vId.includes("402");
+      const isBlock = (vDesc.includes("block") || vId.includes("401")) && !isUnblock;
       const isBlockOrUnblock = isBlock || isUnblock;
+      const isSpam = (vDesc.includes("spam") || vDesc.includes("scam") || vDesc.includes("threat") || vId.includes("403")) && !vDesc.includes("tape");
+      const isTelco = (vDesc.includes("telecommunications") || vDesc.includes("broadcast service") || vDesc.includes("provider") || vId.includes("404")) && !vDesc.includes("tape") && !isSpam;
+      const isTape = vDesc.includes("tape") || vDesc.includes("preservation") || vId.includes("405");
 
       if (isBlockOrUnblock && isComplaintSection) return;
       if (!isBlockOrUnblock && isBlockingSection) return;
+
+      if (isBlock) {
+        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
+        if (k === "unblocking_details_section" || t.includes("unblocking")) return;
+      }
+
+      if (isUnblock) {
+        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
+        if (k === "incident_and_demographic_info" || t.includes("incident details")) return;
+      }
+
+      if (isTape) {
+        if (k === "nature_of_complaint" || t.includes("nature of complaint")) return;
+        if (k === "particulars_of_service_provider" || t.includes("particulars of service provider")) return;
+      } else {
+        if (k === "broadcast_details" || t.includes("broadcast")) return;
+      }
 
       if (!evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext)) {
         return;
@@ -136,6 +157,7 @@ export function GeneralFilingDetailsStep({
         if (!field || !field.isRequired) return;
 
         const rawTargetId = field.fieldId || field.id;
+        const idLower = (rawTargetId || "").toLowerCase();
         const labelLower = (field.label || "").toLowerCase();
         if (
           rawTargetId?.toLowerCase().includes("declaration") ||
@@ -148,6 +170,13 @@ export function GeneralFilingDetailsStep({
           return;
         }
 
+        if (isBlock || isUnblock) {
+          if (idLower === "action_requested" || labelLower.includes("action requested")) return;
+          if (idLower === "sex" || labelLower === "sex") return;
+          if (idLower === "age_group" || labelLower.includes("age group")) return;
+          if (idLower === "identity_proof_type" || idLower === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return;
+        }
+
         if (!evaluateVisibilityCondition(field.visibilityCondition, evaluationContext)) {
           return;
         }
@@ -157,6 +186,43 @@ export function GeneralFilingDetailsStep({
         }
       });
     });
+
+    const vDescOuter = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
+    const vIdOuter = String(activeApplicant.selectedVariantId || "").toLowerCase();
+    const isUnblockOuter = vDescOuter.includes("unblock") || vIdOuter.includes("402");
+    const isBlockOuter = (vDescOuter.includes("block") || vIdOuter.includes("401")) && !isUnblockOuter;
+    const isSpamOuter = (vDescOuter.includes("spam") || vDescOuter.includes("scam") || vDescOuter.includes("threat") || vIdOuter.includes("403")) && !vDescOuter.includes("tape");
+    const isTelcoOuter = (vDescOuter.includes("telecommunications") || vDescOuter.includes("broadcast service") || vDescOuter.includes("provider") || vIdOuter.includes("404")) && !vDescOuter.includes("tape") && !isSpamOuter;
+    const isTapeOuter = vDescOuter.includes("tape") || vDescOuter.includes("preservation") || vIdOuter.includes("405");
+
+    if (isUnblockOuter) {
+      if (!requiredFieldIds.includes("date_of_filing")) requiredFieldIds.push("date_of_filing");
+      if (!requiredFieldIds.includes("date_of_recovery")) requiredFieldIds.push("date_of_recovery");
+      if (!requiredFieldIds.includes("unblocking_details")) requiredFieldIds.push("unblocking_details");
+    }
+
+    if (isBlockOuter) {
+      const lossVal = dynamicValuesRecord["loss_reason"] || dynamicValuesRecord["Incident Type"] || "";
+      if (lossVal === "Others" && !requiredFieldIds.includes("incident_others_specify")) {
+        requiredFieldIds.push("incident_others_specify");
+      }
+    }
+
+    if (isTapeOuter) {
+      if (!requiredFieldIds.includes("broadcast_station")) requiredFieldIds.push("broadcast_station");
+      if (!requiredFieldIds.includes("program_name")) requiredFieldIds.push("program_name");
+      if (!requiredFieldIds.includes("time_of_airing")) requiredFieldIds.push("time_of_airing");
+      if (!requiredFieldIds.includes("anchor_commentator")) requiredFieldIds.push("anchor_commentator");
+      if (!requiredFieldIds.includes("date_of_incident")) requiredFieldIds.push("date_of_incident");
+      if (!requiredFieldIds.includes("state_briefly_details")) requiredFieldIds.push("state_briefly_details");
+    }
+
+    if (isSpamOuter || isTelcoOuter) {
+      const complaintVal = dynamicValuesRecord["complaint_types"] || dynamicValuesRecord["Nature of Complaint"] || "";
+      if (complaintVal.toLowerCase().includes("others") && !requiredFieldIds.includes("others_specification")) {
+        requiredFieldIds.push("others_specification");
+      }
+    }
 
     onRequiredFieldsChange?.(requiredFieldIds);
   }, [

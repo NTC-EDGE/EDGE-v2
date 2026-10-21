@@ -175,7 +175,7 @@ public class Ntc124Report : IDocument
                 r.RelativeItem().Text(t =>
                 {
                     t.Span("Incident Type: ").Bold();
-                    t.Span(inc.IncidentType == IncidentType124.Stolen ? "[ X ] Stolen  [   ] Lost/Misplaced" : "[   ] Stolen  [ X ] Lost/Misplaced");
+                    t.Span(inc.IncidentType == IncidentType124.Stolen ? "[ X ] Stolen  [   ] Lost/Misplaced" : inc.IncidentType == IncidentType124.Others ? $"[   ] Stolen  [   ] Lost/Misplaced  [ X ] Others: {inc.OthersSpecification}" : "[   ] Stolen  [ X ] Lost/Misplaced");
                 });
                 r.RelativeItem().Text(t =>
                 {

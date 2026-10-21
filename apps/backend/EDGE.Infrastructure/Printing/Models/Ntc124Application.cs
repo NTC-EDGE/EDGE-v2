@@ -11,7 +11,8 @@ public enum ActionRequested124
 public enum IncidentType124
 {
     LostMisplaced,
-    Stolen
+    Stolen,
+    Others
 }
 
 public enum AgeGroup124
@@ -49,6 +50,10 @@ public class IncidentDetails
     public TimeOfDay124 TimeOfDay { get; set; } = TimeOfDay124.Daytime;
     public string PlaceOfIncident { get; set; } = "";
     public DateOnly DateOfIncident { get; set; }
+    public string OthersSpecification { get; set; } = "";
+    public DateOnly? DateOfFiling { get; set; }
+    public DateOnly? DateOfRecovery { get; set; }
+    public string UnblockingDetails { get; set; } = "";
 }
 
 public class NotaryPublicDetails

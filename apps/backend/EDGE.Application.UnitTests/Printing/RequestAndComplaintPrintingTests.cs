@@ -210,6 +210,69 @@ public class RequestAndComplaintPrintingTests
     }
 
     [Fact]
+    public void ApplicationFormPrintMapper_ShouldMapOthersIncidentTypeAndUnblockingDetails()
+    {
+        // Arrange
+        var app = new Domain.Entities.Application
+        {
+            Id = Guid.NewGuid(),
+            ApplicationNumber = "APP-UNBLOCK-001",
+            ReferenceNumber = "REF-UNBLOCK-001",
+            CreatedAt = new DateTime(2026, 10, 20, 8, 0, 0, DateTimeKind.Utc),
+            ApplicationApplicants = new List<ApplicationApplicant>
+            {
+                new()
+                {
+                    Applicant = new EDGE.Domain.Entities.Applicant
+                    {
+                        Service = new Service { Code = "NTC_REQ_COMPLAINTS", Name = "Requests and Complaints" },
+                        ServiceVariant = new ServiceVariant { Type = ServiceVariantType.NA, Description = "Requests for Unblocking of IMEI and SIM of Lost/Stolen Mobile Phone" },
+                        ApplicantDetail = new ApplicantDetail
+                        {
+                            FirstName = "PEDRO",
+                            LastName = "PENDUKO",
+                            Address = "Cebu City",
+                            ContactNumber = "09180009988",
+                            Sex = "Male",
+                            Nationality = "Filipino"
+                        }
+                    }
+                }
+            },
+            FormSubmissions = new List<FormSubmission>
+            {
+                new()
+                {
+                    FieldValues = new List<FormFieldValue>
+                    {
+                        new() { CustomLabel = "Action Requested", Value = "UNBLOCK GSM Handset" },
+                        new() { CustomLabel = "Make / Model / Type", Value = "Apple iPhone 15 Pro" },
+                        new() { CustomLabel = "IMEI Number", Value = "359999888877776" },
+                        new() { CustomLabel = "Date of Filing", Value = "2026-09-15" },
+                        new() { CustomLabel = "Date of Recovery", Value = "2026-10-15" },
+                        new() { CustomLabel = "Details", Value = "It has already been blocked and thus I am requesting the NTC for unblocking of said unit to activate the usage of the same;" },
+                        new() { CustomLabel = "Incident Type", Value = "Others" },
+                        new() { CustomLabel = "Please specify", Value = "Found in taxi by driver" }
+                    }
+                }
+            }
+        };
+
+        // Act
+        var isBlock = ApplicationFormPrintMapper.IsBlockingOrUnblocking(app);
+        var mapped = ApplicationFormPrintMapper.MapToNtc124(app);
+
+        // Assert
+        isBlock.Should().BeTrue();
+        mapped.ActionRequested.Should().Be(ActionRequested124.Unblock);
+        mapped.Incident.IncidentType.Should().Be(IncidentType124.Others);
+        mapped.Incident.OthersSpecification.Should().Be("Found in taxi by driver");
+        mapped.Incident.DateOfFiling.Should().Be(new DateOnly(2026, 9, 15));
+        mapped.Incident.DateOfRecovery.Should().Be(new DateOnly(2026, 10, 15));
+        mapped.Incident.UnblockingDetails.Should().Contain("already been blocked");
+    }
+
+    [Fact]
     public void ApplicationFormPrintMapper_ShouldIdentifyAndMapComplaintApplication()
     {
         // Arrange

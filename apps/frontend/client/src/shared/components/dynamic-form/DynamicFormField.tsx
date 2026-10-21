@@ -178,6 +178,9 @@ export interface DynamicFormFieldProps {
   isTimeField?: boolean;
   othersSpecifyValue?: string;
   onOthersSpecifyChange?: (text: string) => void;
+  incidentOthersSpecifyValue?: string;
+  onIncidentOthersSpecifyChange?: (text: string) => void;
+  incidentOthersError?: string;
   isSignature: boolean;
   isCheckbox: boolean;
   isDropdown: boolean;
@@ -226,6 +229,9 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isTimeField = false,
   othersSpecifyValue,
   onOthersSpecifyChange,
+  incidentOthersSpecifyValue,
+  onIncidentOthersSpecifyChange,
+  incidentOthersError,
   isSignature,
   isCheckbox,
   isDropdown,
@@ -346,6 +352,18 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             </View>
           )}
           <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} disabled={disabled} />
+          {(targetId === "loss_reason" || targetId === "fd000000-0000-0000-0000-000000000313" || displayLabel.toLowerCase().includes("incident type")) && val === "Others" && (
+            <View style={{ marginTop: 10 }}>
+              <ValidatedInput
+                label="Please specify"
+                required={true}
+                placeholder="Please specify incident type..."
+                value={incidentOthersSpecifyValue || ""}
+                onChangeText={(text) => onIncidentOthersSpecifyChange?.(text)}
+                error={incidentOthersError}
+              />
+            </View>
+          )}
         </View>
       ) : isDate ? (
         <DatePickerInput label={displayLabel} required={isRequired} value={val} onChangeText={(v) => onChange(targetId, displayLabel, v)} error={err} />

@@ -3,15 +3,17 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Icon, COLORS, TYPOGRAPHY } from '@edge/ui';
 import { ValidatedInput } from './ValidatedInput';
 
-export const DEFAULT_COMPLAINT_NATURES = [
-  'Billing Complaint',
-  'Spam',
-  'Poor Service (Technical Service/Customer Service)',
-  'Scam',
-  'Fair Use',
-  'Denial of Subscription Plan',
-  'Others, please specify',
-];
+import {
+  SPAM_COMPLAINT_NATURES,
+  TELCO_COMPLAINT_NATURES,
+  DEFAULT_COMPLAINT_NATURES,
+} from '../../auth/Services/requests/helpers/complaintNatures';
+
+export {
+  SPAM_COMPLAINT_NATURES,
+  TELCO_COMPLAINT_NATURES,
+  DEFAULT_COMPLAINT_NATURES,
+};
 
 interface NatureOfComplaintCheckboxGroupProps {
   label?: string;
@@ -104,7 +106,7 @@ export function NatureOfComplaintCheckboxGroup({
       if (isOtherOption) {
         const item = activeOtherText.trim()
           ? `Others: ${activeOtherText.trim()}`
-          : 'Others, please specify';
+          : opt.toLowerCase().includes('specify') ? 'Others, please specify' : 'Others';
         updated = [...selectedList, item];
       } else {
         updated = [...selectedList, opt];
@@ -125,7 +127,7 @@ export function NatureOfComplaintCheckboxGroup({
         !s.toLowerCase().startsWith('other:')
     );
 
-    const newOtherEntry = text.trim() ? `Others: ${text.trim()}` : 'Others, please specify';
+    const newOtherEntry = text.trim() ? `Others: ${text.trim()}` : 'Others';
     const updated = [...nonOtherItems, newOtherEntry];
     onChange(updated.join(', '));
   };
@@ -171,7 +173,7 @@ export function NatureOfComplaintCheckboxGroup({
               {isOtherOption && isChecked && (
                 <View style={styles.specifyContainer}>
                   <ValidatedInput
-                    label="Please specify other nature of complaint"
+                    label="Please specify"
                     required={true}
                     placeholder="Enter details of your complaint (e.g. unsolicited calls, fraudulent promo)..."
                     value={activeOtherText}

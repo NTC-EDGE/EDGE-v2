@@ -109,15 +109,34 @@ public static class ApplicationFormPrintMapper
 
         // Incident Details
         var incident = model.Incident;
-        var lossReason = FindFieldValue(allFieldValues, "loss_reason", "reason") ?? "";
+        var lossReason = FindFieldValue(allFieldValues, "loss_reason", "incident type", "incident", "reason", "loss") ?? "";
         if (lossReason.Contains("stolen", StringComparison.OrdinalIgnoreCase))
         {
             incident.IncidentType = IncidentType124.Stolen;
+        }
+        else if (lossReason.Contains("other", StringComparison.OrdinalIgnoreCase))
+        {
+            incident.IncidentType = IncidentType124.Others;
+            incident.OthersSpecification = FindFieldValue(allFieldValues, "incident_others_specify", "others_specification", "please specify") ?? "";
         }
         else
         {
             incident.IncidentType = IncidentType124.LostMisplaced;
         }
+
+        var filingDateVal = FindFieldValue(allFieldValues, "date_of_filing", "date of filing");
+        if (!string.IsNullOrWhiteSpace(filingDateVal) && DateOnly.TryParse(filingDateVal, out var parsedFilingDate))
+        {
+            incident.DateOfFiling = parsedFilingDate;
+        }
+
+        var recoveryDateVal = FindFieldValue(allFieldValues, "date_of_recovery", "date of recovery");
+        if (!string.IsNullOrWhiteSpace(recoveryDateVal) && DateOnly.TryParse(recoveryDateVal, out var parsedRecoveryDate))
+        {
+            incident.DateOfRecovery = parsedRecoveryDate;
+        }
+
+        incident.UnblockingDetails = FindFieldValue(allFieldValues, "unblocking_details", "details") ?? "";
 
         var sexVal = FindFieldValue(allFieldValues, "sex") ?? person?.Sex ?? app.User?.Sex ?? "";
         if (sexVal.StartsWith("F", StringComparison.OrdinalIgnoreCase))
