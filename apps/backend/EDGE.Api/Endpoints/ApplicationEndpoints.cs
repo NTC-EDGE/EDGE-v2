@@ -234,14 +234,33 @@ public static class ApplicationEndpoints
             .WithDescription("Alias for PrintIssuedDocument.");
 
         group.MapGet("/{id:guid}/form/print", PrintApplicationFormEndpoint)
-            .AllowAnonymous()
+            .RequireAuthorization()
             .WithName("PrintApplicationForm")
             .WithSummary("Print Application Form")
             .WithDescription("Generates and downloads official printable PDF statutory application form (e.g. NTC 1-24 Blocking/Unblocking, NTC 1-25 Complaints) for the application.");
 
-        group.MapGet("/{id:guid}/form/download", (Guid id, IApplicationFullRepository repository, IFormPrintingService printingService, HttpContext httpContext, CancellationToken cancellationToken) =>
-            PrintApplicationFormEndpoint(id, repository, printingService, httpContext, download: true, cancellationToken))
-            .AllowAnonymous()
+        group.MapGet("/{id:guid}/form/download", (
+            Guid id,
+            IApplicationFullRepository repository,
+            IFormPrintingService printingService,
+            HttpContext httpContext,
+            ICurrentUserService currentUserService,
+            IUserAuthorizationService userAuthorizationService,
+            ITenantContextService tenantContextService,
+            IUserRepository userRepository,
+            CancellationToken cancellationToken) =>
+            PrintApplicationFormEndpoint(
+                id,
+                repository,
+                printingService,
+                httpContext,
+                currentUserService,
+                userAuthorizationService,
+                tenantContextService,
+                userRepository,
+                download: true,
+                cancellationToken))
+            .RequireAuthorization()
             .WithName("DownloadApplicationForm")
             .WithSummary("Download Application Form")
             .WithDescription("Alias for PrintApplicationForm with download=true.");
@@ -918,13 +937,62 @@ public static class ApplicationEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
-        bool download = false,
+        ICurrentUserService currentUserService,
+        IUserAuthorizationService userAuthorizationService,
+        ITenantContextService tenantContextService,
+        IUserRepository userRepository,
+        [FromQuery] bool download = false,
         CancellationToken cancellationToken = default)
     {
+        var authUserId = currentUserService.UserId;
+        if (string.IsNullOrWhiteSpace(authUserId))
+        {
+            return Results.Unauthorized();
+        }
+
         var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
         if (app == null)
         {
             return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        var currentUser = await userRepository.ResolveCurrentUserAsync(currentUserService, cancellationToken);
+        var isSuperAdmin = currentUser?.IsSuperAdmin == true ||
+                           currentUserService.IsSuperAdminClaim ||
+                           await tenantContextService.IsCurrentUserSuperAdminAsync(cancellationToken);
+
+        var isOwner = (currentUser != null && app.UserId == currentUser.Id) ||
+                      (Guid.TryParse(authUserId, out var parsedGuid) && app.UserId == parsedGuid) ||
+                      (app.User != null && !string.IsNullOrEmpty(app.User.AuthUserId) && string.Equals(app.User.AuthUserId, authUserId, StringComparison.OrdinalIgnoreCase)) ||
+                      (currentUser != null && app.User != null && !string.IsNullOrEmpty(currentUser.Email) && string.Equals(currentUser.Email, app.User.Email, StringComparison.OrdinalIgnoreCase));
+
+        var hasStaffPermission = await userAuthorizationService.HasAnyPermissionAsync(new[]
+        {
+            Permissions.ReadApplication,
+            Permissions.ViewAllApplications,
+            Permissions.EvaluateApplication,
+            Permissions.IssueApplication
+        }, cancellationToken);
+
+        if (!isSuperAdmin && !isOwner)
+        {
+            if (!hasStaffPermission)
+            {
+                return Results.Forbid();
+            }
+
+            // If accessing as staff, validate tenant isolation
+            if (app.TenantId != Guid.Empty)
+            {
+                var isTenantMember = await tenantContextService.IsUserActiveMemberAsync(app.TenantId, cancellationToken);
+                if (!isTenantMember)
+                {
+                    return Results.Problem(
+                        title: "Cross-Tenant Access Denied",
+                        detail: $"Access denied: You are not authorized to view applications belonging to tenant '{app.TenantId}'.",
+                        statusCode: StatusCodes.Status403Forbidden);
+                }
+            }
         }
 
         byte[] pdfBytes;

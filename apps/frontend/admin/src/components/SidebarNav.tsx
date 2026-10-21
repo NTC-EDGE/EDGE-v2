@@ -32,7 +32,7 @@ import { useAdminScope, AdminRoleType } from "@/lib/admin-scope-context";
 
 export function SidebarNav() {
   const pathname = usePathname();
-  const { activeRole, isSystemAdmin, isRegionAdmin, isSuperAdmin, currentUser } = useAdminScope();
+  const { activeRole, isSystemAdmin, isTenantAdmin, isRegionAdmin, isSuperAdmin, currentUser } = useAdminScope();
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const isActive = (path: string) => pathname === path || (path !== "/" && pathname.startsWith(path));
