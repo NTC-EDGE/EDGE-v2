@@ -314,7 +314,7 @@ public class StatementOfAccountReport : IDocument
                         statusRow.AutoItem().PaddingLeft(2).Text("FOR ASSESSMENT ONLY").FontSize(7.5f);
 
                         statusRow.AutoItem().PaddingLeft(8).Text(_model.IsEndorsedForPayment ? "[✔]" : "[ ]").Bold().FontSize(7.5f);
-                        statusRow.AutoItem().PaddingLeft(2).Text("ENDORSED FOR PAYMENT").FontSize(7.5f);
+                        statusRow.AutoItem().PaddingLeft(2).Text("OFFICIAL APPLICATION").FontSize(7.5f);
                     });
                 }
 

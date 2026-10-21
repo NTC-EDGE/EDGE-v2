@@ -101,10 +101,7 @@ public static class StatementOfAccountPrintMapper
 
         // 4. Assessment Checkboxes
         model.IsForAssessmentOnly = app?.Intent == ApplicationIntent.AssessmentOnly;
-        model.IsEndorsedForPayment = (soa != null && soa.Status == SoaStatus.Approved) ||
-                                     app?.Status == ApplicationStatus.PendingPayment ||
-                                     app?.Status == ApplicationStatus.Completed ||
-                                     (activeOp != null && (activeOp.PaidAt.HasValue || activeOp.Status == OpStatus.Paid));
+        model.IsEndorsedForPayment = !model.IsForAssessmentOnly;
 
         // 5. Particular Headers & Periods
         var firstItemWithPeriod = soa?.LineItems.FirstOrDefault(li => li.PeriodOfCoverageStart.HasValue && li.PeriodOfCoverageEnd.HasValue);

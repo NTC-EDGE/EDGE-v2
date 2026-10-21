@@ -260,12 +260,8 @@ export function generateSoaPrintableHtml(
   const isNew = !isRen && !isMod && !isDup && !isCv && !isRoc && !isCo && !isMa && !isMs;
 
   const isForAssessmentOnly = app.intent === 'AssessmentOnly' || app.isAssessmentOnly === true;
-  const isEndorsedForPayment = !isForAssessmentOnly && (
-    app.status === 'PendingPayment' ||
-    app.status === 'Completed' ||
-    app.status === 'ForIssuance' ||
-    app.soaStatus === 'Approved'
-  );
+  const isOfficialApplication = !isForAssessmentOnly;
+  const isEndorsedForPayment = isOfficialApplication;
 
   const orNumber = app.payment?.orNumber ?? '';
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
@@ -773,7 +769,7 @@ export function generateSoaPrintableHtml(
         <td style="width: 48%; padding-top: 4px;">
           <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
             <span><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
-            <span><strong>${isEndorsedForPayment ? '[✓]' : '[ ]'}</strong> Endorsed for Payment</span>
+            <span><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
           </div>
 
           <table class="or-stamp-table">

@@ -267,6 +267,28 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('September 21, 2026');
       expect(html).toContain('October 21, 2026');
     });
+
+    it('should mark Official Application checked and For Assessment Only unchecked when filed officially', () => {
+      const officialApp: ApplicationData = {
+        ...mockApplication,
+        intent: 'Regular',
+        isAssessmentOnly: false,
+      };
+      const html = generateSoaPrintableHtml(officialApp);
+      expect(html).toContain('[✓]</strong> Official Application');
+      expect(html).toContain('[ ]</strong> For Assessment Only');
+    });
+
+    it('should mark For Assessment Only checked and Official Application unchecked when filed as assessment only', () => {
+      const assessmentApp: ApplicationData = {
+        ...mockApplication,
+        intent: 'AssessmentOnly',
+        isAssessmentOnly: true,
+      };
+      const html = generateSoaPrintableHtml(assessmentApp);
+      expect(html).toContain('[✓]</strong> For Assessment Only');
+      expect(html).toContain('[ ]</strong> Official Application');
+    });
   });
 
   describe('generateOpPrintableHtml', () => {
