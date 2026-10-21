@@ -540,8 +540,8 @@ export function mapApplicationDtoToUI(
     isUrgent: false,
     isPinned: Boolean(dto.isPinned),
     isArchived: Boolean(dto.isArchived),
-    intent: (dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1) ? 'AssessmentOnly' : 'Regular',
-    isAssessmentOnly: dto.intent === 'AssessmentOnly' || (dto.intent as unknown) === 1,
+    intent: (dto.intent === 'AssessmentOnly' || (typeof dto.intent === 'number' && dto.intent === 1)) ? 'AssessmentOnly' : 'Regular',
+    isAssessmentOnly: dto.intent === 'AssessmentOnly' || (typeof dto.intent === 'number' && dto.intent === 1),
     address: {
       streetAddress: primaryStreet,
       address: primaryStreet,
