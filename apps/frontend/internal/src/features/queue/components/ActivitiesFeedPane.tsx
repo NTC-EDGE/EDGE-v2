@@ -67,7 +67,7 @@ const FILTER_STATUSES: {
   icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card" | "file-text";
 }[] = [
   { label: "For Assessment",      value: "ForAssessment",  icon: "file-text" },
-  { label: "Subject for Payment", value: "PendingPayment", icon: "credit-card" },
+  { label: "For Payment", value: "PendingPayment", icon: "credit-card" },
   { label: "Approved",            value: "Approved",       icon: "check-circle" },
   { label: "Returned",            value: "Returned",       icon: "x-circle" },
   { label: "Completed",           value: "Completed",      icon: "calendar" },
@@ -205,6 +205,9 @@ export function ActivitiesFeedPane({
     pageSize,
     pageNumber: 1,
     searchTerm: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
+  }, {
+    refreshInterval: 3000,
+    revalidateOnFocus: true,
   });
 
   const applications = useMemo(() => {
@@ -552,7 +555,7 @@ export function ActivitiesFeedPane({
 
   const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key)).map((t) => {
     if (t.key === 'pending' && currentRole === 'Cashier') {
-      return { ...t, label: 'Subject for Payment' };
+      return { ...t, label: 'For Payment' };
     }
     return t;
   });

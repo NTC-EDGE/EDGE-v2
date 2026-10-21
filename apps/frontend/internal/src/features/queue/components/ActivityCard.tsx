@@ -60,7 +60,7 @@ function isSubjectForPayment(app: ApplicationData): boolean {
 function formatStatusDisplay(application: ApplicationData): string {
   const s = application.status.toLowerCase();
   if (s === "foraccountant") return "FOR ORDER OF PAYMENT";
-  if (s === "pendingpayment" || isSubjectForPayment(application)) return "SUBJECT FOR PAYMENT";
+  if (s === "pendingpayment" || isSubjectForPayment(application)) return "FOR PAYMENT";
   if (s === "submitted") return "FOR EVALUATION";
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";

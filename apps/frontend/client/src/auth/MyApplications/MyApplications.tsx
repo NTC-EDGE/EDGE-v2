@@ -6,6 +6,7 @@ import {
   TouchableOpacity,
   ScrollView,
   ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useApi } from "../../shared/hooks/useApi";
@@ -148,11 +149,13 @@ export function MyApplications() {
   }, [filterText, debouncedSearch]);
 
   // Fetch applications from /api/v2/applications/me with pagination, search, and mode/status filters
-  const fetchApplications = useCallback(async () => {
+  const fetchApplications = useCallback(async (isSilent = false) => {
     let isMounted = true;
     try {
-      setIsLoading(true);
-      setErrorMessage(null);
+      if (!isSilent) {
+        setIsLoading(true);
+        setErrorMessage(null);
+      }
 
       const params = new URLSearchParams();
       params.set("pageNumber", String(currentPage));
@@ -225,6 +228,13 @@ export function MyApplications() {
           )
         );
         setApplications(mappedList);
+
+        // Keep active detail modal up to date in real-time when status changes
+        setSelectedApp((prev) => {
+          if (!prev) return null;
+          const updated = mappedList.find((a) => a.id === prev.id);
+          return updated || prev;
+        });
       } else {
         setApplications([]);
         setServerTotalCount(0);
@@ -232,18 +242,48 @@ export function MyApplications() {
       }
     } catch (err) {
       console.error("Failed to load user applications:", err);
-      if (isMounted) {
+      if (isMounted && !isSilent) {
         setErrorMessage("Unable to load applications. Please check your connection.");
       }
     } finally {
-      if (isMounted) {
+      if (isMounted && !isSilent) {
         setIsLoading(false);
       }
     }
   }, [currentPage, debouncedSearch, selectedMode, selectedStatus]);
 
+  const handleManualRefresh = useCallback(() => {
+    fetchApplications(false);
+  }, [fetchApplications]);
+
   useEffect(() => {
-    fetchApplications();
+    let isMounted = true;
+    fetchApplications(false);
+
+    // Live background polling every 3 seconds so status changes reflect without page refresh
+    const timer = setInterval(() => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    }, 3000);
+
+    const handleFocus = () => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+    }
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+      }
+    };
   }, [fetchApplications]);
 
   // Sorted & Filtered Applications
@@ -324,7 +364,7 @@ export function MyApplications() {
                 </Text>
               </View>
               <TouchableOpacity
-                onPress={fetchApplications}
+                onPress={handleManualRefresh}
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
@@ -675,7 +715,7 @@ export function MyApplications() {
                     {errorMessage}
                   </Text>
                   <TouchableOpacity
-                    onPress={fetchApplications}
+                    onPress={handleManualRefresh}
                     style={{
                       marginTop: 16,
                       backgroundColor: "#DC2626",

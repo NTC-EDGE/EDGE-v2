@@ -124,7 +124,17 @@ export function useApplicationDetailsData(initialApp: Application) {
         }
       };
       loadFullDetails();
-      return () => { isMounted = false; };
+
+      const timer = setInterval(() => {
+        if (isMounted) {
+          loadFullDetails();
+        }
+      }, 3000);
+
+      return () => {
+        isMounted = false;
+        clearInterval(timer);
+      };
     }
   }, [initialApp.id, initialApp.status, initialApp.remarks, refreshTrigger]);
 
