@@ -199,6 +199,7 @@ public class StatementOfAccountReportTests
 
         // Assert
         Assert.Equal("Northern Telecoms Inc.", model.PayorName);
+        Assert.Equal("REF-2026-NTC-001", model.Particular1Header);
         Assert.Equal("SOA-2026-00991", model.AccountNo);
         Assert.True(model.IsEndorsedForPayment);
         Assert.NotNull(pdfBytes);
@@ -374,5 +375,31 @@ public class StatementOfAccountReportTests
             File.WriteAllBytes(Path.Combine(tempDir, filename), bytes);
         }
     }
-}
+    [Fact]
+    public void StatementOfAccountPrintMapper_ParticularIsApplicationOrLicenseNumber()
+    {
+        var appWithLicense = new Domain.Entities.Application
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-8888",
+            ReferenceNumber = "REF-2026-9999",
+            IssuedDocumentDetails = new System.Collections.Generic.List<Domain.Entities.IssuedDocumentDetail>
+            {
+                new() { LicenseNumber = "RSL-2026-0042", FormNumber = "FORM-123" }
+            }
+        };
 
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(null, appWithLicense);
+        Assert.Equal("RSL-2026-0042", model.Particular1Header);
+
+        var appWithAppNumber = new Domain.Entities.Application
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-8888",
+            ReferenceNumber = "REF-2026-9999"
+        };
+        var model2 = StatementOfAccountPrintMapper.MapToPrintModel(null, appWithAppNumber);
+        Assert.Equal("APP-2026-8888", model2.Particular1Header);
+    }
+
+}

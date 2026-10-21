@@ -3,6 +3,7 @@ import { View, Text, Pressable, Platform } from "react-native";
 import { useTheme, COLORS, RADIUS, TYPOGRAPHY, Icon as Lucide, DatePickerInput } from "@edge/ui";
 import { ApplicationData, SoaItem } from "../../../../../types/application";
 import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "../reviewFormatters";
+import { resolveParticularNumber } from "../../../utils/soaReportGenerator";
 import { reviewStyles as styles } from "../reviewStyles";
 
 interface SoaParticularsTableProps {
@@ -57,6 +58,11 @@ export function SoaParticularsTable({
               <Text style={{ fontSize: 13, fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand[700], fontFamily: TYPOGRAPHY.fonts.mono }}>
                 {app.soaNumber}
               </Text>
+              {Boolean(resolveParticularNumber(app)) && (
+                <Text style={{ fontSize: 12, fontWeight: '600', color: isDark ? colors.neutral[300] : colors.neutral[600] }}>
+                  • Particular: <Text style={{ fontFamily: TYPOGRAPHY.fonts.mono, fontWeight: '700', color: isDark ? colors.brand[300] : colors.brand[700] }}>{resolveParticularNumber(app)}</Text>
+                </Text>
+              )}
               <View
                 style={{
                   paddingHorizontal: 8,

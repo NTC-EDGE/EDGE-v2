@@ -105,7 +105,8 @@ public static class StatementOfAccountPrintMapper
 
         // 5. Particular Headers & Periods
         var firstItemWithPeriod = soa?.LineItems.FirstOrDefault(li => li.PeriodOfCoverageStart.HasValue && li.PeriodOfCoverageEnd.HasValue);
-        model.Particular1Header = model.AccountNo;
+        var particularNumber = ResolveParticularNumber(app);
+        model.Particular1Header = !string.IsNullOrWhiteSpace(particularNumber) ? particularNumber : model.AccountNo;
         if (firstItemWithPeriod != null && firstItemWithPeriod.PeriodOfCoverageStart.HasValue && firstItemWithPeriod.PeriodOfCoverageEnd.HasValue)
         {
             model.Particular1PeriodCovered = $"{firstItemWithPeriod.PeriodOfCoverageStart.Value:MM/dd/yyyy} to {firstItemWithPeriod.PeriodOfCoverageEnd.Value:MM/dd/yyyy}";
@@ -274,5 +275,56 @@ public static class StatementOfAccountPrintMapper
         }
 
         return model;
+    }
+
+    public static string ResolveParticularNumber(EDGE.Domain.Entities.Application? app)
+    {
+        if (app == null) return string.Empty;
+
+        // 1. License Number or Form Number from Issued Document Details
+        if (app.IssuedDocumentDetails != null && app.IssuedDocumentDetails.Any())
+        {
+            var issuedLic = app.IssuedDocumentDetails
+                .Select(d => !string.IsNullOrWhiteSpace(d.LicenseNumber) ? d.LicenseNumber.Trim() : d.FormNumber?.Trim())
+                .FirstOrDefault(num => !string.IsNullOrWhiteSpace(num));
+            if (!string.IsNullOrWhiteSpace(issuedLic))
+                return issuedLic;
+        }
+
+        // 2. Permit, License, Certificate, Registration, or Call Sign from FormFieldValues
+        if (app.FormSubmissions != null && app.FormSubmissions.Any())
+        {
+            foreach (var sub in app.FormSubmissions)
+            {
+                if (sub.FieldValues == null) continue;
+                foreach (var fv in sub.FieldValues)
+                {
+                    if (string.IsNullOrWhiteSpace(fv.Value)) continue;
+                    var label = (fv.CustomLabel ?? fv.Field?.Label)?.ToLowerInvariant() ?? string.Empty;
+                    var key = label;
+
+                    if (label.Contains("license number") || key.Contains("licensenumber") ||
+                        label.Contains("permit number") || key.Contains("permitnumber") ||
+                        label.Contains("certificate number") || key.Contains("certificatenumber") ||
+                        label.Contains("registration number") || key.Contains("registrationnumber") ||
+                        label.Contains("call sign") || key.Contains("callsign") ||
+                        label.Contains("roc number") || key.Contains("rocnumber") ||
+                        label.Contains("rsl number") || key.Contains("rslnumber"))
+                    {
+                        return fv.Value.Trim();
+                    }
+                }
+            }
+        }
+
+        // 3. Application Number
+        if (!string.IsNullOrWhiteSpace(app.ApplicationNumber))
+            return app.ApplicationNumber.Trim();
+
+        // 4. Reference Number
+        if (!string.IsNullOrWhiteSpace(app.ReferenceNumber))
+            return app.ReferenceNumber.Trim();
+
+        return app.Id != Guid.Empty ? $"APP-{app.Id.ToString()[..8].ToUpper()}" : string.Empty;
     }
 }

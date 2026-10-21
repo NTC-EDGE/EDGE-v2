@@ -239,6 +239,7 @@ export function generateSoaPrintableHtml(
   const payorName = safeString(app.applicant, 'Applicant');
   const payorAddress = formatAddress(app);
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
+  const particularNumber = resolveParticularNumber(app);
   const soaNumber = `SOA-${refNum}`;
   const totalInWords = numberToWords(totalAmount);
 
@@ -709,6 +710,12 @@ export function generateSoaPrintableHtml(
           <span class="meta-val">${formattedDate}</span>
           <span class="meta-label" style="margin-left: 8px;">Due: </span>
           <span class="meta-val" style="color: #b91c1c;">${dueDateStr}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
+          <span class="meta-label">Particular (App/Permit/Lic/Cert No.): </span>
+          <span class="meta-val" style="font-weight: bold; color: #1e3a8a;">${particularNumber}</span>
         </td>
       </tr>
     </table>
@@ -1255,4 +1262,42 @@ export function openPrintableDocumentWindow(htmlContent: string): void {
       printWindow.document.close();
     }
   }
+}
+
+export function resolveParticularNumber(app: ApplicationData): string {
+  // 1. License, Permit, Certificate, Registration, or Call Sign in formFieldValues
+  if (app.formFieldValues && app.formFieldValues.length > 0) {
+    const match = app.formFieldValues.find((fv) => {
+      const label = (fv.fieldLabel || fv.fieldId || '').toLowerCase();
+      return (
+        label.includes('license number') ||
+        label.includes('licensenumber') ||
+        label.includes('permit number') ||
+        label.includes('permitnumber') ||
+        label.includes('certificate number') ||
+        label.includes('certificatenumber') ||
+        label.includes('registration number') ||
+        label.includes('registrationnumber') ||
+        label.includes('call sign') ||
+        label.includes('callsign') ||
+        label.includes('roc number') ||
+        label.includes('rsl number')
+      );
+    });
+    if (match && match.value && match.value.trim().length > 0) {
+      return match.value.trim();
+    }
+  }
+
+  // 2. Application Number
+  if (app.applicationNumber && app.applicationNumber.trim().length > 0) {
+    return app.applicationNumber.trim();
+  }
+
+  // 3. Reference Number
+  if (app.referenceNumber && app.referenceNumber.trim().length > 0) {
+    return app.referenceNumber.trim();
+  }
+
+  return app.id ? `APP-${app.id.slice(0, 8).toUpperCase()}` : '';
 }

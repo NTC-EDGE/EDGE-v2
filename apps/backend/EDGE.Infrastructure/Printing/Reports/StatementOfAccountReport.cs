@@ -193,6 +193,15 @@ public class StatementOfAccountReport : IDocument
                     r.AutoItem().Text("ACCOUNT / REF NO.: ").FontSize(7.5f);
                     r.RelativeItem().Text(_model.AccountNo ?? string.Empty).FontSize(7.5f);
                 });
+
+                if (!string.IsNullOrWhiteSpace(_model.Particular1Header) && _model.Particular1Header != _model.AccountNo)
+                {
+                    c.Item().PaddingTop(1).Row(r =>
+                    {
+                        r.AutoItem().Text("PARTICULAR: ").Bold().FontSize(7.5f);
+                        r.RelativeItem().Text(_model.Particular1Header).FontSize(7.5f);
+                    });
+                }
             });
 
             // Right Side: Date & Due Date
