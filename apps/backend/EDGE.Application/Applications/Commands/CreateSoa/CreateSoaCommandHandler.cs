@@ -22,6 +22,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IServiceVariantFeeRepository? _variantFeeRepository;
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
+    private readonly INumberingSeriesService? _numberingSeriesService;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -32,7 +33,8 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         IServiceFeeRepository? serviceFeeRepository = null,
         IServiceVariantFeeRepository? variantFeeRepository = null,
         IServiceVariantElementFeeRepository? elementFeeRepository = null,
-        IServiceVariantFormulaRepository? formulaRepository = null)
+        IServiceVariantFormulaRepository? formulaRepository = null,
+        INumberingSeriesService? numberingSeriesService = null)
     {
         _repository = repository;
         _unitOfWork = unitOfWork;
@@ -43,6 +45,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _variantFeeRepository = variantFeeRepository;
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
+        _numberingSeriesService = numberingSeriesService;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -119,7 +122,9 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             Id = Guid.NewGuid(),
             ApplicationId = request.ApplicationId,
             ApplicantId = targetApplicant?.Id ?? (request.ApplicantId.HasValue && app.ApplicationApplicants.Any(aa => aa.ApplicantId == request.ApplicantId.Value) ? request.ApplicantId : null),
-            SoaNumber = $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
+            SoaNumber = _numberingSeriesService != null
+                ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
+                : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Status = SoaStatus.Pending,
             IssuedToType = issuedToType,
             IssuedToName = resolvedIssuedToName,

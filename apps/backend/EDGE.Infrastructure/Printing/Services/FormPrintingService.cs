@@ -500,15 +500,7 @@ public class FormPrintingService : IFormPrintingService
 
             if (templateBytes == null || templateBytes.Length == 0)
             {
-                var asm = typeof(FormPrintingService).Assembly;
-                var resName = $"EDGE.Infrastructure.Printing.Templates.{model.TemplateName}";
-                using var stream = asm.GetManifestResourceStream(resName);
-                if (stream != null)
-                {
-                    using var ms = new System.IO.MemoryStream();
-                    stream.CopyTo(ms);
-                    templateBytes = ms.ToArray();
-                }
+                templateBytes = LoadLocalOrEmbeddedTemplate(model.TemplateName);
             }
 
             if (templateBytes != null && templateBytes.Length > 0)

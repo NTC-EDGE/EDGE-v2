@@ -15,13 +15,16 @@ public static class OrderOfPaymentPrintMapper
     public static OrderOfPaymentModel MapToPrintModel(
         OrderOfPayment op,
         StatementOfAccount? soa = null,
-        EDGE.Domain.Entities.Application? app = null)
+        EDGE.Domain.Entities.Application? app = null,
+        string? fundCluster = null)
     {
         var model = new OrderOfPaymentModel();
 
         model.AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
         model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "Regional Office No. VII";
-        model.Fund = "General Fund";
+        model.Fund = !string.IsNullOrWhiteSpace(fundCluster)
+            ? (fundCluster.StartsWith("Fund", StringComparison.OrdinalIgnoreCase) ? fundCluster : $"Fund Cluster {fundCluster}")
+            : "General Fund";
         model.Title = "ORDER OF PAYMENT";
 
         model.SerialNo = op.OpNumber ?? string.Empty;

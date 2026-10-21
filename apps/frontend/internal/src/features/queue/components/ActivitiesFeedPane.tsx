@@ -28,7 +28,7 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useAdminApplications, applicationService, mutateApplications } from "@edge/api";
+import { useAdminApplications, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
 import {
   usePermissions,
@@ -157,6 +157,7 @@ export function ActivitiesFeedPane({
   const { currentRole } = useRole();
   const isAdmin = currentRole === "Admin";
   const officerName = user?.name || user?.email || "Evaluating Officer";
+  const { config: tenantConfig } = useTenantConfig();
 
   const PAGE_SIZE_STEP = 15;
   const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
@@ -344,12 +345,25 @@ export function ActivitiesFeedPane({
 
       // Legal & Evaluator role separation for statutory complaints vs commercial applications
       if (activeQueueTab === "pending") {
-        if (currentRole === "Legal") {
-          // Legal Officer pending queue focuses exclusively on Complaints & Requests
-          if (app.category !== "Complaints and Request") return false;
-        } else if (currentRole === "Evaluator") {
-          // Regional Evaluator pending queue focuses on commercial spectrum/permits; complaints are routed to Legal
-          if (app.category === "Complaints and Request") return false;
+        const complaintRouting = tenantConfig.requestAndComplaintRouting ?? "DirectToLegal";
+        if (complaintRouting === "DirectToLegal") {
+          if (currentRole === "Legal") {
+            // Legal Officer pending queue focuses exclusively on Complaints & Requests
+            if (app.category !== "Complaints and Request") return false;
+          } else if (currentRole === "Evaluator") {
+            // Regional Evaluator pending queue focuses on commercial spectrum/permits; complaints are routed directly to Legal
+            if (app.category === "Complaints and Request") return false;
+          }
+        } else {
+          // DirectToEvaluator:
+          // Regional Evaluators receive complaints directly to evaluate and endorse to Legal
+          // Legal Officers see complaints once endorsed or assigned to Legal
+          if (currentRole === "Legal") {
+            const isAssignedOrEndorsedToLegal =
+              (app.assignedTo !== null && app.assignedTo !== undefined && app.assignedTo.toLowerCase().includes("legal")) ||
+              (app.endorsedTo !== null && app.endorsedTo !== undefined && app.endorsedTo.toLowerCase().includes("legal"));
+            if (app.category !== "Complaints and Request" || !isAssignedOrEndorsedToLegal) return false;
+          }
         }
       }
       if (q.length > 0) {

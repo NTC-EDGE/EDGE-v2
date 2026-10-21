@@ -432,21 +432,45 @@ export const applicationService = {
     return `${base}/api/v2/applications/${applicationId}/issued-document/print?download=true`;
   },
 
-  async previewIssuedDocumentPdf(applicationId: string) {
+  async previewIssuedDocumentPdf(
+    applicationId: string,
+    params?: {
+      formNumber?: string;
+      licenseNumber?: string;
+      issueDate?: string;
+      expiryDate?: string;
+      documentType?: string;
+    }
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/issued-document/print`,
-        { responseType: 'blob' }
+        {
+          params,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });
   },
 
-  async downloadIssuedDocumentPdf(applicationId: string) {
+  async downloadIssuedDocumentPdf(
+    applicationId: string,
+    params?: {
+      formNumber?: string;
+      licenseNumber?: string;
+      issueDate?: string;
+      expiryDate?: string;
+      documentType?: string;
+    }
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/issued-document/print?download=true`,
-        { responseType: 'blob' }
+        {
+          params,
+          responseType: 'blob',
+        }
       );
       return response.data;
     });

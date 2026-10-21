@@ -73,6 +73,7 @@ public static class OpEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
+        IRegionalConfigurationService? configService = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -108,7 +109,8 @@ public static class OpEndpoints
             }
         }
 
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
+        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
 
@@ -126,6 +128,7 @@ public static class OpEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
+        IRegionalConfigurationService? configService = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -138,7 +141,8 @@ public static class OpEndpoints
         var app = op.Application ?? await repository.GetByIdWithDetailsAsync(op.ApplicationId, true, cancellationToken);
         var soa = op.StatementOfAccount ?? app?.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
 
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
+        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app?.TenantId ?? Guid.Empty, cancellationToken) : null;
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
 

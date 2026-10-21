@@ -10,6 +10,9 @@ import {
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, Icon as Lucide, useTheme, AnimatedCard, AlertToast } from "@edge/ui";
 import {
   useRegions,
+  useTenants,
+  useTenantConfig,
+  updateTenantConfig,
   useAdminFieldOffices,
   useAdminRequirements,
   useAdminFees,
@@ -55,6 +58,9 @@ export function AdminSettingsScreen(): React.ReactElement {
 
   // Live API Hooks
   const { regions } = useRegions();
+  const { tenants } = useTenants();
+  const activeTenant = tenants.length > 0 ? tenants[0] : null;
+  const { config: tenantConfig, refetch: refetchTenantConfig } = useTenantConfig(activeTenant?.id);
   const { fieldOffices, refetch } = useAdminFieldOffices();
   const { requirements: apiRequirements, serviceVariantRequirements: apiSvrRequirements } = useAdminRequirements();
   const { fees: apiFees, serviceFees: apiServiceFees } = useAdminFees();
@@ -108,10 +114,14 @@ export function AdminSettingsScreen(): React.ReactElement {
       subtitle: activeRegion ? `${activeRegion.name} Regional Office` : "Regional Office Configuration",
       name: activeRegion ? activeRegion.name : "NTC Region X - Northern Mindanao",
       rcCode: activeRegion ? `RC-${activeRegion.code || '10'}` : 'RC-10',
-      officeCode: 'R10-MAIN',
+      officeCode: activeTenant ? `${activeTenant.code}-MAIN` : 'R10-MAIN',
+      rcCodeSoa: tenantConfig.rcCodeSoa,
+      rcCodeOp: tenantConfig.rcCodeOp,
+      fundCluster: tenantConfig.fundCluster,
+      requestAndComplaintRouting: tenantConfig.requestAndComplaintRouting,
       commissionerName: 'Comm. Ella Blanca B. Lopez',
-      supportEmail: 'region10@ntc.gov.ph',
-      supportPhone: '(088) 856-1234 / (02) 8924-4008',
+      supportEmail: tenantConfig.supportEmail || 'region10@ntc.gov.ph',
+      supportPhone: tenantConfig.supportPhone || '(088) 856-1234 / (02) 8924-4008',
       badge: {
         text: activeRegion?.isActive !== false ? "Active Region" : "Inactive",
         type: "active",
@@ -179,6 +189,12 @@ export function AdminSettingsScreen(): React.ReactElement {
       name: config.name,
       subLabel: config.commissionerName || config.subLabel,
       category: config.category,
+      rcCodeSoa: config.rcCodeSoa,
+      rcCodeOp: config.rcCodeOp,
+      fundCluster: config.fundCluster,
+      requestAndComplaintRouting: config.requestAndComplaintRouting,
+      contactEmail: config.supportEmail,
+      contactPhone: config.supportPhone,
     });
     setModalType("edit-config");
   };
@@ -314,6 +330,28 @@ export function AdminSettingsScreen(): React.ReactElement {
           initialData={selectedItem}
           onClose={() => setModalType("none")}
           onSave={async (savedData) => {
+            if (modalType === 'edit-config') {
+              const targetTenantId = activeTenant?.id || selectedItem?.id || '00000000-0000-0000-0000-000000000000';
+              const [res, err] = await safeAsync(
+                updateTenantConfig({
+                  tenantId: targetTenantId,
+                  tenantCode: activeTenant?.code || '10',
+                  tenantName: activeTenant?.name || savedData.name || 'Region X - Northern Mindanao',
+                  rcCodeSoa: savedData.rcCodeSoa,
+                  rcCodeOp: savedData.rcCodeOp,
+                  fundCluster: savedData.fundCluster,
+                  requestAndComplaintRouting: savedData.requestAndComplaintRouting,
+                })
+              );
+              if (err || !res) {
+                const errorMsg = err || 'Failed to update regional configuration.';
+                showToast(errorMsg, 'error');
+                throw new Error(errorMsg);
+              }
+              showToast('Regional Configuration saved successfully!', 'success');
+              void refetchTenantConfig();
+            }
+
             if (modalType === "add-branch") {
               const selectedRegionId = regions.length > 0 ? regions[0].id : "00000000-0000-0000-0000-000000000000";
               if (selectedItem?.id) {

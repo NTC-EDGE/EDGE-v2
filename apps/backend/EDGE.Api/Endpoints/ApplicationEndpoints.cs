@@ -840,6 +840,11 @@ public static class ApplicationEndpoints
 
     public static async Task<IResult> PrintIssuedDocumentEndpoint(
         Guid id,
+        [FromQuery] string? formNumber,
+        [FromQuery] string? licenseNumber,
+        [FromQuery] string? issueDate,
+        [FromQuery] string? expiryDate,
+        [FromQuery] string? documentType,
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
@@ -855,18 +860,19 @@ public static class ApplicationEndpoints
         var issuedDoc = await repository.GetIssuedDocumentByApplicationIdAsync(id, cancellationToken);
         if (issuedDoc == null)
         {
-            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved)
+            if (app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved || app.Status == ApplicationStatus.ForIssuance)
             {
                 var paidOp = app.OrdersOfPayment.FirstOrDefault(o => o.Status == OpStatus.Paid);
+                var defaultDocType = app.ApplicationApplicants.FirstOrDefault()?.Applicant?.Service?.Name ?? "Statutory License";
                 issuedDoc = new IssuedDocumentDetail
                 {
                     Id = Guid.NewGuid(),
                     ApplicationId = app.Id,
-                    DocumentType = "License",
-                    FormNumber = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString(),
-                    LicenseNumber = app.ApplicationNumber ?? app.ReferenceNumber,
-                    IssueDate = app.LastModifiedAt ?? app.CreatedAt,
-                    ExpiryDate = (app.LastModifiedAt ?? app.CreatedAt).AddYears(3),
+                    DocumentType = !string.IsNullOrWhiteSpace(documentType) ? documentType.Trim() : defaultDocType,
+                    FormNumber = !string.IsNullOrWhiteSpace(formNumber) ? formNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString()),
+                    LicenseNumber = !string.IsNullOrWhiteSpace(licenseNumber) ? licenseNumber.Trim() : (app.ApplicationNumber ?? app.ReferenceNumber),
+                    IssueDate = DateTime.UtcNow,
+                    ExpiryDate = DateTime.UtcNow.AddYears(3),
                     OfficialReceiptNumber = paidOp?.OfficialReceiptNumber ?? "OR-RECORDED",
                     IssuedByStaffName = "Authorized Licensing Officer",
                     QrVerificationCode = $"NTC-VERIFY-{Guid.NewGuid().ToString("N")[..12].ToUpperInvariant()}"
@@ -876,6 +882,21 @@ public static class ApplicationEndpoints
             {
                 return Results.NotFound(new { message = $"No issued document found for Application '{id}'. The application has not been issued yet." });
             }
+        }
+        else
+        {
+            if (!string.IsNullOrWhiteSpace(formNumber)) issuedDoc.FormNumber = formNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(licenseNumber)) issuedDoc.LicenseNumber = licenseNumber.Trim();
+            if (!string.IsNullOrWhiteSpace(documentType)) issuedDoc.DocumentType = documentType.Trim();
+        }
+
+        if (!string.IsNullOrWhiteSpace(issueDate) && DateTime.TryParse(issueDate, out var parsedIssue))
+        {
+            issuedDoc.IssueDate = parsedIssue;
+        }
+        if (!string.IsNullOrWhiteSpace(expiryDate) && DateTime.TryParse(expiryDate, out var parsedExpiry))
+        {
+            issuedDoc.ExpiryDate = parsedExpiry;
         }
 
         var printModel = IssuedDocumentPrintMapper.MapToPrintModel(issuedDoc, app);
