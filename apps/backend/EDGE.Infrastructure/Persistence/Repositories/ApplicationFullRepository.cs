@@ -539,7 +539,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     );
                 }
             }
-            else if (ApplicationStatusHelper.IsEvaluatorOrSupervisorRole(role))
+            else if (ApplicationStatusHelper.IsEvaluatorRole(role))
             {
                 if (tab == "pending")
                 {
@@ -547,7 +547,30 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 }
                 else if (tab == "history" || tab == "archived")
                 {
-                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForAccountant || a.Status == ApplicationStatus.PendingPayment || a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Approved || a.Status == ApplicationStatus.Completed);
+                }
+            }
+            else if (ApplicationStatusHelper.IsSupervisorOrDirectorRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.ForIssuance || a.Status == ApplicationStatus.Approved);
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed);
+                }
+            }
+            else if (ApplicationStatusHelper.IsLegalRole(role))
+            {
+                if (tab == "pending")
+                {
+                    filteredQuery = filteredQuery.Where(a => (a.Status == ApplicationStatus.Submitted || a.Status == ApplicationStatus.Evaluating || a.Status == ApplicationStatus.Returned) &&
+                        (a.Remarks != null && (a.Remarks.Contains("Legal") || a.Remarks.Contains("Complaint") || a.Remarks.Contains("Request"))));
+                }
+                else if (tab == "history" || tab == "archived")
+                {
+                    filteredQuery = filteredQuery.Where(a => a.Status == ApplicationStatus.Completed || a.Status == ApplicationStatus.Approved);
                 }
             }
             else

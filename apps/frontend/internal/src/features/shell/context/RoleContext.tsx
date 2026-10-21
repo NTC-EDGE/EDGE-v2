@@ -204,8 +204,45 @@ interface RoleContextType {
 
 const RoleContext = createContext<RoleContextType | undefined>(undefined);
 
+function isUserRole(value: unknown): value is UserRole {
+  return (
+    value === 'Admin' ||
+    value === 'Evaluator' ||
+    value === 'Chief of EOD' ||
+    value === 'Regional Director' ||
+    value === 'Legal' ||
+    value === 'Accountant' ||
+    value === 'Cashier'
+  );
+}
+
+function getInitialRole(): UserRole {
+  if (typeof window !== 'undefined' && window.localStorage !== undefined) {
+    try {
+      const stored = window.localStorage.getItem('edge_internal_active_role');
+      if (isUserRole(stored)) {
+        return stored;
+      }
+    } catch {
+      // ignore
+    }
+  }
+  return 'Evaluator';
+}
+
 export function RoleProvider({ children }: { children: ReactNode }) {
-  const [currentRole, setCurrentRole] = useState<UserRole>('Admin');
+  const [currentRole, setCurrentRoleState] = useState<UserRole>(() => getInitialRole());
+
+  const setCurrentRole = (role: UserRole) => {
+    setCurrentRoleState(role);
+    if (typeof window !== 'undefined' && window.localStorage !== undefined) {
+      try {
+        window.localStorage.setItem('edge_internal_active_role', role);
+      } catch {
+        // ignore
+      }
+    }
+  };
 
   return (
     <RoleContext.Provider value={{ currentRole, setCurrentRole }}>
@@ -234,6 +271,10 @@ function RoleStateSynchronizer({
         .filter((r): r is UserRole => r !== null);
 
       if (matchedRoles.length > 0) {
+        if (matchedRoles.includes(currentRole)) {
+          return;
+        }
+
         matchedRoles.sort((a, b) => {
           const indexA = ROLE_HIERARCHY_PRIORITY.indexOf(a);
           const indexB = ROLE_HIERARCHY_PRIORITY.indexOf(b);
