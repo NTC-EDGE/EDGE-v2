@@ -1,4 +1,4 @@
-import { ApplicationData } from '../../../../types/application';
+import { ApplicationData } from '../../../types/application';
 import {
   SOA_STANDARD_PARTICULARS,
   normalizeParticularKey,
@@ -144,23 +144,22 @@ describe('soaModalHelpers - SOA Item 9 & Item 10', () => {
   });
 
   describe('resolveInitialAddress - complete address resolution', () => {
-    const baseApp: ApplicationData = {
+    const baseApp: Partial<ApplicationData> = {
       id: 'app-addr-test',
       tenantId: 'tenant-1',
       referenceNumber: 'REF-2026-ADDR',
       applicationNumber: 'APP-2026-ADDR',
       applicant: 'Test Applicant',
       permitTitle: 'Radio Station Permit',
-      category: 'Commercial',
+      category: 'Permits',
       status: 'Evaluating',
-      queueTab: 'queue',
+      queueTab: 'pending',
       payment: {
         amountReceived: 0,
+        method: 'cash',
         orNumber: '',
-        orDate: '',
-        feeAmount: 1000,
-        status: 'Unpaid',
-        paymentMethod: 'Cash',
+        checkNumber: '',
+        checkName: '',
       },
       soaItems: [],
       totalAmountDue: 1000,
@@ -183,11 +182,8 @@ describe('soaModalHelpers - SOA Item 9 & Item 10', () => {
         contactNumber: '09123456789',
         email: 'test@example.com',
       },
-      documents: [],
       history: [],
       correctionAuditTrail: [],
-      rejectionNotes: [],
-      requirements: [],
     };
 
     it('constructs complete address with barangay, city, province, region, and zip code', () => {
@@ -196,7 +192,7 @@ describe('soaModalHelpers - SOA Item 9 & Item 10', () => {
     });
 
     it('prefers existing soaIssuedToAddress when already set', () => {
-      const appWithIssued: ApplicationData = {
+      const appWithIssued: Partial<ApplicationData> = {
         ...baseApp,
         soaIssuedToAddress: 'Custom Issued Address, Mandaue City, 6014',
       };

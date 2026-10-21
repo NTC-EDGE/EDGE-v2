@@ -369,6 +369,45 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             }
         }
 
+        if (request.IssueDate.HasValue && request.IssueDate.Value.Date != DateTime.UtcNow.Date)
+        {
+            var originalDate = DateTime.UtcNow.ToString("yyyy-MM-dd");
+            var modifiedDate = request.IssueDate.Value.ToString("yyyy-MM-dd");
+            var dateAuditRemark = $"OR Issue Date manually overridden from {originalDate} to {modifiedDate}. Reason: {request.DateChangeReason?.Trim()}";
+
+            if (app != null)
+            {
+                await _appRepository.AddApplicationHistoryAsync(new ApplicationHistory
+                {
+                    Id = Guid.NewGuid(),
+                    ApplicationId = app.Id,
+                    Action = $"OR Date Override ({orNumber})",
+                    FromStatus = app.Status,
+                    ToStatus = app.Status,
+                    PerformedByUserId = validUserId,
+                    StaffName = cashierContext.StaffName,
+                    StaffRole = cashierContext.StaffRole,
+                    Remarks = dateAuditRemark,
+                    Timestamp = DateTime.UtcNow
+                }, cancellationToken);
+            }
+
+            await _appRepository.AddOpHistoryAsync(new OpHistory
+            {
+                Id = Guid.NewGuid(),
+                OrderOfPaymentId = op.Id,
+                Action = $"OR Date Override ({orNumber}): {originalDate} -> {modifiedDate}",
+                FromStatus = op.Status,
+                ToStatus = op.Status,
+                PerformedByUserId = validUserId,
+                StaffName = cashierContext.StaffName,
+                StaffRole = cashierContext.StaffRole,
+                OfficialReceiptNumber = orNumber,
+                Remarks = dateAuditRemark,
+                Timestamp = DateTime.UtcNow
+            }, cancellationToken);
+        }
+
         return (op, applicationId, appNumber, null);
     }
 
@@ -402,7 +441,11 @@ public class IssueOfficialReceiptCommandHandler : IRequestHandler<IssueOfficialR
             Status = ReceiptStatus.Issued,
             IssuedAt = request.IssueDate.HasValue ? DateTime.SpecifyKind(request.IssueDate.Value, DateTimeKind.Utc) : DateTime.UtcNow,
             IssuedByUserId = validUserId,
-            Remarks = request.Remarks?.Trim()
+            Remarks = !string.IsNullOrWhiteSpace(request.DateChangeReason)
+                ? (string.IsNullOrWhiteSpace(request.Remarks)
+                    ? $"[Date Override: {request.IssueDate:yyyy-MM-dd}. Reason: {request.DateChangeReason.Trim()}]"
+                    : $"{request.Remarks.Trim()} [Date Override: {request.IssueDate:yyyy-MM-dd}. Reason: {request.DateChangeReason.Trim()}]")
+                : request.Remarks?.Trim()
         };
 
         if (request.LineItems != null && request.LineItems.Count > 0)

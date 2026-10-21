@@ -18,7 +18,10 @@ public static class OfficialReceiptPrintMapper
         OrderOfPayment? op = null,
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
-        string? template = null)
+        string? template = null,
+        string? overridePayor = null,
+        string? overrideOrNumber = null,
+        DateTime? overrideDate = null)
     {
         var isLandscape = string.Equals(template, "landscape", StringComparison.OrdinalIgnoreCase);
 
@@ -29,6 +32,26 @@ public static class OfficialReceiptPrintMapper
             RevisionInfo = "Revised January, 1992",
             CopyType = "ORIGINAL"
         };
+
+        static string BuildFullAddress(ApplicantDetail? detail, CompanyDetail? comp)
+        {
+            var street = !string.IsNullOrWhiteSpace(detail?.Address)
+                ? detail.Address
+                : comp?.Address;
+            var brgy = detail?.Barangay?.Name ?? comp?.Barangay?.Name;
+            var muni = detail?.Barangay?.Municipality?.Name ?? comp?.Barangay?.Municipality?.Name;
+            var prov = detail?.Barangay?.Municipality?.Province?.Name ?? comp?.Barangay?.Municipality?.Province?.Name;
+            var reg = detail?.Barangay?.Municipality?.Province?.Region?.Name ?? comp?.Barangay?.Municipality?.Province?.Region?.Name;
+            var zip = detail?.ZipCode;
+
+            var parts = new[] { street, brgy, muni, prov, reg, zip }
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p!.Trim())
+                .Distinct()
+                .ToList();
+
+            return parts.Count > 0 ? string.Join(", ", parts) : string.Empty;
+        }
 
         // 1. Resolve effective Order of Payment & SOA references if not passed
         var activeOp = op
@@ -42,15 +65,19 @@ public static class OfficialReceiptPrintMapper
             ?? app?.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
 
         // 2. Receipt metadata
-        var effectiveOrNumber = !string.IsNullOrWhiteSpace(receipt?.OfficialReceiptNumber)
-            ? receipt.OfficialReceiptNumber
-            : (!string.IsNullOrWhiteSpace(activeOp?.OfficialReceiptNumber) ? activeOp.OfficialReceiptNumber : "OR-PENDING");
+        var effectiveOrNumber = !string.IsNullOrWhiteSpace(overrideOrNumber)
+            ? overrideOrNumber
+            : (!string.IsNullOrWhiteSpace(receipt?.OfficialReceiptNumber)
+                ? receipt.OfficialReceiptNumber
+                : (!string.IsNullOrWhiteSpace(activeOp?.OfficialReceiptNumber) ? activeOp.OfficialReceiptNumber : "OR-PENDING"));
 
         model.ReceiptNo = effectiveOrNumber;
 
-        var issuedDate = receipt != null && receipt.IssuedAt != default
-            ? receipt.IssuedAt
-            : (activeOp?.PaidAt ?? activeOp?.CreatedAt ?? app?.CreatedAt ?? DateTime.UtcNow);
+        var issuedDate = overrideDate.HasValue
+            ? overrideDate.Value
+            : (receipt != null && receipt.IssuedAt != default
+                ? receipt.IssuedAt
+                : (activeOp?.PaidAt ?? activeOp?.CreatedAt ?? app?.CreatedAt ?? DateTime.UtcNow));
 
         model.Date = issuedDate.ToString("MMMM dd, yyyy");
 
@@ -64,14 +91,21 @@ public static class OfficialReceiptPrintMapper
         var fallbackAddress = app?.ApplicationApplicants
             .Select(aa => aa.Applicant)
             .Where(a => a != null)
-            .Select(a => a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null))
+            .Select(a =>
+            {
+                var full = BuildFullAddress(a?.ApplicantDetail, a?.CompanyDetail);
+                if (!string.IsNullOrWhiteSpace(full)) return full;
+                return a?.CompanyDetail?.Address ?? (a?.ApplicantDetail != null ? a.ApplicantDetail.Address : null);
+            })
             .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n));
 
-        model.Payor = !string.IsNullOrWhiteSpace(receipt?.PayorName)
-            ? receipt.PayorName
-            : (!string.IsNullOrWhiteSpace(activeSoa?.IssuedToName)
-                ? activeSoa.IssuedToName
-                : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant")));
+        model.Payor = !string.IsNullOrWhiteSpace(overridePayor)
+            ? overridePayor
+            : (!string.IsNullOrWhiteSpace(receipt?.PayorName)
+                ? receipt.PayorName
+                : (!string.IsNullOrWhiteSpace(activeSoa?.IssuedToName)
+                    ? activeSoa.IssuedToName
+                    : (fallbackApplicantName ?? (app?.User != null ? $"{app.User.FirstName} {app.User.LastName}".Trim() : "Applicant"))));
 
         // 4. Amount and Line Items
         decimal totalAmount = 0m;

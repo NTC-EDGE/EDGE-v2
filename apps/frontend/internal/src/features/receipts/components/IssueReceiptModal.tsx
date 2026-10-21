@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Modal, ScrollView, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { Icon as Lucide, useTheme } from '@edge/ui';
-import { NextAvailableOrDto, PendingPaymentDto, OfficialReceiptDto, useReceiptFeeCatalog } from '@edge/api';
+import { NextAvailableOrDto, PendingPaymentDto, OfficialReceiptDto, useReceiptFeeCatalog, applicationService } from '@edge/api';
 import { styles } from './issueReceipt/issueReceiptStyles';
 import { PreferredPaymentBanner } from './issueReceipt/PreferredPaymentBanner';
 import { ReceiptHeaderCard } from './issueReceipt/ReceiptHeaderCard';
@@ -83,6 +83,25 @@ export function IssueReceiptModal({
     onSuccess,
   });
 
+  const handlePreviewOr = () => {
+    if (pendingPayment?.applicationId) {
+      const currentOr = useManualOr ? manualOrNumber.trim() : (nextOr?.formattedOrNumber ?? '');
+      const url = applicationService.getOrPrintUrl(
+        pendingPayment.applicationId,
+        currentOr || undefined,
+        'landscape',
+        payorName.trim() || undefined,
+        issueDate || undefined
+      );
+      if (typeof window !== 'undefined') {
+        const win = window.open(url, '_blank');
+        if (win !== null) {
+          win.focus();
+        }
+      }
+    }
+  };
+
   const formattedTotal = (totalAmount ?? 0).toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
@@ -152,6 +171,11 @@ export function IssueReceiptModal({
               setCheckDate={setCheckDate}
               onlineReference={onlineReference}
               setOnlineReference={setOnlineReference}
+              issueDate={issueDate}
+              setIssueDate={setIssueDate}
+              dateChangeReason={dateChangeReason}
+              setDateChangeReason={setDateChangeReason}
+              todayStr={todayStr}
             />
 
             <ReceiptPayorSection
@@ -196,6 +220,31 @@ export function IssueReceiptModal({
             <TouchableOpacity onPress={onClose} style={[styles.cancelBtn, { backgroundColor: colors.neutral[100] }]}>
               <Text style={[styles.cancelBtnText, { color: colors.neutral[700] }]}>Cancel</Text>
             </TouchableOpacity>
+
+            <View style={{ flex: 1 }} />
+
+            {pendingPayment?.applicationId !== undefined && (
+              <TouchableOpacity
+                onPress={handlePreviewOr}
+                style={[
+                  styles.cancelBtn,
+                  {
+                    backgroundColor: colors.cardBg,
+                    borderColor: colors.brand.primary,
+                    borderWidth: 1,
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    gap: 6,
+                  },
+                ]}
+              >
+                <Lucide name="printer" size={16} color={colors.brand.primary} />
+                <Text style={[styles.cancelBtnText, { color: colors.brand.primary, fontWeight: '700' }]}>
+                  Preview OR
+                </Text>
+              </TouchableOpacity>
+            )}
+
             <TouchableOpacity
               onPress={handleSubmit}
               disabled={isSubmitting}

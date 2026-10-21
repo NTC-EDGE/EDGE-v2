@@ -371,25 +371,47 @@ export const applicationService = {
     });
   },
 
-  getOrPrintUrl(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape'): string {
+  getOrPrintUrl(
+    applicationId: string,
+    orNumber?: string,
+    template?: 'portrait' | 'landscape',
+    payorName?: string,
+    issueDate?: string
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
     const params = new URLSearchParams();
     if (orNumber) params.append('orNumber', orNumber);
     if (template) params.append('template', template);
+    if (payorName) params.append('payorName', payorName);
+    if (issueDate) params.append('issueDate', issueDate);
     const qs = params.toString();
     return `${base}/api/v2/applications/${applicationId}/or/print${qs ? `?${qs}` : ''}`;
   },
 
-  getOrDownloadUrl(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape'): string {
+  getOrDownloadUrl(
+    applicationId: string,
+    orNumber?: string,
+    template?: 'portrait' | 'landscape',
+    payorName?: string,
+    issueDate?: string
+  ): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
     const params = new URLSearchParams();
     params.append('download', 'true');
     if (orNumber) params.append('orNumber', orNumber);
     if (template) params.append('template', template);
+    if (payorName) params.append('payorName', payorName);
+    if (issueDate) params.append('issueDate', issueDate);
     return `${base}/api/v2/applications/${applicationId}/or/print?${params.toString()}`;
   },
 
-  async previewOrPdf(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape') {
+  async previewOrPdf(
+    applicationId: string,
+    orNumber?: string,
+    template?: 'portrait' | 'landscape',
+    payorName?: string,
+    issueDate?: string
+  ) {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/or/print`,
@@ -397,6 +419,8 @@ export const applicationService = {
           params: {
             ...(orNumber ? { orNumber } : {}),
             ...(template ? { template } : {}),
+            ...(payorName ? { payorName } : {}),
+            ...(issueDate ? { issueDate } : {}),
           },
           responseType: 'blob',
         }

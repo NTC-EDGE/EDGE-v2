@@ -32,7 +32,7 @@ export const normalizeYmd = (dateStr?: string | null): string => {
   return trimmed.substring(0, 10);
 };
 
-export const resolveInitialAddress = (app?: ApplicationData | null): string => {
+export const resolveInitialAddress = (app?: Partial<ApplicationData> | null): string => {
   if (!app) return '';
   if (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0) {
     return app.soaIssuedToAddress.trim();
@@ -52,7 +52,7 @@ export const resolveInitialAddress = (app?: ApplicationData | null): string => {
   return app.filingUser?.company?.address || '';
 };
 
-export const resolveInitialName = (app?: ApplicationData | null): string => {
+export const resolveInitialName = (app?: Partial<ApplicationData> | null): string => {
   if (!app) return '';
   if (app.soaIssuedToName && app.soaIssuedToName.trim().length > 0) {
     return app.soaIssuedToName.trim();
