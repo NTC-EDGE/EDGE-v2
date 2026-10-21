@@ -138,6 +138,12 @@ export function ApplicationReviewScreenContent({
         if (patch.basicInfo !== undefined) payload.basicInfo = patch.basicInfo;
         if (patch.applicantsList !== undefined) payload.applicantsList = patch.applicantsList;
 
+        if (Object.keys(payload).length === 0) {
+          await mutateApplications(id);
+          await refetch();
+          return;
+        }
+
         const [, err] = await applicationService.adminUpdateApplication(id, payload);
         if (err !== null) {
           const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
@@ -394,6 +400,7 @@ export function ApplicationReviewScreenContent({
        app.permitTitle.toLowerCase().includes('complaint') ||
        app.permitTitle.toLowerCase().includes('blocking')));
   const canActAsLegal = currentRole === 'Legal' || isAdmin;
+  const canEvaluateApplication = isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin;
 
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
@@ -432,7 +439,9 @@ export function ApplicationReviewScreenContent({
   /** Officer claims exclusive authority over this application at the current stage */
   const handleClaimAuthority = async () => {
     if (isSubmitted || isReturned) {
-      void handleStartEvaluation();
+      if (canEvaluateApplication) {
+        void handleStartEvaluation();
+      }
       return;
     }
 
@@ -462,16 +471,12 @@ export function ApplicationReviewScreenContent({
       remarks,
     });
     if (err !== null) {
-      toast.error('Failed to claim application authority.');
+      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+        ? String(Reflect.get(err, 'message'))
+        : 'Failed to claim application authority.';
+      toast.error(errMsg);
       return;
     }
-    await updateApplication(app.id, {
-      assignedTo: officerName,
-      ...(isForAccountant ? { accountingOfficer: officerName } : {}),
-      ...(isPendingPayment ? { cashierOfficer: officerName } : {}),
-      ...(isForIssuance ? { issuingOfficer: officerName } : {}),
-      ...(isEvaluating || isSubmitted || isReturned ? { evaluatingOfficer: officerName } : {}),
-    });
     toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
     await mutateApplications(app.id);
     await refetch();
@@ -761,7 +766,7 @@ export function ApplicationReviewScreenContent({
     : false;
 
   /** Start evaluation button for Submitted applications */
-  const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe;
+  const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe && canEvaluateApplication;
   const isPaymentSubmitted = Boolean(
     (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
     (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
@@ -781,7 +786,7 @@ export function ApplicationReviewScreenContent({
   /** Claim button for unclaimed stages */
   const showClaimBtn = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
     showStartEvalBtn ||
-    ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin)) ||
+    ((isEvaluating || isReturned) && isStageUnclaimed && canEvaluateApplication) ||
     (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
     (isPendingPayment && isStageUnclaimed && canActAsCashier)
   );
@@ -1008,7 +1013,15 @@ export function ApplicationReviewScreenContent({
         <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF', borderBottomColor: isDark ? '#334155' : '#BFDBFE' }]}>
           <Lucide name="play-circle" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
           <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
-            Application is in queue. Click <Text style={{ fontWeight: '700' }}>{isSubmitted ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
+            {showClaimBtn ? (
+              <>
+                Application is in queue. Click <Text style={{ fontWeight: '700' }}>{showStartEvalBtn ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
+              </>
+            ) : (
+              <>
+                Application is in queue awaiting {isForAccountant ? 'financial review by Accountant' : isPendingPayment ? 'payment verification by Cashier' : 'evaluation by an Evaluator'}.
+              </>
+            )}
           </Text>
         </View>
       )}

@@ -30,6 +30,7 @@ import {
 import { ActivityCard } from "./ActivityCard";
 import { useAdminApplications, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
 import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { isEvaluatorOrSupervisorRole } from "../data/officerResolutionHelpers";
 import {
   usePermissions,
   QueueTab,
@@ -312,7 +313,10 @@ export function ActivitiesFeedPane({
       remarks: `Technical evaluation started by ${officerName}.`,
     });
     if (err !== null) {
-      toast.error("Failed to start evaluation.");
+      const errMsg = typeof err === "object" && err !== null && Reflect.has(err, "message")
+        ? String(Reflect.get(err, "message"))
+        : "Failed to start evaluation.";
+      toast.error(errMsg);
       return;
     }
     toast.success(`Evaluation started by ${officerName}.`);
@@ -812,27 +816,42 @@ export function ActivitiesFeedPane({
                   />
                 </Pressable>
                 {!isCollapsed &&
-                  group.items.map((app) => (
-                    <ActivityCard
-                      key={app.id}
-                      application={app}
-                      isActive={selectedId === app.id}
-                      onPress={() => setSelectedId?.(app.id)}
-                      currentUserName={officerName}
-                      isAdmin={isAdmin}
-                      onMenuAction={(action, id) => {
-                        if (action === "evaluate") {
-                          void evaluateApplication(id);
-                        } else if (action === "release_evaluation") {
-                          void releaseEvaluation(id);
-                        } else if (action === "pin") {
-                          void togglePinApplication(id);
-                        } else if (action === "archive") {
-                          void toggleArchiveApplication(id);
-                        }
-                      }}
-                    />
-                  ))}
+                  group.items.map((app) => {
+                    const isComplaintOrRequest =
+                      app.category === "Complaints and Request" ||
+                      (typeof app.permitTitle === "string" &&
+                        (app.permitTitle.includes("1-24") ||
+                          app.permitTitle.includes("1-25") ||
+                          app.permitTitle.toLowerCase().includes("complaint") ||
+                          app.permitTitle.toLowerCase().includes("blocking")));
+                    const canEvaluate =
+                      isEvaluatorOrSupervisorRole(currentRole) ||
+                      (isComplaintOrRequest && currentRole === "Legal") ||
+                      isAdmin;
+
+                    return (
+                      <ActivityCard
+                        key={app.id}
+                        application={app}
+                        isActive={selectedId === app.id}
+                        onPress={() => setSelectedId?.(app.id)}
+                        currentUserName={officerName}
+                        isAdmin={isAdmin}
+                        canEvaluate={canEvaluate}
+                        onMenuAction={(action, id) => {
+                          if (action === "evaluate") {
+                            void evaluateApplication(id);
+                          } else if (action === "release_evaluation") {
+                            void releaseEvaluation(id);
+                          } else if (action === "pin") {
+                            void togglePinApplication(id);
+                          } else if (action === "archive") {
+                            void toggleArchiveApplication(id);
+                          }
+                        }}
+                      />
+                    );
+                  })}
               </View>
             );
           })

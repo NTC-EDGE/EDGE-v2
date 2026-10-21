@@ -162,6 +162,7 @@ public static class ApplicationEndpoints
             .WithDescription("Requests re-evaluation and recalculation of SOA for an assessment-only application.");
 
         group.MapPatch("/{id:guid}/status", UpdateApplicationStatus)
+            .RequireAuthorization(new HasPermissionAttribute(Permissions.UpdateApplication))
             .WithName("UpdateApplicationStatus")
             .WithSummary("Update application status")
             .WithDescription("Updates status of the application (e.g. UnderEvaluation, Approved) and logs history.");

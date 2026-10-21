@@ -34,6 +34,7 @@ interface ActivityCardProps {
   onMenuAction: (action: "evaluate" | "release_evaluation" | "pin" | "archive", id: string) => void;
   currentUserName?: string;
   isAdmin?: boolean;
+  canEvaluate?: boolean;
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -98,6 +99,7 @@ export function ActivityCard({
   onMenuAction,
   currentUserName,
   isAdmin,
+  canEvaluate = true,
 }: ActivityCardProps) {
   const { colors, isDark } = useTheme();
   const { user, clerkUser } = useAuthContext();
@@ -568,7 +570,7 @@ export function ActivityCard({
             )}
 
             {/* If Submitted (and not endorsed away): Start Evaluation */}
-            {!isEndorsedAwayFromMe && application.status.toLowerCase() === "submitted" && (
+            {!isEndorsedAwayFromMe && canEvaluate && application.status.toLowerCase() === "submitted" && (
               <Pressable
                 style={styles.menuItem}
                 onPress={() => { setMenuVisible(false); onMenuAction("evaluate", application.id); }}
