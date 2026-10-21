@@ -176,6 +176,7 @@ export interface ApplicationData {
   soaId?: string;
   statementOfAccountId?: string;
   soaNumber?: string;
+  officialReceiptNumber?: string;
   soaStatus?: string;
   soaIssuedToName?: string;
   soaIssuedToAddress?: string;

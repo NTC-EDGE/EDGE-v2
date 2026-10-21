@@ -33,6 +33,7 @@ public class ApplicationSummaryDto
     public string? ServiceVariantName { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
+    public string? SoaNumber { get; set; }
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
     public decimal? TotalAmountDue { get; set; }

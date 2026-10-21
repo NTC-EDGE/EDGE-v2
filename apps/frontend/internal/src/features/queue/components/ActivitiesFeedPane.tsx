@@ -166,6 +166,16 @@ export function ActivitiesFeedPane({
   const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
   const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
     queueTab: activeQueueTab,
     role: currentRole,
@@ -173,6 +183,7 @@ export function ActivitiesFeedPane({
     scope: "queue",
     pageSize,
     pageNumber: 1,
+    searchTerm: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
   });
 
   const applications = useMemo(() => {
@@ -263,7 +274,6 @@ export function ActivitiesFeedPane({
     refetch();
   }, [refetch]);
 
-  const [searchQuery,       setSearchQuery]       = useState("");
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
   const [activeStatuses,    setActiveStatuses]    = useState<Set<string>>(new Set());
   const [activeCategories,  setActiveCategories]  = useState<Set<ApplicationCategory>>(new Set());
@@ -323,6 +333,7 @@ export function ActivitiesFeedPane({
 
   const handleReset = useCallback(() => {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setSortOrder("newest");
     setActiveStatuses(new Set());
     setActiveCategories(new Set());
@@ -370,16 +381,79 @@ export function ActivitiesFeedPane({
         }
       }
       if (q.length > 0) {
-        const matchesApplicant = app.applicant.toLowerCase().includes(q);
-        const matchesTitle = app.permitTitle.toLowerCase().includes(q);
-        const matchesRef = app.referenceNumber.toLowerCase().includes(q);
-        const matchesAppNum = app.applicationNumber.toLowerCase().includes(q);
-        const matchesType = app.applicationType.toLowerCase().includes(q);
+        // 1. Applicant Name & Details
+        const matchesApplicant =
+          (typeof app.applicant === "string" && app.applicant.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.firstName === "string" && app.basicInfo.firstName.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.lastName === "string" && app.basicInfo.lastName.toLowerCase().includes(q)) ||
+          (typeof app.companyDetails?.name === "string" && app.companyDetails.name.toLowerCase().includes(q)) ||
+          (typeof app.filingUser?.name === "string" && app.filingUser.name.toLowerCase().includes(q)) ||
+          (Array.isArray(app.applicantsList) &&
+            app.applicantsList.some(
+              (a) =>
+                (typeof a.name === "string" && a.name.toLowerCase().includes(q)) ||
+                (typeof a.email === "string" && a.email.toLowerCase().includes(q))
+            ));
+
+        // 2. Reference & Application Number
+        const matchesRef =
+          (typeof app.referenceNumber === "string" && app.referenceNumber.toLowerCase().includes(q)) ||
+          (typeof app.applicationNumber === "string" && app.applicationNumber.toLowerCase().includes(q));
+
+        // 3. Official Receipt (OR) Number
+        const matchesOrNumber =
+          (typeof app.payment?.orNumber === "string" && app.payment.orNumber.toLowerCase().includes(q)) ||
+          (typeof app.officialReceiptNumber === "string" && app.officialReceiptNumber.toLowerCase().includes(q)) ||
+          (typeof app.payment?.opNumber === "string" && app.payment.opNumber.toLowerCase().includes(q));
+
+        // 4. Statement of Account (SOA) Number
+        const matchesSoaNumber =
+          (typeof app.soaNumber === "string" && app.soaNumber.toLowerCase().includes(q)) ||
+          (typeof app.soaId === "string" && app.soaId.toLowerCase().includes(q));
+
+        // 5. Service Variant & Service Title
+        const matchesServiceVariant =
+          (typeof app.serviceVariantName === "string" && app.serviceVariantName.toLowerCase().includes(q)) ||
+          (typeof app.permitTitle === "string" && app.permitTitle.toLowerCase().includes(q)) ||
+          (typeof app.serviceName === "string" && app.serviceName.toLowerCase().includes(q)) ||
+          (Array.isArray(app.services) &&
+            app.services.some(
+              (s) =>
+                (typeof s.serviceVariantName === "string" && s.serviceVariantName.toLowerCase().includes(q)) ||
+                (typeof s.serviceName === "string" && s.serviceName.toLowerCase().includes(q))
+            ));
+
+        // 6. Personnel Name (Assigned, Evaluating, Accounting, Cashier, Issuing, Endorsed, or History)
+        const matchesPersonnel =
+          (typeof app.assignedTo === "string" && app.assignedTo.toLowerCase().includes(q)) ||
+          (typeof app.evaluatingOfficer === "string" && app.evaluatingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.accountingOfficer === "string" && app.accountingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.cashierOfficer === "string" && app.cashierOfficer.toLowerCase().includes(q)) ||
+          (typeof app.issuingOfficer === "string" && app.issuingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.endorsedTo === "string" && app.endorsedTo.toLowerCase().includes(q)) ||
+          (typeof app.endorsedBy === "string" && app.endorsedBy.toLowerCase().includes(q)) ||
+          (Array.isArray(app.history) &&
+            app.history.some(
+              (h) =>
+                (typeof h.staff === "string" && h.staff.toLowerCase().includes(q)) ||
+                (typeof h.role === "string" && h.role.toLowerCase().includes(q))
+            ));
+
+        const matchesType = typeof app.applicationType === "string" && app.applicationType.toLowerCase().includes(q);
         const matchesMode =
           (app.applicationType === "BULK" && "bulk application".includes(q)) ||
           (app.applicationType === "SINGLE" && "single application".includes(q));
 
-        if (!matchesApplicant && !matchesTitle && !matchesRef && !matchesAppNum && !matchesType && !matchesMode) {
+        if (
+          !matchesApplicant &&
+          !matchesRef &&
+          !matchesOrNumber &&
+          !matchesSoaNumber &&
+          !matchesServiceVariant &&
+          !matchesPersonnel &&
+          !matchesType &&
+          !matchesMode
+        ) {
           return false;
         }
       }
@@ -588,10 +662,11 @@ export function ActivitiesFeedPane({
         <Lucide name="search" size={14} color={textMuted} />
         <TextInput
           style={[styles.searchInput, { color: text }]}
-          placeholder="Search applications…"
+          placeholder="Search by Ref, OR, SOA, applicant, variant, personnel..."
           placeholderTextColor={textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel="Search applications by Reference, OR, SOA, applicant, variant, or personnel"
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery("")}>

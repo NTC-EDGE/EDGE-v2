@@ -441,6 +441,21 @@ export function mapApplicationDtoToUI(
     dto.office
   );
 
+  const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
+    ? [...dto.ordersOfPayment].sort((a, b) => {
+        const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
+        const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
+        if (hasOrA && !hasOrB) return -1;
+        if (!hasOrA && hasOrB) return 1;
+
+        const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
+        const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
+        const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
+        const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
+        return timeB - timeA;
+      })[0]
+    : undefined;
+
   return {
     id: dto.id,
     tenantId: dto.tenantId,
@@ -505,7 +520,10 @@ export function mapApplicationDtoToUI(
     issuingOfficer: issuingOfficer || dto.issuingOfficer,
     soaId: activeSoa?.id,
     statementOfAccountId: activeSoa?.id,
-    soaNumber: activeSoa?.soaNumber,
+    soaNumber: activeSoa?.soaNumber ?? ('soaNumber' in dto && typeof dto.soaNumber === 'string' ? dto.soaNumber : undefined),
+    officialReceiptNumber: ('officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string' && dto.officialReceiptNumber.trim().length > 0)
+      ? dto.officialReceiptNumber
+      : (activeOp?.officialReceiptNumber ?? undefined),
     soaStatus: activeSoa?.status,
     soaIssuedToName: activeSoa?.issuedToName,
     soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
@@ -575,21 +593,6 @@ export function mapApplicationDtoToUI(
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',
     payment: (() => {
-      const activeOp = dto.ordersOfPayment && dto.ordersOfPayment.length > 0
-        ? [...dto.ordersOfPayment].sort((a, b) => {
-            const hasOrA = Boolean(a.officialReceiptNumber && a.officialReceiptNumber.trim().length > 0) || a.status === 'Paid';
-            const hasOrB = Boolean(b.officialReceiptNumber && b.officialReceiptNumber.trim().length > 0) || b.status === 'Paid';
-            if (hasOrA && !hasOrB) return -1;
-            if (!hasOrA && hasOrB) return 1;
-
-            const histA = a.histories && a.histories.length > 0 ? a.histories[a.histories.length - 1] : undefined;
-            const histB = b.histories && b.histories.length > 0 ? b.histories[b.histories.length - 1] : undefined;
-            const timeA = histA?.timestamp ? new Date(histA.timestamp).getTime() : (a.paidAt ? new Date(a.paidAt).getTime() : 0);
-            const timeB = histB?.timestamp ? new Date(histB.timestamp).getTime() : (b.paidAt ? new Date(b.paidAt).getTime() : 0);
-            return timeB - timeA;
-          })[0]
-        : undefined;
-
       const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
         ? dto.officialReceiptNumber
         : '';

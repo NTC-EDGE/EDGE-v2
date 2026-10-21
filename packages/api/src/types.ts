@@ -1125,6 +1125,8 @@ export interface ApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  soaNumber?: string;
+  opNumber?: string;
   amountPaid?: number;
   paidAt?: string;
   filingUser?: FilingUserDto;
@@ -1233,6 +1235,8 @@ export interface ApplicationSummaryDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  soaNumber?: string;
+  opNumber?: string;
   amountPaid?: number;
   paidAt?: string;
   totalAmountDue?: number;
