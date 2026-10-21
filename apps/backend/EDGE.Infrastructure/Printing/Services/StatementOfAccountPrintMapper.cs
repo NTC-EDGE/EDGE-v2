@@ -153,11 +153,14 @@ public static class StatementOfAccountPrintMapper
                 }
                 else
                 {
-                    var othersItem = model.Items.FirstOrDefault(i => i.Category == SoaCategory.OtherApplication && i.Description == "Others");
+                    var othersItem = model.Items.FirstOrDefault(i => i.Category == SoaCategory.OtherApplication && 
+                        (i.Description == "Others" || i.Description.StartsWith("Others", StringComparison.OrdinalIgnoreCase)));
                     if (othersItem != null && (othersItem.Particular1.Amount == null || othersItem.Particular1.Amount == 0))
                     {
-                        othersItem.Description = $"Others: {li.Particular}";
-                        othersItem.Code = li.ItemCode;
+                        othersItem.Description = li.Particular.StartsWith("Others", StringComparison.OrdinalIgnoreCase)
+                            ? li.Particular
+                            : $"Others: {li.Particular}";
+                        othersItem.Code = !string.IsNullOrWhiteSpace(li.ItemCode) ? li.ItemCode : "4-02-01-990";
                         othersItem.Particular1.Fees = feeRate;
                         othersItem.Particular1.Amount = li.Amount;
                         if (li.ValidityYears > 0) othersItem.Particular1.NoOfYrs = li.ValidityYears.ToString();

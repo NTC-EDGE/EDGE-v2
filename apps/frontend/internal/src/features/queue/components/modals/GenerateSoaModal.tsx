@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -39,6 +39,12 @@ import {
   mapCalculatedFeesToEditableItems,
   mapExistingSoaItemsToEditableItems,
   calculateLineItemAmount,
+  SOA_STANDARD_PARTICULARS,
+  SoaStandardParticular,
+  SoaParticularCategory,
+  normalizeParticularKey,
+  isDuplicateParticular,
+  getAvailableStandardParticular,
 } from '../../utils/soaModalHelpers';
 
 interface GenerateSoaModalProps {
@@ -81,6 +87,36 @@ export function GenerateSoaModal({
   const [isManualMode, setIsManualMode] = useState(false);
   const [customLineItems, setCustomLineItems] = useState<EditableLineItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [openParticularDropdownId, setOpenParticularDropdownId] = useState<string | null>(null);
+  const [particularSearch, setParticularSearch] = useState('');
+
+  const filteredParticulars = useMemo(() => {
+    const q = particularSearch.trim().toLowerCase();
+    if (!q) return SOA_STANDARD_PARTICULARS;
+    return SOA_STANDARD_PARTICULARS.filter(
+      (p) =>
+        p.particular.toLowerCase().includes(q) ||
+        (p.displayName !== undefined && p.displayName.toLowerCase().includes(q)) ||
+        p.defaultCode.toLowerCase().includes(q) ||
+        p.category.toLowerCase().includes(q)
+    );
+  }, [particularSearch]);
+
+  const categoriesOrder: SoaParticularCategory[] = [
+    'FOR LICENSES',
+    'FOR PERMITS',
+    'FOR AMATEUR AND ROC',
+    'OTHER APPLICATION',
+  ];
+
+  const groupedCategories: { category: SoaParticularCategory; items: SoaStandardParticular[] }[] = useMemo(() => {
+    return categoriesOrder
+      .map((cat: SoaParticularCategory) => ({
+        category: cat,
+        items: filteredParticulars.filter((p: SoaStandardParticular) => p.category === cat),
+      }))
+      .filter((g: { category: SoaParticularCategory; items: SoaStandardParticular[] }) => g.items.length > 0);
+  }, [filteredParticulars]);
 
   // Fetch backend calculated fees based on statutory formula & service catalog
   const fetchBackendCalculatedFees = useCallback(async () => {
@@ -187,11 +223,58 @@ export function GenerateSoaModal({
     );
   };
 
+  const handleSelectParticular = (itemId: string, selected: SoaStandardParticular) => {
+    if (isDuplicateParticular(selected.particular, customLineItems, itemId)) {
+      toast.error('Particular already exist.');
+      return;
+    }
+
+    setCustomLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        const isOthers = Boolean(selected.isOthers);
+        return {
+          ...item,
+          particular: selected.particular,
+          itemCode: selected.defaultCode,
+          description: isOthers ? item.description : undefined,
+        };
+      })
+    );
+    setOpenParticularDropdownId(null);
+    setParticularSearch('');
+  };
+
+  const handleUpdateOthersDescription = (itemId: string, text: string) => {
+    const formattedParticular = text.trim().length > 0 ? `Others: ${text.trim()}` : 'Others';
+    if (isDuplicateParticular(formattedParticular, customLineItems, itemId)) {
+      toast.error('Particular already exist.');
+      return;
+    }
+
+    setCustomLineItems((prev) =>
+      prev.map((item) => {
+        if (item.id !== itemId) return item;
+        return {
+          ...item,
+          particular: formattedParticular,
+          description: text,
+        };
+      })
+    );
+  };
+
   const handleAddItem = () => {
+    const available = getAvailableStandardParticular(customLineItems);
+    if (available === null) {
+      toast.error('Particular already exist.');
+      return;
+    }
+
     const newItem: EditableLineItem = {
       id: `item-new-${Date.now()}`,
-      particular: 'Additional Assessment Fee',
-      itemCode: 'FEE',
+      particular: available.particular,
+      itemCode: available.defaultCode,
       validityYears: 1,
       noOfUnits: 1,
       feeRate: 100,
@@ -237,13 +320,13 @@ export function GenerateSoaModal({
     if (isManualMode) {
       const seen = new Set<string>();
       for (const item of customLineItems) {
-        const norm = item.particular.trim().toLowerCase();
+        const norm = normalizeParticularKey(item.particular);
         if (norm.length === 0) {
           toast.error('All fee line items must have a particular description.');
           return;
         }
         if (seen.has(norm)) {
-          toast.error('Particular already exists.');
+          toast.error('Particular already exist.');
           return;
         }
         seen.add(norm);
@@ -870,196 +953,346 @@ export function GenerateSoaModal({
                     </Pressable>
                   </View>
 
-                  {customLineItems.map((item, idx) => (
-                    <View
-                      key={item.id}
-                      style={[
-                        styles.itemRowCard,
-                        {
-                          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
-                          borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                        },
-                      ]}
-                    >
-                      <View style={styles.itemHeader}>
-                        <Text
-                          style={[
-                            styles.itemBadge,
-                            {
-                              backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
-                              color: isDark ? colors.neutral[200] : colors.neutral[700],
-                            },
-                          ]}
-                        >
-                          Item #{idx + 1}
-                        </Text>
-                        {customLineItems.length > 1 && (
-                          <Pressable onPress={() => handleRemoveItem(item.id)} hitSlop={6}>
-                            <Lucide name="trash-2" size={16} color={COLORS.semantic.error} />
-                          </Pressable>
-                        )}
-                      </View>
+                  {customLineItems.map((item, idx) => {
+                    const isParticularOpen = openParticularDropdownId === item.id;
+                    const isOthers = item.particular.toLowerCase().startsWith('others');
 
-                      <View style={styles.itemGrid}>
-                        <View style={{ flex: 2 }}>
+                    return (
+                      <View
+                        key={item.id}
+                        style={[
+                          styles.itemRowCard,
+                          {
+                            backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                            borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                          },
+                        ]}
+                      >
+                        <View style={styles.itemHeader}>
                           <Text
                             style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Particulars
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.inputSm,
+                              styles.itemBadge,
                               {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100],
+                                color: isDark ? colors.neutral[200] : colors.neutral[700],
                               },
                             ]}
-                            value={item.particular}
-                            onChangeText={(v) => handleUpdateItem(item.id, 'particular', v)}
-                            placeholder="e.g. Radio Station Permit Fee"
-                          />
+                          >
+                            Item #{idx + 1}
+                          </Text>
+                          {customLineItems.length > 1 && (
+                            <Pressable onPress={() => handleRemoveItem(item.id)} hitSlop={6}>
+                              <Lucide name="trash-2" size={16} color={COLORS.semantic.error} />
+                            </Pressable>
+                          )}
                         </View>
 
-                        <View style={{ flex: 0.9 }}>
-                          <Text
-                            style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Code
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.inputSm,
-                              {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                              },
-                            ]}
-                            value={item.itemCode}
-                            onChangeText={(v) => handleUpdateItem(item.id, 'itemCode', v)}
-                            placeholder="Code"
-                          />
-                        </View>
-
-                        <View style={{ flex: 0.7 }}>
-                          <Text
-                            style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Years
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.inputSm,
-                              {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                                textAlign: 'center',
-                              },
-                            ]}
-                            keyboardType="numeric"
-                            value={String(item.validityYears || 1)}
-                            onChangeText={(v) =>
-                              handleUpdateItem(item.id, 'validityYears', Number(v) || 1)
-                            }
-                          />
-                        </View>
-
-                        <View style={{ flex: 0.7 }}>
-                          <Text
-                            style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Units
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.inputSm,
-                              {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                                textAlign: 'center',
-                              },
-                            ]}
-                            keyboardType="numeric"
-                            value={String(item.noOfUnits)}
-                            onChangeText={(v) =>
-                              handleUpdateItem(item.id, 'noOfUnits', Number(v) || 1)
-                            }
-                          />
-                        </View>
-
-                        <View style={{ flex: 1 }}>
-                          <Text
-                            style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Rate (PHP)
-                          </Text>
-                          <TextInput
-                            style={[
-                              styles.inputSm,
-                              {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
-                                color: isDark ? colors.neutral[100] : colors.neutral[900],
-                                borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
-                                textAlign: 'right',
-                              },
-                            ]}
-                            keyboardType="numeric"
-                            value={String(item.feeRate)}
-                            onChangeText={(v) =>
-                              handleUpdateItem(item.id, 'feeRate', Number(v) || 0)
-                            }
-                          />
-                        </View>
-
-                        <View style={{ flex: 1.1 }}>
-                          <Text
-                            style={[
-                              styles.miniLabel,
-                              { color: isDark ? colors.neutral[400] : colors.neutral[500] },
-                            ]}
-                          >
-                            Amount
-                          </Text>
-                          <View
-                            style={[
-                              styles.amountBox,
-                              {
-                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
-                              },
-                            ]}
-                          >
+                        <View style={styles.itemGrid}>
+                          <View style={{ flex: 2 }}>
                             <Text
                               style={[
-                                styles.amountText,
-                                { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
                               ]}
                             >
-                              PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              Particulars
                             </Text>
+                            <Pressable
+                              style={[
+                                styles.particularDropdownBtn,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  borderColor: isParticularOpen
+                                    ? (isDark ? colors.brand[500] : colors.brand[600])
+                                    : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                                },
+                              ]}
+                              onPress={() => {
+                                setOpenParticularDropdownId((prev) => (prev === item.id ? null : item.id));
+                                setParticularSearch('');
+                              }}
+                              accessibilityRole="button"
+                              accessibilityLabel="Select particular from SOA"
+                            >
+                              <Text
+                                style={[
+                                  styles.particularDropdownBtnText,
+                                  { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                                ]}
+                                numberOfLines={1}
+                              >
+                                {item.particular || 'Select Particular...'}
+                              </Text>
+                              <Lucide
+                                name={isParticularOpen ? 'chevron-up' : 'chevron-down'}
+                                size={14}
+                                color={isDark ? colors.neutral[400] : colors.neutral[500]}
+                              />
+                            </Pressable>
+                          </View>
+
+                          <View style={{ flex: 0.9 }}>
+                            <Text
+                              style={[
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                              ]}
+                            >
+                              Code
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.inputSm,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                },
+                              ]}
+                              value={item.itemCode}
+                              onChangeText={(v) => handleUpdateItem(item.id, 'itemCode', v)}
+                              placeholder="Code"
+                            />
+                          </View>
+
+                          <View style={{ flex: 0.7 }}>
+                            <Text
+                              style={[
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                              ]}
+                            >
+                              Years
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.inputSm,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                  textAlign: 'center',
+                                },
+                              ]}
+                              keyboardType="numeric"
+                              value={String(item.validityYears || 1)}
+                              onChangeText={(v) =>
+                                handleUpdateItem(item.id, 'validityYears', Number(v) || 1)
+                              }
+                            />
+                          </View>
+
+                          <View style={{ flex: 0.7 }}>
+                            <Text
+                              style={[
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                              ]}
+                            >
+                              Units
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.inputSm,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                  textAlign: 'center',
+                                },
+                              ]}
+                              keyboardType="numeric"
+                              value={String(item.noOfUnits)}
+                              onChangeText={(v) =>
+                                handleUpdateItem(item.id, 'noOfUnits', Number(v) || 1)
+                              }
+                            />
+                          </View>
+
+                          <View style={{ flex: 1 }}>
+                            <Text
+                              style={[
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                              ]}
+                            >
+                              Rate (PHP)
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.inputSm,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                  textAlign: 'right',
+                                },
+                              ]}
+                              keyboardType="numeric"
+                              value={String(item.feeRate)}
+                              onChangeText={(v) =>
+                                handleUpdateItem(item.id, 'feeRate', Number(v) || 0)
+                              }
+                            />
+                          </View>
+
+                          <View style={{ flex: 1.1 }}>
+                            <Text
+                              style={[
+                                styles.miniLabel,
+                                { color: isDark ? colors.neutral[400] : colors.neutral[500] },
+                              ]}
+                            >
+                              Amount
+                            </Text>
+                            <View
+                              style={[
+                                styles.amountBox,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                                },
+                              ]}
+                            >
+                              <Text
+                                style={[
+                                  styles.amountText,
+                                  { color: isDark ? colors.neutral[100] : colors.neutral[900] },
+                                ]}
+                              >
+                                PHP {item.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </Text>
+                            </View>
                           </View>
                         </View>
+
+                        {/* Particulars Dropdown Panel */}
+                        {isParticularOpen && (
+                          <View
+                            style={[
+                              styles.particularDropdownPanel,
+                              {
+                                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                              },
+                            ]}
+                          >
+                            <View
+                              style={[
+                                styles.particularSearchBox,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[300],
+                                },
+                              ]}
+                            >
+                              <Lucide name="search" size={13} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                              <TextInput
+                                style={[styles.particularSearchInput, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}
+                                placeholder="Search SOA particulars or codes..."
+                                placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                                value={particularSearch}
+                                onChangeText={setParticularSearch}
+                              />
+                              {particularSearch.length > 0 && (
+                                <Pressable onPress={() => setParticularSearch('')} hitSlop={6}>
+                                  <Lucide name="x" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                                </Pressable>
+                              )}
+                            </View>
+
+                            <ScrollView style={styles.particularOptionsScroll} nestedScrollEnabled showsVerticalScrollIndicator>
+                              {groupedCategories.map((group: { category: SoaParticularCategory; items: SoaStandardParticular[] }) => (
+                                <View key={group.category} style={styles.particularCategoryGroup}>
+                                  <Text style={[styles.particularCategoryHeader, { color: isDark ? colors.brand[400] : colors.brand[700] }]}>
+                                    {group.category}
+                                  </Text>
+                                  {group.items.map((opt: SoaStandardParticular) => {
+                                    const isSelected = item.particular === opt.particular || (Boolean(opt.isOthers) && isOthers);
+                                    const isAlreadyUsed = isDuplicateParticular(opt.particular, customLineItems, item.id);
+
+                                    return (
+                                      <Pressable
+                                        key={`${group.category}-${opt.particular}`}
+                                        style={[
+                                          styles.particularOptionRow,
+                                          isSelected && { backgroundColor: isDark ? colors.brand[900] : colors.brand[100] },
+                                          isAlreadyUsed && { opacity: 0.55 },
+                                        ]}
+                                        onPress={() => {
+                                          if (isAlreadyUsed) {
+                                            toast.error('Particular already exist.');
+                                            return;
+                                          }
+                                          handleSelectParticular(item.id, opt);
+                                        }}
+                                      >
+                                        <View style={{ flex: 1, marginRight: 8 }}>
+                                          <Text
+                                            style={[
+                                              styles.particularOptionName,
+                                              { color: isDark ? colors.neutral[200] : colors.neutral[800] },
+                                              isSelected && { fontWeight: TYPOGRAPHY.weights.bold, color: isDark ? colors.brand[300] : colors.brand[800] },
+                                            ]}
+                                          >
+                                            {opt.displayName || opt.particular}
+                                          </Text>
+                                          <Text style={[styles.particularOptionSub, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                                            Account Code: {opt.defaultCode}
+                                          </Text>
+                                        </View>
+                                        {isAlreadyUsed ? (
+                                          <Text style={[styles.alreadyAddedBadge, { color: COLORS.semantic.warning }]}>
+                                            Already added
+                                          </Text>
+                                        ) : isSelected ? (
+                                          <Lucide name="check" size={14} color={isDark ? colors.brand[400] : colors.brand[700]} />
+                                        ) : null}
+                                      </Pressable>
+                                    );
+                                  })}
+                                </View>
+                              ))}
+                            </ScrollView>
+                          </View>
+                        )}
+
+                        {/* "Others" Custom Description input for traceability */}
+                        {isOthers && (
+                          <View
+                            style={[
+                              styles.othersFieldContainer,
+                              { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200] },
+                            ]}
+                          >
+                            <Text style={[styles.miniLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                              Description / Purpose for Others <Text style={{ color: COLORS.semantic.error }}>*</Text>
+                            </Text>
+                            <TextInput
+                              style={[
+                                styles.inputSm,
+                                {
+                                  backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                                  color: isDark ? colors.neutral[100] : colors.neutral[900],
+                                  borderColor: isDark ? colors.neutral[700] : colors.neutral[200],
+                                },
+                              ]}
+                              value={
+                                item.description !== undefined
+                                  ? item.description
+                                  : (item.particular.includes(':') ? item.particular.split(':').slice(1).join(':').trim() : '')
+                              }
+                              onChangeText={(v) => handleUpdateOthersDescription(item.id, v)}
+                              placeholder="e.g. Penalty for late delivery, Storage fee"
+                              placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
+                            />
+                            <Text style={[styles.fieldHint, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
+                              Enter custom purpose for traceability in EDGE. Standard SOA format reflects under the existing "Others" section.
+                            </Text>
+                          </View>
+                        )}
                       </View>
-                    </View>
-                  ))}
+                    );
+                  })}
                 </View>
               )}
 
@@ -1576,6 +1809,91 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.xs,
     paddingHorizontal: 8,
     fontSize: 12,
+  },
+  particularDropdownBtn: {
+    height: 34,
+    borderWidth: 1,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 8,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  particularDropdownBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.medium,
+    flex: 1,
+    marginRight: 4,
+  },
+  particularDropdownPanel: {
+    marginTop: 8,
+    borderWidth: 1,
+    borderRadius: RADIUS.xs,
+    padding: SPACING[8],
+  },
+  particularSearchBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: RADIUS.xs,
+    paddingHorizontal: 8,
+    height: 30,
+    marginBottom: 6,
+  },
+  particularSearchInput: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    flex: 1,
+    fontSize: 11,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+  },
+  particularOptionsScroll: {
+    maxHeight: 200,
+  },
+  particularCategoryGroup: {
+    marginBottom: 8,
+  },
+  particularCategoryHeader: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    letterSpacing: 0.5,
+    marginBottom: 3,
+    textTransform: 'uppercase',
+  },
+  particularOptionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    borderRadius: RADIUS.xs,
+    marginVertical: 1,
+  },
+  particularOptionName: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+  },
+  particularOptionSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    marginTop: 1,
+  },
+  alreadyAddedBadge: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  othersFieldContainer: {
+    marginTop: 8,
+    paddingTop: 8,
+    borderTopWidth: 1,
+  },
+  fieldHint: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    marginTop: 3,
   },
   amountBox: {
     height: 34,

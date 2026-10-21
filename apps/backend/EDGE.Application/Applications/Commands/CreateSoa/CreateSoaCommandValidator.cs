@@ -40,12 +40,16 @@ public class CreateSoaCommandValidator : AbstractValidator<CreateSoaCommand>
             .Must(items =>
             {
                 if (items == null || items.Count <= 1) return true;
-                var particulars = items.Select(i => (i.Particular ?? string.Empty).Trim().ToLowerInvariant())
-                                       .Where(p => !string.IsNullOrEmpty(p))
-                                       .ToList();
+                var particulars = items.Select(i =>
+                {
+                    var p = (i.Particular ?? string.Empty).Trim().ToLowerInvariant();
+                    return p.StartsWith("others") ? "others" : p;
+                })
+                .Where(p => !string.IsNullOrEmpty(p))
+                .ToList();
                 return particulars.Distinct().Count() == particulars.Count;
             })
-            .WithMessage("Particular already exists.")
+            .WithMessage("Particular already exist.")
             .When(x => x.LineItems != null && x.LineItems.Count > 1);
 
         RuleForEach(x => x.LineItems)
