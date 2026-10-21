@@ -130,20 +130,28 @@ export function GenerateSoaModal({
         setIsManualMode(false);
       }
 
-      setRemarks(app.remarks || 'Please settle this Statement of Account on or before the due date.');
+      setRemarks(app.soaRemarks || app.remarks || 'Please settle this Statement of Account on or before the due date.');
+      setSelectedSoaNoteId(app.soaNoteId ?? null);
       fetchBackendCalculatedFees();
     }
   }, [visible, app, isExistingSoa, fetchBackendCalculatedFees]);
 
   useEffect(() => {
-    if (visible && tenantSoaNotes.length > 0 && (!remarks || remarks === 'Please settle this Statement of Account on or before the due date.')) {
-      const match = tenantSoaNotes.find((n) => n.tenantId === app.tenantId) ?? tenantSoaNotes[0];
-      if (match?.notes) {
-        setRemarks(match.notes);
-        setSelectedSoaNoteId(match.id);
+    if (visible && tenantSoaNotes.length > 0) {
+      const match =
+        tenantSoaNotes.find((n) => n.tenantId === app.tenantId && (n.code === 'DEFAULT' || n.title?.toLowerCase().includes('default'))) ??
+        tenantSoaNotes.find((n) => n.tenantId === app.tenantId) ??
+        tenantSoaNotes.find((n) => n.code === 'DEFAULT' || n.title?.toLowerCase().includes('default')) ??
+        tenantSoaNotes[0];
+
+      if (!isExistingSoa || !remarks || remarks === 'Please settle this Statement of Account on or before the due date.') {
+        if (match?.notes) {
+          setRemarks(match.notes);
+          setSelectedSoaNoteId(match.id);
+        }
       }
     }
-  }, [visible, tenantSoaNotes, app.tenantId]);
+  }, [visible, tenantSoaNotes, app.tenantId, isExistingSoa]);
 
   // Apply statutory calculated fees to the editable lines
   const handleApplyStatutoryFees = () => {
@@ -1066,19 +1074,73 @@ export function GenerateSoaModal({
                   },
                 ]}
               >
-                <Text
-                  style={[
-                    styles.sectionTitle,
-                    { color: isDark ? colors.neutral[100] : colors.neutral[900], marginBottom: 6 },
-                  ]}
-                >
-                  SOA Remarks & Assessment Instructions
-                </Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                  <Text
+                    style={[
+                      styles.sectionTitle,
+                      { color: isDark ? colors.neutral[100] : colors.neutral[900], marginBottom: 0 },
+                    ]}
+                  >
+                    SOA Remarks & Assessment Instructions
+                  </Text>
+                  {tenantSoaNotes.length > 0 && (
+                    <Text style={{ fontSize: 11, color: isDark ? colors.neutral[400] : colors.neutral[500] }}>
+                      Loaded from Regional Templates
+                    </Text>
+                  )}
+                </View>
+
+                {tenantSoaNotes.length > 0 && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginBottom: 8 }}>
+                    {tenantSoaNotes.map((note) => {
+                      const isSelected = selectedSoaNoteId === note.id;
+                      const isDefault = note.code === 'DEFAULT' || (note.title && note.title.toLowerCase().includes('default'));
+                      return (
+                        <Pressable
+                          key={note.id}
+                          onPress={() => {
+                            setRemarks(note.notes);
+                            setSelectedSoaNoteId(note.id);
+                            toast.success(`Applied ${note.title || note.code || 'regional'} template`);
+                          }}
+                          style={[
+                            {
+                              paddingHorizontal: 8,
+                              paddingVertical: 4,
+                              borderRadius: 6,
+                              borderWidth: 1,
+                              borderColor: isSelected
+                                ? (isDark ? colors.brand[500] : colors.brand[600])
+                                : (isDark ? colors.neutral[700] : colors.neutral[300]),
+                              backgroundColor: isSelected
+                                ? (isDark ? colors.brand[900] : colors.brand[50])
+                                : (isDark ? colors.neutral[800] : colors.neutral[100]),
+                            },
+                            Platform.select({ web: { cursor: 'pointer' } as object }),
+                          ]}
+                        >
+                          <Text
+                            style={{
+                              fontSize: 11,
+                              fontWeight: isSelected ? '700' : '500',
+                              color: isSelected
+                                ? (isDark ? colors.brand[300] : colors.brand[700])
+                                : (isDark ? colors.neutral[300] : colors.neutral[700]),
+                            }}
+                          >
+                            {note.title || note.code || 'Regional Note'}{isDefault ? ' (Default)' : ''}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
+
                 <TextInput
                   style={[
                     styles.input,
                     {
-                      minHeight: 54,
+                      minHeight: 64,
                       textAlignVertical: 'top',
                       backgroundColor: isDark ? colors.neutral[900] : COLORS.neutral.white,
                       color: isDark ? colors.neutral[100] : colors.neutral[900],
@@ -1086,7 +1148,7 @@ export function GenerateSoaModal({
                     },
                   ]}
                   multiline
-                  numberOfLines={2}
+                  numberOfLines={3}
                   value={remarks}
                   onChangeText={setRemarks}
                   placeholder="Enter remarks or payment instructions for this Statement of Account..."

@@ -37,6 +37,7 @@ export function SoaNoteDialog({
   const [notes, setNotes] = useState("");
   const [tenantId, setTenantId] = useState<string>("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [isDefaultRemarks, setIsDefaultRemarks] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -51,6 +52,7 @@ export function SoaNoteDialog({
         setNotes("");
         setTenantId(defaultTenantId ?? "");
       }
+      setIsDefaultRemarks(Boolean(editingNote && (editingNote.code === "DEFAULT" || (editingNote.title && editingNote.title.toLowerCase().includes("default")))));
       setErrorMsg(null);
     }
   }, [open, editingNote, defaultTenantId]);
@@ -65,7 +67,7 @@ export function SoaNoteDialog({
     try {
       setErrorMsg(null);
       await onSubmit({
-        code: code.trim() || undefined,
+        code: isDefaultRemarks ? "DEFAULT" : (code.trim() || undefined),
         title: title.trim() || undefined,
         notes: notes.trim(),
         tenantId: tenantId.trim() ? tenantId : null,
@@ -128,6 +130,24 @@ export function SoaNoteDialog({
               </p>
             </div>
           )}
+
+          <div className="flex items-center gap-2 p-2.5 rounded-lg border border-indigo-200 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/20">
+            <input
+              type="checkbox"
+              id="isDefaultRemarks"
+              checked={isDefaultRemarks}
+              onChange={(e) => {
+                const checked = e.target.checked;
+                setIsDefaultRemarks(checked);
+                if (checked && !code.trim()) setCode("DEFAULT");
+                if (checked && !title.trim()) setTitle("Default SOA Remarks");
+              }}
+              className="h-4 w-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+            <label htmlFor="isDefaultRemarks" className="text-xs font-medium text-slate-800 dark:text-slate-200 cursor-pointer">
+              Set as Default SOA Remarks for this Region
+            </label>
+          </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-1.5">

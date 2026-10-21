@@ -187,6 +187,7 @@ export interface ApplicationData {
   soaPreparedByTitle?: string;
   soaApprovedByName?: string;
   soaApprovedByTitle?: string;
+  soaNoteId?: string;
   endorsedTo?: string;
   endorsedBy?: string;
   applicationType: 'SINGLE' | 'BULK';

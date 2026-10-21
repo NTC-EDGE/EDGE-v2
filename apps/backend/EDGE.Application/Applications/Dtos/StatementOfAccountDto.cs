@@ -20,6 +20,7 @@ public class StatementOfAccountDto
     public Guid? ApprovedByUserId { get; set; }
     public DateTime? ApprovedAt { get; set; }
     public string? Remarks { get; set; }
+    public Guid? SoaNoteId { get; set; }
     public string? PreparedByName { get; set; }
     public string? PreparedByTitle { get; set; }
     public string? ApprovedByName { get; set; }

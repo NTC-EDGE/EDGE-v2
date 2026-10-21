@@ -279,6 +279,16 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('[ ]</strong> For Assessment Only');
     });
 
+    it('should render official SOA remarks when soaRemarks is present', () => {
+      const appWithRemarks: ApplicationData = {
+        ...mockApplication,
+        soaRemarks: 'Payment via Landbank on or before October 30, 2026. Official Region VII terms apply.',
+      };
+      const html = generateSoaPrintableHtml(appWithRemarks);
+      expect(html).toContain('REMARKS:');
+      expect(html).toContain('Payment via Landbank on or before October 30, 2026. Official Region VII terms apply.');
+    });
+
     it('should mark For Assessment Only checked and Official Application unchecked when filed as assessment only', () => {
       const assessmentApp: ApplicationData = {
         ...mockApplication,

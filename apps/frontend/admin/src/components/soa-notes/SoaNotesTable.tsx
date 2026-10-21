@@ -46,9 +46,16 @@ export function SoaNotesTable({
       key: "code",
       header: "Code",
       cell: (item) => (
-        <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded tracking-wider uppercase">
-          {item.code || "—"}
-        </span>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <span className="font-mono text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800 px-2 py-0.5 rounded tracking-wider uppercase">
+            {item.code || "—"}
+          </span>
+          {(item.code === "DEFAULT" || (item.title && item.title.toLowerCase().includes("default"))) && (
+            <span className="font-sans text-[10px] font-bold text-emerald-700 dark:text-emerald-300 bg-emerald-100 dark:bg-emerald-950/60 border border-emerald-300 dark:border-emerald-800 px-1.5 py-0.5 rounded uppercase tracking-wider">
+              Default
+            </span>
+          )}
+        </div>
       ),
     },
     {

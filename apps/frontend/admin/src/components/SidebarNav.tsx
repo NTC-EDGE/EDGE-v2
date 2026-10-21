@@ -254,7 +254,7 @@ export function SidebarNav() {
               </Link>
             )}
 
-            {isSystemAdmin && (
+            {(isSystemAdmin || isTenantAdmin || isRegionAdmin) && (
               <Link
                 href="/soa-notes"
                 onClick={() => setMobileOpen(false)}

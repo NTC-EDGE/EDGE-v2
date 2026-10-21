@@ -118,7 +118,13 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
 
         var userContext = await _userRepository.GetStaffUserContextAsync(_currentUserService.UserId, "Evaluator", cancellationToken);
 
-        var soa = new StatementOfAccount
+        var existingSoa = app.StatementsOfAccount
+            .OrderByDescending(s => s.CreatedAt)
+            .FirstOrDefault(s => s.Status == SoaStatus.Pending || s.Status == SoaStatus.Returned);
+
+        var isExistingSoa = existingSoa != null;
+
+        var soa = existingSoa ?? new StatementOfAccount
         {
             Id = Guid.NewGuid(),
             ApplicationId = request.ApplicationId,
@@ -127,13 +133,16 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
                 ? await _numberingSeriesService.GenerateSoaNumberAsync(app.TenantId, cancellationToken)
                 : $"SOA-{DateTime.UtcNow:yyyy}-{Guid.NewGuid().ToString()[..6].ToUpper()}",
             Status = SoaStatus.Pending,
-            IssuedToType = issuedToType,
-            IssuedToName = resolvedIssuedToName,
-            IssuedToAddress = resolvedIssuedToAddress,
-            DueDate = resolvedDueDate,
             PreparedByUserId = userContext.UserId,
-            Remarks = request.Remarks
         };
+
+        soa.IssuedToType = issuedToType;
+        soa.IssuedToName = resolvedIssuedToName;
+        soa.IssuedToAddress = resolvedIssuedToAddress;
+        soa.DueDate = resolvedDueDate;
+        soa.Remarks = request.Remarks;
+        soa.SoaNoteId = request.SoaNoteId;
+        soa.LineItems.Clear();
 
         if (request.LineItems != null && request.LineItems.Count > 0)
         {
@@ -259,11 +268,13 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         var staffName = !string.IsNullOrWhiteSpace(userContext.StaffName) ? userContext.StaffName : "Evaluator";
         var staffRole = !string.IsNullOrWhiteSpace(userContext.StaffRole) ? userContext.StaffRole : "Evaluator";
 
+        var historyAction = isExistingSoa ? "SOA updated by Evaluator" : "SOA created by Evaluator";
+
         soa.Histories.Add(new SoaHistory
         {
             Id = Guid.NewGuid(),
             StatementOfAccountId = soa.Id,
-            Action = "SOA created by Evaluator",
+            Action = historyAction,
             ToStatus = SoaStatus.Pending,
             PerformedByUserId = userContext.UserId,
             StaffName = staffName,
@@ -277,8 +288,10 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
             await _repository.UpdateAsync(app, cancellationToken);
         }
 
-        var isExistingSoa = app.StatementsOfAccount.Any();
-        await _repository.AddSoaAsync(soa, cancellationToken);
+        if (!isExistingSoa)
+        {
+            await _repository.AddSoaAsync(soa, cancellationToken);
+        }
 
         var actionName = isExistingSoa ? "Statement of Account (SOA) Updated" : "Statement of Account (SOA) Generated";
         var remarksText = isExistingSoa

@@ -762,6 +762,13 @@ export function generateSoaPrintableHtml(
       <div><span class="meta-label">TOTAL: </span><strong>₱ ${formattedTotal}</strong></div>
     </div>
 
+    <!-- Official SOA Remarks Box -->
+    ${(app.soaRemarks || app.remarks) ? `
+    <div style="border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'}; border-top: none; padding: 3px 8px; font-size: 8.5px; font-family: Arial, sans-serif; background: ${isOverlay ? 'transparent' : '#ffffff'};">
+      <span style="font-weight: bold;">REMARKS: </span><span>${safeString(app.soaRemarks || app.remarks, '')}</span>
+    </div>
+    ` : ''}
+
     <!-- Bottom Section: Assessment Stamp, O.R. Box, & Signatures -->
     <table class="bottom-grid">
       <tr>

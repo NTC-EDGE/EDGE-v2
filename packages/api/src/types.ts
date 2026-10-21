@@ -915,6 +915,7 @@ export interface SoaHistoryDto {
   staffName: string;
   staffRole: string;
   remarks?: string;
+  soaNoteId?: string;
   timestamp: string;
 }
 
@@ -934,6 +935,7 @@ export interface StatementOfAccountDto {
   approvedByUserId?: string;
   approvedAt?: string;
   remarks?: string;
+  soaNoteId?: string;
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;

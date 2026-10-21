@@ -534,6 +534,8 @@ export function mapApplicationDtoToUI(
     soaPreparedByTitle: activeSoa?.preparedByTitle,
     soaApprovedByName: activeSoa?.approvedByName,
     soaApprovedByTitle: activeSoa?.approvedByTitle,
+    soaRemarks: activeSoa?.remarks ?? undefined,
+    soaNoteId: activeSoa?.soaNoteId ?? undefined,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
