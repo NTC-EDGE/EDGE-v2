@@ -371,24 +371,33 @@ export const applicationService = {
     });
   },
 
-  getOrPrintUrl(applicationId: string, orNumber?: string): string {
+  getOrPrintUrl(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape'): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const q = orNumber ? `?orNumber=${encodeURIComponent(orNumber)}` : '';
-    return `${base}/api/v2/applications/${applicationId}/or/print${q}`;
+    const params = new URLSearchParams();
+    if (orNumber) params.append('orNumber', orNumber);
+    if (template) params.append('template', template);
+    const qs = params.toString();
+    return `${base}/api/v2/applications/${applicationId}/or/print${qs ? `?${qs}` : ''}`;
   },
 
-  getOrDownloadUrl(applicationId: string, orNumber?: string): string {
+  getOrDownloadUrl(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape'): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    const q = orNumber ? `&orNumber=${encodeURIComponent(orNumber)}` : '';
-    return `${base}/api/v2/applications/${applicationId}/or/print?download=true${q}`;
+    const params = new URLSearchParams();
+    params.append('download', 'true');
+    if (orNumber) params.append('orNumber', orNumber);
+    if (template) params.append('template', template);
+    return `${base}/api/v2/applications/${applicationId}/or/print?${params.toString()}`;
   },
 
-  async previewOrPdf(applicationId: string, orNumber?: string) {
+  async previewOrPdf(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape') {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/or/print`,
         {
-          params: orNumber ? { orNumber } : undefined,
+          params: {
+            ...(orNumber ? { orNumber } : {}),
+            ...(template ? { template } : {}),
+          },
           responseType: 'blob',
         }
       );
@@ -396,7 +405,7 @@ export const applicationService = {
     });
   },
 
-  async downloadOrPdf(applicationId: string, orNumber?: string) {
+  async downloadOrPdf(applicationId: string, orNumber?: string, template?: 'portrait' | 'landscape') {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/or/print`,
@@ -404,6 +413,7 @@ export const applicationService = {
           params: {
             download: true,
             ...(orNumber ? { orNumber } : {}),
+            ...(template ? { template } : {}),
           },
           responseType: 'blob',
         }
@@ -436,6 +446,36 @@ export const applicationService = {
     return safeAsync(async () => {
       const response = await apiClient.get<Blob>(
         `/api/v2/applications/${applicationId}/issued-document/print?download=true`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  getApplicationFormPrintUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/form/print`;
+  },
+
+  getApplicationFormDownloadUrl(applicationId: string): string {
+    const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
+    return `${base}/api/v2/applications/${applicationId}/form/print?download=true`;
+  },
+
+  async previewApplicationFormPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/form/print`,
+        { responseType: 'blob' }
+      );
+      return response.data;
+    });
+  },
+
+  async downloadApplicationFormPdf(applicationId: string) {
+    return safeAsync(async () => {
+      const response = await apiClient.get<Blob>(
+        `/api/v2/applications/${applicationId}/form/print?download=true`,
         { responseType: 'blob' }
       );
       return response.data;

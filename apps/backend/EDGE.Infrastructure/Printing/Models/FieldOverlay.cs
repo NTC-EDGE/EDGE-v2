@@ -23,7 +23,8 @@ public sealed record CheckboxFieldOverlay(
     PdfField Field,
     bool IsChecked,
     CheckboxStyle Style = CheckboxStyle.Checkmark,
-    int ZIndex = 0) : FieldOverlay(Field, ZIndex);
+    int ZIndex = 0,
+    bool DrawBox = false) : FieldOverlay(Field, ZIndex);
 
 public sealed record ImageFieldOverlay(
     PdfField Field,

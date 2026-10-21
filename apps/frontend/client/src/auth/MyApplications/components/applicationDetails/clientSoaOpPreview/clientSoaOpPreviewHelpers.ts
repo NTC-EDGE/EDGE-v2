@@ -12,7 +12,7 @@ import {
   getEffectiveLineItems,
   getEffectiveTotalAmount,
 } from '../../../utils/clientSoaReportGenerator';
-import { ClientReportTab } from './clientSoaOpPreviewTypes';
+import { ClientReportTab, OrTemplateOrientation } from './clientSoaOpPreviewTypes';
 
 export function getPreviewApplicationMetadata(app: Application) {
   const refNum = app.referenceNumber || (app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-REF');
@@ -80,7 +80,8 @@ export function getPreviewApplicationMetadata(app: Application) {
 export async function handlePrintDocument(
   app: Application,
   activeTab: ClientReportTab,
-  effectiveSelectedOr: string | null
+  effectiveSelectedOr: string | null,
+  orTemplate: OrTemplateOrientation = 'landscape'
 ): Promise<void> {
   if (typeof app.id === 'string' && app.id.trim().length > 0) {
     try {
@@ -89,7 +90,7 @@ export async function handlePrintDocument(
         ? await applicationService.previewSoaPdf(app.id)
         : activeTab === 'op'
           ? await applicationService.previewOpPdf(app.id)
-          : await applicationService.previewOrPdf(app.id, selectedOrParam);
+          : await applicationService.previewOrPdf(app.id, selectedOrParam, orTemplate);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
         const blobUrl = window.URL.createObjectURL(pdfBlob);
@@ -108,7 +109,7 @@ export async function handlePrintDocument(
       ? applicationService.getSoaPrintUrl(app.id)
       : activeTab === 'op'
         ? applicationService.getOpPrintUrl(app.id)
-        : applicationService.getOrPrintUrl(app.id, selectedOrParam);
+        : applicationService.getOrPrintUrl(app.id, selectedOrParam, orTemplate);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
       const printWin = window.open(url, '_blank');
@@ -140,7 +141,8 @@ export function handleDownloadSpecificDocument(
   app: Application,
   targetDoc: ClientReportTab,
   targetOrNumber?: string,
-  effectiveSelectedOr?: string | null
+  effectiveSelectedOr?: string | null,
+  orTemplate: OrTemplateOrientation = 'landscape'
 ): void {
   if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
   const resolvedOr = (typeof targetOrNumber === 'string' && targetOrNumber.length > 0)
@@ -148,10 +150,10 @@ export function handleDownloadSpecificDocument(
     : (typeof effectiveSelectedOr === 'string' && effectiveSelectedOr.length > 0 ? effectiveSelectedOr : undefined);
 
   const url = targetDoc === 'soa'
-    ? applicationService.getSoaPrintUrl(app.id)
+    ? applicationService.getSoaDownloadUrl(app.id)
     : targetDoc === 'op'
-      ? applicationService.getOpPrintUrl(app.id)
-      : applicationService.getOrPrintUrl(app.id, resolvedOr);
+      ? applicationService.getOpDownloadUrl(app.id)
+      : applicationService.getOrDownloadUrl(app.id, resolvedOr, orTemplate);
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {
     window.open(url, '_blank');

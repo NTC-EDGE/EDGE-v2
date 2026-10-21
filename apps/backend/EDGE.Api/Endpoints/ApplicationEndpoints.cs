@@ -232,6 +232,19 @@ public static class ApplicationEndpoints
             .WithSummary("Print Issuance Document")
             .WithDescription("Alias for PrintIssuedDocument.");
 
+        group.MapGet("/{id:guid}/form/print", PrintApplicationFormEndpoint)
+            .AllowAnonymous()
+            .WithName("PrintApplicationForm")
+            .WithSummary("Print Application Form")
+            .WithDescription("Generates and downloads official printable PDF statutory application form (e.g. NTC 1-24 Blocking/Unblocking, NTC 1-25 Complaints) for the application.");
+
+        group.MapGet("/{id:guid}/form/download", (Guid id, IApplicationFullRepository repository, IFormPrintingService printingService, HttpContext httpContext, CancellationToken cancellationToken) =>
+            PrintApplicationFormEndpoint(id, repository, printingService, httpContext, download: true, cancellationToken))
+            .AllowAnonymous()
+            .WithName("DownloadApplicationForm")
+            .WithSummary("Download Application Form")
+            .WithDescription("Alias for PrintApplicationForm with download=true.");
+
         group.MapDelete("/me/drafts/{id:guid}", DeleteDraftApplication)
             .RequireAuthorization(new HasPermissionAttribute(Permissions.ViewOwnApplications))
             .WithName("DeleteMyDraftApplication")
@@ -875,6 +888,47 @@ public static class ApplicationEndpoints
         }
 
         httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeDocName}\"";
+        return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
+    }
+
+    public static async Task<IResult> PrintApplicationFormEndpoint(
+        Guid id,
+        IApplicationFullRepository repository,
+        IFormPrintingService printingService,
+        HttpContext httpContext,
+        bool download = false,
+        CancellationToken cancellationToken = default)
+    {
+        var app = await repository.GetByIdWithDetailsAsync(id, true, cancellationToken);
+        if (app == null)
+        {
+            return Results.NotFound(new { message = $"Application with ID '{id}' was not found." });
+        }
+
+        byte[] pdfBytes;
+        string safeFileName;
+
+        if (ApplicationFormPrintMapper.IsBlockingOrUnblocking(app))
+        {
+            var model124 = ApplicationFormPrintMapper.MapToNtc124(app);
+            pdfBytes = printingService.PrintNtc124(model124);
+            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
+            safeFileName = $"NTC_1-24_Affidavit_{refCode}.pdf".Replace(" ", "_");
+        }
+        else
+        {
+            var model125 = ApplicationFormPrintMapper.MapToNtc125(app);
+            pdfBytes = printingService.PrintNtc125(model125);
+            var refCode = app.ApplicationNumber ?? app.ReferenceNumber ?? id.ToString();
+            safeFileName = $"NTC_1-25_Complaint_{refCode}.pdf".Replace(" ", "_");
+        }
+
+        if (download)
+        {
+            return Results.File(pdfBytes, "application/pdf", safeFileName);
+        }
+
+        httpContext.Response.Headers.ContentDisposition = $"inline; filename=\"{safeFileName}\"";
         return Results.File(pdfBytes, "application/pdf", enableRangeProcessing: true);
     }
 }

@@ -2,6 +2,7 @@ import { Application, SoaLineItem } from '../../../data/applicationsData';
 
 export type ClientReportTab = 'soa' | 'op' | 'or';
 export type PreviewViewFormat = 'pdf' | 'grid';
+export type OrTemplateOrientation = 'portrait' | 'landscape';
 
 export interface ClientSoaOpPreviewModalProps {
   visible: boolean;
@@ -46,6 +47,8 @@ export interface ClientSoaOpTabsProps {
   orList: string[];
   effectiveSelectedOr: string | null;
   onSelectOrNumber: (token: string) => void;
+  orTemplate?: OrTemplateOrientation;
+  onSelectOrTemplate?: (template: OrTemplateOrientation) => void;
 }
 
 export interface ClientSoaOpPdfViewerProps {

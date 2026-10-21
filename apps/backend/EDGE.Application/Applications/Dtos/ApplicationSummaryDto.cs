@@ -47,6 +47,14 @@ public class ApplicationSummaryDto
     public Guid? OrderOfPaymentId { get; set; }
     public string? OpNumber { get; set; }
 
+    public string? EvaluatingOfficer { get; set; }
+    public string? AccountingOfficer { get; set; }
+    public string? CashierOfficer { get; set; }
+    public string? IssuingOfficer { get; set; }
+    public string? AssignedOfficerName { get; set; }
+    public string? AssignedOfficerRole { get; set; }
+    public List<ApplicationHistoryDto> Histories { get; set; } = new();
+
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();

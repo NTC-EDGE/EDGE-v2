@@ -1136,6 +1136,10 @@ export interface ApplicationDto {
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
   evaluatingOfficer?: string;
   issuingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  assignedOfficerName?: string;
+  assignedOfficerRole?: string;
 }
 
 export interface IssuedDocumentDetailDto {
@@ -1240,6 +1244,10 @@ export interface ApplicationSummaryDto {
   issuedDocumentDetails?: IssuedDocumentDetailDto[];
   evaluatingOfficer?: string;
   issuingOfficer?: string;
+  accountingOfficer?: string;
+  cashierOfficer?: string;
+  assignedOfficerName?: string;
+  assignedOfficerRole?: string;
 }
 
 // ─── Paged Applications & Statistics ────────────────────

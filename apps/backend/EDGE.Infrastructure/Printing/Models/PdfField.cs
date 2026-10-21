@@ -59,4 +59,5 @@ public sealed record PdfField(
     bool IsBold = false,
     TextTransform TextTransform = TextTransform.None,
     OverflowBehavior OverflowBehavior = OverflowBehavior.None,
-    double? MinFontSize = null);
+    double? MinFontSize = null,
+    string? TextColor = null);

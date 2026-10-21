@@ -14,6 +14,8 @@ export function ClientSoaOpTabs({
   orList,
   effectiveSelectedOr,
   onSelectOrNumber,
+  orTemplate = 'landscape',
+  onSelectOrTemplate,
 }: ClientSoaOpTabsProps) {
   const orBadgeLabel = orList.length > 1
     ? `${orList.length} ORs Issued`
@@ -99,6 +101,62 @@ export function ClientSoaOpTabs({
                 </TouchableOpacity>
               );
             })}
+          </View>
+        </View>
+      )}
+
+      {activeTab === 'or' && onSelectOrTemplate !== undefined && (
+        <View style={tabsStyles.orTemplateSelectorBar}>
+          <View style={tabsStyles.orTemplateLabelRow}>
+            <Icon name="printer" size={13} color="#64748B" />
+            <Text style={tabsStyles.orTemplateLabel}>OR TEMPLATE FORMAT:</Text>
+          </View>
+          <View style={tabsStyles.orTemplateChipsRow}>
+            <TouchableOpacity
+              style={[
+                tabsStyles.orTemplateChip,
+                orTemplate === 'landscape' && tabsStyles.orTemplateChipActive,
+              ]}
+              onPress={() => onSelectOrTemplate('landscape')}
+              activeOpacity={0.8}
+            >
+              <Icon
+                name="layout"
+                size={12}
+                color={orTemplate === 'landscape' ? '#059669' : '#64748B'}
+              />
+              <Text
+                style={[
+                  tabsStyles.orTemplateChipText,
+                  orTemplate === 'landscape' && tabsStyles.orTemplateChipTextActive,
+                ]}
+              >
+                Landscape (AF-51)
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                tabsStyles.orTemplateChip,
+                orTemplate === 'portrait' && tabsStyles.orTemplateChipActive,
+              ]}
+              onPress={() => onSelectOrTemplate('portrait')}
+              activeOpacity={0.8}
+            >
+              <Icon
+                name="file-text"
+                size={12}
+                color={orTemplate === 'portrait' ? '#059669' : '#64748B'}
+              />
+              <Text
+                style={[
+                  tabsStyles.orTemplateChipText,
+                  orTemplate === 'portrait' && tabsStyles.orTemplateChipTextActive,
+                ]}
+              >
+                Portrait (Standard)
+              </Text>
+            </TouchableOpacity>
           </View>
         </View>
       )}

@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Platform } from 'react-native';
 import { applicationService } from '@edge/api';
 import { Application } from '../../../data/applicationsData';
-import { ClientReportTab, PreviewViewFormat } from './clientSoaOpPreviewTypes';
+import { ClientReportTab, PreviewViewFormat, OrTemplateOrientation } from './clientSoaOpPreviewTypes';
 import {
   getPreviewApplicationMetadata,
   handlePrintDocument,
@@ -21,6 +21,7 @@ export function useClientSoaOpPreview(
   const [pdfError, setPdfError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState<number>(0);
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
+  const [orTemplate, setOrTemplate] = useState<OrTemplateOrientation>('landscape');
 
   const meta = getPreviewApplicationMetadata(app);
   const [selectedOrNumber, setSelectedOrNumber] = useState<string | null>(null);
@@ -32,6 +33,7 @@ export function useClientSoaOpPreview(
     if (visible) {
       setActiveTab(initialTab);
       setViewFormat('pdf');
+      setOrTemplate('landscape');
       setShowActionMenu(false);
       setSelectedOrNumber(meta.orList.length > 0 ? meta.orList[0] : null);
     }
@@ -69,7 +71,7 @@ export function useClientSoaOpPreview(
             ? await applicationService.previewSoaPdf(app.id)
             : activeTab === 'op'
               ? await applicationService.previewOpPdf(app.id)
-              : await applicationService.previewOrPdf(app.id, selectedOr);
+              : await applicationService.previewOrPdf(app.id, selectedOr, orTemplate);
 
           if (!active) return;
           if (err !== null || blob === null) {
@@ -106,14 +108,14 @@ export function useClientSoaOpPreview(
         window.URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [app.id, activeTab, viewFormat, reloadKey, effectiveSelectedOr]);
+  }, [app.id, activeTab, viewFormat, reloadKey, effectiveSelectedOr, orTemplate]);
 
   const handlePrint = () => {
-    void handlePrintDocument(app, activeTab, effectiveSelectedOr);
+    void handlePrintDocument(app, activeTab, effectiveSelectedOr, orTemplate);
   };
 
   const handleDownloadDoc = (targetDoc: ClientReportTab, targetOrNumber?: string) => {
-    handleDownloadSpecificDocument(app, targetDoc, targetOrNumber, effectiveSelectedOr);
+    handleDownloadSpecificDocument(app, targetDoc, targetOrNumber, effectiveSelectedOr, orTemplate);
   };
 
   const handleReload = () => setReloadKey((k) => k + 1);
@@ -124,6 +126,8 @@ export function useClientSoaOpPreview(
     setActiveTab,
     viewFormat,
     setViewFormat,
+    orTemplate,
+    setOrTemplate,
     pdfBlobUrl,
     isLoadingPdf,
     pdfError,

@@ -9,7 +9,7 @@ namespace EDGE.Infrastructure.Printing.Services;
 
 /// <summary>
 /// Maps real database OfficialReceipt, OrderOfPayment, StatementOfAccount, and Application entities
-/// to printable OfficialReceiptModel matching official NTC Accountable Form No. 51 AcroForm layout.
+/// to printable OfficialReceiptModel matching official NTC Accountable Form No. 51 layout.
 /// </summary>
 public static class OfficialReceiptPrintMapper
 {
@@ -17,11 +17,14 @@ public static class OfficialReceiptPrintMapper
         OfficialReceipt? receipt = null,
         OrderOfPayment? op = null,
         StatementOfAccount? soa = null,
-        EDGE.Domain.Entities.Application? app = null)
+        EDGE.Domain.Entities.Application? app = null,
+        string? template = null)
     {
+        var isLandscape = string.Equals(template, "landscape", StringComparison.OrdinalIgnoreCase);
+
         var model = new OfficialReceiptModel
         {
-            Orientation = ReceiptOrientation.Portrait,
+            Orientation = isLandscape ? ReceiptOrientation.Landscape : ReceiptOrientation.Portrait,
             AccountableFormNo = "Accountable Form No. 51",
             RevisionInfo = "Revised January, 1992",
             CopyType = "ORIGINAL"
@@ -92,26 +95,37 @@ public static class OfficialReceiptPrintMapper
         model.TotalAmount = totalAmount;
         model.AmountInWords = NumberToWordsConverter.Convert(totalAmount);
 
-        // Map line items
+        // Map line items: Prioritize SOA breakdown so the exact fee item types and amounts from the SOA are displayed
         var itemsList = new List<OfficialReceiptItem>();
-        if (receipt?.LineItems != null && receipt.LineItems.Any())
+        if (activeSoa?.LineItems != null && activeSoa.LineItems.Any())
         {
-            foreach (var li in receipt.LineItems)
+            foreach (var li in activeSoa.LineItems)
             {
+                var label = BuildItemDetailedDescription(li);
+
                 itemsList.Add(new OfficialReceiptItem
                 {
-                    NatureOfCollection = !string.IsNullOrWhiteSpace(li.Description) ? li.Description : li.FeeCode,
+                    NatureOfCollection = label,
                     Amount = li.Amount
                 });
             }
         }
-        else if (activeSoa?.LineItems != null && activeSoa.LineItems.Any())
+        else if (receipt?.LineItems != null && receipt.LineItems.Any())
         {
-            foreach (var li in activeSoa.LineItems)
+            foreach (var li in receipt.LineItems)
             {
+                var desc = !string.IsNullOrWhiteSpace(li.Description) ? li.Description.Trim() : (!string.IsNullOrWhiteSpace(li.FeeCode) ? li.FeeCode.Trim() : "Assessment Fee");
+                if (!string.IsNullOrWhiteSpace(li.FeeCode) &&
+                    !string.Equals(li.FeeCode.Trim(), "FEE", StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(li.FeeCode.Trim(), "PAYMENT", StringComparison.OrdinalIgnoreCase) &&
+                    !desc.Contains(li.FeeCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    desc = $"{desc} ({li.FeeCode.Trim()})";
+                }
+
                 itemsList.Add(new OfficialReceiptItem
                 {
-                    NatureOfCollection = !string.IsNullOrWhiteSpace(li.Particular) ? li.Particular : (li.Description ?? "Assessment Fee"),
+                    NatureOfCollection = desc,
                     Amount = li.Amount
                 });
             }
@@ -162,5 +176,35 @@ public static class OfficialReceiptPrintMapper
             : "Collecting Officer";
 
         return model;
+    }
+
+    private static string BuildItemDetailedDescription(EDGE.Domain.Entities.SoaLineItem li)
+    {
+        var particular = !string.IsNullOrWhiteSpace(li.Particular) ? li.Particular.Trim() : (!string.IsNullOrWhiteSpace(li.ItemCode) ? li.ItemCode.Trim() : "Assessment Fee");
+        var details = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(li.ItemCode) &&
+            !string.Equals(li.ItemCode.Trim(), particular, StringComparison.OrdinalIgnoreCase) &&
+            !particular.Contains(li.ItemCode.Trim(), StringComparison.OrdinalIgnoreCase))
+        {
+            details.Add(li.ItemCode.Trim());
+        }
+
+        if (li.NoOfUnits > 0)
+        {
+            details.Add($"{li.NoOfUnits} unit{(li.NoOfUnits > 1 ? "s" : "")}");
+        }
+
+        if (li.ValidityYears > 0)
+        {
+            details.Add($"{li.ValidityYears} yr{(li.ValidityYears > 1 ? "s" : "")}");
+        }
+
+        if (details.Any())
+        {
+            return $"{particular} ({string.Join(" • ", details)})";
+        }
+
+        return particular;
     }
 }

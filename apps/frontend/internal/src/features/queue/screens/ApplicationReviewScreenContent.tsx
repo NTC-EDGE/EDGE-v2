@@ -386,26 +386,44 @@ export function ApplicationReviewScreenContent({
   const isActivelyEvaluating = (isEvaluating || isReturned) && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
   const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
 
+  const isComplaintOrRequest =
+    app.category === 'Complaints and Request' ||
+    (typeof app.permitTitle === 'string' &&
+      (app.permitTitle.includes('1-24') ||
+       app.permitTitle.includes('1-25') ||
+       app.permitTitle.toLowerCase().includes('complaint') ||
+       app.permitTitle.toLowerCase().includes('blocking')));
+  const canActAsLegal = currentRole === 'Legal' || isAdmin;
+
   // ── Workflow-aware action handlers ──────────────────────────────────────────
 
-  /** Evaluator starts/resumes evaluation -> changes status from Submitted/Returned to Evaluating */
+  /** Evaluator or Legal starts/resumes review -> changes status from Submitted/Returned to Evaluating */
   const handleStartEvaluation = async () => {
     const isReturning = isReturned;
     const [, err] = await applicationService.updateStatus(app.id, {
       status: 'Evaluating',
-      action: isReturning ? 'Evaluation Resumed' : 'Evaluating',
+      action: isComplaintOrRequest
+        ? (isReturning ? 'Legal Review Resumed' : 'Legal Review Started')
+        : (isReturning ? 'Evaluation Resumed' : 'Evaluating'),
       staffName: officerName,
-      staffRole: currentRole || 'Evaluator',
-      remarks: isReturning ? `Evaluation resumed by ${officerName}.` : `Evaluation started by ${officerName}.`,
+      staffRole: currentRole || (isComplaintOrRequest ? 'Legal Officer' : 'Evaluator'),
+      remarks: isComplaintOrRequest
+        ? (isReturning ? `Legal review resumed by ${officerName}.` : `Legal review started by ${officerName}.`)
+        : (isReturning ? `Evaluation resumed by ${officerName}.` : `Evaluation started by ${officerName}.`),
     });
     if (err !== null) {
-      toast.error(isReturning ? 'Failed to resume evaluation.' : 'Failed to start evaluation.');
+      toast.error(isReturning ? 'Failed to resume review.' : 'Failed to start review.');
       return;
     }
     await updateApplication(app.id, {
       assignedTo: officerName,
+      evaluatingOfficer: officerName,
     });
-    toast.success(isReturning ? 'Evaluation resumed. Application status changed to Evaluating.' : 'Evaluation started. Application status changed to Evaluating.');
+    toast.success(
+      isComplaintOrRequest
+        ? (isReturning ? 'Review resumed. Application under legal review.' : 'Review started. Application under legal review.')
+        : (isReturning ? 'Evaluation resumed. Application status changed to Evaluating.' : 'Evaluation started. Application status changed to Evaluating.')
+    );
     await mutateApplications(app.id);
     await refetch();
   };
@@ -474,6 +492,32 @@ export function ApplicationReviewScreenContent({
     toast.success('Evaluation released.');
     await mutateApplications(app.id);
     await refetch();
+  };
+
+  /** Legal / Evaluator → Resolves and completes Request & Complaint, bypassing financial processing */
+  const handleCompleteComplaint = async () => {
+    setShowApprove(false);
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Completed',
+      action: 'Request / Complaint Resolved & Completed',
+      staffName: officerName,
+      staffRole: currentRole || 'Legal Officer',
+      remarks: `Request and Complaint successfully resolved and set to Completed by ${officerName}.`,
+    });
+    if (err !== null) {
+      toast.error('Failed to complete application.');
+      return;
+    }
+    await updateApplication(app.id, {
+      status: 'Completed',
+      assignedTo: officerName,
+      evaluatingOfficer: officerName,
+      issuingOfficer: officerName,
+    });
+    toast.success('Request / Complaint successfully resolved and completed.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
   };
 
   /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
@@ -736,7 +780,7 @@ export function ApplicationReviewScreenContent({
   /** Claim button for unclaimed stages */
   const showClaimBtn = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
     showStartEvalBtn ||
-    ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || isAdmin)) ||
+    ((isEvaluating || isReturned) && isStageUnclaimed && (isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin)) ||
     (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
     (isPendingPayment && isStageUnclaimed && canActAsCashier)
   );
@@ -747,8 +791,10 @@ export function ApplicationReviewScreenContent({
   const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && canActAsAccountant && isStageClaimedByMe;
   /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
   const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing;
-  /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer) */
-  const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe;
+  /** Show Legal/Evaluator complete button for Requests and Complaints (non-revenue statutory cases) */
+  const showLegalResolveBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
+  /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer on commercial applications) */
+  const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
 
   const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
 
@@ -756,8 +802,15 @@ export function ApplicationReviewScreenContent({
   let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
 
   if (showClaimBtn) {
-    approveButtonLabel = showStartEvalBtn ? 'Start Evaluation' : isReturned ? 'Resume Evaluation' : 'Take Application';
+    approveButtonLabel = showStartEvalBtn
+      ? (isComplaintOrRequest ? 'Start Review' : 'Start Evaluation')
+      : isReturned
+        ? (isComplaintOrRequest ? 'Resume Review' : 'Resume Evaluation')
+        : 'Take Application';
     approveButtonIcon = 'play-circle';
+  } else if (showLegalResolveBtn) {
+    approveButtonLabel = 'Resolve & Complete';
+    approveButtonIcon = 'check-circle';
   } else if (showCashierBtn) {
     approveButtonLabel = isPaymentSubmitted ? 'Verify & Issue OR' : 'Issue Official Receipt';
     approveButtonIcon = 'credit-card';
@@ -777,10 +830,10 @@ export function ApplicationReviewScreenContent({
     }
   }
 
-  // Primary action button (Approve / Start Evaluation / Take Application / Verify Payment / Approve SOA / Issue Document)
+  // Primary action button (Approve / Start Evaluation / Take Application / Verify Payment / Approve SOA / Issue Document / Resolve Complaint)
   const canApproveAction = !isEndorsedAwayFromMe && (
     (isForIssuance && canActAsReleasing) ||
-    (!isStageClaimedByOther && (showClaimBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn))
+    (!isStageClaimedByOther && (showClaimBtn || showLegalResolveBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn))
   );
 
   // Return button: Enabled for authorized officers reviewing an application across workflow stages.
@@ -814,6 +867,8 @@ export function ApplicationReviewScreenContent({
   const handlePrimaryAction = () => {
     if (showClaimBtn) {
       void handleClaimAuthority();
+    } else if (showLegalResolveBtn) {
+      setShowApprove(true);
     } else if (showCashierBtn) {
       if (!isPaymentSubmitted) {
         toast.warning("Awaiting client payment. Cannot issue OR until payment is made.");
@@ -1045,27 +1100,34 @@ export function ApplicationReviewScreenContent({
         title={
           showAccountantBtn
             ? "Approve Application & Issue Order of Payment"
-            : showForwardBtn
-              ? "Approve Evaluation & Forward to Accountant"
-              : "Approve Application"
+            : showLegalResolveBtn
+              ? "Resolve & Complete Application"
+              : showForwardBtn
+                ? "Approve Evaluation & Forward to Accountant"
+                : "Approve Application"
         }
         confirmText={
           showAccountantBtn
             ? "Approve & Issue OP"
-            : showForwardBtn
-              ? "Approve & Forward"
-              : "Approve"
+            : showLegalResolveBtn
+              ? "Complete Application"
+              : showForwardBtn
+                ? "Approve & Forward"
+                : "Approve"
         }
         subtitleText={
           showAccountantBtn
             ? `Confirm financial review and issue official Order of Payment for ${app.applicant}.`
-            : showForwardBtn
-              ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
-              : undefined
+            : showLegalResolveBtn
+              ? `Mark application/complaint for ${app.applicant} as officially resolved and completed? Non-revenue statutory applications do not require accountant or cashier processing.`
+              : showForwardBtn
+                ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
+                : undefined
         }
         onConfirm={
           showCashierBtn ? () => { /* handled by CashierModal */ } :
           showAccountantBtn ? handleAccountantApprove :
+          showLegalResolveBtn ? handleCompleteComplaint :
           showForwardBtn ? handleForwardToAccountant :
           isAdmin ? handleAdminDirectApprove :
           handleForwardToAccountant
@@ -1198,7 +1260,16 @@ function WorkflowActionBar({
   const outlineText = isDark ? colors.neutral[100] : COLORS.neutral[900];
   const outlineBorder = isDark ? colors.neutral[300] : COLORS.neutral[900];
 
-  const isClaimOrSpecial = approveIcon === 'play-circle' || approveLabel.includes('Start') || approveLabel.includes('Take') || approveLabel.includes('Verify') || approveLabel.includes('Issue') || approveLabel.includes('Approve');
+  const isClaimOrSpecial =
+    approveIcon === 'play-circle' ||
+    approveLabel.includes('Start') ||
+    approveLabel.includes('Take') ||
+    approveLabel.includes('Verify') ||
+    approveLabel.includes('Issue') ||
+    approveLabel.includes('Approve') ||
+    approveLabel.includes('Release') ||
+    approveLabel.includes('Resolve') ||
+    approveLabel.includes('Complete');
   const approveEnabled = canApprove && !isApproveDisabled && (isEditable || isClaimOrSpecial);
   const returnEnabled = canDecline && !isReturnDisabled;
   const endorseEnabled = canEndorse;

@@ -75,6 +75,16 @@ export function resolveDocumentFileUrl(
     return applicationService.getIssuedDocumentPrintUrl(app.id.trim());
   }
 
+  if (
+    (doc.id?.includes('official-application-form') ||
+      doc.name?.toLowerCase().includes('application_form') ||
+      doc.name?.toLowerCase().includes('complaint_form')) &&
+    typeof app?.id === 'string' &&
+    app.id.trim().length > 0
+  ) {
+    return applicationService.getApplicationFormPrintUrl(app.id.trim());
+  }
+
   if (typeof doc.url === 'string' && doc.url.trim() !== '' && doc.url.toLowerCase() !== 'none' && doc.url.toLowerCase() !== 'null') {
     return doc.url.trim();
   }

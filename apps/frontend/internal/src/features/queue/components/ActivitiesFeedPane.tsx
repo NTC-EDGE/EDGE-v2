@@ -341,6 +341,17 @@ export function ActivitiesFeedPane({
       } else if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) {
         return false;
       }
+
+      // Legal & Evaluator role separation for statutory complaints vs commercial applications
+      if (activeQueueTab === "pending") {
+        if (currentRole === "Legal") {
+          // Legal Officer pending queue focuses exclusively on Complaints & Requests
+          if (app.category !== "Complaints and Request") return false;
+        } else if (currentRole === "Evaluator") {
+          // Regional Evaluator pending queue focuses on commercial spectrum/permits; complaints are routed to Legal
+          if (app.category === "Complaints and Request") return false;
+        }
+      }
       if (q.length > 0) {
         const matchesApplicant = app.applicant.toLowerCase().includes(q);
         const matchesTitle = app.permitTitle.toLowerCase().includes(q);
@@ -370,7 +381,7 @@ export function ActivitiesFeedPane({
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user, currentRole]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||

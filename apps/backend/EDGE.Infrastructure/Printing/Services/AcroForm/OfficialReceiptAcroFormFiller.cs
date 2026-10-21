@@ -39,7 +39,7 @@ public static class OfficialReceiptAcroFormFiller
                 SetField(form, "Total", amountStr);
                 SetField(form, "AmountInWords", model.AmountInWords);
 
-                var details = string.Join("; ", model.Items.Select(i => i.NatureOfCollection).Where(s => !string.IsNullOrWhiteSpace(s)));
+                var details = string.Join("; ", model.Items.Select(i => i.Amount.HasValue && i.Amount.Value > 0 ? $"{i.NatureOfCollection}: ₱{i.Amount.Value:N2}" : i.NatureOfCollection).Where(s => !string.IsNullOrWhiteSpace(s)));
                 SetField(form, "DetailsOfPayment", !string.IsNullOrWhiteSpace(details) ? details : "Assessment & Regulatory Fees");
                 SetField(form, "Cashier", model.CollectingOfficer ?? "Collecting Officer");
 

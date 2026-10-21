@@ -1,5 +1,6 @@
 import React from 'react';
 import { View } from 'react-native';
+import { applicationService } from '@edge/api';
 import { Application, ApplicationDocument } from '../../data/applicationsData';
 import { SectionCard, SummaryRow } from '../../../../shared/formPreview';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
@@ -63,6 +64,39 @@ export function SingleApplicantSection({
   previewLoadingId,
   setPreviewLoadingId,
 }: SingleApplicantSectionProps) {
+  const serviceNameLower = (app.serviceName || '').toLowerCase();
+  const serviceCategoryLower = (app.serviceCategory || '').toLowerCase();
+  const isRequestOrComplaint =
+    serviceNameLower.includes('request') ||
+    serviceNameLower.includes('complaint') ||
+    serviceCategoryLower.includes('request') ||
+    serviceCategoryLower.includes('complaint') ||
+    serviceNameLower.includes('blocking') ||
+    serviceNameLower.includes('unblocking') ||
+    serviceNameLower.includes('spam') ||
+    serviceNameLower.includes('scam') ||
+    serviceNameLower.includes('tape preservation');
+
+  const handlePreviewForm = () => {
+    if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
+    const isBlocking = serviceNameLower.includes('blocking') || serviceNameLower.includes('unblocking');
+    const formDocName = isBlocking
+      ? 'Official Application Form (NTC 1-24).pdf'
+      : 'Official Complaint Form (NTC 1-25).pdf';
+    const formUrl = applicationService.getApplicationFormPrintUrl(app.id);
+
+    onPreviewCustomDoc({
+      name: formDocName,
+      uri: formUrl,
+      type: 'PDF',
+      category: 'ATTACHMENT',
+      referenceNumber: app.referenceNumber,
+      serviceName: app.serviceName,
+      applicantName: primaryName,
+      uploadedAt: app.submittedAt || new Date().toISOString(),
+    });
+  };
+
   return (
     <View style={{ gap: 20 }}>
       <HeroReviewHeader
@@ -71,6 +105,8 @@ export function SingleApplicantSection({
         variantLabel={variantLabel}
         scheduleSummaryText={scheduleSummaryText}
         isDesktop={isDesktop}
+        canPreviewForm={isRequestOrComplaint}
+        onPreviewForm={handlePreviewForm}
       />
 
       {/* Section 1: Examination Details / Service & Jurisdiction Parameters */}

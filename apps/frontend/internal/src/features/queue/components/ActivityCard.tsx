@@ -22,7 +22,6 @@ import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   resolveUserIdentifiers,
   computeOfficerEvaluationState,
-  getApprovingEvaluator,
   isGenericOfficer,
 } from "../utils/officerEvaluationHelper";
 
@@ -144,10 +143,6 @@ export function ActivityCard({
     [application, currentUserIdentifiers, isAdmin]
   );
 
-  const approvingEvaluator = useMemo(
-    () => getApprovingEvaluator(application),
-    [application]
-  );
 
   const assignmentDisplay = useMemo(() => {
     if (application.endorsedTo) {
@@ -500,28 +495,7 @@ export function ActivityCard({
               {assignmentDisplay.label}
             </Text>
           </View>
-          {approvingEvaluator && application.status !== 'Evaluating' && application.status !== 'Submitted' && (
-            <View
-              style={[
-                styles.evaluatorBadge,
-                {
-                  backgroundColor: isDark ? 'rgba(5, 150, 105, 0.15)' : '#ECFDF5',
-                  borderColor: isDark ? '#059669' : '#A7F3D0',
-                },
-              ]}
-            >
-              <Lucide name="user-check" size={10} color={isDark ? '#34D399' : '#059669'} />
-              <Text
-                style={[
-                  styles.evaluatorBadgeText,
-                  { color: isDark ? '#34D399' : '#065F46' },
-                ]}
-                numberOfLines={1}
-              >
-                Evaluated by: {approvingEvaluator}
-              </Text>
-            </View>
-          )}
+          
           <View style={styles.badgeRow}>
             {application.isBeingViewed && (
               <View style={[styles.viewingBadge, { backgroundColor: COLORS.semantic.warningBg, borderColor: COLORS.semantic.warningBorder }]}>
@@ -810,23 +784,7 @@ const styles = StyleSheet.create({
     fontSize: TYPOGRAPHY.sizes.caption,
     flexShrink: 1,
   },
-  evaluatorBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: RADIUS.sm,
-    borderWidth: 1,
-    maxWidth: 220,
-    flexShrink: 1,
-  },
-  evaluatorBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  badgeRow: {
+    badgeRow: {
     flexDirection: "row",
     alignItems: "center",
     gap: SPACING[4],

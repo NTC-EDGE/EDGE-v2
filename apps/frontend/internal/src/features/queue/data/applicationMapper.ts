@@ -412,10 +412,25 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
-  const accountingOfficer = resolveAccountingOfficer(reversedHistories);
-  const cashierOfficer = resolveCashierOfficer(reversedHistories);
-  const issuingOfficer = resolveIssuingOfficer(reversedHistories);
-  const evaluatingOfficer = resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
+  const accountingOfficer =
+    ('accountingOfficer' in dto && typeof dto.accountingOfficer === 'string' && dto.accountingOfficer.trim().length > 0)
+      ? dto.accountingOfficer.trim()
+      : resolveAccountingOfficer(reversedHistories);
+
+  const cashierOfficer =
+    ('cashierOfficer' in dto && typeof dto.cashierOfficer === 'string' && dto.cashierOfficer.trim().length > 0)
+      ? dto.cashierOfficer.trim()
+      : resolveCashierOfficer(reversedHistories);
+
+  const issuingOfficer =
+    ('issuingOfficer' in dto && typeof dto.issuingOfficer === 'string' && dto.issuingOfficer.trim().length > 0)
+      ? dto.issuingOfficer.trim()
+      : resolveIssuingOfficer(reversedHistories);
+
+  const evaluatingOfficer =
+    ('evaluatingOfficer' in dto && typeof dto.evaluatingOfficer === 'string' && dto.evaluatingOfficer.trim().length > 0)
+      ? dto.evaluatingOfficer.trim()
+      : resolveEvaluatingOfficer(dto, reversedHistories, endorsementState);
   const assignedTo = resolveAssignedTo(
     feStatus,
     evaluatingOfficer,
@@ -443,6 +458,7 @@ export function mapApplicationDtoToUI(
       hasAccountantHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('accountant') || (h.action || '').toLowerCase().includes('accountant') || (h.remarks || '').toLowerCase().includes('accountant')),
       hasCashierHistory: histories.some((h) => (h.staffRole || '').toLowerCase().includes('cashier') || (h.action || '').toLowerCase().includes('cashier') || (h.remarks || '').toLowerCase().includes('cashier')),
       remarks: dto.remarks ?? undefined,
+      category: resolvedCategory,
     }),
     applicationType: isBulk ? 'BULK' : 'SINGLE',
     mode: isBulk ? 'Bulk' : 'Single',

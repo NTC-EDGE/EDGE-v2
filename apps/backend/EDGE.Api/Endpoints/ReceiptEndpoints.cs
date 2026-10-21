@@ -328,6 +328,7 @@ public static class ReceiptEndpoints
 
     public static async Task<IResult> PrintOfficialReceiptById(
         Guid id,
+        [FromQuery] string? template,
         IOfficialReceiptRepository receiptRepository,
         IApplicationFullRepository appRepository,
         IFormPrintingService printingService,
@@ -346,8 +347,12 @@ public static class ReceiptEndpoints
         {
             app = await appRepository.GetByIdWithDetailsAsync(receipt.ApplicationId.Value, true, cancellationToken);
         }
+        else if (receipt.OrderOfPayment != null && receipt.OrderOfPayment.ApplicationId != Guid.Empty)
+        {
+            app = await appRepository.GetByIdWithDetailsAsync(receipt.OrderOfPayment.ApplicationId, true, cancellationToken);
+        }
 
-        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: receipt.OrderOfPayment, app: app);
+        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: receipt.OrderOfPayment, app: app, template: template);
         var pdfBytes = printingService.PrintOfficialReceipt(printModel);
         var fileName = $"OR_{receipt.OfficialReceiptNumber ?? id.ToString()}.pdf";
 
@@ -363,6 +368,7 @@ public static class ReceiptEndpoints
     public static async Task<IResult> PrintApplicationOfficialReceipt(
         Guid id,
         [FromQuery] string? orNumber,
+        [FromQuery] string? template,
         IApplicationFullRepository appRepository,
         IOfficialReceiptRepository receiptRepository,
         IFormPrintingService printingService,
@@ -424,7 +430,7 @@ public static class ReceiptEndpoints
             return Results.NotFound(new { message = $"No paid Official Receipt found for Application '{id}'. Payment must first be accepted by the Cashier." });
         }
 
-        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: paidOp, app: app);
+        var printModel = OfficialReceiptPrintMapper.MapToPrintModel(receipt: receipt, op: paidOp, app: app, template: template);
         var pdfBytes = printingService.PrintOfficialReceipt(printModel);
         var orNo = receipt?.OfficialReceiptNumber ?? paidOp?.OfficialReceiptNumber ?? app.ReferenceNumber ?? id.ToString();
         var fileName = $"OR_{orNo}.pdf";
