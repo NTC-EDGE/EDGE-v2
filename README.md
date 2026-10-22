@@ -22,7 +22,7 @@ EDGE-v2/
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0+)
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) (v24.22.1+ LTS)
 - [.NET SDK](https://dotnet.microsoft.com/download) (for C# backends)
 
 ### Installation
