@@ -143,4 +143,18 @@ public class FormContractAndSeederTests
             }
         }
     }
+
+    [Fact]
+    public void Ntc109_StationEquipmentSection_ContainsCallSignAndFrequencyBeforeParticulars()
+    {
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        var ntc109 = formDefs.FirstOrDefault(f => f.ServiceKey.Equals("NTC_1_09", StringComparison.OrdinalIgnoreCase));
+        ntc109.Should().NotBeNull("NTC_1_09 form definition must exist in seeded forms.");
+
+        var stationSection = ntc109!.Sections.FirstOrDefault(s => s.Key.Equals("stationEquipment", StringComparison.OrdinalIgnoreCase));
+        stationSection.Should().NotBeNull("stationEquipment section must exist in NTC_1_09 form.");
+
+        stationSection!.FieldKeys.Should().ContainInOrder(new[] { "callSign", "frequency", "particulars" },
+            "Call Sign and Frequency(ies) must appear before particulars in NTC 1-09 Station/Equipment section.");
+    }
 }

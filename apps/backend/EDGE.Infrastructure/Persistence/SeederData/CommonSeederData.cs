@@ -123,7 +123,7 @@ public static class CommonSeederData
             // NTC 1-09 Permit Fields
             ["stationClass"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000101"), FieldType = "dropdown", Label = "Station Class", SyncBackOnSubmit = false, ValidationRules = @"[""RT"",""FX"",""FB"",""FX/FB"",""ML"",""P"",""Others""]" },
             ["serviceArea"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000102"), FieldType = "text", Label = "Points of Comm/Service Area (optional)", SyncBackOnSubmit = false },
-            ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000103"), FieldType = "text", Label = "Frequency: Within Authorized Amateur Band", SyncBackOnSubmit = false },
+            ["frequency"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000103"), FieldType = "text", Label = "Frequency(ies)", SyncBackOnSubmit = false },
             ["bandwidth"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000104"), FieldType = "text", Label = "Bandwidth", SyncBackOnSubmit = false },
             ["emission"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000105"), FieldType = "text", Label = "Emission", SyncBackOnSubmit = false },
             ["powerOutput"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000106"), FieldType = "text", Label = "Power Output (watts)", SyncBackOnSubmit = false },
