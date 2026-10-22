@@ -71,6 +71,9 @@ export function buildFormVariantFlags(
   const isAmateurSellTransfer =
     isAmateurPermitService &&
     (varDesc.includes("sell") || varDesc.includes("transfer") || titLower.includes("sell") || titLower.includes("transfer"));
+  const isAmateurStorageVariant =
+    isAmateurPermitService &&
+    (varDesc.includes("storage") || titLower.includes("storage"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
   const isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
@@ -109,6 +112,7 @@ export function buildFormVariantFlags(
     isAeroStationPossess,
     isAmateurPurchaseVariant,
     isAmateurPurchasePossessVariant,
+    isAmateurStorageVariant,
     isAmateurSellTransfer,
     isAmateurCert,
     isCpeAccreditation,
@@ -277,6 +281,7 @@ export function getSectionTitle(
     const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
+      if (flags.isAmateurStorageVariant) return "Station/Equipment";
       if (flags.isAmateurPurchaseVariant || flags.isVanityOrSpecialEvent) return "Particulars";
       if (flags.isAmateurSellTransfer) return "Particulars of Station, Equipment & Antenna";
       if (flags.isForeignVisitor) return "Particulars of Equipment";

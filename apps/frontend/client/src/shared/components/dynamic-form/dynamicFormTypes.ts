@@ -74,6 +74,7 @@ export interface FormVariantFlags {
   isAeroStationPossess: boolean;
   isAmateurPurchaseVariant: boolean;
   isAmateurPurchasePossessVariant: boolean;
+  isAmateurStorageVariant: boolean;
   isAmateurSellTransfer: boolean;
   isAmateurCert: boolean;
   isCpeAccreditation: boolean;

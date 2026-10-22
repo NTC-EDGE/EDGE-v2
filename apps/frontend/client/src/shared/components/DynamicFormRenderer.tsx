@@ -411,6 +411,8 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       rawType === "radio" ||
       fIdLower === "bandwidthunit" ||
       fIdLower === "frequencyunit" ||
+      fIdLower === "unit" ||
+      labelLower === "unit" ||
       fIdLower === "sex" ||
       fIdLower === "stationclass" ||
       isActionRequestedField ||
@@ -498,7 +500,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         },
       ];
     } else if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "bandwidthunit" || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    else if (fIdLower === "bandwidthunit" || fIdLower === "unit" || labelLower === "unit" || labelLower.includes("bandwidth unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "stationclass" || labelLower.includes("station class") || labelLower.includes("class of station")) {
       dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "FA", value: "FA" }, { label: "MA", value: "MA" }, { label: "Others", value: "Others" }];
     }
@@ -542,6 +544,57 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         label: "Frequency(ies)",
         placeholder: fieldToRender.placeholder || "e.g. Within Authorized Amateur Band / 144.000 - 146.000 MHz",
       };
+    }
+    if (flags.isAmateurStorageVariant) {
+      if (fIdLower.includes("callsign") || labelLower.includes("call sign")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Call Sign",
+          placeholder: fieldToRender.placeholder || "e.g. DU1ABC, 4D1XYZ (if existing)",
+        };
+      } else if (fIdLower.includes("servicearea") || labelLower.includes("service area") || labelLower.includes("points of comm")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Points of Comm/Service Area",
+          isRequired: true,
+          placeholder: fieldToRender.placeholder || "e.g. Nationwide, Regional, Fixed Point",
+        };
+      } else if (fIdLower === "frequency" || (fIdLower.includes("frequency") && !fIdLower.includes("unit"))) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Frequency",
+          placeholder: "Within authorized amateur band",
+        };
+      } else if (fIdLower === "bandwidth" || (fIdLower.includes("bandwidth") && !fIdLower.includes("unit"))) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Bandwidth",
+          placeholder: fieldToRender.placeholder || "e.g. 16, 25, 200",
+        };
+      } else if (fIdLower === "bandwidthunit" || fIdLower === "unit" || labelLower.includes("bandwidth unit") || labelLower === "unit") {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Unit",
+        };
+      } else if (fIdLower.includes("emission") || labelLower.includes("emission")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Emission",
+          placeholder: fieldToRender.placeholder || "e.g. 16K0F3E, 200KF8E, A3E",
+        };
+      } else if (fIdLower.includes("power") || labelLower.includes("power output")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Power Output (watts)",
+          placeholder: fieldToRender.placeholder || "e.g. 50W, 100W",
+        };
+      } else if (fIdLower.includes("hour") || labelLower.includes("hours of operation")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Hours of Operation",
+          placeholder: fieldToRender.placeholder || "e.g. 24 Hours / H24, Intermittent",
+        };
+      }
     }
 
     const isFieldRequired = fieldToRender.isRequired ?? false;
@@ -744,7 +797,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       if (k === "broadcast_details" || t.includes("broadcast")) return false;
     }
 
-    if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) {
+    if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant || flags.isAmateurStorageVariant) {
       const isStationEquipmentSec =
         k === "stationequipment" ||
         k.includes("station") ||
@@ -848,6 +901,59 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               }
             }
 
+            if (flags.isAmateurStorageVariant) {
+              const secKey = (section.key || section.id || "").toLowerCase();
+              const secTitle = (section.title || "").toLowerCase();
+              const isStationSec =
+                secKey.includes("station") ||
+                secTitle.includes("station") ||
+                secKey.includes("particular") ||
+                secTitle.includes("particular");
+              if (isStationSec) {
+                const allowedStorageKeys = [
+                  "callsign",
+                  "call_sign",
+                  "call sign",
+                  "servicearea",
+                  "service_area",
+                  "service area",
+                  "pointsofcomm",
+                  "points of comm",
+                  "frequency",
+                  "bandwidth",
+                  "bandwidthunit",
+                  "bandwidth unit",
+                  "unit",
+                  "emission",
+                  "poweroutput",
+                  "power_output",
+                  "power output",
+                  "power",
+                  "hoursofoperation",
+                  "hours_of_operation",
+                  "hours of operation",
+                  "hour",
+                  "particulars",
+                  "particular",
+                  "fd000000-0000-0000-0000-000000000028",
+                  "fd000000-0000-0000-0000-000000000102",
+                  "fd000000-0000-0000-0000-000000000103",
+                  "fd000000-0000-0000-0000-000000000104",
+                  "fd000000-0000-0000-0000-000000000260",
+                  "fd000000-0000-0000-0000-000000000105",
+                  "fd000000-0000-0000-0000-000000000106",
+                  "fd000000-0000-0000-0000-000000000107",
+                  "fd000000-0000-0000-0000-000000000340",
+                ];
+                const matchesAllowed = allowedStorageKeys.some(
+                  (k) => rawTargetId.includes(k) || labelLower.includes(k)
+                );
+                if (!matchesAllowed) {
+                  return false;
+                }
+              }
+            }
+
             return true;
           })
           .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));
@@ -874,6 +980,26 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           });
         }
 
+        if (flags.isAmateurStorageVariant && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              if (id.includes("callsign") || id.includes("call_sign") || lbl.includes("call sign") || id === "fd000000-0000-0000-0000-000000000028") return 1;
+              if (id.includes("servicearea") || lbl.includes("service area") || lbl.includes("points of comm") || id === "fd000000-0000-0000-0000-000000000102") return 2;
+              if (id === "frequency" || (id.includes("frequency") && !id.includes("unit")) || lbl === "frequency" || lbl.includes("authorized amateur band") || id === "fd000000-0000-0000-0000-000000000103") return 3;
+              if (((id.includes("bandwidth") && !id.includes("unit")) || (lbl.includes("bandwidth") && !lbl.includes("unit"))) && id !== "bandwidthunit" || id === "fd000000-0000-0000-0000-000000000104") return 4;
+              if (id === "bandwidthunit" || id === "unit" || id.includes("unit") || lbl === "unit" || lbl.includes("bandwidth unit") || id === "fd000000-0000-0000-0000-000000000260") return 5;
+              if (id.includes("emission") || lbl.includes("emission") || id === "fd000000-0000-0000-0000-000000000105") return 6;
+              if (id.includes("power") || lbl.includes("power output") || id === "fd000000-0000-0000-0000-000000000106") return 7;
+              if (id.includes("hour") || lbl.includes("hours of operation") || id === "fd000000-0000-0000-0000-000000000107") return 8;
+              if (id.includes("particular") || lbl.includes("particular") || id === "fd000000-0000-0000-0000-000000000340") return 9;
+              return 10;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
+
         if (visibleFields.length === 0) return null;
 
         const sectionDisplayNum = sIdx + 1;
@@ -883,6 +1009,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         if (isTapePreservation && (section.key === "complaint_details" || (section.title && section.title.toLowerCase().includes("details of complaint")))) {
           displaySectionTitle = "Request Details";
           displaySectionDesc = "State briefly the details and reason for mandatory tape preservation";
+        }
+        if (flags.isAmateurStorageVariant && isStationEquipmentSec) {
+          displaySectionTitle = "Station/Equipment";
         }
 
         return (
