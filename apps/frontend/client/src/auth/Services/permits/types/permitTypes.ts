@@ -265,3 +265,27 @@ export const derivePermitAppTypeFromStep3 = (
   }
   return "Possess for storage";
 };
+
+export interface CopyOfPermitData {
+  id?: number;
+  copyType: "CERTIFIED_TRUE_COPY" | "DUPLICATE";
+  detailsService?: string;
+  targetPermitType?: string;
+  permitNo?: string;
+  numberOfCopies?: string;
+  circumstances?: string;
+  applicantName?: string;
+  contactNo?: string;
+  email?: string;
+  address?: string;
+}
+
+export const initialCopyOfPermitData = (id: number): CopyOfPermitData => ({
+  id,
+  copyType: "CERTIFIED_TRUE_COPY",
+  detailsService: "Permits in AMateur",
+  targetPermitType: "Amateur Radio Station Permit to Purchase",
+  permitNo: "",
+  numberOfCopies: "1",
+  circumstances: "",
+});

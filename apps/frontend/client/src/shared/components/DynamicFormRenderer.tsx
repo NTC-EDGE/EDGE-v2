@@ -8,6 +8,8 @@ import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
 import { SPAM_COMPLAINT_NATURES, TELCO_COMPLAINT_NATURES } from "./NatureOfComplaintCheckboxGroup";
+import { PERMIT_DETAILS_SERVICE_OPTIONS, resolvePermitTypes } from "./dynamic-form/dynamicFormConstants";
+import { usePermitServicesQuery } from "../../auth/Services/permits/hooks/usePermitServicesQuery";
 
 export type { DynamicFormRendererProps, FormDto, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 
@@ -103,6 +105,73 @@ const SYNTHETIC_BROADCAST_SECTION: FormSectionDto = {
   ],
 };
 
+const SYNTHETIC_COPY_OF_PERMITS_SECTION: FormSectionDto = {
+  id: "permit_copy_particulars",
+  key: "permitCopyParticulars",
+  title: "Permit Details",
+  description: "Particulars of the permit copy request",
+  fields: [
+    {
+      id: "fd000000-0000-0000-0000-000000000244",
+      fieldId: "detailsService",
+      label: "DetailsService",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select Service...",
+      options: PERMIT_DETAILS_SERVICE_OPTIONS,
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000245",
+      fieldId: "targetPermitType",
+      label: "Type",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select Permit Type...",
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000246",
+      fieldId: "permitNo",
+      label: "Permit no.",
+      fieldType: "text",
+      isRequired: true,
+      placeholder: "Enter Permit no.",
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000243",
+      fieldId: "noOfCopies",
+      label: "No. of Copies",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select No. of Copies",
+      options: [
+        { label: "1 Copy", value: "1" },
+        { label: "2 Copies", value: "2" },
+        { label: "3 Copies", value: "3" },
+        { label: "4 Copies", value: "4" },
+        { label: "5 Copies", value: "5" },
+        { label: "10 Copies", value: "10" },
+      ],
+    },
+  ],
+};
+
+const SYNTHETIC_CIRCUMSTANCES_SECTION: FormSectionDto = {
+  id: "circumstances_section",
+  key: "circumstances",
+  title: "Circumstances of Loss/Damage",
+  description: "Circumstances Relating to Lost/Mutilation of Permit",
+  fields: [
+    {
+      id: "fd000000-0000-0000-0000-000000000037",
+      fieldId: "circumstances",
+      label: "Circumstances Relating to Lost/Mutilation of Permit",
+      fieldType: "textarea",
+      isRequired: true,
+      placeholder: "State the circumstances leading to the loss or mutilation...",
+    },
+  ],
+};
+
 export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   form,
   values = {},
@@ -181,15 +250,44 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     Boolean(serviceCategory && serviceCategory.toLowerCase().includes("permit")) ||
     Boolean(serviceTitle && serviceTitle.toLowerCase().includes("permit"));
 
+  const sTitle = (serviceTitle || "").toLowerCase();
+  const sCat = (serviceCategory || "").toLowerCase();
+  const isCopyOfPermit =
+    Boolean(
+      (sTitle.includes("copy") && sTitle.includes("permit")) ||
+      (sCat.includes("permit") && sTitle.includes("copy")) ||
+      sTitle.includes("copy of permit")
+    );
+
+  const { serviceOptions: dynamicPermitServices, getTypesForService } = usePermitServicesQuery(isCopyOfPermit);
+
   useEffect(() => {
     if (!isBlockingOrUnblocking) return;
     const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
     const currentVal = (values && values["action_requested"]) || (values && values["Action Requested"]) || (values && values["fd000000-0000-0000-0000-000000000307"]) || "";
     if (currentVal !== targetVal) {
       onChange("action_requested", "Action Requested", targetVal);
-      onChange("fd000000-0000-0000-0000-000000000307", "Action Requested", targetVal);
     }
   }, [isBlockingOrUnblocking, isUnblocking, values, onChange]);
+
+  // Pre-initialize Copy of Permit default values if unselected
+  useEffect(() => {
+    if (!isCopyOfPermit) return;
+    const currentService =
+      values?.["detailsService"] ||
+      values?.["details_service"] ||
+      values?.["DetailsService"] ||
+      values?.["fd000000-0000-0000-0000-000000000244"];
+    if (!currentService) {
+      const defaultSvc = PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ?? "Permits in AMateur";
+      const dynamicTypes = getTypesForService(defaultSvc);
+      const availableTypes = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(defaultSvc);
+      const defaultType = availableTypes[0]?.value ?? "";
+      onChange("detailsService", "DetailsService", defaultSvc);
+      onChange("targetPermitType", "Type", defaultType);
+      onChange("noOfCopies", "No. of Copies", "1");
+    }
+  }, [isCopyOfPermit, values, onChange, getTypesForService]);
 
   const evaluationContext: FormEvaluationContext = {
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
@@ -207,6 +305,38 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   if (isTapePreservation && !rawSections.some((s) => s.key === "broadcast_details" || s.id === "broadcast_details" || (s.title && s.title.toLowerCase().includes("broadcast")))) {
     rawSections = [SYNTHETIC_BROADCAST_SECTION, ...rawSections];
   }
+  if (isCopyOfPermit) {
+    const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+    // Remove obsolete legacy section that lacked DetailsService
+    rawSections = rawSections.filter(
+      (s) =>
+        s.key !== "permitLicenseCertificateNo" &&
+        s.id !== "permitLicenseCertificateNo" &&
+        !(s.title && s.title.toLowerCase().includes("certificate particulars"))
+    );
+    if (
+      !rawSections.some(
+        (s) =>
+          s.key === "permitCopyParticulars" ||
+          s.id === "permit_copy_particulars" ||
+          (s.title && s.title.toLowerCase().includes("permit details"))
+      )
+    ) {
+      rawSections = [SYNTHETIC_COPY_OF_PERMITS_SECTION, ...rawSections];
+    }
+    if (
+      isDuplicate &&
+      !rawSections.some(
+        (s) =>
+          s.key === "circumstances" ||
+          s.id === "circumstances" ||
+          s.id === "circumstances_section" ||
+          (s.title && s.title.toLowerCase().includes("circumstances"))
+      )
+    ) {
+      rawSections = [...rawSections, SYNTHETIC_CIRCUMSTANCES_SECTION];
+    }
+  }
   const sections = rawSections;
 
   const renderFieldInstance = (
@@ -220,6 +350,19 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const rawType = (field.fieldType || field.type || "").toLowerCase();
 
     const isActionRequestedField = fIdLower === "action_requested" || labelLower.includes("action requested");
+    const isDetailsServiceField =
+      fIdLower === "detailsservice" ||
+      fIdLower === "details_service" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000244" ||
+      labelLower === "detailsservice" ||
+      labelLower === "details service";
+    const isPermitTypeField =
+      isCopyOfPermit &&
+      (fIdLower === "targetpermittype" ||
+        fIdLower === "target_permit_type" ||
+        fIdLower === "fd000000-0000-0000-0000-000000000245" ||
+        labelLower === "type" ||
+        labelLower.includes("permit type"));
     const isNatureOfComplaintField = fIdLower === "complaint_types" || fIdLower === "fd000000-0000-0000-0000-000000000327" || labelLower === "nature of complaint" || labelLower.includes("nature of complaint") || labelLower.includes("complaint category");
     const isOthersSpecificationField = fIdLower === "others_specification" || fIdLower === "fd000000-0000-0000-0000-000000000328" || labelLower.includes("if others, please specify");
     const isIncidentTypeField = fIdLower === "loss_reason" || fIdLower === "fd000000-0000-0000-0000-000000000313" || labelLower === "incident type" || labelLower.includes("incident type");
@@ -262,7 +405,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || rawType === "radio" || fIdLower === "bandwidthunit" || fIdLower === "frequencyunit" || fIdLower === "sex" || fIdLower === "stationclass" || isActionRequestedField || isIncidentTypeField || isUnblockingDetailsField;
+    const isDropdown =
+      rawType === "dropdown" ||
+      rawType === "select" ||
+      rawType === "radio" ||
+      fIdLower === "bandwidthunit" ||
+      fIdLower === "frequencyunit" ||
+      fIdLower === "sex" ||
+      fIdLower === "stationclass" ||
+      isActionRequestedField ||
+      isIncidentTypeField ||
+      isUnblockingDetailsField ||
+      isDetailsServiceField ||
+      isPermitTypeField ||
+      fIdLower === "noofcopies" ||
+      fIdLower === "no_of_copies" ||
+      labelLower === "no. of copies" ||
+      labelLower.includes("no. of copies");
     const isDate = rawType === "date" || labelLower.includes("date");
     const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts") || labelLower.includes("height") || labelLower.includes("weight") || labelLower.includes("gain") || labelLower.includes("diameter");
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
@@ -299,7 +458,29 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (isIncidentTypeField) {
+    if (isDetailsServiceField) {
+      dropdownOptions = dynamicPermitServices.length > 0 ? dynamicPermitServices : PERMIT_DETAILS_SERVICE_OPTIONS;
+    } else if (isPermitTypeField) {
+      const currentDetailsService =
+        values?.["detailsService"] ||
+        values?.["details_service"] ||
+        values?.["DetailsService"] ||
+        values?.["fd000000-0000-0000-0000-000000000244"] ||
+        (dynamicPermitServices.length > 0 ? dynamicPermitServices[0]?.value : undefined) ||
+        PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ||
+        "Permits in AMateur";
+      const dynamicTypes = getTypesForService(currentDetailsService);
+      dropdownOptions = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(currentDetailsService);
+    } else if (fIdLower === "noofcopies" || fIdLower === "no_of_copies" || labelLower === "no. of copies" || labelLower.includes("no. of copies")) {
+      dropdownOptions = [
+        { label: "1 Copy", value: "1" },
+        { label: "2 Copies", value: "2" },
+        { label: "3 Copies", value: "3" },
+        { label: "4 Copies", value: "4" },
+        { label: "5 Copies", value: "5" },
+        { label: "10 Copies", value: "10" },
+      ];
+    } else if (isIncidentTypeField) {
       dropdownOptions = [
         { label: "Lost / Misplaced", value: "Lost / Misplaced" },
         { label: "Stolen (Theft / Robbery / Hold-up)", value: "Stolen (Theft / Robbery / Hold-up)" },
@@ -443,6 +624,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         onChange={onChange}
         onStructuredNameChange={onStructuredNameChange}
         onDropdownChange={(v) => {
+          if (isDetailsServiceField) {
+            onChange(rawTargetId, fieldToRender.label, v);
+            const availableTypes = getTypesForService(v);
+            const firstType = availableTypes[0]?.value || "";
+            onChange("targetPermitType", "Type", firstType);
+            return;
+          }
+          if (isPermitTypeField) {
+            onChange(rawTargetId, fieldToRender.label, v);
+            return;
+          }
           onChange(rawTargetId, fieldToRender.label, v);
           if (isIncidentTypeField && v !== "Others") {
             onChange("incident_others_specify", "Please specify", "");
@@ -555,6 +747,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       }
     }
 
+    if (isCopyOfPermit) {
+      const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+      if (!isDuplicate && (k === "circumstances" || t.includes("circumstances"))) {
+        return false;
+      }
+    }
+
     return evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext);
   });
 
@@ -595,6 +794,16 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               if (rawTargetId === "sex" || labelLower === "sex") return false;
               if (rawTargetId === "age_group" || labelLower.includes("age group")) return false;
               if (rawTargetId === "identity_proof_type" || rawTargetId === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return false;
+            }
+
+            if (isCopyOfPermit) {
+              const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+              if (!isDuplicate && (rawTargetId.includes("circumstances") || labelLower.includes("circumstances"))) {
+                return false;
+              }
+              if (isDuplicate && (rawTargetId.includes("noofcopies") || rawTargetId.includes("no_of_copies") || labelLower.includes("no. of copies"))) {
+                return false;
+              }
             }
 
             if (flags.isAmateurPurchasePossessVariant) {

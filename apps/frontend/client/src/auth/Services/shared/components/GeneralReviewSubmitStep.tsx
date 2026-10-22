@@ -14,6 +14,7 @@ import { DeviceRegReviewCard } from './generalReview/DeviceRegReviewCard';
 import { TvroRegReviewCard } from './generalReview/TvroRegReviewCard';
 import { VasReviewCard } from './generalReview/VasReviewCard';
 import { CopyOfCertReviewCard } from './generalReview/CopyOfCertReviewCard';
+import { CopyOfPermitReviewCard } from './generalReview/CopyOfPermitReviewCard';
 import { PermitDataReviewCard } from './generalReview/PermitDataReviewCard';
 import { PermitFeeSummaryCard } from './generalReview/PermitFeeSummaryCard';
 import { LicenseFeeSummaryCard } from './generalReview/LicenseFeeSummaryCard';
@@ -136,16 +137,29 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               formFieldValues={activeApplicant.formFieldValues}
             />
 
-            <CopyOfCertReviewCard
+            {!reviewData.isCopyOfPermitService && (
+              <CopyOfCertReviewCard
+                serviceTitle={service.title}
+                copyOfCert={activeApplicant.copyOfCertData}
+              />
+            )}
+
+            <CopyOfPermitReviewCard
+              isPermitService={reviewData.isPermitService}
               serviceTitle={service.title}
-              copyOfCert={activeApplicant.copyOfCertData}
+              copyOfPermit={activeApplicant.copyOfPermitData}
+              formFieldValues={activeApplicant.formFieldValues}
+              selectedVariantName={reviewData.variantLabel}
             />
 
-            <PermitDataReviewCard
-              isPermitService={reviewData.isPermitService}
-              permitData={activeApplicant.permitData}
-              hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
-            />
+            {!reviewData.isCopyOfPermitService && (
+              <PermitDataReviewCard
+                isPermitService={reviewData.isPermitService}
+                serviceTitle={service.title}
+                permitData={activeApplicant.permitData}
+                hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
+              />
+            )}
           </>
         )}
         footerSlot={

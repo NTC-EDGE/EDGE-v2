@@ -5,16 +5,26 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface PermitDataReviewCardProps {
   isPermitService: boolean;
+  serviceTitle?: string;
   permitData?: AmateurPermitData | null;
   hasDynamicForm?: boolean;
 }
 
 export function PermitDataReviewCard({
   isPermitService,
+  serviceTitle = '',
   permitData,
   hasDynamicForm = false,
 }: PermitDataReviewCardProps) {
   if (hasDynamicForm) return null;
+
+  const sLower = serviceTitle.toLowerCase();
+  const isCopyOfPermit =
+    sLower.includes('copy of permit') ||
+    sLower.includes('copy') ||
+    sLower.includes('duplicate');
+  if (isCopyOfPermit) return null;
+
   const hasPermitData =
     isPermitService &&
     Boolean(
@@ -110,4 +120,3 @@ export function PermitDataReviewCard({
     </SectionCard>
   );
 }
-

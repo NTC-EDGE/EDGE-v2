@@ -29,6 +29,8 @@ import {
 import {
   AmateurPermitData,
   initialAmateurPermitData,
+  CopyOfPermitData,
+  initialCopyOfPermitData,
 } from "../../permits";
 import { isValidContactNumber, isValidEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import { extractUserProfile } from "../../../../shared/utils/userProfileHelper";
@@ -129,6 +131,7 @@ export interface GeneralApplicantData {
   tvroRegData?: TVRORegistrationData;
   vasData?: VASProviderData;
   copyOfCertData?: CopyOfCertificateData;
+  copyOfPermitData?: CopyOfPermitData;
   amateurLicenseData?: AmateurRadioStationLicenseData;
   lifetimeLicenseData?: LifetimeAmateurLicenseData;
   permitData?: AmateurPermitData;
@@ -163,6 +166,7 @@ export const initialGeneralApplicant = (id: number): GeneralApplicantData => ({
   tvroRegData: initialTVRORegistrationData(id),
   vasData: initialVASProviderData(id),
   copyOfCertData: initialCopyOfCertificateData(id),
+  copyOfPermitData: initialCopyOfPermitData(id),
   amateurLicenseData: initialAmateurRadioStationLicenseData(id),
   lifetimeLicenseData: initialLifetimeAmateurLicenseData(id),
   permitData: initialAmateurPermitData(id),

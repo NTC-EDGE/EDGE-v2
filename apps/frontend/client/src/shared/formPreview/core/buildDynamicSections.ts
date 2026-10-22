@@ -72,9 +72,18 @@ export function buildDynamicSections(
       // Mark all fields in suppressed sections as rendered (so they don't leak into remaining)
       const markSectionRendered = () => {
         (section.fields || []).forEach((field) => {
-          if (field.fieldId) renderedIds.add(field.fieldId);
-          if (field.id) renderedIds.add(field.id);
-          if (field.label) renderedIds.add(field.label);
+          if (field.fieldId) {
+            renderedIds.add(field.fieldId);
+            renderedIds.add(field.fieldId.toLowerCase().trim());
+          }
+          if (field.id) {
+            renderedIds.add(field.id);
+            renderedIds.add(field.id.toLowerCase().trim());
+          }
+          if (field.label) {
+            renderedIds.add(field.label);
+            renderedIds.add(field.label.toLowerCase().trim());
+          }
         });
       };
 
@@ -102,7 +111,9 @@ export function buildDynamicSections(
           skipFieldLabels.some((s) => labelLower === s.toLowerCase())
         ) {
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           return;
         }
 
@@ -113,7 +124,9 @@ export function buildDynamicSections(
           isRepeaterSubField(fieldLabel, fieldId)
         ) {
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           return;
         }
 
@@ -127,9 +140,13 @@ export function buildDynamicSections(
           const val = matchedFv.value.trim();
           sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(matchedFv.fieldId);
+          renderedIds.add((matchedFv.fieldId || '').toLowerCase().trim());
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           renderedIds.add(matchedFv.fieldLabel);
+          renderedIds.add((matchedFv.fieldLabel || '').toLowerCase().trim());
         }
       });
 
@@ -182,6 +199,17 @@ export function buildDynamicSections(
     return true;
   });
 
-  return { dynamicSectionsToRender, remainingFields };
-}
+  // Deduplicate remaining fields by label/fieldId to ensure no duplicate display
+  const seenLabels = new Set<string>();
+  const deduplicatedRemainingFields: FormFieldValue[] = [];
+  for (let i = remainingFields.length - 1; i >= 0; i--) {
+    const fv = remainingFields[i];
+    const normalizedKey = (fv.fieldLabel || fv.fieldId || '').toLowerCase().trim();
+    if (!seenLabels.has(normalizedKey)) {
+      seenLabels.add(normalizedKey);
+      deduplicatedRemainingFields.unshift(fv);
+    }
+  }
 
+  return { dynamicSectionsToRender, remainingFields: deduplicatedRemainingFields };
+}

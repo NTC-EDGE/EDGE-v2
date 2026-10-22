@@ -1,7 +1,8 @@
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
-import { isApplicantParticularField, formatCompositeAddress } from '../../../../../shared/formPreview';
+import { isApplicantParticularField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { formatCompositeAddress } from '../../../../../shared/formPreview/core/formPreviewHelpers';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
@@ -60,6 +61,18 @@ export function resolveServiceCategoryFlags(service: NTCService) {
       serviceTitleLower.includes('scam') ||
       serviceTitleLower.includes('tape preservation'));
 
+  const serviceCodeLower = (service.code ?? service.id ?? '').toLowerCase().trim();
+
+  const isCopyOfPermitService =
+    isPermitService &&
+    (serviceTitleLower.includes('copy of permit') ||
+      serviceTitleLower.includes('copy') ||
+      serviceTitleLower.includes('duplicate') ||
+      serviceCodeLower.includes('copy_permit') ||
+      serviceCodeLower.includes('copy'));
+
+  const isAmateurPermitService = isPermitService && !isCopyOfPermitService;
+
   return {
     isExamService,
     isLicenseService,
@@ -67,6 +80,8 @@ export function resolveServiceCategoryFlags(service: NTCService) {
     isCertificateService,
     isAmateurCertService,
     isRequestOrComplaintService,
+    isCopyOfPermitService,
+    isAmateurPermitService,
   };
 }
 

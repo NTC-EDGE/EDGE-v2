@@ -254,6 +254,20 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'station particulars':      'fd000000-0000-0000-0000-000000000340',
   'station / class particulars': 'fd000000-0000-0000-0000-000000000340',
   'particulars of radio station': 'fd000000-0000-0000-0000-000000000340',
+
+  // Copy of Permits (NTC 1-21)
+  'detailsservice':           'fd000000-0000-0000-0000-000000000244',
+  'details_service':          'fd000000-0000-0000-0000-000000000244',
+  'targetpermittype':         'fd000000-0000-0000-0000-000000000245',
+  'target_permit_type':       'fd000000-0000-0000-0000-000000000245',
+  'permitno':                 'fd000000-0000-0000-0000-000000000246',
+  'permit_no':                'fd000000-0000-0000-0000-000000000246',
+  'permit no.':               'fd000000-0000-0000-0000-000000000246',
+  'permit no':                'fd000000-0000-0000-0000-000000000246',
+  'no of copies':             'fd000000-0000-0000-0000-000000000243',
+  'no. of copies':            'fd000000-0000-0000-0000-000000000243',
+  'no_of_copies':             'fd000000-0000-0000-0000-000000000243',
+  'noofcopies':               'fd000000-0000-0000-0000-000000000243',
 };
 
 const MONTH_NAMES = [
@@ -607,6 +621,19 @@ export function synthesizeAllApplicantFieldValues(
     addField(undefined, 'Target Certificate Type', cData.targetCertificateType);
     addField(undefined, 'Certificate Number', cData.certificateNo);
     addField(undefined, 'Number of Copies', cData.numberOfCopies);
+  }
+
+  // 2i. Copy of Permit Data
+  const cpData = applicant.copyOfPermitData;
+  if (cpData) {
+    addField('copyType', 'Copy Type', cpData.copyType);
+    addField('detailsService', 'DetailsService', cpData.detailsService);
+    addField('targetPermitType', 'Type', cpData.targetPermitType);
+    addField('permitNo', 'Permit no.', cpData.permitNo);
+    addField('noOfCopies', 'No. of Copies', cpData.numberOfCopies);
+    if (cpData.circumstances) {
+      addField('circumstances', 'Circumstances Relating to Lost/Mutilation of Permit', cpData.circumstances);
+    }
   }
 
   // ── 3. Standard Applicant Particulars ───────────────────────────────────────

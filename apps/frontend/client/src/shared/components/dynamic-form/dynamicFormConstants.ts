@@ -38,3 +38,98 @@ export const TVRO_TYPE_OPTIONS = [
   { label: "TVRO Registration Certificate", value: "TVRO Registration Certificate" },
   { label: "CATV Receiver Registration Certificate", value: "CATV Receiver Registration Certificate" },
 ];
+
+export const PERMIT_DETAILS_SERVICE_OPTIONS = [
+  { label: "Permits in AMateur", value: "Permits in AMateur" },
+  { label: "Permits Aeronotical", value: "Permits Aeronotical" },
+  { label: "PErmits in Maritime", value: "PErmits in Maritime" },
+  { label: "Permits for Government and Private Radio Stations, in the Fixed and Land MObile Service", value: "Permits for Government and Private Radio Stations, in the Fixed and Land MObile Service" },
+];
+
+export const PERMIT_TYPES_BY_SERVICE: Record<string, Array<{ label: string; value: string }>> = {
+  "Permits in AMateur": [
+    { label: "Amateur Radio Station Permit to Purchase", value: "Amateur Radio Station Permit to Purchase" },
+    { label: "Amateur Radio Station Permit to Possess for Storage", value: "Amateur Radio Station Permit to Possess for Storage" },
+    { label: "Amateur Radio Station Permit to Purchase/Possess", value: "Amateur Radio Station Permit to Purchase/Possess" },
+    { label: "Amateur Radio Station Permit to Sell/Transfer", value: "Amateur Radio Station Permit to Sell/Transfer" },
+    { label: "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor", value: "Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor" },
+    { label: "Special Permit for Use of Vanity Call Sign", value: "Special Permit for Use of Vanity Call Sign" },
+    { label: "Special Permit for the Use of Special Event Call Sign", value: "Special Permit for the Use of Special Event Call Sign" },
+  ],
+  "Permits Aeronotical": [
+    { label: "Aeronautical Station Permit to Purchase", value: "Aeronautical Station Permit to Purchase" },
+    { label: "Aeronautical Station Permit to Possess", value: "Aeronautical Station Permit to Possess" },
+    { label: "Aeronautical Station Permit to Purchase/Possess", value: "Aeronautical Station Permit to Purchase/Possess" },
+    { label: "Permit to Possess for Storage", value: "Permit to Possess for Storage" },
+    { label: "Aeronautical Station Permit to Sell/Transfer", value: "Aeronautical Station Permit to Sell/Transfer" },
+    { label: "Aircraft Station Permit to Purchase", value: "Aircraft Station Permit to Purchase" },
+    { label: "Aircraft Station Permit to Possess", value: "Aircraft Station Permit to Possess" },
+    { label: "Aircraft Station Permit to Purchase/Possess", value: "Aircraft Station Permit to Purchase/Possess" },
+    { label: "Aircraft Station Permit to Sell/Transfer", value: "Aircraft Station Permit to Sell/Transfer" },
+  ],
+  "PErmits in Maritime": [
+    { label: "Ship Station Permit to Purchase (Domestic Trade)", value: "Ship Station Permit to Purchase (Domestic Trade)" },
+    { label: "Ship Station Permit to Possess (Domestic Trade)", value: "Ship Station Permit to Possess (Domestic Trade)" },
+    { label: "Ship Station Permit to Possess (Storage)", value: "Ship Station Permit to Possess (Storage)" },
+    { label: "Ship Station Permit to Purchase/Possess (Domestic Trade)", value: "Ship Station Permit to Purchase/Possess (Domestic Trade)" },
+    { label: "Ship Station Permit to Sell/Transfer", value: "Ship Station Permit to Sell/Transfer" },
+    { label: "Private Coastal Station Permit to Purchase", value: "Private Coastal Station Permit to Purchase" },
+    { label: "Private Coastal Station Permit to Possess", value: "Private Coastal Station Permit to Possess" },
+    { label: "Private Coastal Station Permit to Purchase/Possess", value: "Private Coastal Station Permit to Purchase/Possess" },
+    { label: "Public Coastal Station Permit to Purchase", value: "Public Coastal Station Permit to Purchase" },
+    { label: "Public Coastal Station Permit to Possess", value: "Public Coastal Station Permit to Possess" },
+    { label: "Public Coastal Station Permit to Purchase/Possess", value: "Public Coastal Station Permit to Purchase/Possess" },
+    { label: "Public Coastal Station Permit to Sell/Transfer", value: "Public Coastal Station Permit to Sell/Transfer" },
+  ],
+  "Permits for Government and Private Radio Stations, in the Fixed and Land MObile Service": [
+    { label: "Permit to Purchase (VSAT)", value: "Permit to Purchase (VSAT)" },
+    { label: "Permit to Purchase (Private)", value: "Permit to Purchase (Private)" },
+    { label: "Permit to Purchase (Civic Action Group)", value: "Permit to Purchase (Civic Action Group)" },
+    { label: "Permit to Purchase (Government)", value: "Permit to Purchase (Government)" },
+    { label: "Permit to Possess (VSAT)", value: "Permit to Possess (VSAT)" },
+    { label: "Permit to Possess (Private)", value: "Permit to Possess (Private)" },
+    { label: "Permit to Possess (Civic Action Group)", value: "Permit to Possess (Civic Action Group)" },
+    { label: "Permit to Possess (Government)", value: "Permit to Possess (Government)" },
+    { label: "Permit to Purchase/Possess (VSAT)", value: "Permit to Purchase/Possess (VSAT)" },
+    { label: "Permit to Purchase/Possess (Private)", value: "Permit to Purchase/Possess (Private)" },
+    { label: "Permit to Purchase/Possess (Civic Action Group)", value: "Permit to Purchase/Possess (Civic Action Group)" },
+    { label: "Permit to Purchase/Possess (Government)", value: "Permit to Purchase/Possess (Government)" },
+    { label: "Permit to Possess for Storage", value: "Permit to Possess for Storage" },
+    { label: "Permit to Sell/Transfer", value: "Permit to Sell/Transfer" },
+    { label: "Construction Permit", value: "Construction Permit" },
+    { label: "Temporary Permit to Demonstrate and Propagate", value: "Temporary Permit to Demonstrate and Propagate" },
+  ],
+};
+
+export function resolvePermitTypes(serviceName?: string): Array<{ label: string; value: string }> {
+  const defaultTypes = PERMIT_TYPES_BY_SERVICE["Permits in AMateur"] ?? [];
+  if (!serviceName) return defaultTypes;
+
+  const sLower = serviceName.toLowerCase();
+  if (sLower.includes("amateur") || sLower.includes("1_09") || sLower.includes("1-09")) {
+    return PERMIT_TYPES_BY_SERVICE["Permits in AMateur"] ?? defaultTypes;
+  }
+  if (sLower.includes("aero")) {
+    return PERMIT_TYPES_BY_SERVICE["Permits Aeronotical"] ?? defaultTypes;
+  }
+  if (sLower.includes("maritime") || sLower.includes("ship") || sLower.includes("coastal")) {
+    return PERMIT_TYPES_BY_SERVICE["PErmits in Maritime"] ?? defaultTypes;
+  }
+  if (
+    sLower.includes("fixed") ||
+    sLower.includes("mobile") ||
+    sLower.includes("government") ||
+    sLower.includes("flm")
+  ) {
+    return (
+      PERMIT_TYPES_BY_SERVICE[
+        "Permits for Government and Private Radio Stations, in the Fixed and Land MObile Service"
+      ] ?? defaultTypes
+    );
+  }
+
+  const directMatch = PERMIT_TYPES_BY_SERVICE[serviceName];
+  if (directMatch) return directMatch;
+
+  return defaultTypes;
+}
