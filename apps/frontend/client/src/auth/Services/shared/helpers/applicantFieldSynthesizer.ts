@@ -61,10 +61,12 @@ export const FIELD_GUID_MAP: Record<string, string> = {
 
   // Education
   'school / university attended': 'fd000000-0000-0000-0000-000000000061',
-  'school attended':          'fd000000-0000-0000-0000-000000000061',
-  'course / degree program':  'fd000000-0000-0000-0000-000000000062',
-  'course taken':             'fd000000-0000-0000-0000-000000000062',
-  'year graduated':           'fd000000-0000-0000-0000-000000000063',
+  'school / university':          'fd000000-0000-0000-0000-000000000061',
+  'school attended':              'fd000000-0000-0000-0000-000000000061',
+  'course / degree program':      'fd000000-0000-0000-0000-000000000062',
+  'course / degree':              'fd000000-0000-0000-0000-000000000062',
+  'course taken':                 'fd000000-0000-0000-0000-000000000062',
+  'year graduated':               'fd000000-0000-0000-0000-000000000063',
 
   // Corporate & Representative
   'company / business name':  'fd000000-0000-0000-0000-000000000081',
@@ -651,8 +653,10 @@ export function synthesizeAllApplicantFieldValues(
   const compositeAddress = formatCompositeAddress(applicant);
   if (compositeAddress) addField(undefined, 'Complete Address', compositeAddress);
 
-  if (applicant.schoolName) addField(undefined, 'School / University Attended', applicant.schoolName);
-  if (applicant.courseDegree) addField(undefined, 'Course / Degree Program', applicant.courseDegree);
+  const schoolVal = applicant.schoolName || applicant.schoolAttended;
+  if (schoolVal) addField(undefined, 'School / University Attended', schoolVal);
+  const courseVal = applicant.courseDegree || applicant.courseTaken;
+  if (courseVal) addField(undefined, 'Course / Degree Program', courseVal);
   if (applicant.yearGraduated) addField(undefined, 'Year Graduated', applicant.yearGraduated);
   if (applicant.specialOrderNo) addField(undefined, 'Special Order No', applicant.specialOrderNo);
   if (applicant.examineeType) addField(undefined, 'Examinee Type', applicant.examineeType);

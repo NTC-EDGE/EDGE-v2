@@ -66,6 +66,10 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         resolvedSex={reviewData.resolvedSex}
         resolvedCivilStatus={reviewData.resolvedCivilStatus}
         resolvedNationality={reviewData.resolvedNationality}
+        schoolAttended={reviewData.resolvedSchool}
+        courseTaken={reviewData.resolvedCourse}
+        yearGraduated={reviewData.resolvedYearGraduated}
+        specialOrderNo={reviewData.resolvedSpecialOrderNo}
         isExamService={reviewData.isExamService}
         isAmateurCertService={reviewData.isAmateurCertService}
         onPreviewFile={(uri, lbl) => handlePreviewFile(uri, lbl)}

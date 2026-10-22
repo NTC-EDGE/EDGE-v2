@@ -97,6 +97,12 @@ export interface ActiveApplicantSnapshot {
   civilStatus?: string | null;
   nationality?: string | null;
   notes?: string | null;
+  schoolAttended?: string | null;
+  schoolName?: string | null;
+  courseTaken?: string | null;
+  courseDegree?: string | null;
+  yearGraduated?: string | null;
+  specialOrderNo?: string | null;
   signatureUrl?: string;
   dtiSecRegistration?: string;
   radioCertData?: unknown;

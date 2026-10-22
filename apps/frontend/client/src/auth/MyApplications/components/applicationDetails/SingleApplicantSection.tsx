@@ -31,6 +31,12 @@ interface SingleApplicantSectionProps {
     companyName: string | null;
     representativeName: string | null;
     notes: string | null;
+    schoolAttended?: string | null;
+    schoolName?: string | null;
+    courseTaken?: string | null;
+    courseDegree?: string | null;
+    yearGraduated?: string | null;
+    specialOrderNo?: string | null;
   } | null;
   primaryName: string;
   formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;

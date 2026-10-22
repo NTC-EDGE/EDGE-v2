@@ -24,6 +24,12 @@ export interface SubmittedApplicantData {
   companyName?: string | null;
   representativeName?: string | null;
   notes?: string | null;
+  schoolAttended?: string | null;
+  schoolName?: string | null;
+  courseTaken?: string | null;
+  courseDegree?: string | null;
+  yearGraduated?: string | null;
+  specialOrderNo?: string | null;
 }
 
 export interface SubmittedFormStructuredViewProps {
@@ -100,6 +106,10 @@ export function SubmittedFormStructuredView({
       resolvedSex={singleApplicant?.sex && singleApplicant.sex !== 'N/A' ? singleApplicant.sex : null}
       resolvedCivilStatus={singleApplicant?.civilStatus && singleApplicant.civilStatus !== 'N/A' ? singleApplicant.civilStatus : null}
       resolvedNationality={singleApplicant?.nationality && singleApplicant.nationality !== 'N/A' ? singleApplicant.nationality : null}
+      schoolAttended={singleApplicant?.schoolAttended || singleApplicant?.schoolName || null}
+      courseTaken={singleApplicant?.courseTaken || singleApplicant?.courseDegree || null}
+      yearGraduated={singleApplicant?.yearGraduated || null}
+      specialOrderNo={singleApplicant?.specialOrderNo || null}
       companyName={singleApplicant?.companyName}
       representativeName={singleApplicant?.representativeName}
       notes={singleApplicant?.notes}

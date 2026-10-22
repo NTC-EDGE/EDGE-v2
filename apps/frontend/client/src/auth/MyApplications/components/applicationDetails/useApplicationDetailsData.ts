@@ -240,6 +240,11 @@ export function useApplicationDetailsData(initialApp: Application) {
       findField((l) => l.includes('graduat') || l.includes('year graduated')) ||
       null;
 
+    const resolvedSpecialOrderNo =
+      (details !== null && typeof details === 'object' && 'specialOrderNo' in details && typeof details.specialOrderNo === 'string' ? details.specialOrderNo : null) ||
+      findField((l) => l.includes('special order') || l.includes('so number')) ||
+      null;
+
     const rawAppType =
       first?.applicantType ||
       first?.applicationType ||
@@ -269,8 +274,11 @@ export function useApplicationDetailsData(initialApp: Application) {
       representativeName: isCompany ? (details?.representativeName || (app.representativeName as string) || findField((l) => l.includes('representative')) || null) : null,
       notes: details?.notes || app.remarks || null,
       schoolAttended: resolvedSchool,
+      schoolName: resolvedSchool,
       courseTaken: resolvedCourse,
+      courseDegree: resolvedCourse,
       yearGraduated: resolvedYearGrad,
+      specialOrderNo: resolvedSpecialOrderNo,
     };
   }, [app]);
 

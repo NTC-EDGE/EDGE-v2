@@ -145,6 +145,36 @@ export function resolveApplicantParticulars(
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'nationality' || fv.fieldLabel.toLowerCase().includes('nationality') || fv.fieldLabel.toLowerCase().includes('citizenship'))?.value ||
     null;
 
+  const resolvedSchool =
+    activeApplicant.schoolName ||
+    activeApplicant.schoolAttended ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('school') || fv.fieldLabel.toLowerCase().includes('institution') || fv.fieldLabel.toLowerCase().includes('university')
+    )?.value ||
+    null;
+
+  const resolvedCourse =
+    activeApplicant.courseDegree ||
+    activeApplicant.courseTaken ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('course') || fv.fieldLabel.toLowerCase().includes('degree') || fv.fieldLabel.toLowerCase().includes('program')
+    )?.value ||
+    null;
+
+  const resolvedYearGraduated =
+    activeApplicant.yearGraduated ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('graduat') || fv.fieldLabel.toLowerCase().includes('year graduated')
+    )?.value ||
+    null;
+
+  const resolvedSpecialOrderNo =
+    activeApplicant.specialOrderNo ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('special order') || fv.fieldLabel.toLowerCase().includes('so number')
+    )?.value ||
+    null;
+
   const signatureEntry = formFieldValues.find(
     (fv: { fieldId: string; fieldLabel: string; value: string }) =>
       fv.fieldId === FIELD_ID_SIGNATURE ||
@@ -167,6 +197,10 @@ export function resolveApplicantParticulars(
     resolvedSex,
     resolvedCivilStatus,
     resolvedNationality,
+    resolvedSchool,
+    resolvedCourse,
+    resolvedYearGraduated,
+    resolvedSpecialOrderNo,
     signatureEntry,
   };
 }

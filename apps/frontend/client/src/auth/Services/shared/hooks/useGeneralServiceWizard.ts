@@ -103,7 +103,9 @@ export interface GeneralApplicantData {
   barangay?: string;
   street?: string;
   schoolName?: string;
+  schoolAttended?: string;
   courseDegree?: string;
+  courseTaken?: string;
   yearGraduated?: string;
   specialOrderNo?: string;
   examType?: string;

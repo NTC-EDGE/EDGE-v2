@@ -219,6 +219,12 @@ export interface BulkApplicant {
   companyName?: string;
   representativeName?: string;
   notes?: string;
+  schoolAttended?: string;
+  schoolName?: string;
+  courseTaken?: string;
+  courseDegree?: string;
+  yearGraduated?: string;
+  specialOrderNo?: string;
   serviceId?: string;
   serviceVariantId?: string;
 
@@ -245,6 +251,12 @@ export interface BulkApplicant {
     companyName?: string;
     representativeName?: string;
     notes?: string;
+    schoolAttended?: string;
+    schoolName?: string;
+    courseTaken?: string;
+    courseDegree?: string;
+    yearGraduated?: string;
+    specialOrderNo?: string;
     birthMonth?: string;
     birthDay?: string;
     birthYear?: string;

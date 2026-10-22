@@ -37,6 +37,12 @@ export interface BaseApplicationPreviewProps {
   resolvedSex?: string | null;
   resolvedCivilStatus?: string | null;
   resolvedNationality?: string | null;
+  schoolAttended?: string | null;
+  schoolName?: string | null;
+  courseTaken?: string | null;
+  courseDegree?: string | null;
+  yearGraduated?: string | null;
+  specialOrderNo?: string | null;
   applicantType?: string;
   companyName?: string | null;
   representativeName?: string | null;
@@ -71,6 +77,12 @@ export function BaseApplicationPreview({
   resolvedSex,
   resolvedCivilStatus,
   resolvedNationality,
+  schoolAttended,
+  schoolName,
+  courseTaken,
+  courseDegree,
+  yearGraduated,
+  specialOrderNo,
   applicantType,
   companyName,
   representativeName,
@@ -159,11 +171,38 @@ export function BaseApplicationPreview({
         }
       : null);
 
-  const applicantData = activeApplicant || {
+  const schoolAttendedVal =
+    schoolAttended ||
+    schoolName ||
+    activeApplicant?.schoolAttended ||
+    activeApplicant?.schoolName ||
+    null;
+  const courseTakenVal =
+    courseTaken ||
+    courseDegree ||
+    activeApplicant?.courseTaken ||
+    activeApplicant?.courseDegree ||
+    null;
+  const yearGraduatedVal =
+    yearGraduated ||
+    activeApplicant?.yearGraduated ||
+    null;
+  const specialOrderNoVal =
+    specialOrderNo ||
+    activeApplicant?.specialOrderNo ||
+    null;
+
+  const applicantData: ActiveApplicantSnapshot = activeApplicant || {
     applicantType,
     companyName,
     representativeName,
     notes,
+    schoolAttended: schoolAttendedVal,
+    schoolName: schoolAttendedVal,
+    courseTaken: courseTakenVal,
+    courseDegree: courseTakenVal,
+    yearGraduated: yearGraduatedVal,
+    specialOrderNo: specialOrderNoVal,
   };
 
   return (
@@ -192,6 +231,10 @@ export function BaseApplicationPreview({
           resolvedSex={resolvedSex ?? null}
           resolvedCivilStatus={resolvedCivilStatus ?? null}
           resolvedNationality={resolvedNationality ?? null}
+          schoolAttended={schoolAttendedVal}
+          courseTaken={courseTakenVal}
+          yearGraduated={yearGraduatedVal}
+          specialOrderNo={specialOrderNoVal}
         />
       )}
 

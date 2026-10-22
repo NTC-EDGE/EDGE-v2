@@ -19,7 +19,9 @@ export interface ExamApplicantData {
   street: string;
   zipCode: string;
   schoolName: string;
+  schoolAttended?: string;
   courseDegree: string;
+  courseTaken?: string;
   yearGraduated: string;
   specialOrderNo: string;
   email: string;

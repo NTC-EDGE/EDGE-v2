@@ -302,6 +302,12 @@ export function BulkApplicantsSection({
                 companyName: activeApplicant.companyName || activeApplicant.details?.companyName || null,
                 representativeName: activeApplicant.representativeName || activeApplicant.details?.representativeName || null,
                 notes: activeApplicant.notes || activeApplicant.details?.notes || null,
+                schoolAttended: activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || activeApplicant.schoolName || activeApplicant.details?.schoolName || null,
+                schoolName: activeApplicant.schoolName || activeApplicant.details?.schoolName || activeApplicant.schoolAttended || activeApplicant.details?.schoolAttended || null,
+                courseTaken: activeApplicant.courseTaken || activeApplicant.details?.courseTaken || activeApplicant.courseDegree || activeApplicant.details?.courseDegree || null,
+                courseDegree: activeApplicant.courseDegree || activeApplicant.details?.courseDegree || activeApplicant.courseTaken || activeApplicant.details?.courseTaken || null,
+                yearGraduated: activeApplicant.yearGraduated || activeApplicant.details?.yearGraduated || null,
+                specialOrderNo: activeApplicant.specialOrderNo || activeApplicant.details?.specialOrderNo || null,
               }}
               primaryName={extractApplicantFullName(app, activeApplicant.details, activeApplicant)}
               formFieldValues={selectedApplicantFormFields}
