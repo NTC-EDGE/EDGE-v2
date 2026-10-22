@@ -74,9 +74,7 @@ public static class CertificatesCategorySeederData
             { ""code"": ""3PHN"", ""condition"": ""Standard"", ""description"": ""Third Class Radiotelephone Operator"" }
         ],
         ""requiredSections"": [
-            { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""typeOfCertificate"", ""required"": true },
-            { ""key"": ""examSeminarDetails"", ""required"": false },
+            { ""key"": ""examSeminarDetails"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -96,12 +94,8 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""permitType"", ""required"": true },
             { ""key"": ""certificateParticulars"", ""required"": false },
-            { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""applicantAddress"", ""required"": true },
-            { ""key"": ""applicantContact"", ""required"": true },
-            { ""key"": ""examSeminarDetails"", ""required"": false },
+            { ""key"": ""examSeminarDetails"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -120,10 +114,7 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""For Dealers"", ""For Non-Dealers""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
-            { ""key"": ""representative"", ""required"": false },
-            { ""key"": ""companyDetails"", ""required"": false },
-            { ""key"": ""applicantAddress"", ""required"": true },
+            { ""key"": ""invoiceDetails"", ""required"": false },
             { ""key"": ""devices"", ""required"": true }
         ],
         ""allowsBulkSubmission"": true,
@@ -149,12 +140,9 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Renewal""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicationType"", ""required"": true },
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""vasParticulars"", ""required"": true },
             { ""key"": ""valueAddedServices"", ""required"": true },
-            { ""key"": ""knownByAnotherName"", ""required"": false },
-            { ""key"": ""vasRegistration"", ""required"": false }
+            { ""key"": ""knownByAnotherName"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -175,7 +163,6 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Certified True Copy"", ""Duplicate Copy""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""copyParticulars"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
@@ -195,12 +182,10 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""NEW"", ""RENEWAL"", ""Modification, use Form B"", ""Commercial"", ""Non-Commercial""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""location"", ""required"": true },
             { ""key"": ""tvroEquipment"", ""required"": true },
             { ""key"": ""antennaSystem"", ""required"": false },
-            { ""key"": ""signalReception"", ""required"": false },
-            { ""key"": ""bsd"", ""required"": false }
+            { ""key"": ""signalReception"", ""required"": false }
         ],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
@@ -484,8 +469,7 @@ public static class CertificatesCategorySeederData
         {
             new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
-            new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" }),
-            new("vasRegistration", "VAS Registration", new() { "vasRegistrationNo" })
+            new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" })
         }),
         new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
         {
@@ -496,8 +480,7 @@ public static class CertificatesCategorySeederData
             new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),
             new("tvroEquipment", "Particulars of Equipment", new() { "tvroEquipment" }),
             new("antennaSystem", "Particulars of Antenna System", new() { "tvroAntenna" }),
-            new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" }),
-            new("bsd", "Broadcast Services Division (BSD)", new() { "bsdNo" })
+            new("signalReception", "Particulars of Signal to be Received", new() { "tvroSignal" })
         })
     };
 

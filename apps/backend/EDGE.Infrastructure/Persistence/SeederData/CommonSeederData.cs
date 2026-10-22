@@ -87,9 +87,6 @@ public static class CommonSeederData
             // Core Declarations & Payment
             ["signatureField"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000012"), FieldType = "signature", Label = "Applicant Signature", SyncBackOnSubmit = false },
             ["declarationCheckbox"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000013"), FieldType = "checkbox", Label = "I hereby declare that all the above entries are true and correct. Under the Revised Penal Code, I shall be held liable for any willful false statement(s) or misrepresentation(s) made in this application form that may serve as a valid ground for the denial of this application and/or cancellation/revocation of thepermit issued/granted. Further, I am freely giving full consent for the collection and processing of personal information in accordance with Republic Act No. 10713, Data Privacy Act of 2012.", SyncBackOnSubmit = false },
-            ["paymentOrNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000021"), FieldType = "text", Label = "Official Receipt (OR) Number", SyncBackOnSubmit = false },
-            ["paymentAmount"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000022"), FieldType = "number", Label = "Amount Paid", SyncBackOnSubmit = false },
-            ["paymentDate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000023"), FieldType = "date", Label = "Payment Date", SyncBackOnSubmit = false },
 
             // NTC 1-02 Certificate Specific
             ["typeOfCertificate"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000014"), FieldType = "dropdown", Label = "Type of Certificate", SyncBackOnSubmit = false, ValidationRules = @"[""1RTG"",""2RTG"",""3RTG"",""1PHN"",""2PHN"",""3PHN"",""SROP"",""RROC-Land Mobile"",""RROC-Aircraft"",""GROC"",""TP RROC-Aircraft"",""Other""]" },
@@ -209,6 +206,11 @@ public static class CommonSeederData
             ["targetCertificateType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000241"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false },
             ["targetCertificateNumber"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000242"), FieldType = "text", Label = "Certificate Number", SyncBackOnSubmit = false },
             ["noOfCopies"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000243"), FieldType = "dropdown", Label = "No. of Copies", SyncBackOnSubmit = false, ValidationRules = @"[""1"",""2"",""3"",""4"",""5"",""10""]" },
+
+            // Copy of Permit specific fields
+            ["detailsService"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000244"), FieldType = "dropdown", Label = "DetailsService", SyncBackOnSubmit = false, ValidationRules = @"[""Permits in AMateur"",""Permits Aeronotical"",""PErmits in Maritime"",""Permits for Government and Private Radio Stations, in the Fixed and Land MObile Service""]" },
+            ["targetPermitType"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000245"), FieldType = "dropdown", Label = "Type", SyncBackOnSubmit = false },
+            ["permitNo"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000246"), FieldType = "text", Label = "Permit no.", SyncBackOnSubmit = false },
 
             // Accreditations (NTC 1-18) Section 3 Technical Personnel fields
             ["supervisingEngineer"] = new() { Id = Guid.Parse("fd000000-0000-0000-0000-000000000252"), FieldType = "text", Label = "Supervising Engineer", SyncBackOnSubmit = false },

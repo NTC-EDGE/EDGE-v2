@@ -48,6 +48,24 @@ public class ContractFormValidator
 
         foreach (var section in requiredSections.Where(s => s.Required))
         {
+            // These sections belong to first-class domain entities (Applicant, ApplicantDetail, StatementOfAccount, Receipt)
+            // or filing steps and must not be required as dynamic FormSection entries.
+            if (section.Key.Equals("applicant", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("applicantPerson", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("applicantAddress", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("applicantContact", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("applicantEducation", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("declaration", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("payment", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("fees", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("accounting", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("cashier", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("vasRegistration", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("bsd", System.StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
             if (!formKeys.Contains(section.Key))
                 errors.Add($"MISSING_REQUIRED_SECTION: '{section.Key}' is required by the contract but has no matching FormSection.Key.");
         }

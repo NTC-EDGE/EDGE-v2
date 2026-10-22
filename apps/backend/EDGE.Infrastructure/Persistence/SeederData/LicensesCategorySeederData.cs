@@ -28,7 +28,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [""Class A"", ""Class B"", ""Class C"", ""Class D""],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""station"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
@@ -47,7 +46,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""aircraft"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
@@ -66,8 +64,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""NEW"", ""RENEWAL"", ""MODIFICATION"", ""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""typeOfApplication"", ""required"": true },
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""vessel"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""radioOfficers"", ""required"": false },
@@ -94,8 +90,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Construction Permit"", ""Radio Station License"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""typeOfApplication"", ""required"": true },
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""stations"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
@@ -120,7 +114,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""New"", ""Renewal"", ""Modification""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""headEnd"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true },
             { ""key"": ""antennas"", ""required"": true },
@@ -139,7 +132,6 @@ public static class LicensesCategorySeederData
         ""applicationTypes"": [""Certified True Copy"", ""Duplicate Copy""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""permitLicenseCertificateNo"", ""required"": true },
             { ""key"": ""circumstances"", ""required"": true },
         ],
