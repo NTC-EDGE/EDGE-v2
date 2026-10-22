@@ -5,7 +5,7 @@ This is the cross-platform internal application for staff members and reviewers.
 ---
 
 ## Prerequisites
-*   [Node.js](https://nodejs.org/) (v18+)
+*   [Node.js](https://nodejs.org/) (v24.22.1+ LTS)
 *   [Bun](https://bun.sh/) (v1.x) or [Yarn](https://yarnpkg.com/)
 *   [Expo Go App](https://expo.dev/go) (for running on physical mobile devices)
 

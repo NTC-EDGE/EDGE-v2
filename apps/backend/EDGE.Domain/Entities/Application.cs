@@ -17,15 +17,28 @@ public class Application : AuditableEntity
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public ApplicationStatus Status { get; set; } = ApplicationStatus.Draft;
+    public ApplicationIntent Intent { get; set; } = ApplicationIntent.Regular;
     public SubmissionMode SubmissionMode { get; set; } = SubmissionMode.Single;
     public DataEntryMethod? DataEntryMethod { get; set; }
     public string? Remarks { get; set; }
     public Guid? UserId { get; set; }
     public User? User { get; set; }
     public bool IsGuest { get; set; }
+    public bool IsPinned { get; set; } = false;
+    public bool IsArchived { get; set; } = false;
 
-    public ICollection<ApplicationService> ApplicationServices { get; set; } = new List<ApplicationService>();
+    public DateTime? AssessedAt { get; set; }
+    public DateTime? ConvertedToRegularAt { get; set; }
+    public int AssessmentVersion { get; set; } = 1;
+    public string? AssessmentRemarks { get; set; }
+
     public ICollection<ApplicationApplicant> ApplicationApplicants { get; set; } = new List<ApplicationApplicant>();
     public ICollection<ApplicationRequirement> ApplicationRequirements { get; set; } = new List<ApplicationRequirement>();
     public ICollection<FormSubmission> FormSubmissions { get; set; } = new List<FormSubmission>();
+    
+    public ICollection<StatementOfAccount> StatementsOfAccount { get; set; } = new List<StatementOfAccount>();
+    public ICollection<OrderOfPayment> OrdersOfPayment { get; set; } = new List<OrderOfPayment>();
+    public ICollection<IssuedDocumentDetail> IssuedDocumentDetails { get; set; } = new List<IssuedDocumentDetail>();
+    public ICollection<ApplicationHistory> Histories { get; set; } = new List<ApplicationHistory>();
+    public ICollection<CorrectionAuditTrail> CorrectionAuditTrails { get; set; } = new List<CorrectionAuditTrail>();
 }

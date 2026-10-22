@@ -7,6 +7,13 @@ on:
     paths:
       - 'apps/backend/**'
       - '.github/workflows/deploy-backend-dev.yml'
+  workflow_dispatch:
+    inputs:
+      reset_database:
+        description: '⚠️ Reset database? (drops public schema & re-seeds all data)'
+        type: boolean
+        required: false
+        default: false
 
 jobs:
   build:
@@ -69,24 +76,30 @@ jobs:
           source: "docker-compose.yml,docker-compose.override.yml,backend-image-dev.tar.gz"
           target: "/opt/docker-stack/${{ env.CONTAINER_NAME }}"
 
+      - name: ⚠️ Database Reset Warning
+        if: ${{ inputs.reset_database == true }}
+        run: |
+          echo "::warning::RESET_DATABASE is enabled. The public schema will be DROPPED and all data will be re-seeded on startup."
+
       - name: Deploy and Restart Stack via SSH
         uses: appleboy/ssh-action@v1.0.3
         env:
           DB_CONNECTION_STRING: ${{ secrets.DB_CONNECTION_STRING }}
           CLERK_SECRET_KEY: ${{ secrets.CLERK_SECRET_KEY }}
           CLERK_WEBHOOK_SECRET: ${{ secrets.CLERK_WEBHOOK_SECRET }}
-          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID }}
+          CLOUDFLARE_R2_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_R2_ACCOUNT_ID || vars.CLOUDFLARE_R2_ACCOUNT_ID }}
           CLOUDFLARE_R2_ACCESS_KEY_ID: ${{ secrets.CLOUDFLARE_R2_ACCESS_KEY_ID }}
           CLOUDFLARE_R2_SECRET_ACCESS_KEY: ${{ secrets.CLOUDFLARE_R2_SECRET_ACCESS_KEY }}
-          CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME }}
+          CLOUDFLARE_R2_BUCKET_NAME: ${{ vars.CLOUDFLARE_R2_BUCKET_NAME || secrets.CLOUDFLARE_R2_BUCKET_NAME }}
           STORAGE_ENCRYPTION_MASTER_KEY: ${{ secrets.STORAGE_ENCRYPTION_MASTER_KEY }}
           CONTAINER_NAME: ${{ env.CONTAINER_NAME }}
+          RESET_DATABASE: ${{ inputs.reset_database == false && 'true' || 'false' }}
         with:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USER }}
           key: ${{ secrets.SSH_KEY }}
           passphrase: ${{ secrets.SSH_PASSPHRASE }}
-          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME
+          envs: DB_CONNECTION_STRING,CLERK_SECRET_KEY,CLERK_WEBHOOK_SECRET,CLOUDFLARE_R2_ACCOUNT_ID,CLOUDFLARE_R2_ACCESS_KEY_ID,CLOUDFLARE_R2_SECRET_ACCESS_KEY,CLOUDFLARE_R2_BUCKET_NAME,STORAGE_ENCRYPTION_MASTER_KEY,CONTAINER_NAME,RESET_DATABASE
           script: |
             # Export environment variables for Docker Compose
             export ConnectionStrings__DefaultConnection="$DB_CONNECTION_STRING"
@@ -101,6 +114,7 @@ jobs:
             export IMAGE_NAME="edge-backend-dev"
             export CONTAINER_NAME="$CONTAINER_NAME"
             export ASPNETCORE_ENVIRONMENT="Development"
+            export RESET_DATABASE="$RESET_DATABASE"
 
             # Load the Docker image
             gunzip -c /opt/docker-stack/$CONTAINER_NAME/backend-image-dev.tar.gz | docker load
@@ -113,24 +127,31 @@ jobs:
             # Clean up upload archive
             rm -f backend-image-dev.tar.gz
 
-            # Post-Deployment Health Check (Fail if not up within 15s)
-            echo "Waiting for container startup (15s)..."
-            sleep 15
+            # Post-Deployment Health Check
+            # On DB reset runs, seeding can take 60-120s before the API is ready.
+            echo "Waiting for API to become ready (max 120s)..."
+            MAX_WAIT=120
+            INTERVAL=10
+            ELAPSED=0
 
-            if [ "$(docker inspect -f '{{.State.Running}}' $CONTAINER_NAME)" != "true" ]; then
-              echo "❌ Error: Container $CONTAINER_NAME is not running!"
-              docker logs $CONTAINER_NAME
-              exit 1
-            fi
-
-            # Retrieve internal IP address of container
             CONTAINER_IP=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}} {{end}}' $CONTAINER_NAME | awk '{print $1}')
 
-            echo "🔍 Checking API port connectivity on $CONTAINER_IP:8080..."
-            if curl -s --max-time 5 http://$CONTAINER_IP:8080/ > /dev/null; then
-              echo "✅ Success: API is up and responding!"
-            else
-              echo "❌ Error: API is not responding on port 8080!"
-              docker logs $CONTAINER_NAME
-              exit 1
-            fi
+            until curl -s --max-time 5 http://$CONTAINER_IP:8080/ > /dev/null; do
+              if [ $ELAPSED -ge $MAX_WAIT ]; then
+                echo "❌ Error: API did not become ready within ${MAX_WAIT}s!"
+                docker logs $CONTAINER_NAME
+                exit 1
+              fi
+
+              if [ "$(docker inspect -f '{{.State.Running}}' $CONTAINER_NAME)" != "true" ]; then
+                echo "❌ Error: Container $CONTAINER_NAME stopped unexpectedly!"
+                docker logs $CONTAINER_NAME
+                exit 1
+              fi
+
+              echo "  ⏳ Not ready yet (${ELAPSED}s elapsed)... retrying in ${INTERVAL}s"
+              sleep $INTERVAL
+              ELAPSED=$((ELAPSED + INTERVAL))
+            done
+
+            echo "✅ Success: API is up and responding! (took ~${ELAPSED}s)"

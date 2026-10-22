@@ -13,9 +13,6 @@ public class UpdateServiceCommandValidator : AbstractValidator<UpdateServiceComm
         RuleFor(x => x.ServiceCategoryId)
             .NotEmpty().WithMessage("Service Category is required.");
 
-        RuleFor(x => x.TenantId)
-            .NotEmpty().WithMessage("Tenant ID is required.");
-
         RuleFor(x => x.Name)
             .NotEmpty().WithMessage("Service Name is required.")
             .MaximumLength(500).WithMessage("Service Name must not exceed 500 characters.");

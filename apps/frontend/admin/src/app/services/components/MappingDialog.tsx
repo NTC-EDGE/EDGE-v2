@@ -5,6 +5,7 @@ import { Link2, AlertCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Requirement, ServiceVariant, ServiceVariantRequirement } from "@edge/api";
 import { ServiceItem } from "@/services/catalogService";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface MappingDialogProps {
   isOpen: boolean;
@@ -13,7 +14,6 @@ interface MappingDialogProps {
     serviceId: string;
     variantId: string;
     requirementId: string;
-    contextKey: string | null;
     isRequired: boolean;
   }) => Promise<void>;
   editingMapping: ServiceVariantRequirement | null;
@@ -44,7 +44,6 @@ export function MappingDialog({
   const [dialogServiceId, setDialogServiceId] = useState("");
   const [dialogVariantId, setDialogVariantId] = useState("");
   const [selectedRequirementId, setSelectedRequirementId] = useState("");
-  const [contextKey, setContextKey] = useState("");
   const [isRequired, setIsRequired] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -75,22 +74,19 @@ export function MappingDialog({
         setDialogServiceId(resolvedServiceId);
         setDialogVariantId(editingMapping.serviceVariantId ?? "");
         setSelectedRequirementId(editingMapping.requirementId ?? "");
-        setContextKey(editingMapping.contextKey ?? "");
         setIsRequired(editingMapping.isRequired);
-      } else if (activeTab === "service-requirements") {
+      } else if (activeTab === "service-requirements" && mappingServiceId && mappingVariantId) {
         setDialogServiceId(mappingServiceId);
         setDialogVariantId(mappingVariantId);
         setSelectedRequirementId("");
-        setContextKey("");
         setIsRequired(true);
       } else {
-        // Flat mapping mode
-        const initialSvcId = services.length > 0 ? services[0].id : "";
+        // Flat mapping mode or unselected variant
+        const initialSvcId = mappingServiceId || (services.length > 0 ? services[0].id : "");
         setDialogServiceId(initialSvcId);
         const matchingVars = allVariants.filter((v) => v.serviceId === initialSvcId);
         setDialogVariantId(matchingVars.length > 0 ? matchingVars[0].id : "");
         setSelectedRequirementId("");
-        setContextKey("");
         setIsRequired(true);
       }
     }
@@ -108,11 +104,12 @@ export function MappingDialog({
     e.preventDefault();
     setError(null);
 
-    const variant = allVariants.find(v => v.id === dialogVariantId);
     const sId = editingMapping
       ? (allVariants.find(v => v.id === editingMapping.serviceVariantId)?.serviceId ?? "")
-      : (activeTab === "service-requirements" ? mappingServiceId : dialogServiceId);
-    const vId = editingMapping ? editingMapping.serviceVariantId : (activeTab === "service-requirements" ? mappingVariantId : dialogVariantId);
+      : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId ? mappingServiceId : dialogServiceId);
+    const vId = editingMapping
+      ? editingMapping.serviceVariantId
+      : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId ? mappingVariantId : dialogVariantId);
     const rId = editingMapping ? editingMapping.requirementId : selectedRequirementId;
 
     if (!sId || !vId || !rId) {
@@ -125,11 +122,11 @@ export function MappingDialog({
         serviceId: sId,
         variantId: vId,
         requirementId: rId,
-        contextKey: contextKey.trim() ? contextKey.trim() : null,
         isRequired,
       });
-    } catch (err: any) {
-      setError(err?.message || "Failed to save mapping configuration.");
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : "Failed to save mapping configuration.";
+      setError(message);
     }
   };
 
@@ -173,7 +170,7 @@ export function MappingDialog({
                 </div>
               </div>
             </div>
-          ) : activeTab === "service-requirements" ? (
+          ) : (activeTab === "service-requirements" && mappingServiceId && mappingVariantId) ? (
             <div className="grid grid-cols-2 gap-4">
               <div className="min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service</label>
@@ -195,38 +192,34 @@ export function MappingDialog({
             <div className="space-y-4">
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service *</label>
-                <select
-                  required
+                <SearchableSelect
                   value={dialogServiceId}
-                  onChange={(e) => setDialogServiceId(e.target.value)}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-                >
-                  {services.map((s) => (
-                    <option key={s.id} value={s.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                      [{s.code || "SVC"}] {s.name}
-                    </option>
-                  ))}
-                </select>
+                  onChange={setDialogServiceId}
+                  placeholder="Select Service..."
+                  searchPlaceholder="Search services..."
+                  maxHeight="max-h-48"
+                  options={services.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                    badge: s.code || "SVC",
+                  }))}
+                />
               </div>
               <div>
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Service Variant *</label>
-                <select
-                  required
+                <SearchableSelect
                   value={dialogVariantId}
-                  onChange={(e) => setDialogVariantId(e.target.value)}
+                  onChange={setDialogVariantId}
                   disabled={dialogVariants.length === 0}
-                  className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all disabled:opacity-40 font-medium"
-                >
-                  {dialogVariants.length === 0 ? (
-                    <option value="" className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">No variants registered for this service</option>
-                  ) : (
-                    dialogVariants.map((v) => (
-                      <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                        {v.type === "NA" ? "N/A" : v.type} {v.description ? `- ${v.description}` : ""}
-                      </option>
-                    ))
-                  )}
-                </select>
+                  placeholder={dialogVariants.length === 0 ? "No variants registered for this service" : "Select Variant..."}
+                  searchPlaceholder="Search variants..."
+                  maxHeight="max-h-48"
+                  options={dialogVariants.map((v) => ({
+                    value: v.id,
+                    label: v.type === "NA" ? "N/A" : v.type,
+                    description: v.description || undefined,
+                  }))}
+                />
               </div>
             </div>
           )}
@@ -238,31 +231,19 @@ export function MappingDialog({
                 {editingMapping.requirement?.name ?? ""}
               </div>
             ) : (
-              <select
-                required
+              <SearchableSelect
                 value={selectedRequirementId}
-                onChange={(e) => setSelectedRequirementId(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-medium"
-              >
-                <option value="" disabled className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">Select Requirement...</option>
-                {availableRequirements.map((req) => (
-                  <option key={req.id} value={req.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                    {req.name}
-                  </option>
-                ))}
-              </select>
+                onChange={setSelectedRequirementId}
+                placeholder="Select Requirement..."
+                searchPlaceholder="Search requirements..."
+                maxHeight="max-h-48"
+                options={availableRequirements.map((req) => ({
+                  value: req.id,
+                  label: req.name,
+                  description: req.description || undefined,
+                }))}
+              />
             )}
-          </div>
-
-          <div>
-            <label className="text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400 block mb-1.5">Context Key (Applicant Type Key)</label>
-            <input
-              type="text"
-              placeholder="e.g. NEW, RENEW (leave blank for Any)"
-              value={contextKey}
-              onChange={(e) => setContextKey(e.target.value)}
-              className="w-full px-3.5 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500 focus:border-indigo-500 transition-all font-mono uppercase"
-            />
           </div>
 
           <label className="flex items-center gap-2.5 text-xs text-slate-700 dark:text-slate-300 font-semibold cursor-pointer py-1.5 select-none hover:text-slate-900 dark:hover:text-white transition-colors">

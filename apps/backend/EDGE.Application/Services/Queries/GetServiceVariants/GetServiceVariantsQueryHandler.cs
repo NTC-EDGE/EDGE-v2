@@ -52,7 +52,8 @@ public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariants
             ServiceId = v.ServiceId,
             ServiceName = v.Service?.Name,
             Type = v.Type.ToString(),
-            Description = v.Description
+            Description = v.Description,
+            IsIndividual = v.IsIndividual
         }).ToList();
 
         return new PaginatedApiResponse<ServiceVariantDto>(dtos, pageNumber, pageSize, totalCount);

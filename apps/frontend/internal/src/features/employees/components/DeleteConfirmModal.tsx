@@ -9,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { Employee } from '../data/mockEmployees';
+import { Employee } from '../types/employeeTypes';
 
 interface DeleteConfirmModalProps {
   visible: boolean;
@@ -41,13 +41,13 @@ export function DeleteConfirmModal({
           </View>
 
           {/* Title & Body */}
-          <Text style={styles.title}>Delete Employee Account</Text>
+          <Text style={styles.title}>Remove Employee from Tenant</Text>
           <Text style={styles.description}>
-            Are you sure you want to delete employee{' '}
+            Are you sure you want to remove employee{' '}
             <Text style={styles.boldText}>
               {employee.firstName} {employee.lastName}
             </Text>{' '}
-            ({employee.id})? This action will immediately revoke all role credentials and system access.
+            ({employee.id}) from this regional office? This action will revoke their tenant role permissions and workstation deployment. Their user account will remain active on the platform.
           </Text>
 
           {/* Action Buttons */}
@@ -62,8 +62,8 @@ export function DeleteConfirmModal({
                 onClose();
               }}
             >
-              <Lucide name="trash-2" size={15} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
-              <Text style={styles.deleteBtnText}>Delete Employee</Text>
+              <Lucide name="user-minus" size={15} color={COLORS.neutral.white} style={{ marginRight: 6 }} />
+              <Text style={styles.deleteBtnText}>Remove Employee</Text>
             </Pressable>
           </View>
         </View>

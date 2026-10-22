@@ -18,6 +18,11 @@ public class RolePermissionRepository : IRolePermissionRepository
         await _context.Set<RolePermission>().AddAsync(rolePermission, cancellationToken);
     }
 
+    public async Task AddRangeAsync(IEnumerable<RolePermission> rolePermissions, CancellationToken cancellationToken = default)
+    {
+        await _context.Set<RolePermission>().AddRangeAsync(rolePermissions, cancellationToken);
+    }
+
     public void Delete(RolePermission rolePermission)
     {
         _context.Set<RolePermission>().Remove(rolePermission);
@@ -25,8 +30,18 @@ public class RolePermissionRepository : IRolePermissionRepository
 
     public async Task<RolePermission?> GetAsync(Guid roleId, string permissionKey, CancellationToken cancellationToken = default)
     {
-        return await _context.Set<RolePermission>()
-            .FirstOrDefaultAsync(x => x.RoleId == roleId && x.PermissionKey == permissionKey, cancellationToken);
+        return await GetAsync(roleId, permissionKey, includeDeleted: false, cancellationToken);
+    }
+
+    public async Task<RolePermission?> GetAsync(Guid roleId, string permissionKey, bool includeDeleted, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Set<RolePermission>().AsQueryable();
+        if (includeDeleted)
+        {
+            query = query.IgnoreQueryFilters();
+        }
+
+        return await query.FirstOrDefaultAsync(x => x.RoleId == roleId && x.PermissionKey == permissionKey, cancellationToken);
     }
 
     public async Task<List<string>> GetPermissionKeysForRoleAsync(Guid roleId, CancellationToken cancellationToken = default)

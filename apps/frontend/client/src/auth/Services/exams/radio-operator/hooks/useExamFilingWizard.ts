@@ -1,9 +1,19 @@
 import React, { useState } from "react";
 import { Alert } from "react-native";
+import { useAuth } from "@clerk/expo";
 import { useApi } from "../../../../../shared/hooks/useApi";
-import { ExamApplicantData } from "../types/examTypes";
+import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
+import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { useExamFilingQueries } from "./useExamFilingQueries";
 import { getFieldValidationError, mapApplicantsPayload } from "../helpers/examMapping";
+import { isExamApplicantComplete } from "../helpers/validation";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+import { isScheduleOpenForFiling } from "../../../shared/components/ExamScheduleCard";
+
+const isGuid = (val?: string | null): boolean => {
+  if (!val || typeof val !== "string") return false;
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim());
+};
 
 interface UseExamFilingWizardProps {
   serviceId?: string | null;
@@ -51,12 +61,13 @@ export function useExamFilingWizard({
   setSelectedScheduleId,
 }: UseExamFilingWizardProps) {
   const api = useApi();
+  const { getToken } = useAuth();
 
   // Local UI States
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [isAgreedToTerms, setIsAgreedToTerms] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT">("BASIC");
+  const [activeFormTab, setActiveFormTab] = useState<"BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE">("BASIC");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [touched, setTouched] = useState<Record<string, boolean>>({});
 
@@ -81,11 +92,17 @@ export function useExamFilingWizard({
     currentApplicantIndex,
   });
 
-  const activeApplicant = applicants[currentApplicantIndex];
+  const activeApplicant = applicants[currentApplicantIndex] || initialExamApplicant(1);
 
-  const updateActiveApplicant = (fields: Partial<ExamApplicantData>) => {
+  const updateActiveApplicant = (
+    fields: Partial<ExamApplicantData> | ((prevApp: ExamApplicantData) => Partial<ExamApplicantData>)
+  ) => {
     setApplicants((prev) =>
-      prev.map((app, idx) => (idx === currentApplicantIndex ? { ...app, ...fields } : app))
+      prev.map((app, idx) => {
+        if (idx !== currentApplicantIndex) return app;
+        const resolved = typeof fields === "function" ? fields(app) : fields;
+        return { ...app, ...resolved };
+      })
     );
   };
 
@@ -156,19 +173,87 @@ export function useExamFilingWizard({
       Alert.alert("Error", "Service identifier is missing.");
       return;
     }
-    const mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    if (!isDraft) {
+      const incompleteCount = applicants.filter((app) => !isExamApplicantComplete(app)).length;
+      if (incompleteCount > 0) {
+        throw new Error(
+          `Cannot submit: ${incompleteCount} of ${applicants.length} applicant(s) are incomplete. Please complete all required personal details and document uploads before submitting.`
+        );
+      }
+    }
+    let mapped: ReturnType<typeof mapApplicantsPayload> = [];
+    try {
+      mapped = mapApplicantsPayload(applicants, queries.formFields, serviceName);
+    } catch (serializationErr: unknown) {
+      const serializationMsg =
+        serializationErr instanceof Error
+          ? serializationErr.message
+          : "Failed to serialize exam applicant data.";
+      throw new Error(`Data Serialization Error: ${serializationMsg}`);
+    }
+
+    const firstOpenSchedule = queries.schedules.find(
+      (s) => isScheduleOpenForFiling(s) && isGuid(s.id)
+    );
+    const effectiveScheduleId =
+      selectedScheduleId && isGuid(selectedScheduleId)
+        ? selectedScheduleId
+        : firstOpenSchedule
+        ? firstOpenSchedule.id
+        : null;
+
+    if (!isDraft && (!effectiveScheduleId || !isGuid(effectiveScheduleId))) {
+      throw new Error(
+        "Examination Schedule is required. Please select an open Examination Schedule & Venue before submitting."
+      );
+    }
+
     const payload = {
       tenantId: selectedRegionId,
-      submissionMode: appMode === "SINGLE" ? "Single" : "Bulk",
+      submissionMode: (mapped.length > 1 || appMode === "BULK") ? "Bulk" : "Single",
       serviceId: serviceId,
-      scheduleId: selectedScheduleId,
+      scheduleId: effectiveScheduleId,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant?.selectedVariantId || null,
       serviceVariantElementIds: activeApplicant?.selectedElementId ? [activeApplicant.selectedElementId] : [],
-      isDraft: isDraft,
+      isDraft: true,
       applicants: mapped,
     };
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+    try {
+      const submitRes = await api.post<unknown>(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
+      const resObj = typeof submitRes === "object" && submitRes !== null ? (submitRes as Record<string, unknown>) : {};
+      const applicationId =
+        typeof submitRes === "string" && submitRes.trim() !== ""
+          ? submitRes
+          : resObj.succeeded === true && typeof resObj.data === "string"
+          ? resObj.data
+          : typeof resObj.id === "string"
+          ? resObj.id
+          : null;
+
+      if (!applicationId) {
+        throw new Error("Application creation returned no identifier.");
+      }
+
+      const allApplicantsForUpload = (mapped.length > 1 || appMode === "BULK") ? applicants : [activeApplicant];
+      await uploadRequirementsAfterSubmit({
+        api,
+        applicationId,
+        tenantId: selectedRegionId,
+        applicants: allApplicantsForUpload,
+        getToken,
+      });
+
+      if (!isDraft) {
+        const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
+        const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
+        if (finObj.succeeded === false) {
+          throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize exam application submission.");
+        }
+      }
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting exam applications.");
+    }
   };
 
   return {

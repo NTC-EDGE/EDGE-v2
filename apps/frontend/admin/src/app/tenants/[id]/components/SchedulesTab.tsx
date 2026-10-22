@@ -33,12 +33,12 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
   const { isSystemAdmin } = useAdminScope();
   const { useSchedules, createSchedule, togglePublishStatus, useServices } = useScheduleService();
 
-  const { data: fetchedSchedules, mutate: mutateSchedules } = useSchedules("", currentTenant.regionId);
+  const { data: fetchedSchedules, mutate: mutateSchedules, isLoading: loadingSchedules } = useSchedules("", currentTenant.id);
   const { data: servicesResponse } = useServices();
   const services = servicesResponse ?? [];
 
   const [isCreateSchedOpen, setIsCreateSchedOpen] = useState(false);
-  const [schedFormData, setSchedFormData] = useState({
+  const [schedFormData, setSchedFormData] = useState(() => ({
     title: "",
     examType: "",
     serviceId: "",
@@ -48,7 +48,7 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
     maxSlots: 50,
     isPublished: true,
     description: "",
-  });
+  }));
 
   const schedulesList: ExamSchedule[] = Array.isArray(fetchedSchedules)
     ? fetchedSchedules
@@ -128,34 +128,67 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
         )}
       </div>
 
-      <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950/60 transition-colors duration-200">
-        {schedulesList.length === 0 ? (
-          <div className="p-8 text-center text-sm text-slate-500 dark:text-slate-400">
-            No regional exam schedules found for this branch.
+      {loadingSchedules && !fetchedSchedules ? (
+        <div className="p-12 text-center text-slate-500 dark:text-slate-400 flex flex-col items-center justify-center border border-slate-200 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40">
+          <Loader2 className="w-8 h-8 animate-spin text-purple-500 mb-3" />
+          <span className="text-xs font-semibold">Loading regional exam schedules...</span>
+        </div>
+      ) : schedulesList.length === 0 ? (
+        <div className="p-12 text-center flex flex-col items-center justify-center border border-dashed border-slate-300 dark:border-slate-800 rounded-2xl bg-slate-50/50 dark:bg-slate-950/40 min-w-0">
+          <div className="w-12 h-12 rounded-2xl bg-purple-500/10 text-purple-600 dark:text-purple-400 flex items-center justify-center mb-3 border border-purple-500/20 shadow-sm">
+            <Calendar className="w-6 h-6" />
           </div>
-        ) : (
-          schedulesList.map((sched) => {
+          <h4 className="text-sm font-bold text-slate-900 dark:text-white mb-1">No Exam Schedules Found</h4>
+          <p className="text-xs text-slate-500 dark:text-slate-400 max-w-sm mb-4">
+            No regional licensure examination schedules have been registered for this branch.
+          </p>
+          {!isSystemAdmin && (
+            <Button
+              onClick={() => {
+                setSchedFormData({
+                  title: "",
+                  examType: "",
+                  serviceId: "",
+                  venue: "",
+                  examDate: new Date(Date.now() + 864000000).toISOString().slice(0, 16),
+                  applicationDeadline: new Date(Date.now() + 432000000).toISOString().slice(0, 16),
+                  maxSlots: 50,
+                  isPublished: true,
+                  description: "",
+                });
+                setIsCreateSchedOpen(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs flex items-center gap-2 shadow-sm"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Create First Schedule</span>
+            </Button>
+          )}
+        </div>
+      ) : (
+        <div className="divide-y divide-slate-200 dark:divide-slate-800 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-slate-950/60 transition-colors duration-200">
+          {schedulesList.map((sched) => {
             const displayTitle = sched.serviceName || sched.title || "Schedule Slot";
             const displayType = sched.serviceCode || sched.examType || "Service";
             const displayDate = sched.startDate || sched.examDate;
 
             return (
-              <div key={sched.id} className="p-4 flex items-center justify-between hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
-                <div className="space-y-1 max-w-xl">
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold text-slate-900 dark:text-white text-sm">{displayTitle}</span>
-                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20">
+              <div key={sched.id} className="p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors min-w-0">
+                <div className="space-y-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 min-w-0">
+                    <span className="font-bold text-slate-900 dark:text-white text-sm break-words">{displayTitle}</span>
+                    <span className="px-2 py-0.5 rounded text-[10px] font-semibold bg-purple-50 dark:bg-purple-500/10 text-purple-600 dark:text-purple-300 border border-purple-200 dark:border-purple-500/20 shrink-0">
                       {displayType}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
-                    <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300"><MapPin className="w-3 h-3 text-emerald-500 dark:text-emerald-400" /> {sched.venue}</span>
-                    <span>•</span>
-                    <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300"><Calendar className="w-3 h-3 text-indigo-500 dark:text-indigo-400" /> Exam Date: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
-                  </p>
+                  <div className="text-xs text-slate-500 dark:text-slate-400 flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+                    <span className="flex items-center gap-1 text-slate-700 dark:text-slate-300 break-words"><MapPin className="w-3 h-3 text-emerald-500 dark:text-emerald-400 shrink-0" /> {sched.venue}</span>
+                    <span className="hidden sm:inline">•</span>
+                    <span className="flex items-center gap-1 text-indigo-600 dark:text-indigo-300 shrink-0"><Calendar className="w-3 h-3 text-indigo-500 dark:text-indigo-400 shrink-0" /> Exam: {displayDate ? new Date(displayDate).toLocaleDateString() : "N/A"}</span>
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-4">
+                <div className="flex items-center justify-between sm:justify-end gap-3 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-slate-100 dark:border-slate-800/60">
                   {isSystemAdmin ? (
                     <span
                       className={`px-3 py-1 rounded-full text-xs font-semibold border inline-flex items-center gap-1.5 ${
@@ -201,13 +234,13 @@ export function SchedulesTab({ currentTenant, showToast }: SchedulesTabProps) {
                 </div>
               </div>
             );
-          })
-        )}
-      </div>
+          })}
+        </div>
+      )}
 
       {/* Create Schedule Modal */}
       <Dialog open={isCreateSchedOpen} onOpenChange={setIsCreateSchedOpen}>
-        <DialogContent className="sm:max-w-[500px] bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white">
+        <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-[500px] max-h-[92vh] overflow-y-auto bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white p-5 sm:p-6">
           <DialogHeader>
             <DialogTitle className="text-xl font-extrabold text-slate-900 dark:text-white flex items-center gap-2">
               <Calendar className="w-5 h-5 text-indigo-500 dark:text-indigo-400" /> Create Exam Schedule

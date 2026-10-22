@@ -3,20 +3,109 @@ using EDGE.Infrastructure.Printing.MockData;
 using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Reports;
 using EDGE.Infrastructure.Printing.Services;
+using EDGE.Infrastructure.Printing.Services.Templates;
 using QuestPDF.Fluent;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace EDGE.Application.UnitTests.Printing;
 
 public class StatementOfAccountReportTests
 {
-    public StatementOfAccountReportTests()
+    private readonly ITestOutputHelper _output;
+
+    public StatementOfAccountReportTests(ITestOutputHelper output)
     {
+        _output = output;
         // Configure QuestPDF community license for test run
         QuestPDF.Settings.License = QuestPDF.Infrastructure.LicenseType.Community;
         QuestPDF.Settings.EnableDebugging = true;
     }
 
+    [Fact]
+    public async System.Threading.Tasks.Task AllThree_AcroFormTemplates_FillAndFlattenSuccessfully()
+    {
+        var provider = new CloudflareR2PdfTemplateProvider(
+            Microsoft.Extensions.Options.Options.Create(new EDGE.Infrastructure.Options.CloudflareR2Options()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CloudflareR2PdfTemplateProvider>.Instance,
+            null);
+
+        // 1. Test filling Statement of Account AcroForm
+        var soaResource = await provider.GetTemplateResourceAsync("soa-report-template.pdf");
+        Assert.NotNull(soaResource);
+        using (var inMs = new MemoryStream())
+        {
+            await soaResource!.Stream.CopyToAsync(inMs);
+            var soaTemplateBytes = inMs.ToArray();
+
+            var soaModel = MockDataFactory.GetStatementOfAccountModel();
+
+            var filledSoaBytes = EDGE.Infrastructure.Printing.Services.AcroForm.StatementOfAccountAcroFormFiller.Fill(soaTemplateBytes, soaModel);
+
+            using (var filledReader = new iText.Kernel.Pdf.PdfReader(new MemoryStream(filledSoaBytes)))
+            using (var filledDoc = new iText.Kernel.Pdf.PdfDocument(filledReader))
+            {
+                var filledPage = filledDoc.GetPage(1);
+                var filledText = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(filledPage);
+                // Verify that checkboxes do not print literal "Yes"
+                Assert.DoesNotContain("Yes", filledText);
+            }
+
+            Assert.NotNull(filledSoaBytes);
+            Assert.True(filledSoaBytes.Length > 10000, "Filled SOA AcroForm should be substantial in size");
+            _output.WriteLine($"Successfully filled and flattened SOA! Output size: {filledSoaBytes.Length} bytes");
+        }
+
+        // 2. Test filling Order of Payment AcroForm
+        var opBytes = await provider.GetTemplateResourceAsync("order-of-payment-template.pdf");
+        Assert.NotNull(opBytes);
+        using (var inMs = new MemoryStream())
+        {
+            await opBytes!.Stream.CopyToAsync(inMs);
+            var opTemplateBytes = inMs.ToArray();
+
+            var opModel = MockDataFactory.GetOrderOfPaymentModel();
+            var filledOpBytes = EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(opTemplateBytes, opModel);
+
+            // Extract text from raw template
+            using var textReader = new iText.Kernel.Pdf.PdfReader(new MemoryStream(opTemplateBytes));
+            using var textDoc = new iText.Kernel.Pdf.PdfDocument(textReader);
+            var page = textDoc.GetPage(1);
+            var text = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page);
+            _output.WriteLine($"OP TEMPLATE RAW TEXT:\n{text}");
+
+            var inspectForm = iText.Forms.PdfAcroForm.GetAcroForm(textDoc, false);
+            if (inspectForm != null)
+            {
+                foreach (var field in inspectForm.GetAllFormFields().OrderBy(f => f.Key))
+                {
+                    var widgets = field.Value.GetWidgets();
+                    var rect = widgets.Count > 0 ? widgets[0].GetRectangle().ToRectangle() : null;
+                    _output.WriteLine($"OP FIELD: {field.Key,-25} | Rect: [x={rect?.GetX():F1}, y={rect?.GetY():F1}, w={rect?.GetWidth():F1}, h={rect?.GetHeight():F1}]");
+                }
+            }
+
+            Assert.NotNull(filledOpBytes);
+            Assert.True(filledOpBytes.Length > 10000, "Filled OP AcroForm should be substantial in size");
+            _output.WriteLine($"Successfully filled and flattened OP! Output size: {filledOpBytes.Length} bytes");
+        }
+
+        // 3. Test filling Official Receipt AcroForm
+        var orBytes = await provider.GetTemplateResourceAsync("or_portrait-template.pdf");
+        Assert.NotNull(orBytes);
+        using (var inMs = new MemoryStream())
+        {
+            await orBytes!.Stream.CopyToAsync(inMs);
+            var orTemplateBytes = inMs.ToArray();
+
+            var orModel = MockDataFactory.GetOfficialReceiptModel();
+            var filledOrBytes = EDGE.Infrastructure.Printing.Services.AcroForm.OfficialReceiptAcroFormFiller.Fill(orTemplateBytes, orModel);
+
+            Assert.NotNull(filledOrBytes);
+            Assert.True(filledOrBytes.Length > 10000, "Filled OR AcroForm should be substantial in size");
+            _output.WriteLine($"Successfully filled and flattened OR! Output size: {filledOrBytes.Length} bytes");
+        }
+    }
 
     [Fact]
     public void GeneratePdf_BlankTemplate_ProducesValidPdfBytes()
@@ -71,6 +160,213 @@ public class StatementOfAccountReportTests
         Assert.True(samplePdf.Length > 1000);
     }
 
+    [Fact]
+    public void StatementOfAccountPrintMapper_MapsRealEntityToPrintModel_Successfully()
+    {
+        // Arrange
+        var appId = System.Guid.NewGuid();
+        var soaId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ReferenceNumber = "REF-2026-NTC-001",
+            Intent = Domain.Enums.ApplicationIntent.Regular,
+            Status = Domain.Enums.ApplicationStatus.PendingPayment
+        };
+
+        var soa = new Domain.Entities.StatementOfAccount
+        {
+            Id = soaId,
+            ApplicationId = appId,
+            SoaNumber = "SOA-2026-00991",
+            IssuedToName = "Northern Telecoms Inc.",
+            DueDate = System.DateTime.UtcNow.AddDays(30),
+            Status = Domain.Enums.SoaStatus.Approved,
+            TotalAmount = 3500.00m,
+            LineItems = new System.Collections.Generic.List<Domain.Entities.SoaLineItem>
+            {
+                new() { ItemCode = "4-02-01-010", Particular = "Permit to Purchase", Amount = 500.00m, ValidityYears = 1, NoOfUnits = 1 },
+                new() { ItemCode = "4-02-01-060", Particular = "Radio Station License", Amount = 2400.00m, ValidityYears = 2, NoOfUnits = 1 },
+                new() { ItemCode = "4-01-04-010", Particular = "Documentary Stamp Tax (DST)", Amount = 30.00m, ValidityYears = 0, NoOfUnits = 1 },
+                new() { ItemCode = "9-99-99-999", Particular = "Custom Special Processing", Amount = 570.00m, ValidityYears = 1, NoOfUnits = 1 }
+            }
+        };
+
+        // Act
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa, app);
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+
+        // Assert
+        Assert.Equal("Northern Telecoms Inc.", model.PayorName);
+        Assert.Equal("REF-2026-NTC-001", model.Particular1Header);
+        Assert.Equal("SOA-2026-00991", model.AccountNo);
+        Assert.True(model.IsEndorsedForPayment);
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void GeneratePdf_OverlayMode_ProducesValidPdfBytes()
+    {
+        // Arrange
+        var model = MockDataFactory.GetStatementOfAccountModel();
+        model.IsAccountableFormOverlay = true;
+        var report = new StatementOfAccountReport(model);
+
+        // Act
+        byte[] pdfBytes = report.GeneratePdf();
+
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_MapsFromOrderOfPayment_WhenSoaIsNull()
+    {
+        // Arrange: Application has Order of Payment but no Statement of Account record
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ReferenceNumber = "REF-2026-NTC-999",
+            Status = Domain.Enums.ApplicationStatus.PendingPayment,
+            User = new Domain.Entities.User
+            {
+                FirstName = "Maria",
+                LastName = "Santos"
+            }
+        };
+
+        var op = new Domain.Entities.OrderOfPayment
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationId = appId,
+            OpNumber = "61-2026-07-9999",
+            AmountDue = 1500.00m,
+            OfficialReceiptNumber = "OR-2026-7788",
+            AmountReceived = 1500.00m,
+            PaidAt = System.DateTime.UtcNow
+        };
+
+        // Act: Map with soa = null, using op as reference
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: null, app: app, op: op);
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+
+        // Assert
+        Assert.Equal("Maria Santos", model.PayorName);
+        Assert.Equal("SOA-REF-2026-NTC-999", model.AccountNo);
+        Assert.True(model.IsEndorsedForPayment);
+        Assert.Equal("OR-2026-7788", model.OrNo);
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_ResolvesLastEvaluator_InMultiEvaluatorChain()
+    {
+        // Arrange
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Status = Domain.Enums.ApplicationStatus.ForAccountant,
+            Histories = new System.Collections.Generic.List<Domain.Entities.ApplicationHistory>
+            {
+                new()
+                {
+                    StaffName = "Engr. Initial Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Initial Assessment",
+                    ToStatus = Domain.Enums.ApplicationStatus.Evaluating,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-3)
+                },
+                new()
+                {
+                    StaffName = "Engr. Final Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Assessment Approved for Accountant",
+                    ToStatus = Domain.Enums.ApplicationStatus.ForAccountant,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-1)
+                }
+            }
+        };
+
+        var soa = new Domain.Entities.StatementOfAccount
+        {
+            ApplicationId = appId,
+            SoaNumber = "SOA-2026-MULTI-01",
+            Status = Domain.Enums.SoaStatus.Pending,
+            DueDate = System.DateTime.UtcNow.AddDays(15)
+        };
+
+        var signatories = new EDGE.Application.Applications.Dtos.RegionalSignatoriesDto
+        {
+            ChiefEodName = "Engr. Roberto Chief",
+            ChiefEodTitle = "Chief, Enforcement & Operations Division",
+            RegionCode = "R10",
+            RegionName = "Region X"
+        };
+
+        // Act
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: signatories);
+
+        // Assert: Prepared by should be the last evaluator (Engr. Final Evaluator)
+        Assert.Equal("Engr. Final Evaluator", model.PreparedByName);
+        Assert.Equal("Engr. Roberto Chief", model.ApprovedByName);
+        Assert.Contains("Chief", model.ApprovedByTitle);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_FallsBackToRegionalDirector_WhenNoChiefInRegion()
+    {
+        // Arrange: Region has NO Chief of EOD, only Regional Director
+        var appId = System.Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Status = Domain.Enums.ApplicationStatus.ForAccountant,
+            Histories = new System.Collections.Generic.List<Domain.Entities.ApplicationHistory>
+            {
+                new()
+                {
+                    StaffName = "Engr. Solo Evaluator",
+                    StaffRole = "Evaluating Officer",
+                    Action = "Evaluation Completed",
+                    ToStatus = Domain.Enums.ApplicationStatus.ForAccountant,
+                    Timestamp = System.DateTime.UtcNow.AddHours(-2)
+                }
+            }
+        };
+
+        var soa = new Domain.Entities.StatementOfAccount
+        {
+            ApplicationId = appId,
+            SoaNumber = "SOA-2026-FALLBACK-01",
+            Status = Domain.Enums.SoaStatus.Pending,
+            DueDate = System.DateTime.UtcNow.AddDays(15)
+        };
+
+        var signatories = new EDGE.Application.Applications.Dtos.RegionalSignatoriesDto
+        {
+            ChiefEodName = null, // No Chief in this region!
+            ChiefEodTitle = null,
+            RegionalDirectorName = "Dir. Teodoro Regional",
+            RegionalDirectorTitle = "Regional Director",
+            RegionCode = "R07",
+            RegionName = "Region VII"
+        };
+
+        // Act
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: signatories);
+
+        // Assert: Automatically defaults to Regional Director
+        Assert.Equal("Engr. Solo Evaluator", model.PreparedByName);
+        Assert.Equal("Dir. Teodoro Regional", model.ApprovedByName);
+        Assert.Contains("Regional Director", model.ApprovedByTitle);
+    }
+
     private static void SavePdfToTemp(string filename, byte[] bytes)
     {
         string tempDir = Path.Combine(System.AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Temp");
@@ -79,4 +375,31 @@ public class StatementOfAccountReportTests
             File.WriteAllBytes(Path.Combine(tempDir, filename), bytes);
         }
     }
+    [Fact]
+    public void StatementOfAccountPrintMapper_ParticularIsApplicationOrLicenseNumber()
+    {
+        var appWithLicense = new Domain.Entities.Application
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-8888",
+            ReferenceNumber = "REF-2026-9999",
+            IssuedDocumentDetails = new System.Collections.Generic.List<Domain.Entities.IssuedDocumentDetail>
+            {
+                new() { LicenseNumber = "RSL-2026-0042", FormNumber = "FORM-123" }
+            }
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(null, appWithLicense);
+        Assert.Equal("RSL-2026-0042", model.Particular1Header);
+
+        var appWithAppNumber = new Domain.Entities.Application
+        {
+            Id = System.Guid.NewGuid(),
+            ApplicationNumber = "APP-2026-8888",
+            ReferenceNumber = "REF-2026-9999"
+        };
+        var model2 = StatementOfAccountPrintMapper.MapToPrintModel(null, appWithAppNumber);
+        Assert.Equal("APP-2026-8888", model2.Particular1Header);
+    }
+
 }

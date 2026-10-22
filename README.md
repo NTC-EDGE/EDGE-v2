@@ -22,7 +22,7 @@ EDGE-v2/
 ### Prerequisites
 
 - [Bun](https://bun.sh/) (v1.0+)
-- [Node.js](https://nodejs.org/) (v18+)
+- [Node.js](https://nodejs.org/) (v24.22.1+ LTS)
 - [.NET SDK](https://dotnet.microsoft.com/download) (for C# backends)
 
 ### Installation
@@ -77,6 +77,7 @@ Run the internal cross-platform app using these scripts at the root level:
 - **Run on Web**:
   ```bash
   bun internal:web
+  bun run internal:start -- --port 8082
   ```
 - **Build Web Bundle**:
   ```bash

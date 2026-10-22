@@ -11,6 +11,7 @@ import {
   downloadCsvFile,
   parseSpreadsheetContent,
 } from "../../../../shared/spreadsheet";
+import { ExamScheduleCard, isScheduleOpenForFiling } from "../../../../shared/components/ExamScheduleCard";
 
 interface ExamSteps1To2Props {
   step: number;
@@ -63,6 +64,10 @@ export function ExamSteps1To2({
   handleMockCSVUpload,
   setExamApplicants,
 }: ExamSteps1To2Props) {
+  const selectedRegionName = tenants.find((t) => t.id === selectedRegionId)?.name;
+  const hasOpenSchedule = schedules.some((s) => isScheduleOpenForFiling(s));
+  const selectedSchedule = schedules.find((s) => s.id === selectedScheduleId);
+  const isSelectedOpen = selectedSchedule ? isScheduleOpenForFiling(selectedSchedule) : false;
   const [uploadLoading, setUploadLoading] = useState(false);
 
   const examService = {
@@ -125,20 +130,29 @@ export function ExamSteps1To2({
           const mappedExams = parseResult.applicants.map((app, idx) => ({
             id: idx + 1,
             firstName: app.firstName || `Examinee ${idx + 1}`,
+            middleName: app.middleName || "",
             lastName: app.lastName || "Applicant",
-            email: app.email,
-            contactNo: app.contactNo,
-            address: app.address,
-            birthMonth: app.birthMonth,
-            birthDay: app.birthDay,
-            birthYear: app.birthYear,
-            notes: app.notes,
-            examType: "Radiotelephony",
-            examineeType: "FirstTaker",
-            selectedOption: "1PHN - Elements 1, 2, 3 & 4",
-            schoolAttended: "NTC Certified Training Center",
-            specialAssistance: false,
-            specialAssistanceType: "",
+            suffix: app.suffix || "",
+            birthMonth: app.birthMonth || "January",
+            birthDay: app.birthDay || "1",
+            birthYear: app.birthYear || "2000",
+            sex: (app.sex?.toLowerCase() === "female" ? "Female" : "Male"),
+            nationality: app.nationality || "Filipino",
+            regionName: app.region || "National Capital Region (NCR)",
+            province: app.province || "",
+            city: app.city || "",
+            barangay: app.barangay || "",
+            street: app.street || app.address || "",
+            zipCode: app.zipCode || "",
+            schoolName: app.schoolName || "",
+            courseDegree: app.courseDegree || "",
+            yearGraduated: app.yearGraduated || "",
+            specialOrderNo: app.specialOrderNo || "",
+            email: app.email || "",
+            contactNo: app.contactNo || "",
+            examType: app.examType || "Radiotelephony",
+            examineeType: app.examineeType || "First Taker",
+            selectedOption: app.selectedOption || "1PHN - Elements 1, 2, 3 & 4",
             uploads: {},
           }));
           setExamApplicants(mappedExams);
@@ -163,90 +177,130 @@ export function ExamSteps1To2({
 
   if (step === 1) {
     return (
-      <View>
-        <Text style={styles.stepSubtitle}>Select from which region you intend to apply:</Text>
+      <View style={{ gap: 16 }}>
+        {/* Region & Office Card */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionHeading}>Region & Office Selection</Text>
+          <Text style={styles.stepSubtitle}>Select from which region you intend to apply:</Text>
 
-        <Text style={styles.selectLabel}>Region</Text>
-        <Select
-          placeholder={loadingTenants ? "Loading Regions..." : "Region"}
-          value={selectedRegionId}
-          onValueChange={(val: string) => {
-            setSelectedRegionId(val);
-            setSelectedOfficeId("");
-          }}
-          options={tenants.map((t) => ({ label: t.name, value: t.id }))}
-        />
+          <Text style={styles.selectLabel}>Region</Text>
+          <Select
+            placeholder={loadingTenants ? "Loading Regions..." : "Region"}
+            value={selectedRegionId}
+            onValueChange={(val: string) => {
+              setSelectedRegionId(val);
+              setSelectedOfficeId("");
+            }}
+            options={tenants.map((t) => ({ label: t.name, value: t.id }))}
+          />
 
-        <Text style={styles.selectLabel}>Select Office:</Text>
-        <Select
-          placeholder={loadingOffices ? "Loading Offices..." : "Offices*"}
-          value={selectedOfficeId}
-          onValueChange={(val: string) => setSelectedOfficeId(val)}
-          options={offices.map((o) => ({ label: o.name, value: o.id }))}
-        />
+          <Text style={styles.selectLabel}>Select Office:</Text>
+          <Select
+            placeholder={loadingOffices ? "Loading Offices..." : "Offices*"}
+            value={selectedOfficeId}
+            onValueChange={(val: string) => setSelectedOfficeId(val)}
+            options={offices.map((o) => ({ label: o.name, value: o.id }))}
+          />
+        </View>
 
-        <Text style={styles.selectLabel}>Select how you would like to process your application:</Text>
-        <Select
-          placeholder="Application Mode"
-          value={appMode}
-          onValueChange={(val: string) => setAppMode(val as "SINGLE" | "BULK")}
-          options={[
-            { label: "Single Application", value: "SINGLE" },
-            { label: "Bulk Application", value: "BULK" },
-          ]}
-        />
+        {/* Application Mode Card */}
+        <View style={styles.formSection}>
+          <Text style={styles.formSectionHeading}>Application Mode</Text>
+          <Text style={styles.selectLabel}>Select how you would like to process your application:</Text>
+          <Select
+            placeholder="Application Mode"
+            value={appMode}
+            onValueChange={(val: string) => setAppMode(val as "SINGLE" | "BULK")}
+            options={[
+              { label: "Single Application", value: "SINGLE" },
+              { label: "Bulk Application", value: "BULK" },
+            ]}
+          />
 
-        {appMode === "BULK" && (
-          <View style={[styles.alertContainer, { marginTop: 20 }]}>
-            <Icon name="info" size={16} color={COLORS.brand[700]} />
-            <Text style={styles.alertText}>
-              <Text style={{ fontWeight: "700" }}>Bulk Filing Workflow Mode Engaged{"\n"}</Text>
-              After setting up the regional and office pathways, click Next to choose your document upload workspace method.
-            </Text>
+          {appMode === "BULK" && (
+            <View style={[styles.alertContainer, { marginTop: 16 }]}>
+              <Icon name="info" size={16} color={COLORS.brand[700]} />
+              <Text style={styles.alertText}>
+                <Text style={{ fontWeight: "700" }}>Bulk Filing Workflow Mode Engaged{"\n"}</Text>
+                After setting up the regional and office pathways, click Next to choose your document upload workspace method.
+              </Text>
+            </View>
+          )}
+        </View>
+
+        {/* Scheduled Dates Card */}
+        <View style={styles.formSection}>
+          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+            <Text style={styles.formSectionHeading}>Scheduled Exam Dates*</Text>
+            {selectedScheduleId && isSelectedOpen ? (
+              <View style={{ backgroundColor: "#DCFCE7", borderColor: "#16A34A", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="check" size={12} color="#16A34A" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#16A34A" }}>Schedule Selected</Text>
+              </View>
+            ) : schedules.length > 0 && !hasOpenSchedule ? (
+              <View style={{ backgroundColor: "#FEF3C7", borderColor: "#F59E0B", borderWidth: 1, paddingHorizontal: 8, paddingVertical: 2, borderRadius: 12, flexDirection: "row", alignItems: "center", gap: 4 }}>
+                <Icon name="clock" size={12} color="#B45309" />
+                <Text style={{ fontSize: 11, fontWeight: "700", color: "#B45309" }}>Upcoming Schedule(s)</Text>
+              </View>
+            ) : (
+              <Text style={{ fontSize: 11, fontStyle: "italic", color: "#E11D48" }}>* Selection required</Text>
+            )}
           </View>
-        )}
-
-        <Text style={styles.scheduleTitle}>Scheduled Dates</Text>
-        {loadingSchedules ? (
-          <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>Loading schedules...</Text>
-        ) : schedules.length === 0 ? (
-          <Text style={{ marginVertical: 10, color: COLORS.neutral[500] }}>No schedules available for the selected region.</Text>
-        ) : (
-          schedules.map((sched, index) => {
-            const isSelected = selectedScheduleId === sched.id;
-            const d = new Date(sched.scheduledDate);
-            const dateStr = !isNaN(d.getTime()) 
-              ? d.toLocaleDateString('en-US', { weekday: 'short', day: '2-digit', month: 'long', year: 'numeric' })
-              : sched.scheduledDate;
-            
-            return (
-              <TouchableOpacity
-                key={sched.id || index}
-                onPress={() => setSelectedScheduleId(sched.id)}
-                style={[styles.dateCard, isSelected && styles.dateCardSelected]}
+          {loadingSchedules ? (
+            <View style={{ padding: 20, alignItems: "center", justifyContent: "center", gap: 8 }}>
+              <ActivityIndicator size="small" color="#0F2C59" />
+              <Text style={{ color: COLORS.neutral[600], fontSize: 13 }}>Checking available examination schedules...</Text>
+            </View>
+          ) : schedules.length === 0 ? (
+            <View
+              style={{
+                padding: 16,
+                backgroundColor: "#FFFBEB",
+                borderWidth: 1,
+                borderColor: "#FDE68A",
+                borderRadius: 10,
+                marginVertical: 8,
+                flexDirection: "row",
+                alignItems: "flex-start",
+                gap: 12,
+              }}
+            >
+              <View
+                style={{
+                  width: 36,
+                  height: 36,
+                  borderRadius: 18,
+                  backgroundColor: "#FEF3C7",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginTop: 2,
+                }}
               >
-                <View style={styles.dateItem}>
-                  <Icon name="calendar" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>DATE: {dateStr}</Text>
-                </View>
-                <View style={styles.dateItem}>
-                  <Icon name="clock" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>TIME: {sched.startTime || 'TBA'} - {sched.endTime || 'TBA'}</Text>
-                </View>
-                <View style={styles.dateItem}>
-                  <Icon name="map-pin" size={16} color={COLORS.brand[600]} />
-                  <Text style={styles.dateText}>VENUE: {sched.venue || "NTC Office"}</Text>
-                </View>
-                {sched.maximumSlots !== null && sched.maximumSlots !== undefined && (
-                  <View style={styles.dateItem}>
-                    <Icon name="users" size={16} color={COLORS.brand[600]} />
-                    <Text style={styles.dateText}>SLOTS: {sched.maximumSlots} Maximum Slots</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })
-        )}
+                <Icon name="calendar" size={18} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: "#92400E", fontSize: 14, fontWeight: "700", marginBottom: 4 }}>
+                  No Open Examination Schedule
+                </Text>
+                <Text style={{ color: "#B45309", fontSize: 13, lineHeight: 18 }}>
+                  There are currently no active or upcoming exam schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon for newly published exam dates.
+                </Text>
+              </View>
+            </View>
+          ) : (
+            <View style={{ gap: 4 }}>
+              {schedules.map((sched, index) => (
+                <ExamScheduleCard
+                  key={sched.id || String(index)}
+                  schedule={sched}
+                  isSelected={selectedScheduleId === sched.id}
+                  onSelect={(id) => setSelectedScheduleId(id)}
+                  fallbackRegionName={selectedRegionName}
+                />
+              ))}
+            </View>
+          )}
+        </View>
       </View>
     );
   }
@@ -304,17 +358,21 @@ export function ExamSteps1To2({
               </Text>
               <View style={styles.table}>
                 <View style={styles.tableHeaderRow}>
-                  <Text style={styles.tableCellHeader}>A (Exam Type)</Text>
-                  <Text style={styles.tableCellHeader}>B (Examinee Type)</Text>
-                  <Text style={styles.tableCellHeader}>C (Option Class)</Text>
-                  <Text style={styles.tableCellHeader}>... 8 more columns</Text>
+                  {templateConfig.headers.slice(0, 5).map((h, idx) => (
+                    <Text key={idx} style={styles.tableCellHeader} numberOfLines={1}>
+                      {h}
+                    </Text>
+                  ))}
                 </View>
-                <View style={styles.tableRow}>
-                  <Text style={styles.tableCell}>examType.value</Text>
-                  <Text style={styles.tableCell}>examineeType.value</Text>
-                  <Text style={styles.tableCell}>selectedOption.value</Text>
-                  <Text style={styles.tableCell}>(Mapping path row)</Text>
-                </View>
+                {templateConfig.sampleRows.slice(0, 2).map((row, rIdx) => (
+                  <View key={rIdx} style={styles.tableRow}>
+                    {row.slice(0, 5).map((c, cIdx) => (
+                      <Text key={cIdx} style={styles.tableCell} numberOfLines={1}>
+                        {c}
+                      </Text>
+                    ))}
+                  </View>
+                ))}
               </View>
             </View>
 

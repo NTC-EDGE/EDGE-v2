@@ -22,6 +22,7 @@ public class StatementOfAccountFeeDetail
     public string? Percent { get; set; }
     public string? NoOfUnits { get; set; }
     public decimal? Fees { get; set; }
+    public decimal? Amount { get; set; }
 }
 
 /// <summary>
@@ -43,9 +44,15 @@ public class StatementOfAccountItem
         {
             decimal sum = 0;
             bool hasValue = false;
-            if (Particular1.Fees.HasValue) { sum += Particular1.Fees.Value; hasValue = true; }
-            if (Particular2.Fees.HasValue) { sum += Particular2.Fees.Value; hasValue = true; }
-            if (Particular3.Fees.HasValue) { sum += Particular3.Fees.Value; hasValue = true; }
+            if (Particular1.Amount.HasValue) { sum += Particular1.Amount.Value; hasValue = true; }
+            else if (Particular1.Fees.HasValue) { sum += Particular1.Fees.Value; hasValue = true; }
+
+            if (Particular2.Amount.HasValue) { sum += Particular2.Amount.Value; hasValue = true; }
+            else if (Particular2.Fees.HasValue) { sum += Particular2.Fees.Value; hasValue = true; }
+
+            if (Particular3.Amount.HasValue) { sum += Particular3.Amount.Value; hasValue = true; }
+            else if (Particular3.Fees.HasValue) { sum += Particular3.Fees.Value; hasValue = true; }
+
             return hasValue ? sum : null;
         }
     }
@@ -115,6 +122,9 @@ public class StatementOfAccountModel
     // Remarks
     public string Remarks { get; set; } = "1) Use additional sheets, if necessary to show detailed computation\n2) Payment should be in cash or checks in the form of managers/cashiers check;\nDemand draft check or postal money order payable to NTC 10, FAO Bureau of Treasury.";
 
+    public string MonthOf { get; set; } = string.Empty;
+    public bool IsAccountableFormOverlay { get; set; }
+
     public decimal? TotalAmount
     {
         get
@@ -149,13 +159,11 @@ public class StatementOfAccountModel
             new() { Code = "4-02-01-010", Description = "Construction Permit Fee", Category = SoaCategory.Licenses },
             new() { Code = "4-02-01-060", Description = "Radio Station License", Category = SoaCategory.Licenses },
             new() { Code = "4-02-01-100", Description = "Inspection Fee", Category = SoaCategory.Licenses },
-            new() { Code = "4-02-01-080", Description = "Spectrum User's Fee(SUF)", Category = SoaCategory.Licenses },
+            new() { Code = "4-02-01-080", Description = "Spectrum User's Fee (SUF)", Category = SoaCategory.Licenses },
             new() { Code = "4-02-01-140", Description = "Fines/Penalties/Surcharges\n(SUR)Radio Station License\n(SUR)Spectrum User's Fee (SUF)", Category = SoaCategory.Licenses },
 
             // FOR PERMITS
-            new() { Code = "4-02-01-010", Description = "Permit Fees", Category = SoaCategory.Permits },
-            new() { Code = "4-02-01-080", Description = "Permit to Purchase", Category = SoaCategory.Permits },
-            new() { Code = "4-02-01-010", Description = "Permit to Possess", Category = SoaCategory.Permits },
+            new() { Code = "4-02-01-010", Description = "Permit Fees (Dealers/Reseller/Service Center/Sell/ Transfer/REC/Import)", Category = SoaCategory.Permits },
             new() { Code = "4-02-01-100", Description = "Inspection Fee", Category = SoaCategory.Permits },
             new() { Code = "4-02-01-130", Description = "Filling Fee", Category = SoaCategory.Permits },
             new() { Code = "4-02-01-140", Description = "Fines/Penalties/Surcharges", Category = SoaCategory.Permits },
@@ -163,21 +171,20 @@ public class StatementOfAccountModel
             // FOR AMATUER AND ROC
             new() { Code = "4-02-01-060", Description = "Radio Station License", Category = SoaCategory.AmateurRoc },
             new() { Code = "4-02-01-060", Description = "Radio Operator's Cert.", Category = SoaCategory.AmateurRoc },
-            new() { Code = "4-02-01-130", Description = "Filing Fee", Category = SoaCategory.AmateurRoc },
-            new() { Code = "4-02-01-130", Description = "Application Fee", Category = SoaCategory.AmateurRoc },
+            new() { Code = "4-02-01-130", Description = "Application Fee/Filing Fee", Category = SoaCategory.AmateurRoc },
             new() { Code = "4-02-02-040", Description = "Seminar Fee", Category = SoaCategory.AmateurRoc },
-            new() { Code = "4-02-01-140", Description = "Fines/Penalties/Surcharges\n(SUR)Radio Station License\n(SUR)Radio Operator's Cert.", Category = SoaCategory.AmateurRoc },
+            new() { Code = "4-02-01-140", Description = "Fines/Penalties/Surcharges\n(SUR)Radio Station License :\nTO\n(SUR)Radio Operator's Cert. :\nTO", Category = SoaCategory.AmateurRoc },
 
             // OTHER APPLICATION
             new() { Code = "4-02-01-020", Description = "Registration Fee", Category = SoaCategory.OtherApplication },
             new() { Code = "4-02-01-070", Description = "Supervision & Regulation Fee", Category = SoaCategory.OtherApplication },
-            new() { Code = "4-02-01-110", Description = "Verification Fee & Authentication Fees", Category = SoaCategory.OtherApplication },
+            new() { Code = "4-02-01-040", Description = "Verification Fee & Authentication Fees", Category = SoaCategory.OtherApplication },
             new() { Code = "4-02-01-030", Description = "Examination Fee", Category = SoaCategory.OtherApplication },
             new() { Code = "4-02-01-040", Description = "Clearance/Certification Fee", Category = SoaCategory.OtherApplication },
             new() { Code = "4-02-01-060", Description = "Modification Fee", Category = SoaCategory.OtherApplication },
-            new() { Code = "4-02-01-990", Description = "Miscellaneous Income\n(DUPLICATE)", Category = SoaCategory.OtherApplication },
+            new() { Code = "4-02-01-990", Description = "Miscellaneous Income", Category = SoaCategory.OtherApplication },
             new() { Code = "4-01-04-010", Description = "Documentary Stamp Tax (DST)", Category = SoaCategory.OtherApplication },
-            new() { Code = "", Description = "Others", Category = SoaCategory.OtherApplication }
+            new() { Code = "", Description = "Others (PENALTY FOR LATE DELIVERY)", Category = SoaCategory.OtherApplication }
         };
     }
 }

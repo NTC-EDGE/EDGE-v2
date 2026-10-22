@@ -1,0 +1,1541 @@
+import React, { useState, useEffect } from 'react';
+import {
+  StyleSheet,
+  View,
+  Text,
+  Modal,
+  ScrollView,
+  TouchableOpacity,
+  Platform,
+  TextInput,
+} from 'react-native';
+import { Icon as Lucide, useTheme } from '@edge/ui';
+import { OfficialReceiptDto, receiptService } from '@edge/api';
+import {
+  PrintOutputMode,
+  loadUserReportPrintConfig,
+  saveUserReportPrintConfig,
+} from '../../queue/types/documentPrintTypes';
+import {
+  generateOfficialReceiptPrintHtml,
+  OfficialReceiptPrintOptions,
+} from '../utils/officialReceiptPrintGenerator';
+import { openDocumentPrintWindow } from '../../queue/utils/documentPrintGenerator';
+
+interface ReceiptPrintPreviewModalProps {
+  visible: boolean;
+  receipt: OfficialReceiptDto | null;
+  onClose: () => void;
+  userId?: string | null;
+}
+
+export function ReceiptPrintPreviewModal({
+  visible,
+  receipt,
+  onClose,
+  userId = null,
+}: ReceiptPrintPreviewModalProps) {
+  const { colors } = useTheme();
+
+  const [viewFormat, setViewFormat] = useState<'pdf' | 'physical'>('pdf');
+  const [outputMode, setOutputMode] = useState<PrintOutputMode>('plain_paper');
+  const [offsetX, setOffsetX] = useState<number>(0);
+  const [offsetY, setOffsetY] = useState<number>(0);
+  const [showCalibrationSettings, setShowCalibrationSettings] = useState<boolean>(false);
+  const [isSavedFeedback, setIsSavedFeedback] = useState<boolean>(false);
+  const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
+  const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
+  const [pdfBlobUrl, setPdfBlobUrl] = useState<string | null>(null);
+  const [isLoadingPdf, setIsLoadingPdf] = useState<boolean>(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [reloadKey, setReloadKey] = useState<number>(0);
+
+  useEffect(() => {
+    if (visible) {
+      setViewFormat('pdf');
+      setOrTemplate('landscape');
+      setShowActionMenu(false);
+      const savedConfig = loadUserReportPrintConfig('AF-51', userId);
+      if (savedConfig !== null && savedConfig !== undefined) {
+        if (savedConfig.outputMode !== null && savedConfig.outputMode !== undefined) {
+          setOutputMode(savedConfig.outputMode);
+        }
+        if (savedConfig.calibration !== null && savedConfig.calibration !== undefined) {
+          setOffsetX(savedConfig.calibration.offsetXmm || 0);
+          setOffsetY(savedConfig.calibration.offsetYmm || 0);
+        }
+      }
+    }
+  }, [visible, userId]);
+
+  useEffect(() => {
+    let active = true;
+    let createdUrl: string | null = null;
+
+    if (visible && receipt && Platform.OS === 'web' && viewFormat === 'pdf' && typeof receipt.id === 'string' && receipt.id.trim().length > 0) {
+      setIsLoadingPdf(true);
+      setPdfError(null);
+      setPdfBlobUrl(null);
+
+      const loadBlob = async () => {
+        try {
+          const [blob, err] = await receiptService.previewReceiptPdf(receipt.id, orTemplate);
+
+          if (!active) return;
+
+          if (err !== null || blob === null) {
+            const errDetail = typeof err === 'string' && err.trim().length > 0
+              ? err
+              : 'Unable to load official OR PDF template.';
+            setPdfError(errDetail);
+            setIsLoadingPdf(false);
+            return;
+          }
+
+          if (typeof window !== 'undefined') {
+            createdUrl = window.URL.createObjectURL(blob);
+            setPdfBlobUrl(createdUrl);
+            setIsLoadingPdf(false);
+          }
+        } catch (fetchErr: unknown) {
+          if (!active) return;
+          const errorMessage = fetchErr instanceof Error ? fetchErr.message : 'Error loading official OR PDF';
+          setPdfError(errorMessage);
+          setIsLoadingPdf(false);
+        }
+      };
+
+      void loadBlob();
+    } else {
+      setIsLoadingPdf(false);
+      setPdfError(null);
+    }
+
+    return () => {
+      active = false;
+      if (createdUrl !== null && typeof window !== 'undefined') {
+        window.URL.revokeObjectURL(createdUrl);
+      }
+    };
+  }, [visible, receipt?.id, viewFormat, reloadKey, orTemplate]);
+
+  useEffect(() => {
+    if (!showActionMenu) return;
+    const handleOutsideClick = () => {
+      setShowActionMenu(false);
+    };
+    if (typeof window !== 'undefined') {
+      const timer = setTimeout(() => {
+        window.addEventListener('click', handleOutsideClick);
+        window.addEventListener('blur', handleOutsideClick);
+      }, 50);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('click', handleOutsideClick);
+        window.removeEventListener('blur', handleOutsideClick);
+      };
+    }
+  }, [showActionMenu]);
+
+  if (receipt === null) return null;
+
+  const handleSaveCalibration = () => {
+    saveUserReportPrintConfig(
+      'AF-51',
+      {
+        paperSize: 'letter',
+        outputMode,
+        orientation: 'portrait',
+        offsetXmm: offsetX,
+        offsetYmm: offsetY,
+      },
+      userId
+    );
+    setIsSavedFeedback(true);
+    setTimeout(() => {
+      setIsSavedFeedback(false);
+    }, 2000);
+  };
+
+  const handlePrint = async () => {
+    if (viewFormat === 'pdf') {
+      try {
+        const [pdfBlob, err] = await receiptService.previewReceiptPdf(receipt.id, orTemplate);
+        if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
+          const blobUrl = window.URL.createObjectURL(pdfBlob);
+          const printWindow = window.open(blobUrl, '_blank');
+          if (printWindow !== null) {
+            printWindow.focus();
+            return;
+          }
+        }
+      } catch (err: unknown) {
+        console.warn('Direct blob fetch failed, falling back to direct URL open:', err);
+      }
+
+      const url = receiptService.getReceiptPrintUrl(receipt.id, orTemplate);
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+    }
+
+    const printOptions: OfficialReceiptPrintOptions = {
+      outputMode,
+      paperSize: 'letter',
+      orientation: orTemplate === 'landscape' ? 'landscape' : 'portrait',
+      calibration: {
+        offsetXmm: offsetX,
+        offsetYmm: offsetY,
+        scalePercent: 100,
+      },
+      collectingOfficerName: receipt.issuedByUserName ?? undefined,
+      agencyOffice: 'National Telecommunications Commission',
+    };
+
+    const html = generateOfficialReceiptPrintHtml(receipt, printOptions);
+    openDocumentPrintWindow(html);
+  };
+
+  const handleDownloadPdf = (targetTemplate?: 'portrait' | 'landscape') => {
+    const chosenTemplate = targetTemplate || orTemplate;
+    const url = receiptService.getReceiptDownloadUrl(receipt.id, chosenTemplate);
+    if (Platform.OS === 'web' && typeof window !== 'undefined') {
+      window.open(url, '_blank');
+    }
+  };
+
+  const isStatusCancelled = (statusVal: unknown): boolean => {
+    if (typeof statusVal === 'string') return statusVal.toLowerCase() === 'cancelled';
+    if (typeof statusVal === 'number') return statusVal === 2;
+    return false;
+  };
+
+  const isCancelled = isStatusCancelled(receipt.status);
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <View style={styles.overlay}>
+        <View style={[styles.container, { backgroundColor: colors.cardBg }]}>
+          {/* Header Bar */}
+          <View style={[styles.header, { borderBottomColor: colors.border }]}>
+            <View style={styles.titleRow}>
+              <Lucide name="printer" size={20} color={colors.brand.primary} />
+              <View style={styles.titleTextContainer}>
+                <Text style={[styles.title, { color: colors.text }]} numberOfLines={1}>
+                  Official Receipt Print Center
+                </Text>
+                <Text style={styles.subtitle} numberOfLines={1}>
+                  Accountable Form No. 51 • #{receipt.officialReceiptNumber}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.headerActions}>
+              {Platform.OS === 'web' && (
+                <View style={styles.formatSwitcher}>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'pdf' && styles.formatBtnActive]}
+                    onPress={() => {
+                      setViewFormat('pdf');
+                      setShowActionMenu(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Lucide
+                      name="file-text"
+                      size={13}
+                      color={viewFormat === 'pdf' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.formatBtnText,
+                        viewFormat === 'pdf' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      PDF Template
+                    </Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.formatBtn, viewFormat === 'physical' && styles.formatBtnActive]}
+                    onPress={() => {
+                      setViewFormat('physical');
+                      setShowActionMenu(false);
+                    }}
+                    activeOpacity={0.8}
+                  >
+                    <Lucide
+                      name="copy"
+                      size={13}
+                      color={viewFormat === 'physical' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.formatBtnText,
+                        viewFormat === 'physical' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Physical Form
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowActionMenu(false);
+                  handlePrint();
+                }}
+                style={[styles.printHeaderBtn, { backgroundColor: colors.brand.primary }]}
+                activeOpacity={0.8}
+              >
+                <Lucide name="printer" size={15} color="#fff" />
+                <Text style={styles.printHeaderBtnText}>Print</Text>
+              </TouchableOpacity>
+
+              {/* 3-Dots More Options Menu Button */}
+              <TouchableOpacity
+                onPress={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                  setShowActionMenu((prev) => !prev);
+                }}
+                style={[
+                  styles.menuTriggerBtn,
+                  showActionMenu && styles.menuTriggerBtnActive,
+                ]}
+                activeOpacity={0.8}
+                accessibilityLabel="More options"
+              >
+                <Lucide name="more-vertical" size={17} color={colors.neutral[700]} />
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={() => {
+                  setShowActionMenu(false);
+                  onClose();
+                }}
+                style={styles.closeBtn}
+                activeOpacity={0.8}
+              >
+                <Lucide name="x" size={20} color={colors.neutral[700]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Dropdown Menu from 3-Dots */}
+            {showActionMenu && (
+              <View
+                style={styles.dropdownMenu}
+                onTouchStart={(e) => {
+                  if ('stopPropagation' in e && typeof e.stopPropagation === 'function') {
+                    e.stopPropagation();
+                  }
+                }}
+              >
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadPdf('landscape');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="layout" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Download Landscape (AF-51)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Accountable Form 51 wide vector template</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    handleDownloadPdf('portrait');
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="file-text" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>Download Portrait (Standard)</Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>Accountable Form 51 standard template</Text>
+                  </View>
+                </TouchableOpacity>
+
+                <View style={styles.dropdownDivider} />
+
+                <TouchableOpacity
+                  style={styles.dropdownMenuItem}
+                  onPress={() => {
+                    setShowActionMenu(false);
+                    if (viewFormat !== 'physical') {
+                      setViewFormat('physical');
+                    }
+                    setShowCalibrationSettings((prev) => !prev);
+                  }}
+                  activeOpacity={0.7}
+                >
+                  <Lucide name="sliders" size={16} color={colors.brand.primary} />
+                  <View style={styles.dropdownMenuTextContainer}>
+                    <Text style={styles.dropdownMenuItemText}>
+                      {showCalibrationSettings ? 'Hide Feeder Calibration' : 'Feeder Calibration'}
+                    </Text>
+                    <Text style={styles.dropdownMenuItemSubtext}>
+                      {showCalibrationSettings ? 'Close adjustment panel' : 'Printer tray X/Y offset controls'}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+
+                {Platform.OS === 'web' && (
+                  <>
+                    <View style={styles.dropdownDivider} />
+                    <TouchableOpacity
+                      style={styles.dropdownMenuItem}
+                      onPress={() => {
+                        setShowActionMenu(false);
+                        setReloadKey((k) => k + 1);
+                      }}
+                      activeOpacity={0.7}
+                    >
+                      <Lucide name="refresh-cw" size={16} color={colors.neutral[600]} />
+                      <View style={styles.dropdownMenuTextContainer}>
+                        <Text style={styles.dropdownMenuItemText}>Reload Template</Text>
+                        <Text style={styles.dropdownMenuItemSubtext}>Fetch fresh copy from server</Text>
+                      </View>
+                    </TouchableOpacity>
+                  </>
+                )}
+              </View>
+            )}
+          </View>
+
+          {/* Template Format Selector for PDF: Landscape vs Portrait */}
+          {Platform.OS === 'web' && viewFormat === 'pdf' && (
+            <View style={styles.templateSwitcherBar}>
+              <View style={styles.templateSwitcherLabelRow}>
+                <Lucide name="printer" size={13} color={colors.neutral[600]} />
+                <Text style={[styles.templateSwitcherLabel, { color: colors.neutral[600] }]}>
+                  OR TEMPLATE FORMAT:
+                </Text>
+              </View>
+              <View style={styles.templateSwitcherButtonsRow}>
+                <TouchableOpacity
+                  style={[
+                    styles.templateOptionBtn,
+                    orTemplate === 'landscape' && styles.templateOptionBtnActive,
+                  ]}
+                  onPress={() => setOrTemplate('landscape')}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="layout"
+                    size={12}
+                    color={orTemplate === 'landscape' ? '#059669' : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.templateOptionBtnText,
+                      orTemplate === 'landscape' && styles.templateOptionBtnTextActive,
+                    ]}
+                  >
+                    Landscape (AF-51 Template)
+                  </Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={[
+                    styles.templateOptionBtn,
+                    orTemplate === 'portrait' && styles.templateOptionBtnActive,
+                  ]}
+                  onPress={() => setOrTemplate('portrait')}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="file-text"
+                    size={12}
+                    color={orTemplate === 'portrait' ? '#059669' : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.templateOptionBtnText,
+                      orTemplate === 'portrait' && styles.templateOptionBtnTextActive,
+                    ]}
+                  >
+                    Portrait (Standard)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {Platform.OS === 'web' && viewFormat === 'pdf' ? (
+            <View style={styles.pdfContainer}>
+              {isLoadingPdf ? (
+                <View style={styles.pdfLoadingBox}>
+                  <Lucide name="printer" size={32} color={colors.brand.primary} />
+                  <Text style={[styles.pdfLoadingText, { color: colors.neutral[600] }]}>
+                    Loading Official Receipt #{receipt.officialReceiptNumber} PDF template...
+                  </Text>
+                </View>
+              ) : pdfError !== null ? (
+                <View style={styles.pdfErrorBox}>
+                  <Lucide name="alert-circle" size={32} color="#DC2626" />
+                  <Text style={styles.pdfErrorText}>{pdfError}</Text>
+                  <View style={styles.pdfErrorActions}>
+                    <TouchableOpacity
+                      style={styles.retryBtn}
+                      onPress={() => setReloadKey((k) => k + 1)}
+                      activeOpacity={0.8}
+                    >
+                      <Lucide name="refresh-cw" size={14} color="#FFFFFF" />
+                      <Text style={styles.retryBtnText}>Retry Loading</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={styles.switchGridBtn}
+                      onPress={() => setViewFormat('physical')}
+                      activeOpacity={0.8}
+                    >
+                      <Text style={styles.switchGridBtnText}>Switch to Physical Mode</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              ) : pdfBlobUrl !== null ? (
+                React.createElement('iframe', {
+                  src: pdfBlobUrl,
+                  style: { width: '100%', height: '100%', minHeight: '680px', border: 'none', borderRadius: '8px' },
+                  title: `Official Receipt #${receipt.officialReceiptNumber} PDF`,
+                })
+              ) : null}
+            </View>
+          ) : (
+            <>
+              {/* Mode Switcher Tabs */}
+              <View style={styles.modeTabsRow}>
+                <View style={styles.modeTabsGroup}>
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('plain_paper')}
+                    style={[styles.modeTab, outputMode === 'plain_paper' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="file-text"
+                      size={14}
+                      color={outputMode === 'plain_paper' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'plain_paper' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Plain Paper
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('accountable_form')}
+                    style={[styles.modeTab, outputMode === 'accountable_form' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="copy"
+                      size={14}
+                      color={outputMode === 'accountable_form' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'accountable_form' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Pre-Printed Booklet
+                    </Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    onPress={() => setOutputMode('alignment_test')}
+                    style={[styles.modeTab, outputMode === 'alignment_test' && styles.modeTabActive]}
+                  >
+                    <Lucide
+                      name="target"
+                      size={14}
+                      color={outputMode === 'alignment_test' ? colors.brand.primary : colors.neutral[600]}
+                    />
+                    <Text
+                      style={[
+                        styles.modeTabText,
+                        outputMode === 'alignment_test' && { color: colors.brand.primary, fontWeight: '700' },
+                      ]}
+                    >
+                      Alignment Test
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* Calibration Toggle on the right side of mode tabs */}
+                <TouchableOpacity
+                  onPress={() => setShowCalibrationSettings((prev) => !prev)}
+                  style={[
+                    styles.calibrationBadgeBtn,
+                    showCalibrationSettings && styles.calibrationBadgeBtnActive,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  <Lucide
+                    name="sliders"
+                    size={12}
+                    color={showCalibrationSettings ? colors.brand.primary : colors.neutral[600]}
+                  />
+                  <Text
+                    style={[
+                      styles.calibrationBadgeText,
+                      showCalibrationSettings && { color: colors.brand.primary, fontWeight: '700' },
+                    ]}
+                  >
+                    Offsets ({offsetX >= 0 ? `+${offsetX}` : offsetX}, {offsetY >= 0 ? `+${offsetY}` : offsetY}mm)
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+          {/* Collapsible Feeder Calibration Panel */}
+          {showCalibrationSettings && (
+            <View style={styles.calibrationPanel}>
+              <View style={styles.calibrationHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <Lucide name="settings" size={14} color="#0f172a" />
+                  <Text style={styles.calibrationTitle}>Workstation Printer Tray Calibration (Accountable Form No. 51)</Text>
+                </View>
+                {isSavedFeedback && <Text style={styles.savedFeedbackText}>Saved to workstation profile!</Text>}
+              </View>
+
+              <Text style={styles.calibrationDescription}>
+                Adjust feeder offsets if your physical hard-copy receipt fields print slightly shifted. Holds settings in local profile.
+              </Text>
+
+              <View style={styles.calibrationControls}>
+                <View style={styles.calibrationField}>
+                  <Text style={styles.calibrationLabel}>Horizontal Offset X (mm):</Text>
+                  <View style={styles.nudgeRow}>
+                    <TouchableOpacity
+                      onPress={() => setOffsetX((prev) => Math.round((prev - 0.5) * 10) / 10)}
+                      style={styles.nudgeBtn}
+                    >
+                      <Text style={styles.nudgeBtnText}>-0.5</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.calibrationInput}
+                      value={String(offsetX)}
+                      keyboardType="numeric"
+                      onChangeText={(val) => {
+                        const parsed = parseFloat(val);
+                        if (!isNaN(parsed)) setOffsetX(parsed);
+                        else if (val === '' || val === '-') setOffsetX(0);
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setOffsetX((prev) => Math.round((prev + 0.5) * 10) / 10)}
+                      style={styles.nudgeBtn}
+                    >
+                      <Text style={styles.nudgeBtnText}>+0.5</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <View style={styles.calibrationField}>
+                  <Text style={styles.calibrationLabel}>Vertical Offset Y (mm):</Text>
+                  <View style={styles.nudgeRow}>
+                    <TouchableOpacity
+                      onPress={() => setOffsetY((prev) => Math.round((prev - 0.5) * 10) / 10)}
+                      style={styles.nudgeBtn}
+                    >
+                      <Text style={styles.nudgeBtnText}>-0.5</Text>
+                    </TouchableOpacity>
+                    <TextInput
+                      style={styles.calibrationInput}
+                      value={String(offsetY)}
+                      keyboardType="numeric"
+                      onChangeText={(val) => {
+                        const parsed = parseFloat(val);
+                        if (!isNaN(parsed)) setOffsetY(parsed);
+                        else if (val === '' || val === '-') setOffsetY(0);
+                      }}
+                    />
+                    <TouchableOpacity
+                      onPress={() => setOffsetY((prev) => Math.round((prev + 0.5) * 10) / 10)}
+                      style={styles.nudgeBtn}
+                    >
+                      <Text style={styles.nudgeBtnText}>+0.5</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+
+                <TouchableOpacity onPress={handleSaveCalibration} style={styles.saveCalibrationBtn}>
+                  <Lucide name="save" size={13} color="#fff" />
+                  <Text style={styles.saveCalibrationBtnText}>Save Offsets</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          )}
+
+          {/* Mode Guidance Notice */}
+          {outputMode === 'accountable_form' && (
+            <View style={styles.overlayNotice}>
+              <Lucide name="info" size={16} color="#0369a1" />
+              <Text style={styles.overlayNoticeText}>
+                <strong>Hard Copy Insertion Mode:</strong> Static agency headers, labels, and borders will be suppressed during printing. The printer will only fill out dynamic fields directly into the boxes of your pre-printed physical Official Receipt.
+              </Text>
+            </View>
+          )}
+
+          {outputMode === 'alignment_test' && (
+            <View style={[styles.overlayNotice, { backgroundColor: '#fef2f2', borderColor: '#fca5a5' }]}>
+              <Lucide name="alert-triangle" size={16} color="#b91c1c" />
+              <Text style={[styles.overlayNoticeText, { color: '#991b1b' }]}>
+                <strong>Alignment Test Mode:</strong> Prints red dashed boundary boxes on plain scrap paper. Lay the printed test sheet over your physical Accountable Form No. 51 against a window/light to verify tray alignment.
+              </Text>
+            </View>
+          )}
+
+          <ScrollView
+            style={styles.body}
+            contentContainerStyle={styles.bodyContent}
+            showsVerticalScrollIndicator={true}
+          >
+            {/* Accountable Form 51 Layout Card */}
+            <View style={[styles.receiptSheet, isCancelled && { borderColor: colors.semantic.error }]}>
+              {isCancelled && (
+                <View style={styles.watermarkContainer}>
+                  <Text style={styles.watermarkText}>CANCELLED / VOID</Text>
+                </View>
+              )}
+
+              {/* Form 51 Top Header */}
+              <View style={[styles.formHeader, outputMode === 'accountable_form' && styles.preprintedSuppressed]}>
+                <Text style={styles.formAgency}>REPUBLIC OF THE PHILIPPINES</Text>
+                <Text style={styles.formDept}>NATIONAL TELECOMMUNICATIONS COMMISSION</Text>
+                <Text style={styles.formTitle}>OFFICIAL RECEIPT</Text>
+                <Text style={styles.formCode}>Accountable Form No. 51 - Revised 2006</Text>
+              </View>
+
+              {/* Serial & Date Bar */}
+              <View style={[styles.metaBar, outputMode === 'accountable_form' && styles.preprintedBoxHighlight]}>
+                <View>
+                  <Text style={styles.metaLabel}>DATE</Text>
+                  <Text style={styles.metaValue}>
+                    {new Date(receipt.issuedAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </Text>
+                </View>
+                <View style={{ alignItems: 'flex-end' }}>
+                  <Text style={styles.metaLabel}>No.</Text>
+                  <Text style={styles.orSerial}>{receipt.officialReceiptNumber}</Text>
+                </View>
+              </View>
+
+              {/* Payor Info */}
+              <View style={[styles.payorSection, outputMode === 'accountable_form' && styles.preprintedBoxHighlight]}>
+                <View style={styles.payorRow}>
+                  <Text style={styles.payorLabel}>Agency / Office:</Text>
+                  <Text style={styles.payorVal}>NTC Regional Operations Center</Text>
+                </View>
+                <View style={styles.payorRow}>
+                  <Text style={styles.payorLabel}>Payor:</Text>
+                  <Text style={[styles.payorVal, { fontWeight: '700' }]}>{receipt.payorName}</Text>
+                </View>
+                {receipt.payorAddress ? (
+                  <View style={styles.payorRow}>
+                    <Text style={styles.payorLabel}>Address:</Text>
+                    <Text style={styles.payorVal}>{receipt.payorAddress}</Text>
+                  </View>
+                ) : null}
+                {receipt.opNumber ? (
+                  <View style={styles.payorRow}>
+                    <Text style={styles.payorLabel}>Order of Payment #:</Text>
+                    <Text style={styles.payorVal}>{receipt.opNumber}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Line Items Table */}
+              <View style={[styles.table, outputMode === 'accountable_form' && styles.preprintedBoxHighlight]}>
+                <View style={[styles.tableHeader, outputMode === 'accountable_form' && styles.preprintedHeaderSubtle]}>
+                  <Text style={[styles.th, { flex: 1.5 }]}>NATURE OF COLLECTION</Text>
+                  <Text style={[styles.th, { flex: 1 }]}>FUND / ACCOUNT CODE</Text>
+                  <Text style={[styles.th, { flex: 1, textAlign: 'right' }]}>AMOUNT</Text>
+                </View>
+
+                {receipt.lineItems && receipt.lineItems.length > 0 ? (
+                  receipt.lineItems.map((item, index) => (
+                    <View key={item.id || index} style={styles.tableRow}>
+                      <Text style={[styles.td, { flex: 1.5 }]}>{item.description}</Text>
+                      <Text style={[styles.td, { flex: 1, fontFamily: 'monospace' }]}>{item.feeCode}</Text>
+                      <Text style={[styles.td, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
+                        ₱{(item.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      </Text>
+                    </View>
+                  ))
+                ) : (
+                  <View style={styles.tableRow}>
+                    <Text style={[styles.td, { flex: 1.5 }]}>Payment of Regulatory Fees</Text>
+                    <Text style={[styles.td, { flex: 1, fontFamily: 'monospace' }]}>REG-01</Text>
+                    <Text style={[styles.td, { flex: 1, textAlign: 'right', fontWeight: '600' }]}>
+                      ₱{(receipt.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </Text>
+                  </View>
+                )}
+
+                {/* Total Row */}
+                <View style={styles.tableTotalRow}>
+                  <Text style={[styles.tableTotalLabel, { flex: 2.5 }]}>TOTAL AMOUNT (in Figures):</Text>
+                  <Text style={[styles.tableTotalVal, { flex: 1, textAlign: 'right' }]}>
+                    ₱{(receipt.amount ?? 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </Text>
+                </View>
+              </View>
+
+              {/* Payment Details */}
+              <View style={[styles.paymentMethodCard, outputMode === 'accountable_form' && styles.preprintedBoxHighlight]}>
+                <View style={styles.methodInfoRow}>
+                  <Text style={styles.methodLabel}>Payment Mode:</Text>
+                  <Text style={styles.methodVal}>{receipt.paymentMethod.toUpperCase()}</Text>
+                </View>
+                {receipt.paymentMethod === 'Check' ? (
+                  <View style={styles.checkDetails}>
+                    <Text style={styles.methodLabel}>Check #:</Text>
+                    <Text style={styles.methodVal}>{receipt.checkNumber}</Text>
+                    <Text style={[styles.methodLabel, { marginLeft: 12 }]}>Drawee Bank:</Text>
+                    <Text style={styles.methodVal}>{receipt.checkBank}</Text>
+                  </View>
+                ) : null}
+                {receipt.depositSlipNumber ? (
+                  <View style={styles.methodInfoRow}>
+                    <Text style={styles.methodLabel}>Bank Deposit Slip #:</Text>
+                    <Text style={styles.methodVal}>{receipt.depositSlipNumber}</Text>
+                  </View>
+                ) : null}
+              </View>
+
+              {/* Cashier Signatures */}
+              <View style={styles.signSection}>
+                <View style={styles.signBox}>
+                  <Text style={[styles.signTitle, outputMode === 'accountable_form' && styles.preprintedSuppressed]}>
+                    RECEIVED THE AMOUNT STATED ABOVE
+                  </Text>
+                  <View style={[styles.signLine, outputMode === 'accountable_form' && styles.preprintedSuppressed]} />
+                  <Text style={styles.signName}>{receipt.issuedByUserName ?? 'Authorized Collecting Officer'}</Text>
+                  <Text style={[styles.signRole, outputMode === 'accountable_form' && styles.preprintedSuppressed]}>
+                    Collecting Officer / Cashier
+                  </Text>
+                </View>
+              </View>
+
+              {receipt.cancellationReason ? (
+                <View style={styles.cancellationBox}>
+                  <Text style={styles.cancellationLabel}>Cancellation Reason:</Text>
+                  <Text style={styles.cancellationVal}>{receipt.cancellationReason}</Text>
+                  {receipt.cancelledByUserName ? (
+                    <Text style={styles.cancellationMeta}>
+                      Cancelled by: {receipt.cancelledByUserName} on{' '}
+                      {receipt.cancelledAt ? new Date(receipt.cancelledAt).toLocaleString() : ''}
+                    </Text>
+                  ) : null}
+                </View>
+              ) : null}
+            </View>
+          </ScrollView>
+        </>
+      )}
+    </View>
+  </View>
+</Modal>
+  );
+}
+
+const styles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 16,
+  },
+  container: {
+    borderRadius: 12,
+    width: '100%',
+    maxWidth: 860,
+    height: '92%',
+    maxHeight: '94%',
+    display: 'flex',
+    flexDirection: 'column',
+    shadowColor: '#000',
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 10,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    position: 'relative',
+    zIndex: 100,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  title: {
+    fontSize: 15,
+    fontWeight: '700',
+  },
+  subtitle: {
+    fontSize: 11,
+    color: '#64748b',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  formatSwitcher: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderRadius: 8,
+    padding: 3,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  formatBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+  },
+  formatBtnActive: {
+    backgroundColor: '#ffffff',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  formatBtnText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#64748b',
+  },
+  titleTextContainer: {
+    flexShrink: 1,
+  },
+  menuTriggerBtn: {
+    padding: 7,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    backgroundColor: '#ffffff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  menuTriggerBtnActive: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#cbd5e1',
+  },
+  dropdownMenu: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    width: 250,
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    paddingVertical: 6,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 16,
+    shadowOffset: { width: 0, height: 6 },
+    elevation: 50,
+    zIndex: 1000,
+  },
+  dropdownMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+  },
+  dropdownMenuTextContainer: {
+    flex: 1,
+  },
+  dropdownMenuItemText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#1e293b',
+  },
+  dropdownMenuItemSubtext: {
+    fontSize: 11,
+    color: '#64748b',
+    marginTop: 1,
+  },
+  dropdownDivider: {
+    height: 1,
+    backgroundColor: '#f1f5f9',
+    marginVertical: 4,
+  },
+  printHeaderBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 6,
+  },
+  printHeaderBtnText: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#fff',
+  },
+  closeBtn: {
+    padding: 4,
+  },
+  pdfContainer: {
+    flex: 1,
+    minHeight: 680,
+    backgroundColor: '#334155',
+    padding: 12,
+    position: 'relative',
+    zIndex: 1,
+  },
+  pdfLoadingBox: {
+    flex: 1,
+    minHeight: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+  },
+  pdfLoadingText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  pdfErrorBox: {
+    flex: 1,
+    minHeight: 400,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    padding: 24,
+  },
+  pdfErrorText: {
+    fontSize: 14,
+    color: '#dc2626',
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  pdfErrorActions: {
+    flexDirection: 'row',
+    gap: 12,
+    marginTop: 8,
+  },
+  retryBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#dc2626',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    color: '#ffffff',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  switchGridBtn: {
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+  },
+  switchGridBtnText: {
+    color: '#334155',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  modeTabsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 12,
+    paddingTop: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+  },
+  modeTabsGroup: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  calibrationBadgeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginBottom: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  calibrationBadgeBtnActive: {
+    backgroundColor: '#eff6ff',
+    borderColor: '#93c5fd',
+  },
+  calibrationBadgeText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  modeTab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6,
+    backgroundColor: 'transparent',
+  },
+  modeTabActive: {
+    backgroundColor: '#ffffff',
+    borderTopWidth: 2,
+    borderTopColor: '#0284c7',
+  },
+  modeTabText: {
+    fontSize: 12,
+    color: '#64748b',
+    fontWeight: '500',
+  },
+  calibrationPanel: {
+    backgroundColor: '#f8fafc',
+    padding: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    gap: 8,
+  },
+  calibrationHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  calibrationTitle: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#0f172a',
+  },
+  savedFeedbackText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#16a34a',
+  },
+  calibrationDescription: {
+    fontSize: 11,
+    color: '#475569',
+    lineHeight: 15,
+  },
+  calibrationControls: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 16,
+  },
+  calibrationField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  calibrationLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#334155',
+  },
+  nudgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  nudgeBtn: {
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    backgroundColor: '#e2e8f0',
+    borderRadius: 4,
+  },
+  nudgeBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#334155',
+  },
+  calibrationInput: {
+    width: 44,
+    height: 28,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    borderRadius: 4,
+    textAlign: 'center',
+    fontSize: 12,
+    fontWeight: '600',
+    backgroundColor: '#ffffff',
+  },
+  saveCalibrationBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#0284c7',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 4,
+  },
+  saveCalibrationBtnText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  overlayNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#f0f9ff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#bae6fd',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  overlayNoticeText: {
+    fontSize: 11,
+    color: '#0369a1',
+    flex: 1,
+    lineHeight: 16,
+  },
+  body: {
+    flex: 1,
+    minHeight: 500,
+    padding: 16,
+    backgroundColor: '#f8fafc',
+  },
+  bodyContent: {
+    paddingBottom: 40,
+  },
+  receiptSheet: {
+    backgroundColor: '#ffffff',
+    borderRadius: 8,
+    borderWidth: 2,
+    borderColor: '#0f172a',
+    padding: 20,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  preprintedSuppressed: {
+    opacity: 0.18,
+  },
+  preprintedBoxHighlight: {
+    borderColor: '#93c5fd',
+    backgroundColor: '#f0f9ff',
+  },
+  preprintedHeaderSubtle: {
+    opacity: 0.25,
+  },
+  watermarkContainer: {
+    position: 'absolute',
+    top: '35%',
+    left: '-10%',
+    right: '-10%',
+    transform: [{ rotate: '-25deg' }],
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  watermarkText: {
+    fontSize: 48,
+    fontWeight: '900',
+    color: 'rgba(239, 68, 68, 0.18)',
+    letterSpacing: 4,
+    borderWidth: 4,
+    borderColor: 'rgba(239, 68, 68, 0.25)',
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  formHeader: {
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: '#cbd5e1',
+    paddingBottom: 8,
+    marginBottom: 8,
+  },
+  formAgency: {
+    fontSize: 11,
+    letterSpacing: 1,
+    fontWeight: '600',
+    color: '#475569',
+  },
+  formDept: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#0f172a',
+    marginVertical: 2,
+  },
+  formTitle: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#0f172a',
+    letterSpacing: 2,
+    marginTop: 4,
+  },
+  formCode: {
+    fontSize: 9,
+    color: '#64748b',
+    fontStyle: 'italic',
+  },
+  metaBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#f1f5f9',
+    padding: 8,
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  metaLabel: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#64748b',
+    textTransform: 'uppercase',
+  },
+  metaValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    color: '#1e293b',
+  },
+  orSerial: {
+    fontSize: 16,
+    fontWeight: '900',
+    color: '#dc2626',
+  },
+  payorSection: {
+    marginBottom: 12,
+    gap: 4,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    padding: 8,
+    borderRadius: 6,
+  },
+  payorRow: {
+    flexDirection: 'row',
+  },
+  payorLabel: {
+    width: 140,
+    fontSize: 12,
+    color: '#475569',
+    fontWeight: '600',
+  },
+  payorVal: {
+    flex: 1,
+    fontSize: 12,
+    color: '#0f172a',
+  },
+  table: {
+    borderWidth: 1,
+    borderColor: '#94a3b8',
+    borderRadius: 6,
+    marginBottom: 12,
+  },
+  tableHeader: {
+    flexDirection: 'row',
+    backgroundColor: '#f1f5f9',
+    borderBottomWidth: 1,
+    borderBottomColor: '#94a3b8',
+    padding: 8,
+  },
+  th: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: '#1e293b',
+  },
+  tableRow: {
+    flexDirection: 'row',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    padding: 8,
+  },
+  td: {
+    fontSize: 12,
+    color: '#1e293b',
+  },
+  tableTotalRow: {
+    flexDirection: 'row',
+    backgroundColor: '#f8fafc',
+    padding: 8,
+  },
+  tableTotalLabel: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+  },
+  tableTotalVal: {
+    fontSize: 14,
+    fontWeight: '900',
+    color: '#059669',
+  },
+  paymentMethodCard: {
+    backgroundColor: '#f8fafc',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 12,
+    gap: 4,
+  },
+  methodInfoRow: {
+    flexDirection: 'row',
+  },
+  checkDetails: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  methodLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#475569',
+    marginRight: 6,
+  },
+  methodVal: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0f172a',
+  },
+  signSection: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 12,
+    paddingTop: 8,
+  },
+  signBox: {
+    width: 240,
+    alignItems: 'center',
+  },
+  signTitle: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#475569',
+    textAlign: 'center',
+    marginBottom: 32,
+  },
+  signLine: {
+    width: '100%',
+    height: 1,
+    backgroundColor: '#0f172a',
+    marginBottom: 4,
+  },
+  signName: {
+    fontSize: 12,
+    fontWeight: '800',
+    color: '#0f172a',
+    textTransform: 'uppercase',
+  },
+  signRole: {
+    fontSize: 10,
+    color: '#64748b',
+  },
+  cancellationBox: {
+    marginTop: 12,
+    padding: 10,
+    backgroundColor: '#fef2f2',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    borderRadius: 6,
+  },
+  cancellationLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#dc2626',
+  },
+  cancellationVal: {
+    fontSize: 12,
+    color: '#dc2626',
+    marginTop: 2,
+  },
+  cancellationMeta: {
+    fontSize: 10,
+    color: '#64748b',
+    marginTop: 4,
+  },
+  templateSwitcherBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    backgroundColor: '#f8fafc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e2e8f0',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  templateSwitcherLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  templateSwitcherLabel: {
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  templateSwitcherButtonsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  templateOptionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#cbd5e1',
+    backgroundColor: '#ffffff',
+  },
+  templateOptionBtnActive: {
+    backgroundColor: '#dcfce7',
+    borderColor: '#059669',
+  },
+  templateOptionBtnText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#475569',
+  },
+  templateOptionBtnTextActive: {
+    color: '#065F46',
+    fontWeight: '700',
+  },
+});

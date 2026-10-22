@@ -2,6 +2,9 @@
   "name": "ntc-edge-internal",
   "version": "1.0.0",
   "main": "index.ts",
+  "engines": {
+    "node": ">=24.22.1"
+  },
   "dependencies": {
     "@clerk/expo": "^3.2.0",
     "@edge/api": "workspace:*",
@@ -15,6 +18,7 @@
     "@tanstack/react-table": "^8.20.5",
     "expo": "~57.0.7",
     "expo-auth-session": "^57.0.5",
+    "expo-document-picker": "^57.0.1",
     "expo-secure-store": "^57.0.1",
     "expo-status-bar": "~57.0.1",
     "expo-updates": "~57.0.8",

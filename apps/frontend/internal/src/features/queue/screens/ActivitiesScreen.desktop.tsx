@@ -1,18 +1,36 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { StyleSheet, View, Animated } from 'react-native';
 import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
-import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
+import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
+import {
+  consumePendingQueueApplication,
+  subscribeToQueueApplication,
+} from '../data/internalApplicationNavigationHelper';
 
-function DesktopActivitiesContent() {
+export function ActivitiesScreen() {
   const { colors } = useTheme();
-  const { setSelectedId } = useApplications();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
   const [isPanelCollapsed, setIsPanelCollapsed] = useState(false);
   const collapseAnim = useRef(new Animated.Value(0)).current;
 
   const handleClose = () => setSelectedId(null);
   const handleCollapse = () => setIsPanelCollapsed((p) => !p);
+
+  useEffect(() => {
+    const pending = consumePendingQueueApplication();
+    if (pending !== null && pending !== '') {
+      setSelectedId(pending);
+    }
+
+    const unsubscribe = subscribeToQueueApplication((appId) => {
+      setSelectedId(appId);
+    });
+
+    return unsubscribe;
+  }, []);
 
   useEffect(() => {
     Animated.timing(collapseAnim, {
@@ -54,13 +72,19 @@ function DesktopActivitiesContent() {
         >
           <View style={styles.feedPaneInner}>
             <AnimatedCard padding={0} style={{ flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border }}>
-              <ActivitiesFeedPane />
+              <ActivitiesFeedPane
+                selectedId={selectedId}
+                onSelectId={setSelectedId}
+                activeQueueTab={activeQueueTab}
+                onSelectQueueTab={setActiveQueueTab}
+              />
             </AnimatedCard>
           </View>
         </Animated.View>
 
         <View style={styles.detailPane}>
           <ApplicationReviewScreen
+            applicationId={selectedId}
             onClose={handleClose}
             onCollapse={handleCollapse}
             isCollapsed={isPanelCollapsed}
@@ -71,14 +95,6 @@ function DesktopActivitiesContent() {
   );
 }
 
-export function ActivitiesScreen() {
-  return (
-    <ApplicationProvider>
-      <DesktopActivitiesContent />
-    </ApplicationProvider>
-  );
-}
-
 const styles = StyleSheet.create({
   screen: {
     flex: 1,
@@ -86,15 +102,11 @@ const styles = StyleSheet.create({
   headerWrapper: {
     paddingHorizontal: SPACING[24],
     paddingTop: SPACING[16],
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   desktopLayout: {
     flex: 1,
     flexDirection: 'row',
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
     paddingHorizontal: SPACING[24],
     paddingBottom: SPACING[24],
@@ -109,5 +121,11 @@ const styles = StyleSheet.create({
   },
   detailPane: {
     flex: 1,
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 16,
+    right: 24,
+    zIndex: 999,
   },
 });

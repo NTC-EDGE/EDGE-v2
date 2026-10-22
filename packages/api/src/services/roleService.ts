@@ -6,6 +6,7 @@ export interface CreateRoleRequest {
   name: string;
   key: string;
   description?: string;
+  tenantId?: string | null;
   isSystemRole?: boolean;
 }
 
@@ -14,6 +15,7 @@ export interface UpdateRoleRequest {
   name: string;
   key: string;
   description?: string;
+  tenantId?: string | null;
 }
 
 export const roleService = {

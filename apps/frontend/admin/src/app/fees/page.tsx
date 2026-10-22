@@ -2,20 +2,32 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { CircleDollarSign, Plus, Search, Coins, Tag, CheckCircle2, Blocks, Scale, Loader2 } from "lucide-react";
+import { CircleDollarSign, Plus, Search, Coins, Tag, Blocks, Scale, Loader2 } from "lucide-react";
 import { useFeesService } from "@/services/feesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { useSWRConfig } from "swr";
-import { Fee, ServiceFee, ServiceVariantFee, ServiceVariantElementFee, Element } from "@edge/api";
+import {
+  Fee,
+  ServiceFee,
+  ServiceVariantFee,
+  ServiceVariantElementFee,
+  ServiceFeeGroup,
+  ServiceVariantFeeGroup,
+  ServiceVariantElementFeeGroup,
+  Element,
+  FeeCalculationMode,
+} from "@edge/api";
 import { Button } from "@/components/ui/button";
 import { FeesTable } from "@/components/fees/FeesTable";
 import { ServiceFeesTable } from "@/components/fees/ServiceFeesTable";
 import { ServiceVariantFeesTable } from "@/components/fees/ServiceVariantFeesTable";
 import { ServiceVariantElementFeesTable } from "@/components/fees/ServiceVariantElementFeesTable";
+import { ManageLinkedFeesDialog, ManageLinkedFeesEntityType } from "@/components/fees/ManageLinkedFeesDialog";
 import { CreateRecordDialog } from "@/components/fees/CreateRecordDialog";
 import { EditRecordDialog } from "@/components/fees/EditRecordDialog";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 
 type TabType = "fees" | "service-fees" | "service-variant-fees" | "service-variant-element-fees";
 
@@ -35,7 +47,11 @@ interface ConfirmConfig {
   title: string;
   description: string;
   actionType: "create" | "edit" | "delete" | "toggle-status";
-  payload: any;
+  payload: {
+    tab?: TabType;
+    item: Fee | ServiceFee | ServiceVariantFee | ServiceVariantElementFee;
+    newStatus?: boolean;
+  };
 }
 
 function FeesNotesContent() {
@@ -69,11 +85,16 @@ function FeesNotesContent() {
 
   const setActiveTab = (newTab: TabType) => {
     setActiveTabState(newTab);
+    setCurrentPage(1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("tab", newTab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-  const [searchTerm, setSearchTerm] = useState("");
+  const [searchTerm, setSearchTermState] = useState("");
+  const setSearchTerm = (term: string) => {
+    setSearchTermState(term);
+    setCurrentPage(1);
+  };
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -81,7 +102,28 @@ function FeesNotesContent() {
   const [selectedServiceFee, setSelectedServiceFee] = useState<ServiceFee | null>(null);
   const [selectedServiceVariantFee, setSelectedServiceVariantFee] = useState<ServiceVariantFee | null>(null);
   const [selectedServiceVariantElementFee, setSelectedServiceVariantElementFee] = useState<ServiceVariantElementFee | null>(null);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+
+  // Manage Linked Fees Dialog State
+  const [manageDialog, setManageDialog] = useState<{
+    open: boolean;
+    entityType: ManageLinkedFeesEntityType;
+    entityId: string | null;
+    secondaryId?: string | null;
+    serviceId?: string | null;
+    entityTitle: string;
+    entitySubtitle?: string;
+  }>({
+    open: false,
+    entityType: "service",
+    entityId: null,
+    entityTitle: "",
+  });
+
+  const [createContext, setCreateContext] = useState<{
+    serviceId?: string | null;
+    serviceVariantId?: string | null;
+    elementId?: string | null;
+  }>({});
 
   // Confirmation States
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -89,12 +131,7 @@ function FeesNotesContent() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-
-  // Reset pagination when search query or active tab changes
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [activeTab, searchTerm]);
+  const [pageSize, setPageSize] = useState(25);
 
   const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees, error: errorFees } = useFees(
     activeTab === "fees" ? currentPage : 1,
@@ -102,20 +139,22 @@ function FeesNotesContent() {
     activeTab === "fees" ? searchTerm : undefined,
     activeTab === "fees" || activeTab === "service-fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees, error: errorSFees } = useServiceFees(
+  const { groups: serviceFeeGroups = [], data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees, error: errorSFees } = useServiceFees(
+    undefined,
     activeTab === "service-fees" ? currentPage : 1,
     activeTab === "service-fees" ? pageSize : 9999,
     activeTab === "service-fees" ? searchTerm : undefined,
     activeTab === "service-fees" || activeTab === "fees" || isCreateOpen || isEditOpen
   );
-  const { data: serviceVariantFees = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees, error: errorSVFees } = useServiceVariantFees(
+  const { groups: serviceVariantFeeGroups = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees, error: errorSVFees } = useServiceVariantFees(
     undefined,
     activeTab === "service-variant-fees" ? currentPage : 1,
     activeTab === "service-variant-fees" ? pageSize : 9999,
     activeTab === "service-variant-fees" ? searchTerm : undefined,
     activeTab === "service-variant-fees"
   );
-  const { data: serviceVariantElementFees = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees, error: errorSVEFees } = useServiceVariantElementFees(
+  const { groups: serviceVariantElementFeeGroups = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees, error: errorSVEFees } = useServiceVariantElementFees(
+    undefined,
     undefined,
     activeTab === "service-variant-element-fees" ? currentPage : 1,
     activeTab === "service-variant-element-fees" ? pageSize : 9999,
@@ -135,19 +174,73 @@ function FeesNotesContent() {
     isCreateOpen || isEditOpen || activeTab === "service-fees"
   );
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
-
   const invalidatePrefix = (prefix: string) => {
     globalMutate((key: unknown) => typeof key === "string" && key.startsWith(prefix));
+  };
+
+  const handleManageServiceFees = (group: ServiceFeeGroup) => {
+    setManageDialog({
+      open: true,
+      entityType: "service",
+      entityId: group.serviceId,
+      serviceId: group.serviceId,
+      entityTitle: group.serviceName ?? "Unknown Service",
+      entitySubtitle: group.serviceCode ?? undefined,
+    });
+  };
+
+  const handleManageVariantFees = (group: ServiceVariantFeeGroup) => {
+    setManageDialog({
+      open: true,
+      entityType: "service-variant",
+      entityId: group.serviceVariantId,
+      serviceId: group.serviceId ?? null,
+      entityTitle: group.serviceName ?? "Unknown Service",
+      entitySubtitle: group.variantType ?? undefined,
+    });
+  };
+
+  const handleManageElementFees = (group: ServiceVariantElementFeeGroup) => {
+    setManageDialog({
+      open: true,
+      entityType: "service-variant-element",
+      entityId: group.serviceVariantId,
+      serviceId: group.serviceId ?? null,
+      entityTitle: group.serviceName ?? "Unknown Service",
+      entitySubtitle: group.variantType ?? undefined,
+    });
+  };
+
+  const handleAddFeeFromManageDialog = () => {
+    if (manageDialog.entityType === "service") {
+      setCreateContext({ serviceId: manageDialog.entityId });
+      setActiveTab("service-fees");
+    } else if (manageDialog.entityType === "service-variant") {
+      setCreateContext({ serviceVariantId: manageDialog.entityId });
+      setActiveTab("service-variant-fees");
+    } else {
+      setCreateContext({
+        serviceVariantId: manageDialog.entityId,
+        elementId: manageDialog.secondaryId,
+      });
+      setActiveTab("service-variant-element-fees");
+    }
+    setIsCreateOpen(true);
   };
 
   const handleCreateSubmit = async (tab: TabType, data: {
     code: string; name: string; description: string;
     serviceId: string; serviceVariantId: string; elementId: string;
     feeId: string; amount: number;
+    calculationMode?: FeeCalculationMode;
+    calculationFormula?: string | null;
+    multiplyByValidityYears?: boolean;
+    multiplyByUnits?: boolean;
+    multiplyByChannels?: boolean;
+    multiplyByPages?: boolean;
+    applyLateRenewalSurcharge?: boolean;
+    includeDst?: boolean;
+    dstAmount?: number;
     serviceFees?: { feeId: string; amount: number }[];
     notes: string; serviceCategoryId: string;
   }): Promise<void> => {
@@ -166,17 +259,44 @@ function FeesNotesContent() {
         }
         invalidatePrefix("/api/v2/service-fees");
       } else if (tab === "service-variant-fees") {
-        await createServiceVariantFee({ serviceVariantId: data.serviceVariantId, feeId: data.feeId, amount: data.amount });
+        await createServiceVariantFee({
+          serviceVariantId: data.serviceVariantId,
+          feeId: data.feeId,
+          amount: data.amount,
+          calculationMode: data.calculationMode,
+          calculationFormula: data.calculationFormula,
+          multiplyByValidityYears: data.multiplyByValidityYears,
+          multiplyByUnits: data.multiplyByUnits,
+          multiplyByChannels: data.multiplyByChannels,
+          multiplyByPages: data.multiplyByPages,
+          applyLateRenewalSurcharge: data.applyLateRenewalSurcharge,
+          includeDst: data.includeDst,
+          dstAmount: data.dstAmount,
+        });
         invalidatePrefix("/api/v2/service-variant-fees");
       } else if (tab === "service-variant-element-fees") {
-        await createServiceVariantElementFee({ serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
+        await createServiceVariantElementFee({
+          serviceVariantId: data.serviceVariantId,
+          elementId: data.elementId,
+          feeId: data.feeId,
+          amount: data.amount,
+          calculationMode: data.calculationMode,
+          calculationFormula: data.calculationFormula,
+          multiplyByValidityYears: data.multiplyByValidityYears,
+          multiplyByUnits: data.multiplyByUnits,
+          multiplyByChannels: data.multiplyByChannels,
+          multiplyByPages: data.multiplyByPages,
+          applyLateRenewalSurcharge: data.applyLateRenewalSurcharge,
+          includeDst: data.includeDst,
+          dstAmount: data.dstAmount,
+        });
         invalidatePrefix("/api/v2/service-variant-element-fees");
       }
       setIsCreateOpen(false);
-      showToast("Record registered successfully!");
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred while registering the record.");
+      setCreateContext({});
+      showToast.success("Record registered successfully.");
+    } catch {
+      showToast.error("An error occurred while registering the record.");
     }
   };
 
@@ -184,6 +304,15 @@ function FeesNotesContent() {
     code: string; name: string; description: string;
     serviceId: string; serviceVariantId: string; elementId: string;
     feeId: string; amount: number;
+    calculationMode?: FeeCalculationMode;
+    calculationFormula?: string | null;
+    multiplyByValidityYears?: boolean;
+    multiplyByUnits?: boolean;
+    multiplyByChannels?: boolean;
+    multiplyByPages?: boolean;
+    applyLateRenewalSurcharge?: boolean;
+    includeDst?: boolean;
+    dstAmount?: number;
     serviceFees?: { feeId: string; amount: number }[];
     notes: string; serviceCategoryId: string;
   }): Promise<void> => {
@@ -198,26 +327,58 @@ function FeesNotesContent() {
         await updateServiceFee(selectedServiceFee.id, { serviceId: data.serviceId, feeId: data.feeId, amount: data.amount });
         invalidatePrefix("/api/v2/service-fees");
       } else if (tab === "service-variant-fees" && selectedServiceVariantFee !== null) {
-        await updateServiceVariantFee(selectedServiceVariantFee.id, { serviceVariantId: data.serviceVariantId, feeId: data.feeId, amount: data.amount });
+        await updateServiceVariantFee(selectedServiceVariantFee.id, {
+          serviceVariantId: data.serviceVariantId,
+          feeId: data.feeId,
+          amount: data.amount,
+          calculationMode: data.calculationMode,
+          calculationFormula: data.calculationFormula,
+          multiplyByValidityYears: data.multiplyByValidityYears,
+          multiplyByUnits: data.multiplyByUnits,
+          multiplyByChannels: data.multiplyByChannels,
+          multiplyByPages: data.multiplyByPages,
+          applyLateRenewalSurcharge: data.applyLateRenewalSurcharge,
+          includeDst: data.includeDst,
+          dstAmount: data.dstAmount,
+        });
         invalidatePrefix("/api/v2/service-variant-fees");
       } else if (tab === "service-variant-element-fees" && selectedServiceVariantElementFee !== null) {
-        await updateServiceVariantElementFee(selectedServiceVariantElementFee.id, { serviceVariantId: data.serviceVariantId, elementId: data.elementId, feeId: data.feeId, amount: data.amount });
+        await updateServiceVariantElementFee(selectedServiceVariantElementFee.id, {
+          serviceVariantId: data.serviceVariantId,
+          elementId: data.elementId,
+          feeId: data.feeId,
+          amount: data.amount,
+          calculationMode: data.calculationMode,
+          calculationFormula: data.calculationFormula,
+          multiplyByValidityYears: data.multiplyByValidityYears,
+          multiplyByUnits: data.multiplyByUnits,
+          multiplyByChannels: data.multiplyByChannels,
+          multiplyByPages: data.multiplyByPages,
+          applyLateRenewalSurcharge: data.applyLateRenewalSurcharge,
+          includeDst: data.includeDst,
+          dstAmount: data.dstAmount,
+        });
         invalidatePrefix("/api/v2/service-variant-element-fees");
       }
       setIsEditOpen(false);
-      showToast("Record updated successfully!");
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred while updating the record.");
+      showToast.success("Record updated successfully.");
+    } catch {
+      showToast.error("An error occurred while updating the record.");
     }
   };
 
-  const handleDeleteRequest = (tab: TabType, item: any) => {
+  const handleDeleteRequest = (tab: TabType, item: Fee | ServiceFee | ServiceVariantFee | ServiceVariantElementFee) => {
     let desc = "";
-    if (tab === "fees") desc = `fee code '${item.code}'`;
-    else if (tab === "service-fees") desc = "service fee rate";
-    else if (tab === "service-variant-fees") desc = "service variant fee mapping";
-    else desc = "service variant element fee mapping";
+    if (tab === "fees") {
+      const feeCode = "code" in item && typeof item.code === "string" ? item.code : "selected";
+      desc = `fee code '${feeCode}'`;
+    } else if (tab === "service-fees") {
+      desc = "service fee rate";
+    } else if (tab === "service-variant-fees") {
+      desc = "service variant fee mapping";
+    } else {
+      desc = "service variant element fee mapping";
+    }
 
     setConfirmConfig({
       title: "Confirm Deletion",
@@ -263,17 +424,17 @@ function FeesNotesContent() {
           await deleteServiceVariantElementFee(item.id);
           invalidatePrefix("/api/v2/service-variant-element-fees");
         }
-        showToast("Record deleted successfully.");
+        showToast.success("Record deleted successfully.");
       } 
       else if (actionType === "toggle-status") {
         const { item, newStatus } = payload;
-        await toggleFeeStatus(item.id, newStatus);
+        await toggleFeeStatus(item.id, newStatus ?? true);
         invalidatePrefix("/api/v2/fees");
-        showToast(`Fee '${item.code}' active status is now set to: ${newStatus ? "Active" : "Inactive"}`);
+        const code = "code" in item && typeof item.code === "string" ? item.code : "";
+        showToast.success(`Fee '${code}' status is now ${newStatus ? "Active" : "Inactive"}.`);
       }
-    } catch (err: any) {
-      console.error(err);
-      showToast("An error occurred while executing the transaction.");
+    } catch {
+      showToast.error("An error occurred while executing the transaction.");
     } finally {
       setIsProcessing(false);
       setConfirmOpen(false);
@@ -283,15 +444,6 @@ function FeesNotesContent() {
 
   return (
     <div className="space-y-6">
-      {toastMsg !== null && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center justify-between shadow-xl animate-fade-in">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>{toastMsg}</span>
-          </div>
-          <button onClick={() => setToastMsg(null)} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
-        </div>
-      )}
 
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none"><CircleDollarSign className="w-64 h-64 text-indigo-600 dark:text-indigo-400" /></div>
@@ -301,16 +453,24 @@ function FeesNotesContent() {
               <span className="px-2.5 py-0.5 rounded-full bg-indigo-500/20 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-500/30 flex items-center gap-1.5"><CircleDollarSign className="w-3.5 h-3.5" /> Fees & Rate Management</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Fees & Rate Configuration</h1>
-            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">Configure system-wide administrative fees, map charges to service standards, variants, and billing elements.</p>
+            <p className="text-sm text-slate-600 dark:text-slate-400 mt-1 max-w-2xl">
+              Manage administrative fee codes, and configure dynamic formulas (e.g. <code className="font-mono text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/50 px-1 py-0.5 rounded font-bold">{"{RATE} * {YEARS}"}</code>) and late renewal penalties mapped to service variants.
+            </p>
           </div>
           {canManage && (
-            <Button onClick={() => setIsCreateOpen(true)} className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 shrink-0">
+            <Button
+              onClick={() => {
+                setCreateContext({});
+                setIsCreateOpen(true);
+              }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-5 py-2.5 rounded-xl shadow-lg flex items-center gap-2 shrink-0"
+            >
               <Plus className="w-4 h-4" />
               <span>
                 {activeTab === "fees" && "Add Fee Code"}
                 {activeTab === "service-fees" && "Configure Service Charge"}
-                {activeTab === "service-variant-fees" && "Configure Variant Fee"}
-                {activeTab === "service-variant-element-fees" && "Configure Variant Element Fee"}
+                {activeTab === "service-variant-fees" && "Configure Variant Formula"}
+                {activeTab === "service-variant-element-fees" && "Configure Element Formula"}
               </span>
             </Button>
           )}
@@ -319,10 +479,53 @@ function FeesNotesContent() {
 
       <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm dark:shadow-xl transition-colors duration-200">
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => { setActiveTab("fees"); setSearchTerm(""); }} className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all ${activeTab === "fees" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}><Coins className="w-3.5 h-3.5" />Fee Catalog</button>
-          <button onClick={() => { setActiveTab("service-fees"); setSearchTerm(""); }} className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all ${activeTab === "service-fees" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}><Tag className="w-3.5 h-3.5" />Service Fee Rates</button>
-          <button onClick={() => { setActiveTab("service-variant-fees"); setSearchTerm(""); }} className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all ${activeTab === "service-variant-fees" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}><Scale className="w-3.5 h-3.5" />Variant Fees</button>
-          <button onClick={() => { setActiveTab("service-variant-element-fees"); setSearchTerm(""); }} className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-1.5 transition-all ${activeTab === "service-variant-element-fees" ? "bg-indigo-600 text-white shadow-sm" : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"}`}><Blocks className="w-3.5 h-3.5" />Variant Element Fees</button>
+          <button
+            onClick={() => { setActiveTab("fees"); setSearchTerm(""); }}
+            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
+              activeTab === "fees"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Coins className="w-3.5 h-3.5" />
+            <span>Fee Catalog</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("service-fees"); setSearchTerm(""); }}
+            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
+              activeTab === "service-fees"
+                ? "bg-indigo-600 text-white shadow-sm"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Tag className="w-3.5 h-3.5" />
+            <span>Fixed Service Rates</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("service-variant-fees"); setSearchTerm(""); }}
+            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
+              activeTab === "service-variant-fees"
+                ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Scale className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Variant Formulas & Rules</span>
+          </button>
+
+          <button
+            onClick={() => { setActiveTab("service-variant-element-fees"); setSearchTerm(""); }}
+            className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
+              activeTab === "service-variant-element-fees"
+                ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40"
+                : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800"
+            }`}
+          >
+            <Blocks className="w-3.5 h-3.5 text-indigo-400" />
+            <span>Variant Element Formulas</span>
+          </button>
         </div>
         <div className="relative w-full xl:w-80">
           <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500" />
@@ -359,7 +562,7 @@ function FeesNotesContent() {
             )}
             {activeTab === "service-fees" && (
               <ServiceFeesTable 
-                serviceFees={serviceFees} 
+                groups={serviceFeeGroups} 
                 totalCount={serviceFeesTotalCount}
                 currentPage={currentPage}
                 pageSize={pageSize}
@@ -367,13 +570,12 @@ function FeesNotesContent() {
                 onPageSizeChange={setPageSize}
                 loading={loadingSFees} 
                 canManage={canManage} 
-                onEdit={(sf) => { setSelectedServiceFee(sf); setIsEditOpen(true); }} 
-                onDelete={(sf) => handleDeleteRequest("service-fees", sf)} 
+                onManageFees={handleManageServiceFees}
               />
             )}
             {activeTab === "service-variant-fees" && (
               <ServiceVariantFeesTable 
-                serviceVariantFees={serviceVariantFees} 
+                groups={serviceVariantFeeGroups} 
                 totalCount={serviceVariantFeesTotalCount}
                 currentPage={currentPage}
                 pageSize={pageSize}
@@ -381,13 +583,12 @@ function FeesNotesContent() {
                 onPageSizeChange={setPageSize}
                 loading={loadingSVFees} 
                 canManage={canManage} 
-                onEdit={(svf) => { setSelectedServiceVariantFee(svf); setIsEditOpen(true); }} 
-                onDelete={(svf) => handleDeleteRequest("service-variant-fees", svf)} 
+                onManageFees={handleManageVariantFees}
               />
             )}
             {activeTab === "service-variant-element-fees" && (
               <ServiceVariantElementFeesTable 
-                serviceVariantElementFees={serviceVariantElementFees} 
+                groups={serviceVariantElementFeeGroups} 
                 totalCount={serviceVariantElementFeesTotalCount}
                 currentPage={currentPage}
                 pageSize={pageSize}
@@ -395,21 +596,60 @@ function FeesNotesContent() {
                 onPageSizeChange={setPageSize}
                 loading={loadingSVEFees} 
                 canManage={canManage} 
-                onEdit={(svef) => { setSelectedServiceVariantElementFee(svef); setIsEditOpen(true); }} 
-                onDelete={(svef) => handleDeleteRequest("service-variant-element-fees", svef)} 
+                onManageFees={handleManageElementFees}
               />
             )}
           </>
         )}
       </div>
 
+      <ManageLinkedFeesDialog
+        open={manageDialog.open}
+        onOpenChange={(open) => setManageDialog((prev) => ({ ...prev, open }))}
+        entityType={manageDialog.entityType}
+        entityId={manageDialog.entityId}
+        secondaryId={manageDialog.secondaryId}
+        entityTitle={manageDialog.entityTitle}
+        entitySubtitle={manageDialog.entitySubtitle}
+        canManage={canManage}
+        onAddFee={handleAddFeeFromManageDialog}
+        onEditFee={(item) => {
+          if (manageDialog.entityType === "service" && "serviceId" in item) {
+            setSelectedServiceFee(item);
+            setActiveTab("service-fees");
+          } else if (manageDialog.entityType === "service-variant" && "serviceVariantId" in item && !("elementId" in item)) {
+            setSelectedServiceVariantFee(item);
+            setActiveTab("service-variant-fees");
+          } else if ("elementId" in item) {
+            setSelectedServiceVariantElementFee(item);
+            setActiveTab("service-variant-element-fees");
+          }
+          setIsEditOpen(true);
+        }}
+        onDeleteFee={(item) => {
+          const tab: TabType =
+            manageDialog.entityType === "service"
+              ? "service-fees"
+              : manageDialog.entityType === "service-variant"
+              ? "service-variant-fees"
+              : "service-variant-element-fees";
+          handleDeleteRequest(tab, item);
+        }}
+      />
+
       <CreateRecordDialog 
         open={isCreateOpen} 
-        onOpenChange={setIsCreateOpen} 
+        onOpenChange={(open) => {
+          setIsCreateOpen(open);
+          if (!open) setCreateContext({});
+        }} 
         activeTab={activeTab} 
         fees={fees} 
         elements={elements}
         services={services}
+        initialServiceId={createContext.serviceId}
+        initialServiceVariantId={createContext.serviceVariantId}
+        initialElementId={createContext.elementId}
         onSubmit={handleCreateSubmit} 
       />
       <EditRecordDialog 
@@ -423,6 +663,9 @@ function FeesNotesContent() {
         selectedServiceFee={selectedServiceFee} 
         selectedServiceVariantFee={selectedServiceVariantFee}
         selectedServiceVariantElementFee={selectedServiceVariantElementFee}
+        initialServiceId={manageDialog.serviceId ?? (manageDialog.entityType === "service" ? manageDialog.entityId : null)}
+        initialServiceVariantId={manageDialog.entityType !== "service" ? manageDialog.entityId : null}
+        initialElementId={manageDialog.secondaryId ?? null}
         onSubmit={handleEditSubmit} 
       />
       

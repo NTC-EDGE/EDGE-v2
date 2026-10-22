@@ -5,7 +5,8 @@ import { Layers, Edit2, Trash2, Plus, Search, Loader2, Folder } from "lucide-rea
 import { ServiceVariant } from "@edge/api";
 import { ServiceVariantElement } from "@/services/feesService";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
-import { DataTable, ColumnDef, ActionMenuItem } from "@/components/ui/data-table";
+import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface ServiceCatalogElementsTabProps {
   categories: ServiceCategory[];
@@ -91,35 +92,21 @@ export function ServiceCatalogElementsTab({
     }
   };
 
-  const columns: ColumnDef<ServiceVariantElement>[] = [
-    {
-      accessorKey: "code",
-      header: "Code",
-      cell: (val) => (
-        <span className="font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/40 px-2 py-0.5 rounded border border-indigo-200 dark:border-indigo-900/50 text-[11px]">
-          {String(val)}
-        </span>
-      ),
-    },
-    {
-      accessorKey: "description",
-      header: "Description",
-      cell: (val) => (
-        <span className="text-slate-600 dark:text-slate-400 text-xs max-w-[200px] block truncate" title={val !== null && val !== undefined ? String(val) : undefined}>
-          {val !== null && val !== undefined && String(val).trim().length > 0 ? String(val) : "—"}
-        </span>
-      ),
-    },
-  ];
-
-  const emptyState = {
-    icon: <Layers className="w-8 h-8 mx-auto text-slate-400 dark:text-slate-650 mb-2" />,
-    title: "No elements linked",
-    description: "Link elements to this variant.",
-  };
-
   return (
     <div className="p-4 md:p-6 space-y-6">
+      {/* Header Toolbar */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-900">
+        <div>
+          <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+            <Layers className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
+            Element Mappings
+          </h2>
+          <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
+            Map examination and operational elements to specific service variants.
+          </p>
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         
         {/* 1. Services Column */}
@@ -137,20 +124,21 @@ export function ServiceCatalogElementsTab({
               <Folder className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
               Filter by Category
             </label>
-            <select
+            <SearchableSelect
               value={selectedCategoryId}
-              onChange={(e) => handleCategoryChange(e.target.value)}
-              className="w-full px-2.5 py-2 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-            >
-              <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
-                All Categories
-              </option>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
-                  {cat.name}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => handleCategoryChange(val)}
+              placeholder="All Categories"
+              searchPlaceholder="Search categories..."
+              maxHeight="max-h-48"
+              options={[
+                { value: "", label: "All Categories" },
+                ...categories.map((cat) => ({
+                  value: cat.id,
+                  label: cat.name,
+                  badge: cat.code || undefined,
+                })),
+              ]}
+            />
           </div>
 
           {/* Service Search */}
@@ -195,7 +183,9 @@ export function ServiceCatalogElementsTab({
               <div className="text-center py-8 text-slate-500 text-xs">No services found.</div>
             )}
           </div>
-        </div>        {/* 2. Variants Column */}
+        </div>
+
+        {/* 2. Variants Column */}
         <div className="lg:col-span-3 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200">
           <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
             <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">2. Select Variant</span>
@@ -234,7 +224,7 @@ export function ServiceCatalogElementsTab({
             ))}
             {displayVariants.length === 0 && (
               <div className="text-center py-12 text-slate-500 text-xs">
-                {mappingServiceId ? "No specific variants for this service." : "Select a service first to view variants."}
+                {mappingServiceId ? "No variants registered for this service." : "Select a service to view variants."}
               </div>
             )}
           </div>
@@ -243,16 +233,10 @@ export function ServiceCatalogElementsTab({
         {/* 3. Elements Column */}
         <div className="lg:col-span-5 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200 min-h-[300px]">
           <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
-            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">3. Elements</span>
-            {mappingVariantId && canManage && (
-              <button
-                type="button"
-                onClick={onAddElement}
-                className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-[10px] shadow shadow-indigo-600/20 flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" /> Add Element
-              </button>
-            )}
+            <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">3. Exam & Operational Elements</span>
+            <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+              {elements.length} Linked
+            </span>
           </div>
 
           {/* Elements Search */}
@@ -261,7 +245,7 @@ export function ServiceCatalogElementsTab({
               <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
-                placeholder="Search variant elements..."
+                placeholder="Search mapped elements..."
                 value={elementsSearch}
                 onChange={(e) => onElementsSearchChange(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
@@ -269,51 +253,66 @@ export function ServiceCatalogElementsTab({
             </div>
           )}
 
-          <div className="flex-1 overflow-x-auto mt-2">
+          <div className="flex-1 overflow-y-auto max-h-[420px] pr-1 space-y-2.5 mt-2">
             {!mappingVariantId ? (
               <div className="text-center py-16 text-slate-500 text-xs">
                 Select a service and variant from the left lists to view required elements.
               </div>
             ) : loadingElements ? (
-              <div className="text-center py-16 text-slate-505">
+              <div className="text-center py-16 text-slate-500">
                 <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" />
               </div>
+            ) : elements.length === 0 ? (
+              <div className="text-center py-16 text-slate-500 text-xs flex flex-col items-center justify-center space-y-1">
+                <span className="font-medium text-slate-700 dark:text-slate-300">No elements mapped to this variant.</span>
+                <span className="text-[11px] text-slate-400">Click "Link Element" in the header to map elements to this variant.</span>
+              </div>
             ) : (
-              <DataTable
-                columns={columns}
-                data={elements}
-                getItemKey={(item) => item.id}
-                loading={loadingElements}
-                emptyState={emptyState}
-                pagination={
-                  elements.length > 0
-                    ? {
-                        currentPage,
-                        totalItems: totalCount,
-                        pageSize,
-                        onPageChange,
-                        onPageSizeChange,
-                      }
-                    : undefined
-                }
-                rowActionMenu={
-                  canManage
-                    ? (item): ActionMenuItem[] => [
-                        {
-                          label: "Edit Element",
-                          icon: Edit2,
-                          onClick: () => onEditElement(item),
-                        },
-                        {
-                          label: "Delete Element",
-                          icon: Trash2,
-                          onClick: () => onDeleteElement(item.id),
-                          variant: "destructive",
-                        },
-                      ]
-                    : undefined
-                }
-              />
+              elements.map((el) => (
+                <div
+                  key={el.id}
+                  className="p-3 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-slate-300 dark:hover:border-slate-700 rounded-xl transition-all flex flex-col space-y-2 min-w-0"
+                >
+                  <div className="flex items-start justify-between gap-2 min-w-0">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                        <span className="font-mono text-[10px] font-bold text-indigo-600 dark:text-indigo-400 bg-white dark:bg-slate-950 px-2 py-0.5 rounded border border-slate-200 dark:border-slate-800 shrink-0">
+                          {el.code}
+                        </span>
+                      </div>
+                      {el.description ? (
+                        <p className="text-xs font-semibold text-slate-900 dark:text-white leading-relaxed break-words whitespace-normal">
+                          {el.description}
+                        </p>
+                      ) : (
+                        <p className="text-xs font-semibold text-slate-700 dark:text-slate-300 italic">
+                          No description provided
+                        </p>
+                      )}
+                    </div>
+
+                    {canManage && (
+                      <div className="shrink-0 ml-1">
+                        <ActionMenu
+                          items={[
+                            {
+                              label: "Edit Mapping",
+                              icon: Edit2,
+                              onClick: () => onEditElement(el),
+                            },
+                            {
+                              label: "Unlink Element",
+                              icon: Trash2,
+                              onClick: () => onDeleteElement(el.id),
+                              variant: "destructive",
+                            },
+                          ]}
+                        />
+                      </div>
+                    )}
+                  </div>
+                </div>
+              ))
             )}
           </div>
         </div>

@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import {
   Text,
   View,
@@ -10,6 +10,8 @@ import {
 } from "react-native";
 import { COLORS, Icon, TYPOGRAPHY } from "@edge/ui";
 import { styles } from "./CategoryGrid.styles";
+import { CategorySkeletonGrid } from "./CategorySkeletonGrid";
+import { ServerUnavailableBanner } from "../../../../shared/components/ServerUnavailableBanner";
 
 const ACCREDITATIONS_PNG = require("../../../../../assets/services/Accreditations.png");
 const CERTIFICATES_PNG = require("../../../../../assets/services/Certificates.png");
@@ -37,6 +39,7 @@ interface CategoryGridProps {
   onViewDrafts: (categoryId: string) => void;
   backendCategories: any[] | null;
   allBackendServices: any[] | null;
+  isWizardActive?: boolean;
 }
 
 export function CategoryGrid({
@@ -49,7 +52,19 @@ export function CategoryGrid({
   onViewDrafts,
   backendCategories,
   allBackendServices,
+  isWizardActive = false,
 }: CategoryGridProps) {
+  const [showActiveBanner, setShowActiveBanner] = useState(true);
+
+  useEffect(() => {
+    if (isWizardActive) {
+      setShowActiveBanner(true);
+      const timer = setTimeout(() => {
+        setShowActiveBanner(false);
+      }, 60000);
+      return () => clearTimeout(timer);
+    }
+  }, [isWizardActive]);
   // Derive time of day greeting
   const greeting = useMemo(() => {
     const hours = new Date().getHours();
@@ -59,6 +74,8 @@ export function CategoryGrid({
   }, []);
 
   const displayName = user?.name ?? "Guest";
+
+  const isLoadingCategories = backendCategories === null;
 
   const visibleCategories = useMemo(() => {
     if (!backendCategories) return [];
@@ -110,12 +127,41 @@ export function CategoryGrid({
     }
   };
 
+
   return (
     <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Server Offline / Network Error Banner */}
+      <ServerUnavailableBanner />
+
       {/* Column Header */}
       <View style={styles.panelHeader}>
         <Text style={styles.panelTitle}>Services</Text>
       </View>
+
+      {/* Transaction Active Lock Banner */}
+      {isWizardActive && showActiveBanner && (
+        <View style={{
+          backgroundColor: "#fffbebf",
+          borderColor: "#fde68a",
+          borderWidth: 1,
+          borderRadius: 12,
+          padding: 12,
+          marginBottom: 16,
+          flexDirection: "row",
+          alignItems: "center",
+          gap: 10,
+        }}>
+          <Icon name="lock" size={18} color="#d97706" />
+          <View style={{ flex: 1 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: "700", color: "#92400e" }}>
+              Application Transaction Active
+            </Text>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#b45309", marginTop: 2 }}>
+              Category & service switching is locked until you cancel or complete the current transaction.
+            </Text>
+          </View>
+        </View>
+      )}
 
       {/* Search Input */}
       <View style={styles.searchContainer}>
@@ -134,98 +180,116 @@ export function CategoryGrid({
         )}
       </View>
 
-      {/* Greeting banner */}
+
+
+      {/* NTC e-Services Citizen Welcome Hero Banner */}
       <View style={styles.greetingBanner}>
-        <Text style={styles.greetingText}>
-          {greeting}, <Text style={styles.greetingName}>{displayName}!</Text>
-        </Text>
-        <Text style={styles.greetingSubtext}>Select a service category below to get started.</Text>
+        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: 16 }}>
+          <View style={{ flex: 1, minWidth: 260 }}>
+            <Text style={styles.greetingText}>
+              {greeting}, <Text style={styles.greetingName}>{displayName}!</Text>
+            </Text>
+            <Text style={styles.greetingSubtext}>
+              Welcome to the official NTC Online Services Portal. Choose a regulatory category below to file licenses, permits, examinations, or accreditations.
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* Grid of Categories */}
-      <View style={styles.gridContainer}>
-        {visibleCategories.map((category) => {
-          const staticId = category.staticId || category.id;
-          const theme = getCategoryTheme(staticId);
-          const isActive = selectedCategoryId === category.id;
-          const categoryDraftsCount = drafts.filter((d) =>
-            d.service?.serviceCategoryId === category.id || d.service?.category === category.title
-          ).length;
+      {/* Grid of Categories or Skeleton Loader */}
+      {isLoadingCategories ? (
+        <CategorySkeletonGrid />
+      ) : (
+        <View style={styles.gridContainer}>
+          {visibleCategories.map((category) => {
+            const staticId = category.staticId || category.id;
+            const theme = getCategoryTheme(staticId);
+            const isActive = selectedCategoryId === category.id;
+            const backendCat = backendCategories?.find((bc: any) => {
+              const code = bc.code?.toUpperCase();
+              if (category.id === "exams" && code === "EXAM") return true;
+              if (category.id === "certificates" && code === "CERT") return true;
+              if (category.id === "licenses" && code === "LIC") return true;
+              if (category.id === "permits" && code === "PRM") return true;
+              if (category.id === "accreditations" && code === "ACCR") return true;
+              if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
+              return bc.id === category.id;
+            });
 
-          return (
-            <TouchableOpacity
-              key={category.id}
-              onPress={() => onCategorySelect(category.id)}
-              style={[
-                styles.categoryCard,
-                isActive && styles.categoryCardActive,
-              ]}
-            >
-              {CATEGORY_IMAGES[staticId] !== undefined ? (
-                <Image
-                  source={CATEGORY_IMAGES[staticId]}
-                  style={styles.categoryImage}
-                  resizeMode="contain"
-                />
-              ) : (
-                <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
-                  <Icon name={category.icon} size={22} color={theme.icon} />
-                </View>
-              )}
-              <Text style={styles.categoryCardTitle}>{category.title}</Text>
-              {(() => {
-                const backendCat = backendCategories?.find((bc: any) => {
-                  const code = bc.code?.toUpperCase();
-                  if (category.id === "exams" && code === "EXAM") return true;
-                  if (category.id === "certificates" && code === "CERT") return true;
-                  if (category.id === "licenses" && code === "LIC") return true;
-                  if (category.id === "permits" && code === "PRM") return true;
-                  if (category.id === "accreditations" && code === "ACCR") return true;
-                  if (category.id === "complaints" && (code === "REQ" || bc.type === "RequestsAndComplaints")) return true;
-                  return false;
-                });
-                const servicesCount = category.totalServices !== undefined
-                  ? category.totalServices
-                  : (allBackendServices && backendCat
-                      ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
-                      : category.services.length);
-
+            const categoryDraftsCount = (() => {
+              const matchedDraft = (drafts || []).find((d: any) => {
+                const catId = d.serviceCategoryId || d.id;
+                const catName = d.serviceCategoryName || d.name;
+                const catCode = d.serviceCategoryCode || d.code;
+                const categoryTitle = category.title || backendCat?.name;
+                const categoryCode = backendCat?.code;
                 return (
-                  <Text style={styles.categoryCardCount}>
-                    {servicesCount} {servicesCount === 1 ? "Service" : "Services"}
-                  </Text>
+                  (catId && (catId === category.id || (backendCat && catId === backendCat.id))) ||
+                  (catName && categoryTitle && catName.toLowerCase().trim() === categoryTitle.toLowerCase().trim()) ||
+                  (categoryCode && catCode && catCode.toUpperCase().trim() === categoryCode.toUpperCase().trim())
                 );
-              })()}
+              });
+              if (matchedDraft) {
+                return matchedDraft.draftCount ?? matchedDraft.DraftCount ?? 0;
+              }
+              return backendCat?.draftCount || 0;
+            })();
 
-              {categoryDraftsCount > 0 && (
-                <TouchableOpacity
-                  onPress={(e) => {
-                    e.stopPropagation();
-                    onViewDrafts(category.id);
-                  }}
-                  style={{
-                    marginTop: 8,
-                    flexDirection: "row",
-                    alignItems: "center",
-                    backgroundColor: "#eff6ff",
-                    borderColor: "#bfdbfe",
-                    borderWidth: 1,
-                    borderRadius: 12,
-                    paddingVertical: 4,
-                    paddingHorizontal: 8,
-                    gap: 4,
-                  }}
-                >
-                  <Icon name="file-text" size={12} color="#1d4ed8" />
-                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#1d4ed8", fontWeight: "600" }}>
-                    {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
-                  </Text>
-                </TouchableOpacity>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+            return (
+              <TouchableOpacity
+                key={category.id}
+                onPress={() => onCategorySelect(category.id)}
+                style={[
+                  styles.categoryCard,
+                  isActive && styles.categoryCardActive,
+                ]}
+              >
+                {categoryDraftsCount > 0 && (
+                  <TouchableOpacity
+                    onPress={(e) => {
+                      e.stopPropagation?.();
+                      onViewDrafts(backendCat?.id || category.id);
+                    }}
+                    activeOpacity={0.7}
+                    style={styles.categoryDraftBadge}
+                  >
+                    <Icon name="file-text" size={11} color="#1D4ED8" />
+                    <Text style={styles.categoryDraftBadgeText}>
+                      {categoryDraftsCount} {categoryDraftsCount === 1 ? "Draft" : "Drafts"}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+
+                {CATEGORY_IMAGES[staticId] !== undefined ? (
+                  <Image
+                    source={CATEGORY_IMAGES[staticId]}
+                    style={styles.categoryImage}
+                    resizeMode="contain"
+                  />
+                ) : (
+                  <View style={[styles.iconBadge, { backgroundColor: theme.bg, borderColor: theme.border }]}>
+                    <Icon name={category.icon} size={22} color={theme.icon} />
+                  </View>
+                )}
+                <Text style={styles.categoryCardTitle}>{category.title}</Text>
+                {(() => {
+                  const servicesCount = category.totalServices !== undefined
+                    ? category.totalServices
+                    : (allBackendServices && backendCat
+                        ? allBackendServices.filter((s: any) => s.serviceCategoryId === backendCat.id).length
+                        : category.services.length);
+
+                  return (
+                    <Text style={styles.categoryCardCount}>
+                      {servicesCount} {servicesCount === 1 ? "Service" : "Services"}
+                    </Text>
+                  );
+                })()}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      )}
     </ScrollView>
   );
 }

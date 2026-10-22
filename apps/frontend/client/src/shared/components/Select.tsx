@@ -23,27 +23,35 @@ export interface SelectOption {
 interface SelectProps {
   label?: string;
   placeholder?: string;
+  emptyText?: string;
   value: string;
   onValueChange: (value: string) => void;
   options: SelectOption[];
   error?: string;
   style?: ViewStyle;
   iconName?: LucideIconName;
+  required?: boolean;
+  disabled?: boolean;
 }
 
 export function Select({
   label,
   placeholder = 'Select an option...',
+  emptyText = 'No data found.',
   value,
   onValueChange,
   options,
   error,
   style,
   iconName,
+  required,
+  disabled = false,
 }: SelectProps) {
   const [modalVisible, setModalVisible] = useState(false);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = options.find(
+    (opt) => opt.value === value || (value !== undefined && value !== "" && opt.label.toLowerCase() === value.toLowerCase())
+  );
 
   const handleSelect = (val: string) => {
     onValueChange(val);
@@ -58,49 +66,66 @@ export function Select({
     return list;
   };
 
-  // Render native HTML dropdown on web for a cleaner, presentable form experience
+  // Render clean HTML dropdown on web with single custom chevron icon (appearance: none prevents duplicate native arrows)
   if (Platform.OS === 'web') {
     return (
       <View style={[styles.container, style]}>
         {label !== undefined && label.length > 0 ? (
-          <Text style={styles.label}>{label}</Text>
+          <Text style={styles.label}>
+            {label}
+            {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+          </Text>
         ) : null}
 
         <View style={styles.selectWrapper}>
           {iconName !== undefined && iconName !== null ? (
             <View style={styles.iconWeb}>
-              <Lucide name={iconName} size={18} color={COLORS.neutral[400]} />
+              <Lucide name={iconName} size={16} color="#64748B" />
             </View>
           ) : null}
           <select
-            value={value}
+            disabled={disabled}
+            value={selectedOption ? selectedOption.value : (value || '')}
             onChange={(e) => onValueChange(e.target.value)}
             style={{
               width: '100%',
-              height: '48px',
-              paddingLeft: iconName ? '42px' : '16px',
-              paddingRight: '36px',
-              borderRadius: '8px',
-              border: error ? `1.5px solid ${COLORS.semantic.error}` : `1.5px solid ${COLORS.neutral[200]}`,
-              backgroundColor: COLORS.neutral.white,
-              fontSize: '15px',
-              fontFamily: 'inherit',
-              color: value ? COLORS.neutral[900] : COLORS.neutral[400],
+              height: 44,
+              paddingLeft: iconName ? 40 : 14,
+              paddingRight: 36,
+              borderRadius: 10,
+              borderWidth: error ? 1.5 : 1,
+              borderStyle: 'solid',
+              borderColor: error ? '#EF4444' : '#CBD5E1',
+              backgroundColor: disabled ? '#F8FAFC' : '#FFFFFF',
+              fontSize: 14,
+              color: disabled ? '#475569' : (value ? '#0F172A' : '#94A3B8'),
+              outlineStyle: 'none',
+              cursor: disabled ? 'not-allowed' : 'pointer',
+              // Suppress the browser's native dropdown arrow so only our custom chevron shows
               appearance: 'none',
               WebkitAppearance: 'none',
-              outline: 'none',
-              cursor: 'pointer',
             }}
           >
-            <option value="" disabled hidden>{placeholder}</option>
-            {options.map((opt) => (
-              <option key={opt.value} value={opt.value}>
+            <option value="" disabled style={{ color: '#94A3B8', backgroundColor: '#FFFFFF' }}>
+              {options.length === 0 ? emptyText : placeholder}
+            </option>
+            {options.map((opt, idx) => (
+              <option
+                key={`${opt.value}-${idx}`}
+                value={opt.value}
+                style={{
+                  color: '#0F172A',
+                  backgroundColor: '#FFFFFF',
+                  fontSize: '14px',
+                  padding: '8px 12px',
+                }}
+              >
                 {opt.label}
               </option>
             ))}
           </select>
           <View style={styles.chevronWeb}>
-            <Lucide name="chevron-down" size={18} color={COLORS.neutral[500]} />
+            <Lucide name="chevron-down" size={16} color="#64748B" />
           </View>
         </View>
 
@@ -114,16 +139,20 @@ export function Select({
   return (
     <View style={[styles.container, style]}>
       {label !== undefined && label.length > 0 ? (
-        <Text style={styles.label}>{label}</Text>
+        <Text style={styles.label}>
+          {label}
+          {required && <Text style={{ color: '#EF4444', fontWeight: '800' }}> *</Text>}
+        </Text>
       ) : null}
 
       <TouchableOpacity
-        activeOpacity={1}
+        activeOpacity={0.8}
+        disabled={disabled}
         onPress={() => setModalVisible(true)}
-        style={getRowStyles()}
+        style={[...getRowStyles(), disabled && { backgroundColor: '#F8FAFC', opacity: 0.8 }]}
       >
         {iconName !== undefined && iconName !== null ? (
-          <Lucide name={iconName} size={18} color={COLORS.neutral[400]} style={styles.icon} />
+          <Lucide name={iconName} size={16} color="#64748B" style={styles.icon} />
         ) : null}
         <Text
           style={[
@@ -131,9 +160,13 @@ export function Select({
             selectedOption === undefined ? styles.placeholderText : styles.selectedText,
           ]}
         >
-          {selectedOption !== undefined ? selectedOption.label : placeholder}
+          {selectedOption !== undefined
+            ? selectedOption.label
+            : options.length === 0
+            ? emptyText
+            : placeholder}
         </Text>
-        <Lucide name="chevron-down" size={18} color={COLORS.neutral[500]} />
+        <Lucide name="chevron-down" size={16} color="#64748B" />
       </TouchableOpacity>
 
       {error !== undefined && error.length > 0 ? (
@@ -156,13 +189,23 @@ export function Select({
                     onPress={() => setModalVisible(false)}
                     style={styles.closeBtn}
                   >
-                    <Lucide name="x" size={20} color={COLORS.neutral[500]} />
+                    <Lucide name="x" size={20} color="#64748B" />
                   </TouchableOpacity>
                 </View>
 
+                {/* Mobile FlatList capped at max 10 visible options (~400px height) */}
                 <FlatList
                   data={options}
-                  keyExtractor={(item) => item.value}
+                  keyExtractor={(item, index) => `${item.value}-${index}`}
+                  showsVerticalScrollIndicator={true}
+                  ListEmptyComponent={
+                    <View style={{ padding: 28, alignItems: 'center', justifyContent: 'center' }}>
+                      <Lucide name="inbox" size={26} color="#94A3B8" style={{ marginBottom: 6 }} />
+                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#64748B', fontStyle: 'italic' }}>
+                        {emptyText}
+                      </Text>
+                    </View>
+                  }
                   renderItem={({ item }) => {
                     const isSelected = item.value === value;
                     return (
@@ -183,7 +226,7 @@ export function Select({
                           {item.label}
                         </Text>
                         {isSelected && (
-                          <Lucide name="check" size={16} color={COLORS.brand[800]} />
+                          <Lucide name="check" size={16} color="#0F2C59" />
                         )}
                       </TouchableOpacity>
                     );
@@ -204,109 +247,111 @@ export function Select({
 const styles = StyleSheet.create({
   container: {
     width: '100%',
-    marginBottom: SPACING[16],
+    marginBottom: 14,
   },
   label: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.smallLabel,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    color: COLORS.neutral[700],
-    marginBottom: SPACING[8],
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#334155',
+    marginBottom: 6,
   },
   inputRow: {
     flexDirection: 'row',
     alignItems: 'center',
     width: '100%',
-    height: 48,
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[200],
-    borderWidth: 1.5,
-    borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[16],
+    height: 44,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 14,
   },
   rowError: {
-    borderColor: COLORS.semantic.error,
+    borderColor: '#EF4444',
+    borderWidth: 1.5,
   },
   icon: {
-    marginRight: SPACING[12],
+    marginRight: 10,
   },
   valueText: {
     flex: 1,
-    fontSize: TYPOGRAPHY.sizes.body,
+    fontSize: 14,
     fontFamily: TYPOGRAPHY.fonts.primary,
   },
   placeholderText: {
-    color: COLORS.neutral[400],
+    color: '#94A3B8',
   },
   selectedText: {
-    color: COLORS.neutral[900],
+    color: '#0F172A',
   },
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.caption,
-    color: COLORS.semantic.error,
-    marginTop: SPACING[4],
+    fontSize: 12,
+    color: '#EF4444',
+    marginTop: 4,
   },
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(15, 23, 42, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: SPACING[20],
+    padding: 20,
   },
   modalCard: {
-    backgroundColor: COLORS.neutral.white,
-    borderColor: COLORS.neutral[200],
-    borderWidth: 1.5,
-    borderRadius: RADIUS.dialog,
+    backgroundColor: '#FFFFFF',
+    borderColor: '#CBD5E1',
+    borderWidth: 1,
+    borderRadius: 14,
     width: '100%',
     maxWidth: 440,
-    maxHeight: '70%',
+    maxHeight: 400,
     overflow: 'hidden',
   },
   modalHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: SPACING[20],
+    padding: 16,
     borderBottomWidth: 1,
-    borderBottomColor: COLORS.neutral[200],
+    borderBottomColor: '#E2E8F0',
   },
   modalTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.cardTitle,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: COLORS.neutral[900],
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#0F2C59',
   },
   closeBtn: {
     padding: 4,
   },
   list: {
     width: '100%',
+    maxHeight: 340,
   },
   listContent: {
-    paddingVertical: SPACING[8],
+    paddingVertical: 4,
   },
   optionItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING[12],
-    paddingHorizontal: SPACING[20],
+    paddingVertical: 12,
+    paddingHorizontal: 16,
   },
   optionItemSelected: {
-    backgroundColor: COLORS.brand[100],
+    backgroundColor: '#EFF6FF',
   },
   optionText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    color: COLORS.neutral[800],
+    fontSize: 14,
+    color: '#1E293B',
     flex: 1,
-    marginRight: SPACING[8],
+    marginRight: 8,
   },
   optionTextSelected: {
-    color: COLORS.brand[800],
-    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#0F2C59',
+    fontWeight: '700',
   },
   selectWrapper: {
     position: 'relative',
@@ -315,7 +360,7 @@ const styles = StyleSheet.create({
   iconWeb: {
     position: 'absolute',
     left: 14,
-    top: 15,
+    top: 14,
     zIndex: 1,
     ...Platform.select({
       web: {
@@ -326,7 +371,7 @@ const styles = StyleSheet.create({
   chevronWeb: {
     position: 'absolute',
     right: 14,
-    top: 15,
+    top: 14,
     zIndex: 1,
     ...Platform.select({
       web: {

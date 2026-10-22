@@ -9,6 +9,10 @@ let lastForbiddenTime = 0;
 const ALERT_COOLDOWN = 15000; // 15 seconds
 const FORBIDDEN_COOLDOWN = 3000; // 3 seconds — allow per-page toasts but avoid spam
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
 if (typeof window !== 'undefined') {
   // Request Interceptor to short-circuit requests if backend is offline
   apiClient.interceptors.request.use(
@@ -40,7 +44,11 @@ if (typeof window !== 'undefined') {
           if (now - lastForbiddenTime > FORBIDDEN_COOLDOWN) {
             lastForbiddenTime = now;
             const url = error.config?.url ?? '';
-            window.dispatchEvent(new CustomEvent('forbidden-access', { detail: { url } }));
+            const method = error.config?.method ?? '';
+            const rawData = error.response?.data;
+            const data = isRecord(rawData) ? rawData : null;
+            const detail = typeof data?.detail === 'string' ? data.detail : typeof data?.message === 'string' ? data.message : undefined;
+            window.dispatchEvent(new CustomEvent('forbidden-access', { detail: { url, method, detail } }));
           }
         }
 
@@ -106,7 +114,14 @@ export function useApi() {
     key: string | null,
     config?: SWRConfiguration<Data, Error>
   ): SWRResponse<Data, Error> {
-    return useAuthenticatedSWR<Data, Error>(key, getToken, config);
+    return useAuthenticatedSWR<Data, Error>(key, getToken, {
+      revalidateOnFocus: true,
+      revalidateOnReconnect: true,
+      revalidateIfStale: true,
+      dedupingInterval: 2000,
+      focusThrottleInterval: 5000,
+      ...config,
+    });
   }
 
   return { get, post, put, patch, del, useQuery };

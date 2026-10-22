@@ -23,21 +23,16 @@ import {
   ThemeToggle,
 } from "@edge/ui";
 import { useAuthContext } from "../../auth/context/AuthContext";
-import { REGIONS_LIST } from "../../employees/data/mockEmployees";
-import { useRole, ROLES, UserRole } from "../../shell/context/RoleContext";
+import { REGIONS_LIST } from "../../employees/types/employeeTypes";
+import { useRole } from "../../shell/context/RoleContext";
 import { useAppNavigation } from "../../../navigation/types";
-
-type TabType = "profile" | "security" | "appearance" | "support";
-
-function getErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
-  if (typeof error === "object" && error !== null) {
-    if ("message" in error && typeof error.message === "string") {
-      return error.message;
-    }
-  }
-  return "An error occurred. Please try again.";
-}
+import {
+  TabType,
+  getErrorMessage,
+  isObjectWithCreatePassword,
+  calculatePasswordStrength,
+  validatePasswordChange,
+} from "../utils/settingsUtils";
 
 const isThemeMode = (val: string | null): val is "light" | "dark" =>
   val === "light" || val === "dark";
@@ -45,19 +40,11 @@ const isThemeMode = (val: string | null): val is "light" | "dark" =>
 export function SettingsScreen(): React.ReactElement {
   const { colors, isDark, mode, setMode } = useTheme();
   const { clerkUser } = useAuthContext();
-  const { currentRole, setCurrentRole } = useRole();
+  const { currentRole } = useRole();
   const navigation = useAppNavigation();
 
   const [activeTab, setActiveTab] = useState<TabType>("profile");
-  const [selectedRole, setSelectedRole] = useState<UserRole>(currentRole);
-  const [isRoleDropdownOpen, setIsRoleDropdownOpen] = useState(false);
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-
-  useEffect(() => {
-    if (!isEditingProfile) {
-      setSelectedRole(currentRole);
-    }
-  }, [currentRole, isEditingProfile]);
 
   const handleBackToDashboard = () => {
     navigation.navigate("Dashboard");
@@ -111,32 +98,7 @@ export function SettingsScreen(): React.ReactElement {
 
   // Password checklist calculations
   const pChecklist = useMemo(() => {
-    const hasMinLength = newPassword.length >= 8;
-    const hasUpperAndLower = /[A-Z]/.test(newPassword) && /[a-z]/.test(newPassword);
-    const hasNumber = /[0-9]/.test(newPassword);
-
-    let strengthText = "Weak";
-    let strengthColor: string = colors.semantic.error;
-    const count = (hasMinLength ? 1 : 0) + (hasUpperAndLower ? 1 : 0) + (hasNumber ? 1 : 0);
-
-    if (newPassword.length === 0) {
-      strengthText = "None";
-      strengthColor = colors.textMuted;
-    } else if (count === 2) {
-      strengthText = "Medium";
-      strengthColor = colors.semantic.warning;
-    } else if (count === 3) {
-      strengthText = "Strong";
-      strengthColor = colors.semantic.success;
-    }
-
-    return {
-      hasMinLength,
-      hasUpperAndLower,
-      hasNumber,
-      strengthText,
-      strengthColor,
-    };
+    return calculatePasswordStrength(newPassword, colors);
   }, [newPassword, colors]);
 
   // Save profile edits
@@ -164,8 +126,6 @@ export function SettingsScreen(): React.ReactElement {
         });
       }
 
-      setCurrentRole(selectedRole);
-      setIsRoleDropdownOpen(false);
       setProfileSuccess("Profile details updated successfully.");
       setIsEditingProfile(false);
     } catch (err: unknown) {
@@ -181,17 +141,34 @@ export function SettingsScreen(): React.ReactElement {
     setSecuritySuccess("");
 
     try {
+      const hasPassword = Boolean(clerkUser?.passwordEnabled);
+
       if (newPassword.length > 0) {
-        if (newPassword !== confirmPassword) {
-          setSecurityError("New password and confirmation do not match.");
+        const validationError = validatePasswordChange({
+          hasPassword,
+          currentPassword,
+          newPassword,
+          confirmPassword,
+        });
+
+        if (validationError !== null) {
+          setSecurityError(validationError);
           setSecurityLoading(false);
           return;
         }
         if (clerkUser !== null && clerkUser !== undefined) {
-          await clerkUser.updatePassword({
-            currentPassword,
-            newPassword,
-          });
+          if (!hasPassword && isObjectWithCreatePassword(clerkUser)) {
+            await clerkUser.createPassword({
+              newPassword,
+              signOutOfOtherSessions: false,
+            });
+          } else if (typeof clerkUser.updatePassword === "function") {
+            await clerkUser.updatePassword({
+              currentPassword: hasPassword ? currentPassword : "",
+              newPassword,
+              signOutOfOtherSessions: false,
+            });
+          }
         }
       }
       setSecuritySuccess("Security settings updated successfully.");
@@ -330,31 +307,24 @@ export function SettingsScreen(): React.ReactElement {
               </View>
 
               <View style={styles.formGroup}>
-                <Text style={[styles.label, { color: colors.text }]}>Assigned Role</Text>
-                <TouchableOpacity
-                  style={[styles.dropdownBtn, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border }]}
-                  onPress={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
+                <Text style={[styles.label, { color: colors.text }]}>Assigned Workstation Role</Text>
+                <View
+                  style={[
+                    styles.readOnlyRoleBox,
+                    {
+                      backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100],
+                      borderColor: colors.border,
+                    },
+                  ]}
                 >
-                  <Text style={[styles.dropdownBtnText, { color: colors.text }]}>{selectedRole}</Text>
-                  <Lucide name={isRoleDropdownOpen ? "chevron-up" : "chevron-down"} size={16} color={colors.textMuted} />
-                </TouchableOpacity>
-
-                {isRoleDropdownOpen && (
-                  <View style={[styles.dropdownList, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-                    {ROLES.map((r) => (
-                      <TouchableOpacity
-                        key={r}
-                        style={[styles.dropdownItem, selectedRole === r && { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}
-                        onPress={() => {
-                          setSelectedRole(r);
-                          setIsRoleDropdownOpen(false);
-                        }}
-                      >
-                        <Text style={[styles.dropdownItemText, { color: colors.text }]}>{r}</Text>
-                      </TouchableOpacity>
-                    ))}
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Lucide name="shield" size={16} color={isDark ? colors.brand.primary : colors.brand.secondary} />
+                    <Text style={[styles.readOnlyRoleText, { color: colors.text }]}>{currentRole}</Text>
                   </View>
-                )}
+                  <Text style={[styles.readOnlyRoleHint, { color: colors.textMuted }]}>
+                    Assigned and managed by Regional Admin
+                  </Text>
+                </View>
               </View>
 
               <TouchableOpacity
@@ -650,6 +620,23 @@ const styles = StyleSheet.create({
   dropdownItemText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 13,
+  },
+  readOnlyRoleBox: {
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  readOnlyRoleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  readOnlyRoleHint: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
   },
   saveBtn: {
     height: 44,

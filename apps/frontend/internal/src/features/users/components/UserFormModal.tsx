@@ -11,7 +11,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide } from '@edge/ui';
-import { User, AccountType, UserStatus } from '../data/mockUsers';
+import { User, AccountType, UserStatus, CATEGORIES_LIST } from '../types';
+import { useRegions } from '@edge/api';
 
 interface UserFormModalProps {
   isOpen: boolean;
@@ -19,26 +20,6 @@ interface UserFormModalProps {
   onSubmit: (userData: Omit<User, 'id'> & { id?: string }) => void;
   userToEdit?: User | null;
 }
-
-const PHILIPPINE_REGIONS = [
-  'NCR',
-  'CAR',
-  'Region I',
-  'Region II',
-  'Region III',
-  'Region IV-A',
-  'MIMAROPA',
-  'Region V',
-  'Region VI',
-  'Region VII',
-  'Region VIII',
-  'Region IX',
-  'Region X',
-  'Region XI',
-  'Region XII',
-  'Region XIII',
-  'BARMM',
-];
 
 const parseName = (fullName: string) => {
   const parts = fullName.trim().split(/\s+/);
@@ -59,17 +40,20 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
   const { width } = useWindowDimensions();
   const isMobileSize = width < 540;
 
+  const { options: regionOptions } = useRegions(true);
+
   const [companyName, setCompanyName] = useState('');
   const [firstName, setFirstName] = useState('');
   const [middleName, setMiddleName] = useState('');
   const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
   const [accountType, setAccountType] = useState<AccountType>('Individual');
-  const [region, setRegion] = useState('Region X');
+  const [region, setRegion] = useState('Region X - Northern Mindanao');
+  const [licenseCategory, setLicenseCategory] = useState('Fixed & Land Mobile Radio Network');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [applicationsCount, setApplicationsCount] = useState('1');
-  const [status, setStatus] = useState<UserStatus>('Active');
+  const [status, setStatus] = useState<UserStatus>('Active License');
   const [description, setDescription] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -94,6 +78,7 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       setEmail(userToEdit.email);
       setAccountType(userToEdit.accountType);
       setRegion(userToEdit.region);
+      setLicenseCategory(userToEdit.licenseCategory || 'Fixed & Land Mobile Radio Network');
       setPhone(userToEdit.phone);
       setAddress(userToEdit.address);
       setApplicationsCount(userToEdit.applicationsCount.toString());
@@ -107,11 +92,12 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       setCompanyName('');
       setEmail('');
       setAccountType('Individual');
-      setRegion('Region X');
+      setRegion('Region X - Northern Mindanao');
+      setLicenseCategory('Fixed & Land Mobile Radio Network');
       setPhone('');
       setAddress('');
       setApplicationsCount('1');
-      setStatus('Active');
+      setStatus('Active License');
       setDescription('');
       setPassword('');
     }
@@ -125,7 +111,7 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
 
     if (accountType === 'Company') {
       if (companyName.trim().length === 0) {
-        newErrors.companyName = 'Company name is required.';
+        newErrors.companyName = 'Company / Entity name is required.';
       }
     } else {
       if (firstName.trim().length === 0) {
@@ -137,12 +123,12 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
     }
 
     if (email.trim().length === 0) {
-      newErrors.email = 'Email address is required.';
+      newErrors.email = 'Official contact email is required.';
     } else if (!email.includes('@')) {
       newErrors.email = 'Please enter a valid email address.';
     }
     if (region.trim().length === 0) {
-      newErrors.region = 'Region is required.';
+      newErrors.region = 'Regional jurisdiction is required.';
     }
 
     setErrors(newErrors);
@@ -173,12 +159,14 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
       avatarInitials,
       avatarBgColor: accountType === 'Company' ? COLORS.brand.royalBlue : undefined,
       region,
-      phone: phone.trim() || '+63 900 000 0000',
-      address: address.trim() || 'N/A',
+      organization: accountType === 'Company' ? resolvedName : 'Individual Permittee',
+      licenseCategory,
+      phone: phone.trim() || '+63 (88) 856-4200',
+      address: address.trim() || 'Regional District Office Jurisdiction',
       applicationsCount: validApps,
       status,
       createdDate: isEditing && userToEdit ? userToEdit.createdDate : new Date().toISOString().split('T')[0],
-      description: description.trim(),
+      description: description.trim() || `Registered NTC Permittee under ${region}.`,
       ...(password.trim().length > 0 ? { password: password.trim() } : {}),
     });
     onClose();
@@ -196,7 +184,9 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
               <View style={styles.modalHeaderIconBg}>
                 <Lucide name={isEditing ? 'edit-2' : 'user-plus'} size={20} color={COLORS.brand[700]} />
               </View>
-              <Text style={styles.modalTitle}>{isEditing ? 'Edit Client Account' : 'Add New Client User'}</Text>
+              <Text style={styles.modalTitle}>
+                {isEditing ? 'Edit Permittee Regulatory Record' : 'Register New Permittee / Licensee'}
+              </Text>
             </View>
             <Pressable style={styles.closeBtn} onPress={onClose}>
               <Lucide name="x" size={20} color={COLORS.neutral[500]} />
@@ -328,25 +318,25 @@ export function UserFormModal({ isOpen, onClose, onSubmit, userToEdit }: UserFor
               {isRegionDropdownOpen && (
                 <View style={[styles.dropdownMenu, SHADOWS.modal]}>
                   <ScrollView style={{ maxHeight: 200 }} nestedScrollEnabled>
-                    {PHILIPPINE_REGIONS.map((r) => (
+                    {regionOptions.map((r) => (
                       <Pressable
-                        key={r}
+                        key={r.id || r.code || r.value}
                         style={[
                           styles.dropdownOption,
-                          region === r && styles.dropdownOptionActive,
+                          region === r.value && styles.dropdownOptionActive,
                         ]}
                         onPress={() => {
-                          setRegion(r);
+                          setRegion(r.value);
                           setIsRegionDropdownOpen(false);
                         }}
                       >
                         <Text
                           style={[
                             styles.dropdownOptionText,
-                            region === r && styles.dropdownOptionTextActive,
+                            region === r.value && styles.dropdownOptionTextActive,
                           ]}
                         >
-                          {r}
+                          {r.label}
                         </Text>
                       </Pressable>
                     ))}

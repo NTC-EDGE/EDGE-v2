@@ -11,7 +11,9 @@ public record UpdateScheduleCommand(
     DateTime? StartApplication = null,
     DateTime? EndApplication = null,
     int? MaximumSlots = null,
-    string? Remarks = null
+    string? Remarks = null,
+    string? StartTime = null,
+    string? EndTime = null
 ) : IRequest<ScheduleDto?>;
 
 public record UpdateScheduleRequest(
@@ -21,5 +23,7 @@ public record UpdateScheduleRequest(
     DateTime? StartApplication = null,
     DateTime? EndApplication = null,
     int? MaximumSlots = null,
-    string? Remarks = null
+    string? Remarks = null,
+    string? StartTime = null,
+    string? EndTime = null
 );

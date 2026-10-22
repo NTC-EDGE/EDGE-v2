@@ -43,6 +43,11 @@ try
     builder.Services.ConfigureHttpJsonOptions(options =>
     {
         options.SerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+        options.SerializerOptions.Converters.Add(new System.Text.Json.Serialization.JsonStringEnumConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleDateOnlyJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleNullableDateOnlyJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleGuidJsonConverter());
+        options.SerializerOptions.Converters.Add(new EDGE.Application.Common.JsonConverters.FlexibleNullableGuidJsonConverter());
     });
 
     // Configure OpenAPI
@@ -76,8 +81,10 @@ try
 
     app.MapGet("/", () => "NTC-EDGE Clean Architecture API (.NET 10)");
 
-    // Map SignalR Hub
+    // Map SignalR Hubs
     app.MapHub<NotificationHub>("/hubs/notifications");
+    app.MapHub<ChatHub>("/hubs/chat");
+    app.MapHub<MeetingHub>("/hubs/meet");
 
     app.Run();
 }

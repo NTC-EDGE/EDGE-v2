@@ -1,10 +1,12 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { Search, Edit, Trash2, Loader2, Folder, LayoutGrid, TableProperties, Plus, Link2 } from "lucide-react";
+import { Search, Edit, Trash2, Loader2, Folder, LayoutGrid, TableProperties, Plus, Link2, CheckCircle2 } from "lucide-react";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
 import { ServiceVariant, Requirement, ServiceVariantRequirement } from "@edge/api";
-import { DataTable, ColumnDef, ActionMenuItem } from "@/components/ui/data-table";
+import { DataTable, ColumnDef } from "@/components/ui/data-table";
+import { ActionMenu, ActionMenuItem } from "@/components/ui/action-menu";
+import { SearchableSelect } from "@/components/ui/searchable-select";
 
 interface ServiceRequirementsTabProps {
   categories: ServiceCategory[];
@@ -22,7 +24,8 @@ interface ServiceRequirementsTabProps {
   onOpenCreateVariant: (serviceId: string) => void;
   loadingServiceReqs: boolean;
   serviceRequirements: any[]; // contains Requirement properties + mappings
-  onEditRequirement: (req: any) => void;
+  onEditMapping: (mapping: any) => void;
+  onToggleMandatory?: (id: string, isRequired: boolean) => Promise<void>;
   onDeleteMapping: (id: string) => void;
   // Flat table props
   loadingAllMapped: boolean;
@@ -53,7 +56,8 @@ export function ServiceRequirementsTab({
   onOpenCreateVariant,
   loadingServiceReqs,
   serviceRequirements,
-  onEditRequirement,
+  onEditMapping,
+  onToggleMandatory,
   onDeleteMapping,
   loadingAllMapped,
   pagedFlatMappings,
@@ -121,18 +125,6 @@ export function ServiceRequirementsTab({
       ),
     },
     {
-      header: "Context Key (Applicant Type)",
-      accessorKey: "contextKey",
-      cell: (val) =>
-        val ? (
-          <span className="px-2 py-0.5 bg-indigo-50 dark:bg-slate-950 border border-indigo-200 dark:border-slate-800 text-indigo-600 dark:text-indigo-300 rounded inline-block font-mono text-[10px]">
-            {String(val)}
-          </span>
-        ) : (
-          <span className="text-slate-500 text-[10px] inline-block font-mono">All Applicant Types</span>
-        ),
-    },
-    {
       header: "Requirement Necessity",
       accessorKey: "isRequired",
       cell: (val) => (
@@ -156,14 +148,14 @@ export function ServiceRequirementsTab({
         <div>
           <h2 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
             <Link2 className="w-4 h-4 text-indigo-500 dark:text-indigo-400" />
-            Checklist Requirements Mappings
+            Requirement Mappings
           </h2>
           <p className="text-xs text-slate-600 dark:text-slate-500 mt-0.5">
             Link and map mandatory compliance documents to specific services and application variants.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end flex-wrap">
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           {/* View Mode Toggle */}
           <div className="flex items-center bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-1 rounded-xl">
             <button
@@ -191,18 +183,6 @@ export function ServiceRequirementsTab({
               All Mappings Table
             </button>
           </div>
-
-          {canManage && (
-            <button
-              type="button"
-              onClick={onOpenLinkMapping}
-              disabled={requirements.length === 0}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold rounded-xl transition-all shadow shadow-indigo-600/20 disabled:opacity-50"
-            >
-              <Plus className="w-3.5 h-3.5" />
-              Link Requirement
-            </button>
-          )}
         </div>
       </div>
 
@@ -224,18 +204,21 @@ export function ServiceRequirementsTab({
                 <Folder className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
                 Filter by Category
               </label>
-              <select
+              <SearchableSelect
                 value={selectedCategoryId}
-                onChange={(e) => handleCategoryChange(e.target.value)}
-                className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500 cursor-pointer"
-              >
-                <option value="" className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">All Categories</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id} className="bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 py-1">
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => handleCategoryChange(val)}
+                placeholder="All Categories"
+                searchPlaceholder="Search categories..."
+                maxHeight="max-h-48"
+                options={[
+                  { value: "", label: "All Categories" },
+                  ...categories.map((cat) => ({
+                    value: cat.id,
+                    label: cat.name,
+                    badge: cat.code || undefined,
+                  })),
+                ]}
+              />
             </div>
 
             {/* Service Search */}
@@ -322,17 +305,8 @@ export function ServiceRequirementsTab({
                 </button>
               ))}
               {mappingVariants.length === 0 && (
-                <div className="text-center py-12 text-slate-500 text-xs flex flex-col items-center justify-center space-y-2.5">
-                  <span>No variants registered.</span>
-                  {mappingServiceId && canManage && (
-                    <button
-                      type="button"
-                      onClick={() => onOpenCreateVariant(mappingServiceId)}
-                      className="px-2.5 py-1.5 bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 dark:hover:bg-slate-850 text-[10px] text-indigo-600 dark:text-indigo-400 rounded-lg border border-slate-300 dark:border-slate-800 transition-colors font-medium"
-                    >
-                      Create Variant
-                    </button>
-                  )}
+                <div className="text-center py-12 text-slate-500 text-xs">
+                  {mappingServiceId ? "No variants registered for this service." : "Select a service to view variants."}
                 </div>
               )}
             </div>
@@ -342,16 +316,9 @@ export function ServiceRequirementsTab({
           <div className="lg:col-span-5 flex flex-col space-y-3 bg-white dark:bg-slate-950 p-4 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm transition-colors duration-200 min-h-[300px]">
             <div className="flex items-center justify-between pb-2 border-b border-slate-200 dark:border-slate-850">
               <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">3. Documentary Checklist</span>
-              {mappingVariantId && canManage && (
-                <button
-                  type="button"
-                  onClick={onOpenLinkMapping}
-                  disabled={requirements.length === 0}
-                  className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-lg font-bold transition-all text-[10px] shadow shadow-indigo-600/20"
-                >
-                  + Add Rule
-                </button>
-              )}
+              <span className="px-2 py-0.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded text-[10px] text-slate-600 dark:text-slate-400 font-mono">
+                {serviceRequirements.length} Linked
+              </span>
             </div>
 
             <div className="flex-1 overflow-y-auto max-h-[420px] pr-1 space-y-2.5 mt-2">
@@ -364,17 +331,9 @@ export function ServiceRequirementsTab({
                   <Loader2 className="w-6 h-6 animate-spin mx-auto text-indigo-500" />
                 </div>
               ) : serviceRequirements.length === 0 ? (
-                <div className="text-center py-16 text-slate-500 text-xs flex flex-col items-center justify-center space-y-2.5">
-                  <span>No documentary requirements linked to this variant.</span>
-                  {canManage && (
-                    <button
-                      type="button"
-                      onClick={onOpenLinkMapping}
-                      className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white text-xs rounded-xl font-medium shadow-md shadow-indigo-600/20"
-                    >
-                      Add First Requirement
-                    </button>
-                  )}
+                <div className="text-center py-16 text-slate-500 text-xs flex flex-col items-center justify-center space-y-1">
+                  <span className="font-medium text-slate-700 dark:text-slate-300">No documentary requirements linked to this variant.</span>
+                  <span className="text-[11px] text-slate-400">Click "Link Requirement" to map requirements to this checklist.</span>
                 </div>
               ) : (
                 serviceRequirements.map((mr) => (
@@ -384,32 +343,36 @@ export function ServiceRequirementsTab({
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-normal truncate">{mr.name}</h4>
+                        <h4 className="text-xs font-bold text-slate-900 dark:text-white leading-snug break-words whitespace-normal">{mr.name}</h4>
                         {mr.description && (
-                          <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-0.5 leading-relaxed line-clamp-2">
+                          <p className="text-[10px] text-slate-600 dark:text-slate-400 mt-1 leading-relaxed break-words whitespace-normal">
                             {mr.description}
                           </p>
                         )}
                       </div>
 
                       {canManage && (
-                        <div className="flex items-center gap-1 shrink-0">
-                          <button
-                            type="button"
-                            onClick={() => onEditRequirement(mr)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
-                            title="Edit Requirement"
-                          >
-                            <Edit className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => onDeleteMapping(mr.serviceVariantRequirementId)}
-                            className="p-1.5 rounded-lg border border-slate-200 dark:border-slate-800 text-slate-500 hover:text-rose-600 dark:text-slate-400 dark:hover:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
-                            title="Remove Requirement from Variant"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
+                        <div className="shrink-0">
+                          <ActionMenu
+                            items={[
+                              {
+                                label: mr.isRequired ? "Set as Optional" : "Set as Mandatory",
+                                icon: CheckCircle2,
+                                onClick: () => onToggleMandatory ? onToggleMandatory(mr.serviceVariantRequirementId, !mr.isRequired) : onEditMapping(mr),
+                              },
+                              {
+                                label: "Edit Mapping",
+                                icon: Edit,
+                                onClick: () => onEditMapping(mr),
+                              },
+                              {
+                                label: "Unlink Requirement",
+                                icon: Trash2,
+                                onClick: () => onDeleteMapping(mr.serviceVariantRequirementId),
+                                variant: "destructive",
+                              },
+                            ]}
+                          />
                         </div>
                       )}
                     </div>
@@ -424,17 +387,6 @@ export function ServiceRequirementsTab({
                       >
                         {mr.isRequired ? "Mandatory" : "Optional"}
                       </span>
-
-                      <span className="text-[9px] font-medium text-slate-500 font-mono truncate">
-                        Context:{" "}
-                        {mr.contextKey ? (
-                          <span className="text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-slate-950 px-1 py-0.5 rounded border border-indigo-200 dark:border-slate-800 font-bold ml-1">
-                            {mr.contextKey}
-                          </span>
-                        ) : (
-                          "All Applicant Types"
-                        )}
-                      </span>
                     </div>
                   </div>
                 ))
@@ -447,20 +399,22 @@ export function ServiceRequirementsTab({
       {/* VIEW 2: All Mappings Table (Flat View) */}
       {viewMode === "table" && (
         <div className="space-y-4">
-          <div className="flex items-center justify-between gap-3">
-            <div className="relative w-72">
-              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-500" />
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative w-full sm:w-80">
+              <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
               <input
                 type="text"
                 placeholder="Search mapped requirements, services..."
                 value={flatMappingsSearch}
                 onChange={(e) => onFlatMappingsSearchChange(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-900 text-slate-100 border border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-50 dark:bg-slate-900 text-slate-900 dark:text-slate-100 border border-slate-200 dark:border-slate-800 rounded-xl text-xs focus:outline-none focus:border-indigo-500"
               />
             </div>
-            <span className="text-xs text-slate-500 font-mono">
-              {filteredFlatMappings.length} Total Rules Configured
-            </span>
+            <div className="flex items-center gap-3 justify-between sm:justify-end">
+              <span className="text-xs text-slate-500 dark:text-slate-400 font-mono">
+                {filteredFlatMappings.length} Total Rules
+              </span>
+            </div>
           </div>
 
           <DataTable
@@ -468,19 +422,24 @@ export function ServiceRequirementsTab({
             columns={tableColumns}
             loading={loadingAllMapped}
             emptyState={{
-              title: "No checklist mappings found",
+              title: "No requirement mappings found",
               description: "Link requirements to services and variants to start building checklists.",
             }}
             rowActionMenu={
               canManage
                 ? (row): ActionMenuItem[] => [
                     {
-                      label: "Edit Requirement",
-                      icon: Edit,
-                      onClick: () => onEditRequirement(row),
+                      label: row.isRequired ? "Set as Optional" : "Set as Mandatory",
+                      icon: CheckCircle2,
+                      onClick: () => onToggleMandatory ? onToggleMandatory(row.id, !row.isRequired) : onEditMapping(row),
                     },
                     {
-                      label: "Delete Checklist Rule",
+                      label: "Edit Mapping",
+                      icon: Edit,
+                      onClick: () => onEditMapping(row),
+                    },
+                    {
+                      label: "Unlink Requirement",
                       icon: Trash2,
                       onClick: () => onDeleteMapping(row.id),
                       variant: "destructive",

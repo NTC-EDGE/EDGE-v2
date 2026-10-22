@@ -5,39 +5,78 @@ using System.Threading.Tasks;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 
 namespace EDGE.Infrastructure.Persistence;
 
+/// <summary>
+/// Main entrypoint and coordinator for fast-track catalog, variants, contracts, and form seeding.
+/// </summary>
 public static class FastTrackSeeder
 {
-    public static async Task SeedAsync(ApplicationDbContext context)
+    public static async Task SeedAsync(ApplicationDbContext context, ILogger? logger = null)
     {
-        // Skip the full initial seed if services are already present.
-        // However, always run the contract-update pass below so that changes to
-        // requirementDiscriminatorFields / requirementContextGroups in the contract
-        // JSON strings are applied to existing rows without needing a full re-seed.
-        bool skipInitialSeed = await context.Services.CountAsync() >= 12;
+        try
+        {
+            await context.Database.ExecuteSqlRawAsync(@"
+                CREATE SCHEMA IF NOT EXISTS public;
+                SET search_path TO public;
+
+                DO $$ BEGIN
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'ServiceVariants'
+                    ) THEN
+                        ALTER TABLE public.""ServiceVariants"" 
+                        ADD COLUMN IF NOT EXISTS ""IsIndividual"" boolean NOT NULL DEFAULT true;
+                    END IF;
+
+                    IF EXISTS (
+                        SELECT 1 FROM information_schema.tables
+                        WHERE table_schema = 'public' AND table_name = 'Requirements'
+                    ) THEN
+                        ALTER TABLE public.""Requirements"" 
+                        ALTER COLUMN ""Description"" TYPE text;
+                    END IF;
+                END $$;
+            ");
+        }
+        catch
+        {
+            // Table may not exist yet in fresh setup
+        }
+
+        bool skipInitialSeed = await context.Services.IgnoreQueryFilters().CountAsync() >= 12;
         if (skipInitialSeed)
         {
-            await UpdateContractsAsync(context);
-            await BackfillNewServicesAsync(context);      // 1. Seed new Services first (so variants FK matches)
-            await UpdateVariantsAsync(context);          // 2. Update/upsert all variants
-            await BackfillNewCatalogDetailsAsync(context); // 3. Backfill elements, notes, requirements, and fees
+            await FastTrackContractSeeder.UpdateContractsAsync(context);
+            await FastTrackCatalogSeeder.BackfillNewServicesAsync(context);
+            await FastTrackVariantSeeder.UpdateVariantsAsync(context);
+            await FastTrackCatalogSeeder.BackfillNewCatalogDetailsAsync(context, logger);
+            await ServiceInformationDataSeeder.SeedAsync(context);
+            await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
             return;
         }
 
-        var tenant = await context.Tenants.FirstOrDefaultAsync()
+        var tenant = await context.Tenants.IgnoreQueryFilters().FirstOrDefaultAsync()
             ?? throw new InvalidOperationException("Tenant not seeded. Run RolePermissionDataSeeder first.");
 
-        // 1. Seed Service Categories (matching spec)
+        // 1. Seed Service Categories
         var categories = new Dictionary<string, ServiceCategory>();
-        var existingCategories = await context.ServiceCategories.ToListAsync();
+        var existingCategories = await context.ServiceCategories.IgnoreQueryFilters().ToListAsync();
 
         ServiceCategory GetOrAddCategory(string key, string name, string code, ServiceCategoryType type, Guid defaultId)
         {
             var existing = existingCategories.FirstOrDefault(c => c.Code == code || c.Type == type);
             if (existing != null)
+            {
+                if (existing.IsDeleted)
+                {
+                    existing.IsDeleted = false;
+                    existing.IsDeletedBy = string.Empty;
+                }
                 return existing;
+            }
 
             var cat = new ServiceCategory { Id = defaultId, Name = name, Code = code, Type = type };
             context.ServiceCategories.Add(cat);
@@ -53,8 +92,8 @@ public static class FastTrackSeeder
 
         await context.SaveChangesAsync();
 
-        // Seed Master Fee Entities
-        if (!await context.Fees.AnyAsync())
+        // 2. Seed Master Fee Entities
+        if (!await context.Fees.IgnoreQueryFilters().AnyAsync())
         {
             context.Fees.AddRange(new[]
             {
@@ -68,588 +107,12 @@ public static class FastTrackSeeder
             await context.SaveChangesAsync();
         }
 
-        // 3. Seed Services dictionary with correct names & categories
-        var categoryIds = categories.ToDictionary(kv => kv.Key, kv => kv.Value.Id);
-        var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
-
-        var services = new Dictionary<string, Service>();
-        var existingServices = await context.Services.ToListAsync();
-
-        foreach (var def in serviceDefs)
-        {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
-            if (s == null)
-            {
-                s = new Service
-                {
-                    Id = def.Id,
-                    ServiceCategoryId = def.CategoryId,
-                    TenantId = tenant.Id,
-                    Name = def.Name,
-                    Group = def.Group,
-                    Code = def.Code,
-                    Description = def.Desc,
-                    Contract = def.Contract
-                };
-                context.Services.Add(s);
-            }
-            else
-            {
-                s.Name = def.Name;
-                s.Group = def.Group;
-                s.ServiceCategoryId = def.CategoryId;
-                s.Contract = def.Contract;
-            }
-            services[def.Key] = s;
-        }
-
+        // 3. Delegate to sub-seeders
+        await FastTrackCatalogSeeder.BackfillNewServicesAsync(context);
+        await FastTrackVariantSeeder.UpdateVariantsAsync(context);
+        await FastTrackCatalogSeeder.BackfillNewCatalogDetailsAsync(context, logger);
         await context.SaveChangesAsync();
 
-        // Seed new services (so variants FK matches)
-        await BackfillNewServicesAsync(context);
-
-        // 4. Seed Service Variants
-        await UpdateVariantsAsync(context);
-
-        // 5. Backfill elements, notes, requirements, and fees
-        await BackfillNewCatalogDetailsAsync(context);
-
-        await context.SaveChangesAsync();
-
-        // 7. Seed Central Reusable Fields Pool (Deterministic GUIDs)
-        var fieldsPool = FastTrackSeederData.GetFieldsPool();
-
-        var existingFields = await context.Fields.ToListAsync();
-        foreach (var f in fieldsPool.Values)
-        {
-            if (!existingFields.Any(x => x.Id == f.Id))
-            {
-                context.Fields.Add(f);
-            }
-        }
-        await context.SaveChangesAsync();
-
-        // 8. Seed Form Builders & Sections per Service
-        var existingForms = await context.Forms.AsNoTracking().Select(f => f.ServiceId).ToListAsync();
-
-        async Task SeedFormForService(string serviceKey, Guid formId, Guid sectionGuidPrefix, List<(string Key, string Title, List<string> FieldKeys)> sectionDefs)
-        {
-            var service = services[serviceKey];
-
-            // Check if the form already exists in the DB (no-tracking)
-            var formExists = existingForms.Contains(service.Id);
-            if (!formExists)
-            {
-                var newForm = new Form
-                {
-                    Id = formId,
-                    ServiceId = service.Id,
-                    Version = "1.0",
-                    CategorySelectionRequired = false
-                };
-                context.Forms.Add(newForm);
-                await context.SaveChangesAsync();
-                existingForms.Add(service.Id);
-            }
-            else
-            {
-                // Resolve the actual formId from the DB in case it differs
-                formId = await context.Forms
-                    .AsNoTracking()
-                    .Where(f => f.ServiceId == service.Id)
-                    .Select(f => f.Id)
-                    .FirstAsync();
-            }
-
-            int sectionOrder = 1;
-            int sectionIndex = 1;
-            foreach (var (key, title, fieldKeys) in sectionDefs)
-            {
-                // Always query fresh to avoid EF change-tracker collisions
-                var existingSection = await context.FormSections
-                    .AsNoTracking()
-                    .FirstOrDefaultAsync(s => s.FormId == formId && s.Key == key);
-
-                Guid sectionId;
-                if (existingSection == null)
-                {
-                    var bytes = sectionGuidPrefix.ToByteArray();
-                    bytes[15] = (byte)sectionIndex;
-                    sectionId = new Guid(bytes);
-
-                    // Guard against GUID already being tracked from an earlier iteration
-                    var alreadyTracked = context.ChangeTracker.Entries<FormSection>()
-                        .Any(e => e.Entity.Id == sectionId);
-
-                    if (!alreadyTracked)
-                    {
-                        context.FormSections.Add(new FormSection
-                        {
-                            Id = sectionId,
-                            FormId = formId,
-                            Key = key,
-                            Title = title,
-                            OrderIndex = sectionOrder
-                        });
-                        await context.SaveChangesAsync();
-                    }
-                }
-                else
-                {
-                    sectionId = existingSection.Id;
-                }
-
-                sectionOrder++;
-                sectionIndex++;
-
-                int fieldOrder = 1;
-                foreach (var fk in fieldKeys)
-                {
-                    if (fieldsPool.TryGetValue(fk, out var f))
-                    {
-                        var sfExists = await context.SectionFields
-                            .AsNoTracking()
-                            .AnyAsync(sf => sf.FormSectionId == sectionId && sf.FieldId == f.Id);
-
-                        if (!sfExists)
-                        {
-                            context.SectionFields.Add(new SectionField
-                            {
-                                FormSectionId = sectionId,
-                                FieldId = f.Id,
-                                IsRequired = key != "assistanceRequest" && key != "knownByAnotherName" && key != "club" && key != "examination" && key != "radioOfficers",
-                                OrderIndex = fieldOrder++
-                            });
-                        }
-                    }
-                }
-            }
-            await context.SaveChangesAsync();
-        }
-
-        // Seed Forms per NTC Service
-        await SeedFormForService("NTC_1_01", Guid.Parse("f0100000-0000-0000-0000-000000000001"), Guid.Parse("f01a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email", "education" }),
-            ("examSelection", "Exam Selection", new() { "examCategory", "examineeType", "elements" }),
-            ("assistanceRequest", "Special Needs Assistance", new() { "specialNeeds" }),
-            ("admissionSlip", "Admission Slip", new() { "admissionNumber" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" })
-        });
-
-        await SeedFormForService("NTC_1_02", Guid.Parse("f0200000-0000-0000-0000-000000000001"), Guid.Parse("f02a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email", "weight_kg", "height_cm", "employmentStatus", "employmentLocation" }),
-            ("typeOfCertificate", "Type of Certificate", new() { "typeOfCertificate" }),
-            ("examSeminarDetails", "Exam / Seminar Details", new() { "examSeminarDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_03", Guid.Parse("f0300000-0000-0000-0000-000000000001"), Guid.Parse("f03a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicantPerson", "Personal Information", new() { "fullName", "birthDate", "address", "contactNo", "email" }),
-            ("permitType", "Permit / License Type", new() { "permitType" }),
-            ("classOfStation", "Class of Station", new() { "classOfStation" }),
-            ("club", "Club Details", new() { "clubDetails" }),
-            ("examination", "Examination History", new() { "examSeminarDetails" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_04", Guid.Parse("f0400000-0000-0000-0000-000000000001"), Guid.Parse("f04a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("vessel", "Vessel Details", new() { "vesselName", "callSign", "imoNumber" }),
-            ("equipment", "Equipment List", new() { "equipmentDetails" }),
-            ("radioOfficers", "Radio Officers", new() { "radioOfficers" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("proposedStation", "Proposed Station", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("sourceOfEquipment", "Source of Equipment", new() { "equipmentDetails" }),
-            ("intendedUse", "Intended Use", new() { "equipmentDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_11", Guid.Parse("f1100000-0000-0000-0000-000000000001"), Guid.Parse("f11a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("stations", "Station Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("antennas", "Antenna Details", new() { "antennaDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_14", Guid.Parse("f1400000-0000-0000-0000-000000000001"), Guid.Parse("f14a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("station", "Station Technical Details", new() { "stationLocation" }),
-            ("equipment", "Equipment Details", new() { "equipmentDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_18", Guid.Parse("f1800000-0000-0000-0000-000000000001"), Guid.Parse("f18a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("personnel", "Personnel Credentials", new() { "personnelDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_19", Guid.Parse("f1900000-0000-0000-0000-000000000001"), Guid.Parse("f19a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("devices", "Registered Devices", new() { "devicesDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_20", Guid.Parse("f2000000-0000-0000-0000-000000000001"), Guid.Parse("f20a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("knownByAnotherName", "Trade Name", new() { "fullName" }),
-            ("valueAddedServices", "Value-Added Services", new() { "valueAddedServices" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("permitLicenseCertificateNo", "Existing Permit/License Number", new() { "circumstances" }),
-            ("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-
-        await SeedFormForService("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
-        {
-            ("applicant", "Applicant Details", new() { "fullName", "address", "contactNo", "email" }),
-            ("tvroEquipment", "TVRO Equipment Details", new() { "tvroDetails" }),
-            ("antennaSystem", "Antenna System Details", new() { "antennaDetails" }),
-            ("signalReception", "Signal Reception Details", new() { "tvroDetails" }),
-            ("declaration", "Declaration", new() { "signatureField", "declarationCheckbox" }),
-            ("payment", "Payment Details", new() { "paymentOrNumber", "paymentAmount", "paymentDate" })
-        });
-    }
-
-    /// <summary>
-    /// Applies the current contract JSON definitions to existing Service rows.
-    /// Called on every startup so that changes to requirementDiscriminatorFields,
-    /// requirementContextGroups, or any other contract metadata are reflected in
-    /// the DB without requiring a full re-seed or manual SQL update.
-    /// </summary>
-    private static async Task UpdateContractsAsync(ApplicationDbContext context)
-    {
-        var services = await context.Services
-            .Where(s => s.Code != null)
-            .ToListAsync();
-
-        if (services.Count == 0)
-            return;
-
-        var contractMap = FastTrackSeederData.GetContractMap();
-
-        bool anyChange = false;
-        foreach (var service in services)
-        {
-            if (service.Code == null)
-                continue;
-
-            // Normalize underscores vs hyphens
-            var key = service.Code.Replace("-", "_").ToUpperInvariant();
-            if (!contractMap.TryGetValue(key, out var newContract))
-                continue;
-
-            var normalizedNew     = newContract.Trim();
-            var normalizedCurrent = (service.Contract ?? string.Empty).Trim();
-            if (normalizedCurrent == normalizedNew)
-                continue;
-
-            service.Contract = newContract;
-            anyChange = true;
-        }
-
-        if (anyChange)
-            await context.SaveChangesAsync();
-    }
-
-    private static async Task UpdateVariantsAsync(ApplicationDbContext context)
-    {
-        var existingVariants = await context.ServiceVariants.ToListAsync();
-        var variantDefs = FastTrackSeederData.GetVariantDefs();
-        var variantDefIds = variantDefs.Select(d => d.Id).ToHashSet();
-        
-        bool anyChange = false;
-
-        // Remove variants no longer defined in seeder
-        foreach (var ev in existingVariants)
-        {
-            if (!variantDefIds.Contains(ev.Id))
-            {
-                context.ServiceVariants.Remove(ev);
-                anyChange = true;
-            }
-        }
-
-        // Upsert seeder variants
-        foreach (var def in variantDefs)
-        {
-            var ev = existingVariants.FirstOrDefault(v => v.Id == def.Id);
-            if (ev == null)
-            {
-                context.ServiceVariants.Add(new ServiceVariant
-                {
-                    Id = def.Id,
-                    ServiceId = def.ServiceId,
-                    Type = def.Type,
-                    Description = def.Description
-                });
-                anyChange = true;
-            }
-            else
-            {
-                if (ev.ServiceId != def.ServiceId || ev.Type != def.Type || ev.Description != def.Description)
-                {
-                    ev.ServiceId = def.ServiceId;
-                    ev.Type = def.Type;
-                    ev.Description = def.Description;
-                    anyChange = true;
-                }
-            }
-        }
-
-        if (anyChange)
-        {
-            await context.SaveChangesAsync();
-        }
-    }
-
-    private static async Task BackfillNewServicesAsync(ApplicationDbContext context)
-    {
-        var tenant = await context.Tenants.FirstOrDefaultAsync();
-        if (tenant == null) return;
-
-        var existingCategories = await context.ServiceCategories.ToListAsync();
-        var categoryIds = new Dictionary<string, Guid>(StringComparer.OrdinalIgnoreCase);
-
-        void AddCategoryMapping(string key, ServiceCategoryType type)
-        {
-            var cat = existingCategories.FirstOrDefault(c => c.Type == type);
-            if (cat != null)
-            {
-                categoryIds[key] = cat.Id;
-            }
-        }
-
-        AddCategoryMapping("Exams", ServiceCategoryType.Exam);
-        AddCategoryMapping("Certificates", ServiceCategoryType.Certificate);
-        AddCategoryMapping("Licenses", ServiceCategoryType.License);
-        AddCategoryMapping("Permits", ServiceCategoryType.Permit);
-        AddCategoryMapping("Accreditations", ServiceCategoryType.Accreditation);
-        AddCategoryMapping("RequestsAndComplaints", ServiceCategoryType.RequestsAndComplaints);
-
-        // Ensure fallback keys exist
-        foreach (var key in new[] { "Exams", "Certificates", "Licenses", "Permits", "Accreditations", "RequestsAndComplaints" })
-        {
-            if (!categoryIds.ContainsKey(key))
-            {
-                categoryIds[key] = key switch
-                {
-                    "Exams" => Guid.Parse("c0000000-0000-0000-0000-000000000001"),
-                    "Certificates" => Guid.Parse("c0000000-0000-0000-0000-000000000002"),
-                    "Licenses" => Guid.Parse("c0000000-0000-0000-0000-000000000003"),
-                    "Permits" => Guid.Parse("c0000000-0000-0000-0000-000000000004"),
-                    "Accreditations" => Guid.Parse("c0000000-0000-0000-0000-000000000005"),
-                    _ => Guid.Parse("c0000000-0000-0000-0000-000000000006")
-                };
-            }
-        }
-
-        var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
-        var existingServices = await context.Services.ToListAsync();
-        bool anyChange = false;
-
-        foreach (var def in serviceDefs)
-        {
-            var s = existingServices.FirstOrDefault(x => x.Code == def.Code);
-            if (s == null)
-            {
-                s = new Service
-                {
-                    Id = def.Id,
-                    ServiceCategoryId = def.CategoryId,
-                    TenantId = tenant.Id,
-                    Name = def.Name,
-                    Group = def.Group,
-                    Code = def.Code,
-                    Description = def.Desc,
-                    Contract = def.Contract
-                };
-                context.Services.Add(s);
-                anyChange = true;
-            }
-            else
-            {
-                if (s.Name != def.Name || s.Group != def.Group || s.ServiceCategoryId != def.CategoryId || s.Contract != def.Contract)
-                {
-                    s.Name = def.Name;
-                    s.Group = def.Group;
-                    s.ServiceCategoryId = def.CategoryId;
-                    s.Contract = def.Contract;
-                    anyChange = true;
-                }
-            }
-        }
-
-        if (anyChange)
-        {
-            await context.SaveChangesAsync();
-        }
-    }
-
-    private static async Task BackfillNewCatalogDetailsAsync(ApplicationDbContext context)
-    {
-        var svc101 = Guid.Parse("50000000-0000-0000-0000-000000000001");
-
-        var allVariantsInDb = await context.ServiceVariants.AsNoTracking().ToListAsync();
-        var allVariantsByDef = FastTrackSeederData.GetVariantDefs();
-
-        Guid ResolveVariantId(Guid hardcodedVariantId)
-        {
-            var def = allVariantsByDef.FirstOrDefault(d => d.Id == hardcodedVariantId);
-            if (def != default)
-            {
-                var matchingDbVariant = allVariantsInDb.FirstOrDefault(v => 
-                    v.Id == hardcodedVariantId || (v.ServiceId == def.ServiceId && v.Type == def.Type));
-                if (matchingDbVariant != null)
-                {
-                    return matchingDbVariant.Id;
-                }
-            }
-            return hardcodedVariantId;
-        }
-
-        // 2. Seed ServiceVariantElements
-        var elementsToSeed = FastTrackSeederData.GetBackfillElements();
-
-        foreach (var el in elementsToSeed)
-        {
-            Guid actualVariantId = ResolveVariantId(el.VariantId);
-            if (!await context.ServiceVariantElements.AnyAsync(e => e.ServiceVariantId == actualVariantId && e.Code == el.Code))
-            {
-                context.ServiceVariantElements.Add(new ServiceVariantElement
-                {
-                    Id = Guid.NewGuid(),
-                    ServiceVariantId = actualVariantId,
-                    Code = el.Code,
-                    Description = el.Description
-                });
-            }
-        }
-        await context.SaveChangesAsync();
-
-        // 2b. Also seed the master Elements table so that billing/fee mappings can reference them
-        var uniqueElementCodes = elementsToSeed
-            .GroupBy(e => e.Code)
-            .Select(g => g.First())
-            .ToList();
-
-        foreach (var el in uniqueElementCodes)
-        {
-            if (!await context.Elements.AnyAsync(e => e.Code.ToLower() == el.Code.ToLower()))
-            {
-                context.Elements.Add(new Element
-                {
-                    Id = Guid.NewGuid(),
-                    Code = el.Code.ToUpper(),
-                    Name = el.Code,
-                    Description = el.Description
-                });
-            }
-        }
-        await context.SaveChangesAsync();
-
-        // 3. Seed Notes
-        var notesToSeed = FastTrackSeederData.GetBackfillNotes(svc101);
-
-        foreach (var note in notesToSeed)
-        {
-            Guid? actualVariantId = note.ServiceVariantId.HasValue ? ResolveVariantId(note.ServiceVariantId.Value) : null;
-            if (!await context.Notes.AnyAsync(n => n.ServiceId == note.ServiceId && n.ServiceVariantId == actualVariantId && n.Notes == note.Content))
-            {
-                context.Notes.Add(new Note
-                {
-                    Id = Guid.NewGuid(),
-                    ServiceId = note.ServiceId,
-                    ServiceVariantId = actualVariantId,
-                    Notes = note.Content
-                });
-            }
-        }
-        await context.SaveChangesAsync();
-
-        // 4. Seed Requirements
-        var reqs = FastTrackSeederData.GetBackfillRequirements();
-
-        foreach (var req in reqs.Values)
-        {
-            if (!await context.Requirements.AnyAsync(r => r.Id == req.Id))
-            {
-                context.Requirements.Add(new Requirement
-                {
-                    Id = req.Id,
-                    Name = req.Name,
-                    Description = req.Desc
-                });
-            }
-        }
-        await context.SaveChangesAsync();
-
-         // 5. Seed ServiceVariantRequirements
-         var variantReqsToSeed = FastTrackSeederData.GetBackfillVariantRequirements();
- 
-         foreach (var vr in variantReqsToSeed)
-         {
-             Guid actualVariantId = ResolveVariantId(vr.VariantId);
-             if (!await context.ServiceVariantRequirements.AnyAsync(r => r.ServiceVariantId == actualVariantId && r.RequirementId == vr.ReqId && r.ContextKey == vr.ContextKey))
-             {
-                 context.ServiceVariantRequirements.Add(new ServiceVariantRequirement
-                 {
-                     Id = Guid.NewGuid(),
-                     ServiceVariantId = actualVariantId,
-                     RequirementId = vr.ReqId,
-                     IsRequired = vr.IsRequired,
-                     ContextKey = vr.ContextKey
-                 });
-             }
-         }
-         await context.SaveChangesAsync();
-
-        // 6. Seed ServiceFees
-        var examFeeId = Guid.Parse("f0000000-0000-0000-0000-000000000005"); // Operator Competency Exam Fee
-
-        if (!await context.ServiceFees.AnyAsync(sf => sf.ServiceId == svc101 && sf.FeeId == examFeeId))
-        {
-            context.ServiceFees.Add(new ServiceFee
-            {
-                Id = Guid.NewGuid(),
-                ServiceId = svc101,
-                FeeId = examFeeId,
-                Amount = 50.00m,
-                IsActive = true
-            });
-        }
-        await context.SaveChangesAsync();
+        await FastTrackFormSeeder.SeedFormsInternalAsync(context, logger);
     }
 }

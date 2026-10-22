@@ -1,243 +1,530 @@
-import React from "react";
-import { View, Text, TextInput } from "react-native";
-import { COLORS, TYPOGRAPHY } from "@edge/ui";
+import React, { useEffect } from "react";
+import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "react-native";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
-import { ValidatedInput } from "../../../../shared/components/ValidatedInput";
-import { Select } from "../../../../shared/components/Select";
-import {
-  RadioOperatorCertForm,
-  DeviceRegistrationForm,
-  TVRORegistrationForm,
-  VASProviderForm,
-  CopyOfCertificateForm,
-  initialRadioOperatorCertData,
-  initialDeviceRegistrationData,
-  initialTVRORegistrationData,
-  initialVASProviderData,
-  initialCopyOfCertificateData,
-} from "../../certificates";
+import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
+import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
+import { useServiceForm } from "../hooks/useServiceForm";
+import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
+import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
   activeApplicant: GeneralApplicantData;
-  updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  updateActiveApplicant: (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => void;
+  appMode?: "SINGLE" | "BULK";
+  applicants?: GeneralApplicantData[];
+  currentApplicantIndex?: number;
+  setCurrentApplicantIndex?: (idx: number) => void;
+  onRequiredFieldsChange?: (fieldIds: string[]) => void;
+  errors?: Record<string, string>;
+  variants?: Array<{ id: string; type?: string; name?: string; description?: string; isIndividual?: boolean; [key: string]: unknown }>;
+  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
 }
-
-const months = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-];
-const days = Array.from({ length: 31 }, (_, i) => String(i + 1));
-const years = Array.from({ length: 100 }, (_, i) => String(new Date().getFullYear() - i));
 
 export function GeneralFilingDetailsStep({
   service,
   activeApplicant,
   updateActiveApplicant,
+  appMode = "SINGLE",
+  applicants = [],
+  currentApplicantIndex = 0,
+  setCurrentApplicantIndex,
+  onRequiredFieldsChange,
+  errors = {},
+  variants = [],
+  variantElements = [],
 }: GeneralFilingDetailsStepProps) {
-  const serviceCode = (service.code || "").toUpperCase();
-  const serviceTitle = (service.title || "").toUpperCase();
+  const { form, loading } = useServiceForm(service.id);
 
-  // 1. NTC 1-02: Commercial Radio Operator Certificates
-  if (serviceCode === "NTC_1_02" || serviceTitle.includes("RADIO OPERATOR CERTIFICATES (ROC)")) {
-    const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
-    return (
-      <RadioOperatorCertForm
-        data={radioData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            radioCertData: { ...radioData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
-        }
-        isAmateurService={false}
-      />
-    );
+  const isExamService =
+    (service.category || "").toLowerCase().includes("exam") ||
+    (service.title || "").toLowerCase().includes("exam") ||
+    (service.title || "").toLowerCase().includes("admission") ||
+    (service.title || "").toLowerCase().includes("operator examination");
+
+  const isBulk = appMode === "BULK" && applicants.length > 1;
+
+  // Build key-value map for dynamic service fields from activeApplicant.formFieldValues
+  const dynamicValuesRecord: Record<string, string> = {};
+  if (activeApplicant.formFieldValues && Array.isArray(activeApplicant.formFieldValues)) {
+    activeApplicant.formFieldValues.forEach((fv) => {
+      if (fv.fieldId) dynamicValuesRecord[fv.fieldId] = fv.value;
+      if (fv.fieldLabel) dynamicValuesRecord[fv.fieldLabel] = fv.value;
+    });
   }
 
-  // 2. NTC 1-03: Certificates in the Amateur Service
-  if (serviceCode === "NTC_1_03" || serviceCode === "NTC_AMA_LICENSES" || serviceTitle.includes("CERTIFICATES IN THE AMATEUR SERVICE")) {
-    const radioData = activeApplicant.radioCertData || initialRadioOperatorCertData(activeApplicant.id);
-    return (
-      <RadioOperatorCertForm
-        data={radioData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            radioCertData: { ...radioData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName.split(" ")[0] || "" : activeApplicant.firstName,
-            lastName: fields.applicantName !== undefined ? fields.applicantName.split(" ").slice(1).join(" ") : activeApplicant.lastName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
+  useEffect(() => {
+    if (!form || !form.sections || form.sections.length === 0) {
+      onRequiredFieldsChange?.([]);
+      return;
+    }
+
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const matchedElementItem = variantElements.find((e) => String(e.id) === String(activeApplicant.selectedElementId));
+
+    const evaluationContext: FormEvaluationContext = {
+      variantType: matchedVariantItem?.type ? String(matchedVariantItem.type) : undefined,
+      variantId: activeApplicant.selectedVariantId,
+      variantDescription: matchedVariantItem?.description || matchedVariantItem?.name,
+      elementCodes: matchedElementItem?.code
+        ? [matchedElementItem.code]
+        : variantElements
+            .map((e) => (typeof e.code === "string" ? e.code : undefined))
+            .filter((c): c is string => Boolean(c)),
+      applicantType: activeApplicant.applicantType,
+      formValues: dynamicValuesRecord,
+    };
+
+    const requiredFieldIds: string[] = [];
+
+    form.sections.forEach((sec) => {
+      if (!sec) return;
+      const k = (sec.key || sec.id || "").trim().toLowerCase();
+      const t = (sec.title || "").trim().toLowerCase();
+      if (
+        k === "declaration" ||
+        t.includes("declaration") ||
+        k === "payment" ||
+        t.includes("payment") ||
+        k === "applicant" ||
+        k === "applicantperson" ||
+        k === "applicantparticulars" ||
+        k === "applicantaddress" ||
+        k === "applicantcontact" ||
+        k === "assistancerequest" ||
+        t.includes("special needs")
+      ) {
+        return;
+      }
+
+      const isBlockingSection =
+        k === "request_type_and_device_details" ||
+        k === "sim_details" ||
+        k === "supporting_documents" ||
+        k === "incident_and_demographic_info" ||
+        t.includes("device particulars") ||
+        t.includes("sim card") ||
+        t.includes("proof of ownership") ||
+        t.includes("incident details");
+
+      const isComplaintSection =
+        k === "particulars_of_service_provider" ||
+        k === "nature_of_complaint" ||
+        k === "complaint_details" ||
+        t.includes("service provider") ||
+        t.includes("nature of complaint") ||
+        t.includes("details of complaint");
+
+      const vDesc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
+      const vId = String(activeApplicant.selectedVariantId || "").toLowerCase();
+      const isUnblock = vDesc.includes("unblock") || vId.includes("402");
+      const isBlock = (vDesc.includes("block") || vId.includes("401")) && !isUnblock;
+      const isBlockOrUnblock = isBlock || isUnblock;
+      const isSpam = (vDesc.includes("spam") || vDesc.includes("scam") || vDesc.includes("threat") || vId.includes("403")) && !vDesc.includes("tape");
+      const isTelco = (vDesc.includes("telecommunications") || vDesc.includes("broadcast service") || vDesc.includes("provider") || vId.includes("404")) && !vDesc.includes("tape") && !isSpam;
+      const isTape = vDesc.includes("tape") || vDesc.includes("preservation") || vId.includes("405");
+
+      if (isBlockOrUnblock && isComplaintSection) return;
+      if (!isBlockOrUnblock && isBlockingSection) return;
+
+      if (isBlock) {
+        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
+        if (k === "unblocking_details_section" || t.includes("unblocking")) return;
+      }
+
+      if (isUnblock) {
+        if (k === "supporting_documents" || t.includes("proof of ownership")) return;
+        if (k === "incident_and_demographic_info" || t.includes("incident details")) return;
+      }
+
+      if (isTape) {
+        if (k === "nature_of_complaint" || t.includes("nature of complaint")) return;
+        if (k === "particulars_of_service_provider" || t.includes("particulars of service provider")) return;
+      } else {
+        if (k === "broadcast_details" || t.includes("broadcast")) return;
+      }
+
+      if (!evaluateVisibilityCondition(sec.visibilityCondition, evaluationContext)) {
+        return;
+      }
+
+      (sec.fields || []).forEach((field) => {
+        if (!field || !field.isRequired) return;
+
+        const rawTargetId = field.fieldId || field.id;
+        const idLower = (rawTargetId || "").toLowerCase();
+        const labelLower = (field.label || "").toLowerCase();
+        if (
+          rawTargetId?.toLowerCase().includes("declaration") ||
+          labelLower.includes("declaration") ||
+          labelLower.includes("i hereby declare") ||
+          rawTargetId?.toLowerCase().includes("payment") ||
+          labelLower.includes("official receipt") ||
+          labelLower.includes("amount paid")
+        ) {
+          return;
         }
-        isAmateurService={true}
-      />
-    );
-  }
 
-  // 3. NTC 1-19: RFID, SRD, WDN Devices - Indoor
-  if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
-    const deviceData = activeApplicant.deviceRegData || initialDeviceRegistrationData(activeApplicant.id);
-    return (
-      <DeviceRegistrationForm
-        data={deviceData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            deviceRegData: { ...deviceData, ...fields },
-            firstName: fields.businessName !== undefined ? fields.businessName : activeApplicant.firstName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
+        if (isBlock || isUnblock) {
+          if (idLower === "action_requested" || labelLower.includes("action requested")) return;
+          if (idLower === "sex" || labelLower === "sex") return;
+          if (idLower === "age_group" || labelLower.includes("age group")) return;
+          if (idLower === "identity_proof_type" || idLower === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return;
         }
-      />
-    );
-  }
 
-  // 4. NTC 1-22: TVRO Registration Certificate
-  if (serviceCode === "NTC_1_22" || serviceCode === "NTC_TVRO_CATV_LICENSES" || serviceTitle.includes("TVRO")) {
-    const tvroData = activeApplicant.tvroRegData || initialTVRORegistrationData(activeApplicant.id);
-    return (
-      <TVRORegistrationForm
-        data={tvroData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            tvroRegData: { ...tvroData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName : activeApplicant.firstName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
+        if (!evaluateVisibilityCondition(field.visibilityCondition, evaluationContext)) {
+          return;
         }
-      />
-    );
-  }
 
-  // 5. NTC 1-20: Value-Added Service (VAS) Provider
-  if (serviceCode === "NTC_1_20" || serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS")) {
-    const vasData = activeApplicant.vasData || initialVASProviderData(activeApplicant.id);
-    return (
-      <VASProviderForm
-        data={vasData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            vasData: { ...vasData, ...fields },
-            firstName: fields.businessName !== undefined ? fields.businessName : activeApplicant.firstName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
+        if (rawTargetId) {
+          requiredFieldIds.push(rawTargetId);
         }
-      />
-    );
-  }
+      });
+    });
 
-  // 6. NTC 1-21: Copy of Certificates
-  if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES") || serviceTitle.includes("COPY OF LICENSES")) {
-    const copyData = activeApplicant.copyOfCertData || initialCopyOfCertificateData(activeApplicant.id);
-    return (
-      <CopyOfCertificateForm
-        data={copyData}
-        onChange={(fields) =>
-          updateActiveApplicant({
-            copyOfCertData: { ...copyData, ...fields },
-            firstName: fields.applicantName !== undefined ? fields.applicantName : activeApplicant.firstName,
-            email: fields.email !== undefined ? fields.email : activeApplicant.email,
-            contactNo: fields.contactNo !== undefined ? fields.contactNo : activeApplicant.contactNo,
-            address: fields.address !== undefined ? fields.address : activeApplicant.address,
-          })
+    const vDescOuter = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || "").toLowerCase();
+    const vIdOuter = String(activeApplicant.selectedVariantId || "").toLowerCase();
+    const isUnblockOuter = vDescOuter.includes("unblock") || vIdOuter.includes("402");
+    const isBlockOuter = (vDescOuter.includes("block") || vIdOuter.includes("401")) && !isUnblockOuter;
+    const isSpamOuter = (vDescOuter.includes("spam") || vDescOuter.includes("scam") || vDescOuter.includes("threat") || vIdOuter.includes("403")) && !vDescOuter.includes("tape");
+    const isTelcoOuter = (vDescOuter.includes("telecommunications") || vDescOuter.includes("broadcast service") || vDescOuter.includes("provider") || vIdOuter.includes("404")) && !vDescOuter.includes("tape") && !isSpamOuter;
+    const isTapeOuter = vDescOuter.includes("tape") || vDescOuter.includes("preservation") || vIdOuter.includes("405");
+
+    if (isUnblockOuter) {
+      if (!requiredFieldIds.includes("date_of_filing")) requiredFieldIds.push("date_of_filing");
+      if (!requiredFieldIds.includes("date_of_recovery")) requiredFieldIds.push("date_of_recovery");
+      if (!requiredFieldIds.includes("unblocking_details")) requiredFieldIds.push("unblocking_details");
+    }
+
+    if (isBlockOuter) {
+      const lossVal = dynamicValuesRecord["loss_reason"] || dynamicValuesRecord["Incident Type"] || "";
+      if (lossVal === "Others" && !requiredFieldIds.includes("incident_others_specify")) {
+        requiredFieldIds.push("incident_others_specify");
+      }
+    }
+
+    if (isTapeOuter) {
+      if (!requiredFieldIds.includes("broadcast_station")) requiredFieldIds.push("broadcast_station");
+      if (!requiredFieldIds.includes("program_name")) requiredFieldIds.push("program_name");
+      if (!requiredFieldIds.includes("time_of_airing")) requiredFieldIds.push("time_of_airing");
+      if (!requiredFieldIds.includes("anchor_commentator")) requiredFieldIds.push("anchor_commentator");
+      if (!requiredFieldIds.includes("date_of_incident")) requiredFieldIds.push("date_of_incident");
+      if (!requiredFieldIds.includes("state_briefly_details")) requiredFieldIds.push("state_briefly_details");
+    }
+
+    if (isSpamOuter || isTelcoOuter) {
+      const complaintVal = dynamicValuesRecord["complaint_types"] || dynamicValuesRecord["Nature of Complaint"] || "";
+      if (complaintVal.toLowerCase().includes("others") && !requiredFieldIds.includes("others_specification")) {
+        requiredFieldIds.push("others_specification");
+      }
+    }
+
+    onRequiredFieldsChange?.(requiredFieldIds);
+  }, [
+    form,
+    activeApplicant.selectedVariantId,
+    activeApplicant.selectedElementId,
+    activeApplicant.applicantType,
+    onRequiredFieldsChange,
+    variants,
+  ]);
+
+  const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
+    updateActiveApplicant((prevApp) => {
+      const currentArr = prevApp.formFieldValues || [];
+      const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
+      return {
+        formFieldValues: [...filtered, { fieldId, fieldLabel, value }],
+      };
+    });
+  };
+
+  // Auto-set and lock "Action Requested" for NTC 1-24 Blocking / Unblocking service requests
+  useEffect(() => {
+    if (!activeApplicant.selectedVariantId) return;
+    const matchedVariantItem = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+    const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || activeApplicant.selectedVariantName || "").toLowerCase();
+    const varId = String(activeApplicant.selectedVariantId).toLowerCase();
+    const isUnblocking = desc.includes("unblock") || varId.includes("402");
+    const isBlocking = (desc.includes("block") || varId.includes("401")) && !isUnblocking;
+
+    if (isBlocking || isUnblocking) {
+      const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+      let schemaFieldId = "fd000000-0000-0000-0000-000000000307";
+      if (form?.sections) {
+        for (const s of form.sections) {
+          const fld = s.fields?.find((f) => (f.label || "").toLowerCase().includes("action requested") || (f.fieldId || f.id) === "action_requested");
+          if (fld) {
+            schemaFieldId = fld.fieldId || fld.id || schemaFieldId;
+            break;
+          }
         }
-      />
-    );
-  }
+      }
 
-  // Default Generic Form
-  return (
-    <View>
-      <ValidatedInput
-        label="First Name"
-        value={activeApplicant.firstName}
-        onChangeText={(text) => updateActiveApplicant({ firstName: text })}
-        required
-      />
-      <ValidatedInput
-        label="Last Name"
-        value={activeApplicant.lastName}
-        onChangeText={(text) => updateActiveApplicant({ lastName: text })}
-        required
-      />
-      <ValidatedInput
-        label="Email Address"
-        value={activeApplicant.email}
-        onChangeText={(text) => updateActiveApplicant({ email: text })}
-        keyboardType="email-address"
-        required
-      />
-      <ValidatedInput
-        label="Contact Number"
-        value={activeApplicant.contactNo}
-        onChangeText={(text) => updateActiveApplicant({ contactNo: text })}
-        keyboardType="phone-pad"
-        required
-      />
-      <ValidatedInput
-        label="Physical Address"
-        value={activeApplicant.address}
-        onChangeText={(text) => updateActiveApplicant({ address: text })}
-      />
+      const currentValByGuid = dynamicValuesRecord[schemaFieldId];
+      const currentValByName = dynamicValuesRecord["action_requested"] || dynamicValuesRecord["Action Requested"];
+      if (currentValByGuid !== targetVal || currentValByName !== targetVal) {
+        updateActiveApplicant((prevApp) => {
+          const currentArr = prevApp.formFieldValues || [];
+          const filtered = currentArr.filter(
+            (item) => item.fieldId !== schemaFieldId && item.fieldId !== "action_requested" && item.fieldId !== "fd000000-0000-0000-0000-000000000307" && (item.fieldLabel || "").toLowerCase() !== "action requested"
+          );
+          return {
+            formFieldValues: [
+              ...filtered,
+              { fieldId: schemaFieldId, fieldLabel: "Action Requested", value: targetVal },
+              { fieldId: "action_requested", fieldLabel: "Action Requested", value: targetVal },
+            ],
+          };
+        });
+      }
+    }
+  }, [activeApplicant.selectedVariantId, activeApplicant.selectedVariantName, variants, form, dynamicValuesRecord, updateActiveApplicant]);
 
-      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: COLORS.neutral[700], marginTop: 16, marginBottom: 8 }}>Birth Date</Text>
-      <View style={{ flexDirection: "row", gap: 8 }}>
-        <View style={{ flex: 2 }}>
-          <Select
-            placeholder="Month"
-            value={activeApplicant.birthMonth}
-            onValueChange={(val) => updateActiveApplicant({ birthMonth: val })}
-            options={months.map((m) => ({ label: m, value: m }))}
-          />
+  const matchedVariant = variants.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+  const allowCompany = matchedVariant?.isIndividual === false || (!matchedVariant && !isExamService);
+
+  const renderBulkCohortBanner = () => {
+    if (!isBulk) return null;
+
+    return (
+      <View style={styles.bulkBanner}>
+        <View style={styles.bulkHeaderRow}>
+          <View style={styles.bulkTitleContainer}>
+            <Icon name="users" size={18} color={COLORS.brand[700]} />
+            <Text style={styles.bulkBannerTitle}>
+              Bulk Roster Applicant {currentApplicantIndex + 1} of {applicants.length}
+            </Text>
+          </View>
+          <Text style={styles.applicantBadge}>
+            {getApplicantDisplayName(activeApplicant, currentApplicantIndex + 1)}
+          </Text>
         </View>
-        <View style={{ flex: 1.2 }}>
-          <Select
-            placeholder="Day"
-            value={activeApplicant.birthDay}
-            onValueChange={(val) => updateActiveApplicant({ birthDay: val })}
-            options={days.map((d) => ({ label: d, value: d }))}
-          />
-        </View>
-        <View style={{ flex: 1.5 }}>
-          <Select
-            placeholder="Year"
-            value={activeApplicant.birthYear}
-            onValueChange={(val) => updateActiveApplicant({ birthYear: val })}
-            options={years.map((y) => ({ label: y, value: y }))}
-          />
-        </View>
+
+        {setCurrentApplicantIndex && (
+          <View style={styles.carouselRow}>
+            {applicants.map((app, idx) => {
+              const isSelected = idx === currentApplicantIndex;
+              const displayName = getApplicantDisplayName(app, idx + 1);
+              return (
+                <TouchableOpacity
+                  key={`applicant-tab-${app.id || idx}`}
+                  style={[styles.carouselTab, isSelected && styles.carouselTabSelected]}
+                  onPress={() => setCurrentApplicantIndex(idx)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.carouselTabText, isSelected && styles.carouselTabTextSelected]}>
+                    #{idx + 1} {displayName}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        )}
       </View>
+    );
+  };
 
-      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, color: COLORS.neutral[700], marginTop: 20, marginBottom: 8 }}>Filing Notes / Special Concerns</Text>
-      <TextInput
-        style={{
-          borderWidth: 1,
-          borderColor: COLORS.neutral[300],
-          borderRadius: 8,
-          padding: 12,
-          fontFamily: TYPOGRAPHY.fonts.primary,
-          fontSize: 14,
-          backgroundColor: COLORS.neutral.white,
-          minHeight: 80,
-          textAlignVertical: "top",
-        }}
-        placeholder="Provide specifications or support queries here..."
-        multiline
-        value={activeApplicant.notes}
-        onChangeText={(text) => updateActiveApplicant({ notes: text })}
+  return (
+    <View style={styles.container}>
+      {renderBulkCohortBanner()}
+
+      {/* 1. Standardized Applicant Particulars Section */}
+      <ApplicantInformationFormSection
+        applicant={activeApplicant}
+        onChange={(partial) => updateActiveApplicant(partial)}
+        allowCompany={allowCompany}
+        isExamService={isExamService}
+        includeSignature={false}
+        errors={errors}
+        title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Particulars"}
       />
+
+      {/* 2. Dynamic Service Specifications Section (100% Schema-Driven from Form Builder) */}
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="small" color={COLORS.brand[700]} />
+          <Text style={styles.loadingText}>Loading dynamic service specifications...</Text>
+        </View>
+      ) : form && form.sections && form.sections.length > 0 ? (
+        <DynamicFormRenderer
+          key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
+          form={form}
+          values={dynamicValuesRecord}
+          onChange={handleDynamicFieldChange}
+          applicantName={getApplicantDisplayName(activeApplicant)}
+          applicantType={activeApplicant.applicantType}
+          serviceCategory={service.category}
+          serviceTitle={service.title}
+          selectedVariantId={activeApplicant.selectedVariantId}
+          selectedElementId={activeApplicant.selectedElementId}
+          variants={variants}
+          variantElements={variantElements}
+          errors={errors}
+          appMode={appMode}
+          isBulk={isBulk}
+        />
+      ) : null}
+
+      {/* 3. Acknowledgement & Digital Signature (Standardized at the end of the form) */}
+      <View style={styles.signatureCard}>
+        <View style={styles.signatureHeaderRow}>
+          <View style={styles.iconCircle}>
+            <Text style={styles.iconCircleText}>✓</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.signatureHeading}>Acknowledgement & Digital Signature</Text>
+            <Text style={styles.signatureSubtext}>
+              Please affix or upload your digital signature below. By signing, you certify that all information submitted in this application is true, correct, and complete.
+            </Text>
+          </View>
+        </View>
+        <FormSignatureInput
+          label="Applicant / Authorized Representative Signature"
+          isRequired={true}
+          value={activeApplicant.signatureUrl || ""}
+          onChange={(sigUrl) => updateActiveApplicant({ signatureUrl: sigUrl })}
+          applicantName={getApplicantDisplayName(activeApplicant)}
+          isBulk={isBulk}
+          appMode={appMode}
+          error={errors["signatureUrl"] || errors["signature"]}
+        />
+      </View>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    gap: 16,
+  },
+  bulkBanner: {
+    backgroundColor: COLORS.brand.light,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 16,
+    gap: 10,
+  },
+  bulkHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+  },
+  bulkTitleContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+  },
+  bulkBannerTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: "700",
+    color: COLORS.brand[900],
+  },
+  applicantBadge: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.brand[900],
+    backgroundColor: COLORS.neutral[100],
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+  },
+  carouselRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+  },
+  carouselTab: {
+    paddingVertical: 5,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+    backgroundColor: COLORS.neutral.white,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+  },
+  carouselTabSelected: {
+    backgroundColor: COLORS.brand[700],
+    borderColor: COLORS.brand[800],
+  },
+  carouselTabText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: "500",
+    color: COLORS.neutral[700],
+  },
+  carouselTabTextSelected: {
+    fontWeight: "700",
+    color: COLORS.neutral.white,
+  },
+  loadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 24,
+  },
+  signatureCard: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    marginTop: 8,
+    marginBottom: 20,
+    shadowColor: COLORS.neutral[900],
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
+    gap: 14,
+  },
+  signatureHeaderRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  iconCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: COLORS.brand[50],
+    borderWidth: 1,
+    borderColor: COLORS.brand[200],
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  iconCircleText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "700",
+    color: COLORS.brand[700],
+  },
+  signatureHeading: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: "700",
+    color: COLORS.neutral[900],
+  },
+  signatureSubtext: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    color: COLORS.neutral[500],
+    marginTop: 2,
+  },
+  loadingText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    color: COLORS.neutral[600],
+  },
+});

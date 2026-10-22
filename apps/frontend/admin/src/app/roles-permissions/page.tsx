@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import {
   KeyRound,
   Plus,
@@ -26,6 +26,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 import { Role, CreateRoleCommand, UpdateRoleCommand } from "@edge/api";
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -240,12 +241,6 @@ function RoleFormDialog({
 // ─────────────────────────────────────────────────────────────────────────────
 
 type RoleFilter = "all" | "system" | "tenant";
-type ToastType = "success" | "error";
-
-interface ToastState {
-  msg: string;
-  type: ToastType;
-}
 
 export default function RolesPermissionsPage() {
   const { useRoles, createRole, updateRole, deleteRole } = useRoleService();
@@ -263,7 +258,7 @@ export default function RolesPermissionsPage() {
     isLoading: rolesLoading,
     error: rolesError,
     mutate: mutateRoles,
-  } = useRoles(null, true); // includeSystemRoles = true for system admin
+  } = useRoles(undefined, true); // includeSystemRoles = true for system admin
   const roles: Role[] = Array.isArray(rolesData) ? rolesData : [];
 
   const { data: permsData, isLoading: permsLoading } = usePermissionCatalog();
@@ -272,6 +267,7 @@ export default function RolesPermissionsPage() {
   // Selection state
   const [selectedRoleId, setSelectedRoleId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
+  const [permissionSearchTerm, setPermissionSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState<RoleFilter>("all");
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
 
@@ -289,14 +285,6 @@ export default function RolesPermissionsPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
-
-  // Toast
-  const [toast, setToast] = useState<ToastState | null>(null);
-
-  const showToast = useCallback((msg: string, type: ToastType = "success") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 5000);
-  }, []);
 
   // Role permissions for selected role
   const {
@@ -316,9 +304,19 @@ export default function RolesPermissionsPage() {
     setExpandedCategories(cats);
   }, [rolePermsData, allPermissions.length]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Auto-select first role if none is currently selected
+  useEffect(() => {
+    if (roles.length > 0 && selectedRoleId === null) {
+      setSelectedRoleId(roles[0].id);
+    }
+  }, [roles, selectedRoleId]);
+
   // ── Derived state ──────────────────────────────────────────────────────────
 
-  const selectedRole = roles.find((r) => r.id === selectedRoleId) ?? null;
+  const selectedRole =
+    (selectedRoleId !== null ? roles.find((r) => r.id === selectedRoleId) : undefined) ??
+    roles[0] ??
+    null;
 
   const filteredRoles = useMemo(() => {
     return roles.filter((role) => {
@@ -331,9 +329,22 @@ export default function RolesPermissionsPage() {
     });
   }, [roles, searchTerm, roleFilter]);
 
+  const filteredPermissions = useMemo(() => {
+    const q = permissionSearchTerm.trim().toLowerCase();
+    if (q.length === 0) return allPermissions;
+    return allPermissions.filter((p) => {
+      const label = p.label ? p.label.toLowerCase() : "";
+      const key = p.key ? p.key.toLowerCase() : "";
+      const cat = p.category ? p.category.toLowerCase() : "";
+      const scope = p.scope ? p.scope.toLowerCase() : "";
+      const tag = p.tag ? p.tag.toLowerCase() : "";
+      return label.includes(q) || key.includes(q) || cat.includes(q) || scope.includes(q) || tag.includes(q);
+    });
+  }, [allPermissions, permissionSearchTerm]);
+
   const groupedPermissions = useMemo(() => {
     const groups = new Map<string, PermissionDefinition[]>();
-    allPermissions.forEach((p) => {
+    filteredPermissions.forEach((p) => {
       const existing = groups.get(p.category);
       if (existing !== undefined) {
         existing.push(p);
@@ -342,7 +353,7 @@ export default function RolesPermissionsPage() {
       }
     });
     return groups;
-  }, [allPermissions]);
+  }, [filteredPermissions]);
 
   const pendingChangesCount = useMemo(() => {
     let count = 0;
@@ -407,9 +418,10 @@ export default function RolesPermissionsPage() {
         ...removedKeys.map((k) => revokePermission(selectedRoleId, k).catch(() => null)),
       ]);
       await mutateRolePerms();
-      showToast(`Permissions saved for "${selectedRole?.name}".`);
+      setOriginalKeys(new Set(pendingKeys));
+      showToast.success(`Permissions saved for "${selectedRole?.name}".`);
     } catch {
-      showToast("Failed to save permission changes.", "error");
+      showToast.error("Failed to save permission changes.");
     } finally {
       setIsSavingPerms(false);
     }
@@ -429,7 +441,7 @@ export default function RolesPermissionsPage() {
     await createRole(command);
     await mutateRoles();
     setIsCreateOpen(false);
-    showToast(`Role "${data.name}" created successfully.`);
+    showToast.success(`Role "${data.name}" created successfully.`);
   };
 
   const handleUpdateRole = async (data: RoleFormData) => {
@@ -445,7 +457,7 @@ export default function RolesPermissionsPage() {
     await mutateRoles();
     setIsEditOpen(false);
     setEditingRole(null);
-    showToast(`Role "${data.name}" updated.`);
+    showToast.success(`Role "${data.name}" updated.`);
   };
 
   const handleDeleteRole = async () => {
@@ -455,9 +467,9 @@ export default function RolesPermissionsPage() {
       await deleteRole(deletingRole.id);
       await mutateRoles();
       if (selectedRoleId === deletingRole.id) setSelectedRoleId(null);
-      showToast(`Role "${deletingRole.name}" deleted.`);
+      showToast.success(`Role "${deletingRole.name}" deleted.`);
     } catch {
-      showToast("Failed to delete role.", "error");
+      showToast.error("Failed to delete role.");
     } finally {
       setIsDeleting(false);
       setIsDeleteOpen(false);
@@ -470,9 +482,9 @@ export default function RolesPermissionsPage() {
     try {
       await resetRolePermissions();
       if (selectedRoleId !== null) await mutateRolePerms();
-      showToast("Role permissions have been reset to system defaults.");
+      showToast.success("Role permissions have been reset to system defaults.");
     } catch {
-      showToast("Failed to reset role permissions.", "error");
+      showToast.error("Failed to reset role permissions.");
     } finally {
       setIsResetting(false);
       setIsResetConfirmOpen(false);
@@ -489,32 +501,6 @@ export default function RolesPermissionsPage() {
 
   return (
     <div className="space-y-6">
-      {/* Toast notification */}
-      {toast !== null && (
-        <div
-          className={`p-4 rounded-xl border text-sm flex items-center justify-between shadow-xl ${
-            toast.type === "error"
-              ? "bg-red-500/10 border-red-500/30 text-red-300"
-              : "bg-emerald-500/10 border-emerald-500/30 text-emerald-300"
-          }`}
-        >
-          <div className="flex items-center gap-3">
-            {toast.type === "error" ? (
-              <AlertCircle className="w-4 h-4 shrink-0" />
-            ) : (
-              <Check className="w-4 h-4 shrink-0" />
-            )}
-            <span>{toast.msg}</span>
-          </div>
-          <button
-            onClick={() => setToast(null)}
-            className="text-xs opacity-50 hover:opacity-100 transition-opacity"
-          >
-            Dismiss
-          </button>
-        </div>
-      )}
-
       {/* Page header */}
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-purple-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">
         <div className="absolute top-0 right-0 p-8 opacity-[0.04] pointer-events-none select-none">
@@ -568,20 +554,37 @@ export default function RolesPermissionsPage() {
 
       {/* Two-column layout */}
       {(rolesError === null || rolesError === undefined) && (
-        <div className="flex gap-5 items-start">
+        <div className="flex flex-col lg:flex-row gap-5 items-start">
           {/* ─── Left: Roles panel ─────────────────────────────────────── */}
-          <div className="w-72 xl:w-80 shrink-0 flex flex-col gap-3">
+          <div className="w-full lg:w-72 xl:w-80 shrink-0 flex flex-col gap-3">
             {/* Search + filter */}
-            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3 space-y-2.5 shadow-sm">
+            <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-3.5 space-y-3 shadow-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider">
+                  Roles Directory
+                </span>
+                <span className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded-full">
+                  {filteredRoles.length} {filteredRoles.length === 1 ? "role" : "roles"}
+                </span>
+              </div>
               <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500" />
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
                 <input
                   type="text"
-                  placeholder="Search roles..."
+                  placeholder="Search roles by name or key..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-3 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                  className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
                 />
+                {searchTerm.trim().length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchTerm("")}
+                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
               <div className="flex gap-1 bg-slate-100 dark:bg-slate-950/60 p-1 rounded-xl border border-slate-200 dark:border-slate-800">
                 {(["all", "system", "tenant"] as const).map((f) => (
@@ -716,8 +719,8 @@ export default function RolesPermissionsPage() {
             ) : (
               <div className="flex flex-col gap-4">
                 {/* Role info + action bar */}
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
-                  <div>
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 sm:p-5 flex flex-col xl:flex-row xl:items-center justify-between gap-4 shadow-sm">
+                  <div className="shrink-0 min-w-0">
                     <div className="flex items-center gap-2.5 flex-wrap">
                       <ShieldCheck className="w-5 h-5 text-purple-600 dark:text-purple-400 shrink-0" />
                       <h2 className="text-base font-bold text-slate-900 dark:text-white">
@@ -741,6 +744,27 @@ export default function RolesPermissionsPage() {
                         </span>
                       )}
                     </div>
+                  </div>
+
+                  {/* Permissions Search Input in Header Card */}
+                  <div className="relative flex-1 max-w-md w-full">
+                    <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                    <input
+                      type="text"
+                      placeholder="Search permissions..."
+                      value={permissionSearchTerm}
+                      onChange={(e) => setPermissionSearchTerm(e.target.value)}
+                      className="w-full pl-9 pr-8 py-2 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                    />
+                    {permissionSearchTerm.trim().length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setPermissionSearchTerm("")}
+                        className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
                   <div className="flex items-center gap-2 shrink-0">
@@ -771,6 +795,29 @@ export default function RolesPermissionsPage() {
 
                 {/* Permissions catalog */}
                 <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                  {/* Search Bar on Permissions Catalog Header */}
+                  <div className="p-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50/60 dark:bg-slate-950/40">
+                    <div className="relative">
+                      <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                      <input
+                        type="text"
+                        placeholder="Search permissions..."
+                        value={permissionSearchTerm}
+                        onChange={(e) => setPermissionSearchTerm(e.target.value)}
+                        className="w-full pl-8 pr-8 py-2 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:border-purple-500 transition-colors"
+                      />
+                      {permissionSearchTerm.trim().length > 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setPermissionSearchTerm("")}
+                          className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {rolePermsLoading || permsLoading ? (
                     <div className="flex items-center justify-center h-48">
                       <Loader2 className="w-6 h-6 animate-spin text-purple-600 dark:text-purple-400" />
@@ -779,11 +826,19 @@ export default function RolesPermissionsPage() {
                     <div className="flex flex-col items-center justify-center h-48 text-slate-500">
                       <p className="text-xs">No permissions available.</p>
                     </div>
+                  ) : filteredPermissions.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-slate-500 text-center px-4">
+                      <Search className="w-8 h-8 mb-2 opacity-25" />
+                      <p className="text-xs font-semibold text-slate-700 dark:text-slate-300">No permissions found</p>
+                      <p className="text-[11px] text-slate-400 dark:text-slate-500 mt-1">
+                        No permissions match &ldquo;{permissionSearchTerm}&rdquo;.
+                      </p>
+                    </div>
                   ) : (
                     <div className="overflow-y-auto max-h-[calc(100vh-420px)]">
                       {Array.from(groupedPermissions.entries()).map(
                         ([category, perms]) => {
-                          const isExpanded = expandedCategories.has(category);
+                          const isExpanded = permissionSearchTerm.trim().length > 0 || expandedCategories.has(category);
                           const categoryKeys = perms.map((p) => p.key);
                           const checkedCount = categoryKeys.filter((k) =>
                             pendingKeys.has(k)

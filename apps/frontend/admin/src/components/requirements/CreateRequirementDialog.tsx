@@ -25,7 +25,7 @@ export interface CreateRequirementDialogProps {
       name: string;
       description: string;
       serviceVariantId: string;
-      requirementsList: { requirementId: string; contextKey: string | null; isRequired: boolean }[];
+      requirementsList: { requirementId: string; isRequired: boolean }[];
     }
   ) => Promise<void>;
 }
@@ -33,10 +33,8 @@ export interface CreateRequirementDialogProps {
 interface RequirementEntry {
   uid: number;
   requirementId: string;
-  contextKey: string;
   isRequired: boolean;
 }
-
 
 let uidCounter = 0;
 const nextUid = () => { uidCounter += 1; return uidCounter; };
@@ -44,21 +42,8 @@ const nextUid = () => { uidCounter += 1; return uidCounter; };
 const makeEntry = (firstReqId: string): RequirementEntry => ({
   uid: nextUid(),
   requirementId: firstReqId,
-  contextKey: "",
   isRequired: true,
 });
-
-const MOCK_SERVICE_VARIANTS = [
-  { id: "mock-variant-1", type: "New", description: "New Application" },
-  { id: "mock-variant-2", type: "Renewal", description: "Renewal Application" },
-  { id: "mock-variant-3", type: "Modification", description: "Modification" },
-];
-
-const MOCK_REQUIREMENTS = [
-  { id: "mock-req-1", name: "Valid NTC Amateur Operator Certificate", description: null },
-  { id: "mock-req-2", name: "Government Issued ID", description: null },
-  { id: "mock-req-3", name: "Proof of Billing", description: null },
-];
 
 export function CreateRequirementDialog({
   open,
@@ -67,8 +52,8 @@ export function CreateRequirementDialog({
   requirements,
   onSubmit,
 }: CreateRequirementDialogProps) {
-
-  const displayRequirements = requirements.length > 0 ? requirements : MOCK_REQUIREMENTS;
+  const { useServiceVariants } = useRequirementsService();
+  const { data: serviceVariants = [] } = useServiceVariants(1, 9999, undefined, null, open && activeTab === "service-requirements");
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -99,17 +84,17 @@ export function CreateRequirementDialog({
   // Seed entries once data is available after open
   useEffect(() => {
     if (!open || seededRef.current) return;
-    const firstReqId = displayRequirements[0]?.id ?? "";
-    if (displayRequirements.length > 0) {
+    const firstReqId = requirements[0]?.id ?? "";
+    if (requirements.length > 0) {
       seededRef.current = true;
       setEntries([makeEntry(firstReqId)]);
     }
-  }, [open, displayRequirements]);
+  }, [open, requirements]);
 
   // --- Entry handlers ---
   const handleAddEntry = useCallback(() => {
-    setEntries((prev) => [...prev, makeEntry(displayRequirements[0]?.id ?? "")]);
-  }, [displayRequirements]);
+    setEntries((prev) => [...prev, makeEntry(requirements[0]?.id ?? "")]);
+  }, [requirements]);
 
   const handleRemoveEntry = useCallback((uid: number) => {
     setEntries((prev) => {
@@ -154,7 +139,6 @@ export function CreateRequirementDialog({
         serviceVariantId: selectedVariantId,
         requirementsList: entries.map((entry) => ({
           requirementId: entry.requirementId,
-          contextKey: entry.contextKey.trim() === "" ? null : entry.contextKey.trim(),
           isRequired: entry.isRequired,
         })),
       });
@@ -225,7 +209,7 @@ export function CreateRequirementDialog({
                   className="w-full px-3.5 py-2.5 bg-slate-950 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                 >
                   <option value="" disabled>Select Variant...</option>
-                  {MOCK_SERVICE_VARIANTS.map((v) => (
+                  {serviceVariants.map((v) => (
                     <option key={v.id} value={v.id}>
                       {v.type} {v.description ? `— ${v.description}` : ""}
                     </option>
@@ -243,14 +227,14 @@ export function CreateRequirementDialog({
                     type="button"
                     variant="outline"
                     onClick={handleAddEntry}
-                    disabled={displayRequirements.length === 0}
+                    disabled={requirements.length === 0}
                     className="h-7 px-2.5 border-dashed border-slate-700 bg-slate-900 text-slate-300 hover:text-white hover:bg-slate-800 rounded-lg text-[11px] flex items-center gap-1 shrink-0"
                   >
                     <Plus className="w-3 h-3" /> Add Requirement
                   </Button>
                 </div>
 
-                {displayRequirements.length === 0 ? (
+                {requirements.length === 0 ? (
                   <div className="text-center py-6 bg-slate-950 border border-slate-800 rounded-xl text-slate-500 text-xs">
                     No master requirements registered. Please create a requirement catalog entry first.
                   </div>
@@ -272,26 +256,12 @@ export function CreateRequirementDialog({
                             className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 cursor-pointer"
                           >
                             <option value="" disabled>Select Requirement...</option>
-                            {displayRequirements.map((req) => (
+                            {requirements.map((req) => (
                               <option key={req.id} value={req.id}>
                                 {req.name}
                               </option>
                             ))}
                           </select>
-                        </div>
-
-                        {/* Context Key — free text input */}
-                        <div className="w-36 space-y-1.5 shrink-0">
-                          <label className="text-[10px] font-bold text-slate-400 uppercase">
-                            Context Key
-                          </label>
-                          <input
-                            type="text"
-                            placeholder="e.g. NEW"
-                            value={entry.contextKey}
-                            onChange={(e) => handleUpdateField(entry.uid, "contextKey", e.target.value)}
-                            className="w-full px-2.5 py-1.5 bg-slate-900 border border-slate-800 rounded-lg text-xs text-white placeholder-slate-600 focus:outline-none focus:ring-2 focus:ring-indigo-500 uppercase"
-                          />
                         </div>
 
                         {/* Is Required checkbox */}

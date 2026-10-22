@@ -35,7 +35,7 @@ public class CreateApplicantCommandHandler : IRequestHandler<CreateApplicantComm
             UserId = request.UserId,
             IsGuest = request.IsGuest,
             ApplicantType = applicantType,
-            Status = ApplicantStatus.Draft
+            Status = ApplicantStatus.Incomplete
         };
 
         await _repository.AddApplicantAsync(applicant, cancellationToken);

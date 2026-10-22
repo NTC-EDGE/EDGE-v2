@@ -7,11 +7,15 @@ export function EmployeesScreen() {
   const { colors, isDark } = useTheme();
 
   return (
-    <View style={[styles.shell, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
+    <ScrollView
+      style={[styles.shell, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.inner}>
         <EmployeesScreenContent isWeb={true} />
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
@@ -19,11 +23,13 @@ const styles = StyleSheet.create({
   shell: {
     flex: 1,
   },
+  scrollContent: {
+    flexGrow: 1,
+    paddingBottom: SPACING[40],
+  },
   inner: {
     flex: 1,
-    maxWidth: 1280,
     width: '100%',
-    alignSelf: 'center',
     padding: SPACING[24],
   },
 });

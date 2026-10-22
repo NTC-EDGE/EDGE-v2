@@ -15,3 +15,16 @@ export interface RegionOption {
 }
 
 export type { ApiResponse };
+
+export interface RegionalConfigDto {
+  tenantId?: string;
+  regionId?: string;
+  tenantCode: string;
+  tenantName: string;
+  rcCodeSoa: string;
+  rcCodeOp: string;
+  fundCluster: string;
+  requestAndComplaintRouting: 'DirectToLegal' | 'DirectToEvaluator';
+  supportEmail?: string;
+  supportPhone?: string;
+}

@@ -16,6 +16,7 @@ interface PermissionCategoryCardProps {
   activePermissionIds: string[];
   onTogglePermission: (permissionId: string) => void;
   onToggleCategoryGroup?: (category: PermissionCategoryGroup) => void;
+  readOnly?: boolean;
 }
 
 export function PermissionCategoryCard({
@@ -23,6 +24,7 @@ export function PermissionCategoryCard({
   activePermissionIds,
   onTogglePermission,
   onToggleCategoryGroup,
+  readOnly = false,
 }: PermissionCategoryCardProps) {
   const { colors, isDark } = useTheme();
   const [isExpanded, setIsExpanded] = React.useState(true);
@@ -43,8 +45,11 @@ export function PermissionCategoryCard({
   const totalCount = category.options.length;
   const isFullActive = activeCount === totalCount && totalCount > 0;
 
-  const handleToggleAllInGroup = (e: any) => {
-    e.stopPropagation?.();
+  const handleToggleAllInGroup = (e?: { stopPropagation?: () => void }) => {
+    if (readOnly) return;
+    if (e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation();
+    }
     if (onToggleCategoryGroup) {
       onToggleCategoryGroup(category);
     } else {
@@ -124,18 +129,20 @@ export function PermissionCategoryCard({
         </View>
 
         <View style={styles.headerRight}>
-          <Pressable
-            style={[
-              styles.selectGroupBtn,
-              { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] },
-            ]}
-            onPress={handleToggleAllInGroup}
-            hitSlop={6}
-          >
-            <Text style={[styles.selectGroupText, { color: accentColor }]}>
-              {isFullActive ? 'Deselect All' : 'Select All'}
-            </Text>
-          </Pressable>
+          {!readOnly && (
+            <Pressable
+              style={[
+                styles.selectGroupBtn,
+                { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] },
+              ]}
+              onPress={handleToggleAllInGroup}
+              hitSlop={6}
+            >
+              <Text style={[styles.selectGroupText, { color: accentColor }]}>
+                {isFullActive ? 'Deselect All' : 'Select All'}
+              </Text>
+            </Pressable>
+          )}
 
           <Animated.View style={{ transform: [{ rotate: chevronRotate }] }}>
             <Lucide name="chevron-down" size={16} color={mutedColor} />
@@ -192,7 +199,12 @@ export function PermissionCategoryCard({
                 {/* Toggle */}
                 <Switch
                   value={isActive}
-                  onValueChange={() => onTogglePermission(option.id)}
+                  onValueChange={() => {
+                    if (!readOnly) {
+                      onTogglePermission(option.id);
+                    }
+                  }}
+                  disabled={readOnly}
                   trackColor={{
                     false: isDark ? colors.neutral[700] : colors.neutral[200],
                     true: isDark ? '#2563EB' : colors.brand[600],

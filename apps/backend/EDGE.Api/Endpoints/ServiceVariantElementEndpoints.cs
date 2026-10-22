@@ -8,13 +8,23 @@ using EDGE.Application.ServiceVariantElements.DTOs;
 using EDGE.Application.ServiceVariantElements.Commands.CreateServiceVariantElement;
 using EDGE.Application.ServiceVariantElements.Commands.UpdateServiceVariantElement;
 using EDGE.Application.ServiceVariantElements.Commands.DeleteServiceVariantElement;
+using EDGE.Application.ServiceVariantElements.Commands.SetServiceVariantElementFormula;
 using EDGE.Application.ServiceVariantElements.Queries.GetServiceVariantElements;
 using EDGE.Application.ServiceVariantElements.Queries.GetServiceVariantElementById;
+using EDGE.Application.ServiceVariantElements.Queries.GetServiceVariantElementFormula;
 using EDGE.Domain.Authorization;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Application.Common.Models;
 
 namespace EDGE.Api.Endpoints;
+
+public record SetServiceVariantElementFormulaRequest(
+    Guid ServiceVariantId,
+    Guid ElementId,
+    string FormulaExpression,
+    string? Description,
+    bool ApplyLateRenewalSurcharge
+);
 
 public static class ServiceVariantElementEndpoints
 {
@@ -22,6 +32,21 @@ public static class ServiceVariantElementEndpoints
     {
         var elements = group.MapGroup("service-variant-elements")
             .WithTags("ServiceVariantElements");
+
+        elements.MapGet("/formula", GetServiceVariantElementFormula)
+            .WithName("GetServiceVariantElementFormula")
+            .WithSummary("Get statutory formula for a service variant element")
+            .WithDescription("Retrieves the statutory formula and surcharge settings for a specific element in a service variant.")
+            .Produces<ApiResponse<ServiceVariantElementFormulaDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        elements.MapPut("/formula", SetServiceVariantElementFormula)
+            .WithName("SetServiceVariantElementFormula")
+            .WithSummary("Set statutory formula for a service variant element")
+            .WithDescription("Atomically creates or updates the statutory calculation formula for an element in a service variant.")
+            .Produces<ApiResponse<bool>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ApiResponse<bool>>(StatusCodes.Status404NotFound);
 
         elements.MapGet("/", GetServiceVariantElements)
             .WithName("GetServiceVariantElements")
@@ -135,7 +160,11 @@ public static class ServiceVariantElementEndpoints
         IValidator<UpdateServiceVariantElementCommand> validator,
         IMediator mediator)
     {
-        if (id != command.Id)
+        if (command.Id == Guid.Empty)
+        {
+            command = command with { Id = id };
+        }
+        else if (id != command.Id)
         {
             return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
         }
@@ -150,6 +179,48 @@ public static class ServiceVariantElementEndpoints
         return result is not null
             ? Results.Ok(result)
             : Results.NotFound(new { message = $"ServiceVariantElement with ID '{id}' was not found." });
+    }
+
+    [HasPermission(Permissions.ReadServiceVariantElements)]
+    public static async Task<IResult> GetServiceVariantElementFormula(
+        Guid serviceVariantId,
+        Guid elementId,
+        IValidator<GetServiceVariantElementFormulaQuery> validator,
+        IMediator mediator)
+    {
+        var query = new GetServiceVariantElementFormulaQuery(serviceVariantId, elementId);
+        var validationResult = await validator.ValidateAsync(query);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(query);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.UpdateServiceVariantElements)]
+    public static async Task<IResult> SetServiceVariantElementFormula(
+        SetServiceVariantElementFormulaRequest request,
+        IValidator<SetServiceVariantElementFormulaCommand> validator,
+        IMediator mediator)
+    {
+        var command = new SetServiceVariantElementFormulaCommand(
+            request.ServiceVariantId,
+            request.ElementId,
+            request.FormulaExpression,
+            request.Description,
+            request.ApplyLateRenewalSurcharge
+        );
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.DeleteServiceVariantElements)]

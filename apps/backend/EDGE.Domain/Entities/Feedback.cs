@@ -5,6 +5,7 @@ namespace EDGE.Domain.Entities;
 
 public class Feedback : AuditableEntity
 {
+    public Guid? TenantId { get; set; }
     public string SenderName { get; set; } = string.Empty;
     public string SenderEmail { get; set; } = string.Empty;
     public string Subject { get; set; } = string.Empty;

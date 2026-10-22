@@ -5,7 +5,7 @@ This is the cross-platform client app for external portal users. It is built usi
 ---
 
 ## Prerequisites
-*   [Node.js](https://nodejs.org/) (v18+)
+*   [Node.js](https://nodejs.org/) (v24.22.1+ LTS)
 *   [Bun](https://bun.sh/) (v1.x) or [Yarn](https://yarnpkg.com/)
 *   [Expo Go App](https://expo.dev/go) (for running on physical mobile devices)
 

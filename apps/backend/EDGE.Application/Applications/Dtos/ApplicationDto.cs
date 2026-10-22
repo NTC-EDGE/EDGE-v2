@@ -14,59 +14,83 @@ public class ApplicationDto
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string Intent { get; set; } = "Regular";
+    public string QueueTab { get; set; } = "activity";
     public string SubmissionMode { get; set; } = string.Empty;
     public string? DataEntryMethod { get; set; }
     public string? Remarks { get; set; }
     public Guid? UserId { get; set; }
     public bool IsGuest { get; set; }
+    public bool IsPinned { get; set; }
+    public bool IsArchived { get; set; }
+    public DateTime? AssessedAt { get; set; }
+    public DateTime? ConvertedToRegularAt { get; set; }
+    public int AssessmentVersion { get; set; } = 1;
+    public string? AssessmentRemarks { get; set; }
     public DateTime CreatedAt { get; set; }
+    public DateTime? LastModifiedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
+
+    public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public Guid? ServiceCategoryId { get; set; }
+    public string? ServiceCategory { get; set; }
+    public string? ServiceCategoryName { get; set; }
+    public string? ServiceCategoryCode { get; set; }
+    public string? ServiceVariantName { get; set; }
+
+    public string? OfficialReceiptNumber { get; set; }
+    public decimal? AmountPaid { get; set; }
+    public DateTime? PaidAt { get; set; }
+    public string? EvaluatingOfficer { get; set; }
+    public string? IssuingOfficer { get; set; }
+
+    public FilingUserDto? FilingUser { get; set; }
 
     public List<ApplicationServiceDto> Services { get; set; } = new();
     public List<ApplicantDto> Applicants { get; set; } = new();
     public List<ApplicationRequirementDto> Requirements { get; set; } = new();
+    public List<FormSubmissionSummaryDto> FormSubmissions { get; set; } = new();
+    
+    public List<StatementOfAccountDto> StatementsOfAccount { get; set; } = new();
+    public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
+    public List<ApplicationHistoryDto> Histories { get; set; } = new();
+    public List<CorrectionAuditTrailDto> CorrectionAuditTrails { get; set; } = new();
+}
+
+public class FilingUserDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Email { get; set; } = string.Empty;
+    public string AccountType { get; set; } = "Individual";
+    public CompanyDetailDto? Company { get; set; }
 }
 
 public class ApplicationServiceDto
 {
     public Guid Id { get; set; }
-    public Guid? ServiceCategoryId { get; set; }
+    public Guid? ApplicantId { get; set; }
     public Guid? ServiceId { get; set; }
+    public string? ServiceName { get; set; }
+    public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
-    public string? ApplicationTypeKey { get; set; }
-    public string? DynamicDataJson { get; set; }
-
-    public List<Guid> ServiceVariantElementIds
-    {
-        get
-        {
-            if (string.IsNullOrWhiteSpace(DynamicDataJson)) return new();
-            try
-            {
-                using var doc = System.Text.Json.JsonDocument.Parse(DynamicDataJson);
-                if (doc.RootElement.TryGetProperty("selectedElementIds", out var elementIdsProp) &&
-                    elementIdsProp.ValueKind == System.Text.Json.JsonValueKind.Array)
-                {
-                    return elementIdsProp.EnumerateArray()
-                        .Select(x => x.TryGetGuid(out var g) ? g : Guid.Empty)
-                        .Where(g => g != Guid.Empty)
-                        .ToList();
-                }
-            }
-            catch
-            {
-                // Ignore parse errors
-            }
-            return new();
-        }
-    }
+    public string? ServiceVariantName { get; set; }
+    public Guid? SubmissionId { get; set; }
 }
 
 public class ApplicationRequirementDto
 {
     public Guid Id { get; set; }
     public Guid ApplicantId { get; set; }
+    public Guid? ApplicationServiceId { get; set; }
     public Guid RequirementId { get; set; }
     public Guid? ServiceVariantRequirementId { get; set; }
+    public Guid? StoredFileId { get; set; }
+    public string? FileName { get; set; }
+    public string? ContentType { get; set; }
+    public long? FileSizeBytes { get; set; }
     public string Url { get; set; } = string.Empty;
     public bool IsApproved { get; set; }
 }
+

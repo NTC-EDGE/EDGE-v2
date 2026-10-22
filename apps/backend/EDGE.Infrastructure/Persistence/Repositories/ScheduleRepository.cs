@@ -20,10 +20,22 @@ public class ScheduleRepository : IScheduleRepository
 
     public async Task<Schedule?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _context.Schedules
-            .AsNoTracking()
+        return await GetByIdAsync(id, asNoTracking: false, cancellationToken);
+    }
+
+    public async Task<Schedule?> GetByIdAsync(Guid id, bool asNoTracking, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Schedules
             .Include(s => s.Service)
-            .FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
+                .ThenInclude(s => s!.ServiceCategory)
+            .AsQueryable();
+
+        if (asNoTracking)
+        {
+            query = query.AsNoTracking();
+        }
+
+        return await query.FirstOrDefaultAsync(s => s.Id == id, cancellationToken);
     }
 
     public async Task<(List<Schedule> Items, int TotalCount)> GetAllAsync(
@@ -36,6 +48,7 @@ public class ScheduleRepository : IScheduleRepository
         var query = _context.Schedules
             .AsNoTracking()
             .Include(s => s.Service)
+            .Include(s => s.Tenant)
             .AsQueryable();
 
         if (tenantId.HasValue && tenantId.Value != Guid.Empty)
@@ -70,16 +83,17 @@ public class ScheduleRepository : IScheduleRepository
         CancellationToken cancellationToken = default)
     {
         var referenceDate = date.HasValue ? DateTime.SpecifyKind(date.Value, DateTimeKind.Utc) : DateTime.UtcNow;
+        var referenceDay = DateTime.SpecifyKind(referenceDate.Date, DateTimeKind.Utc);
 
         var query = _context.Schedules
             .AsNoTracking()
             .Include(s => s.Service)
             .Where(s => s.ServiceId == serviceId && s.TenantId == tenantId && s.IsPublished)
-            // Filter by application window
-            .Where(s => (s.StartApplication == null || s.StartApplication <= referenceDate) &&
-                        (s.EndApplication == null || s.EndApplication >= referenceDate))
+            // Allow clients to view upcoming schedules even before StartApplication has passed;
+            // only exclude schedules whose application filing window has already ended.
+            .Where(s => s.EndApplication == null || s.EndApplication >= referenceDay)
             // Only return schedules that haven't ended yet
-            .Where(s => s.EndDate >= referenceDate);
+            .Where(s => s.EndDate >= referenceDay);
 
         var totalCount = await query.CountAsync(cancellationToken);
 
@@ -96,7 +110,11 @@ public class ScheduleRepository : IScheduleRepository
 
     public void Update(Schedule schedule)
     {
-        _context.Schedules.Update(schedule);
+        var entry = _context.Entry(schedule);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Schedules.Update(schedule);
+        }
     }
 
     public void Delete(Schedule schedule)

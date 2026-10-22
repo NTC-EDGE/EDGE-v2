@@ -44,7 +44,7 @@ export function ExamStep3TypeSelection({
         placeholder="Select Examinee type"
         value={selectedVariantId}
         onValueChange={(val: string) => {
-          const matchedVariant = variants.find((v) => v.id === val);
+          const matchedVariant = variants.find((v) => String(v.id) === String(val));
           let examType = "";
           if (matchedVariant) {
             const desc = (matchedVariant.description || "").toLowerCase();
@@ -53,23 +53,33 @@ export function ExamStep3TypeSelection({
             else if (desc.includes("amateur")) examType = "Amateur";
             else if (desc.includes("rroc") || desc.includes("aircraft")) examType = "RROC-Aircraft";
           }
+          const defaultOpt = matchedVariant ? (matchedVariant.description || matchedVariant.type || "Standard Option") : "";
           updateActiveApplicant({
             examType,
             examineeType: matchedVariant ? (matchedVariant.type === "FirstTaker" ? "First Taker" : (matchedVariant.type === "Retaker" ? "Repeater" : "Upgrader")) : "",
             selectedVariantId: val as string,
-            selectedOption: "",
+            selectedOption: defaultOpt,
             selectedElementId: ""
           });
         }}
-        options={variants.map((v) => {
-          const label = v.description || (
-            v.type === "FirstTaker" ? "First Taker" 
-            : v.type === "Retaker" ? "Repeater" 
-            : v.type === "Upgrade" ? "Upgrader" 
-            : v.type
-          );
-          return { label, value: v.id };
-        })}
+        options={(() => {
+          const seen = new Set<string>();
+          return variants
+            .map((v) => {
+              const label = v.description || (
+                v.type === "FirstTaker" ? "First Taker" 
+                : v.type === "Retaker" ? "Repeater" 
+                : v.type === "Upgrade" ? "Upgrader" 
+                : v.type
+              );
+              return { label, value: String(v.id) };
+            })
+            .filter((opt) => {
+              if (seen.has(opt.value)) return false;
+              seen.add(opt.value);
+              return true;
+            });
+        })()}
       />
 
       {/* Radio Options List */}
@@ -80,12 +90,12 @@ export function ExamStep3TypeSelection({
           </Text>
         ) : hasElements ? (
           <View style={styles.radioGroup}>
-            {variantElements.map((elem) => {
+            {variantElements.map((elem, elemIdx) => {
               const optText = `${elem.code} - ${elem.description}`;
               const isSelected = activeApplicant.selectedElementId === elem.id;
               return (
                 <TouchableOpacity
-                  key={elem.id}
+                  key={`${elem.id}-${elemIdx}`}
                   onPress={() => updateActiveApplicant({
                     selectedOption: optText,
                     selectedElementId: elem.id

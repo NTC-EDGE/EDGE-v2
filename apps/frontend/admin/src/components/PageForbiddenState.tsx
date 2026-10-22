@@ -46,15 +46,22 @@ export function PageForbiddenState({
 /**
  * Helper to determine if an unknown SWR/Axios error is a 403 Forbidden response.
  */
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
 export function isForbiddenError(error: unknown): boolean {
-  if (error === null || error === undefined) return false;
-  if (typeof error === "object") {
-    // Axios error shape: error.response.status
-    const maybeAxios = error as { response?: { status?: number } };
-    if (maybeAxios.response?.status === 403) return true;
-    // SWR wraps Axios errors — also check .status directly
-    const maybeStatus = error as { status?: number };
-    if (maybeStatus.status === 403) return true;
+  if (!isRecord(error)) return false;
+
+  const response = error["response"];
+  if (isRecord(response) && response["status"] === 403) {
+    return true;
   }
+
+  if (error["status"] === 403) {
+    return true;
+  }
+
   return false;
 }
+

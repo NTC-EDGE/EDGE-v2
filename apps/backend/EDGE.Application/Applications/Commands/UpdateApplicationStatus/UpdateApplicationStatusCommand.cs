@@ -10,4 +10,7 @@ public record UpdateApplicationStatusCommand : IRequest<ApiResponse<Guid>>
     public Guid? TenantId { get; init; }
     public string Status { get; init; } = string.Empty;
     public string? Remarks { get; init; }
+    public string? Action { get; init; }
+    public string? StaffName { get; init; }
+    public string? StaffRole { get; init; }
 }

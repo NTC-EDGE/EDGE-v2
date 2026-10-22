@@ -1,5 +1,8 @@
-import { StyleSheet } from "react-native";
+import { StyleSheet, Dimensions } from "react-native";
 import { COLORS, TYPOGRAPHY, RADIUS, SHADOWS } from "../../../../shared/theme/tokens";
+
+const windowWidth = Dimensions.get("window").width;
+const isMobileScreen = windowWidth < 640;
 
 export const certStyles = StyleSheet.create({
   container: {
@@ -33,11 +36,20 @@ export const certStyles = StyleSheet.create({
     paddingHorizontal: 8,
   },
   formCol6: {
-    width: "50%",
+    width: isMobileScreen ? "100%" : "50%",
     paddingHorizontal: 8,
   },
   formCol4: {
-    width: "33.333%",
+    width: isMobileScreen ? "100%" : "33.333%",
+    paddingHorizontal: 8,
+  },
+  formCol3: {
+    width: isMobileScreen ? "100%" : "25%",
+    paddingHorizontal: 8,
+  },
+  formColCompact: {
+    width: "50%",
+    minWidth: 100,
     paddingHorizontal: 8,
   },
   selectLabel: {

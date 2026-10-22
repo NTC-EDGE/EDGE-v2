@@ -146,7 +146,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
             }
             else
             {
-                applicant.Status = ApplicantStatus.Draft;
+                applicant.Status = ApplicantStatus.Incomplete;
             }
         }
         else if (applicant.ApplicantType == ApplicantType.Company)
@@ -163,7 +163,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
             }
             else
             {
-                applicant.Status = ApplicantStatus.Draft;
+                applicant.Status = ApplicantStatus.Incomplete;
             }
         }
 
@@ -203,11 +203,7 @@ public class UpdateApplicantDetailCommandHandler : IRequestHandler<UpdateApplica
 
         if (applicant.CompanyDetail != null)
         {
-            if (dto.Details == null)
-            {
-                dto.Details = new ApplicantDetailDto();
-            }
-            dto.Details.Company = new CompanyDetailDto
+            dto.Company = new CompanyDetailDto
             {
                 Id = applicant.CompanyDetail.Id,
                 BarangayId = applicant.CompanyDetail.BarangayId,

@@ -14,3 +14,4 @@ public class FormSubmission : AuditableEntity
     public Applicant? Applicant { get; set; }
     public ICollection<FormFieldValue> FieldValues { get; set; } = new List<FormFieldValue>();
 }
+

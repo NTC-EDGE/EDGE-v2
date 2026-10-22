@@ -42,6 +42,29 @@ public class FieldOfficeRepository : IFieldOfficeRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<FieldOffice>> GetFilteredAsync(Guid? tenantId = null, Guid? regionId = null, CancellationToken cancellationToken = default)
+    {
+        var query = _context.FieldOffices
+            .Include(f => f.Tenant)
+            .Include(f => f.Region)
+            .Include(f => f.Province)
+            .Include(f => f.OfficerInCharge)
+                .ThenInclude(o => o.User)
+            .AsQueryable();
+
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(f => f.TenantId == tenantId.Value);
+        }
+
+        if (regionId.HasValue && regionId.Value != Guid.Empty)
+        {
+            query = query.Where(f => f.RegionId == regionId.Value);
+        }
+
+        return await query.OrderBy(f => f.Name).ToListAsync(cancellationToken);
+    }
+
     public async Task<List<FieldOffice>> GetAllAsync(CancellationToken cancellationToken = default)
     {
         return await _context.FieldOffices

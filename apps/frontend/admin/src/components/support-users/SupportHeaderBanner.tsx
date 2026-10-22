@@ -1,5 +1,5 @@
 import React from "react";
-import { LifeBuoy, Shield, User, Lock, ShieldCheck, Ticket } from "lucide-react";
+import { LifeBuoy, Shield, User, Lock, ShieldCheck, Ticket, RefreshCw, Loader2 } from "lucide-react";
 
 interface SupportHeaderBannerProps {
   metrics: {
@@ -8,9 +8,11 @@ interface SupportHeaderBannerProps {
     mfaCount: number;
     openTickets: number;
   };
+  onSyncClerk?: () => Promise<void>;
+  syncLoading?: boolean;
 }
 
-export function SupportHeaderBanner({ metrics }: SupportHeaderBannerProps) {
+export function SupportHeaderBanner({ metrics, onSyncClerk, syncLoading = false }: SupportHeaderBannerProps) {
   return (
     <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/95 dark:to-cyan-950/60 border border-slate-200 dark:border-slate-800 shadow-xl relative overflow-hidden transition-colors duration-200">
       <div className="absolute top-0 right-0 p-8 opacity-10 pointer-events-none">
@@ -30,6 +32,26 @@ export function SupportHeaderBanner({ metrics }: SupportHeaderBannerProps) {
             Search and diagnose user accounts globally across all regions, troubleshoot login & MFA lockouts, inspect active sessions, verify regional scope permissions, and review audit logs.
           </p>
         </div>
+
+        {onSyncClerk !== undefined && (
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                void onSyncClerk();
+              }}
+              disabled={syncLoading}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-medium text-sm shadow-md transition-all duration-200 disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer whitespace-nowrap"
+            >
+              {syncLoading ? (
+                <Loader2 className="w-4 h-4 animate-spin text-white" />
+              ) : (
+                <RefreshCw className="w-4 h-4 text-white" />
+              )}
+              <span>{syncLoading ? "Syncing Users..." : "Sync Users from Clerk"}</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Global Key Metrics Dashboard */}

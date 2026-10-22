@@ -19,6 +19,7 @@ public static class Ntc109FlatPdfOverlayMapper
         {
             TypeOfApplicationSpecific.Purchase => Ntc109Fields.TypeOfApplication.Purchase,
             TypeOfApplicationSpecific.Possess => Ntc109Fields.TypeOfApplication.Possess,
+            TypeOfApplicationSpecific.PossessForStorage => Ntc109Fields.TypeOfApplication.Possess,
             TypeOfApplicationSpecific.SellTransfer => Ntc109Fields.TypeOfApplication.SellTransfer,
             _ => Ntc109Fields.TypeOfApplication.Purchase
         };

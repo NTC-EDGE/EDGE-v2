@@ -1,8 +1,8 @@
 import { createContext, useContext, ReactNode, useState, useEffect } from "react";
 import { Platform } from "react-native";
 import * as SecureStore from "expo-secure-store";
-import { useAuth, useUser, useSignIn, useSignUp } from "@clerk/expo";
-import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken } from "@edge/api";
+import { useAuth, useUser, useSignIn, useSignUp, isClerkAPIResponseError } from "@clerk/expo";
+import { parseApiError, verifyStaffMembership, setTokenProvider, setAuthToken, setTenantId, generateSafeUsername, isClerkUnknownParamError } from "@edge/api";
 import { RegionSelectionModal } from "../../login/components/RegionSelectionModal";
 import {
   MfaOtpVerificationModal,
@@ -55,6 +55,7 @@ async function removeStoredRegionCode(): Promise<void> {
 }
 
 export interface UserProfile {
+  id?: string;
   name: string;
   email: string;
   username?: string;
@@ -112,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [mfaFactors, setMfaFactors] = useState<SupportedFactor[] | null>(null);
 
   const [backendStaffClaims, setBackendStaffClaims] = useState<{
+    userId?: string;
     tenantId?: string;
     tenantName?: string;
     roles?: string[];
@@ -154,7 +156,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
           const verifiedClaims = await verifyStaffMembership(token, storedRegion);
           if (isMounted) {
+            setTenantId(verifiedClaims.tenantId ?? null);
             setBackendStaffClaims({
+              userId: verifiedClaims.userId,
               tenantId: verifiedClaims.tenantId,
               tenantName: verifiedClaims.tenantName,
               roles: verifiedClaims.assignedRoles,
@@ -164,6 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } catch {
           // If background check fails (e.g. invalid membership), clear region and prompt modal
           if (isMounted) {
+            setTenantId(null);
             await removeStoredRegionCode();
             setIsMembershipVerified(false);
             setSelectedRegionState(undefined);
@@ -194,13 +199,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Step 1: Regular Clerk Credentials Authentication
     try {
-      const res = await signIn.password({
-        emailAddress: email,
-        password,
-      });
+      let res;
+      try {
+        res = await signIn.password({
+          emailAddress: email,
+          password,
+        });
 
-      if (res.error !== null && res.error !== undefined) {
-        throw res.error;
+        if (res.error !== null && res.error !== undefined) {
+          throw res.error;
+        }
+      } catch (pwErr: unknown) {
+        const errMsg = pwErr instanceof Error ? pwErr.message : String(pwErr);
+        const errObj = typeof pwErr === "object" && pwErr !== null ? (pwErr as Record<string, unknown>) : {};
+        const isStrategyInvalid =
+          errMsg.includes("strategy_for_user_invalid") ||
+          errMsg.includes("verification strategy is not valid") ||
+          errObj.code === "strategy_for_user_invalid" ||
+          (Array.isArray(errObj.errors) &&
+            (errObj.errors as Array<{ code?: string }>).some(
+              (e) => e.code === "strategy_for_user_invalid"
+            ));
+
+        const rawSignInObj = signIn as unknown as { create?: (opts: { identifier: string }) => Promise<unknown> };
+        if (isStrategyInvalid && typeof rawSignInObj.create === "function") {
+          await rawSignInObj.create({ identifier: email });
+        } else {
+          throw pwErr;
+        }
       }
 
       if (signIn.status === "complete") {
@@ -300,7 +326,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = clerkAuth.getToken ? await clerkAuth.getToken() : null;
       const verifiedClaims = await verifyStaffMembership(token, selectedRegionCode);
 
+      setTenantId(verifiedClaims.tenantId ?? null);
       setBackendStaffClaims({
+        userId: verifiedClaims.userId,
         tenantId: verifiedClaims.tenantId,
         tenantName: verifiedClaims.tenantName,
         roles: verifiedClaims.assignedRoles,
@@ -311,6 +339,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSelectedRegionState(selectedRegionCode);
       setIsMembershipVerified(true);
     } catch (err: unknown) {
+      setTenantId(null);
       setIsMembershipVerified(false);
       const parsedMessage = parseApiError(err);
       throw new Error(parsedMessage);
@@ -327,10 +356,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const res = await signUp.password({
-        emailAddress: email,
-        password,
-      });
+      const safeUsername = generateSafeUsername(undefined, undefined, email);
+
+      let res;
+      try {
+        res = await signUp.password({
+          emailAddress: email,
+          password,
+          username: safeUsername,
+        });
+      } catch (firstErr: unknown) {
+        if (isClerkUnknownParamError(firstErr)) {
+          res = await signUp.password({
+            emailAddress: email,
+            password,
+          });
+        } else {
+          throw firstErr;
+        }
+      }
 
       if (res.error !== null && res.error !== undefined) {
         throw res.error;
@@ -373,6 +417,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
+    setTenantId(null);
     await removeStoredRegionCode();
     setIsMembershipVerified(false);
     setSelectedRegionState(undefined);
@@ -394,6 +439,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const primaryEmail = cu.primaryEmailAddress?.emailAddress ?? cu.emailAddresses[0]?.emailAddress ?? "";
 
     user = {
+      id: backendStaffClaims.userId ?? cu.id,
       name: cu.fullName ?? cu.firstName ?? "User",
       email: primaryEmail,
       username: cu.username ?? undefined,
@@ -408,6 +454,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   } else if (!isClerkEnabled) {
     user = {
+      id: "00000000-0000-0000-0000-000000000001",
       name: "Staff User",
       email: "staff@ntc.gov.ph",
       region: selectedRegionState ?? "NCR",

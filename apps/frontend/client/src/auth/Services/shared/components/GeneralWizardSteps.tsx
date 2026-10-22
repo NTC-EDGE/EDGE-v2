@@ -1,7 +1,15 @@
 import React from "react";
 import { NTCService } from "../../data/servicesData";
-import { TenantInfo, OfficeInfo, GeneralApplicantData, initialGeneralApplicant } from "../hooks/useGeneralServiceWizard";
-import { GeneralInfoStep } from "./GeneralInfoStep";
+import {
+  TenantInfo,
+  OfficeInfo,
+  GeneralApplicantData,
+  ExamScheduleItem,
+  initialGeneralApplicant,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
+  ServiceRequirementItem,
+} from "../hooks/useGeneralServiceWizard";
 import { GeneralRegionOfficeStep } from "./GeneralRegionOfficeStep";
 import { GeneralFilingModeStep } from "./GeneralFilingModeStep";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
@@ -11,12 +19,22 @@ import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
 interface GeneralWizardStepsProps {
   step: number;
   service: NTCService;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
+  selectedVariantId?: string;
+  onSelectVariant?: (variantId: string, variantName: string) => void;
   selectedRegionId: string;
   setSelectedRegionId: (val: string) => void;
   selectedOfficeId: string;
   setSelectedOfficeId: (val: string) => void;
   tenants: TenantInfo[];
   offices: OfficeInfo[];
+  isExamService?: boolean;
+  schedules?: ExamScheduleItem[];
+  loadingSchedules?: boolean;
+  selectedScheduleId?: string | null;
+  onSelectSchedule?: (id: string) => void;
   appMode: "SINGLE" | "BULK" | "";
   setAppMode: (val: "SINGLE" | "BULK" | "") => void;
   bulkMethod: "MANUAL" | "EXCEL";
@@ -25,24 +43,42 @@ interface GeneralWizardStepsProps {
   setIsFileUploaded: (val: boolean) => void;
   uploadedFileName: string;
   setUploadedFileName: (name: string) => void;
+  applicants?: GeneralApplicantData[];
   setApplicants: React.Dispatch<React.SetStateAction<GeneralApplicantData[]>>;
+  currentApplicantIndex?: number;
   setCurrentApplicantIndex: (idx: number) => void;
   activeApplicant: GeneralApplicantData;
-  updateActiveApplicant: (fields: Partial<GeneralApplicantData>) => void;
+  updateActiveApplicant: (
+    fields: Partial<GeneralApplicantData> | ((prevApp: GeneralApplicantData) => Partial<GeneralApplicantData>)
+  ) => void;
   isWeb: boolean;
-  onUploadPress: (req: string, file: { name: string; uri: string }) => void;
+  onUploadPress: (req: string, file: { name: string; uri: string; type?: string; file?: File | Blob }) => void;
   onRemoveUpload: (req: string) => void;
+  onRequiredFieldsChange?: (requiredFieldIds: string[]) => void;
+  errors?: Record<string, string>;
+  filingIntent?: "Regular" | "AssessmentOnly";
+  onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;
 }
 
 export function GeneralWizardSteps({
   step,
   service,
+  variants = [],
+  variantElements = [],
+  variantRequirements = [],
+  selectedVariantId,
+  onSelectVariant,
   selectedRegionId,
   setSelectedRegionId,
   selectedOfficeId,
   setSelectedOfficeId,
   tenants,
   offices,
+  isExamService = false,
+  schedules = [],
+  loadingSchedules = false,
+  selectedScheduleId = null,
+  onSelectSchedule,
   appMode,
   setAppMode,
   bulkMethod,
@@ -51,18 +87,22 @@ export function GeneralWizardSteps({
   setIsFileUploaded,
   uploadedFileName,
   setUploadedFileName,
+  applicants = [],
   setApplicants,
+  currentApplicantIndex = 0,
   setCurrentApplicantIndex,
   activeApplicant,
   updateActiveApplicant,
   isWeb,
   onUploadPress,
   onRemoveUpload,
+  onRequiredFieldsChange,
+  errors = {},
+  filingIntent = "Regular",
+  onFilingIntentChange,
 }: GeneralWizardStepsProps) {
   switch (step) {
     case 1:
-      return <GeneralInfoStep service={service} />;
-    case 2:
       return (
         <GeneralRegionOfficeStep
           selectedRegionId={selectedRegionId}
@@ -71,17 +111,108 @@ export function GeneralWizardSteps({
           setSelectedOfficeId={setSelectedOfficeId}
           tenants={tenants}
           offices={offices}
+          isExamService={isExamService}
+          schedules={schedules}
+          loadingSchedules={loadingSchedules}
+          selectedScheduleId={selectedScheduleId}
+          onSelectSchedule={onSelectSchedule}
+          errors={errors}
+          filingIntent={filingIntent}
+          onFilingIntentChange={onFilingIntentChange}
+          service={service}
         />
       );
-    case 3:
+    case 2:
       return (
         <GeneralFilingModeStep
           service={service}
+          variants={variants}
+          variantElements={variantElements}
+          variantRequirements={variantRequirements}
+          selectedVariantId={selectedVariantId}
+          onSelectVariant={onSelectVariant}
+          selectedElementId={activeApplicant.selectedElementId}
+          onSelectElement={(elemId, elemTitle) => {
+            updateActiveApplicant({
+              selectedElementId: elemId,
+              selectedElementTitle: elemTitle,
+            });
+          }}
+          applicantType={activeApplicant.applicantType || "individual"}
+          onApplicantTypeChange={(type) => {
+            setApplicants((prev) =>
+              prev.map((app) => {
+                if (type === "company") {
+                  const repFirst = app.representativeFirstName || app.firstName || "";
+                  const repMiddle = app.representativeMiddleName || app.middleName || "";
+                  const repLast = app.representativeLastName || app.lastName || "";
+                  const repSuffix = app.representativeSuffix || app.suffix || "";
+                  const rep = app.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ");
+                  return {
+                    ...app,
+                    applicantType: type,
+                    representativeFirstName: repFirst,
+                    representativeMiddleName: repMiddle,
+                    representativeLastName: repLast,
+                    representativeSuffix: repSuffix,
+                    representativeName: rep,
+                    firstName: "",
+                    middleName: "",
+                    lastName: "",
+                    suffix: "",
+                  };
+                } else {
+                  const nameParts = (app.representativeName || "").trim().split(/\s+/);
+                  return {
+                    ...app,
+                    applicantType: type,
+                    firstName: app.firstName || app.representativeFirstName || nameParts[0] || "",
+                    middleName: app.middleName || app.representativeMiddleName || "",
+                    lastName: app.lastName || app.representativeLastName || nameParts.slice(1).join(" ") || "",
+                    suffix: app.suffix || app.representativeSuffix || "",
+                  };
+                }
+              })
+            );
+          }}
+          companyName={activeApplicant.companyName || ""}
+          onCompanyNameChange={(name: string) => {
+            updateActiveApplicant({ companyName: name });
+          }}
+          dtiSecRegistration={activeApplicant.dtiSecRegistration || ""}
+          onDtiSecRegistrationChange={(val: string) => {
+            updateActiveApplicant({ dtiSecRegistration: val });
+          }}
+          representativeName={activeApplicant.representativeName || ""}
+          onRepresentativeNameChange={(val: string) => {
+            updateActiveApplicant({ representativeName: val });
+          }}
+          representativePosition={activeApplicant.representativePosition || ""}
+          onRepresentativePositionChange={(val: string) => {
+            updateActiveApplicant({ representativePosition: val });
+          }}
+          companyContactNo={activeApplicant.contactNo || ""}
+          onCompanyContactNoChange={(val: string) => {
+            updateActiveApplicant({ contactNo: val });
+          }}
+          activeApplicant={activeApplicant}
+          updateActiveApplicant={(fields) => {
+            if (typeof fields === "function") {
+              updateActiveApplicant(fields);
+            } else {
+              setApplicants((prev) =>
+                prev.map((app) => ({
+                  ...app,
+                  ...fields,
+                }))
+              );
+            }
+          }}
           appMode={appMode}
-          onAppModeChange={(val) => {
+          onAppModeChange={(val: "SINGLE" | "BULK") => {
             setAppMode(val);
             if (val === "SINGLE") {
-              setApplicants([initialGeneralApplicant(1)]);
+              setApplicants((prev) => [prev[0] || initialGeneralApplicant(1)]);
               setCurrentApplicantIndex(0);
             }
           }}
@@ -95,27 +226,42 @@ export function GeneralWizardSteps({
             setApplicants(newApps);
             setCurrentApplicantIndex(0);
           }}
+          errors={errors}
         />
       );
-    case 4:
+    case 3:
       return (
         <GeneralFilingDetailsStep
           service={service}
           activeApplicant={activeApplicant}
           updateActiveApplicant={updateActiveApplicant}
+          appMode={appMode || "SINGLE"}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
+          onRequiredFieldsChange={onRequiredFieldsChange}
+          errors={errors}
+          variants={variants}
+          variantElements={variantElements}
         />
       );
-    case 5:
+    case 4:
       return (
         <GeneralDocumentUploadStep
           service={service}
           activeApplicant={activeApplicant}
+          variantRequirements={variantRequirements}
+          appMode={appMode}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
+          setCurrentApplicantIndex={setCurrentApplicantIndex}
           isWeb={isWeb}
           onUploadPress={onUploadPress}
           onRemoveUpload={onRemoveUpload}
+          errors={errors}
         />
       );
-    case 6:
+    case 5:
       return (
         <GeneralReviewSubmitStep
           service={service}
@@ -123,6 +269,16 @@ export function GeneralWizardSteps({
           offices={offices}
           selectedRegionId={selectedRegionId}
           selectedOfficeId={selectedOfficeId}
+          activeApplicant={activeApplicant}
+          applicants={applicants}
+          currentApplicantIndex={currentApplicantIndex}
+          appMode={appMode}
+          variants={variants}
+          variantRequirements={variantRequirements}
+          schedules={schedules}
+          selectedScheduleId={selectedScheduleId}
+          filingIntent={filingIntent}
+          onFilingIntentChange={onFilingIntentChange}
         />
       );
     default:

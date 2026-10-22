@@ -51,6 +51,25 @@ public static class DependencyInjection
         services.AddOptions<EDGE.Infrastructure.Options.StorageEncryptionOptions>()
             .BindConfiguration(EDGE.Infrastructure.Options.StorageEncryptionOptions.SectionName);
 
+        // Register Clerk Options
+        services.AddOptions<EDGE.Infrastructure.Options.ClerkOptions>()
+            .BindConfiguration(EDGE.Infrastructure.Options.ClerkOptions.SectionName)
+            .PostConfigure<IConfiguration>((options, configuration) =>
+            {
+                if (string.IsNullOrWhiteSpace(options.SecretKey))
+                {
+                    options.SecretKey = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkSecretKey(configuration);
+                }
+                if (string.IsNullOrWhiteSpace(options.WebhookSecret))
+                {
+                    options.WebhookSecret = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkWebhookSecret(configuration) ?? string.Empty;
+                }
+                if (string.IsNullOrWhiteSpace(options.Authority))
+                {
+                    options.Authority = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkAuthority(configuration) ?? string.Empty;
+                }
+            });
+
         // Register Repositories and Unit of Work
         services.AddScoped<ITenantRepository, TenantRepository>();
         services.AddScoped<ITenantMemberRepository, TenantMemberRepository>();
@@ -66,7 +85,8 @@ public static class DependencyInjection
         services.AddScoped<IServiceCategoryRepository, ServiceCategoryRepository>();
         services.AddScoped<IFieldOfficeRepository, FieldOfficeRepository>();
         services.AddScoped<ICsvSchemaParserService, CsvSchemaParserService>();
-        services.AddScoped<INoteRepository, NoteRepository>();
+        services.AddScoped<IServiceNoteRepository, ServiceNoteRepository>();
+        services.AddScoped<ISoaNoteRepository, SoaNoteRepository>();
         services.AddScoped<IStoredFileRepository, StoredFileRepository>();
         services.AddScoped<IRequirementRepository, RequirementRepository>();
         services.AddScoped<IFeeRepository, FeeRepository>();
@@ -79,11 +99,22 @@ public static class DependencyInjection
         services.AddScoped<ISystemConfigRepository, SystemConfigRepository>();
         services.AddScoped<INotificationTemplateRepository, NotificationTemplateRepository>();
         services.AddScoped<ISystemErrorLogRepository, SystemErrorLogRepository>();
+        services.AddScoped<IOrBookletRepository, OrBookletRepository>();
+        services.AddScoped<IOfficialReceiptRepository, OfficialReceiptRepository>();
+        services.AddScoped<IAgencyBankAccountRepository, AgencyBankAccountRepository>();
+        services.AddScoped<IBankDepositRepository, BankDepositRepository>();
         services.AddScoped<IDocumentTypeRepository, DocumentTypeRepository>();
         services.AddScoped<IElementRepository, ElementRepository>();
         services.AddScoped<IServiceVariantFeeRepository, ServiceVariantFeeRepository>();
         services.AddScoped<IServiceVariantElementFeeRepository, ServiceVariantElementFeeRepository>();
+        services.AddScoped<IServiceVariantFormulaRepository, ServiceVariantFormulaRepository>();
         services.AddScoped<IServiceVariantRepository, ServiceVariantRepository>();
+        services.AddScoped<IServiceInformationRepository, ServiceInformationRepository>();
+        services.AddScoped<IConversationRepository, ConversationRepository>();
+        services.AddScoped<IMeetingRepository, MeetingRepository>();
+        services.AddScoped<IUserNotificationRepository, UserNotificationRepository>();
+        services.AddScoped<IChatNotificationService, ChatNotificationService>();
+        services.AddScoped<IMeetingNotificationService, MeetingNotificationService>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         // Register Encryption & Cloudflare R2 Storage Services
@@ -91,9 +122,11 @@ public static class DependencyInjection
         services.AddScoped<IStorageService, CloudflareR2StorageService>();
 
         services.AddScoped<IUserActivityService, UserActivityService>();
+        services.AddScoped<IRegionalConfigurationService, RegionalConfigurationService>();
+        services.AddScoped<INumberingSeriesService, NumberingSeriesService>();
 
         // Register Printing & PDF Rendering Services
-        services.AddSingleton<IPdfTemplateProvider, FileSystemPdfTemplateProvider>();
+        services.AddSingleton<IPdfTemplateProvider, CloudflareR2PdfTemplateProvider>();
         services.AddSingleton<IImageOverlayRenderer, ImageFieldRenderer>();
         services.AddSingleton<IPdfLibraryInitializer, ITextLibraryInitializer>();
         services.AddSingleton<IPdfRenderer, OverlayPdfRenderer>();
@@ -105,10 +138,9 @@ public static class DependencyInjection
         // Register Clerk Client
         services.AddHttpClient<IClerkUserService, ClerkUserService>((sp, client) =>
         {
-            var configuration = sp.GetRequiredService<IConfiguration>();
-            var clerkSecret = configuration["Clerk:SecretKey"] ?? "";
+            var clerkOptions = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<EDGE.Infrastructure.Options.ClerkOptions>>().Value;
             client.BaseAddress = new Uri("https://api.clerk.com/v1/");
-            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkSecret}");
+            client.DefaultRequestHeaders.Add("Authorization", $"Bearer {clerkOptions.SecretKey}");
         });
     
         // Configure Hangfire storage (PostgreSQL in Production/Dev, InMemory in Test)

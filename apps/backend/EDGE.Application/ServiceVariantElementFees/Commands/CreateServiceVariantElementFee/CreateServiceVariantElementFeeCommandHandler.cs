@@ -1,10 +1,10 @@
 using System;
-using MediatR;
 using System.Threading;
 using System.Threading.Tasks;
+using MediatR;
+using EDGE.Application.Common.Interfaces;
 using EDGE.Application.ServiceVariantElementFees.DTOs;
 using EDGE.Application.ServiceVariantFees.DTOs;
-using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Entities;
 
 namespace EDGE.Application.ServiceVariantElementFees.Commands.CreateServiceVariantElementFee;
@@ -47,7 +47,8 @@ public class CreateServiceVariantElementFeeCommandHandler : IRequestHandler<Crea
             ServiceVariantId = request.ServiceVariantId,
             ElementId = request.ElementId,
             FeeId = request.FeeId,
-            Amount = request.Amount
+            Amount = request.Amount,
+            IsActive = true
         };
 
         await _repository.AddAsync(svef, cancellationToken);
@@ -75,6 +76,7 @@ public class CreateServiceVariantElementFeeCommandHandler : IRequestHandler<Crea
             created.Fee?.Code,
             created.Fee?.Name,
             created.Amount,
+            created.IsActive,
             created.CreatedAt
         );
     }

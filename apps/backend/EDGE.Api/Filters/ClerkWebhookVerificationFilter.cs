@@ -19,7 +19,7 @@ public class ClerkWebhookVerificationFilter : IEndpointFilter
     {
         var httpContext = context.HttpContext;
         var configuration = httpContext.RequestServices.GetRequiredService<IConfiguration>();
-        var webhookSecret = configuration["Clerk:WebhookSecret"];
+        var webhookSecret = EDGE.Infrastructure.Extensions.ClerkConfigurationExtensions.GetClerkWebhookSecret(configuration);
         if (string.IsNullOrEmpty(webhookSecret))
         {
             return Results.BadRequest("Webhook secret not configured");

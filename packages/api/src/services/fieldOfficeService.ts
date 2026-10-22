@@ -14,7 +14,6 @@ export interface CreateFieldOfficePayload {
   contactPhone?: string;
   contactEmail?: string;
   officerInChargeId?: string;
-  isActive?: boolean;
   allowSpectrumInspection?: boolean;
   allowPermitIssuance?: boolean;
   allowComplaintReception?: boolean;
@@ -22,6 +21,7 @@ export interface CreateFieldOfficePayload {
 
 export interface UpdateFieldOfficePayload extends CreateFieldOfficePayload {
   id: string;
+  isActive?: boolean;
 }
 
 /**

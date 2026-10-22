@@ -44,14 +44,34 @@ export function FeedbackModal({
             value={comment}
             onChangeText={setComment}
           />
-          <TouchableOpacity
-            onPress={onSubmit}
-            style={{ backgroundColor: COLORS.brand[900], borderRadius: 24, paddingVertical: 12, width: "100%", alignItems: "center" }}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
-              Submit & Close
-            </Text>
-          </TouchableOpacity>
+          <View style={{ width: "100%", gap: 8 }}>
+            <TouchableOpacity
+              onPress={onSubmit}
+              style={{
+                backgroundColor: COLORS.brand[900],
+                borderRadius: 12,
+                paddingVertical: 12,
+                width: "100%",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
+                Submit Feedback
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onSubmit}
+              style={{
+                paddingVertical: 8,
+                width: "100%",
+                alignItems: "center",
+              }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[500] }}>
+                Skip for now
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>

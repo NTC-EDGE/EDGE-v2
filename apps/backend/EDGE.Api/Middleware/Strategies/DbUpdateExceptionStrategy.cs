@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace EDGE.Api.Middleware.Strategies;
 
@@ -12,6 +13,51 @@ public class DbUpdateExceptionStrategy : IExceptionStrategy
 
     public (HttpStatusCode StatusCode, string Message, Dictionary<string, string[]>? Errors) Handle(Exception exception)
     {
-        return (HttpStatusCode.BadRequest, "Database operation failed. A duplicate record may exist or a referenced record was not found.", null);
+        var dbEx = (DbUpdateException)exception;
+
+        Exception? current = dbEx;
+        PostgresException? pgEx = null;
+        while (current != null)
+        {
+            if (current is PostgresException p)
+            {
+                pgEx = p;
+                break;
+            }
+            current = current.InnerException;
+        }
+
+        if (pgEx != null)
+        {
+            return pgEx.SqlState switch
+            {
+                // Unique constraint violation
+                PostgresErrorCodes.UniqueViolation => (
+                    HttpStatusCode.Conflict,
+                    "A record with matching unique details already exists.",
+                    null
+                ),
+                // Foreign key constraint violation
+                PostgresErrorCodes.ForeignKeyViolation => (
+                    HttpStatusCode.BadRequest,
+                    "The operation references an invalid or nonexistent record.",
+                    null
+                ),
+                // NOT NULL constraint violation
+                PostgresErrorCodes.NotNullViolation => (
+                    HttpStatusCode.BadRequest,
+                    "A required field was missing or invalid.",
+                    null
+                ),
+                _ => (
+                    HttpStatusCode.BadRequest,
+                    "A database constraint error occurred while processing the request.",
+                    null
+                )
+            };
+        }
+
+        return (HttpStatusCode.BadRequest, "A database error occurred while processing your request. Please verify the submitted data and try again.", null);
     }
 }
+

@@ -99,7 +99,7 @@ public static class ScheduleEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadSchedules)]
     public static async Task<IResult> GetSchedules(
         string? tenantId,
         string? serviceId,
@@ -139,7 +139,7 @@ public static class ScheduleEndpoints
         return Results.Ok(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadSchedules)]
     public static async Task<IResult> GetScheduleById(
         Guid id,
         IMediator mediator)
@@ -148,7 +148,7 @@ public static class ScheduleEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.CreateSchedules)]
     public static async Task<IResult> CreateSchedule(
         CreateScheduleCommand command,
         IValidator<CreateScheduleCommand> validator,
@@ -164,7 +164,7 @@ public static class ScheduleEndpoints
         return Results.Created($"/api/v2/schedules/{result.Id}", result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.UpdateSchedules)]
     public static async Task<IResult> UpdateSchedule(
         Guid id,
         UpdateScheduleRequest request,
@@ -179,7 +179,9 @@ public static class ScheduleEndpoints
             request.StartApplication,
             request.EndApplication,
             request.MaximumSlots,
-            request.Remarks
+            request.Remarks,
+            request.StartTime,
+            request.EndTime
         );
 
         var validationResult = await validator.ValidateAsync(command);
@@ -192,7 +194,7 @@ public static class ScheduleEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.PublishSchedules)]
     public static async Task<IResult> TogglePublishSchedule(
         Guid id,
         PublishScheduleRequest? request,
@@ -210,7 +212,7 @@ public static class ScheduleEndpoints
         return result is not null ? Results.Ok(result) : Results.NotFound();
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.DeleteSchedules)]
     public static async Task<IResult> DeleteSchedule(
         Guid id,
         IMediator mediator)

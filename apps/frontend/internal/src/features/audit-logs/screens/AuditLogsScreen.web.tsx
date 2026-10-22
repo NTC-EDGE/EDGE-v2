@@ -96,6 +96,13 @@ export function AuditLogsScreen() {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+    setTimeout(() => {
+      try {
+        URL.revokeObjectURL(url);
+      } catch {
+        // Ignore revocation error
+      }
+    }, 60_000);
   };
 
   // Prepare diff values for selected log
@@ -395,8 +402,6 @@ const styles = StyleSheet.create({
   content: {
     padding: SPACING[24],
     gap: SPACING[16],
-    maxWidth: 1280,
-    alignSelf: 'center',
     width: '100%',
   },
   titleRow: {

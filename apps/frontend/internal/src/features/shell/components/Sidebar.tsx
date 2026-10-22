@@ -10,6 +10,8 @@ import {
   View,
 } from 'react-native';
 import { Icon as Lucide, TYPOGRAPHY, useTheme } from '@edge/ui';
+import { useAdminApplications } from '@edge/api';
+import { useChatConversations } from '../../chat/hooks/useChatConversations';
 import {
   NAV_GROUP_ORDER,
   NavigationLink,
@@ -56,7 +58,7 @@ function groupLinks(
 }
 
 function readCollapsedFromStorage(): boolean {
-  if (Platform.OS !== 'web') return false;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return false;
   try {
     return window.localStorage.getItem(STORAGE_KEY) === 'true';
   } catch {
@@ -65,7 +67,7 @@ function readCollapsedFromStorage(): boolean {
 }
 
 function writeCollapsedToStorage(value: boolean): void {
-  if (Platform.OS !== 'web') return;
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return;
   try {
     window.localStorage.setItem(STORAGE_KEY, String(value));
   } catch {
@@ -125,7 +127,43 @@ export function Sidebar({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const grouped = groupLinks(links);
+  // Unevaluated applications count for Activities badge
+  const { applications, pagination, statistics } = useAdminApplications(
+    {
+      queueTab: 'pending',
+      scope: 'queue',
+      role: currentRole,
+    },
+    {
+      refreshInterval: 30000,
+      revalidateOnFocus: true,
+    }
+  );
+
+  const pendingCount =
+    statistics?.evaluatingCount ??
+    pagination?.totalCount ??
+    (Array.isArray(applications) ? applications.length : 0);
+
+  const { totalUnreadCount: unreadChatCount } = useChatConversations();
+
+  const enrichedLinks = links.map((link) => {
+    if (link.screen === 'Activities' || link.name === 'Activities') {
+      return {
+        ...link,
+        badgeCount: link.badgeCount !== undefined ? link.badgeCount : pendingCount > 0 ? pendingCount : undefined,
+      };
+    }
+    if (link.screen === 'Chat' || link.name === 'Chat') {
+      return {
+        ...link,
+        badgeCount: link.badgeCount !== undefined ? link.badgeCount : unreadChatCount > 0 ? unreadChatCount : undefined,
+      };
+    }
+    return link;
+  });
+
+  const grouped = groupLinks(enrichedLinks);
 
   const sidebarBg = isDark ? colors.neutral[900] : colors.cardBg;
   const borderColor = colors.border;

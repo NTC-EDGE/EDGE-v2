@@ -9,13 +9,27 @@ public class CheckboxFieldRenderer : IFieldTypeRenderer
 
     public void Render(PdfRenderingContext context, FieldOverlay overlay)
     {
-        if (overlay is not CheckboxFieldOverlay checkboxOverlay || !checkboxOverlay.IsChecked)
+        if (overlay is not CheckboxFieldOverlay checkboxOverlay)
             return;
 
         var field = checkboxOverlay.Field;
-        double size = 3.2;
-        double cx = field.X + 3.0;
-        double cy = field.Y - 3.2; // Vertically centered inside checkbox frame
+        double w = field.Width.HasValue && field.Width.Value > 0 ? field.Width.Value : 6.4;
+        double h = field.Height.HasValue && field.Height.Value > 0 ? field.Height.Value : 6.4;
+        double cx = field.X + (w / 2.0);
+        double cy = field.Y - (h / 2.0);
+
+        if (checkboxOverlay.DrawBox)
+        {
+            double bx = field.X;
+            double by = field.Y - h;
+            var boxPen = new XPen(XColors.Black, 1.0);
+            context.Graphics.DrawRectangle(boxPen, bx, by, w, h);
+        }
+
+        if (!checkboxOverlay.IsChecked)
+            return;
+
+        double size = Math.Min(w, h) * 0.38;
 
         switch (checkboxOverlay.Style)
         {

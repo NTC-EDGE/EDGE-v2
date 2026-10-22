@@ -11,5 +11,8 @@ public record ClientScheduleDto(
     DateTime? EndApplication,
     bool IsPublished,
     int? MaximumSlots,
-    string? Remarks
+    string? Remarks,
+    string? StartTime = null,
+    string? EndTime = null,
+    string? RegionName = null
 );

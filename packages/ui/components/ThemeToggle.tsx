@@ -12,9 +12,10 @@ export interface ThemeToggleProps {
   variant?: ThemeToggleVariant;
   size?: ThemeToggleSize;
   style?: ViewStyle;
+  iconColor?: string;
 }
 
-export function ThemeToggle({ variant = 'segmented', size = 'md', style }: ThemeToggleProps) {
+export function ThemeToggle({ variant = 'segmented', size = 'md', style, iconColor }: ThemeToggleProps) {
   const { mode, setMode, colors, isDark } = useTheme();
 
   if (variant === 'icon') {
@@ -37,7 +38,7 @@ export function ThemeToggle({ variant = 'segmented', size = 'md', style }: Theme
         ]}
         activeOpacity={0.7}
       >
-        <Icon name={iconName} size={size === 'sm' ? 16 : 20} color={colors.text} />
+        <Icon name={iconName} size={size === 'sm' ? 16 : 20} color={iconColor ?? colors.text} />
       </TouchableOpacity>
     );
   }

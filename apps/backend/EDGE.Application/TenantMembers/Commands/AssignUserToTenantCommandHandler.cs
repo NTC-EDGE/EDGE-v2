@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.TenantMembers.DTOs;
@@ -9,15 +10,24 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
 {
     private readonly ITenantRepository _tenantRepository;
     private readonly ITenantMemberRepository _memberRepository;
+    private readonly IRoleRepository _roleRepository;
+    private readonly ITenantContextService _tenantContextService;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
 
     public AssignUserToTenantCommandHandler(
         ITenantRepository tenantRepository,
         ITenantMemberRepository memberRepository,
+        IRoleRepository roleRepository,
+        ITenantContextService tenantContextService,
+        IUserRepository userRepository,
         IUnitOfWork unitOfWork)
     {
         _tenantRepository = tenantRepository;
         _memberRepository = memberRepository;
+        _roleRepository = roleRepository;
+        _tenantContextService = tenantContextService;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
     }
 
@@ -30,11 +40,68 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new KeyNotFoundException($"Tenant with ID '{request.TenantId}' was not found.");
         }
 
-        // 2. Verify duplication
+        // 2. Verify Caller Tenant Authorization (SuperAdmins can assign to any tenant; Tenant Admins can only assign to their own tenant)
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TenantId,
+            "You are only authorized to assign members to your own regional tenant.",
+            cancellationToken);
+
+        // 3. Verify Role belongs to target tenant or is a standard role
+        var role = await _roleRepository.GetByIdAsync(request.RoleId, cancellationToken);
+        if (role == null || (role.TenantId != null && role.TenantId != request.TenantId))
+        {
+            throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
+        }
+
+        // 4. Verify duplication or restore soft-deleted assignment
         var existingAssignment = await _memberRepository.GetByTenantAndUserAsync(request.TenantId, request.UserId, cancellationToken);
         if (existingAssignment != null)
         {
-            throw new InvalidOperationException($"User '{request.UserId}' is already assigned to Tenant '{request.TenantId}'.");
+            if (!existingAssignment.IsDeleted)
+            {
+                throw new InvalidOperationException($"User '{request.UserId}' is already assigned to Tenant '{request.TenantId}'.");
+            }
+
+            // Restore and reactivate previously removed tenant member
+            existingAssignment.IsDeleted = false;
+            existingAssignment.IsDeletedBy = string.Empty;
+            existingAssignment.RoleId = request.RoleId;
+            existingAssignment.FieldOfficeId = request.FieldOfficeId;
+            existingAssignment.JobTitle = request.JobTitle;
+            existingAssignment.Level = request.Level;
+            existingAssignment.Division = request.Division;
+            existingAssignment.Position = request.Position;
+            existingAssignment.Designation = request.Designation;
+            existingAssignment.LastModifiedAt = DateTime.UtcNow;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var reactivatedMember = await _memberRepository.GetByIdAsync(existingAssignment.Id, cancellationToken);
+            var user = await _userRepository.GetByIdAsync(existingAssignment.UserId, cancellationToken);
+
+            return new TenantMemberDto
+            {
+                Id = reactivatedMember?.Id ?? existingAssignment.Id,
+                TenantId = reactivatedMember?.TenantId ?? existingAssignment.TenantId,
+                TenantName = reactivatedMember?.Tenant?.Name ?? string.Empty,
+                UserId = existingAssignment.UserId,
+                UserEmail = user?.Email ?? string.Empty,
+                UserFirstName = user?.FirstName ?? string.Empty,
+                UserLastName = user?.LastName ?? string.Empty,
+                RoleId = existingAssignment.RoleId,
+                FieldOfficeId = existingAssignment.FieldOfficeId,
+                FieldOfficeName = reactivatedMember?.FieldOffice?.Name,
+                JobTitle = existingAssignment.JobTitle,
+                Level = existingAssignment.Level,
+                Division = existingAssignment.Division,
+                Position = existingAssignment.Position,
+                Designation = existingAssignment.Designation,
+                IsDeleted = false,
+                CreatedAt = existingAssignment.CreatedAt,
+                CreatedBy = existingAssignment.CreatedBy,
+                LastModifiedAt = existingAssignment.LastModifiedAt,
+                LastModifiedBy = existingAssignment.LastModifiedBy
+            };
         }
 
         var member = new TenantMember
@@ -42,6 +109,7 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             TenantId = request.TenantId,
             UserId = request.UserId,
             RoleId = request.RoleId,
+            FieldOfficeId = request.FieldOfficeId,
             JobTitle = request.JobTitle,
             Level = request.Level,
             Division = request.Division,
@@ -59,16 +127,20 @@ public class AssignUserToTenantCommandHandler : IRequestHandler<AssignUserToTena
             throw new InvalidOperationException("Failed to retrieve the newly created tenant member.");
         }
 
+        var assignedUser = await _userRepository.GetByIdAsync(savedMember.UserId, cancellationToken);
+
         return new TenantMemberDto
         {
             Id = savedMember.Id,
             TenantId = savedMember.TenantId,
             TenantName = savedMember.Tenant?.Name ?? string.Empty,
             UserId = savedMember.UserId,
-            UserEmail = string.Empty, // Populate dynamically later when User entity is available
-            UserFirstName = string.Empty,
-            UserLastName = string.Empty,
+            UserEmail = assignedUser?.Email ?? string.Empty,
+            UserFirstName = assignedUser?.FirstName ?? string.Empty,
+            UserLastName = assignedUser?.LastName ?? string.Empty,
             RoleId = savedMember.RoleId,
+            FieldOfficeId = savedMember.FieldOfficeId,
+            FieldOfficeName = savedMember.FieldOffice?.Name,
             JobTitle = savedMember.JobTitle,
             Level = savedMember.Level,
             Division = savedMember.Division,

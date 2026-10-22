@@ -1,5 +1,40 @@
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../../shared/hooks/useGeneralServiceWizard";
+import { synthesizeAllApplicantFieldValues, FIELD_GUID_MAP } from "../../shared/helpers/applicantFieldSynthesizer";
+import { formatCompositeAddress } from "../../../../shared/formPreview";
+
+/**
+ * Static GUID registry is imported directly from applicantFieldSynthesizer
+ * to ensure consistent canonical GUID resolution and prevent mapping drift.
+ */
+
+/**
+ * Resolves a field ID by checking:
+ * 1. The static GUID registry (exact or partial key match)
+ * 2. The live formFields array returned by the API
+ * Guarantees a real GUID is always returned when the field is registered in the seeder.
+ */
+function resolveFieldId(label: string, formFields: Array<{ label?: string; fieldId?: string }>): string {
+  const lowerLabel = label.toLowerCase();
+
+  // 1. Exact match in static map
+  const exactId = FIELD_GUID_MAP[lowerLabel];
+  if (exactId !== undefined) return exactId;
+
+  // 2. Partial match in static map (label contains a known key)
+  for (const [key, id] of Object.entries(FIELD_GUID_MAP)) {
+    if (lowerLabel.includes(key) || key.includes(lowerLabel)) return id;
+  }
+
+  // 3. Fallback to live formFields from API
+  const matched = formFields.find(
+    (f) => (f.label ?? "").toLowerCase().includes(lowerLabel)
+  );
+  if (matched !== undefined && matched.fieldId !== undefined) return matched.fieldId;
+
+  // 4. Last resort — generate a deterministic slug (will be rejected by backend if form is DB-backed)
+  return `f-${lowerLabel.replace(/\s+/g, "-")}`;
+}
 
 export interface FormFieldValuePayload {
   fieldId: string;
@@ -8,23 +43,34 @@ export interface FormFieldValuePayload {
 }
 
 export interface SerializedApplicantPayload {
+  applicantType?: string;
+  companyName?: string;
+  representativeName?: string;
+  dtiSecRegistration?: string;
   firstName: string;
+  middleName?: string;
   lastName: string;
+  suffix?: string;
   email: string;
   contactNumber: string;
   address: string;
   birthDate: string;
+  sex?: string;
+  civilStatus?: string;
+  nationality?: string;
+  zipCode?: string;
+  schoolAttended?: string;
+  courseTaken?: string;
+  yearGraduated?: string;
+  eSignature?: string;
   formFieldValues: FormFieldValuePayload[];
 }
 
 export function serializeCertificateApplicant(
   app: GeneralApplicantData,
-  service: NTCService,
-  formFields: any[] = []
+  _service: NTCService,
+  formFields: Array<{ label?: string; fieldId?: string; id?: string }> = []
 ): SerializedApplicantPayload {
-  const serviceCode = (service.code || "").toUpperCase();
-  const serviceTitle = (service.title || "").toUpperCase();
-
   const monthMap: Record<string, string> = {
     January: "01",
     February: "02",
@@ -40,179 +86,131 @@ export function serializeCertificateApplicant(
     December: "12",
   };
 
-  const birthDate = `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}`;
-  const formFieldValues: FormFieldValuePayload[] = [];
+  const birthDate = app.birthYear && app.birthMonth && app.birthDay
+    ? `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}`
+    : app.birthDate || "2000-01-01";
 
-  // Helper to append field
-  const addField = (label: string, val: string) => {
-    const matched = formFields.find(
-      (f) => (f.label || "").toLowerCase().includes(label.toLowerCase())
-    );
-    formFieldValues.push({
-      fieldId: matched ? matched.fieldId : `f-${label.toLowerCase().replace(/\s+/g, "-")}`,
-      fieldLabel: label,
-      value: val || "N/A",
+  // Synthesize ALL applicant inputs: dynamic form fields, standard particulars, and specialized models
+  const synthesized = synthesizeAllApplicantFieldValues(app, formFields);
+
+  const validFieldIdSet = new Set<string>();
+  formFields.forEach((f) => {
+    const id = f.fieldId || f.id;
+    if (id && id.trim() !== '') {
+      validFieldIdSet.add(id.toLowerCase().trim());
+    }
+  });
+
+  // Also include all standard system field GUIDs from FIELD_GUID_MAP
+  Object.values(FIELD_GUID_MAP).forEach((guid) => {
+    validFieldIdSet.add(guid.toLowerCase().trim());
+  });
+
+  const finalFieldValues: FormFieldValuePayload[] = [];
+  const processedFieldIds = new Set<string>();
+
+  synthesized.forEach((fv) => {
+    const cleanId = (fv.fieldId || '').trim();
+    const idLower = cleanId.toLowerCase();
+
+    // If validFieldIdSet has registered IDs, only include recognized fields to avoid bogus GUIDs
+    if (validFieldIdSet.size > 0 && !validFieldIdSet.has(idLower)) {
+      return;
+    }
+
+    if (cleanId && !processedFieldIds.has(idLower)) {
+      processedFieldIds.add(idLower);
+      finalFieldValues.push({
+        fieldId: cleanId,
+        fieldLabel: fv.fieldLabel,
+        value: fv.value,
+      });
+    }
+  });
+
+  // If validFieldIdSet was empty (e.g. no DB schema provided or draft), preserve all synthesized fields
+  if (finalFieldValues.length === 0 && synthesized.length > 0) {
+    synthesized.forEach((fv) => {
+      const cleanId = (fv.fieldId || '').trim();
+      const idLower = cleanId.toLowerCase();
+      if (cleanId && !processedFieldIds.has(idLower)) {
+        processedFieldIds.add(idLower);
+        finalFieldValues.push({
+          fieldId: cleanId,
+          fieldLabel: fv.fieldLabel,
+          value: fv.value,
+        });
+      }
     });
-  };
-
-  // 1. Radio Operator Certificates (NTC 1-02 / 1-03)
-  if (
-    serviceCode === "NTC_1_02" ||
-    serviceCode === "NTC_1_03" ||
-    serviceCode === "NTC_AMA_LICENSES" ||
-    serviceTitle.includes("RADIO OPERATOR") ||
-    serviceTitle.includes("AMATEUR SERVICE")
-  ) {
-    const data = app.radioCertData;
-    if (data) {
-      addField("Application Type", data.appType);
-      addField("Number of Years", data.years);
-      addField("Type of Certificate", data.typeOfCertificate || data.classOfStation);
-      if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
-        addField("Existing Certificate No", data.certificateNo);
-        addField("Date of Expiry", data.dateOfExpiry);
-      }
-      if (data.appType === "MODIFICATION") {
-        addField("Modification Details", data.modificationDueTo);
-      }
-      addField("Applicant Name", data.applicantName || `${app.firstName} ${app.lastName}`);
-      addField("Employment Status", data.employmentStatus);
-      addField("Employment Location", data.employmentLocation);
-      addField("Weight (kg)", data.weightKg);
-      addField("Height (cm)", data.heightCm);
-      addField("Exam Seminar Place", data.placeOfExamSeminar);
-      addField("Exam Seminar Date", data.examDate);
-      addField("Ratings", data.ratings);
-
-      return {
-        firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
-        lastName: data.applicantName ? data.applicantName.split(" ").slice(1).join(" ") || app.lastName : app.lastName,
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    }
   }
 
-  // 2. RFID, SRD, WDN Devices (NTC 1-19)
-  if (serviceCode === "NTC_1_19" || serviceTitle.includes("RFID") || serviceTitle.includes("WDN")) {
-    const data = app.deviceRegData;
-    if (data) {
-      addField("Registration Type", data.registrationType);
-      if (data.registrationType === "Non-Dealers") {
-        addField("Commercial Invoice No", data.invoiceNo);
-      }
-      addField("Business Name", data.businessName);
-      addField("Entity Type", data.entityType);
-      addField("SEC/DTI No", data.dtiSecNo);
-      addField("Device Particulars JSON", JSON.stringify(data.particulars));
+  const fnFromFields = finalFieldValues.find(fv => {
+    const l = (fv.fieldLabel || "").toLowerCase();
+    return l.includes("first name") || l === "fname";
+  })?.value?.trim();
 
-      return {
-        firstName: data.businessName || app.firstName,
-        lastName: "",
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    }
+  const lnFromFields = finalFieldValues.find(fv => {
+    const l = (fv.fieldLabel || "").toLowerCase();
+    return l.includes("last name") || l.includes("surname") || l === "lname";
+  })?.value?.trim();
+
+  const fullNameField = finalFieldValues.find(fv => {
+    const l = (fv.fieldLabel || "").toLowerCase();
+    return l.includes("full name") || l.includes("applicant name") || l === "name";
+  })?.value?.trim() || "";
+
+  let finalFirstName = app.firstName?.trim() || fnFromFields || "";
+  let finalLastName = app.lastName?.trim() || lnFromFields || "";
+
+  if (!finalFirstName && fullNameField) {
+    const parts = fullNameField.split(/\s+/);
+    finalFirstName = parts[0] || "Applicant";
+    finalLastName = parts.slice(1).join(" ") || "Detail";
   }
 
-  // 3. TVRO Registration Certificate (NTC 1-22)
-  if (serviceCode === "NTC_1_22" || serviceCode === "NTC_TVRO_CATV_LICENSES" || serviceTitle.includes("TVRO")) {
-    const data = app.tvroRegData;
-    if (data) {
-      addField("Classification", data.classification);
-      addField("Number of Years", data.years);
-      addField("Applicant Name", data.applicantName);
-      addField("Particulars of Equipment", JSON.stringify(data.particularsEquipment));
-      addField("Particulars of Antenna System", JSON.stringify(data.particularsOfAntennaSystem));
-      addField("Particulars of Signal to be Received", JSON.stringify(data.particularsOfSignalToBeReceived));
+  const isComp = (app.applicantType || "").toLowerCase() === "company";
+  const effectiveFirstName = isComp
+    ? app.representativeFirstName || finalFirstName || "Representative"
+    : finalFirstName || "Applicant";
+  const effectiveMiddleName = isComp
+    ? app.representativeMiddleName || app.middleName
+    : app.middleName;
+  const effectiveLastName = isComp
+    ? app.representativeLastName || finalLastName || "Officer"
+    : finalLastName || "Detail";
+  const effectiveSuffix = isComp
+    ? app.representativeSuffix || app.suffix
+    : app.suffix;
 
-      return {
-        firstName: data.applicantName || app.firstName,
-        lastName: "",
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    }
-  }
+  const emailVal = app.email || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "applicant@example.com";
+  const contactVal = app.contactNo || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value || "";
 
-  // 4. VAS Provider Registration (NTC 1-20)
-  if (serviceCode === "NTC_1_20" || serviceTitle.includes("VALUE-ADDED") || serviceTitle.includes("VAS")) {
-    const data = app.vasData;
-    if (data) {
-      addField("Application Type", data.appType);
-      addField("Number of Years", data.years);
-      addField("Company Name", data.businessName);
-      addField("Business Entity Type", data.serviceType);
-      if (data.appType === "RENEWAL" || data.appType === "MODIFICATION") {
-        addField("COR/VAS Certificate No", data.certificateNumber);
-        addField("COR/VAS Expiry Date", data.expiryDate);
-      }
-      addField("CPCN/PA/CA License No", data.serviceNo);
-      addField("CPCN/PA/CA Expiration Date", data.cpcnPaCaDateOfExpiry);
-      addField("Operating Trade Name", data.isKnownByOtherName ? data.otherTradeName : "N/A");
-      addField("Value-Added Services Scope", JSON.stringify(data.valueAddedServices));
+  const compositeAddress = formatCompositeAddress(app);
 
-      return {
-        firstName: data.businessName || app.firstName,
-        lastName: "",
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    }
-  }
-
-  // 5. Copy of Certificates (NTC 1-21)
-  if (serviceCode === "NTC_1_21" || serviceTitle.includes("COPY OF CERTIFICATES") || serviceTitle.includes("COPY OF LICENSES")) {
-    const data = app.copyOfCertData;
-    if (data) {
-      addField("Copy Type", data.copyType);
-      addField("Target Service", data.targetService);
-      addField("Original Certificate No", data.certificateNo);
-      if (data.copyType === "CERTIFIED_TRUE_COPY") {
-        addField("Number of Copies", data.numberOfCopies);
-      } else {
-        addField("Applicant Name", data.applicantName);
-        addField("Circumstances of Loss", data.circumstancesOfLoss);
-      }
-
-      return {
-        firstName: data.applicantName ? data.applicantName.split(" ")[0] || app.firstName : app.firstName,
-        lastName: data.applicantName ? data.applicantName.split(" ").slice(1).join(" ") || app.lastName : app.lastName,
-        email: data.email || app.email,
-        contactNumber: data.contactNo || app.contactNo,
-        address: data.address || app.address,
-        birthDate: birthDate,
-        formFieldValues,
-      };
-    }
-  }
-
-  // Default Generic Serialization
-  addField("Full Name", `${app.firstName} ${app.lastName}`.trim());
-  addField("Email", app.email);
-  addField("Contact Number", app.contactNo);
-  addField("Address", app.address);
-  addField("Filing Notes", app.notes);
+  const addressVal = compositeAddress || app.address || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "Philippines";
 
   return {
-    firstName: app.firstName,
-    lastName: app.lastName,
-    email: app.email,
-    contactNumber: app.contactNo,
-    address: app.address || "N/A",
-    birthDate: birthDate,
-    formFieldValues,
+    applicantType: app.applicantType || "individual",
+    companyName: app.companyName || undefined,
+    representativeName: app.representativeName || undefined,
+    dtiSecRegistration: app.dtiSecRegistration || undefined,
+    firstName: effectiveFirstName,
+    middleName: effectiveMiddleName || undefined,
+    lastName: effectiveLastName,
+    suffix: effectiveSuffix || undefined,
+    email: emailVal,
+    contactNumber: contactVal,
+    address: addressVal,
+    birthDate,
+    sex: app.sex || undefined,
+    civilStatus: app.civilStatus || undefined,
+    nationality: app.nationality || undefined,
+    zipCode: app.zipCode || undefined,
+    schoolAttended: app.schoolName || undefined,
+    courseTaken: app.courseDegree || undefined,
+    yearGraduated: app.yearGraduated || undefined,
+    eSignature: app.signatureUrl || undefined,
+    formFieldValues: finalFieldValues,
   };
 }
+

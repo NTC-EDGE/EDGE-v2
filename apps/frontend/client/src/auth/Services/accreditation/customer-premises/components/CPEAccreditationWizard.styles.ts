@@ -1,5 +1,8 @@
 import { COLORS, RADIUS, SPACING, TYPOGRAPHY } from "@edge/ui";
-import { StyleSheet, Platform } from "react-native";
+import { StyleSheet, Platform, Dimensions } from "react-native";
+
+const windowWidth = Dimensions.get("window").width;
+const isMobileScreen = windowWidth < 640;
 
 export const styles = StyleSheet.create({
   container: {
@@ -403,8 +406,8 @@ export const styles = StyleSheet.create({
     gap: SPACING[12],
   },
   formCol6: {
-    width: "48%",
-    minWidth: 240,
+    width: isMobileScreen ? "100%" : "48%",
+    minWidth: isMobileScreen ? undefined : 240,
     flexGrow: 1,
   },
   formCol12: {

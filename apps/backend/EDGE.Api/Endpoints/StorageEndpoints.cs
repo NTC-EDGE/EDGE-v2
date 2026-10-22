@@ -24,13 +24,10 @@ public static class StorageEndpoints
 {
     public static RouteGroupBuilder MapStorageEndpoints(this RouteGroupBuilder group)
     {
-        // Enforce Authentication & Authorization globally across all storage endpoints
-        var authorizedStorageGroup = group.RequireAuthorization();
-
         // Tenant-scoped storage endpoints: /api/v2/tenants/{tenantId}/storage/...
-        var tenantStorageGroup = authorizedStorageGroup.MapGroup("tenants/{tenantId:guid}/storage")
-            .WithTags("Tenant Storage")
-            .RequireTenantMembership();
+        var tenantStorageGroup = group.MapGroup("tenants/{tenantId:guid}/storage")
+            .RequireAuthorization()
+            .WithTags("Tenant Storage");
 
         tenantStorageGroup.MapPost("/upload", UploadTenantFile)
             .DisableAntiforgery()
@@ -44,6 +41,7 @@ public static class StorageEndpoints
             .Produces(StatusCodes.Status403Forbidden);
 
         tenantStorageGroup.MapGet("/files", GetTenantFiles)
+            .RequireTenantMembership()
             .WithName("GetTenantFiles")
             .WithTags("Tenant Storage")
             .WithSummary("Get all stored files metadata for a specific tenant")

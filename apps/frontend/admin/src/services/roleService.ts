@@ -1,12 +1,15 @@
 import { useApi } from './api';
-import { Role, CreateRoleCommand, UpdateRoleCommand, Permission } from '@edge/api';
+import { Role, CreateRoleCommand, UpdateRoleCommand, DuplicateRoleCommand, Permission } from '@edge/api';
 
 export function useRoleService() {
   const { useQuery, post, put, del } = useApi();
 
   const useRoles = (tenantId?: string | null, includeSystemRoles?: boolean) => {
+    if (tenantId === null) {
+      return useQuery<Role[]>(null);
+    }
     const params = new URLSearchParams();
-    if (tenantId !== undefined && tenantId !== null && tenantId.length > 0) {
+    if (tenantId !== undefined && tenantId.length > 0) {
       params.append('tenantId', tenantId);
     }
     if (includeSystemRoles === true) {
@@ -28,6 +31,10 @@ export function useRoleService() {
     return post<Role, CreateRoleCommand>('/api/v2/roles', command);
   };
 
+  const duplicateRole = async (command: DuplicateRoleCommand): Promise<Role> => {
+    return post<Role, DuplicateRoleCommand>(`/api/v2/roles/${command.sourceRoleId}/duplicate`, command);
+  };
+
   const updateRole = async (id: string, command: UpdateRoleCommand): Promise<Role> => {
     return put<Role, UpdateRoleCommand>(`/api/v2/roles/${id}`, command);
   };
@@ -41,6 +48,7 @@ export function useRoleService() {
     useRole,
     usePermissions,
     createRole,
+    duplicateRole,
     updateRole,
     deleteRole,
   };

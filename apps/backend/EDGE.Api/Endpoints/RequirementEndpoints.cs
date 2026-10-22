@@ -63,7 +63,7 @@ public static class RequirementEndpoints
 
         services.MapGet("/{serviceId:guid}/requirements", GetServiceRequirements)
             .WithName("GetServiceRequirements")
-            .WithSummary("Fetch requirements for a service/variant filtered by applicant ContextKey (e.g. 'Radiotelegraphy|Re-taker')");
+            .WithSummary("Fetch requirements for a service/variant");
 
         return group;
     }
@@ -82,7 +82,7 @@ public static class RequirementEndpoints
 
         var result = await mediator.Send(command);
         return result.Succeeded
-            ? Results.Created($"/api/v2/requirements/{result.Data}", result)
+            ? Results.CreatedAtRoute("GetRequirementById", new { id = result.Data }, result)
             : Results.BadRequest(result);
     }
 
@@ -95,7 +95,7 @@ public static class RequirementEndpoints
     {
         if (id != command.Id)
         {
-            return Results.BadRequest(new { message = "The path ID does not match the request body ID." });
+            return Results.BadRequest(ApiResponse<bool>.Fail("Route ID does not match body ID."));
         }
 
         var validationResult = await validator.ValidateAsync(command);
@@ -105,59 +105,52 @@ public static class RequirementEndpoints
         }
 
         var result = await mediator.Send(command);
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        if (!result.Succeeded)
+        {
+            if (result.Message != null && result.Message.Contains("not found"))
+            {
+                return Results.NotFound(result);
+            }
+            return Results.BadRequest(result);
+        }
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.DeleteRequirements)]
     public static async Task<IResult> DeleteRequirement(
         Guid id,
-        IValidator<DeleteRequirementCommand> validator,
         IMediator mediator)
     {
         var command = new DeleteRequirementCommand(id);
-        var validationResult = await validator.ValidateAsync(command);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
         var result = await mediator.Send(command);
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        if (!result.Succeeded)
+        {
+            if (result.Message != null && result.Message.Contains("not found"))
+            {
+                return Results.NotFound(result);
+            }
+            return Results.BadRequest(result);
+        }
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReadRequirements)]
-    public static async Task<IResult> GetRequirementById(
-        Guid id,
-        IValidator<GetRequirementByIdQuery> validator,
-        IMediator mediator)
+    public static async Task<IResult> GetRequirements(IMediator mediator)
     {
-        var query = new GetRequirementByIdQuery(id);
-        var validationResult = await validator.ValidateAsync(query);
-        if (!validationResult.IsValid)
-        {
-            return Results.ValidationProblem(validationResult.ToDictionary());
-        }
-
-        var result = await mediator.Send(query);
-        return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+        var result = await mediator.Send(new GetRequirementsQuery());
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReadRequirements)]
-    public static async Task<IResult> GetRequirements(
-        int? pageNumber,
-        int? pageSize,
-        string? searchTerm,
-        IValidator<GetRequirementsQuery> validator,
-        IMediator mediator)
+    public static async Task<IResult> GetRequirementById(Guid id, IMediator mediator)
     {
-        var query = new GetRequirementsQuery(pageNumber, pageSize, searchTerm);
-        var validationResult = await validator.ValidateAsync(query);
-        if (!validationResult.IsValid)
+        var result = await mediator.Send(new GetRequirementByIdQuery(id));
+        if (!result.Succeeded)
         {
-            return Results.ValidationProblem(validationResult.ToDictionary());
+            return Results.NotFound(result);
         }
-
-        var result = await mediator.Send(query);
         return Results.Ok(result);
     }
 
@@ -166,11 +159,28 @@ public static class RequirementEndpoints
         Guid serviceId,
         Guid variantId,
         AttachServiceVariantRequirementCommand command,
+        IValidator<AttachServiceVariantRequirementCommand> validator,
         IMediator mediator)
     {
-        var updatedCommand = command with { ServiceId = serviceId, ServiceVariantId = variantId };
-        var result = await mediator.Send(updatedCommand);
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        var payload = command with { ServiceId = serviceId, ServiceVariantId = variantId };
+
+        var validationResult = await validator.ValidateAsync(payload);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(payload);
+        if (!result.Succeeded)
+        {
+            if (result.Message != null && result.Message.Contains("not found"))
+            {
+                return Results.NotFound(result);
+            }
+            return Results.BadRequest(result);
+        }
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.DeleteRequirements)]
@@ -180,18 +190,27 @@ public static class RequirementEndpoints
         Guid id,
         IMediator mediator)
     {
-        var result = await mediator.Send(new UnlinkServiceVariantRequirementCommand(id));
-        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
+        var command = new UnlinkServiceVariantRequirementCommand(id);
+        var result = await mediator.Send(command);
+        if (!result.Succeeded)
+        {
+            if (result.Message != null && result.Message.Contains("not found"))
+            {
+                return Results.NotFound(result);
+            }
+            return Results.BadRequest(result);
+        }
+
+        return Results.Ok(result);
     }
 
     [HasPermission(Permissions.ReadRequirements)]
     public static async Task<IResult> GetServiceRequirements(
         Guid serviceId,
         Guid? variantId,
-        string? contextKey,
         IMediator mediator)
     {
-        var query = new GetServiceRequirementsQuery(serviceId, variantId, contextKey);
+        var query = new GetServiceRequirementsQuery(serviceId, variantId);
         var result = await mediator.Send(query);
         if (!result.Succeeded)
         {

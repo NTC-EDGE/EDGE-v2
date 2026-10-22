@@ -14,5 +14,8 @@ public record ScheduleDto(
     bool IsPublished,
     int? MaximumSlots,
     string? Remarks,
-    DateTime CreatedAt
+    DateTime CreatedAt,
+    string? StartTime = null,
+    string? EndTime = null,
+    string? RegionName = null
 );

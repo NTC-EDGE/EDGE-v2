@@ -1,0 +1,150 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using MediatR;
+using Microsoft.Extensions.Logging;
+using EDGE.Domain.Entities;
+using EDGE.Application.Common.Interfaces;
+using EDGE.Application.Common.Models;
+
+namespace EDGE.Application.Applications.Commands.AdminUpdateFormValues;
+
+public class AdminUpdateFormValuesCommandHandler : IRequestHandler<AdminUpdateFormValuesCommand, ApiResponse<Guid>>
+{
+    private readonly IApplicationFullRepository _applicationRepository;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<AdminUpdateFormValuesCommandHandler> _logger;
+
+    public AdminUpdateFormValuesCommandHandler(
+        IApplicationFullRepository applicationRepository,
+        ICurrentUserService currentUserService,
+        IUnitOfWork unitOfWork,
+        ILogger<AdminUpdateFormValuesCommandHandler> logger)
+    {
+        _applicationRepository = applicationRepository;
+        _currentUserService = currentUserService;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<ApiResponse<Guid>> Handle(AdminUpdateFormValuesCommand request, CancellationToken cancellationToken)
+    {
+        var app = await _applicationRepository.GetByIdWithDetailsAsync(request.ApplicationId, cancellationToken);
+        if (app == null)
+        {
+            return ApiResponse<Guid>.Fail($"Application with ID {request.ApplicationId} was not found.");
+        }
+
+        var staffName = _currentUserService.UserId ?? "NTC Agency Staff";
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // Find form submission strictly by SubmissionId if provided, or ApplicantId
+            FormSubmission? submission = null;
+            if (request.SubmissionId.HasValue && request.SubmissionId.Value != Guid.Empty)
+            {
+                submission = app.FormSubmissions.FirstOrDefault(fs => fs.Id == request.SubmissionId.Value);
+            }
+
+            if (submission == null && request.ApplicantId != Guid.Empty)
+            {
+                submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == request.ApplicantId);
+            }
+
+            if (submission == null)
+            {
+                if (app.FormSubmissions.Count == 1)
+                {
+                    submission = app.FormSubmissions.First();
+                }
+                else
+                {
+                    submission = app.FormSubmissions.FirstOrDefault(fs => fs.ApplicationId == app.Id && fs.ApplicantId == Guid.Empty);
+                }
+            }
+
+            if (submission == null)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                return ApiResponse<Guid>.Fail($"No matching form submission found.");
+            }
+
+            if (request.FormFields != null)
+            {
+                foreach (var fieldDto in request.FormFields)
+                {
+                    if (Guid.TryParse(fieldDto.FieldId, out var fieldId))
+                    {
+                        var existingVal = submission.FieldValues.FirstOrDefault(fv => fv.FieldId == fieldId);
+                        var newValue = fieldDto.Value ?? string.Empty;
+
+                        if (existingVal != null)
+                        {
+                            if (existingVal.Value != newValue)
+                            {
+                                await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                                {
+                                    ApplicationId = app.Id,
+                                    Category = "Form Submissions",
+                                    FieldName = string.IsNullOrWhiteSpace(fieldDto.FieldLabel)
+                                        ? (existingVal.Field?.Label ?? "Field")
+                                        : fieldDto.FieldLabel,
+                                    OldValue = existingVal.Value ?? string.Empty,
+                                    NewValue = newValue,
+                                    CorrectedByStaff = staffName,
+                                    CorrectedAt = DateTime.UtcNow
+                                }, cancellationToken);
+
+                                existingVal.Value = newValue;
+                            }
+                        }
+                        else
+                        {
+                            await _applicationRepository.AddCorrectionAuditTrailAsync(new CorrectionAuditTrail
+                            {
+                                ApplicationId = app.Id,
+                                Category = "Form Submissions",
+                                FieldName = string.IsNullOrWhiteSpace(fieldDto.FieldLabel) ? "Field" : fieldDto.FieldLabel,
+                                OldValue = string.Empty,
+                                NewValue = newValue,
+                                CorrectedByStaff = staffName,
+                                CorrectedAt = DateTime.UtcNow
+                            }, cancellationToken);
+
+                            submission.FieldValues.Add(new FormFieldValue
+                            {
+                                Id = Guid.NewGuid(),
+                                FormSubmissionId = submission.Id,
+                                FieldId = fieldId,
+                                CustomLabel = fieldDto.FieldLabel,
+                                Value = newValue
+                            });
+                        }
+                    }
+                }
+            }
+
+            await _applicationRepository.UpdateAsync(app, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            return ApiResponse<Guid>.Success(request.ApplicantId, "Form field values updated successfully by staff.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update form field values for ApplicationId {ApplicationId}, SubmissionId {SubmissionId}", request.ApplicationId, request.SubmissionId);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during form values update.");
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating form field values. Please try again or contact support.");
+        }
+    }
+}

@@ -11,8 +11,9 @@ export interface AdminRolesResponse {
 
 const fetcher = (url: string) => apiClient.get<Role[]>(url).then((res) => res.data);
 
-export function useAdminRoles(): AdminRolesResponse {
-  const { data, error, mutate } = useSWR<Role[]>('/api/v2/roles', fetcher, {
+export function useAdminRoles(tenantId?: string): AdminRolesResponse {
+  const url = tenantId ? `/api/v2/roles?tenantId=${tenantId}` : '/api/v2/roles';
+  const { data, error, mutate } = useSWR<Role[]>(url, fetcher, {
     revalidateOnFocus: false,
     dedupingInterval: 10000,
   });

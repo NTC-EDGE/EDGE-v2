@@ -21,12 +21,17 @@ export function DeclarationModal({
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
       <View style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" }}>
         <View style={{ backgroundColor: COLORS.neutral.white, width: "90%", maxWidth: 540, borderRadius: 16, padding: 24 }}>
-          <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800], marginBottom: 16 }}>
-            Declaration of Intent & Consent
-          </Text>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: "700", color: COLORS.neutral[800] }}>
+              Declaration of Intent & Consent
+            </Text>
+            <TouchableOpacity onPress={onClose} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+              <Icon name="x" size={20} color={COLORS.neutral[500]} />
+            </TouchableOpacity>
+          </View>
           <View style={{ borderWidth: 1, borderColor: COLORS.neutral[200], borderRadius: 12, padding: 16, backgroundColor: COLORS.neutral[50], marginBottom: 20 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: COLORS.neutral[600], lineHeight: 20, textAlign: "justify" }}>
-              I hereby declare that all the entries are true and correct to the best of my knowledge and belief. I understand that any false declaration will lead to immediate rejection of my application.
+              I hereby declare that all the above entries are true and correct. Under the Revised Penal Code, I shall be held liable for any willful false statement(s) or misrepresentation(s) made in this application form that may serve as a valid ground for the denial of this application and/or cancellation/revocation of thepermit issued/granted. Further, I am freely giving full consent for the collection and processing of personal information in accordance with Republic Act No. 10713, Data Privacy Act of 2012.
             </Text>
           </View>
           <TouchableOpacity onPress={onToggleAgree} style={{ flexDirection: "row", alignItems: "center", marginBottom: 24 }}>
@@ -35,15 +40,40 @@ export function DeclarationModal({
               I agree to the Terms and Conditions
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            onPress={onConfirm}
-            style={{ backgroundColor: isAgreed ? COLORS.brand[700] : COLORS.neutral[300], borderRadius: 24, paddingVertical: 12, alignItems: "center" }}
-            disabled={!isAgreed}
-          >
-            <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
-              Confirm Submission
-            </Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+            <TouchableOpacity
+              onPress={onClose}
+              style={{
+                borderWidth: 1,
+                borderColor: COLORS.neutral[300],
+                borderRadius: 24,
+                paddingVertical: 12,
+                paddingHorizontal: 20,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "600", color: COLORS.neutral[700] }}>
+                Close
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              onPress={onConfirm}
+              style={{
+                backgroundColor: isAgreed ? COLORS.brand[700] : COLORS.neutral[300],
+                borderRadius: 24,
+                paddingVertical: 12,
+                paddingHorizontal: 24,
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+              disabled={!isAgreed}
+            >
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, fontWeight: "700", color: COLORS.neutral.white }}>
+                Confirm Submission
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     </Modal>

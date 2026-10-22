@@ -1,14 +1,21 @@
 import React, { useState } from "react";
-import { Alert } from "react-native";
-import { useUser } from "@clerk/expo";
+import { Alert, Platform } from "react-native";
+import { useAuth, useUser } from "@clerk/expo";
+import { apiClient } from "@edge/api";
 import { useApi } from "../../../../../shared/hooks/useApi";
+import { extractApiErrorMessage } from "../../../../../shared/components/Toast";
 import { NTCOffice } from "../data/mockRegionData";
 import { ApplicantData } from "../types/cpeTypes";
+import { extractUserProfile } from "../../../../../shared/utils/userProfileHelper";
+import { uploadRequirementsAfterSubmit } from "../../../shared/helpers/requirementUploadHelper";
+import { getRequirementsList } from "../components/wizard/CPEStep6DocumentUpload";
 
 interface UseCPEAccreditationWizardProps {
   selectedRegionId: string;
   setSelectedRegionId: (id: string) => void;
+  selectedOfficeId?: string;
   setSelectedOfficeId: (id: string) => void;
+  appMode?: "SINGLE" | "BULK" | "";
   setAppMode: (mode: "SINGLE" | "BULK" | "") => void;
   setBulkMethod: (method: "MANUAL" | "EXCEL") => void;
   setIsFileUploaded: (val: boolean) => void;
@@ -22,7 +29,9 @@ interface UseCPEAccreditationWizardProps {
 export function useCPEAccreditationWizard({
   selectedRegionId,
   setSelectedRegionId,
+  selectedOfficeId,
   setSelectedOfficeId,
+  appMode,
   setAppMode,
   setBulkMethod,
   setIsFileUploaded,
@@ -57,44 +66,82 @@ export function useCPEAccreditationWizard({
 
   const api = useApi();
   const { user: clerkUser } = useUser();
+  const { getToken } = useAuth();
   const USE_MOCKS = false;
 
+  // Form fields schema mapping
   const [formFields, setFormFields] = useState<any[]>([]);
 
+  // Auto-fill applicant with Clerk user and database profile details (once on auth/mount)
+  const hasPrefilledCPEProfileRef = React.useRef(false);
   React.useEffect(() => {
     let active = true;
-    const fetchForm = async () => {
-      if (!serviceId) return;
+    async function prefillCPEApplicant() {
+      if (!clerkUser || applicants.length !== 1 || hasPrefilledCPEProfileRef.current) return;
+
+      // 1. Initial prefill from local storage / Clerk metadata
+      const initialProfile = extractUserProfile(clerkUser, null);
+      setApplicants((prev) =>
+        prev.map((app, idx) =>
+          idx === 0
+            ? {
+                ...app,
+                businessName: app.businessName || initialProfile.companyName || initialProfile.fullName,
+                email: app.email || initialProfile.email,
+                contactNo: app.contactNo || initialProfile.phone,
+                unitBldgNo: app.unitBldgNo || initialProfile.unit,
+                street: app.street || initialProfile.street,
+                barangay: app.barangay || initialProfile.barangay,
+                city: app.city || initialProfile.city,
+                province: app.province || initialProfile.province,
+                regionName: app.regionName || initialProfile.region,
+                zipCode: app.zipCode || initialProfile.zipCode,
+              }
+            : app
+        )
+      );
+
+      // 2. Enrich from backend database /api/v2/users/profile
       try {
-        const res = await api.get<any>(`/api/v2/services/${serviceId}/form`);
-        if (active && res && res.data && res.data.sections) {
-          const fields = res.data.sections.flatMap((s: any) => s.fields || []);
-          setFormFields(fields);
-        }
+        const dbRes = await api.get<any>("/api/v2/users/profile").catch((err) => {
+          console.warn("[CPEAccreditationWizard] Notice: Backend profile fetch failed or returned non-200. Using Clerk/local profile fallbacks.", err);
+          return null;
+        });
+        if (!active || !dbRes) return;
+        const dbUser = dbRes.data || dbRes;
+        if (!dbUser) return;
+
+        const enriched = extractUserProfile(clerkUser, dbUser);
+        setApplicants((prev) =>
+          prev.map((app, idx) =>
+            idx === 0
+              ? {
+                  ...app,
+                  businessName: app.businessName || enriched.companyName || enriched.fullName,
+                  email: app.email || enriched.email,
+                  contactNo: app.contactNo || enriched.phone,
+                  unitBldgNo: app.unitBldgNo || enriched.unit,
+                  street: app.street || enriched.street,
+                  barangay: app.barangay || enriched.barangay,
+                  city: app.city || enriched.city,
+                  province: app.province || enriched.province,
+                  regionName: app.regionName || enriched.region,
+                  zipCode: app.zipCode || enriched.zipCode,
+                }
+              : app
+          )
+        );
+        hasPrefilledCPEProfileRef.current = true;
       } catch (err) {
-        console.warn("Failed to fetch CPE form schema:", err);
-      }
-    };
-    fetchForm();
-    return () => { active = false; };
-  }, [serviceId]);
-
-  // Auto-fill applicant with Clerk user details
-  React.useEffect(() => {
-    if (clerkUser && applicants.length === 1) {
-      const firstApp = applicants[0];
-      if (firstApp && firstApp.email === "" && firstApp.contactNo === "") {
-        const email = clerkUser.primaryEmailAddress?.emailAddress || "";
-        const phone = clerkUser.primaryPhoneNumber?.phoneNumber || "";
-
-        setApplicants((prev) => prev.map((app, idx) => idx === 0 ? {
-          ...app,
-          email,
-          contactNo: phone,
-        } : app));
+        console.warn("[CPEAccreditationWizard] Failed to process backend profile data:", err);
       }
     }
-  }, [clerkUser, applicants, setApplicants]);
+
+    prefillCPEApplicant();
+    return () => {
+      active = false;
+    };
+  }, [clerkUser]);
 
   const [tenants, setTenants] = useState<Array<{ id: string; name: string }>>([]);
   const [loadingTenants, setLoadingTenants] = useState(false);
@@ -105,20 +152,26 @@ export function useCPEAccreditationWizard({
     items?: T;
   }
 
+  const hasFetchedCPETenantsRef = React.useRef(false);
   React.useEffect(() => {
+    if (hasFetchedCPETenantsRef.current) return;
     async function fetchTenants() {
       setLoadingTenants(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants");
+        const res = await api.get<ApiResponseEnvelope<Array<{ id: string; name: string }>> | Array<{ id: string; name: string }>>("/api/v2/tenants?pageSize=100&isActive=true");
+        let list: Array<{ id: string; name: string }> = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setTenants(res.data);
+          list = res.data;
         } else if (Array.isArray(res)) {
-          setTenants(res);
+          list = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setTenants(res.items);
-        } else {
-          setTenants([]);
+          list = res.items;
         }
+        setTenants(list);
+        if (list.length > 0 && !selectedRegionId) {
+          setSelectedRegionId(list[0].id);
+        }
+        hasFetchedCPETenantsRef.current = true;
       } catch (err) {
         console.error("Failed to fetch tenants from API:", err);
         setTenants([]);
@@ -149,15 +202,20 @@ export function useCPEAccreditationWizard({
       }
       setLoadingOffices(true);
       try {
-        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices`);
+        const res = await api.get<ApiResponseEnvelope<NTCOffice[]> | NTCOffice[]>(`/api/v2/tenants/${selectedRegionId}/field-offices?isActive=true`);
+        let rawOffices: NTCOffice[] = [];
         if (res && !Array.isArray(res) && res.succeeded && Array.isArray(res.data)) {
-          setOffices(res.data);
+          rawOffices = res.data;
         } else if (Array.isArray(res)) {
-          setOffices(res);
+          rawOffices = res;
         } else if (res && !Array.isArray(res) && Array.isArray(res.items)) {
-          setOffices(res.items);
+          rawOffices = res.items;
+        }
+        setOffices(rawOffices);
+        if (rawOffices.length > 0) {
+          setSelectedOfficeId(rawOffices[0].id);
         } else {
-          setOffices([]);
+          setSelectedOfficeId("");
         }
       } catch (err) {
         console.error("Failed to fetch offices from API:", err);
@@ -245,6 +303,8 @@ export function useCPEAccreditationWizard({
     );
   };
 
+
+
   const submitApplicationPayload = async (isDraft = false) => {
     if (!serviceId) {
       Alert.alert("Error", "Service identifier is missing.");
@@ -258,107 +318,175 @@ export function useCPEAccreditationWizard({
     const expiryDateStr = `${activeApplicant.expiryYear}-${expiryMonthNum}-${String(activeApplicant.expiryDate).padStart(2, "0")}`;
     const address = `${activeApplicant.unitBldgNo || ""}, ${activeApplicant.street}, ${activeApplicant.barangay}, ${activeApplicant.city}, ${activeApplicant.province}, ${activeApplicant.zipCode}`;
 
-    if (formFields.length > 0) {
-      const formFieldValues: Array<{ fieldId: string; value: string }> = [];
-      const mappings = [
-        { terms: ["application type", "app type", "type"], value: activeApplicant.appType },
-        { terms: ["years", "no of years", "number of years"], value: activeApplicant.years },
-        { terms: ["variation"], value: activeApplicant.variation },
-        { terms: ["accreditation no", "accreditation number"], value: activeApplicant.accreditationNo || "N/A" },
-        { terms: ["business name", "company name", "name"], value: activeApplicant.businessName },
-        { terms: ["entity type", "business type"], value: activeApplicant.entityType },
-        { terms: ["dti", "sec", "dti/sec"], value: activeApplicant.dtiNo },
-        { terms: ["address", "street", "residence"], value: address },
-        { terms: ["contact no", "contact number", "phone", "mobile"], value: activeApplicant.contactNo },
-        { terms: ["email address", "email"], value: activeApplicant.email },
-        { terms: ["engineer", "ece"], value: `${activeApplicant.engineerName} (ECE: ${activeApplicant.eceNo})` },
-        { terms: ["technician", "ect"], value: `${activeApplicant.technicianName} (ECT: ${activeApplicant.ectNo})` },
-        { terms: ["expiry", "expiration"], value: expiryDateStr },
-      ];
-
-      formFields.forEach((field: any) => {
-        const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId;
-        const match = mappings.find(m => m.terms.some(t => labelLower.includes(t)));
-        if (match) {
-          formFieldValues.push({
-            fieldId: id,
-            value: String(match.value)
-          });
-        } else {
-          formFieldValues.push({
-            fieldId: id,
-            value: field.type === "checkbox" ? "false" : ""
-          });
+    if (!isDraft) {
+      const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+      const applicantsToValidate = isBulkSubmission ? applicants : [activeApplicant];
+      for (let i = 0; i < applicantsToValidate.length; i++) {
+        const appToVal = applicantsToValidate[i];
+        const reqList = getRequirementsList(appToVal.appType);
+        const missingIdxs: number[] = [];
+        reqList.forEach((req, idx) => {
+          const key = idx.toString();
+          const upVal = appToVal.uploads?.[key];
+          const isUploaded = Boolean(
+            upVal &&
+            ((typeof upVal === "string" && upVal.trim().length > 0) ||
+             (typeof upVal === "object" && (upVal.name || upVal.uri)))
+          );
+          if (!isUploaded) {
+            missingIdxs.push(idx);
+          }
+        });
+        if (missingIdxs.length > 0) {
+          const missingNames = missingIdxs.map((idx) => reqList[idx]);
+          const label = appToVal.businessName || appToVal.engineerName || `Applicant #${i + 1}`;
+          throw new Error(
+            `Mandatory supporting documents are missing for ${label}: ${missingNames.join(", ")}. Please upload all required attachments before submitting.`
+          );
         }
-      });
+      }
+    }
+
+    try {
+      if (serviceId) {
+        let mappedApplicants: Array<{
+          firstName: string;
+          lastName: string;
+          email: string;
+          contactNumber: string;
+          address: string;
+          birthDate: string;
+          formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+        }> = [];
+
+        try {
+          const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+          mappedApplicants = (isBulkSubmission ? applicants : [activeApplicant]).map((app) => {
+            let addr = [app.unitBldgNo, app.street, app.barangay, app.city, app.province]
+              .filter(Boolean)
+              .join(", ");
+            if (!addr) addr = "N/A";
+
+            let fvList: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
+            if (app.formFieldValues && Array.isArray(app.formFieldValues)) {
+              fvList = app.formFieldValues;
+            }
+
+            return {
+              applicantType: "company",
+              companyName: app.businessName || undefined,
+              representativeName: app.engineerName || undefined,
+              firstName: app.businessName || app.engineerName || "Applicant",
+              lastName: app.entityType || "N/A",
+              email: app.email || "applicant@example.com",
+              contactNumber: app.contactNo || "",
+              address: addr,
+              birthDate: "1990-01-01T00:00:00Z",
+              formFieldValues: fvList,
+            };
+          });
+        } catch (serializationErr: unknown) {
+          const serializationMsg =
+            serializationErr instanceof Error
+              ? serializationErr.message
+              : "Failed to format CPE applicant data.";
+          throw new Error(`Data Serialization Error: ${serializationMsg}`);
+        }
+
+        const isBulkSubmission = appMode === "BULK" || applicants.length > 1;
+        const payload = {
+          tenantId: selectedRegionId,
+          submissionMode: isBulkSubmission ? "Bulk" : "Single",
+          serviceId: serviceId,
+          fieldOfficeId: selectedOfficeId || null,
+          serviceVariantId: null,
+          serviceVariantElementIds: [],
+          isDraft: true,
+          applicants: mappedApplicants,
+        };
+
+        // Submit the application shell and capture the new applicationId
+        const submitRes = await api.post<{ succeeded?: boolean; data?: string } | string>(
+          `/api/v2/tenants/${selectedRegionId}/applications`,
+          payload
+        );
+
+        const submitEnvelope = submitRes as { succeeded?: boolean; data?: string };
+        const applicationId =
+          submitEnvelope.succeeded !== undefined && typeof submitEnvelope.data === "string"
+            ? submitEnvelope.data
+            : typeof submitRes === "string"
+            ? submitRes
+            : null;
+
+        if (!applicationId) {
+          throw new Error("Application creation returned no identifier.");
+        }
+
+        // Upload and link requirement attachments
+        const allApplicantsForUpload = isBulkSubmission ? applicants : [activeApplicant];
+        await uploadRequirementsAfterSubmit({
+          api,
+          applicationId,
+          tenantId: selectedRegionId,
+          applicants: allApplicantsForUpload,
+          getToken,
+        });
+
+        if (!isDraft) {
+          const finalizeRes = await api.post<unknown>(`/api/v2/applications/${applicationId}/submit`, {});
+          const finObj = typeof finalizeRes === "object" && finalizeRes !== null ? (finalizeRes as Record<string, unknown>) : {};
+          if (finObj.succeeded === false) {
+            throw new Error((typeof finObj.message === "string" && finObj.message) || "Failed to finalize CPE application submission.");
+          }
+        }
+
+        return;
+      }
 
       const payload = {
-        tenantId: selectedRegionId,
-        submissionMode: "Single",
-        serviceId: serviceId,
-        scheduleId: null,
-        fieldOfficeId: null,
-        serviceVariantId: null,
-        serviceVariantElementIds: [],
-        isDraft: isDraft,
-        applicants: [
-          {
-            firstName: "CPE Supplier",
-            lastName: activeApplicant.businessName,
-            email: activeApplicant.email,
-            contactNumber: activeApplicant.contactNo,
-            address: address,
-            birthDate: "1990-01-01T00:00:00Z",
-            formFieldValues: formFieldValues
-          }
-        ]
+        applicationType: "CPE_SUPPLIER_ACCREDITATION",
+        appType: activeApplicant.appType,
+        years: parseInt(activeApplicant.years),
+        variation: activeApplicant.variation,
+        accreditationNo: activeApplicant.accreditationNo || null,
+        businessName: activeApplicant.businessName,
+        entityType: activeApplicant.entityType,
+        dtiNo: activeApplicant.dtiNo,
+        province: activeApplicant.province,
+        city: activeApplicant.city,
+        barangay: activeApplicant.barangay,
+        street: activeApplicant.street,
+        zone: activeApplicant.zone,
+        unitBldgNo: activeApplicant.unitBldgNo,
+        zipCode: activeApplicant.zipCode,
+        contactNo: activeApplicant.contactNo,
+        email: activeApplicant.email,
+        engineerName: activeApplicant.engineerName,
+        eceNo: activeApplicant.eceNo,
+        technicianName: activeApplicant.technicianName,
+        ectNo: activeApplicant.ectNo,
+        expiryMonth: activeApplicant.expiryMonth,
+        expiryDate: parseInt(activeApplicant.expiryDate),
+        expiryYear: parseInt(activeApplicant.expiryYear),
+        attachments: Object.keys(activeApplicant.uploads).map((key) => {
+          const uploadObj = activeApplicant.uploads[key];
+          const fileName = typeof uploadObj === "string"
+            ? uploadObj
+            : uploadObj !== null && uploadObj !== undefined
+            ? uploadObj.name
+            : "";
+          return {
+            requirementIndex: parseInt(key),
+            fileName,
+          };
+        }),
       };
 
       await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
-      return;
+    } catch (err: unknown) {
+      throw new Error(extractApiErrorMessage(err) || "Network request failed while submitting CPE application.");
     }
-
-    const payload = {
-      applicationType: "CPE_SUPPLIER_ACCREDITATION",
-      appType: activeApplicant.appType,
-      years: parseInt(activeApplicant.years),
-      variation: activeApplicant.variation,
-      accreditationNo: activeApplicant.accreditationNo || null,
-      businessName: activeApplicant.businessName,
-      entityType: activeApplicant.entityType,
-      dtiNo: activeApplicant.dtiNo,
-      province: activeApplicant.province,
-      city: activeApplicant.city,
-      barangay: activeApplicant.barangay,
-      street: activeApplicant.street,
-      zone: activeApplicant.zone,
-      unitBldgNo: activeApplicant.unitBldgNo,
-      zipCode: activeApplicant.zipCode,
-      contactNo: activeApplicant.contactNo,
-      email: activeApplicant.email,
-      engineerName: activeApplicant.engineerName,
-      eceNo: activeApplicant.eceNo,
-      technicianName: activeApplicant.technicianName,
-      ectNo: activeApplicant.ectNo,
-      expiryMonth: activeApplicant.expiryMonth,
-      expiryDate: parseInt(activeApplicant.expiryDate),
-      expiryYear: parseInt(activeApplicant.expiryYear),
-      attachments: Object.keys(activeApplicant.uploads).map((key) => {
-        const uploadObj = activeApplicant.uploads[key];
-        const fileName = typeof uploadObj === "string"
-          ? uploadObj
-          : uploadObj !== null && uploadObj !== undefined
-          ? uploadObj.name
-          : "";
-        return {
-          requirementIndex: parseInt(key),
-          fileName,
-        };
-      }),
-    };
-
-    await api.post(`/api/v2/tenants/${selectedRegionId}/applications`, payload);
   };
 
   const [errors, setErrors] = useState<Record<string, string>>({});

@@ -45,9 +45,6 @@ public class ExceptionHandlingMiddleware(
         {
             context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
             response.Message = "An unexpected server error occurred. Please try again later.";
-#if DEBUG
-            response.Message = $"{exception.Message} {exception.StackTrace}";
-#endif
         }
 
         var jsonOptions = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };

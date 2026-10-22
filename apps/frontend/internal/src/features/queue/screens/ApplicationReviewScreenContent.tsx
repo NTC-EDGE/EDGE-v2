@@ -1,2325 +1,1563 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   StyleSheet,
   View,
   Text,
   Pressable,
   ScrollView,
-  TextInput,
-  Image,
   Alert,
   Platform,
   Animated,
+  useWindowDimensions,
 } from "react-native";
 import {
   useTheme,
   COLORS,
   SPACING,
   RADIUS,
-  SHADOWS,
   TYPOGRAPHY,
   Icon as Lucide,
+  toast,
 } from "@edge/ui";
-import {
-  ApplicationData,
-  ApplicationFormAttachment,
-} from "../data/mockApplications";
+import { ApplicationData, ApplicationStatus } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
 import { usePermissions } from "../../shell/context/PermissionContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
+import {
+  applicationService,
+  useAdminApplicationDetails,
+  mutateApplications,
+  useNextAvailableOrNumber,
+  PendingPaymentDto,
+  OfficialReceiptDto,
+  parsePaymentBreakdown,
+} from "@edge/api";
+import { mapApplicationDtoToUI, isEvaluatorOrSupervisorRole } from "../data/applicationMapper";
 import { ApproveModal } from "../components/modals/ApproveModal";
 import { DeclineModal } from "../components/modals/DeclineModal";
-import { EndorseModal } from "../components/modals/EndorseModal";
-import { CashierVerificationModal } from "../components/modals/CashierVerificationModal";
+import { EndorseModal, EndorsementSubmission } from "../components/modals/EndorseModal";
+import { IssueReceiptModal } from "../../receipts/components/IssueReceiptModal";
+import { IssueDocumentModal } from "../components/modals/IssueDocumentModal";
+import { GenerateSoaModal } from "../components/modals/GenerateSoaModal";
+import { SoaReportPreviewModal, ReportDocumentType } from "../components/modals/SoaReportPreviewModal";
+import {
+  generateSoaPrintableHtml,
+  generateOpPrintableHtml,
+  openPrintableDocumentWindow,
+} from "../utils/soaReportGenerator";
 import { UserRole } from "../../shell/context/RoleContext";
-import { useApplications } from "../context/ApplicationContext";
-
-type InnerTab = "basic" | "details" | "requirements" | "soa";
-
-const INNER_TABS: {
-  key: InnerTab;
-  label: string;
-  icon: "user" | "clipboard" | "list" | "credit-card";
-}[] = [
-  { key: "basic", label: "Basic Info", icon: "user" },
-  { key: "details", label: "Application Details", icon: "clipboard" },
-  { key: "requirements", label: "Requirements", icon: "list" },
-  { key: "soa", label: "SOA & Payment", icon: "credit-card" },
-];
-
-function getStatusStyle(status: string): { bg: string; text: string } {
-  const s = status.toLowerCase();
-  if (s === "completed" || s === "approved")
-    return { bg: COLORS.brand[800], text: COLORS.neutral.white };
-  if (s === "for approval")
-    return { bg: COLORS.semantic.warning, text: COLORS.neutral.white };
-  if (s === "for verification")
-    return { bg: COLORS.semantic.info, text: COLORS.neutral.white };
-  if (s === "returned") return { bg: COLORS.semantic.error, text: COLORS.neutral.white };
-  if (s === "declined") return { bg: COLORS.semantic.error, text: COLORS.neutral.white };
-  if (s === "in process") return { bg: COLORS.brand.purple, text: COLORS.neutral.white };
-  return { bg: COLORS.neutral[200], text: COLORS.neutral[700] };
-}
-
-function formatAmount(n: number): string {
-  return `₱${n.toLocaleString("en-PH", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function amountToWords(n: number): string {
-  const ones = [
-    "",
-    "One",
-    "Two",
-    "Three",
-    "Four",
-    "Five",
-    "Six",
-    "Seven",
-    "Eight",
-    "Nine",
-    "Ten",
-    "Eleven",
-    "Twelve",
-    "Thirteen",
-    "Fourteen",
-    "Fifteen",
-    "Sixteen",
-    "Seventeen",
-    "Eighteen",
-    "Nineteen",
-  ];
-  const tens = [
-    "",
-    "",
-    "Twenty",
-    "Thirty",
-    "Forty",
-    "Fifty",
-    "Sixty",
-    "Seventy",
-    "Eighty",
-    "Ninety",
-  ];
-
-  const intPart = Math.floor(n);
-  if (intPart === 0) return "Zero Pesos Only";
-
-  const toWords = (num: number): string => {
-    if (num === 0) return "";
-    if (num < 20) return (ones[num] ?? "") + " ";
-    if (num < 100)
-      return (tens[Math.floor(num / 10)] ?? "") + " " + toWords(num % 10);
-    return (
-      (ones[Math.floor(num / 100)] ?? "") + " Hundred " + toWords(num % 100)
-    );
-  };
-
-  let result = "";
-  if (intPart >= 1000) {
-    result += toWords(Math.floor(intPart / 1000)) + "Thousand ";
-  }
-  result += toWords(intPart % 1000);
-  return result.trim() + " Pesos Only";
-}
-
-interface SectionHeaderProps {
-  title: string;
-}
-function SectionHeader({ title }: SectionHeaderProps) {
-  const { colors, isDark } = useTheme();
-  return (
-    <View style={[sectionStyles.header, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-      <Text style={[sectionStyles.title, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{title}</Text>
-    </View>
-  );
-}
-
-const sectionStyles = StyleSheet.create({
-  header: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[8],
-    marginVertical: SPACING[8],
-  },
-  title: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-});
-
-interface InfoRowProps {
-  label: string;
-  value: string;
-  onEdit?: () => void;
-  isEditing?: boolean;
-  editValue?: string;
-  onEditChange?: (v: string) => void;
-  onEditDone?: () => void;
-}
-function InfoRow({
-  label,
-  value,
-  onEdit,
-  isEditing,
-  editValue,
-  onEditChange,
-  onEditDone,
-}: InfoRowProps) {
-  const { colors, isDark } = useTheme();
-  return (
-    <View style={[infoStyles.row, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-      <Text style={[infoStyles.label, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{label}</Text>
-      {isEditing ? (
-        <View style={infoStyles.editRow}>
-          <TextInput
-            style={[infoStyles.editInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
-            value={editValue}
-            onChangeText={onEditChange}
-            onBlur={onEditDone}
-            autoFocus
-          />
-          <Pressable style={[infoStyles.saveBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]} onPress={onEditDone}>
-            <Text style={[infoStyles.saveBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save</Text>
-          </Pressable>
-        </View>
-      ) : (
-        <View style={infoStyles.valueRow}>
-          <Text style={[infoStyles.value, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{value}</Text>
-          {onEdit !== undefined && (
-            <Pressable onPress={onEdit}>
-              <Text style={[infoStyles.editLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
-            </Pressable>
-          )}
-        </View>
-      )}
-    </View>
-  );
-}
-const infoStyles = StyleSheet.create({
-  row: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  label: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    width: 160,
-    flexShrink: 0,
-  },
-  valueRow: {
-    flex: 1,
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  value: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.medium,
-    flex: 1,
-  },
-  editLink: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginLeft: SPACING[8],
-  },
-  editRow: {
-    flex: 1,
-    flexDirection: "row",
-    gap: SPACING[8],
-    alignItems: "center",
-  },
-  editInput: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-  },
-  saveBtn: {
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.button,
-  },
-  saveBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-});
-
-// ─── Tabs ────────────────────────────────────────────────────────────────────
-
-function BasicInfoTab({
-  app,
-  isEditable,
-  updateApplication,
-}: {
-  app: ApplicationData;
-  isEditable: boolean;
-  updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
-}) {
-  const { colors, isDark } = useTheme();
-  const [editingRef, setEditingRef] = useState(false);
-  const [editingPermit, setEditingPermit] = useState(false);
-  const [editingNote, setEditingNote] = useState(false);
-  const [editingLastName, setEditingLastName] = useState(false);
-  const [editingFirstName, setEditingFirstName] = useState(false);
-  const [editingMiddleName, setEditingMiddleName] = useState(false);
-  const [editingDob, setEditingDob] = useState(false);
-  const [refDraft, setRefDraft] = useState(app.referenceNumber);
-  const [permitDraft, setPermitDraft] = useState(app.permitNumber);
-  const [noteDraft, setNoteDraft] = useState(app.note);
-  const [lnDraft, setLnDraft] = useState(app.basicInfo.lastName);
-  const [fnDraft, setFnDraft] = useState(app.basicInfo.firstName);
-  const [mnDraft, setMnDraft] = useState(app.basicInfo.middleName);
-  const [dobDraft, setDobDraft] = useState(app.basicInfo.dob);
-
-  const statusStyle = getStatusStyle(app.status);
-
-  return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Status */}
-      <View style={[styles.statusBlock, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-        <View style={styles.statusRow}>
-          <View
-            style={[styles.statusPill, { backgroundColor: statusStyle.bg }]}
-          >
-            <Text style={[styles.statusPillText, { color: statusStyle.text }]}>
-              {app.status.toUpperCase()}
-            </Text>
-          </View>
-          <Text style={[styles.statusActor, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by ADMIN EDGE</Text>
-        </View>
-      </View>
-
-      <View style={styles.infoBlock}>
-        <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>REFERENCE NUMBER</Text>
-        <InfoRow
-          label="Reference Number:"
-          value={app.referenceNumber}
-          onEdit={
-            isEditable
-              ? () => {
-                  setRefDraft(app.referenceNumber);
-                  setEditingRef(true);
-                }
-              : undefined
-          }
-          isEditing={editingRef}
-          editValue={refDraft}
-          onEditChange={setRefDraft}
-          onEditDone={() => {
-            setEditingRef(false);
-            updateApplication(app.id, { referenceNumber: refDraft });
-          }}
-        />
-
-        <Text style={[styles.fieldGroupLabel, { marginTop: SPACING[12], color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>
-          DOCUMENT NUMBER
-        </Text>
-        <InfoRow
-          label="Permit Number:"
-          value={app.permitNumber}
-          onEdit={
-            isEditable
-              ? () => {
-                  setPermitDraft(app.permitNumber);
-                  setEditingPermit(true);
-                }
-              : undefined
-          }
-          isEditing={editingPermit}
-          editValue={permitDraft}
-          onEditChange={setPermitDraft}
-          onEditDone={() => {
-            setEditingPermit(false);
-            updateApplication(app.id, { permitNumber: permitDraft });
-          }}
-        />
-      </View>
-
-      <SectionHeader title="ADDRESS" />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Barangay:" value={app.address.barangay} />
-        <InfoRow label="Province:" value={app.address.province} />
-        <InfoRow label="City/Municipality:" value={app.address.city} />
-        <InfoRow label="Zip Code:" value={app.address.zipCode} />
-      </View>
-
-      <SectionHeader title="CONTACT DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="Contact Number:"
-          value={app.contactDetails.contactNumber}
-        />
-        <InfoRow label="Email:" value={app.contactDetails.email} />
-      </View>
-
-      <SectionHeader title="APPLICATION DETAILS" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="No Of Years:"
-          value={String(app.applicationDetails.noOfYears)}
-        />
-      </View>
-
-      <SectionHeader title="BASIC INFORMATION" />
-      <View style={styles.infoBlock}>
-        <InfoRow
-          label="Last Name:"
-          value={app.basicInfo.lastName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setLnDraft(app.basicInfo.lastName);
-                  setEditingLastName(true);
-                }
-              : undefined
-          }
-          isEditing={editingLastName}
-          editValue={lnDraft}
-          onEditChange={setLnDraft}
-          onEditDone={() => {
-            setEditingLastName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, lastName: lnDraft },
-            });
-          }}
-        />
-        <InfoRow
-          label="First Name:"
-          value={app.basicInfo.firstName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setFnDraft(app.basicInfo.firstName);
-                  setEditingFirstName(true);
-                }
-              : undefined
-          }
-          isEditing={editingFirstName}
-          editValue={fnDraft}
-          onEditChange={setFnDraft}
-          onEditDone={() => {
-            setEditingFirstName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, firstName: fnDraft },
-            });
-          }}
-        />
-        <InfoRow
-          label="Middle Name:"
-          value={app.basicInfo.middleName}
-          onEdit={
-            isEditable
-              ? () => {
-                  setMnDraft(app.basicInfo.middleName);
-                  setEditingMiddleName(true);
-                }
-              : undefined
-          }
-          isEditing={editingMiddleName}
-          editValue={mnDraft}
-          onEditChange={setMnDraft}
-          onEditDone={() => {
-            setEditingMiddleName(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, middleName: mnDraft },
-            });
-          }}
-        />
-        <InfoRow label="Extension Name:" value={app.basicInfo.extensionName} />
-        <InfoRow label="Place Of Birth:" value={app.basicInfo.placeOfBirth} />
-        <InfoRow
-          label="Date Of Birth:"
-          value={app.basicInfo.dob}
-          onEdit={
-            isEditable
-              ? () => {
-                  setDobDraft(app.basicInfo.dob);
-                  setEditingDob(true);
-                }
-              : undefined
-          }
-          isEditing={editingDob}
-          editValue={dobDraft}
-          onEditChange={setDobDraft}
-          onEditDone={() => {
-            setEditingDob(false);
-            updateApplication(app.id, {
-              basicInfo: { ...app.basicInfo, dob: dobDraft },
-            });
-          }}
-        />
-        <InfoRow label="Sex:" value={app.basicInfo.sex} />
-        <InfoRow label="Weight:" value={String(app.basicInfo.weight)} />
-        <InfoRow label="Height:" value={String(app.basicInfo.height)} />
-        <InfoRow label="Nationality:" value={app.basicInfo.nationality} />
-      </View>
-
-      <SectionHeader title="EMPLOYMENT" />
-      <View style={styles.infoBlock}>
-        <InfoRow label="Status:" value={app.basicInfo.employmentStatus} />
-      </View>
-
-      {/* NOTE */}
-      <View style={[styles.noteBlock, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}>
-        <View style={styles.noteHeader}>
-          <Text style={[styles.fieldGroupLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>NOTE</Text>
-          {isEditable && !editingNote && (
-            <Pressable
-              onPress={() => {
-                setNoteDraft(app.note);
-                setEditingNote(true);
-              }}
-            >
-              <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
-            </Pressable>
-          )}
-        </View>
-        {editingNote ? (
-          <View style={{ gap: SPACING[8] }}>
-            <TextInput
-              style={[styles.noteInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
-              multiline
-              value={noteDraft}
-              onChangeText={setNoteDraft}
-              textAlignVertical="top"
-              autoFocus
-            />
-            <Pressable
-              style={[styles.saveNoteBtn, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700], }]}
-              onPress={() => {
-                setEditingNote(false);
-                updateApplication(app.id, { note: noteDraft });
-              }}
-            >
-              <Text style={[styles.saveNoteBtnText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Save Note</Text>
-            </Pressable>
-          </View>
-        ) : (
-          <Text style={[styles.noteText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>{app.note}</Text>
-        )}
-      </View>
-
-      <View style={{ height: 80 }} />
-    </ScrollView>
-  );
-}
-
-function ApplicationDetailsTab({ app }: { app: ApplicationData }) {
-  const { colors, isDark } = useTheme();
-  const accountableForms = app.forms.filter(
-    (f) => f.section === "ACCOUNTABLE FORM",
-  );
-  const downloadForms = app.forms.filter((f) => f.section === "DOWNLOAD FORM");
-
-  const handleAction = (form: ApplicationFormAttachment, action: string) => {
-    Alert.alert(
-      `${action} Form`,
-      `You are ${action.toLowerCase()}ing: ${form.name}`,
-      [{ text: "OK" }],
-    );
-  };
-
-  return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* Application Form section */}
-      <SectionHeader title="APPLICATION FORM" />
-      <View style={styles.infoBlock}>
-        <Text style={[styles.submittedText, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>
-          {app.applicationDetails.submittedAt}
-        </Text>
-        <Text style={[styles.permitCategoryText, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{app.permitTitle}</Text>
-        <Text style={[styles.formTypeText, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
-          {app.applicationDetails.formType}
-        </Text>
-      </View>
-
-      {/* Accountable Form */}
-      {accountableForms.length > 0 && (
-        <>
-          <SectionHeader title="ACCOUNTABLE FORM" />
-          <View style={styles.infoBlock}>
-            {accountableForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-                <View style={styles.formCardLeft}>
-                  <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
-                    <Lucide
-                      name="file-text"
-                      size={18}
-                      color={isDark ? colors.brand[500] : COLORS.brand[700]}
-                    />
-                  </View>
-                  <View>
-                    <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                    <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
-                    <View style={styles.formActions}>
-                      {form.canView && (
-                        <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-                        </Pressable>
-                      )}
-                      {form.canPrint && (
-                        <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                </View>
-                {form.canDownload && (
-                  <Pressable
-                    style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-                    onPress={() => handleAction(form, "Download")}
-                  >
-                    <Lucide
-                      name="download"
-                      size={14}
-                      color={isDark ? colors.neutral[400] : colors.neutral[600]}
-                    />
-                    <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
-                  </Pressable>
-                )}
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Download Form */}
-      {downloadForms.length > 0 && (
-        <>
-          <SectionHeader title="DOWNLOAD FORM" />
-          <View style={styles.infoBlock}>
-            {downloadForms.map((form) => (
-              <View key={form.name} style={[styles.formCard, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], borderLeftColor: isDark ? colors.brand[500] : colors.brand[700], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-                <View style={styles.formCardLeft}>
-                  <View style={[styles.formDocIcon, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', }]}>
-                    <Lucide
-                      name="file-text"
-                      size={18}
-                      color={isDark ? colors.brand[500] : COLORS.brand[700]}
-                    />
-                  </View>
-                  <View>
-                    <Text style={[styles.formDocLabel, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>DOCUMENT ATTACHMENT</Text>
-                    <Text style={[styles.formDocName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{form.name}</Text>
-                    <View style={styles.formActions}>
-                      {form.canView && (
-                        <Pressable onPress={() => handleAction(form, "View")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-                        </Pressable>
-                      )}
-                      {form.canPrint && (
-                        <Pressable onPress={() => handleAction(form, "Print")}>
-                          <Text style={[styles.formActionLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-                        </Pressable>
-                      )}
-                    </View>
-                  </View>
-                </View>
-                <View style={styles.formBtnGroup}>
-                  {form.canDownload && (
-                    <Pressable
-                      style={[styles.downloadBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-                      onPress={() => handleAction(form, "Download")}
-                    >
-                      <Lucide
-                        name="download"
-                        size={14}
-                        color={isDark ? colors.neutral[400] : colors.neutral[600]}
-                      />
-                      <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Download</Text>
-                    </Pressable>
-                  )}
-                  {form.canRefresh && (
-                    <Pressable
-                      style={[styles.refreshBtn, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-                      onPress={() => handleAction(form, "Refresh")}
-                    >
-                      <Lucide
-                        name="refresh-cw"
-                        size={14}
-                        color={isDark ? colors.neutral[400] : colors.neutral[600]}
-                      />
-                      <Text style={[styles.downloadBtnText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>Refresh</Text>
-                    </Pressable>
-                  )}
-                </View>
-              </View>
-            ))}
-          </View>
-        </>
-      )}
-
-      {/* Application History section */}
-      {app.history && app.history.length > 0 && (
-        <>
-          <SectionHeader title="APPLICATION HISTORY" />
-          <View style={styles.infoBlock}>
-            <View style={styles.historyList}>
-              {app.history.map((entry, idx) => (
-                <View key={entry.id} style={styles.historyItem}>
-                  <View style={styles.historyLeft}>
-                    <View
-                      style={[
-                        styles.historyCircle,
-                        idx === 0 && styles.historyCircleActive,
-                      ]}
-                    />
-                    {idx !== app.history.length - 1 && (
-                      <View style={[styles.historyLine, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-                    )}
-                  </View>
-                  <View style={styles.historyRight}>
-                    <Text style={[styles.historyAction, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{entry.action}</Text>
-                    <Text style={[styles.historyStaff, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>by {entry.staff}</Text>
-                    <Text style={[styles.historyDate, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>{entry.timestamp}</Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-          </View>
-        </>
-      )}
-
-      <View style={{ height: 80 }} />
-    </ScrollView>
-  );
-}
-
-function RequirementsTab({ app }: { app: ApplicationData }) {
-  const { colors, isDark } = useTheme();
-  const handleViewRequirement = (label: string) => {
-    Alert.alert("View Requirement", `Viewing document: ${label}`);
-  };
-
-  return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {app.requirements.length === 0 ? (
-        <View style={styles.emptyReqs}>
-          <Lucide name="folder" size={28} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-          <Text style={[styles.emptyReqsText, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No requirements submitted</Text>
-        </View>
-      ) : (
-        app.requirements.map((req, idx) => (
-          <View key={idx} style={[styles.reqItem, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-            <Text style={[styles.reqLabel, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{req.label}</Text>
-            {req.note !== undefined && req.note.length > 0 && (
-              <Text style={[styles.reqNote, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{req.note}</Text>
-            )}
-            <View style={styles.reqFileRow}>
-              <Lucide name="file" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-              <Text style={[styles.reqFilename, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]} numberOfLines={1}>
-                {req.filename}
-              </Text>
-              <Pressable onPress={() => handleViewRequirement(req.label)}>
-                <Text style={[styles.reqViewLink, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-              </Pressable>
-            </View>
-            <View style={[styles.reqThumbnail, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-              <Lucide name="image" size={24} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-            </View>
-          </View>
-        ))
-      )}
-      <View style={{ height: 80 }} />
-    </ScrollView>
-  );
-}
-
-function SoaPaymentTab({
-  app,
-  isEditable,
-  updateApplication,
-}: {
-  app: ApplicationData;
-  isEditable: boolean;
-  updateApplication: (id: string, patch: Partial<ApplicationData>) => void;
-}) {
-  const { colors, isDark } = useTheme();
-  const [auditOpen, setAuditOpen] = useState(false);
-  const [editingOrNumber, setEditingOrNumber] = useState(false);
-  const [editingDueDate, setEditingDueDate] = useState(false);
-  const [orDraft, setOrDraft] = useState(app.payment.orNumber);
-  const [dueDraft, setDueDraft] = useState(app.dueDate);
-
-  const excess = app.payment.amountReceived - app.totalAmountDue;
-  const amountWords = amountToWords(app.totalAmountDue);
-
-  return (
-    <ScrollView style={styles.tabContent} showsVerticalScrollIndicator={false}>
-      {/* OFFICIAL BILLING RECORD */}
-      <View style={[styles.billingContainer, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        <Text style={[styles.billingLabel, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>OFFICIAL BILLING RECORD</Text>
-        <Text style={[styles.billingTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Statement of Account</Text>
-        <Text style={[styles.billingSubtitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
-          Review the billing particulars, charges, and due date below.
-        </Text>
-
-        {/* Fee table */}
-        <View style={[styles.feeTable, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}>
-          {/* Header */}
-          <View style={[styles.feeTableHeader, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
-            {[
-              "Particular",
-              "No. of Years",
-              "%",
-              "No. of Units",
-              "Fees",
-              "Amount",
-            ].map((col) => (
-              <Text
-                key={col}
-                style={[
-                  styles.feeTableHeaderCell,
-                  { color: isDark ? colors.neutral[300] : colors.neutral[600] },
-                  col === "Particular"
-                    ? { flex: 2 }
-                    : { flex: 1, textAlign: "right" },
-                ]}
-              >
-                {col}
-              </Text>
-            ))}
-          </View>
-          <View style={[styles.feeTableDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-
-          {app.soaItems.map((item, idx) => (
-            <View key={idx} style={[styles.feeTableRow, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-              <View style={{ flex: 2 }}>
-                <Text style={[styles.feeParticularName, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{item.particular}</Text>
-                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>
-                  Validity • {item.validityYears} Year(s)
-                </Text>
-                <Text style={[styles.feeParticularSub, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>Code: {item.code}</Text>
-              </View>
-              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                {item.validityYears}
-              </Text>
-              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                {item.percentage}
-              </Text>
-              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                {item.noOfUnits}
-              </Text>
-              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                {item.fees}
-              </Text>
-              <Text style={[styles.feeTableCell, { flex: 1, color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                {formatAmount(item.amount)}
-              </Text>
-            </View>
-          ))}
-        </View>
-
-        {/* Total Amount Due */}
-        <View style={[styles.totalBox, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
-          <View style={styles.totalRight}>
-            <Text style={[styles.totalLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>TOTAL AMOUNT DUE</Text>
-            <Text style={[styles.totalAmount, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>
-              {formatAmount(app.totalAmountDue)}
-            </Text>
-            <Text style={[styles.totalWords, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>{amountWords.toUpperCase()}</Text>
-            <View style={styles.totalDueDateRow}>
-              <Text style={[styles.totalDueDateLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
-                To be paid on or before:
-              </Text>
-              {editingDueDate ? (
-                <View style={styles.inlineEditRow}>
-                  <TextInput
-                    style={[styles.inlineEditInput, { color: isDark ? colors.neutral[100] : colors.neutral[900], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, borderColor: isDark ? colors.brand[500] : colors.brand[500], }]}
-                    value={dueDraft}
-                    onChangeText={setDueDraft}
-                    autoFocus
-                  />
-                  <Pressable
-                    onPress={() => {
-                      setEditingDueDate(false);
-                      updateApplication(app.id, { dueDate: dueDraft });
-                    }}
-                  >
-                    <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
-                  </Pressable>
-                </View>
-              ) : (
-                <Text style={[styles.totalDueDate, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>{app.dueDate}</Text>
-              )}
-            </View>
-            {isEditable && !editingDueDate && (
-              <Pressable
-                style={styles.editLinkRow}
-                onPress={() => {
-                  setDueDraft(app.dueDate);
-                  setEditingDueDate(true);
-                }}
-              >
-                <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                <Text style={[styles.editLinkBlue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Edit</Text>
-              </Pressable>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Payment Summary */}
-      <View style={[styles.paymentSection, { borderColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        <View style={styles.paymentSectionHeader}>
-          <View style={[styles.paymentSectionIcon, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-            <Lucide name="circle" size={20} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-          </View>
-          <Text style={[styles.paymentSectionTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900], }]}>Payment Summary</Text>
-        </View>
-
-        <View style={styles.paymentRow}>
-          {/* Amount Received blue card */}
-          <View style={[styles.amountReceivedCard, { backgroundColor: isDark ? colors.brand[500] : colors.brand[800], }]}>
-            <Text style={styles.amountReceivedLabel}>AMOUNT RECEIVED</Text>
-            <Text style={[styles.amountReceivedValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-              {app.payment.amountReceived}
-            </Text>
-            {excess > 0 && (
-              <View style={styles.excessBadge}>
-                <Text style={[styles.excessBadgeText, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>Excess: ₱{excess}</Text>
-              </View>
-            )}
-            <View style={styles.paymentMethodBlock}>
-              <Text style={styles.paymentMethodLabel}>PAYMENT METHOD</Text>
-              <Text style={[styles.paymentMethodValue, { color: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-                {app.payment.method}
-              </Text>
-            </View>
-          </View>
-
-          {/* OR Number column */}
-          <View style={styles.orColumn}>
-            <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>OFFICIAL RECEIPT (OR) NUMBER</Text>
-            {editingOrNumber ? (
-              <View style={styles.inlineEditRow}>
-                <TextInput
-                  style={[styles.inlineEditInput, { flex: 1, color: isDark ? colors.neutral[100] : colors.neutral[900], }]}
-                  value={orDraft}
-                  onChangeText={setOrDraft}
-                  autoFocus
-                  placeholder="Enter OR Number"
-                  placeholderTextColor={isDark ? colors.neutral[500] : colors.neutral[400]}
-                />
-                <Pressable
-                  onPress={() => {
-                    setEditingOrNumber(false);
-                    updateApplication(app.id, {
-                      payment: { ...app.payment, orNumber: orDraft },
-                    });
-                  }}
-                >
-                  <Text style={[styles.inlineEditSave, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Save</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <View style={styles.orValueRow}>
-                <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700], }]}>
-                  {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
-                </Text>
-                {isEditable && (
-                  <Pressable
-                    style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600], }]}
-                    onPress={() => {
-                      setOrDraft(app.payment.orNumber);
-                      setEditingOrNumber(true);
-                    }}
-                  >
-                    <Lucide name="edit-2" size={12} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-                    <Text style={[styles.orEditText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>EDIT</Text>
-                  </Pressable>
-                )}
-              </View>
-            )}
-
-            {/* Additional Payment Info for Checks */}
-            {app.payment.method === "check" && (
-              <View style={{ marginTop: SPACING[16] }}>
-                <Text style={[styles.orLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>CHECK DETAILS</Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
-                  No: {app.payment.checkNumber || "—"}
-                </Text>
-                <Text style={[styles.checkInfoText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
-                  Bank: {app.payment.checkName || "—"}
-                </Text>
-              </View>
-            )}
-          </View>
-        </View>
-      </View>
-
-      {/* Correction Audit Trail */}
-      <Pressable
-        style={[styles.auditHeader, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], }]}
-        onPress={() => setAuditOpen((p) => !p)}
-      >
-        <View style={styles.auditHeaderLeft}>
-          <Lucide name="refresh-cw" size={14} color={isDark ? colors.neutral[500] : colors.neutral[500]} />
-          <Text style={[styles.auditTitle, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>
-            CORRECTION AUDIT TRAIL ({app.correctionAuditTrail.length})
-          </Text>
-        </View>
-        <Lucide
-          name={auditOpen ? "chevron-up" : "chevron-down"}
-          size={16}
-          color={isDark ? colors.neutral[500] : colors.neutral[500]}
-        />
-      </Pressable>
-
-      {auditOpen && (
-        <View style={styles.auditList}>
-          {app.correctionAuditTrail.length === 0 ? (
-            <Text style={[styles.auditEmpty, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No audit trail entries.</Text>
-          ) : (
-            app.correctionAuditTrail.map((entry) => (
-              <View key={entry.id} style={[styles.auditEntry, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
-                <Text style={[styles.auditDesc, { color: isDark ? colors.neutral[200] : colors.neutral[700], }]}>{entry.action}</Text>
-                <Text style={[styles.auditMeta, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>
-                  By {entry.staff} • {entry.timestamp}
-                </Text>
-              </View>
-            ))
-          )}
-        </View>
-      )}
-
-      <View style={{ height: 80 }} />
-    </ScrollView>
-  );
-}
-
-// ─── Main Content Component ──────────────────────────────────────────────────
+import { CustomDocPreviewModal } from "../../../shared/components/CustomDocPreviewModal";
+import { DocumentPreviewFile } from "../../../shared/components/DocumentPreviewModal";
+import { IssuedDocumentPrintModal } from "../components/modals/IssuedDocumentPrintModal";
+import { DocumentPrintOptions } from "../types/documentPrintTypes";
+import { ApplicationFormAttachment } from "../../../types/application";
+import { ApplicationReviewSkeleton } from "../components/review/ApplicationReviewSkeleton";
+import { ApplicationDetailsTab } from "../components/review/ApplicationDetailsTab";
+import { ApplicantRecordTab } from "../components/review/ApplicantRecordTab";
+import { SoaPaymentTab } from "../components/review/SoaPaymentTab";
+import { InnerTab, INNER_TABS } from "../components/review/reviewTypes";
+import {
+  resolveUserIdentifiers,
+  matchesUserIdentifier,
+  computeOfficerEvaluationState,
+  getApprovingEvaluator,
+} from "../utils/officerEvaluationHelper";
 
 export interface ApplicationReviewScreenProps {
+  applicationId?: string | null;
   onClose: () => void;
   onCollapse?: () => void;
   isCollapsed?: boolean;
 }
 
 export function ApplicationReviewScreenContent({
+  applicationId: propApplicationId,
   onClose,
   onCollapse,
   isCollapsed,
 }: ApplicationReviewScreenProps) {
   const { colors, isDark } = useTheme();
-  const {
-    applications,
-    selectedApplication,
-    activeQueueTab,
-    updateApplication,
-    setSelectedId,
-  } = useApplications();
+  const { width } = useWindowDimensions();
+  const isNarrow = width < 900;
+  const { applicationDto, isLoading: isDetailsLoading, refetch } = useAdminApplicationDetails(propApplicationId);
+  const { user, clerkUser } = useAuthContext();
   const { currentRole } = useRole();
-  const { canApprove, canDecline, canEndorse, canVerifyCashier } =
-    usePermissions();
+  const { canApprove, canDecline, canEndorse, canForwardToAccountant, canApproveAsAccountant, canVerifyCashier } = usePermissions();
+  const isAdmin = currentRole === 'Admin';
+  const officerName = (
+    user?.name?.trim() ||
+    [user?.firstName, user?.lastName].filter(Boolean).join(' ').trim() ||
+    clerkUser?.fullName?.trim() ||
+    user?.username?.trim() ||
+    clerkUser?.username?.trim() ||
+    user?.email?.trim() ||
+    clerkUser?.primaryEmailAddress?.emailAddress?.trim() ||
+    'Authorized Officer'
+  );
 
-  const [innerTab, setInnerTab] = useState<InnerTab>("basic");
+  const currentUserIdentifiers = useMemo(
+    () => resolveUserIdentifiers(user, clerkUser),
+    [user, clerkUser]
+  );
+
+  const matchesCurrentUser = useCallback(
+    (target?: string | null): boolean => matchesUserIdentifier(target, currentUserIdentifiers),
+    [currentUserIdentifiers]
+  );
+
+  const selectedApplication = useMemo(() => {
+    return applicationDto ? mapApplicationDtoToUI(applicationDto, currentRole) : null;
+  }, [applicationDto, currentRole]);
+
+  const updateApplication = useCallback(async (id: string, patch: Partial<ApplicationData>) => {
+    try {
+      if (typeof patch.status === 'string' && patch.status.length > 0) {
+        const [, err] = await applicationService.updateStatus(id, {
+          status: patch.status,
+          remarks: typeof patch.note === 'string' ? patch.note : undefined,
+          staffName: officerName,
+        });
+        if (err !== null) {
+          const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+            ? String(Reflect.get(err, 'message'))
+            : 'Please try again.';
+          toast.error(`Status update failed: ${errMsg}`);
+          return;
+        }
+      } else {
+        const payload: Record<string, unknown> = {};
+        if (patch.referenceNumber !== undefined) payload.referenceNumber = patch.referenceNumber;
+        if (patch.applicationNumber !== undefined) payload.permitNumber = patch.applicationNumber;
+        if (patch.office !== undefined) payload.office = patch.office;
+        if (patch.applicant !== undefined) payload.applicant = patch.applicant;
+        if (patch.applicantType !== undefined) payload.applicantType = patch.applicantType;
+        if (patch.note !== undefined) payload.note = patch.note;
+        if (patch.contactDetails !== undefined) payload.contactDetails = patch.contactDetails;
+        if (patch.address !== undefined) payload.address = patch.address;
+        if (patch.companyDetails !== undefined) payload.companyDetails = patch.companyDetails;
+        if (patch.basicInfo !== undefined) payload.basicInfo = patch.basicInfo;
+        if (patch.applicantsList !== undefined) payload.applicantsList = patch.applicantsList;
+
+        if (Object.keys(payload).length === 0) {
+          await mutateApplications(id);
+          await refetch();
+          return;
+        }
+
+        const [, err] = await applicationService.adminUpdateApplication(id, payload);
+        if (err !== null) {
+          const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+            ? String(Reflect.get(err, 'message'))
+            : 'Please try again.';
+          toast.error(`Update failed: ${errMsg}`);
+          return;
+        }
+        if (patch.note !== undefined && Object.keys(payload).length === 1) {
+          toast.success("Evaluation note saved successfully.");
+        } else {
+          toast.success("Application updated successfully.");
+        }
+      }
+      await mutateApplications(id);
+      await refetch();
+    } catch {
+      toast.error("Failed to update application data.");
+    }
+  }, [officerName, refetch]);
+
+  const [innerTab, setInnerTab] = useState<InnerTab>("details");
+  const [selectedApplicantIndex, setSelectedApplicantIndex] = useState(0);
   const [showApprove, setShowApprove] = useState(false);
   const [showDecline, setShowDecline] = useState(false);
   const [showEndorse, setShowEndorse] = useState(false);
   const [showCashier, setShowCashier] = useState(false);
+  const [showIssueDoc, setShowIssueDoc] = useState(false);
+  const [showGenerateSoa, setShowGenerateSoa] = useState(false);
+  const [showReportPreview, setShowReportPreview] = useState(false);
+  const [reportPreviewInitialDoc, setReportPreviewInitialDoc] = useState<ReportDocumentType>("soa");
+  const [previewCustomDoc, setPreviewCustomDoc] = useState<DocumentPreviewFile | null>(null);
+  const [showIssuedPrintModal, setShowIssuedPrintModal] = useState(false);
+  const [issuedPrintInitialOptions, setIssuedPrintInitialOptions] = useState<Partial<DocumentPrintOptions> | undefined>(undefined);
+  const [hasPreviewedOp, setHasPreviewedOp] = useState(false);
 
   const fadeAnim = useRef(new Animated.Value(1)).current;
+  const tabScrollRef = useRef<ScrollView>(null);
+
+  const cashierTenantId = (selectedApplication?.tenantId || user?.tenantId || '');
+  const { nextOr, mutate: mutateNextOr } = useNextAvailableOrNumber(
+    showCashier || selectedApplication?.status === 'PendingPayment' ? cashierTenantId : null,
+    user?.id ?? user?.email ?? null
+  );
+
+  const pendingPaymentPayload = useMemo<PendingPaymentDto | null>(() => {
+    if (!selectedApplication) return null;
+    const itemApp = selectedApplication;
+    const lineItems = (itemApp.soaItems && itemApp.soaItems.length > 0)
+      ? itemApp.soaItems.map((item) => ({
+          feeCode: item.code || 'FEE',
+          description: item.particular,
+          amount: item.amount,
+        }))
+      : [{
+          feeCode: 'FEE',
+          description: itemApp.serviceName || itemApp.permitTitle || 'Permit / Licensing Fee',
+          amount: itemApp.totalAmountDue || 0,
+        }];
+
+    const refOrId = (itemApp.referenceNumber && itemApp.referenceNumber.length > 0)
+      ? itemApp.referenceNumber
+      : itemApp.id.slice(0, 8).toUpperCase();
+
+    const effectiveRemarks = itemApp.payment?.remarks || itemApp.note || null;
+    const parsedBreakdown = parsePaymentBreakdown(effectiveRemarks);
+
+    const originalApplicantName =
+      itemApp.applicantsList?.[selectedApplicantIndex]?.name ||
+      itemApp.applicant ||
+      itemApp.companyDetails?.name ||
+      'Applicant';
+
+    const effectivePayorName =
+      parsedBreakdown?.payorName ||
+      itemApp.payment?.payorName ||
+      itemApp.payment?.checkName ||
+      undefined;
+
+    return {
+      orderOfPaymentId: itemApp.payment?.orderOfPaymentId || itemApp.id,
+      applicationId: itemApp.id,
+      statementOfAccountId: itemApp.id,
+      tenantId: itemApp.tenantId || user?.tenantId || '',
+      opNumber: itemApp.payment?.opNumber || `OP-${refOrId}`,
+      soaNumber: `SOA-${refOrId}`,
+      applicationNumber: itemApp.applicationNumber || '',
+      referenceNumber: itemApp.referenceNumber || '',
+      applicantName: originalApplicantName,
+      payorName: effectivePayorName,
+      applicantType: itemApp.applicantType || 'Individual',
+      serviceName: itemApp.serviceName || itemApp.permitTitle || itemApp.category || 'NTC Service',
+      serviceCategory: itemApp.serviceCategory || itemApp.category || 'Licensing',
+      amountDue: itemApp.totalAmountDue || itemApp.payment?.amountReceived || 0,
+      billedAt: itemApp.createdAt || new Date().toISOString(),
+      remarks: effectiveRemarks,
+      lineItems,
+      paymentMethod: itemApp.payment?.paymentMethod || (itemApp.payment?.method === 'check' ? 'Check' : 'Cash'),
+      checkNumber: itemApp.payment?.checkNumber || undefined,
+      checkBank: itemApp.payment?.checkBank || undefined,
+      checkDate: itemApp.payment?.checkDate || undefined,
+    };
+  }, [selectedApplication, user?.tenantId, selectedApplicantIndex]);
 
   useEffect(() => {
+    setSelectedApplicantIndex(0);
+    setHasPreviewedOp(false);
+  }, [selectedApplication?.id]);
+  useEffect(() => {
     fadeAnim.setValue(0);
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 200,
-      useNativeDriver: true,
-    }).start();
+    Animated.timing(fadeAnim, { toValue: 1, duration: 200, useNativeDriver: true }).start();
   }, [selectedApplication?.id, fadeAnim]);
 
+  const handlePreviewFile = useCallback((fileOrUri: DocumentPreviewFile | string, label?: string) => {
+    if (typeof fileOrUri === 'string') {
+      setPreviewCustomDoc({ uri: fileOrUri, name: (label ?? '').trim() || 'Attachment Document', category: label });
+    } else if (fileOrUri !== null && typeof fileOrUri === 'object') {
+      setPreviewCustomDoc(fileOrUri);
+    }
+  }, []);
+
+  const handleClosePreviewDoc = useCallback(() => {
+    setPreviewCustomDoc((prev) => {
+      if (prev?.uri && typeof prev.uri === 'string' && prev.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        try { URL.revokeObjectURL(prev.uri); } catch { /* ignore */ }
+      }
+      return null;
+    });
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (previewCustomDoc?.uri && typeof previewCustomDoc.uri === 'string' && previewCustomDoc.uri.startsWith('blob:') && typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function') {
+        try { URL.revokeObjectURL(previewCustomDoc.uri); } catch { /* cleanup */ }
+      }
+    };
+  }, [previewCustomDoc?.uri]);
+
+  const handlePrintSoa = useCallback(() => {
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getSoaPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateSoaPrintableHtml(selectedApplication));
+    }
+  }, [selectedApplication]);
+
+  const handlePrintOp = useCallback(() => {
+    if (selectedApplication !== null) {
+      if (Platform.OS === 'web' && typeof window !== 'undefined') {
+        const url = applicationService.getOpPrintUrl(selectedApplication.id);
+        const printWin = window.open(url, '_blank');
+        if (printWin !== null) {
+          printWin.focus();
+          return;
+        }
+      }
+      openPrintableDocumentWindow(generateOpPrintableHtml(selectedApplication));
+    }
+  }, [selectedApplication]);
+
+  const handlePreviewReport = useCallback((docType: ReportDocumentType) => {
+    if (docType === 'op') {
+      setHasPreviewedOp(true);
+    }
+    setReportPreviewInitialDoc(docType);
+    setShowReportPreview(true);
+  }, []);
+
+  const handlePrintAccountableForm = useCallback((form?: ApplicationFormAttachment) => {
+    let templateId: string | undefined;
+    if (form?.name) {
+      const nameLower = form.name.toLowerCase();
+      if (nameLower.includes('101') || nameLower.includes('radio station') || nameLower.includes('rsl')) {
+        templateId = 'NTC-FORM-101';
+      } else if (nameLower.includes('102') || nameLower.includes('operator') || nameLower.includes('amateur')) {
+        templateId = 'NTC-FORM-102';
+      } else if (nameLower.includes('301') || nameLower.includes('permit') || nameLower.includes('registration')) {
+        templateId = 'NTC-FORM-301';
+      } else if (nameLower.includes('51') || nameLower.includes('receipt') || nameLower.includes('official receipt')) {
+        templateId = 'AF-51';
+      }
+    }
+    setIssuedPrintInitialOptions({
+      outputMode: form?.section === 'ACCOUNTABLE FORM' ? 'accountable_form' : 'plain_paper',
+      selectedTemplateId: templateId,
+    });
+    setShowIssuedPrintModal(true);
+  }, []);
+
   const handleCloseAnimated = () => {
-    Animated.timing(fadeAnim, {
-      toValue: 0,
-      duration: 180,
-      useNativeDriver: true,
-    }).start(() => {
+    Animated.timing(fadeAnim, { toValue: 0, duration: 180, useNativeDriver: true }).start(() => {
       onClose();
       fadeAnim.setValue(1);
     });
   };
 
+  if (isDetailsLoading) return <ApplicationReviewSkeleton onClose={onClose} />;
+
   if (selectedApplication === null) {
     return (
-      <View style={[styles.emptyPanel, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
-        <View style={[styles.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-          <View style={[styles.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100], }]}>
+      <ScrollView style={[sc.emptyScroll, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]} contentContainerStyle={sc.emptyContainer} showsVerticalScrollIndicator={false}>
+        <View style={[sc.summaryCard, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+          <View style={[sc.summaryHeader, { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
             <Lucide name="layout" size={20} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.summaryTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Work Queue Summary</Text>
+            <Text style={[sc.summaryTitle, { color: isDark ? colors.neutral[100] : colors.neutral[900] }]}>Work Queue Summary</Text>
           </View>
-
-          <View style={styles.statsRow}>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" && a.status === "For Approval",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Approve</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "pending" &&
-                      a.status === "For Verification",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>To Verify</Text>
-            </View>
-            <View style={styles.statBox}>
-              <Text style={[styles.statValue, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>
-                {
-                  applications.filter(
-                    (a: ApplicationData) =>
-                      a.queueTab === "history" && a.status === "Approved",
-                  ).length
-                }
-              </Text>
-              <Text style={[styles.statLabel, { color: isDark ? colors.neutral[400] : colors.neutral[500], }]}>Completed</Text>
-            </View>
-          </View>
-
-          <View style={[styles.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], }]}>
+          <View style={[sc.guideBox, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50] }]}>
             <Lucide name="info" size={16} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
-            <Text style={[styles.guideText, { color: isDark ? colors.neutral[300] : colors.neutral[600], }]}>
-              Select an application from the left feed to start reviewing
-              details, endorsing, or approving requests.
-            </Text>
+            <Text style={[sc.guideText, { color: isDark ? colors.neutral[300] : colors.neutral[600] }]}>Select an application from the left feed to start reviewing details, endorsing, or approving requests.</Text>
           </View>
         </View>
-
-        <View style={styles.actionPrompt}>
+        <View style={sc.actionPrompt}>
           <Lucide name="mouse-pointer" size={32} color={isDark ? colors.neutral[600] : colors.neutral[300]} />
-          <Text style={[styles.emptyPanelTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400], }]}>No Application Selected</Text>
-          <Text style={[styles.emptyPanelSub, { color: isDark ? colors.neutral[600] : colors.neutral[300], }]}>
-            Your active queue contains{" "}
-            {
-              applications.filter(
-                (a: ApplicationData) => a.queueTab === "pending",
-              ).length
-            }{" "}
-            items requiring attention.
-          </Text>
+          <Text style={[sc.emptyTitle, { color: isDark ? colors.neutral[500] : colors.neutral[400] }]}>No Application Selected</Text>
+          <Text style={[sc.emptySub, { color: isDark ? colors.neutral[600] : colors.neutral[300] }]}>Select an application from the queue to view full details and perform evaluation actions.</Text>
         </View>
-      </View>
+      </ScrollView>
     );
   }
 
   const app = selectedApplication;
 
-  const EDITABLE_STATUSES: ReadonlyArray<string> = [
-    "For Approval",
-    "For Verification",
-    "Returned",
-  ];
+  const isSubmitted = app.status === "Submitted";
+  const isReturned = app.status === "Returned";
+  const isForAccountant = app.status === "ForAccountant";
+  const isPendingPayment = app.status === "PendingPayment";
+  const isForIssuance = app.status === "ForIssuance";
 
-  const isActionableRole = currentRole !== "Admin";
+  const {
+    isEvaluating,
+    evaluatingOfficer,
+    isEndorsed,
+    isEndorsedToMe,
+    isEndorsedAwayFromMe,
+    isEvaluatedByMe,
+    isEvaluatedByOther,
+    currentStageOfficer,
+    isStageClaimedByMe,
+    isStageClaimedByOther,
+    isStageUnclaimed,
+  } = computeOfficerEvaluationState({
+    application: app,
+    identifiers: currentUserIdentifiers,
+    isAdmin,
+  });
 
-  const isEditable =
-    isActionableRole &&
-    activeQueueTab === "pending" &&
-    EDITABLE_STATUSES.includes(app.status);
+  const isActivelyEvaluating = (isEvaluating || isReturned) && (isEvaluatedByMe || !isEvaluatedByOther || isEndorsedToMe);
+  const isEditable = isActivelyEvaluating && !isEndorsedAwayFromMe && app.queueTab !== "history";
 
-  const handleApprove = () => {
+  const isComplaintOrRequest =
+    app.category === 'Complaints and Request' ||
+    (typeof app.permitTitle === 'string' &&
+      (app.permitTitle.includes('1-24') ||
+       app.permitTitle.includes('1-25') ||
+       app.permitTitle.toLowerCase().includes('complaint') ||
+       app.permitTitle.toLowerCase().includes('blocking')));
+  const canActAsLegal = currentRole === 'Legal' || isAdmin;
+  const canEvaluateApplication = isEvaluatorOrSupervisorRole(currentRole) || (isComplaintOrRequest && canActAsLegal) || isAdmin;
+
+  // ── Workflow-aware action handlers ──────────────────────────────────────────
+
+  /** Evaluator or Legal starts/resumes review -> changes status from Submitted/Returned to Evaluating */
+  const handleStartEvaluation = async () => {
+    const isReturning = isReturned;
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Evaluating',
+      action: isComplaintOrRequest
+        ? (isReturning ? 'Legal Review Resumed' : 'Legal Review Started')
+        : (isReturning ? 'Evaluation Resumed' : 'Evaluating'),
+      staffName: officerName,
+      staffRole: currentRole || (isComplaintOrRequest ? 'Legal Officer' : 'Evaluator'),
+      remarks: isComplaintOrRequest
+        ? (isReturning ? `Legal review resumed by ${officerName}.` : `Legal review started by ${officerName}.`)
+        : (isReturning ? `Evaluation resumed by ${officerName}.` : `Evaluation started by ${officerName}.`),
+    });
+    if (err !== null) {
+      toast.error(isReturning ? 'Failed to resume review.' : 'Failed to start review.');
+      return;
+    }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+      evaluatingOfficer: officerName,
+      office: app.office || undefined,
+    });
+    toast.success(
+      isComplaintOrRequest
+        ? (isReturning ? 'Review resumed. Application under legal review.' : 'Review started. Application under legal review.')
+        : (isReturning ? 'Evaluation resumed. Application status changed to Evaluating.' : 'Evaluation started. Application status changed to Evaluating.')
+    );
+    await mutateApplications(app.id);
+    await refetch();
+  };
+
+  /** Officer claims exclusive authority over this application at the current stage */
+  const handleClaimAuthority = async () => {
+    if (isSubmitted || isReturned) {
+      if (canEvaluateApplication) {
+        void handleStartEvaluation();
+      }
+      return;
+    }
+
+    let actionTitle = 'Review Started';
+    let roleLabel = currentRole || 'Evaluator';
+    let remarks = `Application authority claimed by ${officerName}.`;
+
+    if (isForAccountant) {
+      actionTitle = 'Financial Review Started';
+      roleLabel = 'Accountant';
+      remarks = `Financial review started by ${officerName}. Authority claimed.`;
+    } else if (isPendingPayment) {
+      actionTitle = 'Payment Verification Started';
+      roleLabel = 'Cashier';
+      remarks = `Payment verification started by ${officerName}. Authority claimed.`;
+    } else if (isForIssuance) {
+      actionTitle = 'Document Issuance Started';
+      roleLabel = currentRole || 'Evaluator';
+      remarks = `Document release process started by ${officerName}. Authority claimed.`;
+    }
+
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: app.status,
+      action: actionTitle,
+      staffName: officerName,
+      staffRole: roleLabel,
+      remarks,
+    });
+    if (err !== null) {
+      const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+        ? String(Reflect.get(err, 'message'))
+        : 'Failed to claim application authority.';
+      toast.error(errMsg);
+      return;
+    }
+    toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
+    await mutateApplications(app.id);
+    await refetch();
+  };
+
+  /** Evaluator releases evaluation back to For Evaluation queue */
+  const handleReleaseEvaluation = async () => {
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Submitted',
+      action: 'Returned to Queue',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: `Evaluation released by ${officerName}. Status reverted to For Evaluation.`,
+    });
+    if (err !== null) {
+      toast.error('Failed to release evaluation.');
+      return;
+    }
+    toast.success('Evaluation released.');
+    await mutateApplications(app.id);
+    await refetch();
+  };
+
+  /** Legal / Evaluator → Resolves and completes Request & Complaint, bypassing financial processing */
+  const handleCompleteComplaint = async () => {
     setShowApprove(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Completed',
+      action: 'Request / Complaint Resolved & Completed',
+      staffName: officerName,
+      staffRole: currentRole || 'Legal Officer',
+      remarks: `Request and Complaint successfully resolved and set to Completed by ${officerName}.`,
     });
-    updateApplication(app.id, {
-      status: "Approved",
-      queueTab: "history",
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: "Application Approved.",
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
+    if (err !== null) {
+      toast.error('Failed to complete application.');
+      return;
+    }
+    await updateApplication(app.id, {
+      status: 'Completed',
+      assignedTo: officerName,
+      evaluatingOfficer: officerName,
+      issuingOfficer: officerName,
     });
-    setSelectedId(null);
+    toast.success('Request / Complaint successfully resolved and completed.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
   };
 
-  const handleDecline = (notice: string) => {
+  /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
+  const handleForwardToAccountant = async () => {
+    const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+    if (!hasSoa) {
+      setShowApprove(false);
+      toast.error('Generate SOA first before approving evaluation.');
+      setInnerTab('soa');
+      setShowGenerateSoa(true);
+      return;
+    }
+    setShowApprove(false);
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'ForAccountant',
+      action: isReturned ? 'Evaluation Re-submitted to Accountant' : 'Approved & Forwarded to Accountant',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: isReturned ? 'Evaluation re-submitted. Forwarded to Accountant.' : 'Evaluation approved. Forwarded to Accountant.',
+    });
+    if (err !== null) { toast.error('Failed to approve application.'); return; }
+    toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved (Requirements & SOA). Forwarded to Accountant.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  /** Accountant → Approves Application & SOA, background advances to PendingPayment and issues Order of Payment */
+  const handleAccountantApprove = async () => {
+    setShowApprove(false);
+    const targetId = app.soaId || app.statementOfAccountId || app.id;
+    const [, soaErr] = await applicationService.approveSoa(targetId, 'Application and SOA approved by Accountant. Order of Payment generated.');
+    if (soaErr !== null) {
+      const errMsg = typeof soaErr === 'object' && soaErr !== null && Reflect.has(soaErr, 'message')
+        ? String(Reflect.get(soaErr, 'message'))
+        : 'Please try again.';
+      toast.error(`Approval failed: ${errMsg}`);
+      return;
+    }
+    await updateApplication(app.id, {
+      accountingOfficer: officerName,
+    });
+    toast.success('Application and SOA approved. Order of Payment generated.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  /** Cashier → issues official receipt via IssueReceiptModal; backend advances to ForIssuance */
+  const handleCashierReceiptSuccess = async (receipt?: OfficialReceiptDto) => {
+    setShowCashier(false);
+    toast.success('Official Receipt issued successfully. Application forwarded for document issuance.');
+    if (receipt && receipt.officialReceiptNumber) {
+      updateApplication(app.id, {
+        status: 'ForIssuance',
+        cashierOfficer: officerName,
+        payment: {
+          ...app.payment,
+          orNumber: receipt.officialReceiptNumber,
+          amountReceived: receipt.amount > 0 ? receipt.amount : app.payment.amountReceived,
+          method: receipt.paymentMethod === 'Check' ? 'check' : 'cash',
+          checkNumber: receipt.checkNumber ?? '',
+          checkName: receipt.checkBank ?? '',
+          paidAt: receipt.issuedAt,
+        },
+      });
+    }
+    await mutateApplications(app.id);
+    await mutateNextOr();
+    await refetch();
+    onClose();
+  };
+
+  /** Return / decline — multi-tier return in background based on workflow stage or endorsement */
+  const handleDecline = async (notice: string) => {
+    const trimmedNotice = notice.trim();
+    if (!trimmedNotice || trimmedNotice.length < 5) {
+      toast.error('A return reason must be provided (minimum 5 characters).');
+      return;
+    }
+
+    if (!canDeclineAction) {
+      toast.warning('You do not have authority to return this application at this stage.');
+      return;
+    }
     setShowDecline(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    updateApplication(app.id, {
-      status: "Declined",
-      queueTab: "history",
-      note: notice,
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: `Application Declined. Notice: ${notice}`,
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
-    });
-    setSelectedId(null);
-  };
 
-  const handleEndorse = (targetRole: UserRole) => {
-    setShowEndorse(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
+    let targetStatus: ApplicationStatus = 'Returned';
+    let successMessage = 'Application returned to applicant with notice.';
+    let auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+    let actionTitle = 'Returned with Notice';
 
-    updateApplication(app.id, {
-      assignedTo: `${targetRole.toUpperCase()} EDGE`,
-      queueTab: "history",
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: `Application endorsed to ${targetRole}.`,
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
-    });
-
-    setSelectedId(null);
-    Alert.alert("Success", `Application endorsed to ${targetRole}`);
-  };
-
-  const handleTopAction = (action: "View" | "Print") => {
-    if (action === "Print") {
-      Alert.alert(
-        "Print Application",
-        `Generating printable form for ${app.referenceNumber}...`,
-      );
+    if (isEndorsedToMe && app.endorsedBy) {
+      // Endorsed officer returns -> goes back to endorsing officer in current stage
+      targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
+      successMessage = `Application returned to ${app.endorsedBy}.`;
+      auditRemarks = `Returned by ${officerName} to ${app.endorsedBy}: ${trimmedNotice}`;
+      actionTitle = `Returned to ${app.endorsedBy}`;
+    } else if (app.status === 'ForIssuance') {
+      // Issuing officer returns -> goes back to Evaluating
+      targetStatus = 'Evaluating';
+      successMessage = 'Application returned to Evaluator for document adjustments.';
+      auditRemarks = `Returned by Issuance Officer to Evaluator: ${trimmedNotice}`;
+      actionTitle = 'Returned to Evaluator';
+    } else if (app.status === 'PendingPayment') {
+      // Cashier returns -> goes back to Accountant (previous touch)
+      targetStatus = 'ForAccountant';
+      successMessage = 'Application returned to Accountant for SOA review.';
+      auditRemarks = `Returned by Cashier to Accountant: ${trimmedNotice}`;
+      actionTitle = 'Returned to Accountant';
+    } else if (app.status === 'ForAccountant') {
+      // Accountant returns -> goes back to Evaluator (previous touch) with status Returned
+      const prevEvaluator = getApprovingEvaluator(app);
+      targetStatus = 'Returned';
+      successMessage = prevEvaluator
+        ? `Application returned to ${prevEvaluator} for review.`
+        : 'Application returned to Evaluator for review.';
+      auditRemarks = prevEvaluator
+        ? `Returned by Accountant to ${prevEvaluator}: ${trimmedNotice}`
+        : `Returned by Accountant to Evaluator: ${trimmedNotice}`;
+      actionTitle = prevEvaluator
+        ? `Application Returned to ${prevEvaluator}`
+        : 'Application Returned to Evaluator';
     } else {
-      Alert.alert(
-        "View Application",
-        `Opening full view for ${app.applicant}...`,
-      );
+      // Evaluator / Chief / Director returns -> goes back to Applicant
+      targetStatus = 'Returned';
+      successMessage = 'Application returned to applicant with notice.';
+      auditRemarks = `Notice of Discrepancy: ${trimmedNotice}`;
+      actionTitle = 'Returned with Notice';
+    }
+
+    const targetSoaId = app.soaId || app.statementOfAccountId;
+    if (app.status === 'ForAccountant' && targetSoaId) {
+      const [, soaErr] = await applicationService.returnSoa(targetSoaId, trimmedNotice);
+      if (soaErr !== null) {
+        const errMsg = typeof soaErr === 'object' && soaErr !== null && Reflect.has(soaErr, 'message')
+          ? String(Reflect.get(soaErr, 'message'))
+          : 'Please try again.';
+        toast.error(`Failed to return SOA: ${errMsg}`);
+        return;
+      }
+    } else {
+      const [, err] = await applicationService.updateStatus(app.id, {
+        status: targetStatus,
+        action: actionTitle,
+        staffName: officerName,
+        staffRole: currentRole || 'Officer',
+        remarks: auditRemarks,
+      });
+      if (err !== null) {
+        const errMsg = typeof err === 'object' && err !== null && Reflect.has(err, 'message')
+          ? String(Reflect.get(err, 'message'))
+          : 'Please try again.';
+        toast.error(`Failed to return application: ${errMsg}`);
+        return;
+      }
+    }
+
+    if (isEndorsedToMe && app.endorsedBy) {
+      await updateApplication(app.id, {
+        assignedTo: app.endorsedBy,
+        ...(isPendingPayment ? { cashierOfficer: app.endorsedBy } : {}),
+      });
+    } else if (app.status === 'PendingPayment') {
+      const prevAccountant = app.accountingOfficer;
+      if (prevAccountant) {
+        await updateApplication(app.id, {
+          assignedTo: prevAccountant,
+          accountingOfficer: prevAccountant,
+        });
+      }
+    } else if (app.status === 'ForAccountant' || app.status === 'ForIssuance') {
+      const prevEvaluator = getApprovingEvaluator(app);
+      if (prevEvaluator) {
+        await updateApplication(app.id, {
+          assignedTo: prevEvaluator,
+        });
+      }
+    }
+    toast.success(successMessage);
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  /** Endorse to a specific person/officer for review */
+  const handleEndorse = async (submission: EndorsementSubmission) => {
+    setShowEndorse(false);
+    const { person, notes } = submission;
+    const notesSuffix = notes && notes.trim().length > 0 ? ` Instructions: ${notes.trim()}` : '';
+    const roleLabel = person.position || person.role || (isPendingPayment ? 'Cashier' : 'Evaluator');
+    const remarks = `Application endorsed to ${person.name} (${roleLabel}) by ${officerName}.${notesSuffix}`;
+
+    const targetStatus = isPendingPayment ? 'PendingPayment' : isForAccountant ? 'ForAccountant' : 'Evaluating';
+
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: targetStatus,
+      action: `Endorsed to ${person.name}`,
+      staffName: officerName,
+      staffRole: currentRole || (isPendingPayment ? 'Cashier' : 'Evaluating Officer'),
+      remarks,
+    });
+    if (err !== null) {
+      toast.error('Failed to endorse application.');
+      return;
+    }
+    await updateApplication(app.id, {
+      assignedTo: person.name,
+      ...(isPendingPayment ? { cashierOfficer: person.name } : {}),
+    });
+    toast.success(`Application endorsed to ${person.name}.`);
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  /** Admin-only direct approve (bypasses normal cycle) */
+  const handleAdminDirectApprove = async () => {
+    setShowApprove(false);
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Approved',
+      action: 'Directly Approved by Administrator',
+      staffName: officerName,
+      staffRole: 'Admin',
+      remarks: 'Application directly approved by administrator.',
+    });
+    if (err !== null) { toast.error('Failed to approve application.'); return; }
+    toast.success('Application approved directly by administrator.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
+  // ── Contextual action bar state ─────────────────────────────────────────────
+  const isBulkApp = (app.mode || '').toUpperCase() === 'BULK' || (app.applicantsList && app.applicantsList.length > 1);
+  const uncompletedApplicantsCount = app.applicantsList?.filter(a => !a.status || a.status === 'Incomplete').length ?? 0;
+  const endorsementApplicantsCount = app.applicantsList?.filter(a => a.status === 'ForEndorsement').length ?? 0;
+  const hasIncompleteApplicants = isBulkApp
+    ? uncompletedApplicantsCount > 0 || endorsementApplicantsCount > 0
+    : false;
+
+  /** Start evaluation button for Submitted applications */
+  const showStartEvalBtn = isSubmitted && !isEndorsedAwayFromMe && canEvaluateApplication;
+  const isPaymentSubmitted = Boolean(
+    (app.payment && (app.payment.amountReceived > 0 || app.payment.orNumber.trim().length > 0 || (app.payment.checkNumber && app.payment.checkNumber.trim().length > 0))) ||
+    (app.note && (app.note.toLowerCase().includes('payment submitted') || app.note.toLowerCase().includes('ref:'))) ||
+    (() => {
+      if (!app.history || app.history.length === 0) return false;
+      const paymentIdx = app.history.findIndex(h => h.action.toLowerCase().includes('payment submitted') || h.action.toLowerCase().includes('submit payment'));
+      if (paymentIdx === -1) return false;
+      const resetIdx = app.history.findIndex(h => h.action.toLowerCase().includes('returned') || h.action.toLowerCase().includes('soa approved by accountant'));
+      if (resetIdx !== -1 && resetIdx < paymentIdx) return false;
+      return true;
+    })()
+  );
+  const canActAsAccountant = currentRole === 'Accountant' || canApproveAsAccountant || isAdmin;
+  const canActAsCashier = currentRole === 'Cashier' || canVerifyCashier || isAdmin;
+  const canActAsReleasing = isEvaluatorOrSupervisorRole(currentRole) || isAdmin;
+
+  /** Claim button for unclaimed stages */
+  const showClaimBtn = !isEndorsedAwayFromMe && !isStageClaimedByOther && (
+    showStartEvalBtn ||
+    ((isEvaluating || isReturned) && isStageUnclaimed && canEvaluateApplication) ||
+    (isForAccountant && isStageUnclaimed && canActAsAccountant) ||
+    (isPendingPayment && isStageUnclaimed && canActAsCashier)
+  );
+
+  /** Show Cashier-specific payment verify button */
+  const showCashierBtn = isPendingPayment && !isEndorsedAwayFromMe && canActAsCashier && isStageClaimedByMe;
+  /** Show Accountant-specific SOA approve button */
+  const showAccountantBtn = isForAccountant && !isEndorsedAwayFromMe && canActAsAccountant && isStageClaimedByMe;
+  /** Show Issuing Officer document issue button (Available to all regional Evaluators, Chief of EOD, Regional Director, and Admin) */
+  const showIssueBtn = isForIssuance && !isEndorsedAwayFromMe && canActAsReleasing;
+  /** Show Legal/Evaluator complete button for Requests and Complaints (non-revenue statutory cases) */
+  const showLegalResolveBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
+  /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer on commercial applications) */
+  const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
+
+  const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+
+  let approveButtonLabel = 'Approve';
+  let approveButtonIcon: 'check-circle' | 'credit-card' | 'play-circle' = 'check-circle';
+
+  if (showClaimBtn) {
+    approveButtonLabel = showStartEvalBtn
+      ? (isComplaintOrRequest ? 'Start Review' : 'Start Evaluation')
+      : isReturned
+        ? (isComplaintOrRequest ? 'Resume Review' : 'Resume Evaluation')
+        : 'Take Application';
+    approveButtonIcon = 'play-circle';
+  } else if (showLegalResolveBtn) {
+    approveButtonLabel = 'Resolve & Complete';
+    approveButtonIcon = 'check-circle';
+  } else if (showCashierBtn) {
+    approveButtonLabel = isPaymentSubmitted ? 'Verify & Issue OR' : 'Issue Official Receipt';
+    approveButtonIcon = 'credit-card';
+  } else if (showAccountantBtn) {
+    if (!hasPreviewedOp) {
+      approveButtonLabel = 'Preview OP';
+      approveButtonIcon = 'play-circle';
+    } else {
+      approveButtonLabel = 'Approve & Issue OP';
+      approveButtonIcon = 'check-circle';
+    }
+  } else if (showIssueBtn) {
+    approveButtonLabel = 'Release Document';
+    approveButtonIcon = 'check-circle';
+  } else if (showForwardBtn) {
+    if (!hasSoa) {
+      approveButtonLabel = 'Generate SOA';
+      approveButtonIcon = 'play-circle';
+    } else {
+      approveButtonLabel = 'Approve & Forward';
+      approveButtonIcon = 'check-circle';
+    }
+  }
+
+  // Primary action button (Approve / Start Evaluation / Take Application / Verify Payment / Approve SOA / Issue Document / Resolve Complaint)
+  const canApproveAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && (showClaimBtn || showLegalResolveBtn || showCashierBtn || showAccountantBtn || showForwardBtn || showIssueBtn))
+  );
+
+  // Return button: Enabled for authorized officers reviewing an application across workflow stages.
+  // Enforces the rule: "No one can transact an application without taking/claiming it first".
+  // The Return button is ONLY enabled once the officer has claimed authority (or started evaluation).
+  // On unclaimed applications (showClaimBtn is true), only Start Evaluation / Take Application is enabled.
+  const canDeclineAction = !isEndorsedAwayFromMe && (
+    (isForIssuance && canActAsReleasing) ||
+    (!isStageClaimedByOther && !showClaimBtn && (
+      ((isEvaluating || isReturned) && isStageClaimedByMe) ||
+      (isForAccountant && canActAsAccountant && isStageClaimedByMe) ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    ))
+  );
+
+  const showReturnBtn = canDecline && !isEndorsedAwayFromMe && app.queueTab !== "history" && (
+    (isForIssuance && canActAsReleasing) || !isStageClaimedByOther
+  );
+  const isReturnDisabled = !canDeclineAction;
+
+  // Endorse button: Available when actively evaluating, or when Cashier is reviewing in PendingPayment
+  const canEndorseAction =
+    canEndorse &&
+    !isEndorsedAwayFromMe &&
+    !isStageClaimedByOther &&
+    (
+      isActivelyEvaluating ||
+      (isPendingPayment && canActAsCashier && isStageClaimedByMe)
+    );
+
+  const handlePrimaryAction = () => {
+    if (showClaimBtn) {
+      void handleClaimAuthority();
+    } else if (showLegalResolveBtn) {
+      setShowApprove(true);
+    } else if (showCashierBtn) {
+      if (!isPaymentSubmitted) {
+        toast.warning("Awaiting client payment. Cannot issue OR until payment is made.");
+        return;
+      }
+      setShowCashier(true);
+    } else if (showIssueBtn) {
+      setShowIssueDoc(true);
+    } else if (showForwardBtn) {
+      if (!hasSoa) {
+        toast.info("Please generate SOA to approve evaluation.");
+        setInnerTab("soa");
+        setShowGenerateSoa(true);
+        return;
+      }
+      setShowApprove(true);
+    } else if (showAccountantBtn) {
+      if (!hasPreviewedOp) {
+        toast.info("Please preview Order of Payment first before approving.");
+        setHasPreviewedOp(true);
+        handlePreviewReport('op');
+        return;
+      }
+      setShowApprove(true);
+    } else {
+      setShowApprove(true);
     }
   };
 
-  const handleCashierVerify = (data: {
-    orNumber: string;
-    checkNumber: string;
-    checkName: string;
-  }) => {
-    setShowCashier(false);
-    const dateStr = new Date().toLocaleString("en-US", {
-      month: "short",
-      day: "2-digit",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    updateApplication(app.id, {
-      payment: { ...app.payment, ...data },
-      status: "For Approval",
-      queueTab: "history",
-      assignedTo: "ADMIN EDGE",
-      history: [
-        ...app.history,
-        {
-          id: `H${app.history.length + 1}`,
-          action: `Payment verified. OR: ${data.orNumber}. Moved for approval.`,
-          staff: `${currentRole.toUpperCase()} EDGE`,
-          timestamp: dateStr,
-        },
-      ],
-    });
-
-    setSelectedId(null);
-    Alert.alert("Success", "Payment verified. Application moved for approval.");
-  };
-
   return (
-    <Animated.View style={[styles.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
-      {/* ── Inner Tab Bar ── */}
-      <View style={[styles.innerTabBar, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        {INNER_TABS.map((tab) => {
-          const isActive = innerTab === tab.key;
-          return (
-            <Pressable
-              key={tab.key}
-              style={styles.innerTabItem}
-              onPress={() => setInnerTab(tab.key)}
-            >
-              <Lucide
-                name={tab.icon}
-                size={13}
-                color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
-              />
-              <Text
-                style={[
-                  styles.innerTabText,
-                  { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) },
-                ]}
+    <Animated.View style={[sc.panel, { backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, opacity: fadeAnim }]}>
+      {/* Tab Bar */}
+      <View style={[sc.tabBarWrapper, { borderBottomColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white }]}>
+        {isNarrow ? (
+          <>
+            <ScrollView ref={tabScrollRef} horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={sc.tabScrollContent} style={sc.tabScroll}>
+              {INNER_TABS.map((tab) => {
+                const isActive = innerTab === tab.key;
+                return (
+                  <Pressable key={tab.key} style={sc.tabItem} onPress={() => setInnerTab(tab.key)}>
+                    <Lucide name={tab.icon} size={13} color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])} />
+                    <Text style={[sc.tabText, { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) }]}>{tab.label}</Text>
+                    {isActive && <View style={[sc.tabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+            <View style={[sc.tabActionsRow, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+              <Pressable
+                style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]}
+                onPress={() => handlePrintAccountableForm()}
+                accessibilityLabel="Print Document or Accountable Form"
               >
-                {tab.label}
-              </Text>
-              {isActive && <View style={[styles.innerTabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                <Lucide name="printer" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+              <View style={sc.tabSpacer} />
+              {onCollapse !== undefined && (
+                <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={onCollapse}>
+                  <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+                </Pressable>
+              )}
+              <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={handleCloseAnimated}>
+                <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            </View>
+          </>
+        ) : (
+          <View style={sc.tabBar}>
+            {INNER_TABS.map((tab) => {
+              const isActive = innerTab === tab.key;
+              return (
+                <Pressable key={tab.key} style={sc.tabItem} onPress={() => setInnerTab(tab.key)}>
+                  <Lucide name={tab.icon} size={13} color={isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[500] : COLORS.neutral[400])} />
+                  <Text style={[sc.tabText, { color: isActive ? (isDark ? colors.brand[500] : COLORS.brand[700]) : (isDark ? colors.neutral[400] : COLORS.neutral[500]) }]}>{tab.label}</Text>
+                  {isActive && <View style={[sc.tabUnderline, { backgroundColor: isDark ? colors.brand[500] : colors.brand[700] }]} />}
+                </Pressable>
+              );
+            })}
+            <View style={sc.tabSpacer} />
+            <Pressable
+              style={[sc.iconBtn, { marginRight: 4 }, Platform.select({ web: { cursor: "pointer" } as object })]}
+              onPress={() => handlePrintAccountableForm()}
+              accessibilityLabel="Print Document or Accountable Form"
+            >
+              <Lucide name="printer" size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
             </Pressable>
-          );
-        })}
-        <View style={styles.innerTabSpacer} />
-
-        {/* View / Print links */}
-        <View style={styles.headerActionRow}>
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("View")}
-          >
-            <Lucide name="eye" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>View</Text>
-          </Pressable>
-          <View style={[styles.headerActionDivider, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[200], }]} />
-          <Pressable
-            style={styles.headerActionLink}
-            onPress={() => handleTopAction("Print")}
-          >
-            <Lucide name="printer" size={14} color={isDark ? colors.brand[500] : COLORS.brand[700]} />
-            <Text style={[styles.headerActionLinkText, { color: isDark ? colors.brand[500] : colors.brand[700], }]}>Print</Text>
-          </Pressable>
-        </View>
-
-        <View style={styles.innerTabSpacerSmall} />
-
-        {/* Collapse + Close */}
-        {onCollapse !== undefined && (
-          <Pressable
-            style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-            onPress={onCollapse}
-          >
-            <Lucide
-              name={isCollapsed ? "minimize-2" : "maximize-2"}
-              size={14}
-              color={isDark ? colors.neutral[400] : colors.neutral[500]}
-            />
-          </Pressable>
+            {onCollapse !== undefined && (
+              <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={onCollapse}>
+                <Lucide name={isCollapsed ? "minimize-2" : "maximize-2"} size={14} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+              </Pressable>
+            )}
+            <Pressable style={[sc.iconBtn, Platform.select({ web: { cursor: "pointer" } as object })]} onPress={handleCloseAnimated}>
+              <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+            </Pressable>
+          </View>
         )}
-        <Pressable
-          style={[styles.iconBtn, Platform.select({ web: { cursor: "pointer" } })]}
-          onPress={handleCloseAnimated}
-        >
-          <Lucide name="x" size={16} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
-        </Pressable>
       </View>
 
-      {/* Read-only banner */}
-      {!isEditable && (
-        <View style={[styles.readOnlyBanner, { backgroundColor: colors.brand.yellowLight, }]}>
-          <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
-          <Text style={[styles.readOnlyText, { color: isDark ? COLORS.semantic.warningText : COLORS.semantic.warningText }]}>
-            Read-only — actions only available on Pending applications with
-            actionable status
+      {/* Endorsed away banner */}
+      {isEndorsedAwayFromMe && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E1B4B' : '#EEF2FF', borderBottomColor: isDark ? '#4338CA' : '#C7D2FE' }]}>
+          <Lucide name="share-2" size={14} color={isDark ? '#A5B4FC' : '#4F46E5'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#E0E7FF' : '#3730A3' }]}>
+            Endorsed to <Text style={{ fontWeight: '700' }}>{app.endorsedTo}</Text>{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}. Actions restricted to endorsed officer.
           </Text>
         </View>
       )}
 
-      {/* ── Tab Content ── */}
-      {innerTab === "basic" && (
-        <BasicInfoTab
+      {/* Endorsed to me banner */}
+      {isEndorsedToMe && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#14532D' : '#F0FDF4', borderBottomColor: isDark ? '#15803D' : '#BBF7D0' }]}>
+          <Lucide name="share-2" size={14} color={isDark ? '#4ADE80' : '#16A34A'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#DCFCE7' : '#14532D' }]}>
+            Endorsed to you{app.endorsedBy ? ` by ${app.endorsedBy}` : ''}{isPendingPayment ? ' for payment verification.' : ' for evaluation.'}
+          </Text>
+        </View>
+      )}
+
+      {/* Ready for document release banner for ForIssuance */}
+      {!isEndorsedAwayFromMe && isForIssuance && canActAsReleasing && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#064E3B' : '#ECFDF5', borderBottomColor: isDark ? '#047857' : '#A7F3D0' }]}>
+          <Lucide name="award" size={14} color={isDark ? '#6EE7B7' : '#059669'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#D1FAE5' : '#065F46' }]}>
+            Application is verified and awaiting release. Click <Text style={{ fontWeight: '700' }}>"Release Document"</Text> to generate control numbers and issue document.
+          </Text>
+        </View>
+      )}
+
+      {/* Locked / Under Review by another officer banner */}
+      {!isEndorsedAwayFromMe && !isEndorsedToMe && !isForIssuance && (isEvaluatedByOther || isStageClaimedByOther) && (
+        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3E2415' : '#FEF3C7', borderBottomColor: isDark ? '#B45309' : '#F59E0B' }]}>
+          <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#D97706'} />
+          <Text style={[sc.lockedText, { color: isDark ? '#FDE68A' : '#92400E' }]}>
+            Under {isForAccountant ? 'financial review' : isPendingPayment ? 'payment processing' : 'evaluation'} by{' '}
+            <Text style={{ fontWeight: '700' }}>{currentStageOfficer || evaluatingOfficer || 'another officer'}</Text>. Actions locked.
+          </Text>
+        </View>
+      )}
+
+      {/* Awaiting evaluation or authority claim banner for applications in queue */}
+      {!isEndorsedAwayFromMe && isStageUnclaimed && !isForIssuance && (
+        <View style={[sc.endorsedBanner, { backgroundColor: isDark ? '#1E293B' : '#EFF6FF', borderBottomColor: isDark ? '#334155' : '#BFDBFE' }]}>
+          <Lucide name="play-circle" size={14} color={isDark ? '#93C5FD' : '#2563EB'} />
+          <Text style={[sc.endorsedText, { color: isDark ? '#DBEAFE' : '#1E40AF' }]}>
+            {showClaimBtn ? (
+              <>
+                Application is in queue. Click <Text style={{ fontWeight: '700' }}>{showStartEvalBtn ? '"Start Evaluation"' : '"Take Application"'}</Text> to claim authority and begin {isForAccountant ? 'financial review' : isPendingPayment ? 'payment verification' : 'evaluation'}.
+              </>
+            ) : (
+              <>
+                Application is in queue awaiting {isForAccountant ? 'financial review by Accountant' : isPendingPayment ? 'payment verification by Cashier' : 'evaluation by an Evaluator'}.
+              </>
+            )}
+          </Text>
+        </View>
+      )}
+
+      {/* Read-only banner */}
+      {!isEditable && !isEndorsedAwayFromMe && !isStageUnclaimed && !isEvaluatedByOther && !isStageClaimedByOther && app.queueTab === 'history' && (
+        <View style={[sc.readOnlyBanner, { backgroundColor: colors.brand.yellowLight }]}>
+          <Lucide name="lock" size={12} color={isDark ? colors.neutral[400] : colors.neutral[500]} />
+          <Text style={[sc.readOnlyText, { color: COLORS.semantic.warningText }]}>
+            Read-only (Processed / History)
+          </Text>
+        </View>
+      )}
+
+      {/* Returned application notice banner */}
+      {app.status === 'Returned' && (
+        <View style={[sc.lockedBanner, { backgroundColor: isDark ? '#3F1A1A' : '#FEF2F2', borderBottomColor: isDark ? '#991B1B' : '#F87171' }]}>
+          <Lucide name="rotate-ccw" size={14} color={isDark ? '#F87171' : '#DC2626'} />
+          <Text style={[sc.lockedText, { color: isDark ? '#FECACA' : '#991B1B' }]}>
+            Returned Application Notice: <Text style={{ fontWeight: '700' }}>{app.note || 'Returned to applicant with notice of discrepancy.'}</Text>
+          </Text>
+        </View>
+      )}
+
+      {/* Tab Content */}
+      {innerTab === "details" && (
+        <ApplicationDetailsTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
+          selectedApplicantIndex={selectedApplicantIndex}
+          onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
+          onInspectApplicant={(idx) => { setSelectedApplicantIndex(idx); setInnerTab("applicant-record"); }}
+          onPreviewFile={handlePreviewFile}
+          onPrintAccountableForm={handlePrintAccountableForm}
         />
       )}
-      {innerTab === "details" && <ApplicationDetailsTab app={app} />}
-      {innerTab === "requirements" && <RequirementsTab app={app} />}
+      {innerTab === "applicant-record" && (
+        <ApplicantRecordTab
+          key={app.id}
+          app={app}
+          selectedApplicantIndex={selectedApplicantIndex}
+          onSelectApplicantIndex={(idx) => setSelectedApplicantIndex(idx)}
+          updateApplication={updateApplication}
+          isEditable={isEditable}
+          onPreviewFile={handlePreviewFile}
+        />
+      )}
       {innerTab === "soa" && (
         <SoaPaymentTab
+          key={app.id}
           app={app}
           isEditable={isEditable}
           updateApplication={updateApplication}
+          onOpenGenerateSoa={() => setShowGenerateSoa(true)}
+          onPreviewReport={handlePreviewReport}
         />
       )}
 
       {/* ── Bottom Action Bar ── */}
-      <View style={[styles.actionBar, { borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200], backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white, }]}>
-        {canVerifyCashier ? (
-          <Pressable
-            style={[
-              styles.actionBtnPrimary,
-              !isEditable && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
-              Platform.select({
-                web: { cursor: isEditable ? "pointer" : "not-allowed" } as object,
-              }),
-            ]}
-            onPress={() => isEditable && setShowCashier(true)}
-            disabled={!isEditable}
-          >
-            <Lucide
-              name="credit-card"
-              size={15}
-              color={isEditable ? COLORS.neutral.white : (isDark ? colors.neutral[500] : COLORS.neutral[400])}
-            />
-            <Text
-              style={[
-                styles.actionBtnPrimaryText,
-                !isEditable && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
-              ]}
-            >
-              Cashier Verification
-            </Text>
-          </Pressable>
-        ) : (
-          <>
-            <Pressable
-              style={[
-                styles.actionBtnPrimary,
-                (!isEditable || !canApprove) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100] }],
-                Platform.select({
-                  web: { cursor: (isEditable && canApprove) ? "pointer" : "not-allowed" } as object,
-                }),
-              ]}
-              onPress={() => isEditable && canApprove && setShowApprove(true)}
-              disabled={!isEditable || !canApprove}
-            >
-              <Text
-                style={[
-                  styles.actionBtnPrimaryText,
-                  (!isEditable || !canApprove) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
-                ]}
-              >
-                Approve
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.actionBtnOutline,
-                { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canDecline) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
-                Platform.select({
-                  web: { cursor: (isEditable && canDecline) ? "pointer" : "not-allowed" } as object,
-                }),
-              ]}
-              onPress={() => isEditable && canDecline && setShowDecline(true)}
-              disabled={!isEditable || !canDecline}
-            >
-              <Text
-                style={[
-                  styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
-                  (!isEditable || !canDecline) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
-                ]}
-              >
-                Decline
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={[
-                styles.actionBtnOutline,
-                { borderColor: isDark ? colors.neutral[600] : COLORS.neutral[300] },
-                (!isEditable || !canEndorse) && [styles.actionBtnDisabled, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[100], borderColor: isDark ? colors.neutral[800] : colors.neutral[200] }],
-                Platform.select({
-                  web: { cursor: (isEditable && canEndorse) ? "pointer" : "not-allowed" } as object,
-                }),
-              ]}
-              onPress={() => isEditable && canEndorse && setShowEndorse(true)}
-              disabled={!isEditable || !canEndorse}
-            >
-              <Text
-                style={[
-                  styles.actionBtnOutlineText,
-                  { color: isDark ? colors.neutral[200] : COLORS.neutral[700] },
-                  (!isEditable || !canEndorse) && { color: isDark ? colors.neutral[500] : COLORS.neutral[400] },
-                ]}
-              >
-                Endorse →
-              </Text>
-            </Pressable>
-          </>
-        )}
-      </View>
+      <WorkflowActionBar
+        isEditable={isEditable}
+        isDark={isDark}
+        colors={colors}
+        canApprove={canApproveAction}
+        canDecline={showReturnBtn}
+        canEndorse={canEndorseAction}
+        isApproveDisabled={
+          (showForwardBtn && hasIncompleteApplicants)
+        }
+        isReturnDisabled={isReturnDisabled}
+        approveLabel={approveButtonLabel}
+        approveIcon={approveButtonIcon}
+        isCompleted={app.status === 'Completed' || app.status === 'Approved' || app.queueTab === 'history'}
+        onApprove={handlePrimaryAction}
+        onReturn={() => setShowDecline(true)}
+        onEndorse={() => setShowEndorse(true)}
+        onPrintAccountableForm={() => handlePrintAccountableForm()}
+        onPrintSoa={() => handlePreviewReport('soa')}
+        onPreviewOp={(isForAccountant || showAccountantBtn) && (hasPreviewedOp || !showAccountantBtn) ? () => handlePreviewReport('op') : undefined}
+        onPreviewOr={(isPendingPayment || showCashierBtn) ? () => handlePreviewReport('or') : undefined}
+      />
 
       {/* ── Modals ── */}
+      <CustomDocPreviewModal previewCustomDoc={previewCustomDoc} onClose={handleClosePreviewDoc} />
+
+      {/* ApproveModal is reused for evaluation and accountant approval */}
       <ApproveModal
         visible={showApprove}
         applicantName={app.applicant}
-        onConfirm={handleApprove}
+        title={
+          showAccountantBtn
+            ? "Approve Application & Issue Order of Payment"
+            : showLegalResolveBtn
+              ? "Resolve & Complete Application"
+              : showForwardBtn
+                ? "Approve Evaluation & Forward to Accountant"
+                : "Approve Application"
+        }
+        confirmText={
+          showAccountantBtn
+            ? "Approve & Issue OP"
+            : showLegalResolveBtn
+              ? "Complete Application"
+              : showForwardBtn
+                ? "Approve & Forward"
+                : "Approve"
+        }
+        subtitleText={
+          showAccountantBtn
+            ? `Confirm financial review and issue official Order of Payment for ${app.applicant}.`
+            : showLegalResolveBtn
+              ? `Mark application/complaint for ${app.applicant} as officially resolved and completed? Non-revenue statutory applications do not require accountant or cashier processing.`
+              : showForwardBtn
+                ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
+                : undefined
+        }
+        onConfirm={
+          showCashierBtn ? () => { /* handled by CashierModal */ } :
+          showAccountantBtn ? handleAccountantApprove :
+          showLegalResolveBtn ? handleCompleteComplaint :
+          showForwardBtn ? handleForwardToAccountant :
+          isAdmin ? handleAdminDirectApprove :
+          handleForwardToAccountant
+        }
         onCancel={() => setShowApprove(false)}
       />
       <DeclineModal
         visible={showDecline}
         applicantName={app.applicant}
+        title={
+          isEndorsedToMe && app.endorsedBy
+            ? `Return to ${app.endorsedBy}`
+            : app.status === 'PendingPayment'
+              ? 'Return to Accountant'
+              : app.status === 'ForAccountant'
+                ? 'Return to Evaluator'
+                : 'Return Application'
+        }
+        confirmText="Confirm Return"
+        reasonLabel={
+          isEndorsedToMe && app.endorsedBy
+            ? `Return Reason for ${app.endorsedBy}`
+            : app.status === 'PendingPayment'
+              ? 'Return Reason for Accountant'
+              : app.status === 'ForAccountant'
+                ? 'Return Reason for Evaluator'
+                : 'Reason / Notice of Discrepancy'
+        }
+        placeholder={
+          isEndorsedToMe && app.endorsedBy
+            ? `Describe findings, reasons, or remarks for returning to ${app.endorsedBy}...`
+            : app.status === 'PendingPayment'
+              ? 'Describe fee adjustments or discrepancy for the Accountant...'
+              : app.status === 'ForAccountant'
+                ? 'Describe findings or missing details for the Evaluator...'
+                : 'Describe the discrepancy or reason for returning this application...'
+        }
         onConfirm={handleDecline}
         onCancel={() => setShowDecline(false)}
       />
       <EndorseModal
         visible={showEndorse}
         applicantName={app.applicant}
-        currentRole={currentRole}
+        tenantId={app.tenantId}
+        appliedFieldOffice={app.office || (app.assignedTo?.toLowerCase().includes('office') ? app.assignedTo : undefined)}
         onConfirm={handleEndorse}
         onCancel={() => setShowEndorse(false)}
       />
-      <CashierVerificationModal
+      <IssueReceiptModal
         visible={showCashier}
-        applicantName={app.applicant}
-        initialOrNumber={app.payment.orNumber}
-        onConfirm={handleCashierVerify}
-        onCancel={() => setShowCashier(false)}
+        tenantId={app.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001'}
+        nextOr={nextOr}
+        pendingPayment={pendingPaymentPayload}
+        onClose={() => setShowCashier(false)}
+        onSuccess={handleCashierReceiptSuccess}
+      />
+      <IssueDocumentModal
+        visible={showIssueDoc}
+        app={app}
+        currentOfficerName={officerName}
+        onClose={() => setShowIssueDoc(false)}
+        onSuccess={async () => {
+          await updateApplication(app.id, {
+            issuingOfficer: officerName,
+            status: 'Completed',
+          });
+          await mutateApplications(app.id);
+          await refetch();
+          onClose();
+        }}
+      />
+      <GenerateSoaModal visible={showGenerateSoa} app={app} onClose={() => setShowGenerateSoa(false)} onSuccess={async () => { await mutateApplications(app.id); await refetch(); }} />
+      <SoaReportPreviewModal
+        visible={showReportPreview}
+        app={app}
+        initialDocType={reportPreviewInitialDoc}
+        onClose={() => setShowReportPreview(false)}
+        onOpenGenerateSoa={() => setShowGenerateSoa(true)}
+        onApproveOp={showAccountantBtn ? () => {
+          setHasPreviewedOp(true);
+          setShowApprove(true);
+        } : undefined}
+      />
+      <IssuedDocumentPrintModal
+        visible={showIssuedPrintModal}
+        app={app}
+        initialOptions={issuedPrintInitialOptions}
+        onClose={() => setShowIssuedPrintModal(false)}
       />
     </Animated.View>
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
+// ── Unified WorkflowActionBar sub-component ───────────────────────────────────
 
-const styles = StyleSheet.create({
-  // Empty state
-  emptyPanel: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: SPACING[40],
-  },
-  summaryCard: {
-    borderRadius: RADIUS.card,
-    padding: SPACING[24],
-    width: "100%",
-    maxWidth: 500,
-    ...SHADOWS.card,
-    marginBottom: SPACING[40],
-  },
-  summaryHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
-    marginBottom: SPACING[20],
-    borderBottomWidth: 1,
-    paddingBottom: SPACING[12],
-  },
-  summaryTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  statsRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    marginBottom: SPACING[24],
-  },
-  statBox: {
-    alignItems: "center",
-    flex: 1,
-  },
-  statValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 24,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  statLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 4,
-  },
-  guideBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
-    padding: SPACING[16],
-    borderRadius: RADIUS.input,
-  },
-  guideText: {
-    flex: 1,
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 18,
-  },
-  actionPrompt: {
-    alignItems: "center",
-    gap: SPACING[12],
-  },
-  emptyPanelTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 18,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  emptyPanelSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    textAlign: "center",
-    maxWidth: 280,
-    lineHeight: 22,
-  },
+interface WorkflowActionBarProps {
+  isEditable: boolean;
+  isDark: boolean;
+  colors: ReturnType<typeof import('@edge/ui').useTheme>['colors'];
+  canApprove: boolean;
+  canDecline: boolean;
+  canEndorse: boolean;
+  isApproveDisabled: boolean;
+  isReturnDisabled?: boolean;
+  approveLabel: string;
+  approveIcon: 'check-circle' | 'credit-card' | 'play-circle';
+  isCompleted?: boolean;
+  onApprove: () => void;
+  onReturn: () => void;
+  onEndorse: () => void;
+  onPrintAccountableForm?: () => void;
+  onPrintSoa?: () => void;
+  onPreviewOp?: () => void;
+  onPreviewOr?: () => void;
+}
 
-  // Panel shell
-  panel: {
-    flex: 1,
-    flexDirection: "column",
-  },
+function WorkflowActionBar({
+  isEditable,
+  isDark,
+  colors,
+  canApprove,
+  canDecline,
+  canEndorse,
+  isApproveDisabled,
+  isReturnDisabled = false,
+  approveLabel,
+  approveIcon,
+  isCompleted = false,
+  onApprove,
+  onReturn,
+  onEndorse,
+  onPrintAccountableForm,
+  onPrintSoa,
+  onPreviewOp,
+  onPreviewOr,
+}: WorkflowActionBarProps) {
+  const primaryGreen = isDark ? '#166534' : '#15803D';
+  const primaryBlue = isDark ? colors.brand[600] : colors.brand[700];
+  const primaryColor = approveIcon === 'credit-card' ? primaryBlue : primaryGreen;
+  const disabledBg = isDark ? '#1E293B' : '#E2E8F0';
+  const disabledText = isDark ? '#64748B' : '#94A3B8';
+  const disabledBorder = isDark ? '#334155' : '#CBD5E1';
+  const outlineBg = isDark ? colors.neutral[800] : COLORS.neutral.white;
+  const outlineText = isDark ? colors.neutral[100] : COLORS.neutral[900];
+  const outlineBorder = isDark ? colors.neutral[300] : COLORS.neutral[900];
 
-  // Inner tab bar
-  innerTabBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderBottomWidth: 1,
-    paddingHorizontal: SPACING[8],
-  },
-  innerTabItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[12],
-    gap: 5,
-    position: "relative",
-  },
-  innerTabText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  innerTabTextActive: {
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  innerTabUnderline: {
-    position: "absolute",
-    bottom: 0,
-    left: SPACING[12],
-    right: SPACING[12],
-    height: 2,
-  },
-  innerTabSpacer: {
-    flex: 1,
-  },
-  innerTabSpacerSmall: {
-    width: SPACING[16],
-  },
-  headerActionRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[12],
-    marginRight: SPACING[8],
-  },
-  headerActionLink: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[4],
-  },
-  headerActionLinkText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  headerActionDivider: {
-    width: 1,
-    height: 14,
-  },
-  iconBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-    marginLeft: SPACING[4],
-  },
+  const isClaimOrSpecial =
+    approveIcon === 'play-circle' ||
+    approveLabel.includes('Start') ||
+    approveLabel.includes('Take') ||
+    approveLabel.includes('Verify') ||
+    approveLabel.includes('Issue') ||
+    approveLabel.includes('Approve') ||
+    approveLabel.includes('Release') ||
+    approveLabel.includes('Resolve') ||
+    approveLabel.includes('Complete');
+  const approveEnabled = canApprove && !isApproveDisabled && (isEditable || isClaimOrSpecial);
+  const returnEnabled = canDecline && !isReturnDisabled;
+  const endorseEnabled = canEndorse;
 
-  // Read-only banner
-  readOnlyBanner: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.semantic.warningBorder,
-  },
-  readOnlyText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    color: COLORS.semantic.warningText,
-  },
+  if (!canApprove && !canDecline && !endorseEnabled) {
+    if (isCompleted) {
+      return (
+        <View
+          style={[
+            sc.actionBar,
+            {
+              borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
+              backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+            },
+          ]}
+        >
+          {onPrintSoa !== undefined && (
+            <Pressable
+              style={[
+                sc.actionBtnOutline,
+                {
+                  backgroundColor: outlineBg,
+                  borderColor: isDark ? colors.neutral[600] : colors.neutral[300],
+                  borderWidth: 1.5,
+                },
+                Platform.select({ web: { cursor: 'pointer' } as object }),
+              ]}
+              onPress={onPrintSoa}
+            >
+              <Lucide name="file-text" size={14} color={isDark ? colors.neutral[300] : colors.neutral[700]} />
+              <Text style={[sc.actionBtnOutlineText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                View Application Reports
+              </Text>
+            </Pressable>
+          )}
 
-  // Tab content
-  tabContent: {
-    flex: 1,
-  },
+          {onPrintAccountableForm !== undefined && (
+            <Pressable
+              style={[
+                sc.actionBtnPrimary,
+                {
+                  backgroundColor: isDark ? colors.brand[600] : colors.brand[700],
+                  borderColor: 'transparent',
+                  borderWidth: 1,
+                },
+                Platform.select({ web: { cursor: 'pointer' } as object }),
+              ]}
+              onPress={onPrintAccountableForm}
+            >
+              <Lucide name="printer" size={15} color={COLORS.neutral.white} />
+              <Text style={[sc.actionBtnPrimaryText, { color: COLORS.neutral.white }]}>
+                Re-print Accountable Form
+              </Text>
+            </Pressable>
+          )}
+        </View>
+      );
+    }
+    return null;
+  }
 
-  // Status block
-  statusBlock: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[12],
-    borderBottomWidth: 1,
-  },
-  statusRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-  },
-  statusPill: {
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.circle,
-  },
-  statusPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-  },
-  statusActor: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-  },
+  return (
+    <View
+      style={[
+        sc.actionBar,
+        {
+          borderTopColor: isDark ? colors.neutral[700] : colors.neutral[200],
+          backgroundColor: isDark ? colors.neutral[800] : COLORS.neutral.white,
+        },
+      ]}
+    >
+      {/* ── Return Button ── */}
+      {canDecline && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: returnEnabled ? outlineBg : disabledBg,
+              borderColor: returnEnabled ? outlineBorder : disabledBorder,
+              borderWidth: 1.5,
+              opacity: returnEnabled ? 1 : 0.5,
+            },
+            !returnEnabled && sc.actionBtnDisabled,
+            Platform.select({ web: { cursor: returnEnabled ? 'pointer' : 'not-allowed' } as object }),
+          ]}
+          onPress={returnEnabled ? onReturn : undefined}
+          disabled={!returnEnabled}
+        >
+          <Lucide name="rotate-ccw" size={14} color={returnEnabled ? outlineText : disabledText} />
+          <Text style={[sc.actionBtnOutlineText, { color: returnEnabled ? outlineText : disabledText }]}>Return</Text>
+        </Pressable>
+      )}
 
-  // Info block
-  infoBlock: {
-    paddingHorizontal: SPACING[16],
-  },
-  fieldGroupLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    paddingTop: SPACING[12],
-    paddingBottom: SPACING[4],
-  },
+      {/* ── Endorse Button ── */}
+      {endorseEnabled && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onEndorse}
+        >
+          <Lucide name="share-2" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Endorse
+          </Text>
+        </Pressable>
+      )}
 
-  // Note block
-  noteBlock: {
-    margin: SPACING[16],
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-  },
-  noteHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: SPACING[8],
-  },
-  editLinkBlue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.3,
-  },
-  noteText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 22,
-  },
-  noteInput: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    padding: SPACING[8],
-    minHeight: 100,
-    lineHeight: 22,
-  },
-  saveNoteBtn: {
-    alignSelf: "flex-end",
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-  },
-  saveNoteBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
+      {/* ── Preview OP Button (for Accountant) ── */}
+      {onPreviewOp !== undefined && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onPreviewOp}
+        >
+          <Lucide name="file-text" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Preview OP
+          </Text>
+        </Pressable>
+      )}
 
-  // Application Details tab
-  submittedText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    paddingVertical: SPACING[8],
-  },
-  permitCategoryText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 15,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 2,
-  },
-  formTypeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingBottom: SPACING[12],
-  },
-  formCard: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    justifyContent: "space-between",
-    paddingVertical: SPACING[12],
-    borderBottomWidth: 1,
-    borderLeftWidth: 3,
-    paddingLeft: SPACING[12],
-    marginBottom: SPACING[8],
-    borderRadius: RADIUS.input,
-    ...SHADOWS.card,
-  },
-  formCardLeft: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: SPACING[8],
-    flex: 1,
-  },
-  formDocIcon: {
-    width: 36,
-    height: 36,
-    borderRadius: RADIUS.input,
-    alignItems: "center",
-    justifyContent: "center",
-    flexShrink: 0,
-  },
-  formDocLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  formDocName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginTop: 2,
-    marginBottom: 4,
-  },
-  formActions: {
-    flexDirection: "row",
-    gap: SPACING[12],
-  },
-  formActionLink: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  formBtnGroup: {
-    flexDirection: "row",
-    gap: SPACING[8],
-    alignItems: "center",
-  },
-  downloadBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-  },
-  refreshBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    borderWidth: 1,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-  },
-  downloadBtnText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-  },
+      {/* ── Preview OR Button (for Cashier) ── */}
+      {onPreviewOr !== undefined && (
+        <Pressable
+          style={[
+            sc.actionBtnOutline,
+            {
+              backgroundColor: outlineBg,
+              borderColor: isDark ? colors.brand[400] : colors.brand[600],
+              borderWidth: 1.5,
+            },
+            Platform.select({ web: { cursor: 'pointer' } as object }),
+          ]}
+          onPress={onPreviewOr}
+        >
+          <Lucide name="printer" size={14} color={isDark ? colors.brand[400] : colors.brand[600]} />
+          <Text
+            style={[
+              sc.actionBtnOutlineText,
+              { color: isDark ? colors.brand[400] : colors.brand[600] },
+            ]}
+          >
+            Preview OR
+          </Text>
+        </Pressable>
+      )}
 
-  // Requirements tab
-  reqItem: {
-    paddingHorizontal: SPACING[16],
-    paddingVertical: SPACING[16],
-    borderBottomWidth: 1,
-  },
-  reqLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-    marginBottom: 4,
-  },
-  reqNote: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontStyle: "italic",
-    marginBottom: SPACING[8],
-    lineHeight: 18,
-  },
-  reqFileRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[8],
-  },
-  reqFilename: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    flex: 1,
-  },
-  reqViewLink: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  reqThumbnail: {
-    width: 150,
-    height: 100,
-    borderRadius: RADIUS.card,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  emptyReqs: {
-    alignItems: "center",
-    paddingVertical: SPACING[48],
-    gap: SPACING[8],
-  },
-  emptyReqsText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-  },
+      {/* ── Approve Button (Primary) ── */}
+      {canApprove && (
+        <Pressable
+          style={[
+            sc.actionBtnPrimary,
+            {
+              backgroundColor: approveEnabled ? primaryColor : disabledBg,
+              borderColor: approveEnabled ? 'transparent' : disabledBorder,
+              borderWidth: 1,
+            },
+            !approveEnabled && sc.actionBtnDisabled,
+            Platform.select({
+              web: { cursor: approveEnabled ? 'pointer' : 'not-allowed' } as object,
+            }),
+          ]}
+          onPress={onApprove}
+          disabled={!approveEnabled}
+        >
+          <Lucide
+            name={approveIcon}
+            size={15}
+            color={approveEnabled ? COLORS.neutral.white : disabledText}
+          />
+          <Text
+            style={[
+              sc.actionBtnPrimaryText,
+              { color: approveEnabled ? COLORS.neutral.white : disabledText },
+            ]}
+          >
+            {approveLabel}
+          </Text>
+        </Pressable>
+      )}
+    </View>
+  );
+}
 
-  // SOA & Payment tab
-  billingContainer: {
-    margin: SPACING[16],
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    ...SHADOWS.card,
-  },
-  billingLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-    marginBottom: SPACING[4],
-  },
-  billingTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.pageTitle,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 4,
-  },
-  billingSubtitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    marginBottom: SPACING[16],
-    lineHeight: 20,
-  },
-
-  // Fee table
-  feeTable: {
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    overflow: "hidden",
-    marginBottom: SPACING[16],
-  },
-  feeTableHeader: {
-    flexDirection: "row",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[8],
-  },
-  feeTableHeaderCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  feeTableDivider: {
-    height: 1,
-  },
-  feeTableRow: {
-    flexDirection: "row",
-    paddingHorizontal: SPACING[12],
-    paddingVertical: SPACING[12],
-    borderTopWidth: 1,
-    alignItems: "flex-start",
-  },
-  feeParticularName: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  feeParticularSub: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  feeTableCell: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    textAlign: "right",
-    paddingTop: 2,
-  },
-
-  // Total box
-  totalBox: {
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    marginBottom: SPACING[8],
-  },
-  totalRight: {
-    alignItems: "flex-end",
-  },
-  totalLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.5,
-    textTransform: "uppercase",
-    marginBottom: 4,
-  },
-  totalAmount: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    marginBottom: 4,
-  },
-  totalWords: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontStyle: "italic",
-    marginBottom: SPACING[8],
-    textAlign: "right",
-  },
-  totalDueDateRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[4],
-  },
-  totalDueDateLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-  },
-  totalDueDate: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  editLinkRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginTop: 2,
-  },
-  inlineEditRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginTop: 4,
-  },
-  inlineEditInput: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    borderWidth: 1,
-    borderRadius: RADIUS.input,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    minWidth: 120,
-  },
-  inlineEditSave: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-
-  // Payment section
-  paymentSection: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[16],
-    borderWidth: 1,
-    borderRadius: RADIUS.card,
-    padding: SPACING[16],
-    ...SHADOWS.card,
-  },
-  paymentSectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-    marginBottom: SPACING[16],
-  },
-  paymentSectionIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  paymentSectionTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 16,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  paymentRow: {
-    flexDirection: "row",
-    gap: SPACING[16],
-  },
-  amountReceivedCard: {
-    padding: SPACING[24],
-    borderRadius: RADIUS.card,
-    width: 220,
-    gap: SPACING[12],
-  },
-  amountReceivedLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "rgba(255,255,255,0.7)",
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  amountReceivedValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 32,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  excessBadge: {
-    backgroundColor: "rgba(255,255,255,0.2)",
-    alignSelf: "flex-start",
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.circle,
-  },
-  excessBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-  },
-  paymentMethodBlock: {
-    marginTop: SPACING[4],
-  },
-  paymentMethodLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 9,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    color: "rgba(255,255,255,0.6)",
-    textTransform: "uppercase",
-  },
-  paymentMethodValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "capitalize",
-  },
-  orColumn: {
-    flex: 1,
-    justifyContent: "flex-start",
-  },
-  orLabel: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.overline,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: SPACING[8],
-  },
-  orValueRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-  },
-  orValue: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  orEditBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    paddingHorizontal: SPACING[8],
-    paddingVertical: SPACING[4],
-    borderRadius: RADIUS.circle,
-    borderWidth: 1,
-  },
-  orEditText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    letterSpacing: 0.3,
-  },
-
-  checkInfoText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-
-  // History / Audit trail
-  historyList: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[24],
-    paddingTop: SPACING[8],
-  },
-  historyItem: {
-    flexDirection: "row",
-    minHeight: 60,
-  },
-  historyLeft: {
-    width: 24,
-    alignItems: "center",
-  },
-  historyLine: {
-    position: "absolute",
-    top: 20,
-    bottom: 0,
-    width: 2,
-  },
-  historyCircle: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
-    marginTop: 6,
-    zIndex: 1,
-  },
-  historyCircleActive: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginLeft: -1,
-  },
-  historyRight: {
-    flex: 1,
-    paddingLeft: SPACING[16],
-    paddingBottom: SPACING[20],
-  },
-  historyAction: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  historyStaff: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  historyDate: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 2,
-  },
-  historyEmpty: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingVertical: SPACING[12],
-    textAlign: "center",
-  },
-
-  auditHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    marginHorizontal: SPACING[16],
-    paddingVertical: SPACING[12],
-    borderTopWidth: 1,
-  },
-  auditHeaderLeft: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: SPACING[8],
-  },
-  auditTitle: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    fontWeight: TYPOGRAPHY.weights.bold,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
-  },
-  auditList: {
-    marginHorizontal: SPACING[16],
-    marginBottom: SPACING[16],
-  },
-  auditEmpty: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    paddingVertical: SPACING[12],
-  },
-  auditEntry: {
-    paddingVertical: SPACING[8],
-    borderBottomWidth: 1,
-  },
-  auditDesc: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.body,
-    lineHeight: 20,
-  },
-  auditMeta: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: TYPOGRAPHY.sizes.label,
-    marginTop: 4,
-  },
-
-  // Bottom action bar
-  actionBar: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING[12],
-    paddingVertical: SPACING[12],
-    paddingHorizontal: SPACING[16],
-    borderTopWidth: 1,
-    ...SHADOWS.card,
-  },
-  actionBtnPrimary: {
-    flex: 1,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: SPACING[8],
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-    maxWidth: 200,
-  },
-  actionBtnPrimaryText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.semibold,
-  },
-  actionBtnOutline: {
-    flex: 1,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: SPACING[8],
-    borderRadius: RADIUS.button,
-    borderWidth: 1.5,
-    maxWidth: 160,
-  },
-  actionBtnOutlineText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 14,
-    fontWeight: TYPOGRAPHY.weights.medium,
-  },
-  actionBtnDisabled: {
-    opacity: 0.6,
-  },
-  actionBtnDisabledText: {
-  },
+const sc = StyleSheet.create({
+  emptyScroll: { flex: 1 },
+  emptyContainer: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: SPACING[16], paddingVertical: SPACING[24] },
+  summaryCard: { borderRadius: RADIUS.card, padding: SPACING[16], width: '100%', maxWidth: 500, marginBottom: SPACING[24] },
+  summaryHeader: { flexDirection: 'row', alignItems: 'center', gap: SPACING[10], marginBottom: SPACING[16], borderBottomWidth: 1, paddingBottom: SPACING[12] },
+  summaryTitle: { flex: 1, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 16, fontWeight: TYPOGRAPHY.weights.bold },
+  guideBox: { flexDirection: 'row', alignItems: 'flex-start', gap: SPACING[10], padding: SPACING[12], borderRadius: RADIUS.input },
+  guideText: { flex: 1, fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, lineHeight: 18 },
+  actionPrompt: { alignItems: 'center', gap: SPACING[12] },
+  emptyTitle: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 18, fontWeight: TYPOGRAPHY.weights.semibold, textAlign: 'center' },
+  emptySub: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 14, textAlign: 'center', maxWidth: 280, lineHeight: 22 },
+  panel: { flex: 1 },
+  tabBarWrapper: { borderBottomWidth: 1 },
+  tabBar: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING[16], height: 46 },
+  tabScroll: { flexGrow: 0 },
+  tabScrollContent: { flexDirection: 'row', paddingHorizontal: SPACING[16], alignItems: 'center', height: 46 },
+  tabActionsRow: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: SPACING[16], paddingVertical: SPACING[6], borderTopWidth: 1 },
+  tabItem: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: SPACING[12], paddingVertical: SPACING[8], position: 'relative', marginRight: SPACING[4] },
+  tabText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, fontWeight: TYPOGRAPHY.weights.medium },
+  tabUnderline: { position: 'absolute', bottom: 0, left: 0, right: 0, height: 2, borderRadius: 1 },
+  tabSpacer: { flex: 1 },
+  iconBtn: { padding: SPACING[8], borderRadius: RADIUS.button },
+  endorsedBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[10], borderBottomWidth: 1 },
+  endorsedText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
+  lockedBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[10], borderBottomWidth: 1 },
+  lockedText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
+  readOnlyBanner: { flexDirection: 'row', alignItems: 'center', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[8] },
+  readOnlyText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.label, flex: 1 },
+  actionBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: SPACING[8], paddingHorizontal: SPACING[16], paddingVertical: SPACING[12], borderTopWidth: 1, flexWrap: 'wrap' },
+  actionBtnPrimary: { flexDirection: 'row', alignItems: 'center', gap: SPACING[6], paddingHorizontal: SPACING[16], paddingVertical: SPACING[8], borderRadius: RADIUS.button },
+  actionBtnPrimaryText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.body, fontWeight: TYPOGRAPHY.weights.semibold },
+  actionBtnOutline: { flexDirection: 'row', alignItems: 'center', gap: SPACING[6], paddingHorizontal: SPACING[16], paddingVertical: SPACING[8], borderRadius: RADIUS.button },
+  actionBtnOutlineText: { fontFamily: TYPOGRAPHY.fonts.primary, fontSize: TYPOGRAPHY.sizes.body, fontWeight: TYPOGRAPHY.weights.semibold },
+  actionBtnDisabled: { opacity: 0.5 },
 });

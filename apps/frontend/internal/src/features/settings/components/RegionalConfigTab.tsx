@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import { COLORS, SPACING, RADIUS, SHADOWS, TYPOGRAPHY, Icon as Lucide, useTheme } from '@edge/ui';
-import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../data/mockAdminSettings';
+import { RegionalConfigCard, BranchOffice, BranchOfficeStats } from '../types/adminSettingsTypes';
 import { DeleteAdminItemModal } from './DeleteAdminItemModal';
 
 interface RegionalConfigTabProps {
@@ -217,6 +217,41 @@ export function RegionalConfigTab({
                           OFFICE: {card.officeCode || 'R10-MAIN'}
                         </Text>
                       </View>
+                    </View>
+
+                    {/* Series & Regional Numbering Badges: RC SOA, RC OP, Fund Cluster */}
+                    <View style={styles.codesRow}>
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="file-text" size={10} color={isDark ? colors.brand[500] : colors.brand.primary} />
+                        <Text style={[styles.codeBadgeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                          RC SOA: {card.rcCodeSoa || '61'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="credit-card" size={10} color={isDark ? colors.brand[500] : colors.brand.primary} />
+                        <Text style={[styles.codeBadgeText, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                          RC OP: {card.rcCodeOp || '61'}
+                        </Text>
+                      </View>
+
+                      <View style={[styles.codeBadgePill, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
+                        <Lucide name="database" size={10} color={colors.textMuted} />
+                        <Text style={[styles.codeBadgeText, { color: colors.textMuted }]}>
+                          FUND: {card.fundCluster || '01'}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Routing Preference Badge */}
+                    <View style={[styles.routingRow, { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light, borderColor: colors.border }]}>
+                      <Lucide name="arrow-right-circle" size={12} color={isDark ? colors.brand[400] : colors.brand.primary} />
+                      <Text style={[styles.routingText, { color: colors.text }]}>
+                        Requests & Complaints Routing:{' '}
+                        <Text style={{ fontWeight: '700', color: isDark ? colors.brand[400] : colors.brand.primary }}>
+                          {card.requestAndComplaintRouting === 'DirectToEvaluator' ? 'Direct to Evaluators' : 'Direct to Legal'}
+                        </Text>
+                      </Text>
                     </View>
 
                     {/* Commissioner Name */}
@@ -687,6 +722,20 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.card,
     borderWidth: 1,
     gap: 4,
+  },
+  routingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[6],
+    borderRadius: RADIUS.input,
+    borderWidth: 1,
+    marginTop: SPACING[4],
+  },
+  routingText: {
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontFamily: TYPOGRAPHY.fonts.primary,
   },
   supportTitle: {
     fontFamily: TYPOGRAPHY.fonts.primary,

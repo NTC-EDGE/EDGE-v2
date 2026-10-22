@@ -100,13 +100,40 @@ export function ForgotPasswordScreen() {
     }
 
     try {
-      await signIn.create({
-        strategy: "reset_password_email_code",
-        identifier: email,
-      });
+      let si = signIn;
+      try {
+        si = await signIn.create({
+          strategy: "reset_password_email_code",
+          identifier: email.trim(),
+        });
+      } catch (createErr: unknown) {
+        // Fallback: create with identifier first, then prepareFirstFactor
+        si = await signIn.create({
+          identifier: email.trim(),
+        });
+      }
+
+      const firstFactors = (si.supportedFirstFactors || signIn.supportedFirstFactors || []) as Array<{
+        strategy?: string;
+        emailAddressId?: string;
+        email_address_id?: string;
+      }>;
+
+      const resetFactor = firstFactors.find((f) => f.strategy === "reset_password_email_code");
+      const emailFactor = firstFactors.find((f) => f.strategy === "email_code");
+      const targetFactor = resetFactor || emailFactor;
+
+      if (targetFactor && typeof signIn.prepareFirstFactor === "function") {
+        const emailAddressId = targetFactor.emailAddressId || targetFactor.email_address_id || "";
+        await signIn.prepareFirstFactor({
+          strategy: (targetFactor.strategy || "reset_password_email_code") as "reset_password_email_code" | "email_code",
+          emailAddressId,
+        });
+      }
 
       setPendingVerification(true);
     } catch (err: unknown) {
+      console.error("Forgot password request error:", err);
       let errMsg = "Failed to send reset instructions.";
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
@@ -157,19 +184,31 @@ export function ForgotPasswordScreen() {
     }
 
     try {
-      const result = await signIn.attemptFirstFactor({
-        strategy: "reset_password_email_code",
-        code,
-        password: newPassword,
-      });
+      const firstFactors = (signIn.supportedFirstFactors || []) as Array<{ strategy?: string }>;
+      const hasResetStrategy = firstFactors.some((f) => f.strategy === "reset_password_email_code");
 
-      if (result.status === "complete") {
-        await setActive({ session: result.createdSessionId });
+      let result;
+      if (hasResetStrategy || firstFactors.length === 0) {
+        result = await signIn.attemptFirstFactor({
+          strategy: "reset_password_email_code",
+          code: code.trim(),
+          password: newPassword,
+        });
+      } else {
+        result = await signIn.attemptFirstFactor({
+          strategy: "email_code",
+          code: code.trim(),
+        });
+      }
+
+      if (result.status === "complete" || signIn.status === "complete") {
+        await setActive({ session: result.createdSessionId || signIn.createdSessionId });
         setSuccess(true);
       } else {
         setGeneralError("Failed to complete password reset. Status: " + result.status);
       }
     } catch (err: unknown) {
+      console.error("Password reset verification error:", err);
       let errMsg = "Failed to reset password. Please check the code and try again.";
       if (isClerkAPIResponseError(err)) {
         errMsg = err.errors[0]?.message || errMsg;
@@ -280,7 +319,7 @@ export function ForgotPasswordScreen() {
                 value={newPassword}
                 onChangeText={setNewPassword}
                 error={newPasswordError}
-                secureTextEntry={true}
+                isPassword={true}
                 autoCapitalize="none"
                 iconName="lock"
               />
@@ -290,7 +329,7 @@ export function ForgotPasswordScreen() {
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 error={confirmPasswordError}
-                secureTextEntry={true}
+                isPassword={true}
                 autoCapitalize="none"
                 iconName="lock"
               />

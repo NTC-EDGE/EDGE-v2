@@ -5,6 +5,7 @@ import { CPEAccreditationWizard } from "../accreditation/customer-premises";
 import { ExamFilingWizard } from "../exams/radio-operator";
 import { GeneralServiceWizard } from "../shared/GeneralServiceWizard";
 import { ServiceDetails } from "./ServiceDetails";
+import { ServiceList } from "./ServiceList";
 import { styles } from "../Services.styles";
 
 interface DetailsColumnProps {
@@ -14,16 +15,17 @@ interface DetailsColumnProps {
 function EmptyPlaceholder({ title, description }: { title: string; description: string }) {
   return (
     <View style={styles.emptyPlaceholder}>
-      <View style={styles.placeholderIllustration}>
-        <Icon name="file" size={48} color="#d1d5db" />
-        <Icon
-          name="mouse-pointer"
-          size={24}
-          color="#1d4ed8"
-          style={styles.pointerOverlay}
-        />
+      <View style={[styles.placeholderIllustration, { backgroundColor: "#EFF6FF", borderWidth: 2, borderColor: "rgba(15, 44, 89, 0.1)" }]}>
+        <Icon name="globe" size={42} color="#0F2C59" />
+        <View style={{ position: "absolute", bottom: -2, right: -2, backgroundColor: "#D97706", borderRadius: 12, padding: 4 }}>
+          <Icon
+            name="mouse-pointer"
+            size={14}
+            color="#FFFFFF"
+          />
+        </View>
       </View>
-      <Text style={styles.placeholderTitleText}>{title}</Text>
+      <Text style={[styles.placeholderTitleText, { color: "#0F2C59" }]}>{title}</Text>
       <Text style={styles.placeholderSubtitleText}>{description}</Text>
     </View>
   );
@@ -44,6 +46,8 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     setSelectedRegionId,
     selectedOfficeId,
     setSelectedOfficeId,
+    selectedScheduleId,
+    setSelectedScheduleId,
     appMode,
     setAppMode,
     bulkMethod,
@@ -73,21 +77,44 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     width,
     activeCategory,
     handleBackToServices,
-    serviceId,
+    handleBackToCategories,
+    handleClearSearch,
+    searchQuery,
+    searchResults,
+    confirmSwitchService,
   } = servicesState;
 
   const isWizardActive = activeWizardService !== null;
 
   const handleClose = () => {
+    if (isWizardActive) {
+      confirmSwitchService(() => {
+        setActiveWizardService(null);
+        setIsDetailsExpanded(false);
+        resetWizardState();
+      });
+    } else {
+      setActiveWizardService(null);
+      setIsDetailsExpanded(false);
+      resetWizardState();
+    }
+  };
+
+  const handleSuccess = () => {
+    servicesState.removeActiveDraftOnSubmit();
     setActiveWizardService(null);
     setIsDetailsExpanded(false);
     setSelectedService(null);
     resetWizardState();
+    navigation.navigate("MyApplications");
   };
 
-  const handleSuccess = () => {
-    handleClose();
-    navigation.navigate("MyApplications");
+  const handleApplyMore = () => {
+    servicesState.removeActiveDraftOnSubmit();
+    setActiveWizardService(null);
+    setIsDetailsExpanded(false);
+    setSelectedService(null);
+    resetWizardState();
   };
 
   return (
@@ -101,77 +128,141 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
       <View style={{ flex: 1 }}>
         {activeWizardService === "cpe-accreditation" ? (
           <CPEAccreditationWizard
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={wizardStep} setStep={setWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            bulkMethod={bulkMethod} setBulkMethod={setBulkMethod}
-            isFileUploaded={isFileUploaded} setIsFileUploaded={setIsFileUploaded}
-            uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
-            applicants={applicants} setApplicants={setApplicants}
-            currentApplicantIndex={currentApplicantIndex} setCurrentApplicantIndex={setCurrentApplicantIndex}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={wizardStep}
+            setStep={setWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            bulkMethod={bulkMethod}
+            setBulkMethod={setBulkMethod}
+            isFileUploaded={isFileUploaded}
+            setIsFileUploaded={setIsFileUploaded}
+            uploadedFileName={uploadedFileName}
+            setUploadedFileName={setUploadedFileName}
+            applicants={applicants}
+            setApplicants={setApplicants}
+            currentApplicantIndex={currentApplicantIndex}
+            setCurrentApplicantIndex={setCurrentApplicantIndex}
             serviceId={selectedService?.id}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "radio-operator-exam" ? (
           <ExamFilingWizard
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={examWizardStep} setStep={setExamWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            bulkMethod={bulkMethod} setBulkMethod={setBulkMethod}
-            isFileUploaded={isFileUploaded} setIsFileUploaded={setIsFileUploaded}
-            uploadedFileName={uploadedFileName} setUploadedFileName={setUploadedFileName}
-            applicants={examApplicants} setApplicants={setExamApplicants}
-            currentApplicantIndex={currentExamApplicantIndex} setCurrentApplicantIndex={setCurrentExamApplicantIndex}
-            isBulkSubmitOpen={isBulkSubmitOpen} setIsBulkSubmitOpen={setIsBulkSubmitOpen}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={examWizardStep}
+            setStep={setExamWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            bulkMethod={bulkMethod}
+            setBulkMethod={setBulkMethod}
+            isFileUploaded={isFileUploaded}
+            setIsFileUploaded={setIsFileUploaded}
+            uploadedFileName={uploadedFileName}
+            setUploadedFileName={setUploadedFileName}
+            applicants={examApplicants}
+            setApplicants={setExamApplicants}
+            currentApplicantIndex={currentExamApplicantIndex}
+            setCurrentApplicantIndex={setCurrentExamApplicantIndex}
+            isBulkSubmitOpen={isBulkSubmitOpen}
+            setIsBulkSubmitOpen={setIsBulkSubmitOpen}
             serviceId={selectedService?.id}
             serviceName={selectedService?.title}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : activeWizardService === "general-service" &&
           selectedService !== null ? (
           <GeneralServiceWizard
             service={selectedService}
-            onClose={handleClose} onSuccess={handleSuccess}
-            isDetailsExpanded={isDetailsExpanded} onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
-            step={wizardStep} setStep={setWizardStep}
-            selectedRegionId={selectedRegionId} setSelectedRegionId={setSelectedRegionId}
-            selectedOfficeId={selectedOfficeId} setSelectedOfficeId={setSelectedOfficeId}
-            appMode={appMode} setAppMode={setAppMode}
-            applicants={generalApplicants} setApplicants={setGeneralApplicants}
-            currentApplicantIndex={currentGeneralApplicantIndex} setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+            onClose={handleClose}
+            onSuccess={handleSuccess}
+            onApplyMore={handleApplyMore}
+            isDetailsExpanded={isDetailsExpanded}
+            onToggleExpand={() => setIsDetailsExpanded((prev) => !prev)}
+            step={wizardStep}
+            setStep={setWizardStep}
+            selectedRegionId={selectedRegionId}
+            setSelectedRegionId={setSelectedRegionId}
+            selectedOfficeId={selectedOfficeId}
+            setSelectedOfficeId={setSelectedOfficeId}
+            selectedScheduleId={selectedScheduleId}
+            setSelectedScheduleId={setSelectedScheduleId}
+            appMode={appMode}
+            setAppMode={setAppMode}
+            applicants={generalApplicants}
+            setApplicants={setGeneralApplicants}
+            currentApplicantIndex={currentGeneralApplicantIndex}
+            setCurrentApplicantIndex={setCurrentGeneralApplicantIndex}
+            triggerOpenApplicant={servicesState.triggerOpenApplicant}
+            triggerBulkSubmit={servicesState.triggerBulkSubmit}
+            onSaveDraft={servicesState.saveActiveAsDraft}
+            isSavingDraft={servicesState.isSavingDraft}
           />
         ) : selectedService !== null ? (
           <ServiceDetails
             selectedService={selectedService}
             onBackToServices={handleBackToServices}
             onApplyPress={() => {
-              const titleLower = selectedService.title.toLowerCase();
-              if (titleLower.includes("premises")) {
-                setActiveWizardService("cpe-accreditation");
-              } else if (titleLower.includes("radio operator") || titleLower.includes("exam") || titleLower.includes("examination")) {
-                setActiveWizardService("radio-operator-exam");
-              } else {
-                setActiveWizardService("general-service");
+              if (servicesState.isSubmissionRestricted) {
+                servicesState.setRequestAccessModalVisible(true);
+                return;
               }
+              setActiveWizardService("general-service");
             }}
+            onRequestAccessPress={() => {
+              servicesState.setRequestAccessModalVisible(true);
+            }}
+            isSubmissionRestricted={servicesState.isSubmissionRestricted}
             isMobile={isMobile}
           />
+        ) : searchQuery.trim() !== "" ? (
+          <ServiceList
+            searchQuery={searchQuery}
+            activeCategory={null}
+            searchResults={searchResults}
+            onServiceSelect={(service) => {
+              confirmSwitchService(() => {
+                setSelectedService(service);
+              });
+            }}
+            onBack={() => confirmSwitchService(handleClearSearch)}
+            isMobile={isMobile}
+            isWizardActive={activeWizardService !== null}
+          />
         ) : activeCategory !== null ? (
-          !isMobile && (
-            <EmptyPlaceholder
-              title="Select a service"
-              description="Please choose a specific service from the list on the left to view the required documents and submit an application."
-            />
-          )
+          <ServiceList
+            searchQuery=""
+            activeCategory={activeCategory}
+            searchResults={null}
+            onServiceSelect={(service) => {
+              confirmSwitchService(() => {
+                setSelectedService(service);
+              });
+            }}
+            onBack={() => confirmSwitchService(handleBackToCategories)}
+            isMobile={isMobile}
+            isWizardActive={activeWizardService !== null}
+          />
         ) : (
           !isMobile && (
             <EmptyPlaceholder
-              title="No service selected"
-              description="Choose a category on the left, then select a service to view its application details and requirements."
+              title="Select a category"
+              description="Choose a category from the left navigation panel to view and apply for NTC services."
             />
           )
         )}

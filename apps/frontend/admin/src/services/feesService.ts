@@ -1,5 +1,18 @@
 import { useApi } from './api';
-import { Fee, ServiceFee, Note, Element, ServiceVariant, ServiceVariantFee, ServiceVariantElementFee } from '@edge/api';
+import {
+  Fee,
+  ServiceFee,
+  Note,
+  ServiceNote,
+  SoaNote,
+  Element,
+  ServiceVariant,
+  ServiceVariantFee,
+  ServiceVariantElementFee,
+  ServiceFeeGroup,
+  ServiceVariantFeeGroup,
+  ServiceVariantElementFeeGroup,
+} from '@edge/api';
 
 export interface ServiceCatalogItem {
   id: string;
@@ -71,19 +84,24 @@ export function useFeesService() {
   };
 
   // --- SERVICE FEES CRUD ---
-  const useServiceFees = (pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceFees = (serviceId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
+      if (serviceId) params.append('serviceId', serviceId);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.fees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -93,8 +111,8 @@ export function useFeesService() {
     return await post<ServiceFee[], { serviceId: string; fees: { feeId: string; amount: number }[] }>('/api/v2/service-fees', data);
   };
 
-  const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'>): Promise<ServiceFee> => {
-    return await put<ServiceFee, Omit<ServiceFee, 'id'>>(`/api/v2/service-fees/${id}`, data);
+  const updateServiceFee = async (id: string, data: Omit<ServiceFee, 'id'> | Partial<ServiceFee>): Promise<ServiceFee> => {
+    return await put<ServiceFee, { id: string } & Partial<ServiceFee>>(`/api/v2/service-fees/${id}`, { id, ...data });
   };
 
   const deleteServiceFee = async (id: string): Promise<void> => {
@@ -143,10 +161,14 @@ export function useFeesService() {
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-variant-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceVariantFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceVariantFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.fees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -165,20 +187,25 @@ export function useFeesService() {
   };
 
   // --- SERVICE VARIANT ELEMENT FEES CRUD ---
-  const useServiceVariantElementFees = (serviceVariantId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceVariantElementFees = (serviceVariantId?: string, elementId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      if (elementId) params.append('elementId', elementId);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
       url = `/api/v2/service-variant-element-fees?${params.toString()}`;
     }
-    const query = useQuery<PaginatedApiResponse<ServiceVariantElementFee>>(url);
+    const query = useQuery<PaginatedApiResponse<ServiceVariantElementFeeGroup>>(url);
+    const groups = query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [];
+    const flattenedFees = groups.flatMap((g) => g.elementFees ?? []);
+
     return {
       ...query,
-      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      groups,
+      data: flattenedFees,
       totalCount: query.data?.totalCount ?? 0,
       totalPages: query.data?.totalPages ?? 0
     };
@@ -213,7 +240,7 @@ export function useFeesService() {
       if (searchTerm) params.append('searchTerm', searchTerm);
       if (serviceId) params.append('serviceId', serviceId);
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
-      url = `/api/v2/notes?${params.toString()}`;
+      url = `/api/v2/service-notes?${params.toString()}`;
     }
     const query = useQuery<PaginatedApiResponse<Note>>(url);
     return {
@@ -225,15 +252,53 @@ export function useFeesService() {
   };
 
   const createNote = async (data: Omit<Note, 'id'>): Promise<Note> => {
-    return await post<Note, Omit<Note, 'id'>>('/api/v2/notes', data);
+    return await post<Note, Omit<Note, 'id'>>('/api/v2/service-notes', data);
   };
 
   const updateNote = async (id: string, data: Omit<Note, 'id'>): Promise<Note> => {
-    return await put<Note, Omit<Note, 'id'>>(`/api/v2/notes/${id}`, data);
+    return await put<Note, Omit<Note, 'id'>>(`/api/v2/service-notes/${id}`, data);
   };
 
   const deleteNote = async (id: string): Promise<void> => {
-    await del<void>(`/api/v2/notes/${id}`);
+    await del<void>(`/api/v2/service-notes/${id}`);
+  };
+
+  // --- SOA NOTES CRUD ---
+  const useSoaNotes = (
+    pageNumber = 1,
+    pageSize = 20,
+    searchTerm?: string,
+    enabled = true,
+    tenantId?: string | null
+  ) => {
+    let url: string | null = null;
+    if (enabled) {
+      const params = new URLSearchParams();
+      params.append('pageNumber', pageNumber.toString());
+      params.append('pageSize', pageSize.toString());
+      if (searchTerm) params.append('searchTerm', searchTerm);
+      if (tenantId) params.append('tenantId', tenantId);
+      url = `/api/v2/soa-notes?${params.toString()}`;
+    }
+    const query = useQuery<PaginatedApiResponse<SoaNote>>(url);
+    return {
+      ...query,
+      data: query.data?.data !== undefined && query.data?.data !== null ? query.data.data : [],
+      totalCount: query.data?.totalCount ?? 0,
+      totalPages: query.data?.totalPages ?? 0
+    };
+  };
+
+  const createSoaNote = async (data: { notes: string; code?: string | null; title?: string | null; tenantId?: string | null }): Promise<SoaNote> => {
+    return await post<SoaNote, { notes: string; code?: string | null; title?: string | null; tenantId?: string | null }>('/api/v2/soa-notes', data);
+  };
+
+  const updateSoaNote = async (id: string, data: { id: string; notes: string; code?: string | null; title?: string | null; tenantId?: string | null }): Promise<SoaNote> => {
+    return await put<SoaNote, { id: string; notes: string; code?: string | null; title?: string | null; tenantId?: string | null }>(`/api/v2/soa-notes/${id}`, data);
+  };
+
+  const deleteSoaNote = async (id: string): Promise<void> => {
+    await del<void>(`/api/v2/soa-notes/${id}`);
   };
 
   // --- SERVICE VARIANT ELEMENTS CRUD ---
@@ -276,6 +341,37 @@ export function useFeesService() {
     await del<void>(`/api/v2/service-variant-elements/${id}`);
   };
 
+  const updateVariantFormula = async (
+    variantId: string,
+    data: { formulaExpression: string; description?: string | null; applyLateRenewalSurcharge?: boolean }
+  ): Promise<boolean> => {
+    const res = await put<{ succeeded: boolean; data: boolean }, { formulaExpression: string; description?: string | null; applyLateRenewalSurcharge: boolean }>(
+      `/api/v2/service-variants/${variantId}/formula`,
+      {
+        formulaExpression: data.formulaExpression,
+        description: data.description ?? null,
+        applyLateRenewalSurcharge: data.applyLateRenewalSurcharge ?? false,
+      }
+    );
+    return res.succeeded;
+  };
+
+  const updateVariantElementFormula = async (
+    data: { serviceVariantId: string; elementId: string; formulaExpression: string; description?: string | null; applyLateRenewalSurcharge?: boolean }
+  ): Promise<boolean> => {
+    const res = await put<{ succeeded: boolean; data: boolean }, { serviceVariantId: string; elementId: string; formulaExpression: string; description?: string | null; applyLateRenewalSurcharge: boolean }>(
+      '/api/v2/service-variant-elements/formula',
+      {
+        serviceVariantId: data.serviceVariantId,
+        elementId: data.elementId,
+        formulaExpression: data.formulaExpression,
+        description: data.description ?? null,
+        applyLateRenewalSurcharge: data.applyLateRenewalSurcharge ?? false,
+      }
+    );
+    return res.succeeded;
+  };
+
   return {
     useFees,
     createFee,
@@ -294,14 +390,24 @@ export function useFeesService() {
     createServiceVariantFee,
     updateServiceVariantFee,
     deleteServiceVariantFee,
+    updateVariantFormula,
+    updateVariantElementFormula,
     useServiceVariantElementFees,
     createServiceVariantElementFee,
     updateServiceVariantElementFee,
     deleteServiceVariantElementFee,
+    useServiceNotes: useNotes,
+    createServiceNote: createNote,
+    updateServiceNote: updateNote,
+    deleteServiceNote: deleteNote,
     useNotes,
     createNote,
     updateNote,
     deleteNote,
+    useSoaNotes,
+    createSoaNote,
+    updateSoaNote,
+    deleteSoaNote,
     useServiceVariantElements,
     createServiceVariantElement,
     updateServiceVariantElement,

@@ -1,0 +1,580 @@
+using System;
+using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
+using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
+using Amazon.Runtime;
+using Amazon.S3;
+using Amazon.S3.Model;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using EDGE.Infrastructure.Options;
+using EDGE.Infrastructure.Printing.Models;
+
+namespace EDGE.Infrastructure.Printing.Services.Templates;
+
+public class CloudflareR2PdfTemplateProvider : IPdfTemplateProvider
+{
+    private const string TemplatePrefix = "templates/";
+    private readonly CloudflareR2Options _options;
+    private readonly IAmazonS3? _s3Client;
+    private readonly ILogger<CloudflareR2PdfTemplateProvider> _logger;
+    private readonly ConcurrentDictionary<string, byte[]> _cache = new(StringComparer.OrdinalIgnoreCase);
+
+    public CloudflareR2PdfTemplateProvider(
+        IOptions<CloudflareR2Options> options,
+        ILogger<CloudflareR2PdfTemplateProvider> logger,
+        IAmazonS3? s3Client = null)
+    {
+        _options = options?.Value ?? new CloudflareR2Options();
+        _logger = logger;
+
+        if (s3Client != null)
+        {
+            _s3Client = s3Client;
+        }
+        else if (!string.IsNullOrWhiteSpace(_options.AccountId) &&
+                 !string.IsNullOrWhiteSpace(_options.AccessKeyId) &&
+                 !string.IsNullOrWhiteSpace(_options.SecretAccessKey) &&
+                 !string.IsNullOrWhiteSpace(_options.BucketName))
+        {
+            var s3Config = new AmazonS3Config
+            {
+                ServiceURL = _options.ServiceUrl,
+                ForcePathStyle = true,
+                AuthenticationRegion = "auto"
+            };
+            var credentials = new BasicAWSCredentials(_options.AccessKeyId, _options.SecretAccessKey);
+            _s3Client = new AmazonS3Client(credentials, s3Config);
+        }
+        else
+        {
+            _logger.LogWarning("Cloudflare R2 configuration is incomplete for PDF Template Provider. Cloud storage operations will be disabled.");
+            _s3Client = null;
+        }
+    }
+
+    public async Task<PdfTemplateResource?> GetTemplateResourceAsync(string templateId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            return null;
+        }
+
+        var key = GetStorageKey(templateId);
+        var cleanId = NormalizeTemplateId(templateId);
+
+        // 1. Check in-memory cache
+        if (_cache.TryGetValue(key, out var cachedBytes))
+        {
+            var cachedTemplate = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
+            return new PdfTemplateResource(cachedTemplate, new MemoryStream(cachedBytes, writable: false));
+        }
+
+        // 2. Fetch from Cloudflare R2 (cloud override)
+        if (_s3Client != null)
+        {
+            try
+            {
+                var getRequest = new GetObjectRequest
+                {
+                    BucketName = _options.BucketName,
+                    Key = key
+                };
+
+                using var response = await _s3Client.GetObjectAsync(getRequest, cancellationToken);
+                using var memoryStream = new MemoryStream();
+                await response.ResponseStream.CopyToAsync(memoryStream, cancellationToken);
+
+                var bytes = memoryStream.ToArray();
+                _cache[key] = bytes;
+
+                var template = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
+                return new PdfTemplateResource(template, new MemoryStream(bytes, writable: false));
+            }
+            catch (AmazonS3Exception s3Ex) when (s3Ex.StatusCode == HttpStatusCode.NotFound ||
+                                                 string.Equals(s3Ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(s3Ex.ErrorCode, "NotFound", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogInformation("Template {Key} was not found in Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to retrieve template {Key} from Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+            }
+        }
+
+        // 3. Fallback to Embedded Assembly Resources in EDGE.Infrastructure.dll
+        var embeddedBytes = GetEmbeddedTemplateBytes(cleanId);
+        if (embeddedBytes != null)
+        {
+            _cache[key] = embeddedBytes;
+            var template = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
+            return new PdfTemplateResource(template, new MemoryStream(embeddedBytes, writable: false));
+        }
+
+        // 4. Fallback check for local project files (e.g. templates/soa-report-template.pdf) to auto-seed
+        var localFallbackPath = ResolveLocalTemplatePath(cleanId);
+        if (localFallbackPath != null && File.Exists(localFallbackPath))
+        {
+            try
+            {
+                var localBytes = await File.ReadAllBytesAsync(localFallbackPath, cancellationToken);
+                _cache[key] = localBytes;
+
+                // Auto-seed to Cloudflare R2 if client is available
+                if (_s3Client != null)
+                {
+                    _ = Task.Run(async () =>
+                    {
+                        try
+                        {
+                            using var uploadStream = new MemoryStream(localBytes);
+                            await UploadTemplateAsync(cleanId, uploadStream, "application/pdf", CancellationToken.None);
+                            _logger.LogInformation("Successfully auto-seeded local template {Key} to Cloudflare R2.", key);
+                        }
+                        catch (Exception seedEx)
+                        {
+                            _logger.LogWarning(seedEx, "Could not auto-seed local template {Key} to Cloudflare R2.", key);
+                        }
+                    }, CancellationToken.None);
+                }
+
+                var template = new PdfTemplate(cleanId, cleanId, Path.GetFileName(key), RenderingStrategy.Overlay);
+                return new PdfTemplateResource(template, new MemoryStream(localBytes, writable: false));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to read local fallback template from {Path}.", localFallbackPath);
+            }
+        }
+
+        return null;
+    }
+
+    public async Task<string> UploadTemplateAsync(
+        string templateId,
+        Stream pdfStream,
+        string? contentType = "application/pdf",
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            throw new ArgumentException("Template ID cannot be null or whitespace.", nameof(templateId));
+        }
+
+        if (pdfStream == null)
+        {
+            throw new ArgumentNullException(nameof(pdfStream));
+        }
+
+        var key = GetStorageKey(templateId);
+
+        byte[] bytes;
+        if (pdfStream is MemoryStream ms && pdfStream.CanSeek)
+        {
+            bytes = ms.ToArray();
+        }
+        else
+        {
+            if (pdfStream.CanSeek)
+            {
+                pdfStream.Position = 0;
+            }
+            using var copyMs = new MemoryStream();
+            await pdfStream.CopyToAsync(copyMs, cancellationToken);
+            bytes = copyMs.ToArray();
+        }
+
+        if (_s3Client != null)
+        {
+            using var uploadStream = new MemoryStream(bytes);
+            var putRequest = new PutObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = key,
+                InputStream = uploadStream,
+                ContentType = string.IsNullOrWhiteSpace(contentType) ? "application/pdf" : contentType,
+                DisablePayloadSigning = true,
+                DisableDefaultChecksumValidation = true
+            };
+
+            await _s3Client.PutObjectAsync(putRequest, cancellationToken);
+            _logger.LogInformation("Uploaded template {Key} to Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+        }
+        else
+        {
+            _logger.LogWarning("Cloudflare R2 is not configured; storing template {Key} only in memory cache.", key);
+        }
+
+        _cache[key] = bytes;
+        return key;
+    }
+
+    public async Task<bool> DeleteTemplateAsync(string templateId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            return false;
+        }
+
+        var key = GetStorageKey(templateId);
+        _cache.TryRemove(key, out _);
+
+        if (_s3Client == null)
+        {
+            return true;
+        }
+
+        try
+        {
+            var deleteRequest = new DeleteObjectRequest
+            {
+                BucketName = _options.BucketName,
+                Key = key
+            };
+
+            await _s3Client.DeleteObjectAsync(deleteRequest, cancellationToken);
+            _logger.LogInformation("Deleted template {Key} from Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+            return true;
+        }
+        catch (AmazonS3Exception s3Ex)
+        {
+            _logger.LogError(s3Ex, "Failed to delete template {Key} from Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Unexpected error deleting template {Key} from Cloudflare R2 bucket {BucketName}.", key, _options.BucketName);
+            return false;
+        }
+    }
+
+    public async Task<bool> TemplateExistsAsync(string templateId, CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            return false;
+        }
+
+        var key = GetStorageKey(templateId);
+        var cleanId = NormalizeTemplateId(templateId);
+
+        if (_cache.ContainsKey(key))
+        {
+            return true;
+        }
+
+        if (GetEmbeddedTemplateBytes(cleanId) != null)
+        {
+            return true;
+        }
+
+        if (_s3Client != null)
+        {
+            try
+            {
+                var metaRequest = new GetObjectMetadataRequest
+                {
+                    BucketName = _options.BucketName,
+                    Key = key
+                };
+
+                await _s3Client.GetObjectMetadataAsync(metaRequest, cancellationToken);
+                return true;
+            }
+            catch (AmazonS3Exception s3Ex) when (s3Ex.StatusCode == HttpStatusCode.NotFound ||
+                                                 string.Equals(s3Ex.ErrorCode, "NoSuchKey", StringComparison.OrdinalIgnoreCase) ||
+                                                 string.Equals(s3Ex.ErrorCode, "NotFound", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking existence of template {Key} in Cloudflare R2.", key);
+            }
+        }
+
+        var localPath = ResolveLocalTemplatePath(cleanId);
+        return localPath != null && File.Exists(localPath);
+    }
+
+    public async Task<IReadOnlyList<string>> ListTemplatesAsync(CancellationToken cancellationToken = default)
+    {
+        var resultList = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        // Include embedded templates in assembly
+        foreach (var id in GetEmbeddedTemplateIds())
+        {
+            resultList.Add(id);
+        }
+
+        // Include items in local cache
+        foreach (var k in _cache.Keys)
+        {
+            resultList.Add(GetTemplateIdFromKey(k));
+        }
+
+        if (_s3Client != null)
+        {
+            try
+            {
+                var listRequest = new ListObjectsV2Request
+                {
+                    BucketName = _options.BucketName,
+                    Prefix = TemplatePrefix
+                };
+
+                var response = await _s3Client.ListObjectsV2Async(listRequest, cancellationToken);
+                if (response.S3Objects != null)
+                {
+                    foreach (var obj in response.S3Objects)
+                    {
+                        var id = GetTemplateIdFromKey(obj.Key);
+                        if (!string.IsNullOrWhiteSpace(id))
+                        {
+                            resultList.Add(id);
+                        }
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to list templates from Cloudflare R2 bucket {BucketName}.", _options.BucketName);
+            }
+        }
+
+        return resultList.OrderBy(x => x).ToList();
+    }
+
+    public void InvalidateCache(string? templateId = null)
+    {
+        if (string.IsNullOrWhiteSpace(templateId))
+        {
+            _cache.Clear();
+            _logger.LogInformation("All template cache invalidated.");
+        }
+        else
+        {
+            var key = GetStorageKey(templateId);
+            _cache.TryRemove(key, out _);
+            _logger.LogInformation("Invalidated cache for template {Key}.", key);
+        }
+    }
+
+    private static string NormalizeTemplateId(string templateId)
+    {
+        if (string.IsNullOrWhiteSpace(templateId)) return string.Empty;
+        var clean = templateId.Trim();
+        if (clean.StartsWith(TemplatePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            clean = clean[TemplatePrefix.Length..];
+        }
+        return clean;
+    }
+
+    private static string GetStorageKey(string templateId)
+    {
+        var clean = NormalizeTemplateId(templateId);
+        var fileName = clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf";
+        return $"{TemplatePrefix}{fileName}";
+    }
+
+    private static string GetTemplateIdFromKey(string key)
+    {
+        if (key.StartsWith(TemplatePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return key[TemplatePrefix.Length..];
+        }
+        return key;
+    }
+
+    private static string? ResolveLocalTemplatePath(string templateName)
+    {
+        var clean = NormalizeTemplateId(templateName);
+        var nameWithoutExt = clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean[..^4] : clean;
+        List<string> fileNames;
+
+        if (nameWithoutExt.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            nameWithoutExt.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "soa-report-template.pdf" };
+        }
+        else if (nameWithoutExt.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "order-of-payment-template.pdf", "order-of-payment.pdf" };
+        }
+        else if (nameWithoutExt.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "or_portrait-template.pdf" };
+        }
+        else if (nameWithoutExt.Equals("or-landscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_landscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or-landscape-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_landscape-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("orlandscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReciept", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "or-landscape-template.pdf", "OfficialReciept.pdf" };
+        }
+        else if (nameWithoutExt.Equals("or-landscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_landscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or-landscape-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_landscape-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("orlandscape", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReciept", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "or-landscape-template.pdf", "OfficialReciept.pdf" };
+        }
+        else if (nameWithoutExt.Equals("ntc-1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC24", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "NTC1-24.pdf", "ntc-1-24.pdf" };
+        }
+        else if (nameWithoutExt.Equals("ntc-1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC25", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "NTC1-25.pdf", "ntc-1-25.pdf" };
+        }
+        else
+        {
+            fileNames = new List<string> { clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf" };
+        }
+
+        foreach (var fileName in fileNames)
+        {
+            var searchRoots = new[]
+            {
+                Directory.GetCurrentDirectory(),
+                AppDomain.CurrentDomain.BaseDirectory
+            };
+
+            foreach (var root in searchRoots)
+            {
+                var dir = new DirectoryInfo(root);
+                while (dir != null)
+                {
+                    var directTemplates = Path.Combine(dir.FullName, "templates", fileName);
+                    if (File.Exists(directTemplates))
+                    {
+                        return Path.GetFullPath(directTemplates);
+                    }
+
+                    var infrastructureTemplates = Path.Combine(dir.FullName, "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", fileName);
+                    if (File.Exists(infrastructureTemplates))
+                    {
+                        return Path.GetFullPath(infrastructureTemplates);
+                    }
+
+                    dir = dir.Parent;
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static byte[]? GetEmbeddedTemplateBytes(string templateName)
+    {
+        var clean = NormalizeTemplateId(templateName);
+        var nameWithoutExt = clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean[..^4] : clean;
+        List<string> fileNames;
+
+        if (nameWithoutExt.Equals("soa", StringComparison.OrdinalIgnoreCase) ||
+            nameWithoutExt.Equals("soa-report-template", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "soa-report-template.pdf" };
+        }
+        else if (nameWithoutExt.Equals("op", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("order-of-payment-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OrderOfPayment", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "order-of-payment-template.pdf" };
+        }
+        else if (nameWithoutExt.Equals("or", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("or_portrait-template", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("AF-51", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("OfficialReceipt", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "or_portrait-template.pdf" };
+        }
+        else if (nameWithoutExt.Equals("ntc-1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC1-24", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC24", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "NTC1-24.pdf", "ntc-1-24.pdf" };
+        }
+        else if (nameWithoutExt.Equals("ntc-1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("ntc25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC1-25", StringComparison.OrdinalIgnoreCase) ||
+                 nameWithoutExt.Equals("NTC25", StringComparison.OrdinalIgnoreCase))
+        {
+            fileNames = new List<string> { "NTC1-25.pdf", "ntc-1-25.pdf" };
+        }
+        else
+        {
+            fileNames = new List<string> { clean.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? clean : $"{clean}.pdf" };
+        }
+
+        var assembly = typeof(CloudflareR2PdfTemplateProvider).Assembly;
+        var allResourceNames = assembly.GetManifestResourceNames();
+
+        foreach (var fileName in fileNames)
+        {
+            var match = allResourceNames.FirstOrDefault(r =>
+                r.EndsWith($".{fileName}", StringComparison.OrdinalIgnoreCase) ||
+                r.EndsWith(fileName, StringComparison.OrdinalIgnoreCase));
+
+            if (match != null)
+            {
+                using var stream = assembly.GetManifestResourceStream(match);
+                if (stream != null)
+                {
+                    using var ms = new MemoryStream();
+                    stream.CopyTo(ms);
+                    return ms.ToArray();
+                }
+            }
+        }
+
+        return null;
+    }
+
+    private static IReadOnlyList<string> GetEmbeddedTemplateIds()
+    {
+        var list = new List<string>();
+        var assembly = typeof(CloudflareR2PdfTemplateProvider).Assembly;
+        const string prefix = "EDGE.Infrastructure.Printing.Templates.";
+
+        foreach (var r in assembly.GetManifestResourceNames())
+        {
+            if (r.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && r.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase))
+            {
+                list.Add(r[prefix.Length..]);
+            }
+        }
+
+        return list;
+    }
+}

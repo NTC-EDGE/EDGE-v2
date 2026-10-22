@@ -84,44 +84,63 @@ function parseClerkSignInStatus(errObj: object): string | null {
  */
 function parseBackendApiResponse(errObj: object): string | null {
   const response = getProperty(errObj, "response");
-  if (typeof response !== "object" || response === null) return null;
+  const data = (typeof response === "object" && response !== null)
+    ? getProperty(response, "data")
+    : errObj;
 
-  const data = getProperty(response, "data");
-  const status = getProperty(response, "status");
+  const status = (typeof response === "object" && response !== null)
+    ? getProperty(response, "status")
+    : getProperty(errObj, "status");
 
   if (typeof data === "object" && data !== null) {
-    // ApiResponse<T> format: { succeeded: false, message: "..." }
+    // 1. FluentValidation dictionary format: { errors: { Name: ["Requirement Name must be unique."] } }
+    const errors = getProperty(data, "errors");
+    if (typeof errors === "object" && errors !== null) {
+      const allMsgs: string[] = [];
+      for (const key of Object.keys(errors)) {
+        const val = getProperty(errors, key);
+        if (Array.isArray(val)) {
+          for (const item of val) {
+            if (typeof item === "string" && item.trim().length > 0) {
+              allMsgs.push(item.trim());
+            }
+          }
+        } else if (typeof val === "string" && val.trim().length > 0) {
+          allMsgs.push(val.trim());
+        }
+      }
+      if (allMsgs.length > 0) {
+        return sanitizeErrorMessage(allMsgs.join(" "));
+      }
+    }
+
+    // 2. ApiResponse<T> format: { succeeded: false, message: "..." }
     const message = getProperty(data, "message");
     if (typeof message === "string" && message.trim().length > 0) {
       return sanitizeErrorMessage(message);
     }
 
-    // ProblemDetails format: { detail: "...", title: "..." }
+    // 3. ProblemDetails detail format: { detail: "..." }
     const detail = getProperty(data, "detail");
     if (typeof detail === "string" && detail.trim().length > 0) {
       return sanitizeErrorMessage(detail);
     }
-    const title = getProperty(data, "title");
-    if (typeof title === "string" && title.trim().length > 0) {
-      return sanitizeErrorMessage(title);
-    }
 
-    // FluentValidation dictionary format: { errors: { SelectedRegion: ["Region is required"] } }
-    const errors = getProperty(data, "errors");
-    if (typeof errors === "object" && errors !== null) {
-      const keys = Object.keys(errors);
-      if (keys.length > 0) {
-        const firstArr = getProperty(errors, keys[0]);
-        if (Array.isArray(firstArr) && firstArr.length > 0 && typeof firstArr[0] === "string") {
-          return sanitizeErrorMessage(firstArr[0]);
-        }
-      }
+    // 4. ProblemDetails title (only if not generic title like "One or more validation errors occurred.")
+    const title = getProperty(data, "title");
+    if (
+      typeof title === "string" &&
+      title.trim().length > 0 &&
+      !title.toLowerCase().includes("validation errors occurred") &&
+      !title.toLowerCase().includes("bad request")
+    ) {
+      return sanitizeErrorMessage(title);
     }
   }
 
   // HTTP status code fallbacks (even when response body is empty)
   if (typeof status === "number") {
-    if (status === 403) return "You don't have permission to perform this action.";
+    if (status === 403) return "Access Denied: You do not have permission to access this resource or perform this action. Please contact your system administrator.";
     if (status === 409) return "A conflict occurred with the resource state (e.g., duplicate code or active references exist).";
     if (status === 401) return "Session Expired: Please log in again to continue.";
     if (status === 404) return "Resource Not Found: The requested record does not exist.";
@@ -143,36 +162,38 @@ function parseClerkErrorPayload(errObj: object): string | null {
 
   const code = getProperty(targetErr, "code");
   const message = getProperty(targetErr, "message");
-  const longMessage = getProperty(targetErr, "long_message");
+  const longMessage = getProperty(targetErr, "long_message") ?? getProperty(targetErr, "longMessage");
 
-  if (code === "strategy_for_user_invalid") {
-    return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
-  }
-  if (code === "too_many_requests" || (typeof code === "string" && code.includes("rate_limit"))) {
-    return typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Too many requests. Please try again in a bit.";
-  }
-  if (code === "form_identifier_not_found") {
-    return typeof longMessage === "string" && longMessage.trim().length > 0
-      ? longMessage.trim()
-      : typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Couldn't find your account. Please check your email or username.";
-  }
-  if (code === "form_password_incorrect") {
-    return typeof longMessage === "string" && longMessage.trim().length > 0
-      ? longMessage.trim()
-      : typeof message === "string" && message.trim().length > 0
-      ? message.trim()
-      : "Incorrect password. Please try again.";
-  }
-
+  // 1. Prioritize actual backend response message if provided by authentication provider
   if (typeof longMessage === "string" && longMessage.trim().length > 0) {
     return sanitizeErrorMessage(longMessage);
   }
   if (typeof message === "string" && message.trim().length > 0) {
     return sanitizeErrorMessage(message);
+  }
+
+  // 2. Known error code fallbacks when no backend message is provided
+  if (code === "external_account_not_found") {
+    return "The selected Google account is not yet registered. Please make sure to sign in with a registered account.";
+  }
+
+  if (code === "strategy_for_user_invalid") {
+    return "Password reset or password login is unavailable for this account because it was registered using Google Sign-In. Please sign in with Google.";
+  }
+  if (code === "too_many_requests" || (typeof code === "string" && code.includes("rate_limit"))) {
+    return "Too many requests. Please try again in a bit.";
+  }
+  if (
+    code === "form_identifier_not_found" ||
+    code === "account_not_found" ||
+    code === "user_not_found" ||
+    code === "not_allowed_to_sign_up" ||
+    code === "identifier_not_found"
+  ) {
+    return "The selected account is not yet registered. Please make sure to sign in with a registered account.";
+  }
+  if (code === "form_password_incorrect") {
+    return "Incorrect password. Please try again.";
   }
 
   return null;

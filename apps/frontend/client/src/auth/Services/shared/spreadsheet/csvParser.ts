@@ -92,14 +92,44 @@ export function parseSpreadsheetContent(
     };
 
     const firstName = getVal("firstname", "first", "name", "applicantname", "businessname", "companyname");
+    const middleName = getVal("middlename", "middle", "middleinitial", "mi");
     const lastName = getVal("lastname", "last", "surname");
+    const suffix = getVal("suffix", "ext", "extension");
     const email = getVal("email", "emailaddress");
-    const contactNo = getVal("contactnumber", "contactno", "phone", "mobile");
-    const address = getVal("address", "physicaladdress", "street", "city", "province");
+    const contactNo = getVal("contactnumber", "contactno", "phone", "mobile", "cellphone");
     const birthDate = getVal("dateofbirth", "birthdate", "dob");
+    const sex = getVal("sex", "gender") || "Male";
+    const nationality = getVal("nationality", "citizenship") || "Filipino";
+    const region = getVal("region", "regionname");
+    const province = getVal("province", "state");
+    const city = getVal("city", "municipality", "citymunicipality");
+    const barangay = getVal("barangay", "brgy", "bgy");
+    const street = getVal("street", "streetaddress", "addressline1", "streetzone");
+    const zipCode = getVal("zipcode", "zip", "postalcode", "postal");
+    const schoolName = getVal("schoolname", "school", "university", "schoolattended", "education");
+    const courseDegree = getVal("coursedegree", "course", "degree", "program");
+    const yearGraduated = getVal("yeargraduated", "graduatedyear", "graduationyear", "yeargrad");
+    const specialOrderNo = getVal("specialorderno", "specialorder", "sono", "so", "specialordernumber");
+    const examType = getVal("examtype", "examcategory", "applicationtype", "apptype", "category") || "Radiotelephony";
+    const examineeType = getVal("examineetype", "takertype", "applicantcategory") || "First Taker";
+    const selectedOption = getVal("selectedoption", "classelement", "elements", "element", "class", "optionclass", "radiooption") || "1PHN - Elements 1, 2, 3 & 4";
     const appType = getVal("applicationtype", "apptype", "examcategory") || "NEW";
     const years = getVal("noofyears", "numberofyears", "years") || "1";
-    const notes = getVal("notes", "remarks", "specialneeds") || "";
+    const notes = getVal("notes", "remarks", "specialneeds", "assistance") || "";
+
+    const repFirstName = getVal("representativefirstname", "repfirstname", "repfirst");
+    const repMiddleName = getVal("representativemiddlename", "repmiddlename", "repmiddle");
+    const repLastName = getVal("representativelastname", "replastname", "replast");
+    const repSuffix = getVal("representativesuffix", "repsuffix");
+    const repName = getVal("representativename", "authorizedrepresentative", "representative", "repname") ||
+      [repFirstName, repMiddleName, repLastName, repSuffix].filter(Boolean).join(" ");
+    const repPosition = getVal("representativeposition", "designation", "position", "repposition");
+    const companyName = getVal("companyname", "businessname", "corporatename", "organizationname", "entityname");
+    const dtiSecRegistration = getVal("dtisecregistration", "dtisecno", "dtisec", "secno", "dtino", "registrationno", "registrationnumber");
+    const applicantTypeVal = getVal("applicanttype", "entitytype", "classification");
+
+    const addressParts = [street, barangay, city, province, zipCode].filter(Boolean);
+    const address = addressParts.length > 0 ? addressParts.join(", ") : getVal("address", "physicaladdress");
 
     const remarks: string[] = [];
 
@@ -113,6 +143,23 @@ export function parseSpreadsheetContent(
     }
     if (!contactNo) {
       remarks.push("Contact Number is required.");
+    }
+
+    const isExamService = (service.code || "").toUpperCase() === "NTC_1_01" ||
+      (service.title || "").toUpperCase().includes("EXAM") ||
+      (service.title || "").toUpperCase().includes("RADIO OPERATOR");
+
+    if (isExamService) {
+      if (!lastName) remarks.push("Last Name is required.");
+      if (!firstName) remarks.push("First Name is required.");
+      if (!province) remarks.push("Province is required.");
+      if (!city) remarks.push("City is required.");
+      if (!barangay) remarks.push("Barangay is required.");
+      if (!street && !address) remarks.push("Street address is required.");
+      if (!zipCode) remarks.push("Zip Code is required.");
+      if (!schoolName) remarks.push("School Name is required.");
+      if (!courseDegree) remarks.push("Course/Degree is required.");
+      if (!yearGraduated) remarks.push("Year Graduated is required.");
     }
 
     const isValid = remarks.length === 0;
@@ -139,12 +186,40 @@ export function parseSpreadsheetContent(
       }
     }
 
+    const isComp = applicantTypeVal.toLowerCase().includes("comp") || applicantTypeVal.toLowerCase().includes("org") || Boolean(companyName);
+
     const appObj: GeneralApplicantData = {
       ...initialGeneralApplicant(i),
+      applicantType: isComp ? "company" : "individual",
+      companyName: companyName || (isComp ? (firstName || displayName) : ""),
+      representativeFirstName: repFirstName,
+      representativeMiddleName: repMiddleName,
+      representativeLastName: repLastName,
+      representativeSuffix: repSuffix,
+      representativeName: repName,
+      representativePosition: repPosition,
+      dtiSecRegistration: dtiSecRegistration,
       firstName: firstName || displayName,
+      middleName: middleName,
       lastName: lastName,
+      suffix: suffix,
       email: email,
       contactNo: contactNo,
+      sex: sex,
+      nationality: nationality,
+      region: region,
+      province: province,
+      city: city,
+      barangay: barangay,
+      street: street,
+      zipCode: zipCode,
+      schoolName: schoolName,
+      courseDegree: courseDegree,
+      yearGraduated: yearGraduated,
+      specialOrderNo: specialOrderNo,
+      examType: examType,
+      examineeType: examineeType,
+      selectedOption: selectedOption,
       address: address,
       birthMonth,
       birthDay,
@@ -167,6 +242,14 @@ export function parseSpreadsheetContent(
       appObj.deviceRegData.email = email;
       appObj.deviceRegData.contactNo = contactNo;
       appObj.deviceRegData.address = address;
+      const regType = getVal("registrationtype", "regtype", "dealerornondealer");
+      if (regType) {
+        appObj.deviceRegData.registrationType = regType.toLowerCase().includes("non") ? "Non-Dealers" : "Dealers";
+      }
+      const invNo = getVal("invoicenumber", "invoiceno", "commercialinvoiceno", "commercialinvoicenumber", "invoice");
+      if (invNo) {
+        appObj.deviceRegData.invoiceNo = invNo;
+      }
       const serialsStr = getVal("equipmentserialnumbers", "serialnumbers", "serials");
       if (serialsStr) {
         const serialsList = serialsStr.split(/[;,]/).map((s) => s.trim()).filter((s) => s.length > 0);
@@ -193,6 +276,35 @@ export function parseSpreadsheetContent(
       appObj.vasData.contactNo = contactNo;
       appObj.vasData.address = address;
       appObj.vasData.years = years;
+      const entityType = getVal("typeofentity", "entitytype", "businessentitytype");
+      if (entityType) {
+        appObj.vasData.serviceType = entityType as "Single Proprietorship" | "Corporation" | "Partnership" | "Others";
+      }
+      const cpcnNo = getVal("cpcnpacano", "cpcnlicenseno", "cpcnno", "cpcn");
+      if (cpcnNo) {
+        appObj.vasData.serviceNo = cpcnNo;
+      }
+      const cpcnExp = getVal("cpcnpacanodateofexpiry", "cpcnpacanoateofexpiry", "cpcnexpirydate", "cpcndateofexpiry", "cpcndate");
+      if (cpcnExp) {
+        appObj.vasData.cpcnPaCaDateOfExpiry = cpcnExp;
+      }
+      const corNo = getVal("corvasno", "existingcorvasno", "corno", "vasno", "certificateno", "certificatenumber");
+      if (corNo) {
+        appObj.vasData.certificateNumber = corNo;
+      }
+      const corExp = getVal("corvasnodateofexpiry", "corvasexpirydate", "corvasdateofexpiry", "vasexpirydate", "expirydate", "dateofexpiry");
+      if (corExp) {
+        appObj.vasData.expiryDate = corExp;
+      }
+      const tradeName = getVal("tradename", "othertradename", "pleasespecify");
+      if (tradeName) {
+        appObj.vasData.isKnownByOtherName = true;
+        appObj.vasData.otherTradeName = tradeName;
+      }
+      const vasSvcs = getVal("valueaddedservices", "valueaddedservice", "services");
+      if (vasSvcs) {
+        appObj.vasData.valueAddedServices = vasSvcs.split(/[;,]/).map((s) => s.trim()).filter(Boolean);
+      }
     }
 
     results.push({

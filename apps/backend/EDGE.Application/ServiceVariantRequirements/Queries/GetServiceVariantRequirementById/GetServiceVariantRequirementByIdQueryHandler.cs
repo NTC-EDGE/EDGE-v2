@@ -22,6 +22,7 @@ public class GetServiceVariantRequirementByIdQueryHandler(IServiceVariantRequire
         var dto = new ServiceVariantRequirementDto
         {
             Id = svr.Id,
+            TenantId = svr.TenantId,
             RequirementId = svr.RequirementId,
             Requirement = svr.Requirement != null ? new RequirementDto
             {
@@ -30,8 +31,6 @@ public class GetServiceVariantRequirementByIdQueryHandler(IServiceVariantRequire
                 Description = svr.Requirement.Description
             } : null,
             ServiceVariantId = svr.ServiceVariantId,
-            ContextKey = svr.ContextKey,
-
             IsRequired = svr.IsRequired
         };
 

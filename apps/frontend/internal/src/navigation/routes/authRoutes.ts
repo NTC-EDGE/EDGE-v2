@@ -10,6 +10,11 @@ import { FormBuilderScreen } from "../../features/form-builder/screens/FormBuild
 import { AnnouncementsScreen } from "../../features/announcements/screens/AnnouncementsScreen";
 import { AuditLogsScreen } from "../../features/audit-logs/screens/AuditLogsScreen";
 import { ActivitiesScreen } from "../../features/queue/screens/ActivitiesScreen";
+import { ScheduleScreen } from "../../features/schedule/screens/ScheduleScreen";
+import { ReportsScreen } from "../../features/reports/screens/ReportsScreen";
+import { ReceiptManagementScreen } from "../../features/receipts/screens/ReceiptManagementScreen";
+import { ChatScreen } from "../../features/chat/screens/ChatScreen";
+import { MeetScreen } from "../../features/meet/screens/MeetScreen";
 import { PlaceholderScreen } from "../stacks/PlaceholderScreen";
 
 // We keep these direct references for the route config.
@@ -47,22 +52,22 @@ export const authRoutes = {
     options: { title: "Activities" },
   },
   Chat: {
-    screen: PlaceholderScreen,
+    screen: ChatScreen,
     path: "chat",
     options: { title: "Chat" },
   },
   Meet: {
-    screen: PlaceholderScreen,
+    screen: MeetScreen,
     path: "meet",
     options: { title: "Meet" },
   },
   Reports: {
-    screen: PlaceholderScreen,
+    screen: ReportsScreen,
     path: "reports",
     options: { title: "Reports" },
   },
   ReceiptManagement: {
-    screen: PlaceholderScreen,
+    screen: ReceiptManagementScreen,
     path: "receipt-management",
     options: { title: "Receipt Management" },
   },
@@ -72,7 +77,7 @@ export const authRoutes = {
     options: { title: "Roles & Permission" },
   },
   Schedule: {
-    screen: PlaceholderScreen,
+    screen: ScheduleScreen,
     path: "schedule",
     options: { title: "Schedule" },
   },

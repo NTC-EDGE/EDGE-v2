@@ -17,9 +17,11 @@ interface InputProps {
   label?: string;
   placeholder?: string;
   value: string;
-  onChangeText: (text: string) => void;
+  onChangeText?: (text: string) => void;
   error?: string;
+  editable?: boolean;
   secureTextEntry?: boolean;
+  isPassword?: boolean;
   autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
   keyboardType?: 'default' | 'email-address' | 'numeric' | 'phone-pad';
   style?: ViewStyle;
@@ -32,9 +34,11 @@ export function Input({
   label,
   placeholder,
   value,
-  onChangeText,
+  onChangeText = () => {},
   error,
+  editable = true,
   secureTextEntry = false,
+  isPassword = false,
   autoCapitalize = 'none',
   keyboardType = 'default',
   style,
@@ -43,6 +47,9 @@ export function Input({
   rightIcon,
 }: InputProps) {
   const [isFocused, setIsFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const isSecured = isPassword ? !showPassword : secureTextEntry;
 
   const getRowStyles = (): ViewStyle[] => {
     const list: ViewStyle[] = [styles.inputRow];
@@ -53,6 +60,42 @@ export function Input({
       list.push(styles.rowError);
     }
     return list;
+  };
+
+  const handleTextChange = (text: string) => {
+    let sanitized = text;
+    if (keyboardType === 'numeric') {
+      sanitized = text.replace(/[^0-9.]/g, '');
+      const parts = sanitized.split('.');
+      if (parts.length > 2) {
+        sanitized = parts[0] + '.' + parts.slice(1).join('');
+      }
+    } else if (keyboardType === 'phone-pad') {
+      sanitized = text.replace(/[^0-9+]/g, '');
+      if (sanitized.includes('+')) {
+        sanitized = (sanitized.startsWith('+') ? '+' : '') + sanitized.replace(/\+/g, '');
+      }
+    }
+    onChangeText(sanitized);
+  };
+
+  const renderRightContent = () => {
+    if (rightIcon !== undefined && rightIcon !== null) {
+      return <View style={styles.rightIconContainer}>{rightIcon}</View>;
+    }
+    if (isPassword) {
+      return (
+        <View style={styles.rightIconContainer}>
+          <Lucide
+            name={showPassword ? 'eye-off' : 'eye'}
+            size={18}
+            color={COLORS.neutral[500]}
+            onPress={() => setShowPassword((prev) => !prev)}
+          />
+        </View>
+      );
+    }
+    return null;
   };
 
   return (
@@ -73,17 +116,20 @@ export function Input({
           placeholder={placeholder}
           placeholderTextColor={COLORS.neutral[400]}
           value={value}
-          onChangeText={onChangeText}
+          onChangeText={handleTextChange}
+          editable={editable}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
-          secureTextEntry={secureTextEntry}
+          secureTextEntry={isSecured}
           autoCapitalize={autoCapitalize}
           keyboardType={keyboardType}
-          style={[styles.input, inputStyle]}
+          style={[
+            styles.input,
+            inputStyle,
+            !editable && { color: COLORS.neutral[500], backgroundColor: COLORS.neutral[100] },
+          ]}
         />
-        {rightIcon !== undefined && rightIcon !== null ? (
-          <View style={styles.rightIconContainer}>{rightIcon}</View>
-        ) : null}
+        {renderRightContent()}
       </View>
       {error !== undefined && error.length > 0 ? (
         <Text style={styles.errorText}>{error}</Text>
@@ -114,6 +160,7 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     borderRadius: RADIUS.input,
     paddingHorizontal: SPACING[16],
+    overflow: 'hidden',
   },
   rowFocused: {
     borderColor: COLORS.brand[800],
@@ -130,15 +177,23 @@ const styles = StyleSheet.create({
     marginLeft: SPACING[8],
     justifyContent: 'center',
     alignItems: 'center',
+    cursor: Platform.OS === 'web' ? 'pointer' : 'auto',
   },
   input: {
     flex: 1,
     height: '100%',
+    backgroundColor: 'transparent',
     fontSize: TYPOGRAPHY.sizes.body,
     fontFamily: TYPOGRAPHY.fonts.primary,
     color: COLORS.neutral[900],
     padding: 0,
-    ...(Platform.OS === 'web' ? ({ outlineWidth: 0, outlineColor: 'transparent' } as unknown as TextStyle) : {}),
+    ...(Platform.OS === 'web'
+      ? ({
+          outlineWidth: 0,
+          outlineColor: 'transparent',
+          outlineStyle: 'none',
+        } as unknown as TextStyle)
+      : {}),
   },
   errorText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

@@ -13,7 +13,7 @@ public record UploadApplicantRequirementCommand : IRequest<ApiResponse<Guid>>
     [JsonIgnore]
     public Guid ApplicantId { get; init; }
 
-    // Public request body — only these three
+    // Public request body
     public Guid? RequirementId { get; init; }
     public Guid? ServiceVariantRequirementId { get; init; }
     public required Guid StoredFileId { get; init; }

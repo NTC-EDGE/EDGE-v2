@@ -1,6 +1,5 @@
 import { View } from "react-native";
 import { ServicesState } from "../hooks/useServices";
-import { ServiceList } from "./ServiceList";
 import { CategoryGrid } from "./CategoryGrid";
 import { BulkApplicantsPanel } from "../accreditation/customer-premises";
 import { ExamBulkApplicantsPanel } from "../exams/radio-operator";
@@ -22,6 +21,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     setWizardStep,
     resetWizardState,
     handleRemoveApplicant,
+    handleRemoveMultipleApplicants,
     examWizardStep,
     examApplicants,
     currentExamApplicantIndex,
@@ -31,22 +31,19 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     setActiveWizardService,
     setSelectedService,
     handleRemoveExamApplicant,
+    handleRemoveMultipleExamApplicants,
     bulkMethod,
     handleAddExamApplicant,
     generalApplicants,
     currentGeneralApplicantIndex,
     setCurrentGeneralApplicantIndex,
     handleRemoveGeneralApplicant,
+    handleRemoveMultipleGeneralApplicants,
     handleAddGeneralApplicant,
     selectedService,
     searchQuery,
-    searchResults,
-    isMobile,
     setSelectedCategoryId,
     selectedCategoryId,
-    activeCategory,
-    handleClearSearch,
-    handleBackToCategories,
     userProfile,
     setSearchQuery,
     drafts,
@@ -66,7 +63,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
     >
       {activeWizardService === "cpe-accreditation" &&
       appMode === "BULK" &&
-      wizardStep >= 4 ? (
+      wizardStep >= 3 ? (
         <BulkApplicantsPanel
           applicants={applicants}
           currentApplicantIndex={currentApplicantIndex}
@@ -74,6 +71,7 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           setStep={setWizardStep}
           resetWizardState={resetWizardState}
           onRemoveApplicant={handleRemoveApplicant}
+          onRemoveApplicants={handleRemoveMultipleApplicants}
         />
       ) : activeWizardService === "radio-operator-exam" &&
         appMode === "BULK" &&
@@ -92,17 +90,25 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
             });
           }}
           onRemoveApplicant={handleRemoveExamApplicant}
+          onRemoveApplicants={handleRemoveMultipleExamApplicants}
           bulkMethod={bulkMethod}
           onAddApplicant={handleAddExamApplicant}
+          onSubmitAll={() => {
+            servicesState.setIsBulkSubmitOpen(true);
+          }}
         />
       ) : activeWizardService === "general-service" &&
         appMode === "BULK" &&
-        wizardStep >= 4 &&
+        wizardStep >= 3 &&
         selectedService !== null ? (
         <GeneralBulkApplicantsPanel
           applicants={generalApplicants}
           currentApplicantIndex={currentGeneralApplicantIndex}
-          onSelectApplicant={setCurrentGeneralApplicantIndex}
+          onSelectApplicant={(idx) => {
+            setCurrentGeneralApplicantIndex(idx);
+            setWizardStep(3);
+            servicesState.setTriggerOpenApplicant((prev: number) => prev + 1);
+          }}
           setStep={setWizardStep}
           resetWizardState={resetWizardState}
           onCancel={() => {
@@ -113,54 +119,42 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
             });
           }}
           onRemoveApplicant={handleRemoveGeneralApplicant}
+          onRemoveApplicants={handleRemoveMultipleGeneralApplicants}
           onAddApplicant={handleAddGeneralApplicant}
+          onApplicantsImported={(imported) => {
+            servicesState.setGeneralApplicants(imported);
+            setCurrentGeneralApplicantIndex(0);
+          }}
           service={selectedService}
-        />
-      ) : searchQuery.trim() !== "" ? (
-        <ServiceList
-          searchQuery={searchQuery}
-          activeCategory={null}
-          searchResults={searchResults}
-          onServiceSelect={(service) => {
-            confirmSwitchService(() => {
-              setSelectedService(service);
-              if (isMobile) {
-                setSelectedCategoryId("search-active");
-              }
-            });
+          variantRequirements={servicesState.variantRequirements}
+          onSubmitAll={() => {
+            servicesState.setTriggerBulkSubmit((prev: number) => prev + 1);
           }}
-          onBack={handleClearSearch}
-          isMobile={isMobile}
-        />
-      ) : selectedCategoryId !== null ? (
-        <ServiceList
-          searchQuery=""
-          activeCategory={activeCategory}
-          searchResults={null}
-          onServiceSelect={(service) => {
-            confirmSwitchService(() => {
-              setSelectedService(service);
-            });
-          }}
-          onBack={handleBackToCategories}
-          isMobile={isMobile}
         />
       ) : (
         <CategoryGrid
           user={userProfile}
           searchQuery={searchQuery}
-          onSearchQueryChange={setSearchQuery}
+          onSearchQueryChange={(query) => {
+            if (activeWizardService !== null) {
+              confirmSwitchService(() => setSearchQuery(query));
+            } else {
+              setSearchQuery(query);
+            }
+          }}
           selectedCategoryId={selectedCategoryId}
           onCategorySelect={(catId) => {
             confirmSwitchService(() => {
               setSelectedCategoryId(catId);
               setServiceId(catId);
+              setSelectedService(null);
             });
           }}
           drafts={drafts}
           onViewDrafts={setViewingDraftsCategory}
           backendCategories={backendCategories}
           allBackendServices={allBackendServices}
+          isWizardActive={activeWizardService !== null}
         />
       )}
     </View>

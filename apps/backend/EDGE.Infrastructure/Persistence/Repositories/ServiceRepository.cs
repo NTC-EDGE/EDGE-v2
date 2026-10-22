@@ -31,7 +31,7 @@ public class ServiceRepository : IServiceRepository
             query = query.Where(s => s.ServiceCategoryId == serviceCategoryId.Value);
 
         if (tenantId.HasValue)
-            query = query.Where(s => s.TenantId == tenantId.Value);
+            query = query.Where(s => s.TenantId == tenantId.Value || s.TenantId == null);
 
         return await query.ToListAsync(cancellationToken);
     }
@@ -83,6 +83,6 @@ public class ServiceRepository : IServiceRepository
 
     public async Task<bool> HasApplicationsAsync(Guid serviceId, CancellationToken cancellationToken = default)
     {
-        return await _context.ApplicationServices.AnyAsync(aps => aps.ServiceId == serviceId, cancellationToken);
+        return await _context.Applicants.AnyAsync(a => a.ServiceId == serviceId, cancellationToken);
     }
 }

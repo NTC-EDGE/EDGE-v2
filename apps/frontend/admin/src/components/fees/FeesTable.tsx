@@ -21,19 +21,22 @@ export interface FeesTableProps {
 }
 
 export function FeesTable({
-  fees,
+  fees = [],
   totalCount,
   currentPage,
   pageSize,
   onPageChange,
   onPageSizeChange,
-  serviceFees,
+  serviceFees = [],
   loading,
   canManage,
   onEdit,
   onDelete,
   onToggleStatus,
 }: FeesTableProps) {
+  const safeServiceFees = Array.isArray(serviceFees) ? serviceFees : [];
+  const safeFees = Array.isArray(fees) ? fees : [];
+
   const columns: ColumnDef<Fee>[] = [
     {
       key: "code",
@@ -48,12 +51,12 @@ export function FeesTable({
       key: "name",
       header: "Fee Name",
       cell: (item) => {
-        const mappedServices = serviceFees.filter((sf) => sf.feeId === item.id && sf.isActive !== false);
+        const mappedServices = safeServiceFees.filter((sf) => sf.feeId === item.id && sf.isActive !== false);
         return (
-          <div className="flex flex-col">
-            <span className="font-semibold text-slate-900 dark:text-slate-200">{item.name}</span>
+          <div className="flex flex-col max-w-sm break-words whitespace-normal">
+            <span className="font-semibold text-slate-900 dark:text-slate-200 break-words leading-snug">{item.name}</span>
             {mappedServices.length > 0 && (
-              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5">
+              <span className="text-[10px] text-indigo-600 dark:text-indigo-400 font-semibold mt-0.5 break-words">
                 Mapped to {mappedServices.length} service{mappedServices.length > 1 ? "s" : ""}
               </span>
             )}
@@ -65,7 +68,7 @@ export function FeesTable({
       key: "description",
       header: "Description",
       cell: (item) => (
-        <span className="text-slate-600 dark:text-slate-400 max-w-xs truncate block">
+        <span className="text-slate-600 dark:text-slate-400 max-w-md break-words whitespace-normal leading-relaxed block">
           {item.description || <span className="text-slate-400 dark:text-slate-600 italic">No description</span>}
         </span>
       ),

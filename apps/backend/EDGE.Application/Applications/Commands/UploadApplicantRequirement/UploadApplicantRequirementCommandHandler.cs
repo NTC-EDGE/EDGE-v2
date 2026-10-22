@@ -5,6 +5,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Authorization;
 using EDGE.Application.Common.Interfaces;
@@ -19,20 +20,29 @@ public class UploadApplicantRequirementCommandHandler
     private readonly IRequirementRepository _requirementRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly ITenantContextService _tenantContext;
+    private readonly ICurrentUserService _currentUserService;
+    private readonly IUserRepository _userRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UploadApplicantRequirementCommandHandler> _logger;
 
     public UploadApplicantRequirementCommandHandler(
         IApplicationFullRepository applicationRepository,
         IRequirementRepository requirementRepository,
         IServiceRepository serviceRepository,
         ITenantContextService tenantContext,
-        IUnitOfWork unitOfWork)
+        ICurrentUserService currentUserService,
+        IUserRepository userRepository,
+        IUnitOfWork unitOfWork,
+        ILogger<UploadApplicantRequirementCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _requirementRepository = requirementRepository;
         _serviceRepository = serviceRepository;
         _tenantContext = tenantContext;
+        _currentUserService = currentUserService;
+        _userRepository = userRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(
@@ -46,13 +56,36 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Application '{request.ApplicationId}' was not found.");
 
-        // 2. Verify the current user is an active member of this application's tenant.
-        //    We derive tenant from app.TenantId (the authoritative source) rather than
-        //    from a route parameter, so this works on both:
-        //      - /applications/{id}/applicants/{applicantId}/requirements
-        //      - /tenants/{tenantId}/applications/{appId}/applicants/{applicantId}/requirements
+        // 2. Verify authorization: Current user must be:
+        //    - An active member/staff of this application's tenant, OR
+        //    - A super admin, OR
+        //    - The owner/applicant who created the application (app.UserId or app.CreatedBy).
         var isMember = await _tenantContext.IsUserActiveMemberAsync(app.TenantId, cancellationToken);
-        if (!isMember)
+        var isSuperAdmin = await _tenantContext.IsCurrentUserSuperAdminAsync(cancellationToken);
+        var currentUserIdStr = _currentUserService.UserId;
+        var isOwner = false;
+
+        if (!string.IsNullOrWhiteSpace(currentUserIdStr))
+        {
+            if (string.Equals(app.CreatedBy, currentUserIdStr, StringComparison.OrdinalIgnoreCase))
+            {
+                isOwner = true;
+            }
+            else if (Guid.TryParse(currentUserIdStr, out var parsedGuid) && app.UserId.HasValue && app.UserId.Value == parsedGuid)
+            {
+                isOwner = true;
+            }
+            else
+            {
+                var dbUser = await _userRepository.GetByAuthUserIdAsync(currentUserIdStr, cancellationToken);
+                if (dbUser != null && app.UserId.HasValue && app.UserId.Value == dbUser.Id)
+                {
+                    isOwner = true;
+                }
+            }
+        }
+
+        if (!isMember && !isSuperAdmin && !isOwner)
             return ApiResponse<Guid>.Fail(
                 "You do not have permission to upload requirements for this application.");
 
@@ -92,148 +125,108 @@ public class UploadApplicantRequirementCommandHandler
             return ApiResponse<Guid>.Fail(
                 $"Requirement '{resolvedRequirementId}' was not found in the master catalog.");
 
-        // 7. Resolve per-applicant ContextKey from FormFieldValues + Service.Contract
-        //    This replaces the old application-level ApplicationTypeKey lookup.
-        var appService = app.ApplicationServices.FirstOrDefault();
-        if (appService?.ServiceId != null)
+        // 7. Verify requirement is valid for the applicant's service & variant
+        var appApplicant = app.ApplicationApplicants.FirstOrDefault(aa => aa.ApplicantId == request.ApplicantId);
+        var applicant = appApplicant?.Applicant;
+
+        Guid? serviceId = applicant?.ServiceId;
+        Guid? variantId = applicant?.ServiceVariantId;
+
+        // Fallback to any applicant service if not explicitly specified on target applicant record
+        if (!serviceId.HasValue)
         {
-            // Load the service to access its Contract JSON
-            var service = await _serviceRepository.GetByIdAsync(appService.ServiceId.Value, cancellationToken);
-
-            string? contextKey = null;
-
-            if (service != null && !string.IsNullOrWhiteSpace(service.Contract))
+            var appWithService = app.ApplicationApplicants.FirstOrDefault(aa => aa.Applicant?.ServiceId != null);
+            if (appWithService?.Applicant != null)
             {
-                contextKey = ResolveContextKey(
-                    service.Contract,
-                    app.FormSubmissions,
-                    request.ApplicantId);
+                serviceId = appWithService.Applicant.ServiceId;
+                if (!variantId.HasValue)
+                {
+                    variantId = appWithService.Applicant.ServiceVariantId;
+                }
             }
+        }
 
-            // Query rules scoped to this applicant's specific context
+        if (serviceId.HasValue && serviceId.Value != Guid.Empty)
+        {
+            // Query rules scoped to this applicant's service & variant
             var validRules = await _requirementRepository.GetServiceVariantRequirementsAsync(
-                appService.ServiceId.Value,
-                appService.ServiceVariantId,
-                contextKey,
+                serviceId.Value,
+                variantId,
                 cancellationToken);
 
-            // If rules are configured for this context, enforce them strictly.
+            // If rules are configured for this variant, enforce them strictly.
             // If no rules exist yet, remain permissive (graceful degradation).
             if (validRules.Any() &&
                 !validRules.Any(r => r.RequirementId == resolvedRequirementId))
             {
                 return ApiResponse<Guid>.Fail(
-                    $"Requirement '{reqMaster.Name}' is not permitted for this applicant's service context (ContextKey: '{contextKey ?? "none"}').");
+                    $"Requirement '{reqMaster.Name}' is not permitted for this applicant's service variant.");
             }
         }
 
         // 8. Auto-generate storage URL — never accepted from client
-        var url = $"tenants/{app.TenantId}/requirements/{request.StoredFileId}";
+        var url = $"/api/v2/tenants/{app.TenantId}/storage/files/{request.StoredFileId}";
 
-        var entity = new ApplicationRequirement
-        {
-            ApplicationId               = request.ApplicationId,
-            ApplicantId                 = request.ApplicantId,
-            RequirementId               = resolvedRequirementId,
-            ServiceVariantRequirementId = request.ServiceVariantRequirementId,
-            TenantId                    = app.TenantId,
-            Url                         = url,
-            IsApproved                  = false
-        };
+        // 9. Check if an existing submission record exists for this requirement and applicant
+        var applicantRequirements = await _applicationRepository.GetApplicantRequirementsAsync(
+            request.ApplicationId, request.ApplicantId, cancellationToken);
+
+        var existingRequirement = applicantRequirements.FirstOrDefault(ar =>
+            (request.ServiceVariantRequirementId.HasValue && ar.ServiceVariantRequirementId == request.ServiceVariantRequirementId.Value) ||
+             ar.RequirementId == resolvedRequirementId);
+
+        Guid requirementEntityId;
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
         try
         {
-            await _applicationRepository.AddApplicationRequirementAsync(
-                entity, cancellationToken);
+            if (existingRequirement != null)
+            {
+                existingRequirement.StoredFileId = request.StoredFileId;
+                existingRequirement.StoredFile = null;
+                existingRequirement.ServiceVariantRequirementId = request.ServiceVariantRequirementId ?? existingRequirement.ServiceVariantRequirementId;
+                existingRequirement.RequirementId = resolvedRequirementId;
+                existingRequirement.Url = url;
+                existingRequirement.IsApproved = false;
+                requirementEntityId = existingRequirement.Id;
+            }
+            else
+            {
+                var entity = new ApplicationRequirement
+                {
+                    ApplicationId               = request.ApplicationId,
+                    ApplicantId                 = request.ApplicantId,
+                    RequirementId               = resolvedRequirementId,
+                    ServiceVariantRequirementId = request.ServiceVariantRequirementId,
+                    StoredFileId                = request.StoredFileId,
+                    TenantId                    = app.TenantId,
+                    Url                         = url,
+                    IsApproved                  = false
+                };
+
+                await _applicationRepository.AddApplicationRequirementAsync(
+                    entity, cancellationToken);
+                requirementEntityId = entity.Id;
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
             return ApiResponse<Guid>.Success(
-                entity.Id, "Applicant requirement document uploaded successfully.");
+                requirementEntityId, "Applicant requirement document uploaded successfully.");
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to upload requirement. Error: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// Resolves the per-applicant ContextKey by:
-    /// 1. Reading requirementDiscriminatorFields from Service.Contract JSON (e.g. ["examCategory","examineeType"])
-    /// 2. Finding the applicant's FormSubmission and reading those field values
-    /// 3. Optionally normalizing raw values through requirementContextGroups (e.g. "1RTG" → "CommercialROC")
-    /// 4. Joining resolved values with "|" → e.g. "Radiotelegraphy|Re-taker"
-    /// Returns null when no discriminator fields are configured (service has uniform requirements per variant).
-    /// </summary>
-    private static string? ResolveContextKey(
-        string contractJson,
-        IEnumerable<FormSubmission> formSubmissions,
-        Guid applicantId)
-    {
-        using var doc = JsonDocument.Parse(contractJson);
-        var root = doc.RootElement;
-
-        // Read requirementDiscriminatorFields — list of form field labels to read per applicant
-        if (!root.TryGetProperty("requirementDiscriminatorFields", out var discriminatorsProp))
-            return null;
-
-        var discriminatorFields = new List<string>();
-        foreach (var item in discriminatorsProp.EnumerateArray())
-        {
-            var fieldKey = item.GetString();
-            if (!string.IsNullOrWhiteSpace(fieldKey))
-                discriminatorFields.Add(fieldKey);
-        }
-
-        if (discriminatorFields.Count == 0)
-            return null;
-
-        // Read requirementContextGroups — optional value normalization map
-        Dictionary<string, string?> contextGroups = new(StringComparer.OrdinalIgnoreCase);
-        if (root.TryGetProperty("requirementContextGroups", out var groupsProp))
-        {
-            foreach (var group in groupsProp.EnumerateObject())
+            _logger.LogError(ex, "Failed to upload applicant requirement for ApplicationId '{ApplicationId}', StoredFileId '{StoredFileId}'.", request.ApplicationId, request.StoredFileId);
+            try
             {
-                contextGroups[group.Name] = group.Value.ValueKind == JsonValueKind.Null
-                    ? null
-                    : group.Value.GetString();
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
             }
-        }
-
-        // Find this applicant's FormSubmission
-        var submission = formSubmissions.FirstOrDefault(fs => fs.ApplicantId == applicantId);
-        if (submission == null)
-            return null;
-
-        // For each discriminator field label, find the matching FormFieldValue
-        var parts = new List<string>();
-        foreach (var fieldLabel in discriminatorFields)
-        {
-            var fieldValue = submission.FieldValues
-                .FirstOrDefault(fv =>
-                    string.Equals(fv.Field?.Label, fieldLabel, StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(fv.Field?.Label?.Replace(" ", ""), fieldLabel.Replace(" ", ""), StringComparison.OrdinalIgnoreCase));
-
-            if (fieldValue == null || string.IsNullOrWhiteSpace(fieldValue.Value))
-                return null; // Cannot compose a partial ContextKey — treat as no context
-
-            var rawValue = fieldValue.Value.Trim();
-
-            // Apply group normalization if defined
-            if (contextGroups.TryGetValue(rawValue, out var normalizedValue))
+            catch (Exception rollbackEx)
             {
-                if (normalizedValue == null)
-                    return null; // Explicitly unmapped → no enforcement
-                parts.Add(normalizedValue);
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during requirement upload for ApplicationId '{ApplicationId}'.", request.ApplicationId);
             }
-            else
-            {
-                parts.Add(rawValue);
-            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while uploading the requirement document. Please try again later.");
         }
-
-        return parts.Count > 0 ? string.Join("|", parts) : null;
     }
 }

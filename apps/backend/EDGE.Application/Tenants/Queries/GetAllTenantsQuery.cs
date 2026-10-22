@@ -7,5 +7,6 @@ namespace EDGE.Application.Tenants.Queries;
 public record GetAllTenantsQuery(
     int PageNumber = 1,
     int PageSize = 10,
-    string? SearchTerm = null
+    string? SearchTerm = null,
+    bool? IsActive = null
 ) : IRequest<PaginatedApiResponse<TenantDto>>;

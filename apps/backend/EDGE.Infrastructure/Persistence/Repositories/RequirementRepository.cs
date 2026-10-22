@@ -83,11 +83,12 @@ public class RequirementRepository : IRequirementRepository
         return await _context.ServiceVariantRequirements.FirstOrDefaultAsync(r => r.Id == id, cancellationToken);
     }
 
-    public async Task<List<ServiceVariantRequirement>> GetServiceVariantRequirementsAsync(Guid? serviceId, Guid? variantId, string? contextKey, CancellationToken cancellationToken = default)
+    public async Task<List<ServiceVariantRequirement>> GetServiceVariantRequirementsAsync(Guid? serviceId, Guid? variantId, CancellationToken cancellationToken = default)
     {
         var query = _context.ServiceVariantRequirements
             .Include(svr => svr.Requirement)
             .Include(svr => svr.ServiceVariant)
+            .OrderBy(svr => svr.CreatedAt)
             .AsNoTracking();
 
         if (variantId.HasValue && variantId.Value != Guid.Empty)
@@ -100,19 +101,6 @@ public class RequirementRepository : IRequirementRepository
         }
 
         var list = await query.ToListAsync(cancellationToken);
-
-        // Filter by ContextKey if provided.
-        // Rows with ContextKey = null are catch-all rules (apply to any applicant of that variant).
-        // Rows with a specific ContextKey apply only when the applicant's composed key matches exactly.
-        if (!string.IsNullOrWhiteSpace(contextKey))
-        {
-            var cleanKey = contextKey.Trim();
-            list = list.Where(svr =>
-                string.IsNullOrEmpty(svr.ContextKey) ||
-                svr.ContextKey.Equals(cleanKey, StringComparison.OrdinalIgnoreCase))
-                   .ToList();
-        }
-
-        return list;
+        return list.OrderBy(svr => svr.CreatedAt).ToList();
     }
 }

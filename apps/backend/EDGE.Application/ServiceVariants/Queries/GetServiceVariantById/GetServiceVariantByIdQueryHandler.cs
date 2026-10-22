@@ -25,7 +25,8 @@ public class GetServiceVariantByIdQueryHandler(IServiceVariantRepository reposit
             ServiceId = variant.ServiceId,
             ServiceName = variant.Service?.Name,
             Type = variant.Type.ToString(),
-            Description = variant.Description
+            Description = variant.Description,
+            IsIndividual = variant.IsIndividual
         };
 
         return ApiResponse<ServiceVariantDto>.Success(dto, "Service variant retrieved successfully.");

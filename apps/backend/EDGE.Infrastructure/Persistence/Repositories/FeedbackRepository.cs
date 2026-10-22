@@ -36,6 +36,18 @@ public class FeedbackRepository : IFeedbackRepository
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<List<FeedbackEntity>> GetByTenantAsync(Guid? tenantId, CancellationToken cancellationToken = default)
+    {
+        var query = _context.Feedbacks.AsNoTracking();
+        if (tenantId.HasValue && tenantId.Value != Guid.Empty)
+        {
+            query = query.Where(f => f.TenantId == tenantId.Value);
+        }
+        return await query
+            .OrderByDescending(f => f.CreatedAt)
+            .ToListAsync(cancellationToken);
+    }
+
     public async Task<(List<FeedbackEntity> Items, int TotalCount)> GetPagedAsync(int pageNumber, int pageSize, CancellationToken cancellationToken = default)
     {
         var query = _context.Feedbacks.AsNoTracking();
@@ -51,7 +63,11 @@ public class FeedbackRepository : IFeedbackRepository
 
     public void Update(FeedbackEntity feedback)
     {
-        _context.Feedbacks.Update(feedback);
+        var entry = _context.Entry(feedback);
+        if (entry.State == EntityState.Detached)
+        {
+            _context.Feedbacks.Update(feedback);
+        }
     }
 
     public void Delete(FeedbackEntity feedback)

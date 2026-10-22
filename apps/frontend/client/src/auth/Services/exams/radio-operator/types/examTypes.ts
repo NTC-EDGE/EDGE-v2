@@ -24,7 +24,8 @@ export interface ExamApplicantData {
   specialOrderNo: string;
   email: string;
   contactNo: string;
-  uploads: Record<string, string | { name: string; uri: string }>; // Maps requirement index/key to filename or file object
+  signature?: string;
+  uploads: Record<string, string | { name: string; uri: string; type?: string; file?: File | Blob }>; // Maps requirement index/key to filename or file object
   selectedVariantId?: string;
   selectedElementId?: string;
 }
@@ -55,6 +56,7 @@ export const initialExamApplicant = (id: number): ExamApplicantData => ({
   specialOrderNo: "",
   email: "",
   contactNo: "",
+  signature: "",
   uploads: {},
 });
 
@@ -65,4 +67,16 @@ export interface ScheduleItem {
   endTime: string;
   venue: string;
   maximumSlots?: number | null;
+  availableSlots?: number | null;
+  startDate?: string | null;
+  endDate?: string | null;
+  startApplication?: string | null;
+  endApplication?: string | null;
+  applicationDeadline?: string | null;
+  regionName?: string | null;
+  tenantName?: string | null;
+  serviceName?: string | null;
+  title?: string | null;
+  remarks?: string | null;
+  description?: string | null;
 }

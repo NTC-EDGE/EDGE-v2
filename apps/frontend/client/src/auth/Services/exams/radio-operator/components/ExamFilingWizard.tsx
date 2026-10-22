@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import * as DocumentPicker from "expo-document-picker";
-import { ScrollView, View, Alert } from "react-native";
+import { ScrollView, View, Text, Alert, TouchableOpacity } from "react-native";
+import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { useExamFilingWizard } from "../hooks/useExamFilingWizard";
 import { ExamSteps1To2 } from "./wizard/ExamSteps1To2";
 import { ExamStep3TypeSelection } from "./wizard/ExamStep3TypeSelection";
@@ -12,6 +13,7 @@ import { ExamWizardNavigation } from "./wizard/ExamWizardNavigation";
 import { ExamWizardModals } from "./wizard/ExamWizardModals";
 import { ExamApplicantData, initialExamApplicant } from "../types/examTypes";
 import { validateExamForm, getRequirementsList } from "../helpers/examMapping";
+import { isScheduleOpenForFiling, formatFriendlyDate } from "../../../shared/components/ExamScheduleCard";
 import { styles } from "./ExamFilingWizard.styles";
 
 interface ExamFilingWizardProps {
@@ -41,6 +43,8 @@ interface ExamFilingWizardProps {
   setIsBulkSubmitOpen: (val: boolean) => void;
   serviceId?: string | null;
   serviceName?: string | null;
+  onSaveDraft?: () => Promise<boolean | void> | void;
+  isSavingDraft?: boolean;
 }
 
 export function ExamFilingWizard(props: ExamFilingWizardProps) {
@@ -62,10 +66,13 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.serviceName
   );
 
-  const handleDocumentPick = (slotKey: string, file: { name: string; uri: string }) => {
-    const nextUploads = { ...wizard.activeApplicant.uploads };
-    nextUploads[slotKey] = file;
-    wizard.updateActiveApplicant({ uploads: nextUploads });
+  const handleDocumentPick = (
+    slotKey: string,
+    file: { name: string; uri: string; type?: string; file?: File | Blob }
+  ) => {
+    wizard.updateActiveApplicant((prev) => ({
+      uploads: { ...(prev.uploads || {}), [slotKey]: file },
+    }));
   };
 
   const handleMockCSVUpload = async () => {
@@ -84,7 +91,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
 
   const handleConfirmCSVImport = () => {
     props.setIsFileUploaded(true);
-    props.setUploadedFileName("NTC_Bulk_Template.csv");
+    props.setUploadedFileName("NTC_Radio_Operator_Exam_Template.csv");
     props.setApplicants([
       {
         ...initialExamApplicant(1),
@@ -94,7 +101,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Doe", firstName: "John", middleName: "Smith", suffix: "Jr.",
         birthMonth: "January", birthDay: "1", birthYear: "1990", sex: "Male", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Quezon City", barangay: "Barangay 1", street: "Main Street", zipCode: "1100",
-        schoolName: "University of the Philippines", courseDegree: "BS Computer Science", yearGraduated: "2012",
+        schoolName: "University of the Philippines", courseDegree: "BS Computer Science", yearGraduated: "2012", specialOrderNo: "SO-2012-001",
         contactNo: "09123456789", email: "john.doe@example.com",
       },
       {
@@ -105,7 +112,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Reyes", firstName: "Maria", middleName: "Santos", suffix: "",
         birthMonth: "May", birthDay: "15", birthYear: "1992", sex: "Female", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Makati City", barangay: "Barangay 2", street: "Second Street", zipCode: "1200",
-        schoolName: "Ateneo de Manila University", courseDegree: "BS Management", yearGraduated: "2014",
+        schoolName: "Ateneo de Manila University", courseDegree: "BS Management", yearGraduated: "2014", specialOrderNo: "",
         contactNo: "09198765432", email: "maria.reyes@example.com",
       },
       {
@@ -116,7 +123,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
         lastName: "Cruz", firstName: "Juan", middleName: "Dela", suffix: "",
         birthMonth: "October", birthDay: "20", birthYear: "1988", sex: "Male", nationality: "Filipino",
         regionName: "National Capital Region (NCR)", province: "Metro Manila", city: "Pasig City", barangay: "Barangay 3", street: "Third Street", zipCode: "1600",
-        schoolName: "De La Salle University", courseDegree: "BS Engineering", yearGraduated: "2010",
+        schoolName: "De La Salle University", courseDegree: "BS Engineering", yearGraduated: "2010", specialOrderNo: "",
         contactNo: "09176543210", email: "juan.cruz@example.com",
       }
     ]);
@@ -128,11 +135,27 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
   const handleNext = () => {
     if (props.step === 1) {
       if (!props.selectedRegionId || !props.selectedOfficeId || !props.appMode) {
-        Alert.alert("Error", "Please complete Region, Office and Application Mode.");
+        Alert.alert("Validation Error", "Please select a Region, Processing Office, and Application Mode.");
         return;
       }
-      if (props.appMode === "SINGLE" && !selectedScheduleId) {
-        Alert.alert("Error", "Please select an exam schedule date.");
+      const openSchedules = wizard.schedules.filter((s) => isScheduleOpenForFiling(s));
+      if (wizard.schedules.length > 0 && openSchedules.length === 0) {
+        const firstUpcoming = wizard.schedules.find((s) => Boolean(s.startApplication));
+        const openDateText = firstUpcoming?.startApplication
+          ? formatFriendlyDate(firstUpcoming.startApplication)
+          : "the scheduled filing start date";
+        Alert.alert(
+          "Application Not Yet Open",
+          `Application filing opens on ${openDateText}.`
+        );
+        return;
+      }
+      const selectedSched = wizard.schedules.find((s) => s.id === selectedScheduleId);
+      if (!selectedScheduleId || !selectedSched || !isScheduleOpenForFiling(selectedSched)) {
+        Alert.alert(
+          "Exam Schedule Required",
+          "Please select an open Exam Schedule date before you can proceed with the application."
+        );
         return;
       }
       props.setStep(props.appMode === "SINGLE" ? 3 : 2);
@@ -143,23 +166,50 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
       }
       props.setStep(props.bulkMethod === "EXCEL" ? 6 : 3);
     } else if (props.step === 3) {
-      if (!wizard.activeApplicant.selectedOption) {
-        Alert.alert("Error", "Please select a certificate/element option.");
+      if (!wizard.activeApplicant.selectedVariantId) {
+        Alert.alert("Error", "Please select an Examinee Type.");
+        return;
+      }
+      if (wizard.variantElements && wizard.variantElements.length > 0 && !wizard.activeApplicant.selectedElementId && !wizard.activeApplicant.selectedOption) {
+        Alert.alert("Error", "Please select an element / option for your exam.");
         return;
       }
       props.setStep(4);
     } else if (props.step === 4) {
       if (!validateExamForm(wizard.activeApplicant, wizard.setErrors)) {
-        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo"];
+        const fields = ["lastName", "firstName", "province", "city", "barangay", "street", "zipCode", "schoolName", "courseDegree", "yearGraduated", "email", "contactNo", "signature"];
         const nextTouched: Record<string, boolean> = {};
         fields.forEach((f) => (nextTouched[f] = true));
         wizard.setTouched(nextTouched);
+
+        const app = wizard.activeApplicant;
+        let firstTab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE" = "BASIC";
+        if (!app.lastName || !app.firstName) {
+          firstTab = "BASIC";
+        } else if (!app.province || !app.city || !app.barangay || !app.street || !app.zipCode || !/^\d{4}$/.test(app.zipCode)) {
+          firstTab = "ADDRESS";
+        } else if (!app.schoolName || !app.courseDegree || !app.yearGraduated || !/^\d{4}$/.test(app.yearGraduated)) {
+          firstTab = "EDUCATION";
+        } else if (!app.email || !app.contactNo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(app.email) || (!/^(09|\+639)\d{9}$/.test(app.contactNo) && !/^\d{10,11}$/.test(app.contactNo))) {
+          firstTab = "CONTACT";
+        } else if (!app.signature) {
+          firstTab = "SIGNATURE";
+        }
+        handleScrollToSection(firstTab);
+
         Alert.alert("Validation Error", "Please fill in all required fields marked with *.");
         return;
       }
       props.setStep(5);
     } else if (props.step === 5) {
-      const allUploaded = requirementsList.every((_, idx) => wizard.activeApplicant.uploads[idx.toString()]);
+      const allUploaded = requirementsList.every((req, idx) => {
+        if (typeof req === "object" && req !== null && req.isRequired === false) {
+          return true;
+        }
+        const key = typeof req === "string" ? `req-${idx}` : req.id ? `req-${req.id}` : `req-${idx}`;
+        const uploads = wizard.activeApplicant.uploads || {};
+        return Boolean(uploads[key] || uploads[`req-${idx}`] || uploads[idx.toString()]);
+      });
       if (!allUploaded) {
         Alert.alert("Error", "Please upload all mandatory supporting documents.");
         return;
@@ -182,7 +232,7 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     else if (props.step === 7) props.setStep(6);
   };
 
-  const handleScrollToSection = (tab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT") => {
+  const handleScrollToSection = (tab: "BASIC" | "ADDRESS" | "EDUCATION" | "CONTACT" | "SIGNATURE") => {
     wizard.setActiveFormTab(tab);
     isManualScrolling.current = true;
     const offset = sectionOffsets.current[tab];
@@ -199,9 +249,11 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     const address = sectionOffsets.current["ADDRESS"] || 0;
     const education = sectionOffsets.current["EDUCATION"] || 0;
     const contact = sectionOffsets.current["CONTACT"] || 0;
+    const signature = sectionOffsets.current["SIGNATURE"] || 0;
 
     let active: typeof wizard.activeFormTab = "BASIC";
-    if (scrollY >= contact - 120) active = "CONTACT";
+    if (signature > 0 && scrollY >= signature - 120) active = "SIGNATURE";
+    else if (scrollY >= contact - 120) active = "CONTACT";
     else if (scrollY >= education - 120) active = "EDUCATION";
     else if (scrollY >= address - 120) active = "ADDRESS";
     else active = "BASIC";
@@ -230,47 +282,96 @@ export function ExamFilingWizard(props: ExamFilingWizardProps) {
     props.setStep(3);
   };
 
-  const handleFinalSubmit = async () => {
-    wizard.setIsSubmitting(true);
-    try {
-      await wizard.submitApplicationPayload();
-      wizard.setIsConfirmModalOpen(false);
-      props.onSuccess();
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to submit application.");
-    } finally {
-      wizard.setIsSubmitting(false);
-    }
-  };
-
-  const handleBulkFinalSubmit = async () => {
-    if (!wizard.validateBulkSubmit()) return;
-    wizard.setIsSubmitting(true);
-    try {
-      await wizard.submitApplicationPayload();
-      props.setIsBulkSubmitOpen(false);
-      props.onSuccess();
-    } catch (err) {
-      console.error(err);
-      Alert.alert("Error", "Failed to submit applications.");
-    } finally {
-      wizard.setIsSubmitting(false);
-    }
+  const TOTAL_STEPS = props.appMode === "BULK" ? 7 : 6;
+  const stepLabels: Record<number, string> = {
+    1: "Region, Office & Schedule",
+    2: "Bulk Entry Method",
+    3: "Examinee Type & Elements",
+    4: "Personal Information",
+    5: "Upload Documents",
+    6: "Review & Submit",
+    7: "Confirmed",
   };
 
   return (
     <View style={styles.container}>
-      <ExamSteps1To2 {...props} {...wizard} step={props.step} handleMockCSVUpload={handleMockCSVUpload} selectedScheduleId={selectedScheduleId} setSelectedScheduleId={setSelectedScheduleId} />
-      <ScrollView ref={scrollViewRef} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false} scrollEventThrottle={16} onScroll={handleScroll}>
+      {/* Step Header — matches GeneralServiceWizard design */}
+      <View style={styles.header}>
+        <View style={styles.headerLeft}>
+          <View>
+            <Text style={styles.headerTitle}>
+              {props.serviceName || "Radio Operator Examination"}
+            </Text>
+            <Text style={{
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 12,
+              color: COLORS.neutral[500],
+              marginTop: 2,
+            }}>
+              {stepLabels[props.step] ?? ""}
+            </Text>
+          </View>
+        </View>
+        <View style={styles.progressContainer}>
+          {Array.from({ length: TOTAL_STEPS }, (_, i) => (
+            <View
+              key={i}
+              style={[styles.progressDash, i + 1 <= props.step && styles.progressDashActive]}
+            />
+          ))}
+        </View>
+      </View>
+
+      <ScrollView
+        ref={scrollViewRef}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+        scrollEventThrottle={16}
+        onScroll={handleScroll}
+      >
+        {(props.step === 1 || props.step === 2) && (
+          <ExamSteps1To2
+            {...props}
+            {...wizard}
+            step={props.step}
+            handleMockCSVUpload={handleMockCSVUpload}
+            selectedScheduleId={selectedScheduleId}
+            setSelectedScheduleId={setSelectedScheduleId}
+          />
+        )}
         {props.step === 3 && <ExamStep3TypeSelection {...props} {...wizard} />}
         {props.step === 4 && <ExamStep4Form {...props} {...wizard} handleScrollToSection={handleScrollToSection} sectionOffsets={sectionOffsets} />}
         {props.step === 5 && <ExamStep5Upload {...props} {...wizard} requirementsList={requirementsList} handleDocumentPick={handleDocumentPick} isWeb={false} />}
         {props.step === 6 && <ExamStep6Review {...props} {...wizard} />}
         {props.step === 7 && <ExamStep7Confirmed applicantsCount={props.applicants.length} handleAddAnotherApplicant={handleAddAnotherApplicant} />}
       </ScrollView>
-      <ExamWizardNavigation {...props} {...wizard} isNextDisabled={props.step === 1 ? (!props.selectedRegionId || !props.selectedOfficeId) : props.step === 2 && props.bulkMethod === "EXCEL" ? !props.isFileUploaded : false} handleBack={handleBack} handleNext={handleNext} getNextBtnText={() => props.step === 5 ? "Review" : props.step === 6 ? (props.appMode === "BULK" ? "Confirm" : "Submit") : "Next"} />
-      <ExamWizardModals {...props} {...wizard} applicantsCount={props.applicants.length} handleConfirmCSVImport={handleConfirmCSVImport} handleFinalSubmit={handleFinalSubmit} handleConfirmApplicantInBulk={handleConfirmApplicantInBulk} handleBulkFinalSubmit={handleBulkFinalSubmit} />
+
+      <ExamWizardNavigation
+        {...props}
+        {...wizard}
+        isNextDisabled={
+          props.step === 1
+            ? !props.selectedRegionId || !props.selectedOfficeId
+            : props.step === 2 && props.bulkMethod === "EXCEL"
+            ? !props.isFileUploaded
+            : props.appMode === "BULK" && props.applicants.length === 0
+            ? true
+            : false
+        }
+        handleBack={handleBack}
+        handleNext={handleNext}
+        getNextBtnText={() => props.step === 5 ? "Review" : props.step === 6 ? (props.appMode === "BULK" ? "Confirm" : "Submit") : "Next"}
+      />
+      <ExamWizardModals
+        {...props}
+        {...wizard}
+        applicantsCount={props.applicants.length}
+        handleConfirmCSVImport={handleConfirmCSVImport}
+        handleConfirmApplicantInBulk={handleConfirmApplicantInBulk}
+        submitApplicationPayload={wizard.submitApplicationPayload}
+        onSuccess={props.onSuccess}
+        onSaveDraft={props.onSaveDraft}
+      />
     </View>
   );
 }

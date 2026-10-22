@@ -73,6 +73,16 @@ export function SidebarNavItem({
         {/* Icon */}
         <View style={[styles.iconWrap, isCollapsed && styles.iconWrapCollapsed]}>
           <Lucide name={link.icon} size={15} color={iconColor} />
+          {isCollapsed && link.badgeCount !== undefined && link.badgeCount > 0 && (
+            <View
+              style={[
+                styles.collapsedBadgeDot,
+                {
+                  backgroundColor: isDark ? colors.brand[500] : colors.brand[600],
+                },
+              ]}
+            />
+          )}
         </View>
 
         {/* Label — hidden when collapsed */}
@@ -92,6 +102,33 @@ export function SidebarNavItem({
             {link.name}
           </Text>
         )}
+
+        {/* Badge Pill — shown when expanded and count > 0 */}
+        {!isCollapsed && link.badgeCount !== undefined && link.badgeCount > 0 && (
+          <View
+            style={[
+              styles.badgePill,
+              {
+                backgroundColor: isActive
+                  ? isDark ? colors.brand[600] : colors.brand[700]
+                  : isDark ? colors.neutral[800] : colors.neutral[200],
+              },
+            ]}
+          >
+            <Text
+              style={[
+                styles.badgeText,
+                {
+                  color: isActive
+                    ? '#FFFFFF'
+                    : isDark ? colors.brand[400] : colors.brand[700],
+                },
+              ]}
+            >
+              {link.badgeCount > 99 ? '99+' : link.badgeCount}
+            </Text>
+          </View>
+        )}
       </Pressable>
 
       {/* Tooltip — shown on hover when collapsed */}
@@ -105,7 +142,10 @@ export function SidebarNavItem({
           ]}
           pointerEvents="none"
         >
-          <Text style={styles.tooltipText}>{link.name}</Text>
+          <Text style={styles.tooltipText}>
+            {link.name}
+            {link.badgeCount !== undefined && link.badgeCount > 0 ? ` (${link.badgeCount})` : ''}
+          </Text>
         </View>
       )}
     </View>
@@ -149,11 +189,20 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     marginRight: 8,
     flexShrink: 0,
+    position: 'relative',
   },
   iconWrapCollapsed: {
     marginLeft: 0,
     marginRight: 0,
     width: '100%',
+  },
+  collapsedBadgeDot: {
+    position: 'absolute',
+    top: 2,
+    right: 2,
+    width: 6,
+    height: 6,
+    borderRadius: 3,
   },
   label: {
     fontFamily: TYPOGRAPHY.fonts.primary,
@@ -162,6 +211,21 @@ const styles = StyleSheet.create({
     ...Platform.select({
       web: { transition: 'opacity 150ms ease' },
     }),
+  },
+  badgePill: {
+    paddingHorizontal: 6,
+    paddingVertical: 1,
+    borderRadius: 10,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 18,
+  },
+  badgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    lineHeight: 14,
   },
   tooltip: {
     position: 'absolute',
@@ -172,7 +236,7 @@ const styles = StyleSheet.create({
     borderRadius: 5,
     zIndex: 9999,
     ...Platform.select({
-      web: { pointerEvents: 'none' as unknown as undefined, whiteSpace: 'nowrap' },
+      web: { whiteSpace: 'nowrap' },
     }),
   },
   tooltipText: {

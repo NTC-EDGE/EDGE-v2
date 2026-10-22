@@ -6,7 +6,7 @@ import { useTheme } from "../theme/useTheme";
 
 export interface AlertToastProps {
   message: string | null;
-  onDismiss: () => void;
+  onDismiss?: () => void;
   variant?: "error" | "success" | "warning" | "info";
   style?: ViewStyle;
 }
@@ -30,13 +30,6 @@ export function AlertToast({
 
   const getVariantStyles = (): VariantStyle => {
     switch (variant) {
-      case "error":
-        return {
-          containerStyle: { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder },
-          textStyle: { color: colors.semantic.errorText },
-          icon: "alert-circle",
-          iconColor: colors.semantic.error,
-        };
       case "success":
         return {
           containerStyle: { backgroundColor: colors.semantic.successBg, borderColor: colors.semantic.successBorder },
@@ -58,6 +51,7 @@ export function AlertToast({
           icon: "info",
           iconColor: colors.semantic.info,
         };
+      case "error":
       default:
         return {
           containerStyle: { backgroundColor: colors.semantic.errorBg, borderColor: colors.semantic.errorBorder },
@@ -74,9 +68,11 @@ export function AlertToast({
     <View style={[styles.baseContainer, v.containerStyle, style]}>
       <Icon name={v.icon} size={20} color={v.iconColor} />
       <Text style={[styles.baseText, v.textStyle]}>{message}</Text>
-      <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} activeOpacity={0.7}>
-        <Icon name="x" size={16} color={colors.neutral[500]} />
-      </TouchableOpacity>
+      {onDismiss !== undefined && onDismiss !== null && (
+        <TouchableOpacity onPress={onDismiss} style={styles.closeBtn} activeOpacity={0.7}>
+          <Icon name="x" size={16} color={colors.neutral[500]} />
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -101,3 +97,28 @@ const styles = StyleSheet.create({
     padding: 4,
   },
 });
+
+export const toast = {
+  success: (msg: string) => {
+    // Graceful no-op on platforms without DOM, usable by components
+    if (typeof console !== "undefined") {
+      console.log(`[Toast Success]: ${msg}`);
+    }
+  },
+  error: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Error]: ${msg}`);
+    }
+  },
+  warning: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.warn(`[Toast Warning]: ${msg}`);
+    }
+  },
+  info: (msg: string) => {
+    if (typeof console !== "undefined") {
+      console.info(`[Toast Info]: ${msg}`);
+    }
+  },
+};
+

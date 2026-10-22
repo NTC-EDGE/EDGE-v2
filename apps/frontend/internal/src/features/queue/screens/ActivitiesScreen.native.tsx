@@ -1,15 +1,33 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { StyleSheet, View, SafeAreaView } from 'react-native';
 import { useTheme, PageHeader, AnimatedCard, SPACING } from '@edge/ui';
-import { ApplicationProvider, useApplications } from '../context/ApplicationContext';
+import { QueueTab } from '../../shell/context/PermissionContext';
 import { ActivitiesFeedPane } from '../components/ActivitiesFeedPane';
 import { ApplicationReviewScreen } from './ApplicationReviewScreen';
+import {
+  consumePendingQueueApplication,
+  subscribeToQueueApplication,
+} from '../data/internalApplicationNavigationHelper';
 
-function NativeActivitiesContent() {
+export function ActivitiesScreen() {
   const { colors } = useTheme();
-  const { selectedId, setSelectedId } = useApplications();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [activeQueueTab, setActiveQueueTab] = useState<QueueTab>('activity');
 
   const handleClose = () => setSelectedId(null);
+
+  useEffect(() => {
+    const pending = consumePendingQueueApplication();
+    if (pending !== null && pending !== '') {
+      setSelectedId(pending);
+    }
+
+    const unsubscribe = subscribeToQueueApplication((appId) => {
+      setSelectedId(appId);
+    });
+
+    return unsubscribe;
+  }, []);
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]}>
@@ -21,21 +39,18 @@ function NativeActivitiesContent() {
 
         {selectedId === null ? (
           <AnimatedCard padding={0} style={{ flex: 1, backgroundColor: colors.cardBg, borderColor: colors.border }}>
-            <ActivitiesFeedPane />
+            <ActivitiesFeedPane
+              selectedId={selectedId}
+              onSelectId={setSelectedId}
+              activeQueueTab={activeQueueTab}
+              onSelectQueueTab={setActiveQueueTab}
+            />
           </AnimatedCard>
         ) : (
-          <ApplicationReviewScreen onClose={handleClose} />
+          <ApplicationReviewScreen applicationId={selectedId} onClose={handleClose} />
         )}
       </View>
     </SafeAreaView>
-  );
-}
-
-export function ActivitiesScreen() {
-  return (
-    <ApplicationProvider>
-      <NativeActivitiesContent />
-    </ApplicationProvider>
   );
 }
 
@@ -47,5 +62,12 @@ const styles = StyleSheet.create({
     flex: 1,
     padding: SPACING[12],
     gap: SPACING[12],
+  },
+  toastContainer: {
+    position: 'absolute',
+    top: 16,
+    left: 16,
+    right: 16,
+    zIndex: 999,
   },
 });

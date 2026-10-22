@@ -1,6 +1,7 @@
 using System;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using EDGE.Infrastructure.Extensions;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -16,11 +17,28 @@ public static class ClerkAuthenticationExtensions
     /// </summary>
     public static IServiceCollection AddClerkAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
-        var clerkAuthority = configuration["Clerk:Authority"];
+        var clerkAuthority = configuration.GetClerkAuthority();
 
         if (string.IsNullOrWhiteSpace(clerkAuthority))
         {
             throw new InvalidOperationException("Clerk Authority configuration is missing. Please configure 'Clerk:Authority' in your user secrets or environment variables.");
+        }
+
+        var validIssuers = new System.Collections.Generic.List<string>();
+        validIssuers.Add(clerkAuthority.TrimEnd('/'));
+        validIssuers.Add(clerkAuthority.TrimEnd('/') + "/");
+
+        var configuredIssuers = configuration.GetSection("Clerk:ValidIssuers").Get<string[]>();
+        if (configuredIssuers != null)
+        {
+            foreach (var issuer in configuredIssuers)
+            {
+                if (!string.IsNullOrWhiteSpace(issuer))
+                {
+                    validIssuers.Add(issuer.TrimEnd('/'));
+                    validIssuers.Add(issuer.TrimEnd('/') + "/");
+                }
+            }
         }
 
         services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
@@ -30,11 +48,34 @@ public static class ClerkAuthenticationExtensions
                 options.TokenValidationParameters = new TokenValidationParameters
                 {
                     ValidateIssuer = true,
-                    ValidIssuer = clerkAuthority,
+                    ValidIssuers = validIssuers.Distinct(StringComparer.OrdinalIgnoreCase).ToArray(),
                     ValidateAudience = false,
                     ValidateLifetime = true,
                     ClockSkew = TimeSpan.FromMinutes(2),
                     NameClaimType = ClaimTypes.NameIdentifier
+                };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnMessageReceived = context =>
+                    {
+                        var accessToken = context.Request.Query["access_token"].ToString();
+                        if (string.IsNullOrEmpty(accessToken))
+                        {
+                            accessToken = context.Request.Query["token"].ToString();
+                        }
+                        var path = context.HttpContext.Request.Path;
+                        if (!string.IsNullOrEmpty(accessToken) && (path.StartsWithSegments("/hubs") || path.Value?.Contains("/print", StringComparison.OrdinalIgnoreCase) == true))
+                        {
+                            context.Token = accessToken;
+                        }
+                        return Task.CompletedTask;
+                    },
+                    OnAuthenticationFailed = context =>
+                    {
+                        Serilog.Log.Warning("Clerk JWT Authentication failed: {Message} | Exception: {Exception}", context.Exception.Message, context.Exception.GetType().Name);
+                        return Task.CompletedTask;
+                    }
                 };
             });
 

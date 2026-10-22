@@ -40,6 +40,10 @@ export const validateExamForm = (
     newErrors.contactNo = "Invalid contact number format.";
   }
 
+  if (!app.signature) {
+    newErrors.signature = "Applicant signature is required.";
+  }
+
   setErrors(newErrors);
   return Object.keys(newErrors).length === 0;
 };
@@ -75,24 +79,58 @@ export const getFieldValidationError = (field: keyof ExamApplicantData, value: s
     if (!/^(09|\+639)\d{9}$/.test(value) && !/^\d{10,11}$/.test(value)) return "Invalid contact number format.";
   }
 
+  if (field === "signature" && !value) {
+    return "Applicant signature is required.";
+  }
+
   return undefined;
 };
+
+export interface ExamRequirementItem {
+  id?: string;
+  name: string;
+  isRequired?: boolean;
+  description?: string;
+  hint?: string;
+}
 
 export const getRequirementsList = (
   dbRequirements: any[],
   examineeType: string,
   serviceName?: string | null
-): string[] => {
+): ExamRequirementItem[] => {
   if (dbRequirements && dbRequirements.length > 0) {
-    return dbRequirements.map((r: any) => r.name);
+    return dbRequirements.map((r: any, idx: number) => ({
+      id: r.id || r.requirementId,
+      name: r.name || r.label || r.title || `Requirement ${idx + 1}`,
+      isRequired: r.isRequired !== undefined ? r.isRequired : true,
+      description: r.description,
+      hint: r.hint || r.description,
+    }));
   }
-  const list = [
-    "PSA Birth Certificate or Valid Passport / Government ID",
-    "Transcript of Records or Diploma with Special Order (SO) Number",
-    "Three (3) clear 1x1 ID pictures taken within the last six (6) months",
+  const list: ExamRequirementItem[] = [
+    {
+      name: "PSA Birth Certificate or Valid Passport / Government ID",
+      isRequired: true,
+      hint: "Clear colored scanned copy or photograph of valid PSA birth certificate or primary government ID",
+    },
+    {
+      name: "Transcript of Records or Diploma with Special Order (SO) Number",
+      isRequired: true,
+      hint: "Certified true copy or scanned copy of official TOR or graduation diploma",
+    },
+    {
+      name: "Three (3) clear 1x1 ID pictures taken within the last six (6) months",
+      isRequired: true,
+      hint: "Front-facing colored ID photograph on white background taken recently",
+    },
   ];
   if (examineeType === "Upgrader" || (serviceName && serviceName.toLowerCase().includes("radio"))) {
-    list.push("Copy of prior Radio Operator Certificate (ROC) / License");
+    list.push({
+      name: "Copy of prior Radio Operator Certificate (ROC) / License",
+      isRequired: true,
+      hint: "Front and back clear copy of active or expired radio certificate",
+    });
   }
   return list;
 };
@@ -127,12 +165,6 @@ export const mapApplicantsPayload = (
 
     if (formFields.length > 0) {
       const mappings = [
-        { fieldId: "fd000000-0000-0000-0000-000000000001", terms: ["full name", "applicant name", "name"], value: `${app.firstName} ${app.lastName}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000002", terms: ["birth date", "date of birth", "dob"], value: `${app.birthYear}-${monthNum}-${day}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000003", terms: ["address", "street", "residence"], value: address },
-        { fieldId: "fd000000-0000-0000-0000-000000000004", terms: ["contact no", "contact number", "phone", "mobile"], value: app.contactNo },
-        { fieldId: "fd000000-0000-0000-0000-000000000005", terms: ["email address", "email"], value: app.email },
-        { fieldId: "fd000000-0000-0000-0000-000000000006", terms: ["education", "school", "course", "degree"], value: `${app.schoolName} - ${app.courseDegree}` },
         { 
           fieldId: "fd000000-0000-0000-0000-000000000007", 
           terms: ["exam category", "category"], 
@@ -140,25 +172,40 @@ export const mapApplicantsPayload = (
         },
         { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
         { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
-        { fieldId: "fd000000-0000-0000-0000-000000000010", terms: ["special needs", "assistance"], value: "None" },
         { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000012", terms: ["signature"], value: `${app.firstName} ${app.lastName}` },
-        { fieldId: "fd000000-0000-0000-0000-000000000013", terms: ["declare", "info is true", "checkbox"], value: "true" },
+      ];
+
+      const ignoredBioTerms = [
+        "full name", "first name", "last name", "middle name", "applicant name", "name",
+        "birth date", "date of birth", "dob", "birth",
+        "address", "street", "residence", "barangay", "city", "province", "zip",
+        "contact no", "contact number", "phone", "mobile",
+        "email address", "email",
+        "signature", "declare", "declaration", "terms"
       ];
 
       formFields.forEach((field: any) => {
         const labelLower = (field.label || "").toLowerCase();
         const id = field.fieldId;
+        if (labelLower.includes("school") || labelLower.includes("university")) {
+          formFieldValues.push({ fieldId: id, value: app.schoolName });
+          return;
+        }
+        if (labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) {
+          formFieldValues.push({ fieldId: id, value: app.courseDegree });
+          return;
+        }
+        if (labelLower.includes("graduat") || labelLower.includes("year graduated")) {
+          formFieldValues.push({ fieldId: id, value: app.yearGraduated });
+          return;
+        }
+        if (ignoredBioTerms.some(t => labelLower.includes(t))) return;
+
         const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
         if (match) {
           formFieldValues.push({
             fieldId: id,
             value: match.value
-          });
-        } else {
-          formFieldValues.push({
-            fieldId: id,
-            value: field.type === "checkbox" ? "false" : ""
           });
         }
       });
@@ -170,12 +217,22 @@ export const mapApplicantsPayload = (
     }
 
     return {
+      applicantType: "individual",
       firstName: app.firstName,
+      middleName: app.middleName || undefined,
       lastName: app.lastName,
+      suffix: app.suffix || undefined,
       email: app.email,
       contactNumber: app.contactNo,
       address: address,
       birthDate: birthDate,
+      sex: app.sex,
+      nationality: app.nationality,
+      zipCode: app.zipCode,
+      schoolAttended: app.schoolName,
+      courseTaken: app.courseDegree,
+      yearGraduated: app.yearGraduated,
+      eSignature: app.signature || undefined,
       formFieldValues,
     };
   });

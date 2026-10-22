@@ -2,6 +2,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Domain.Enums;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
@@ -14,17 +15,20 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
     private readonly IServiceRepository _serviceRepository;
     private readonly IServiceVariantElementRepository _elementRepository;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UpdateApplicationCommandHandler> _logger;
 
     public UpdateApplicationCommandHandler(
         IApplicationFullRepository applicationRepository,
         IServiceRepository serviceRepository,
         IServiceVariantElementRepository elementRepository,
-        IUnitOfWork unitOfWork)
+        IUnitOfWork unitOfWork,
+        ILogger<UpdateApplicationCommandHandler> logger)
     {
         _applicationRepository = applicationRepository;
         _serviceRepository = serviceRepository;
         _elementRepository = elementRepository;
         _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<Guid>> Handle(UpdateApplicationCommand request, CancellationToken cancellationToken)
@@ -44,42 +48,20 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
         if (request.ScheduleId.HasValue) app.ScheduleId = request.ScheduleId;
         if (!string.IsNullOrEmpty(request.Office)) app.Office = request.Office;
 
-        if (app.ApplicationServices.Count > 0)
+        foreach (var aa in app.ApplicationApplicants)
         {
-            var appService = app.ApplicationServices.First();
-            if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+            var applicant = aa.Applicant;
+            if (applicant != null)
             {
-                var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
-                if (variant == null || variant.ServiceId != appService.ServiceId)
+                if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
                 {
-                    return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
+                    var variant = await _serviceRepository.GetVariantByIdAsync(request.ServiceVariantId.Value, cancellationToken);
+                    if (variant == null || (applicant.ServiceId.HasValue && variant.ServiceId != applicant.ServiceId))
+                    {
+                        return ApiResponse<Guid>.Fail("Validation Error: The selected service variant is invalid or does not belong to the application's service.");
+                    }
+                    applicant.ServiceVariantId = variant.Id;
                 }
-                appService.ServiceVariantId = variant.Id;
-                appService.ApplicationTypeKey = variant.Type.ToString();
-            }
-
-            if (request.ServiceVariantElementIds != null)
-            {
-                var variantId = appService.ServiceVariantId;
-                if (!variantId.HasValue)
-                {
-                    return ApiResponse<Guid>.Fail("Validation Error: Cannot update variant elements without a resolved service variant.");
-                }
-
-                var validElements = await _elementRepository.GetAllByVariantAsync(variantId.Value, cancellationToken);
-                var validElementIds = validElements.Select(e => e.Id).ToHashSet();
-
-                var invalidElementIds = request.ServiceVariantElementIds.Where(id => !validElementIds.Contains(id)).ToList();
-                if (invalidElementIds.Any())
-                {
-                    return ApiResponse<Guid>.Fail($"Validation Error: Element ID(s) '{string.Join(", ", invalidElementIds)}' do not belong to the selected variant.");
-                }
-
-                appService.DynamicDataJson = System.Text.Json.JsonSerializer.Serialize(new { selectedElementIds = request.ServiceVariantElementIds });
-            }
-            else if (!string.IsNullOrEmpty(request.DynamicDataJson))
-            {
-                appService.DynamicDataJson = request.DynamicDataJson;
             }
         }
 
@@ -94,8 +76,16 @@ public class UpdateApplicationCommandHandler : IRequestHandler<UpdateApplication
         }
         catch (Exception ex)
         {
-            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
-            return ApiResponse<Guid>.Fail($"Failed to update application draft. Error: {ex.Message}");
+            _logger.LogError(ex, "Failed to update application draft for ApplicationId '{ApplicationId}'.", request.Id);
+            try
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            }
+            catch (Exception rollbackEx)
+            {
+                _logger.LogWarning(rollbackEx, "Transaction rollback failed during application update for ApplicationId '{ApplicationId}'.", request.Id);
+            }
+            return ApiResponse<Guid>.Fail("An unexpected error occurred while updating the application draft. Please try again later.");
         }
     }
 }

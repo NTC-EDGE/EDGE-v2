@@ -30,7 +30,7 @@ export function RootNavigator() {
     isAuthenticated ? "Dashboard" : "Welcome"
   );
 
-  useWebMetadata(isAuthenticated, screenTitle);
+  useWebMetadata(isAuthenticated, isLoading, screenTitle);
   useRouteTracker(isAuthenticated, navigationRef, (routeName, title) => {
     setActiveScreen(routeName);
     setScreenTitle(title);

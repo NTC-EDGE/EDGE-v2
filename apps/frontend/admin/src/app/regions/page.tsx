@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, MapPin, Loader2, Search, CheckCircle2 } from "lucide-react";
+import { Plus, MapPin, Loader2, Search } from "lucide-react";
 import { useRegionService } from "@/services/regionService";
 import { useProvinceService } from "@/services/provinceService";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { RegionsTable } from "@/components/geographics/RegionsTable";
 import { CreateRegionDialog, EditRegionDialog } from "@/components/geographics/RegionDialogs";
 import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
+import { showToast } from "@/components/ui/toast-notification";
 import { Region } from "@edge/api";
 
 type FilterType = "all" | "active" | "inactive";
@@ -17,7 +18,10 @@ interface ConfirmConfig {
   title: string;
   description: string;
   actionType: "delete" | "toggle-status";
-  payload: any;
+  payload: {
+    item: Region;
+    newStatus?: boolean;
+  };
 }
 
 export default function RegionsPage() {
@@ -43,12 +47,6 @@ export default function RegionsPage() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmConfig, setConfirmConfig] = useState<ConfirmConfig | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
-
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 4000);
-  };
 
   const hasProvinces = (regionId: string) => {
     return provinces.some((p) => p.regionId === regionId);
@@ -70,7 +68,7 @@ export default function RegionsPage() {
     if (res.succeeded) {
       setIsCreateOpen(false);
       mutate();
-      showToast("Region registered successfully!");
+      showToast.success(`Region '${data.name}' registered successfully.`);
     } else {
       throw new Error(res.message || "Failed to register region.");
     }
@@ -87,7 +85,7 @@ export default function RegionsPage() {
     if (res.succeeded) {
       setIsEditOpen(false);
       mutate();
-      showToast("Region details updated successfully!");
+      showToast.success(`Region '${data.name}' updated successfully.`);
     } else {
       throw new Error(res.message || "Failed to update region.");
     }
@@ -125,9 +123,9 @@ export default function RegionsPage() {
         const res = await deleteRegion(item.id);
         if (res.succeeded) {
           mutate();
-          showToast(`Region '${item.name}' has been deleted.`);
+          showToast.success(`Region '${item.name}' has been deleted.`);
         } else {
-          showToast(res.message || "Failed to delete region.");
+          showToast.error(res.message || "Failed to delete region.");
         }
       } 
       else if (actionType === "toggle-status") {
@@ -136,18 +134,17 @@ export default function RegionsPage() {
           id: item.id,
           code: item.code,
           name: item.name,
-          isActive: newStatus,
+          isActive: newStatus ?? true,
         });
         if (res.succeeded) {
           mutate();
-          showToast(`Region '${item.code}' status updated to ${newStatus ? "Active" : "Inactive"}.`);
+          showToast.success(`Region '${item.code}' is now ${newStatus ? "Active" : "Inactive"}.`);
         } else {
-          showToast(res.message || "Failed to toggle status.");
+          showToast.error(res.message || "Failed to toggle status.");
         }
       }
-    } catch (err) {
-      console.error(err);
-      showToast("An error occurred executing this operation.");
+    } catch {
+      showToast.error("An error occurred executing this operation.");
     } finally {
       setIsProcessing(false);
       setConfirmOpen(false);
@@ -157,15 +154,6 @@ export default function RegionsPage() {
 
   return (
     <div className="space-y-6">
-      {toastMsg !== null && (
-        <div className="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-sm flex items-center justify-between shadow-xl animate-fade-in">
-          <div className="flex items-center gap-3">
-            <CheckCircle2 className="w-5 h-5 text-emerald-400 shrink-0" />
-            <span>{toastMsg}</span>
-          </div>
-          <button onClick={() => setToastMsg(null)} className="text-emerald-400 hover:text-white text-xs">Dismiss</button>
-        </div>
-      )}
 
       {/* Header section */}
       <div className="p-5 md:p-6 rounded-2xl bg-white dark:bg-gradient-to-r dark:from-slate-900 dark:via-slate-900/90 dark:to-indigo-950/60 border border-slate-200 dark:border-slate-800 shadow-md dark:shadow-xl relative overflow-hidden transition-colors duration-200">

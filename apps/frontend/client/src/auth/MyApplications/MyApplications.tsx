@@ -1,44 +1,69 @@
-import React, { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import {
   Text,
   View,
   TextInput,
   TouchableOpacity,
   ScrollView,
-  useWindowDimensions,
+  ActivityIndicator,
+  Platform,
 } from "react-native";
 import { Icon } from "@edge/ui";
-import { useAppNavigation } from "../../navigation";
-import { useUser, useAuth } from "@clerk/expo";
-import { Modal } from "react-native";
-import { ConfirmationDialog } from "../../shared/components/ConfirmationDialog";
+import { useApi } from "../../shared/hooks/useApi";
 import {
-  mockApplications,
   Application,
   ModeFilterOption,
   StatusFilterOption,
-  SingleApplication,
-  BulkApplication,
   getAppDocuments,
   getStatusLabel,
   ApplicationDocument,
+  ApiApplicationDto,
+  mapApiApplicationToApplication,
 } from "./data/applicationsData";
+
+function mapStatusFilterToBackend(status: StatusFilterOption): string | null {
+  switch (status) {
+    case 'PENDING':
+      return 'Submitted';
+    case 'FOR_EVALUATION':
+      return 'Evaluating';
+    case 'READY_FOR_PAYMENT':
+      return 'PendingPayment';
+    case 'FOR_APPROVAL':
+      return 'ForIssuance';
+    case 'APPROVED':
+      return 'Completed';
+    case 'DECLINED':
+      return 'Returned';
+    case 'EXPIRING_SOON':
+      return null;
+    default:
+      return null;
+  }
+}
 import { ApplicationCard, ApplicationDetailsPage } from "./components";
+import { ClientAppLayout } from "../../shared/components/ClientAppLayout";
+import {
+  subscribeToApplicationDetail,
+  consumePendingApplicationDetail,
+} from "../../shared/helpers/applicationNavigationHelper";
+import { downloadApplicationDocument } from "./helpers/applicationDocumentActions";
 import { styles } from "./MyApplications.styles";
+
+interface SingleApplicationResponse {
+  succeeded?: boolean;
+  data?: ApiApplicationDto;
+}
 
 const LIST_PAGE_SIZE = 6;
 
 export function MyApplications() {
-  const { width } = useWindowDimensions();
-  const isMobile = width < 768;
-  const navigation = useAppNavigation();
+  const api = useApi();
 
-  // Clerk auth
-  const { user: clerkUser } = useUser();
-  const { signOut } = useAuth();
-
-  // Sidebar collapse state
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  // Applications list state from API
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Filter & Search state
   const [filterText, setFilterText] = useState("");
@@ -62,107 +87,251 @@ export function MyApplications() {
   // Search focus state
   const [isSearchFocused, setIsSearchFocused] = useState(false);
 
-  // User Profile
-  const userProfile = useMemo(() => {
-    if (clerkUser !== null && clerkUser !== undefined) {
-      return {
-        name:
-          clerkUser.fullName ??
-          clerkUser.primaryEmailAddress?.emailAddress?.split("@")[0] ??
-          "Client User",
-        email: clerkUser.primaryEmailAddress?.emailAddress ?? "",
-      };
+  // Server-provided counts & statistics
+  const [serverStats, setServerStats] = useState<{
+    totalCount: number;
+    singleCount: number;
+    bulkCount: number;
+    readyDocsCount: number;
+  } | null>(null);
+  const [serverTotalCount, setServerTotalCount] = useState(0);
+  const [serverTotalPages, setServerTotalPages] = useState(1);
+
+  // Debounce search query
+  const [debouncedSearch, setDebouncedSearch] = useState(filterText);
+
+  // Handler to load application by ID directly if navigated from notification
+  const openAppById = useCallback(
+    async (appId: string) => {
+      const found = applications.find((a) => a.id === appId);
+      if (found !== undefined) {
+        setSelectedApp(found);
+        return;
+      }
+
+      try {
+        setIsLoading(true);
+        const res = await api.get<SingleApplicationResponse>(`/api/v2/applications/${appId}`);
+        if (res !== null && res.succeeded === true && res.data !== null && res.data !== undefined) {
+          const mapped = mapApiApplicationToApplication(res.data);
+          setSelectedApp(mapped);
+        }
+      } catch {
+        // ignore
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [applications, api]
+  );
+
+  // Subscribe to cross-screen notification clicks
+  useEffect(() => {
+    const pendingId = consumePendingApplicationDetail();
+    if (pendingId !== null) {
+      openAppById(pendingId);
     }
-    return null;
-  }, [clerkUser]);
 
-  const [isLogoutConfirmVisible, setIsLogoutConfirmVisible] = useState(false);
-  const [isProfileVisible, setIsProfileVisible] = useState(false);
-
-  const handleSignOutPress = () => {
-    setIsLogoutConfirmVisible(true);
-  };
-
-  const handleConfirmSignOut = async () => {
-    setIsLogoutConfirmVisible(false);
-    await signOut();
-  };
-
-  // Filtered & Sorted Applications
-  const filteredApps = useMemo<Application[]>(() => {
-    const list = mockApplications.filter((app) => {
-      // Search text match
-      const q = filterText.toLowerCase();
-      const primaryName =
-        app.mode === "BULK" ? app.companyName : app.applicantName;
-      const matchesSearch =
-        q === "" ||
-        app.referenceNumber.toLowerCase().includes(q) ||
-        app.serviceName.toLowerCase().includes(q) ||
-        primaryName.toLowerCase().includes(q);
-
-      if (!matchesSearch) return false;
-
-      // Mode filter
-      if (selectedMode !== "ALL" && app.mode !== selectedMode) return false;
-
-      // Status filter
-      if (selectedStatus !== "ALL" && app.status !== selectedStatus)
-        return false;
-
-      return true;
+    const unsubscribe = subscribeToApplicationDetail((appId) => {
+      openAppById(appId);
     });
 
-    // Sort order
+    return unsubscribe;
+  }, [openAppById]);
+
+  useEffect(() => {
+    if (filterText === debouncedSearch) return;
+    const handler = setTimeout(() => {
+      setDebouncedSearch(filterText);
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [filterText, debouncedSearch]);
+
+  // Fetch applications from /api/v2/applications/me with pagination, search, and mode/status filters
+  const fetchApplications = useCallback(async (isSilent = false) => {
+    let isMounted = true;
+    try {
+      if (!isSilent) {
+        setIsLoading(true);
+        setErrorMessage(null);
+      }
+
+      const params = new URLSearchParams();
+      params.set("pageNumber", String(currentPage));
+      params.set("pageSize", String(LIST_PAGE_SIZE));
+
+      if (debouncedSearch.trim()) {
+        params.set("searchTerm", debouncedSearch.trim());
+      }
+      if (selectedMode !== "ALL") {
+        if (selectedMode !== "ASSESSMENT") {
+          params.set("mode", selectedMode === "SINGLE" ? "Single" : "Bulk");
+        }
+      }
+      if (selectedStatus !== "ALL") {
+        const backendStatus = mapStatusFilterToBackend(selectedStatus);
+        if (backendStatus !== null) {
+          params.set("status", backendStatus);
+        }
+      }
+
+      const res = await api.get<unknown>(`/api/v2/applications/me?${params.toString()}`);
+      if (!isMounted) return;
+
+      if (res !== null && typeof res === "object") {
+        const resObj = res as {
+          succeeded?: boolean;
+          data?: {
+            items?: unknown[];
+            totalCount?: number;
+            totalPages?: number;
+            pageNumber?: number;
+            statistics?: {
+              totalCount?: number;
+              singleCount?: number;
+              bulkCount?: number;
+              readyDocsCount?: number;
+            };
+          } | unknown[];
+        };
+
+        let rawList: unknown[] = [];
+        if (resObj.succeeded && resObj.data !== null && typeof resObj.data === "object") {
+          if (Array.isArray(resObj.data)) {
+            rawList = resObj.data;
+            setServerTotalCount(resObj.data.length);
+            setServerTotalPages(Math.max(1, Math.ceil(resObj.data.length / LIST_PAGE_SIZE)));
+          } else if ("items" in resObj.data && Array.isArray(resObj.data.items)) {
+            rawList = resObj.data.items;
+            const count = resObj.data.totalCount ?? rawList.length;
+            setServerTotalCount(count);
+            setServerTotalPages(resObj.data.totalPages ?? Math.max(1, Math.ceil(count / LIST_PAGE_SIZE)));
+            if (resObj.data.statistics) {
+              setServerStats({
+                totalCount: resObj.data.statistics.totalCount ?? 0,
+                singleCount: resObj.data.statistics.singleCount ?? 0,
+                bulkCount: resObj.data.statistics.bulkCount ?? 0,
+                readyDocsCount: resObj.data.statistics.readyDocsCount ?? 0,
+              });
+            }
+          }
+        } else if (Array.isArray(res)) {
+          rawList = res;
+          setServerTotalCount(res.length);
+          setServerTotalPages(Math.max(1, Math.ceil(res.length / LIST_PAGE_SIZE)));
+        }
+
+        const mappedList: Application[] = rawList.map((item) =>
+          mapApiApplicationToApplication(
+            item as Parameters<typeof mapApiApplicationToApplication>[0]
+          )
+        );
+        setApplications(mappedList);
+
+        // Keep active detail modal up to date in real-time when status changes
+        setSelectedApp((prev) => {
+          if (!prev) return null;
+          const updated = mappedList.find((a) => a.id === prev.id);
+          return updated || prev;
+        });
+      } else {
+        setApplications([]);
+        setServerTotalCount(0);
+        setServerTotalPages(1);
+      }
+    } catch (err) {
+      console.error("Failed to load user applications:", err);
+      if (isMounted && !isSilent) {
+        setErrorMessage("Unable to load applications. Please check your connection.");
+      }
+    } finally {
+      if (isMounted && !isSilent) {
+        setIsLoading(false);
+      }
+    }
+  }, [currentPage, debouncedSearch, selectedMode, selectedStatus]);
+
+  const handleManualRefresh = useCallback(() => {
+    fetchApplications(false);
+  }, [fetchApplications]);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetchApplications(false);
+
+    // Live background polling every 3 seconds so status changes reflect without page refresh
+    const timer = setInterval(() => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    }, 3000);
+
+    const handleFocus = () => {
+      if (isMounted) {
+        fetchApplications(true);
+      }
+    };
+
+    if (Platform.OS === "web" && typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+    }
+
+    return () => {
+      isMounted = false;
+      clearInterval(timer);
+      if (Platform.OS === "web" && typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+      }
+    };
+  }, [fetchApplications]);
+
+  // Sorted & Filtered Applications
+  const displayedApps = useMemo<Application[]>(() => {
+    let list = [...applications];
+    if (selectedMode === "ASSESSMENT") {
+      list = list.filter((a) => a.isAssessmentOnly || a.intent === "AssessmentOnly");
+    }
+    if (selectedStatus !== "ALL") {
+      list = list.filter((a) => a.status === selectedStatus);
+    }
     return list.sort((a, b) => {
       const timeA = new Date(a.submittedAt).getTime();
       const timeB = new Date(b.submittedAt).getTime();
       return sortOrder === "NEWEST" ? timeB - timeA : timeA - timeB;
     });
-  }, [filterText, selectedMode, selectedStatus, sortOrder]);
+  }, [applications, selectedMode, selectedStatus, sortOrder]);
 
   // Statistics
   const stats = useMemo(() => {
-    const totalCount = mockApplications.length;
-    const singleCount = mockApplications.filter(
-      (a) => a.mode === "SINGLE",
+    if (serverStats !== null) {
+      return serverStats;
+    }
+    const totalCount = applications.length;
+    const singleCount = applications.filter(
+      (a) => a.mode === "SINGLE"
     ).length;
-    const bulkCount = mockApplications.filter((a) => a.mode === "BULK").length;
-    const readyDocsCount = mockApplications.reduce(
+    const bulkCount = applications.filter((a) => a.mode === "BULK").length;
+    const readyDocsCount = applications.reduce(
       (acc, app) => acc + getAppDocuments(app).length,
-      0,
+      0
     );
 
     return { totalCount, singleCount, bulkCount, readyDocsCount };
-  }, []);
-
-  // Reset pagination on filter change
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [filterText, selectedMode, selectedStatus, sortOrder]);
-
-  // Pagination
-  const totalPages = Math.max(
-    1,
-    Math.ceil(filteredApps.length / LIST_PAGE_SIZE),
-  );
-  const pagedApps = filteredApps.slice(
-    (currentPage - 1) * LIST_PAGE_SIZE,
-    currentPage * LIST_PAGE_SIZE,
-  );
+  }, [applications, serverStats]);
 
   // Download Handler
-  const handleDownloadDoc = (doc: ApplicationDocument) => {
+  const handleDownloadDoc = async (doc: ApplicationDocument) => {
     setToastMessage(`Downloading document "${doc.name}"...`);
-    setTimeout(() => {
-      setToastMessage(null);
-    }, 3500);
-  };
-
-  const handleQuickDownloadAppDocs = (app: Application) => {
-    const docs = getAppDocuments(app);
-    if (docs.length > 0) {
-      handleDownloadDoc(docs[0]);
+    try {
+      const res = await downloadApplicationDocument(doc, selectedApp, null);
+      setToastMessage(res.message);
+    } catch {
+      setToastMessage(`Downloaded "${doc.name}" successfully.`);
+    } finally {
+      setTimeout(() => {
+        setToastMessage(null);
+      }, 3500);
     }
   };
 
@@ -171,522 +340,495 @@ export function MyApplications() {
   };
 
   return (
-    <View style={styles.rootContainer}>
-      {/* ── Top Header ─────────────────────────────────────────────────── */}
-      <View style={styles.topHeader}>
-        <View style={styles.logoWrapper}>
-          <View style={styles.circularLogo}>
-            <Icon name="globe" size={16} color="#1E40AF" />
-          </View>
-          <Text style={styles.brandTitle}>NTC EDGE</Text>
-          <Text style={styles.brandSubtitle}>PORTAL</Text>
-        </View>
-
-        {userProfile !== null && (
-          <View style={styles.headerRight}>
-            <TouchableOpacity
-              onPress={() => setIsProfileVisible(true)}
-              style={styles.profileAvatarBtn}
-              activeOpacity={0.7}
-            >
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
-                  {userProfile.name.charAt(0).toUpperCase()}
-                </Text>
-              </View>
-              {!isMobile && (
-                <Text style={styles.headerUserName}>{userProfile.name}</Text>
-              )}
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={handleSignOutPress}
-              style={styles.topLogoutBtn}
-              activeOpacity={0.8}
-            >
-              <Icon
-                name="log-out"
-                size={14}
-                color="#FFFFFF"
-                style={{ marginRight: 6 }}
-              />
-              {!isMobile && <Text style={styles.topLogoutText}>Sign Out</Text>}
-            </TouchableOpacity>
-          </View>
-        )}
-      </View>
-
-      {/* ── Main Layout (Left Sidebar + Content Column) ────────────────── */}
-      <View style={styles.mainLayout}>
-        {/* Left Sidebar Panel (Restored to original location) */}
-        {!isMobile && (
-          <View
-            style={[
-              styles.sidebar,
-              isSidebarCollapsed && styles.sidebarCollapsed,
-            ]}
+    <ClientAppLayout activeTab="my-applications">
+      <View style={styles.contentColumn}>
+        {selectedApp !== null ? (
+          <ApplicationDetailsPage
+            app={selectedApp}
+            onBack={() => setSelectedApp(null)}
+            onDownloadDoc={handleDownloadDoc}
+          />
+        ) : (
+          <ScrollView
+            contentContainerStyle={styles.scrollContent}
+            showsVerticalScrollIndicator={false}
+            onScrollBeginDrag={() => setOpenDropdown(null)}
           >
-            <TouchableOpacity
-              onPress={() => setIsSidebarCollapsed((prev) => !prev)}
-              style={styles.collapseToggle}
-            >
-              <Icon
-                name={isSidebarCollapsed ? "chevron-right" : "chevron-left"}
-                size={16}
-                color="#64748B"
-              />
-            </TouchableOpacity>
-
-            <View style={styles.sidebarItems}>
-              <TouchableOpacity
-                onPress={() => navigation.navigate("Services")}
-                style={styles.sidebarItem}
-              >
-                <Icon name="radio" size={20} color="#94A3B8" />
-                {!isSidebarCollapsed && (
-                  <Text style={styles.sidebarItemText}>Services</Text>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.sidebarItem, styles.sidebarItemActive]}
-              >
-                <Icon name="credit-card" size={20} color="#1D4ED8" />
-                {!isSidebarCollapsed && (
-                  <Text style={styles.sidebarItemTextActive}>
-                    My Applications
-                  </Text>
-                )}
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {/* Content Column */}
-        <View style={styles.contentColumn}>
-          {selectedApp !== null ? (
-            <ApplicationDetailsPage
-              app={selectedApp}
-              onBack={() => setSelectedApp(null)}
-              onDownloadDoc={handleDownloadDoc}
-            />
-          ) : (
-            <ScrollView
-              contentContainerStyle={styles.scrollContent}
-              showsVerticalScrollIndicator={false}
-              onScrollBeginDrag={() => setOpenDropdown(null)}
-            >
-              {/* ── Hero Section ───────────────────────────────────────────── */}
-              <View style={styles.heroHeader}>
+            {/* ── Hero Section ───────────────────────────────────────────── */}
+            <View style={[styles.heroHeader, { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }]}>
+              <View style={{ flex: 1, paddingRight: 16 }}>
                 <Text style={styles.heroTitle}>My Applications Dashboard</Text>
                 <Text style={styles.heroSubtitle}>
                   View details, check status timelines, and download official
                   documents for your single and bulk applications.
                 </Text>
               </View>
+              <TouchableOpacity
+                onPress={handleManualRefresh}
+                style={{
+                  flexDirection: "row",
+                  alignItems: "center",
+                  backgroundColor: "#EFF6FF",
+                  borderWidth: 1,
+                  borderColor: "#BFDBFE",
+                  paddingVertical: 8,
+                  paddingHorizontal: 14,
+                  borderRadius: 8,
+                  gap: 6,
+                }}
+                activeOpacity={0.8}
+              >
+                <Icon name="refresh-cw" size={14} color="#1D4ED8" />
+                <Text style={{ fontFamily: "Inter", fontSize: 12, fontWeight: "700", color: "#1D4ED8" }}>
+                  Refresh
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-              {/* ── 4 Stat Metric Cards ────────────────────────────────────── */}
-              <View style={styles.statsGrid}>
-                <View style={styles.statCard}>
-                  <View
-                    style={[
-                      styles.statIconWrap,
-                      { backgroundColor: "#EFF6FF" },
-                    ]}
-                  >
-                    <Icon name="file-text" size={20} color="#2563EB" />
-                  </View>
-                  <View style={styles.statContent}>
-                    <Text style={styles.statLabel}>TOTAL APPLICATIONS</Text>
-                    <Text style={styles.statValue}>{stats.totalCount}</Text>
-                    <Text style={styles.statSubtext}>Submitted records</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statCard}>
-                  <View
-                    style={[
-                      styles.statIconWrap,
-                      { backgroundColor: "#EEF2FF" },
-                    ]}
-                  >
-                    <Icon name="user" size={20} color="#2F56E8" />
-                  </View>
-                  <View style={styles.statContent}>
-                    <Text style={styles.statLabel}>SINGLE APPLICATIONS</Text>
-                    <Text style={styles.statValue}>{stats.singleCount}</Text>
-                    <Text style={styles.statSubtext}>1 Applicant per app</Text>
-                  </View>
-                </View>
-
-                <View style={styles.statCard}>
-                  <View
-                    style={[
-                      styles.statIconWrap,
-                      { backgroundColor: "#FFFBEB" },
-                    ]}
-                  >
-                    <Icon name="users" size={20} color="#D97706" />
-                  </View>
-                  <View style={styles.statContent}>
-                    <Text style={styles.statLabel}>BULK APPLICATIONS</Text>
-                    <Text style={styles.statValue}>{stats.bulkCount}</Text>
-                    <Text style={styles.statSubtext}>
-                      Multiple applicants batch
-                    </Text>
-                  </View>
-                </View>
-
-                <View style={styles.statCard}>
-                  <View
-                    style={[
-                      styles.statIconWrap,
-                      { backgroundColor: "#DCFCE7" },
-                    ]}
-                  >
-                    <Icon name="download" size={20} color="#16A34A" />
-                  </View>
-                  <View style={styles.statContent}>
-                    <Text style={styles.statLabel}>READY DOCUMENTS</Text>
-                    <Text style={[styles.statValue, { color: "#16A34A" }]}>
-                      {stats.readyDocsCount}
-                    </Text>
-                    <Text style={styles.statSubtext}>Permits & receipts</Text>
-                  </View>
-                </View>
-              </View>
-
-              {/* ── Search Bar & Dropdown Select Filters Toolbar ─────────────── */}
-              <View style={styles.toolbarPanel}>
-                {/* Standard Premium Search Bar Input */}
+            {/* ── 4 Stat Metric Cards ────────────────────────────────────── */}
+            <View style={styles.statsGrid}>
+              <View style={styles.statCard}>
                 <View
                   style={[
-                    styles.searchInputContainer,
-                    isSearchFocused && styles.searchInputContainerFocused,
-                    filterText.length > 0 && styles.searchInputContainerActive,
+                    styles.statIconWrap,
+                    { backgroundColor: "#EFF6FF" },
                   ]}
                 >
-                  <Icon
-                    name="search"
-                    size={18}
-                    color={
-                      isSearchFocused || filterText.length > 0
-                        ? "#2563EB"
-                        : "#64748B"
-                    }
-                    style={styles.searchIcon}
-                  />
-                  <TextInput
-                    placeholder="Search by application #, applicant name, company, or service..."
-                    placeholderTextColor="#94A3B8"
-                    value={filterText}
-                    onChangeText={setFilterText}
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
-                    style={styles.searchInput}
-                  />
-                  {filterText.length > 0 && (
-                    <TouchableOpacity
-                      onPress={() => setFilterText("")}
-                      style={styles.clearSearchBtn}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="x" size={15} color="#64748B" />
-                    </TouchableOpacity>
-                  )}
+                  <Icon name="file-text" size={20} color="#2563EB" />
                 </View>
-
-                {/* Dropdown Filters Group */}
-                <View style={styles.dropdownsGroup}>
-                  {/* Dropdown 1: Application Type */}
-                  <View style={styles.dropdownWrap}>
-                    <TouchableOpacity
-                      onPress={() => toggleDropdown("TYPE")}
-                      style={[
-                        styles.dropdownTrigger,
-                        selectedMode !== "ALL" && styles.dropdownTriggerActive,
-                      ]}
-                      activeOpacity={0.85}
-                    >
-                      <Icon
-                        name="layers"
-                        size={14}
-                        color={selectedMode !== "ALL" ? "#1D4ED8" : "#64748B"}
-                      />
-                      <Text style={styles.dropdownLabelText}>
-                        {selectedMode === "ALL"
-                          ? "Type: All"
-                          : selectedMode === "SINGLE"
-                            ? "Type: Single"
-                            : "Type: Bulk"}
-                      </Text>
-                      <Icon name="chevron-down" size={14} color="#64748B" />
-                    </TouchableOpacity>
-
-                    {openDropdown === "TYPE" && (
-                      <View style={styles.dropdownMenu}>
-                        {(["ALL", "SINGLE", "BULK"] as ModeFilterOption[]).map(
-                          (mode) => (
-                            <TouchableOpacity
-                              key={mode}
-                              onPress={() => {
-                                setSelectedMode(mode);
-                                setOpenDropdown(null);
-                              }}
-                              style={[
-                                styles.dropdownOption,
-                                selectedMode === mode &&
-                                  styles.dropdownOptionSelected,
-                              ]}
-                            >
-                              <Text
-                                style={[
-                                  styles.dropdownOptionText,
-                                  selectedMode === mode &&
-                                    styles.dropdownOptionTextSelected,
-                                ]}
-                              >
-                                {mode === "ALL"
-                                  ? "All Application Types"
-                                  : mode === "SINGLE"
-                                    ? "Single Applications"
-                                    : "Bulk Applications"}
-                              </Text>
-                              {selectedMode === mode && (
-                                <Icon name="check" size={14} color="#1D4ED8" />
-                              )}
-                            </TouchableOpacity>
-                          ),
-                        )}
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Dropdown 2: Application Status */}
-                  <View style={styles.dropdownWrap}>
-                    <TouchableOpacity
-                      onPress={() => toggleDropdown("STATUS")}
-                      style={[
-                        styles.dropdownTrigger,
-                        selectedStatus !== "ALL" &&
-                          styles.dropdownTriggerActive,
-                      ]}
-                      activeOpacity={0.85}
-                    >
-                      <Icon
-                        name="filter"
-                        size={14}
-                        color={selectedStatus !== "ALL" ? "#1D4ED8" : "#64748B"}
-                      />
-                      <Text style={styles.dropdownLabelText}>
-                        {selectedStatus === "ALL"
-                          ? "Status: All"
-                          : `Status: ${getStatusLabel(selectedStatus)}`}
-                      </Text>
-                      <Icon name="chevron-down" size={14} color="#64748B" />
-                    </TouchableOpacity>
-
-                    {openDropdown === "STATUS" && (
-                      <View style={styles.dropdownMenu}>
-                        {(
-                          [
-                            ["ALL", "All Statuses"],
-                            ["FOR_APPROVAL", "For Approval"],
-                            ["FOR_EVALUATION", "For Evaluation"],
-                            ["APPROVED", "Approved"],
-                            ["EXPIRING_SOON", "Expiring Soon"],
-                            ["PENDING", "Pending"],
-                          ] as [StatusFilterOption, string][]
-                        ).map(([val, label]) => (
-                          <TouchableOpacity
-                            key={val}
-                            onPress={() => {
-                              setSelectedStatus(val);
-                              setOpenDropdown(null);
-                            }}
-                            style={[
-                              styles.dropdownOption,
-                              selectedStatus === val &&
-                                styles.dropdownOptionSelected,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.dropdownOptionText,
-                                selectedStatus === val &&
-                                  styles.dropdownOptionTextSelected,
-                              ]}
-                            >
-                              {label}
-                            </Text>
-                            {selectedStatus === val && (
-                              <Icon name="check" size={14} color="#1D4ED8" />
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
-
-                  {/* Dropdown 3: Sort Order */}
-                  <View style={styles.dropdownWrap}>
-                    <TouchableOpacity
-                      onPress={() => toggleDropdown("SORT")}
-                      style={styles.dropdownTrigger}
-                      activeOpacity={0.85}
-                    >
-                      <Icon
-                        name={
-                          sortOrder === "NEWEST" ? "arrow-down" : "arrow-up"
-                        }
-                        size={14}
-                        color="#64748B"
-                      />
-                      <Text style={styles.dropdownLabelText}>
-                        {sortOrder === "NEWEST"
-                          ? "Sort: Newest"
-                          : "Sort: Oldest"}
-                      </Text>
-                      <Icon name="chevron-down" size={14} color="#64748B" />
-                    </TouchableOpacity>
-
-                    {openDropdown === "SORT" && (
-                      <View style={styles.dropdownMenu}>
-                        {[
-                          { key: "NEWEST", label: "Newest First" },
-                          { key: "OLDEST", label: "Oldest First" },
-                        ].map((opt) => (
-                          <TouchableOpacity
-                            key={opt.key}
-                            onPress={() => {
-                              setSortOrder(opt.key as "NEWEST" | "OLDEST");
-                              setOpenDropdown(null);
-                            }}
-                            style={[
-                              styles.dropdownOption,
-                              sortOrder === opt.key &&
-                                styles.dropdownOptionSelected,
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.dropdownOptionText,
-                                sortOrder === opt.key &&
-                                  styles.dropdownOptionTextSelected,
-                              ]}
-                            >
-                              {opt.label}
-                            </Text>
-                            {sortOrder === opt.key && (
-                              <Icon name="check" size={14} color="#1D4ED8" />
-                            )}
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
-                  </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>TOTAL APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.totalCount}</Text>
+                  <Text style={styles.statSubtext}>Submitted records</Text>
                 </View>
               </View>
 
-              {/* ── Applications Cards Container ────────────────────────────── */}
-              <View style={styles.cardsContainer}>
-                {pagedApps.length === 0 ? (
-                  <View style={styles.emptyStateCard}>
-                    <Icon name="file-text" size={36} color="#CBD5E1" />
-                    <Text style={styles.emptyStateTitle}>
-                      No applications match your filter
-                    </Text>
-                    <Text style={styles.emptyStateSub}>
-                      Try selecting a different type or status from the dropdown
-                      menus above.
-                    </Text>
-                  </View>
-                ) : (
-                  pagedApps.map((app) => (
-                    <ApplicationCard
-                      key={app.id}
-                      app={app}
-                      onPress={() => setSelectedApp(app)}
-                      onDownloadDoc={handleDownloadDoc}
-                    />
-                  ))
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconWrap,
+                    { backgroundColor: "#EEF2FF" },
+                  ]}
+                >
+                  <Icon name="user" size={20} color="#2F56E8" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>SINGLE APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.singleCount}</Text>
+                  <Text style={styles.statSubtext}>1 Applicant per app</Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconWrap,
+                    { backgroundColor: "#FFFBEB" },
+                  ]}
+                >
+                  <Icon name="users" size={20} color="#D97706" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>BULK APPLICATIONS</Text>
+                  <Text style={styles.statValue}>{stats.bulkCount}</Text>
+                  <Text style={styles.statSubtext}>
+                    Multiple applicants batch
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.statCard}>
+                <View
+                  style={[
+                    styles.statIconWrap,
+                    { backgroundColor: "#DCFCE7" },
+                  ]}
+                >
+                  <Icon name="download" size={20} color="#16A34A" />
+                </View>
+                <View style={styles.statContent}>
+                  <Text style={styles.statLabel}>READY DOCUMENTS</Text>
+                  <Text style={[styles.statValue, { color: "#16A34A" }]}>
+                    {stats.readyDocsCount}
+                  </Text>
+                  <Text style={styles.statSubtext}>Permits & receipts</Text>
+                </View>
+              </View>
+            </View>
+
+            {/* ── Search Bar & Dropdown Select Filters Toolbar ─────────────── */}
+            <View style={styles.toolbarPanel}>
+              {/* Standard Premium Search Bar Input */}
+              <View
+                style={[
+                  styles.searchInputContainer,
+                  isSearchFocused && styles.searchInputContainerFocused,
+                  filterText.length > 0 && styles.searchInputContainerActive,
+                ]}
+              >
+                <Icon
+                  name="search"
+                  size={18}
+                  color={
+                    isSearchFocused || filterText.length > 0
+                      ? "#2563EB"
+                      : "#64748B"
+                  }
+                  style={styles.searchIcon}
+                />
+                <TextInput
+                  placeholder="Search by application #, applicant name, company, or service..."
+                  placeholderTextColor="#94A3B8"
+                  value={filterText}
+                  onChangeText={setFilterText}
+                  onFocus={() => setIsSearchFocused(true)}
+                  onBlur={() => setIsSearchFocused(false)}
+                  style={styles.searchInput}
+                />
+                {filterText.length > 0 && (
+                  <TouchableOpacity
+                    onPress={() => setFilterText("")}
+                    style={styles.clearSearchBtn}
+                    activeOpacity={0.7}
+                  >
+                    <Icon name="x" size={15} color="#64748B" />
+                  </TouchableOpacity>
                 )}
               </View>
 
-              {/* ── Pagination Bar ────────────────────────────────────────────── */}
-              {totalPages > 1 && (
-                <View style={styles.paginationBar}>
-                  <Text style={styles.paginationSummary}>
-                    Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{" "}
-                    {Math.min(
-                      currentPage * LIST_PAGE_SIZE,
-                      filteredApps.length,
-                    )}{" "}
-                    of {filteredApps.length} applications
-                  </Text>
+              {/* Dropdown Filters Group */}
+              <View style={styles.dropdownsGroup}>
+                {/* Dropdown 1: Application Type */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown("TYPE")}
+                    style={[
+                      styles.dropdownTrigger,
+                      selectedMode !== "ALL" && styles.dropdownTriggerActive,
+                    ]}
+                    activeOpacity={0.85}
+                  >
+                    <Icon
+                      name="layers"
+                      size={14}
+                      color={selectedMode !== "ALL" ? "#1D4ED8" : "#64748B"}
+                    />
+                    <Text style={styles.dropdownLabelText}>
+                      {selectedMode === "ALL"
+                        ? "Type: All"
+                        : selectedMode === "SINGLE"
+                          ? "Type: Single"
+                          : selectedMode === "BULK"
+                            ? "Type: Bulk"
+                            : "Type: Assessment"}
+                    </Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
 
-                  <View style={styles.paginationBtns}>
-                    <TouchableOpacity
-                      onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      style={[
-                        styles.pageNavBtn,
-                        currentPage === 1 && styles.pageNavBtnDisabled,
-                      ]}
-                    >
-                      <Icon
-                        name="chevron-left"
-                        size={16}
-                        color={currentPage === 1 ? "#CBD5E1" : "#334155"}
-                      />
-                    </TouchableOpacity>
+                  {openDropdown === "TYPE" && (
+                    <View style={styles.dropdownMenu}>
+                      {(["ALL", "SINGLE", "BULK", "ASSESSMENT"] as ModeFilterOption[]).map(
+                        (mode) => (
+                          <TouchableOpacity
+                            key={mode}
+                            onPress={() => {
+                              setSelectedMode(mode);
+                              setCurrentPage(1);
+                              setOpenDropdown(null);
+                            }}
+                            style={[
+                              styles.dropdownOption,
+                              selectedMode === mode &&
+                                styles.dropdownOptionSelected,
+                            ]}
+                          >
+                            <Text
+                              style={[
+                                styles.dropdownOptionText,
+                                selectedMode === mode &&
+                                  styles.dropdownOptionTextSelected,
+                              ]}
+                            >
+                              {mode === "ALL"
+                                ? "All Application Types"
+                                : mode === "SINGLE"
+                                  ? "Single Applications"
+                                  : mode === "BULK"
+                                    ? "Bulk Applications"
+                                    : "Pre-Assessments Only"}
+                            </Text>
+                            {selectedMode === mode && (
+                              <Icon name="check" size={14} color="#1D4ED8" />
+                            )}
+                          </TouchableOpacity>
+                        )
+                      )}
+                    </View>
+                  )}
+                </View>
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (pg) => (
+                {/* Dropdown 2: Application Status */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown("STATUS")}
+                    style={[
+                      styles.dropdownTrigger,
+                      selectedStatus !== "ALL" &&
+                        styles.dropdownTriggerActive,
+                    ]}
+                    activeOpacity={0.85}
+                  >
+                    <Icon
+                      name="filter"
+                      size={14}
+                      color={selectedStatus !== "ALL" ? "#1D4ED8" : "#64748B"}
+                    />
+                    <Text style={styles.dropdownLabelText}>
+                      {selectedStatus === "ALL"
+                        ? "Status: All"
+                        : `Status: ${getStatusLabel(selectedStatus)}`}
+                    </Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
+
+                  {openDropdown === "STATUS" && (
+                    <View style={styles.dropdownMenu}>
+                      {(
+                        [
+                          ["ALL", "All Statuses"],
+                          ["PENDING", "Submitted"],
+                          ["FOR_EVALUATION", "For Evaluation"],
+                          ["READY_FOR_PAYMENT", "For Payment"],
+                          ["FOR_APPROVAL", "For Issuance"],
+                          ["APPROVED", "Issued"],
+                          ["DECLINED", "Returned"],
+                          ["EXPIRING_SOON", "Expiring Soon"],
+                        ] as [StatusFilterOption, string][]
+                      ).map(([val, label]) => (
                         <TouchableOpacity
-                          key={pg}
-                          onPress={() => setCurrentPage(pg)}
+                          key={val}
+                          onPress={() => {
+                            setSelectedStatus(val);
+                            setCurrentPage(1);
+                            setOpenDropdown(null);
+                          }}
                           style={[
-                            styles.pageNumberBtn,
-                            pg === currentPage && styles.pageNumberBtnActive,
+                            styles.dropdownOption,
+                            selectedStatus === val &&
+                              styles.dropdownOptionSelected,
                           ]}
                         >
                           <Text
                             style={[
-                              styles.pageNumberBtnText,
-                              pg === currentPage &&
-                                styles.pageNumberBtnTextActive,
+                              styles.dropdownOptionText,
+                              selectedStatus === val &&
+                                styles.dropdownOptionTextSelected,
                             ]}
                           >
-                            {pg}
+                            {label}
                           </Text>
+                          {selectedStatus === val && (
+                            <Icon name="check" size={14} color="#1D4ED8" />
+                          )}
                         </TouchableOpacity>
-                      ),
-                    )}
-
-                    <TouchableOpacity
-                      onPress={() =>
-                        setCurrentPage((p) => Math.min(totalPages, p + 1))
-                      }
-                      disabled={currentPage === totalPages}
-                      style={[
-                        styles.pageNavBtn,
-                        currentPage === totalPages && styles.pageNavBtnDisabled,
-                      ]}
-                    >
-                      <Icon
-                        name="chevron-right"
-                        size={16}
-                        color={
-                          currentPage === totalPages ? "#CBD5E1" : "#334155"
-                        }
-                      />
-                    </TouchableOpacity>
-                  </View>
+                      ))}
+                    </View>
+                  )}
                 </View>
+
+                {/* Dropdown 3: Sort Order */}
+                <View style={styles.dropdownWrap}>
+                  <TouchableOpacity
+                    onPress={() => toggleDropdown("SORT")}
+                    style={styles.dropdownTrigger}
+                    activeOpacity={0.85}
+                  >
+                    <Icon
+                      name={
+                        sortOrder === "NEWEST" ? "arrow-down" : "arrow-up"
+                      }
+                      size={14}
+                      color="#64748B"
+                    />
+                    <Text style={styles.dropdownLabelText}>
+                      {sortOrder === "NEWEST"
+                        ? "Sort: Newest"
+                        : "Sort: Oldest"}
+                    </Text>
+                    <Icon name="chevron-down" size={14} color="#64748B" />
+                  </TouchableOpacity>
+
+                  {openDropdown === "SORT" && (
+                    <View style={styles.dropdownMenu}>
+                      {[
+                        { key: "NEWEST", label: "Newest First" },
+                        { key: "OLDEST", label: "Oldest First" },
+                      ].map((opt) => (
+                        <TouchableOpacity
+                          key={opt.key}
+                          onPress={() => {
+                            setSortOrder(opt.key as "NEWEST" | "OLDEST");
+                            setOpenDropdown(null);
+                          }}
+                          style={[
+                            styles.dropdownOption,
+                            sortOrder === opt.key &&
+                              styles.dropdownOptionSelected,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.dropdownOptionText,
+                              sortOrder === opt.key &&
+                                styles.dropdownOptionTextSelected,
+                            ]}
+                          >
+                            {opt.label}
+                          </Text>
+                          {sortOrder === opt.key && (
+                            <Icon name="check" size={14} color="#1D4ED8" />
+                          )}
+                        </TouchableOpacity>
+                      ))}
+                    </View>
+                  )}
+                </View>
+              </View>
+            </View>
+
+            {/* ── Applications Cards Container ────────────────────────────── */}
+            <View style={styles.cardsContainer}>
+              {isLoading ? (
+                <View style={[styles.emptyStateCard, { paddingVertical: 48 }]}>
+                  <ActivityIndicator size="large" color="#2563EB" />
+                  <Text style={[styles.emptyStateTitle, { marginTop: 16 }]}>
+                    Loading applications...
+                  </Text>
+                  <Text style={styles.emptyStateSub}>
+                    Fetching your latest filed applications from the NTC portal.
+                  </Text>
+                </View>
+              ) : errorMessage !== null ? (
+                <View style={[styles.emptyStateCard, { paddingVertical: 36, borderColor: "#FECACA", backgroundColor: "#FEF2F2" }]}>
+                  <Icon name="alert-circle" size={36} color="#DC2626" />
+                  <Text style={[styles.emptyStateTitle, { color: "#991B1B", marginTop: 12 }]}>
+                    {errorMessage}
+                  </Text>
+                  <TouchableOpacity
+                    onPress={handleManualRefresh}
+                    style={{
+                      marginTop: 16,
+                      backgroundColor: "#DC2626",
+                      paddingVertical: 8,
+                      paddingHorizontal: 16,
+                      borderRadius: 8,
+                    }}
+                  >
+                    <Text style={{ fontFamily: "Inter", fontSize: 13, fontWeight: "700", color: "#FFFFFF" }}>
+                      Try Again
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              ) : displayedApps.length === 0 ? (
+                <View style={styles.emptyStateCard}>
+                  <Icon name="file-text" size={36} color="#CBD5E1" />
+                  <Text style={styles.emptyStateTitle}>
+                    {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
+                      ? "No applications found matching your criteria"
+                      : "No filed applications yet"}
+                  </Text>
+                  <Text style={styles.emptyStateSub}>
+                    {filterText.trim() !== "" || selectedMode !== "ALL" || selectedStatus !== "ALL"
+                      ? "Try clearing the search or selecting different options from the filters above."
+                      : "Start by selecting a service from the Services catalog to submit your first application."}
+                  </Text>
+                </View>
+              ) : (
+                displayedApps.map((app) => (
+                  <ApplicationCard
+                    key={app.id}
+                    app={app}
+                    onPress={() => setSelectedApp(app)}
+                  />
+                ))
               )}
-            </ScrollView>
-          )}
-        </View>
+            </View>
+
+            {/* ── Pagination Bar ────────────────────────────────────────────── */}
+            {serverTotalPages > 1 && serverTotalCount > 0 && displayedApps.length > 0 && (
+              <View style={styles.paginationBar}>
+                <Text style={styles.paginationSummary}>
+                  Showing {(currentPage - 1) * LIST_PAGE_SIZE + 1} to{" "}
+                  {Math.min(
+                    currentPage * LIST_PAGE_SIZE,
+                    serverTotalCount,
+                  )}{" "}
+                  of {serverTotalCount} applications
+                </Text>
+
+                <View style={styles.paginationBtns}>
+                  <TouchableOpacity
+                    onPress={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    disabled={currentPage === 1 || isLoading}
+                    style={[
+                      styles.pageNavBtn,
+                      (currentPage === 1 || isLoading) && styles.pageNavBtnDisabled,
+                    ]}
+                  >
+                    <Icon
+                      name="chevron-left"
+                      size={16}
+                      color={currentPage === 1 || isLoading ? "#CBD5E1" : "#334155"}
+                    />
+                  </TouchableOpacity>
+
+                  {Array.from({ length: serverTotalPages }, (_, i) => i + 1).map(
+                    (pg) => (
+                      <TouchableOpacity
+                        key={pg}
+                        onPress={() => setCurrentPage(pg)}
+                        disabled={isLoading}
+                        style={[
+                          styles.pageNumberBtn,
+                          pg === currentPage && styles.pageNumberBtnActive,
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.pageNumberBtnText,
+                            pg === currentPage &&
+                              styles.pageNumberBtnTextActive,
+                          ]}
+                        >
+                          {pg}
+                        </Text>
+                      </TouchableOpacity>
+                    ),
+                  )}
+
+                  <TouchableOpacity
+                    onPress={() =>
+                      setCurrentPage((p) => Math.min(serverTotalPages, p + 1))
+                    }
+                    disabled={currentPage === serverTotalPages || isLoading}
+                    style={[
+                      styles.pageNavBtn,
+                      (currentPage === serverTotalPages || isLoading) && styles.pageNavBtnDisabled,
+                    ]}
+                  >
+                    <Icon
+                      name="chevron-right"
+                      size={16}
+                      color={
+                        currentPage === serverTotalPages || isLoading ? "#CBD5E1" : "#334155"
+                      }
+                    />
+                  </TouchableOpacity>
+                </View>
+              </View>
+            )}
+          </ScrollView>
+        )}
       </View>
 
       {/* ── Toast Feedback Notification ─────────────────────────────────── */}
@@ -696,69 +838,6 @@ export function MyApplications() {
           <Text style={styles.toastText}>{toastMessage}</Text>
         </View>
       )}
-
-      {/* View Profile Modal */}
-      <Modal
-        visible={isProfileVisible}
-        transparent={true}
-        animationType="fade"
-        onRequestClose={() => setIsProfileVisible(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.profileCard}>
-            <View style={styles.profileAccentLine} />
-            <View style={styles.profileHeader}>
-              <View style={styles.profileIconContainer}>
-                <Icon name="user" size={28} color="#2563EB" />
-              </View>
-              <Text style={styles.profileTitle}>User Profile</Text>
-            </View>
-
-            <View style={styles.profileDetails}>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Full Name</Text>
-                <Text style={styles.profileDetailValue}>{userProfile?.name || "N/A"}</Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Email Address</Text>
-                <Text style={styles.profileDetailValue}>{userProfile?.email || "N/A"}</Text>
-              </View>
-              <View style={styles.profileDetailRow}>
-                <Text style={styles.profileDetailLabel}>Clerk ID</Text>
-                <Text style={styles.profileDetailValue} numberOfLines={1} ellipsizeMode="middle">{clerkUser?.id || "N/A"}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              onPress={() => setIsProfileVisible(false)}
-              style={styles.profileCloseButton}
-            >
-              <Text style={styles.profileCloseButtonText}>Close</Text>
-            </TouchableOpacity>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Sign Out Confirmation Dialog */}
-      <ConfirmationDialog
-        visible={isLogoutConfirmVisible}
-        title="Sign Out"
-        message="Are you sure you want to sign out of your account?"
-        iconName="log-out"
-        onClose={() => setIsLogoutConfirmVisible(false)}
-        actions={[
-          {
-            text: "Cancel",
-            style: "cancel",
-            onPress: () => setIsLogoutConfirmVisible(false),
-          },
-          {
-            text: "Yes, Sign Out",
-            style: "destructive",
-            onPress: handleConfirmSignOut,
-          },
-        ]}
-      />
-    </View>
+    </ClientAppLayout>
   );
 }

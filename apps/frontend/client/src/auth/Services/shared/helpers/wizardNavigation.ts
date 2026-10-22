@@ -1,19 +1,84 @@
 import { Alert } from "react-native";
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
+import {
+  GeneralApplicantData,
+  isGeneralApplicantComplete,
+  isRequirementMandatory,
+  isRequirementUploaded,
+  ServiceRequirementItem,
+  ServiceVariantInfo,
+  ServiceVariantElementInfo,
+} from "../hooks/useGeneralServiceWizard";
+import { validateContactNumber, validateEmailAddress } from "../../../../shared/helpers/fieldValidators";
+import {
+  FIELD_ID_FULL_NAME,
+  FIELD_ID_BIRTH_DATE,
+  FIELD_ID_ADDRESS,
+  FIELD_ID_CONTACT_NO,
+  FIELD_ID_EMAIL,
+  FIELD_ID_REGION,
+  FIELD_ID_PROVINCE,
+  FIELD_ID_CITY,
+  FIELD_ID_BARANGAY,
+  FIELD_ID_STREET,
+  FIELD_ID_ZIP_CODE,
+  FIELD_ID_SEX,
+  FIELD_ID_CIVIL_STATUS,
+  FIELD_ID_NATIONALITY,
+  FIELD_ID_SIGNATURE,
+  FIELD_ID_INVOICE_NUMBER,
+} from "../../../../shared/constants/fieldIds";
+import { isScheduleOpenForFiling, formatFriendlyDate } from "../components/ExamScheduleCard";
 
 interface NavigationContext {
   step: number;
   setStep: (step: number | ((p: number) => number)) => void;
   selectedRegionId: string;
   selectedOfficeId: string;
+  isExamService?: boolean;
+  schedules?: Array<{
+    id: string;
+    scheduledDate: string;
+    startApplication?: string | null;
+    endApplication?: string | null;
+    applicationDeadline?: string | null;
+    [key: string]: unknown;
+  }>;
+  selectedScheduleId?: string | null;
   appMode: "SINGLE" | "BULK" | "";
   activeApplicant: GeneralApplicantData;
   applicants: GeneralApplicantData[];
   currentApplicantIndex: number;
   setCurrentApplicantIndex: (idx: number) => void;
   service: NTCService;
+  variants?: ServiceVariantInfo[];
+  variantElements?: ServiceVariantElementInfo[];
+  variantRequirements?: Array<ServiceRequirementItem | string>;
   setIsConfirmModalOpen: (open: boolean) => void;
+  onClose?: () => void;
+  /** IDs of fields marked isRequired in the active dynamic form (empty when no dynamic form). */
+  dynamicRequiredFieldIds?: string[];
+  setFormErrors?: (errors: Record<string, string>) => void;
+}
+
+export function getRequiredDocumentKeys(service: NTCService, variantRequirements?: Array<ServiceRequirementItem | string>): string[] {
+  const reqs =
+    variantRequirements && variantRequirements.length > 0
+      ? variantRequirements
+      : service.requirements && service.requirements.length > 0
+      ? service.requirements
+      : [];
+
+  return reqs
+    .map((req, idx) => {
+      const isMandatory = isRequirementMandatory(req);
+      if (!isMandatory) return null;
+      if (typeof req === "object" && req !== null && req.id) {
+        return `req-${req.id}`;
+      }
+      return `req-${idx}`;
+    })
+    .filter((k): k is string => k !== null);
 }
 
 export function handleWizardNext({
@@ -21,56 +86,740 @@ export function handleWizardNext({
   setStep,
   selectedRegionId,
   selectedOfficeId,
+  isExamService = false,
+  schedules = [],
+  selectedScheduleId = null,
   appMode,
   activeApplicant,
   applicants,
   currentApplicantIndex,
   setCurrentApplicantIndex,
   service,
+  variants,
+  variantElements,
+  variantRequirements,
   setIsConfirmModalOpen,
+  dynamicRequiredFieldIds,
+  setFormErrors,
 }: NavigationContext) {
-  if (step === 1 && !selectedRegionId) {
+  if (step === 1) {
+    const step1Errors: Record<string, string> = {};
+    if (!selectedRegionId) {
+      step1Errors.selectedRegionId = "Please select an NTC Region.";
+    }
+    if (!selectedOfficeId) {
+      step1Errors.selectedOfficeId = "Please select an NTC Field Office.";
+    }
+    if (isExamService) {
+      if (schedules.length === 0) {
+        Alert.alert(
+          "No Available Schedule",
+          "There are currently no active or upcoming examination schedules for the selected Region/Office. Examination filing requires an open schedule date. You may switch to another Regional Office or check back soon."
+        );
+        return;
+      }
+      const openSchedules = schedules.filter((s) => isScheduleOpenForFiling(s));
+      if (openSchedules.length === 0) {
+        const firstUpcoming = schedules.find((s) => Boolean(s.startApplication));
+        const openDateText = firstUpcoming?.startApplication
+          ? formatFriendlyDate(firstUpcoming.startApplication)
+          : "the scheduled filing start date";
+        const msg = `Application filing opens on ${openDateText}.`;
+        step1Errors.selectedScheduleId = msg;
+        setFormErrors?.(step1Errors);
+        Alert.alert("Application Not Yet Open", msg);
+        return;
+      }
+      const selectedSched = schedules.find((s) => s.id === selectedScheduleId);
+      if (!selectedScheduleId || !selectedSched || !isScheduleOpenForFiling(selectedSched)) {
+        step1Errors.selectedScheduleId = "Please select an open Exam Schedule date.";
+      }
+    }
+    if (Object.keys(step1Errors).length > 0) {
+      setFormErrors?.(step1Errors);
+      Alert.alert("Required Fields Missing", "Please select all required fields highlighted in red before proceeding.");
+      return;
+    }
+    setFormErrors?.({});
     setStep(2);
     return;
   }
   if (step === 2) {
-    if (!selectedRegionId || !selectedOfficeId) {
-      Alert.alert("Warning", "Please select a region and field office.");
+    const step2Errors: Record<string, string> = {};
+
+    const serviceTitle = (service.title || "").toLowerCase();
+    const isCompanyCertService =
+      serviceTitle.includes("tvro") ||
+      serviceTitle.includes("catv") ||
+      serviceTitle.includes("value-added") ||
+      serviceTitle.includes("vas") ||
+      serviceTitle.includes("rfid") ||
+      serviceTitle.includes("srd") ||
+      serviceTitle.includes("wdn") ||
+      serviceTitle.includes("cpe") ||
+      serviceTitle.includes("accreditation") ||
+      serviceTitle.includes("commercial") ||
+      serviceTitle.includes("club") ||
+      (service.id !== undefined && (
+        service.id.toLowerCase().includes("119") ||
+        service.id.toLowerCase().includes("120") ||
+        service.id.toLowerCase().includes("122") ||
+        service.id.toLowerCase().includes("ntc_1_19") ||
+        service.id.toLowerCase().includes("ntc_1_20") ||
+        service.id.toLowerCase().includes("ntc_1_22")
+      ));
+
+    const matchedVariant = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+
+    if (activeApplicant.applicantType === "company") {
+      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+        step2Errors.companyName = "Please enter the Company / Organization Name.";
+      }
+      if (
+        (!activeApplicant.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") &&
+        (!activeApplicant.representativeLastName || activeApplicant.representativeLastName.trim() === "") &&
+        (!activeApplicant.representativeName || activeApplicant.representativeName.trim() === "")
+      ) {
+        step2Errors.representativeFirstName = "Please enter the Authorized Representative First Name.";
+        step2Errors.representativeLastName = "Please enter the Authorized Representative Last Name.";
+      } else {
+        if (!activeApplicant.representativeFirstName && !activeApplicant.representativeName) {
+          step2Errors.representativeFirstName = "Please enter the Authorized Representative First Name.";
+        }
+        if (!activeApplicant.representativeLastName && !activeApplicant.representativeName) {
+          step2Errors.representativeLastName = "Please enter the Authorized Representative Last Name.";
+        }
+      }
+    }
+
+    if (variants && variants.length > 0 && (!activeApplicant.selectedVariantId || activeApplicant.selectedVariantId.trim() === "")) {
+      step2Errors.selectedVariantId = "Please select an Application Variant / Service Type.";
+    }
+    const varDesc = (matchedVariant?.description || matchedVariant?.name || "").toLowerCase();
+    const isLifetimeSupplementary = varDesc.includes("lifetime") || String(activeApplicant.selectedVariantId).endsWith("35");
+
+    // Require selection of service variant element if the variant has available elements
+    if (variantElements && variantElements.length > 0 && !isLifetimeSupplementary && (!activeApplicant.selectedElementId || activeApplicant.selectedElementId.trim() === "")) {
+      step2Errors.selectedElementId = "Please select a Station Class / Radio Element.";
+    }
+
+    if (Object.keys(step2Errors).length > 0) {
+      setFormErrors?.(step2Errors);
+      const firstError = Object.values(step2Errors)[0];
+      Alert.alert("Required Selection Missing", firstError || "Please fill in all required fields highlighted in red before proceeding.");
       return;
     }
+
+    const currentMode = appMode || "SINGLE";
+    if (!currentMode) {
+      Alert.alert("Warning", "Please select an application mode.");
+      return;
+    }
+    setFormErrors?.({});
     setStep(3);
     return;
   }
   if (step === 3) {
-    if (!appMode) {
-      Alert.alert("Warning", "Please select an application mode.");
+    const fieldErrors: Record<string, string> = {};
+
+    // 1. Validate Standard Applicant Particulars (ApplicantInformationFormSection)
+    const isCompany = activeApplicant.applicantType === "company";
+
+    if (isCompany) {
+      if (!activeApplicant.companyName || activeApplicant.companyName.trim() === "") {
+        fieldErrors.companyName = "Registered Business / Company Name is required.";
+      }
+      if (!activeApplicant.representativeFirstName || activeApplicant.representativeFirstName.trim() === "") {
+        fieldErrors.representativeFirstName = "Representative First Name is required.";
+      }
+      if (!activeApplicant.representativeLastName || activeApplicant.representativeLastName.trim() === "") {
+        fieldErrors.representativeLastName = "Representative Last Name is required.";
+      }
+      if (!activeApplicant.representativePosition || activeApplicant.representativePosition.trim() === "") {
+        fieldErrors.representativePosition = "Representative Position is required.";
+      }
+    } else {
+      if (!activeApplicant.firstName || activeApplicant.firstName.trim() === "") {
+        fieldErrors.firstName = "First Name is required.";
+      }
+      if (!activeApplicant.lastName || activeApplicant.lastName.trim() === "") {
+        fieldErrors.lastName = "Last Name is required.";
+      }
+      if (!activeApplicant.birthMonth || activeApplicant.birthMonth.trim() === "") {
+        fieldErrors.birthMonth = "Birth Month is required.";
+      }
+      if (!activeApplicant.birthDay || activeApplicant.birthDay.trim() === "") {
+        fieldErrors.birthDay = "Birth Day is required.";
+      }
+      if (!activeApplicant.birthYear || activeApplicant.birthYear.trim() === "") {
+        fieldErrors.birthYear = "Birth Year is required.";
+      }
+      if (!activeApplicant.sex || activeApplicant.sex.trim() === "") {
+        fieldErrors.sex = "Sex is required.";
+      }
+      if (!activeApplicant.civilStatus || activeApplicant.civilStatus.trim() === "") {
+        fieldErrors.civilStatus = "Civil Status is required.";
+      }
+    }
+
+    const emailErr = validateEmailAddress(activeApplicant.email);
+    if (emailErr) {
+      fieldErrors.email = emailErr;
+    }
+
+    const contactErr = validateContactNumber(activeApplicant.contactNo);
+    if (contactErr) {
+      fieldErrors.contactNo = contactErr;
+    }
+
+    if (!activeApplicant.region || activeApplicant.region.trim() === "") {
+      fieldErrors.region = "Region is required.";
+    }
+    if (!activeApplicant.province || activeApplicant.province.trim() === "") {
+      fieldErrors.province = "Province is required.";
+    }
+    if (!activeApplicant.city || activeApplicant.city.trim() === "") {
+      fieldErrors.city = "City / Municipality is required.";
+    }
+    if (!activeApplicant.barangay || activeApplicant.barangay.trim() === "") {
+      fieldErrors.barangay = "Barangay is required.";
+    }
+    const streetAddr = (activeApplicant.street || activeApplicant.address || "").trim();
+    if (streetAddr === "") {
+      fieldErrors.street = "Street Address / Unit No. is required.";
+      fieldErrors.address = "Street Address / Unit No. is required.";
+    }
+
+    if (!activeApplicant.signatureUrl || activeApplicant.signatureUrl.trim() === "") {
+      fieldErrors.signatureUrl = "Digital Signature is required.";
+      fieldErrors.signature = "Digital Signature is required.";
+    }
+
+    const hasDynamicForm =
+      dynamicRequiredFieldIds !== undefined && dynamicRequiredFieldIds.length > 0;
+
+    if (hasDynamicForm) {
+      const fieldValues = activeApplicant.formFieldValues || [];
+      const filledMap = new Map<string, string>();
+      const labelMap = new Map<string, string>();
+      fieldValues.forEach((fv) => {
+        if (fv.fieldId) {
+          filledMap.set(fv.fieldId.toLowerCase().trim(), fv.value);
+          if (fv.fieldLabel) labelMap.set(fv.fieldId.toLowerCase().trim(), fv.fieldLabel);
+        }
+        if (fv.fieldLabel) {
+          filledMap.set(fv.fieldLabel.toLowerCase().trim(), fv.value);
+          labelMap.set(fv.fieldLabel.toLowerCase().trim(), fv.fieldLabel);
+        }
+      });
+
+      // 1. Missing required fields check
+      dynamicRequiredFieldIds.forEach((id) => {
+        const idLower = (id || "").toLowerCase().trim();
+
+        // Skip validation for declaration or payment fields in Step 3 (these are handled in Step 5 / confirmation)
+        if (
+          idLower.includes("declaration") ||
+          idLower.includes("signature") ||
+          idLower.includes("payment") ||
+          idLower.includes("receipt") ||
+          idLower === "fd000000-0000-0000-0000-000000000006" ||
+          idLower === "fd000000-0000-0000-0000-000000000007" ||
+          idLower === "fd000000-0000-0000-0000-000000000008" ||
+          idLower === "fd000000-0000-0000-0000-000000000009"
+        ) {
+          return;
+        }
+
+        // Skip validation for official NTC assignment fields (BSD No, VAS Registration No)
+        if (
+          idLower.includes("vasregistration") ||
+          idLower.includes("vas_reg") ||
+          idLower === "fd000000-0000-0000-0000-000000000236" ||
+          idLower.includes("bsd") ||
+          idLower.includes("official")
+        ) {
+          return;
+        }
+
+        // Skip otherTradeName if knownByAnotherName is not "Yes"
+        const isOtherTradeName =
+          idLower === "othertradename" ||
+          idLower === "other_trade_name" ||
+          idLower === "fd000000-0000-0000-0000-000000000235" ||
+          idLower === "please specify";
+        if (isOtherTradeName) {
+          const knownVal = (
+            filledMap.get("knownbyanothername") ||
+            filledMap.get("known_by_other_name") ||
+            filledMap.get("known by other name") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000234") ||
+            ""
+          ).toLowerCase().trim();
+          if (knownVal !== "yes") {
+            return;
+          }
+        }
+
+        // Skip others_specification if Nature of Complaint does not include "Others"
+        const isOthersComplaintSpec =
+          idLower === "others_specification" ||
+          idLower === "othersspecification" ||
+          idLower === "fd000000-0000-0000-0000-000000000328" ||
+          idLower.includes("if others");
+        if (isOthersComplaintSpec) {
+          const complaintVal = (
+            filledMap.get("complaint_types") ||
+            filledMap.get("nature of complaint") ||
+            filledMap.get("complaint category") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000327") ||
+            ""
+          ).toLowerCase();
+          if (!complaintVal.includes("other")) {
+            return;
+          }
+        }
+        if (isOtherTradeName) {
+          const knownVal = (
+            filledMap.get("knownbyanothername") ||
+            filledMap.get("known_by_other_name") ||
+            filledMap.get("known by other name") ||
+            filledMap.get("fd000000-0000-0000-0000-000000000234") ||
+            ""
+          ).toLowerCase().trim();
+          if (knownVal !== "yes") {
+            return;
+          }
+        }
+
+        // Skip exam details validation for Amateur Certificates
+        const isAmateurCertService = (service.category || "").toLowerCase().includes("certificate") && ((service.title || "").toLowerCase().includes("amateur") || (service.id || "").toLowerCase().includes("103") || (service.id || "").toLowerCase().includes("ntc_1_03"));
+        const isExamField = idLower.includes("exam") || idLower.includes("seminar") || idLower.includes("rating");
+        if (isAmateurCertService && isExamField) {
+          return;
+        }
+
+        // Skip validation for representative fields in Step 3 (captured in Step 2)
+        const isRepresentativeField =
+          idLower === "fd000000-0000-0000-0000-000000000082" ||
+          idLower === "fd000000-0000-0000-0000-000000000083" ||
+          idLower === "representativename" ||
+          idLower === "representativeposition" ||
+          idLower.includes("representative");
+        if (isRepresentativeField) {
+          return;
+        }
+
+        // Skip legacy company details if not a corporate certificate service
+        const isCompanyCertService =
+          (service.category || "").toLowerCase().includes("certificate") &&
+          ((service.title || "").toLowerCase().includes("tvro") ||
+           (service.title || "").toLowerCase().includes("value-added") ||
+           (service.title || "").toLowerCase().includes("vas") ||
+           (service.title || "").toLowerCase().includes("rfid") ||
+           (service.title || "").toLowerCase().includes("srd") ||
+           (service.title || "").toLowerCase().includes("wdn") ||
+           (service.id !== undefined && (
+             service.id.toLowerCase().includes("119") ||
+             service.id.toLowerCase().includes("120") ||
+             service.id.toLowerCase().includes("122") ||
+             service.id.toLowerCase().includes("ntc_1_19") ||
+             service.id.toLowerCase().includes("ntc_1_20") ||
+             service.id.toLowerCase().includes("ntc_1_22")
+           )));
+
+        // Skip DTI / SEC registration validation if empty (optional field on registration forms)
+        const isDtiSecField =
+          idLower === "fd000000-0000-0000-0000-000000000086" ||
+          idLower === "dtisecregistration" ||
+          idLower === "dti_sec_registration" ||
+          idLower.includes("sec") ||
+          idLower.includes("dti");
+        if (isDtiSecField) {
+          return;
+        }
+
+        if (!isCompanyCertService && activeApplicant.applicantType === "company") {
+          const isLegacyCompanyField =
+            idLower === "fd000000-0000-0000-0000-000000000081" ||
+            idLower === "companyname" ||
+            idLower.includes("company") ||
+            idLower.includes("business name");
+          if (isLegacyCompanyField) {
+            return;
+          }
+        }
+
+        // Skip app type and element selection (captured in Step 2)
+        const isAppType =
+          idLower.includes("type of application") ||
+          idLower.includes("application type") ||
+          idLower.includes("permit type") ||
+          idLower.includes("license type") ||
+          idLower.includes("certificate type") ||
+          idLower.includes("type of certificate") ||
+          idLower === "typeofcertificate" ||
+          idLower === "type_of_application" ||
+          idLower === "permittype" ||
+          idLower === "applicationtype";
+        if (isAppType) {
+          return;
+        }
+
+        const isElem =
+          idLower.includes("element") ||
+          idLower.includes("class of station") ||
+          idLower === "elements" ||
+          idLower === "element";
+        if (isElem) {
+          return;
+        }
+
+        // Skip repeater individual subfields
+        const isRepeaterSubField =
+          idLower === "serialnumber" ||
+          idLower === "serial_number" ||
+          idLower === "serial number" ||
+          idLower === "serialnumbers" ||
+          idLower === "serial number(s)" ||
+          idLower === "frequencyrange" ||
+          idLower === "frequency_range" ||
+          idLower === "frequency range" ||
+          idLower === "poweroutput" ||
+          idLower === "power_output" ||
+          idLower === "power output" ||
+          idLower === "make" ||
+          idLower === "model" ||
+          idLower === "type/model" ||
+          idLower === "maketypeModel" ||
+          idLower === "make / type / model" ||
+          idLower === "deviceType" ||
+          idLower === "device / equipment type" ||
+          idLower === "imei_number" ||
+          idLower === "imeinumber" ||
+          idLower === "imei" ||
+          idLower === "imei number" ||
+          idLower === "imei number (15 digits)" ||
+          idLower === "fd000000-0000-0000-0000-0000000308" ||
+          idLower === "fd000000-0000-0000-0000-000000000084" ||
+          idLower === "fd000000-0000-0000-0000-000000000085" ||
+          idLower === "fd000000-0000-0000-0000-000000000087" ||
+          idLower === "document_description" ||
+          idLower === "document description" ||
+          idLower === "attachment_file" ||
+          idLower === "attachment" ||
+          idLower === "attached document / file" ||
+          idLower === "file_name";
+        if (isRepeaterSubField) {
+          return;
+        }
+
+        // Skip invoice validation for Dealers
+        const isInvoiceId =
+          idLower === FIELD_ID_INVOICE_NUMBER.toLowerCase() ||
+          idLower === "invoicenumber" ||
+          idLower === "invoiceno" ||
+          idLower.includes("invoice");
+
+        if (isInvoiceId) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || "").toLowerCase();
+          const isNonDealerVariant = varDesc.includes("non-dealer") || varDesc.includes("non dealer") || String(activeApplicant.selectedVariantId).endsWith("23");
+          const registrationTypeVal = (activeApplicant.formFieldValues?.find(fv => (fv.fieldLabel || "").toLowerCase().includes("registration type"))?.value || activeApplicant.deviceRegData?.registrationType || "").toLowerCase();
+          const isNonDealerRegType = registrationTypeVal.includes("non");
+          const isDealer = varDesc.includes("dealer") && !isNonDealerVariant;
+
+          if (isDealer || (!isNonDealerVariant && !isNonDealerRegType)) {
+            return;
+          }
+        }
+
+        // Skip Source of Equipment fields (optional section)
+        const isSourceOfEquipmentField =
+          idLower === "dealername" ||
+          idLower === "name of dealer" ||
+          idLower === "authorizedsellerbuyer" ||
+          idLower === "authorized seller/buyer" ||
+          idLower === "authorized seller / buyer" ||
+          idLower === "orinvoiceno" ||
+          idLower === "or/invoice no," ||
+          idLower === "or/invoice no." ||
+          idLower === "or/invoice no" ||
+          idLower === "permitrslno" ||
+          idLower === "permit/rsl no." ||
+          idLower === "permit/rsl no" ||
+          idLower === "selleraddress" ||
+          idLower === "seller address" ||
+          idLower === "fd000000-0000-0000-0000-000000000120" ||
+          idLower === "fd000000-0000-0000-0000-000000000121" ||
+          idLower === "fd000000-0000-0000-0000-000000000122" ||
+          idLower === "fd000000-0000-0000-0000-000000000123" ||
+          idLower === "fd000000-0000-0000-0000-000000000124";
+        if (isSourceOfEquipmentField) {
+          return;
+        }
+
+        // Skip Intended Use fields (optional section)
+        const isIntendedUseField =
+          idLower === "intendeduse" ||
+          idLower === "intendedusetype" ||
+          idLower === "intended_use" ||
+          idLower === "intended use" ||
+          idLower === "intended use of equipment" ||
+          idLower.includes("intended use") ||
+          idLower === "fd000000-0000-0000-0000-000000000126" ||
+          idLower === "fd000000-0000-0000-0000-000000000127";
+        if (isIntendedUseField) {
+          return;
+        }
+
+        let val = filledMap.get(idLower);
+        if (!val) {
+          val =
+            filledMap.get("applicant / company name") ||
+            filledMap.get("applicant name") ||
+            filledMap.get("company name") ||
+            filledMap.get("business name") ||
+            filledMap.get("applicant details") ||
+            filledMap.get("applicant's details") ||
+            filledMap.get("applicant / named individual details");
+        }
+        if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+          // Resolve fallback for Action Requested (NTC 1-24 Blocking / Unblocking)
+          if (
+            idLower === "action_requested" ||
+            idLower === "action requested" ||
+            idLower === "fd000000-0000-0000-0000-000000000307" ||
+            idLower.includes("action requested")
+          ) {
+            const matchedVariantItem = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+            const desc = (matchedVariantItem?.description || matchedVariantItem?.name || matchedVariantItem?.type || activeApplicant.selectedVariantName || "").toLowerCase();
+            const varId = String(activeApplicant.selectedVariantId || "").toLowerCase();
+            const isUnblocking = desc.includes("unblock") || varId.includes("402");
+            const isBlocking = (desc.includes("block") || varId.includes("401")) && !isUnblocking;
+            if (isBlocking || isUnblocking) {
+              val = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
+            }
+          }
+
+          // Resolve fallback from activeApplicant properties
+          if (
+            (idLower === FIELD_ID_FULL_NAME.toLowerCase() || idLower === "fullname" || idLower === "name" || idLower.includes("full name") || idLower.includes("applicant") || idLower.includes("company")) &&
+            (activeApplicant.companyName || activeApplicant.firstName || activeApplicant.lastName)
+          ) {
+            val = activeApplicant.companyName || [activeApplicant.firstName, activeApplicant.middleName, activeApplicant.lastName, activeApplicant.suffix].filter(Boolean).join(" ");
+          } else if (
+            (idLower === FIELD_ID_CONTACT_NO.toLowerCase() || idLower === "contactno" || idLower.includes("contact") || idLower.includes("phone") || idLower.includes("mobile")) &&
+            activeApplicant.contactNo
+          ) {
+            val = activeApplicant.contactNo;
+          } else if (
+            (idLower === FIELD_ID_EMAIL.toLowerCase() || idLower === "email" || idLower.includes("email")) &&
+            activeApplicant.email
+          ) {
+            val = activeApplicant.email;
+          } else if (
+            (idLower === FIELD_ID_REGION.toLowerCase() || idLower === "region") &&
+            activeApplicant.region
+          ) {
+            val = activeApplicant.region;
+          } else if (
+            (idLower === FIELD_ID_PROVINCE.toLowerCase() || idLower === "province") &&
+            activeApplicant.province
+          ) {
+            val = activeApplicant.province;
+          } else if (
+            (idLower === FIELD_ID_CITY.toLowerCase() || idLower === "city" || idLower.includes("municipality")) &&
+            activeApplicant.city
+          ) {
+            val = activeApplicant.city;
+          } else if (
+            (idLower === FIELD_ID_BARANGAY.toLowerCase() || idLower === "barangay") &&
+            activeApplicant.barangay
+          ) {
+            val = activeApplicant.barangay;
+          } else if (
+            (idLower === FIELD_ID_STREET.toLowerCase() ||
+              idLower === FIELD_ID_ADDRESS.toLowerCase() ||
+              idLower === "street" ||
+              idLower === "address" ||
+              ((idLower.includes("address") || idLower.includes("street")) &&
+                !idLower.includes("email") &&
+                !idLower.includes("exam") &&
+                !idLower.includes("seminar") &&
+                !idLower.includes("station") &&
+                !idLower.includes("seller") &&
+                !idLower.includes("dealer"))) &&
+            activeApplicant.address
+          ) {
+            val = activeApplicant.address;
+          } else if (
+            (idLower === FIELD_ID_ZIP_CODE.toLowerCase() || idLower === "zipcode" || idLower.includes("zip") || idLower.includes("postal")) &&
+            activeApplicant.zipCode
+          ) {
+            val = activeApplicant.zipCode;
+          } else if (
+            (idLower === FIELD_ID_BIRTH_DATE.toLowerCase() || idLower === "birthdate" || idLower.includes("birth") || idLower.includes("dob")) &&
+            (activeApplicant.birthDate || activeApplicant.birthYear)
+          ) {
+            val = activeApplicant.birthDate || `${activeApplicant.birthMonth || "01"}/${activeApplicant.birthDay || "01"}/${activeApplicant.birthYear}`;
+          } else if (
+            (idLower === FIELD_ID_SEX.toLowerCase() || idLower === "sex" || idLower === "gender") &&
+            activeApplicant.sex
+          ) {
+            val = activeApplicant.sex;
+          } else if (
+            (idLower === FIELD_ID_CIVIL_STATUS.toLowerCase() || idLower === "civilstatus" || idLower.includes("civil status")) &&
+            activeApplicant.civilStatus
+          ) {
+            val = activeApplicant.civilStatus;
+          } else if (
+            (idLower === FIELD_ID_NATIONALITY.toLowerCase() || idLower === "nationality" || idLower.includes("citizenship")) &&
+            activeApplicant.nationality
+          ) {
+            val = activeApplicant.nationality;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000081" || idLower === "companyname" || idLower.includes("company")) &&
+            activeApplicant.companyName
+          ) {
+            val = activeApplicant.companyName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000082" || idLower === "representativename" || idLower.includes("representative")) &&
+            activeApplicant.representativeName
+          ) {
+            val = activeApplicant.representativeName;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000083" || idLower === "representativeposition" || idLower.includes("position") || idLower.includes("designation")) &&
+            activeApplicant.representativePosition
+          ) {
+            val = activeApplicant.representativePosition;
+          } else if (
+            (idLower === "fd000000-0000-0000-0000-000000000086" || idLower === "dtisecregistration" || idLower.includes("sec") || idLower.includes("dti")) &&
+            activeApplicant.dtiSecRegistration
+          ) {
+            val = activeApplicant.dtiSecRegistration;
+          } else if (
+            idLower === FIELD_ID_SIGNATURE.toLowerCase() ||
+            idLower === "signature" ||
+            idLower.includes("signature")
+          ) {
+            val = activeApplicant.signatureUrl;
+          }
+        }
+        const trimmed = val !== undefined && val !== null ? (typeof val === "string" ? val.trim() : String(val)) : "";
+        if (trimmed === "" || trimmed === "false") {
+          const fieldLabel = labelMap.get(idLower) || id;
+          fieldErrors[id] = `${fieldLabel} is required and cannot be left blank.`;
+        } else if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+          try {
+            const parsed: unknown = JSON.parse(trimmed);
+            if (Array.isArray(parsed)) {
+              const hasFilledField = parsed.some((row: unknown) => {
+                if (typeof row === "object" && row !== null) {
+                  return Object.values(row).some(
+                    (v: unknown) => typeof v === "string" && v.trim().length > 0
+                  );
+                }
+                return false;
+              });
+              if (!hasFilledField) {
+                const fieldLabel = labelMap.get(idLower) || id;
+                fieldErrors[id] = `${fieldLabel} requires at least one entry.`;
+              }
+            }
+          } catch {
+            // Non-JSON string, treat as normal value
+          }
+        }
+      });
+
+      // 2. Specific format validation for Contact Number and Email fields in dynamic form
+      fieldValues.forEach((fv) => {
+        const fId = (fv.fieldId || "").toLowerCase().trim();
+        const fLbl = (fv.fieldLabel || "").toLowerCase().trim();
+        const val = typeof fv.value === "string" ? fv.value.trim() : "";
+
+        if (val.length > 0) {
+          if (fId === FIELD_ID_CONTACT_NO.toLowerCase() || fLbl === "contact / mobile number" || fLbl === "contact number" || fLbl === "mobile number") {
+            const err = validateContactNumber(val);
+            if (err) fieldErrors[fv.fieldId] = err;
+          } else if (fId === FIELD_ID_EMAIL.toLowerCase() || fLbl === "email address" || fLbl === "email") {
+            const err = validateEmailAddress(val);
+            if (err) fieldErrors[fv.fieldId] = err;
+          }
+        }
+      });
+    }
+
+    if (Object.keys(fieldErrors).length > 0) {
+      setFormErrors?.(fieldErrors);
+      const firstError = Object.values(fieldErrors)[0];
+      Alert.alert("Validation Error", firstError || "Please fill in all required fields marked in red correctly.");
+      return;
+    }
+    setFormErrors?.({});
+
+    if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {
+      setCurrentApplicantIndex(currentApplicantIndex + 1);
       return;
     }
     setStep(4);
     return;
   }
   if (step === 4) {
-    if (!activeApplicant.firstName || !activeApplicant.lastName || !activeApplicant.email || !activeApplicant.contactNo) {
-      Alert.alert("Warning", "Please fill in all mandatory applicant details.");
+    const effectiveRequirements: Array<ServiceRequirementItem | string> =
+      variantRequirements && variantRequirements.length > 0
+        ? variantRequirements
+        : service.requirements && service.requirements.length > 0
+        ? service.requirements
+        : [];
+
+    const mandatoryList = effectiveRequirements
+      .map((req, idx) => ({ req, idx }))
+      .filter(({ req }) => isRequirementMandatory(req));
+
+    if (mandatoryList.length === 0) {
+      // Automatic: No mandatory attachments required for this service/variant!
+      setStep(5);
       return;
     }
-    if (appMode === "BULK" && currentApplicantIndex < applicants.length - 1) {
-      setCurrentApplicantIndex(currentApplicantIndex + 1);
+
+    const missingMandatory = mandatoryList.filter(
+      ({ req, idx }) => !isRequirementUploaded(req, idx, activeApplicant.uploads)
+    );
+
+    if (missingMandatory.length > 0) {
+      const step4Errors: Record<string, string> = {};
+      const missingTitles = missingMandatory.map(({ req, idx }) => {
+        const title = typeof req === "string" ? req.replace(/\*$/, "").trim() : (req.name || req.label || req.title || `Requirement #${idx + 1}`).replace(/\*$/, "").trim();
+        const reqId = typeof req === "object" && req !== null && req.id ? String(req.id).trim() : "";
+        const primaryKey = reqId ? `req-${reqId}` : `req-${idx}`;
+        step4Errors[primaryKey] = `${title} is required.`;
+        if (reqId) step4Errors[reqId] = `${title} is required.`;
+        step4Errors[`req-${idx}`] = `${title} is required.`;
+        step4Errors[title] = `${title} is required.`;
+        return title;
+      });
+
+      setFormErrors?.(step4Errors);
+
+      Alert.alert(
+        "Mandatory Attachment(s) Required",
+        `Please attach the following required document(s) before proceeding:\n\n• ${missingTitles.join("\n• ")}`
+      );
       return;
     }
+
+    setFormErrors?.({});
     setStep(5);
     return;
   }
   if (step === 5) {
-    const missingDocs = service.requirements.filter((req) => !activeApplicant.uploads[req]);
-    if (missingDocs.length > 0) {
-      Alert.alert("Incomplete", "Please upload all mandatory documents before proceeding.");
+    const isApplicantComplete = isGeneralApplicantComplete(activeApplicant, service, variantRequirements);
+    if (!isApplicantComplete) {
+      Alert.alert("Incomplete Application", "Please complete all required fields and document uploads before submitting.");
       return;
     }
-    setStep(6);
-    return;
-  }
-  if (step === 6) {
     setIsConfirmModalOpen(true);
   }
 }
@@ -81,13 +830,18 @@ export function handleWizardBack({
   appMode,
   currentApplicantIndex,
   setCurrentApplicantIndex,
-}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex">) {
-  if (step === 4) {
+  onClose,
+}: Pick<NavigationContext, "step" | "setStep" | "appMode" | "currentApplicantIndex" | "setCurrentApplicantIndex" | "onClose">) {
+  if (step === 1) {
+    onClose?.();
+    return;
+  }
+  if (step === 3) {
     if (appMode === "BULK" && currentApplicantIndex > 0) {
       setCurrentApplicantIndex(currentApplicantIndex - 1);
       return;
     }
-    setStep(3);
+    setStep(2);
     return;
   }
   setStep(step - 1);

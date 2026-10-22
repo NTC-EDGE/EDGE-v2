@@ -4,11 +4,16 @@ import { ComponentProps } from "react";
 export interface NTCService {
   id?: string;
   code?: string;
+  name?: string;
   formNo?: string;
   category?: string;
+  categoryCode?: string;
+  serviceCategoryCode?: string;
   serviceCategoryId?: string;
+  serviceCategory?: { id?: string; name?: string; code?: string; type?: string | number };
   title: string;
   description: string;
+  whoMayAvail?: string;
   requirements: string[];
   fee: string;
   time: string;

@@ -12,7 +12,12 @@ using EDGE.Infrastructure.Authorization;
 
 namespace EDGE.Api.Endpoints;
 
-public record UpdateServiceVariantElementFeeRequest(Guid ServiceVariantId, Guid ElementId, Guid FeeId, decimal Amount);
+public record UpdateServiceVariantElementFeeRequest(
+    Guid ServiceVariantId,
+    Guid ElementId,
+    Guid FeeId,
+    decimal Amount
+);
 
 public static class ServiceVariantElementFeeEndpoints
 {
@@ -24,8 +29,8 @@ public static class ServiceVariantElementFeeEndpoints
         fees.MapGet("/", GetServiceVariantElementFees)
             .WithName("GetServiceVariantElementFees")
             .WithSummary("Get all service variant element fees")
-            .WithDescription("Retrieves a list of all service variant element fees. Filter by ServiceVariantId using query parameter.")
-            .Produces<PaginatedApiResponse<ServiceVariantElementFeeDto>>(StatusCodes.Status200OK);
+            .WithDescription("Retrieves a list of all service variant element fees grouped and paginated by ServiceVariant.")
+            .Produces<PaginatedApiResponse<ServiceVariantElementFeeGroupDto>>(StatusCodes.Status200OK);
 
         fees.MapGet("/{id:guid}", GetServiceVariantElementFeeById)
             .WithName("GetServiceVariantElementFeeById")
@@ -62,13 +67,14 @@ public static class ServiceVariantElementFeeEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantElementFees(
         Guid? serviceVariantId,
+        Guid? elementId,
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
         IValidator<GetServiceVariantElementFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, pageNumber, pageSize, searchTerm);
+        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, elementId, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {
@@ -119,7 +125,13 @@ public static class ServiceVariantElementFeeEndpoints
         IValidator<UpdateServiceVariantElementFeeCommand> validator,
         IMediator mediator)
     {
-        var command = new UpdateServiceVariantElementFeeCommand(id, request.ServiceVariantId, request.ElementId, request.FeeId, request.Amount);
+        var command = new UpdateServiceVariantElementFeeCommand(
+            id,
+            request.ServiceVariantId,
+            request.ElementId,
+            request.FeeId,
+            request.Amount
+        );
         var validationResult = await validator.ValidateAsync(command);
         if (!validationResult.IsValid)
         {

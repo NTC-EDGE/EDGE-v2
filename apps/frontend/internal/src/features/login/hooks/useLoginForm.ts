@@ -37,16 +37,19 @@ export function useLoginForm() {
     setToastMessage(null);
     setIsGoogleSubmitting(true);
 
-    const [res, error] = await safeAsync(async () => {
+    const [, error] = await safeAsync(async () => {
       const flowRes = await startOAuthFlow();
       if (flowRes !== null && flowRes !== undefined && flowRes.createdSessionId && typeof flowRes.setActive === "function") {
         await flowRes.setActive({ session: flowRes.createdSessionId });
+        return flowRes;
       }
-      return flowRes;
+
+      throw new Error(
+        "The selected Google account is not yet registered. Please make sure to sign in with a registered account."
+      );
     });
 
     if (error !== null) {
-      console.error("Google sign-in error:", error);
       setToastMessage(error);
     }
     setIsGoogleSubmitting(false);

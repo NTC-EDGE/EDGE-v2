@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import {
   StyleSheet,
   View,
@@ -9,6 +9,7 @@ import {
   Switch,
   FlatList,
   Platform,
+  ActivityIndicator,
 } from "react-native";
 import {
   COLORS,
@@ -16,39 +17,62 @@ import {
   RADIUS,
   TYPOGRAPHY,
   Icon as Lucide,
+  SkeletonLoader,
   useTheme,
+  toast,
+  DatePickerInput,
 } from "@edge/ui";
 import {
   ApplicationData,
   ApplicationStatus,
   ApplicationCategory,
-} from "../data/mockApplications";
+} from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useApplications } from "../context/ApplicationContext";
+import { useAdminApplications, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
+import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { isEvaluatorOrSupervisorRole } from "../data/officerResolutionHelpers";
 import {
   usePermissions,
   QueueTab,
 } from "../../shell/context/PermissionContext";
+import { useRole } from "../../shell/context/RoleContext";
+import { useAuthContext } from "../../auth/context/AuthContext";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
 type SortOrder = "newest" | "oldest";
 
-type FilterStatus = Extract<
-  ApplicationStatus,
-  "Approved" | "Declined" | "Completed"
->;
+type FilterStatus =
+  | Extract<
+      ApplicationStatus,
+      "Approved" | "Returned" | "Completed" | "ForIssuance" | "PendingPayment"
+    >
+  | "ForAssessment";
+
+type FilterMode = "SINGLE" | "BULK";
 
 // ─── Static config ───────────────────────────────────────────────────────────
+
+const FILTER_MODES: {
+  label: string;
+  value: FilterMode;
+  icon: "user" | "users";
+}[] = [
+  { label: "Single Application", value: "SINGLE", icon: "user" },
+  { label: "Bulk Application",   value: "BULK",   icon: "users" },
+];
 
 const FILTER_STATUSES: {
   label: string;
   value: FilterStatus;
-  icon: "check-circle" | "x-circle" | "calendar";
+  icon: "check-circle" | "x-circle" | "calendar" | "award" | "credit-card" | "file-text";
 }[] = [
-  { label: "Approved", value: "Approved", icon: "check-circle" },
-  { label: "Declined", value: "Declined", icon: "x-circle" },
-  { label: "Completed", value: "Completed", icon: "calendar" },
+  { label: "For Assessment",      value: "ForAssessment",  icon: "file-text" },
+  { label: "For Payment", value: "PendingPayment", icon: "credit-card" },
+  { label: "Approved",            value: "Approved",       icon: "check-circle" },
+  { label: "Returned",            value: "Returned",       icon: "x-circle" },
+  { label: "Completed",           value: "Completed",      icon: "calendar" },
+  { label: "For Issuance",        value: "ForIssuance",    icon: "award" },
 ];
 
 const FILTER_CATEGORIES: {
@@ -67,7 +91,8 @@ const FILTER_CATEGORIES: {
 const TAB_LABELS: { key: QueueTab; label: string }[] = [
   { key: "activity", label: "All" },
   { key: "pending",  label: "Pending" },
-  { key: "history",  label: "History" },
+  { key: "history",  label: "Processed" },
+  { key: "issuance", label: "For Issuance" },
 ];
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -82,13 +107,17 @@ function buildDateGroups(
   apps: ApplicationData[],
   sortOrder: SortOrder,
 ): DateGroup[] {
+  const pinnedItems = apps.filter((a) => Boolean(a.isPinned));
+  const unpinnedApps = apps.filter((a) => !a.isPinned);
+
   const groupMap = new Map<
     string,
     { label: string; items: ApplicationData[]; ts: number }
   >();
 
-  for (const app of apps) {
-    const date = new Date(app.createdAt);
+  for (const app of unpinnedApps) {
+    const dateStr = app.createdAt;
+    const date = new Date(dateStr);
     const dateKey = date.toISOString().slice(0, 10);
     if (!groupMap.has(dateKey)) {
       groupMap.set(dateKey, { label: app.dateLabel, items: [], ts: date.getTime() });
@@ -103,27 +132,224 @@ function buildDateGroups(
     sortOrder === "newest" ? b.ts - a.ts : a.ts - b.ts,
   );
 
-  return sorted.map(([dateKey, { label, items }]) => ({ label, dateKey, items }));
+  const result: DateGroup[] = [];
+
+  if (pinnedItems.length > 0) {
+    result.push({
+      label: "PINNED TO TOP",
+      dateKey: "pinned",
+      items: [...pinnedItems].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  for (const [dateKey, { label, items }] of sorted) {
+    result.push({
+      label,
+      dateKey,
+      items: [...items].sort((a, b) => {
+        const aTime = new Date(a.createdAt).getTime();
+        const bTime = new Date(b.createdAt).getTime();
+        return sortOrder === "newest" ? bTime - aTime : aTime - bTime;
+      }),
+    });
+  }
+
+  return result;
 }
 
 // ─── Component ───────────────────────────────────────────────────────────────
 
-export function ActivitiesFeedPane() {
-  const {
-    applications,
-    selectedId,
-    setSelectedId,
-    activeQueueTab,
-    setActiveQueueTab,
-    resetStore,
-  } = useApplications();
+export interface ActivitiesFeedPaneProps {
+  selectedId?: string | null;
+  onSelectId?: (id: string | null) => void;
+  activeQueueTab?: QueueTab;
+  onSelectQueueTab?: (tab: QueueTab) => void;
+}
+
+export function ActivitiesFeedPane({
+  selectedId,
+  onSelectId: setSelectedId,
+  activeQueueTab = "activity",
+  onSelectQueueTab: setActiveQueueTab,
+}: ActivitiesFeedPaneProps) {
   const { visibleTabs } = usePermissions();
   const { colors, isDark } = useTheme();
+  const { user } = useAuthContext();
+  const { currentRole } = useRole();
+  const isAdmin = currentRole === "Admin";
+  const officerName = user?.name || user?.email || "Evaluating Officer";
+  const { config: tenantConfig } = useTenantConfig();
 
-  const [searchQuery,       setSearchQuery]       = useState("");
+  const PAGE_SIZE_STEP = 15;
+  const [pageSize, setPageSize] = useState(PAGE_SIZE_STEP);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearchQuery(searchQuery.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
+    queueTab: activeQueueTab,
+    role: currentRole,
+    assignedTo: officerName,
+    scope: "queue",
+    pageSize,
+    pageNumber: 1,
+    searchTerm: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
+  }, {
+    refreshInterval: 3000,
+    revalidateOnFocus: true,
+  });
+
+  const applications = useMemo(() => {
+    if (!Array.isArray(rawDtos)) return [];
+    return rawDtos.map((dto) => mapApplicationDtoToUI(dto, currentRole));
+  }, [rawDtos, currentRole]);
+
+  useEffect(() => {
+    setPageSize(PAGE_SIZE_STEP);
+  }, [activeQueueTab]);
+
+  useEffect(() => {
+    if (!isLoading && isLoadingMore) {
+      setIsLoadingMore(false);
+    }
+  }, [isLoading, isLoadingMore]);
+
+  const handleLoadMore = useCallback(() => {
+    if (isLoading || isLoadingMore) return;
+    setIsLoadingMore(true);
+    setPageSize((prev) => prev + PAGE_SIZE_STEP);
+  }, [isLoading, isLoadingMore]);
+
+  const totalAvailable = pagination?.totalCount ?? applications.length;
+  const hasMore = pagination
+    ? Boolean(pagination.hasNextPage) || applications.length < totalAvailable
+    : applications.length >= pageSize;
+
+  const togglePinApplication = useCallback(async (id: string) => {
+    const app = applications.find((a) => a.id === id);
+    const nextPinned = app?.isPinned !== true;
+
+    // 1. Optimistic update in SWR cache for immediate UI re-sorting
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.togglePin(id, nextPinned);
+    if (err !== null) {
+      toast.error("Failed to pin/unpin application.");
+      await refetch();
+      return;
+    }
+    toast.success(nextPinned ? "Application pinned to top." : "Application unpinned.");
+    await mutateApplications(id);
+    await refetch();
+  }, [applications, refetch]);
+
+  const toggleArchiveApplication = useCallback(async (id: string) => {
+    const app = applications.find((a) => a.id === id);
+    const nextArchived = app?.isArchived !== true;
+
+    // 1. Optimistic update in SWR cache
+    await refetch(
+      (currentData) => {
+        if (!currentData || !currentData.data) return currentData;
+        const payload = currentData.data;
+        if (Array.isArray(payload)) {
+          const updated = payload.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: updated };
+        }
+        if (Array.isArray(payload.items)) {
+          const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
+          return { ...currentData, data: { ...payload, items: updatedItems } };
+        }
+        return currentData;
+      },
+      { revalidate: false }
+    );
+
+    const [res, err] = await applicationService.toggleArchive(id, nextArchived);
+    if (err !== null) {
+      toast.error("Failed to archive/unarchive application.");
+      await refetch();
+      return;
+    }
+    if (selectedId === id) setSelectedId?.(null);
+    toast.success(nextArchived ? "Application archived." : "Application unarchived.");
+    await mutateApplications(id);
+    await refetch();
+  }, [applications, selectedId, setSelectedId, refetch]);
+
+  const evaluateApplication = useCallback(async (id: string) => {
+    const [res, err] = await applicationService.updateStatus(id, {
+      status: "Evaluating",
+      action: `Evaluation Started by ${officerName}`,
+      staffName: officerName,
+      staffRole: "Evaluating Officer",
+      remarks: `Technical evaluation started by ${officerName}.`,
+    });
+    if (err !== null) {
+      const errMsg = typeof err === "object" && err !== null && Reflect.has(err, "message")
+        ? String(Reflect.get(err, "message"))
+        : "Failed to start evaluation.";
+      toast.error(errMsg);
+      return;
+    }
+    toast.success(`Evaluation started by ${officerName}.`);
+    await mutateApplications(id);
+    await refetch();
+  }, [officerName, refetch]);
+
+  const releaseEvaluation = useCallback(async (id: string) => {
+    const [res, err] = await applicationService.updateStatus(id, {
+      status: "Submitted",
+      action: `Evaluation Released / Returned to Queue by ${officerName}`,
+      staffName: officerName,
+      staffRole: "Evaluating Officer",
+      remarks: `Evaluation released back to queue by ${officerName}.`,
+    });
+    if (err !== null) {
+      toast.error("Failed to release evaluation.");
+      return;
+    }
+    toast.success("Evaluation released back to queue.");
+    await mutateApplications(id);
+    await refetch();
+  }, [officerName, refetch]);
+
+  const resetStore = useCallback(() => {
+    setPageSize(PAGE_SIZE_STEP);
+    refetch();
+  }, [refetch]);
+
   const [sortOrder,         setSortOrder]         = useState<SortOrder>("newest");
   const [activeStatuses,    setActiveStatuses]    = useState<Set<string>>(new Set());
   const [activeCategories,  setActiveCategories]  = useState<Set<ApplicationCategory>>(new Set());
+  const [activeModes,       setActiveModes]       = useState<Set<FilterMode>>(new Set());
   const [dateFrom,          setDateFrom]          = useState("");
   const [dateTo,            setDateTo]            = useState("");
   const [showSortDropdown,  setShowSortDropdown]  = useState(false);
@@ -161,6 +387,14 @@ export function ActivitiesFeedPane() {
     });
   }, []);
 
+  const toggleMode = useCallback((mode: FilterMode) => {
+    setActiveModes((prev) => {
+      const next = new Set(prev);
+      if (next.has(mode)) next.delete(mode); else next.add(mode);
+      return next;
+    });
+  }, []);
+
   const toggleGroupCollapse = useCallback((dateKey: string) => {
     setCollapsedGroups((prev) => {
       const next = new Set(prev);
@@ -171,9 +405,11 @@ export function ActivitiesFeedPane() {
 
   const handleReset = useCallback(() => {
     setSearchQuery("");
+    setDebouncedSearchQuery("");
     setSortOrder("newest");
     setActiveStatuses(new Set());
     setActiveCategories(new Set());
+    setActiveModes(new Set());
     setDateFrom("");
     setDateTo("");
     setShowSortDropdown(false);
@@ -184,15 +420,122 @@ export function ActivitiesFeedPane() {
 
   // ── Filtered data ───────────────────────────────────────────────────────────
   const filteredGroups = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
     const filtered = applications.filter((app) => {
-      if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) return false;
-      if (
-        searchQuery.trim().length > 0 &&
-        !app.applicant.toLowerCase().includes(searchQuery.toLowerCase()) &&
-        !app.permitTitle.toLowerCase().includes(searchQuery.toLowerCase())
-      ) return false;
-      if (activeStatuses.size > 0 && !activeStatuses.has(app.status))   return false;
+      if (app.status === "Draft" || app.isArchived) return false;
+      if (activeQueueTab === "issuance") {
+        if (app.status !== "ForIssuance" && app.queueTab !== "issuance") return false;
+      } else if (activeQueueTab !== "activity" && app.queueTab !== activeQueueTab) {
+        return false;
+      }
+
+      // Legal & Evaluator role separation for statutory complaints vs commercial applications
+      if (activeQueueTab === "pending") {
+        const complaintRouting = tenantConfig.requestAndComplaintRouting ?? "DirectToLegal";
+        if (complaintRouting === "DirectToLegal") {
+          if (currentRole === "Legal") {
+            // Legal Officer pending queue focuses exclusively on Complaints & Requests
+            if (app.category !== "Complaints and Request") return false;
+          } else if (currentRole === "Evaluator") {
+            // Regional Evaluator pending queue focuses on commercial spectrum/permits; complaints are routed directly to Legal
+            if (app.category === "Complaints and Request") return false;
+          }
+        } else {
+          // DirectToEvaluator:
+          // Regional Evaluators receive complaints directly to evaluate and endorse to Legal
+          // Legal Officers see complaints once endorsed or assigned to Legal
+          if (currentRole === "Legal") {
+            const isAssignedOrEndorsedToLegal =
+              (app.assignedTo !== null && app.assignedTo !== undefined && app.assignedTo.toLowerCase().includes("legal")) ||
+              (app.endorsedTo !== null && app.endorsedTo !== undefined && app.endorsedTo.toLowerCase().includes("legal"));
+            if (app.category !== "Complaints and Request" || !isAssignedOrEndorsedToLegal) return false;
+          }
+        }
+      }
+      if (q.length > 0) {
+        // 1. Applicant Name & Details
+        const matchesApplicant =
+          (typeof app.applicant === "string" && app.applicant.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.firstName === "string" && app.basicInfo.firstName.toLowerCase().includes(q)) ||
+          (typeof app.basicInfo?.lastName === "string" && app.basicInfo.lastName.toLowerCase().includes(q)) ||
+          (typeof app.companyDetails?.name === "string" && app.companyDetails.name.toLowerCase().includes(q)) ||
+          (typeof app.filingUser?.name === "string" && app.filingUser.name.toLowerCase().includes(q)) ||
+          (Array.isArray(app.applicantsList) &&
+            app.applicantsList.some(
+              (a) =>
+                (typeof a.name === "string" && a.name.toLowerCase().includes(q)) ||
+                (typeof a.email === "string" && a.email.toLowerCase().includes(q))
+            ));
+
+        // 2. Reference & Application Number
+        const matchesRef =
+          (typeof app.referenceNumber === "string" && app.referenceNumber.toLowerCase().includes(q)) ||
+          (typeof app.applicationNumber === "string" && app.applicationNumber.toLowerCase().includes(q));
+
+        // 3. Official Receipt (OR) Number
+        const matchesOrNumber =
+          (typeof app.payment?.orNumber === "string" && app.payment.orNumber.toLowerCase().includes(q)) ||
+          (typeof app.officialReceiptNumber === "string" && app.officialReceiptNumber.toLowerCase().includes(q)) ||
+          (typeof app.payment?.opNumber === "string" && app.payment.opNumber.toLowerCase().includes(q));
+
+        // 4. Statement of Account (SOA) Number
+        const matchesSoaNumber =
+          (typeof app.soaNumber === "string" && app.soaNumber.toLowerCase().includes(q)) ||
+          (typeof app.soaId === "string" && app.soaId.toLowerCase().includes(q));
+
+        // 5. Service Variant & Service Title
+        const matchesServiceVariant =
+          (typeof app.serviceVariantName === "string" && app.serviceVariantName.toLowerCase().includes(q)) ||
+          (typeof app.permitTitle === "string" && app.permitTitle.toLowerCase().includes(q)) ||
+          (typeof app.serviceName === "string" && app.serviceName.toLowerCase().includes(q)) ||
+          (Array.isArray(app.services) &&
+            app.services.some(
+              (s) =>
+                (typeof s.serviceVariantName === "string" && s.serviceVariantName.toLowerCase().includes(q)) ||
+                (typeof s.serviceName === "string" && s.serviceName.toLowerCase().includes(q))
+            ));
+
+        // 6. Personnel Name (Assigned, Evaluating, Accounting, Cashier, Issuing, Endorsed, or History)
+        const matchesPersonnel =
+          (typeof app.assignedTo === "string" && app.assignedTo.toLowerCase().includes(q)) ||
+          (typeof app.evaluatingOfficer === "string" && app.evaluatingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.accountingOfficer === "string" && app.accountingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.cashierOfficer === "string" && app.cashierOfficer.toLowerCase().includes(q)) ||
+          (typeof app.issuingOfficer === "string" && app.issuingOfficer.toLowerCase().includes(q)) ||
+          (typeof app.endorsedTo === "string" && app.endorsedTo.toLowerCase().includes(q)) ||
+          (typeof app.endorsedBy === "string" && app.endorsedBy.toLowerCase().includes(q)) ||
+          (Array.isArray(app.history) &&
+            app.history.some(
+              (h) =>
+                (typeof h.staff === "string" && h.staff.toLowerCase().includes(q)) ||
+                (typeof h.role === "string" && h.role.toLowerCase().includes(q))
+            ));
+
+        const matchesType = typeof app.applicationType === "string" && app.applicationType.toLowerCase().includes(q);
+        const matchesMode =
+          (app.applicationType === "BULK" && "bulk application".includes(q)) ||
+          (app.applicationType === "SINGLE" && "single application".includes(q));
+
+        if (
+          !matchesApplicant &&
+          !matchesRef &&
+          !matchesOrNumber &&
+          !matchesSoaNumber &&
+          !matchesServiceVariant &&
+          !matchesPersonnel &&
+          !matchesType &&
+          !matchesMode
+        ) {
+          return false;
+        }
+      }
+      if (activeStatuses.size > 0) {
+        const matchesStatus = activeStatuses.has(app.status);
+        const matchesAssessment = activeStatuses.has("ForAssessment") && (Boolean(app.isAssessmentOnly) || app.intent === "AssessmentOnly");
+        if (!matchesStatus && !matchesAssessment) return false;
+      }
       if (activeCategories.size > 0 && !activeCategories.has(app.category)) return false;
+      if (activeModes.size > 0 && !activeModes.has(app.applicationType)) return false;
       if (dateFrom.length === 10) {
         const appDate = new Date(app.createdAt);
         if (appDate < new Date(dateFrom)) return false;
@@ -205,15 +548,21 @@ export function ActivitiesFeedPane() {
       return true;
     });
     return buildDateGroups(filtered, sortOrder);
-  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, dateFrom, dateTo, sortOrder]);
+  }, [applications, activeQueueTab, searchQuery, activeStatuses, activeCategories, activeModes, dateFrom, dateTo, sortOrder, officerName, user, currentRole]);
 
   const hasActiveFilters =
     activeStatuses.size > 0 ||
     activeCategories.size > 0 ||
+    activeModes.size > 0 ||
     dateFrom.length > 0 ||
     dateTo.length > 0;
 
-  const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key));
+  const visibleTabDefs = TAB_LABELS.filter((t) => visibleTabs.includes(t.key)).map((t) => {
+    if (t.key === 'pending' && currentRole === 'Cashier') {
+      return { ...t, label: 'For Payment' };
+    }
+    return t;
+  });
 
   // ── Render ──────────────────────────────────────────────────────────────────
   return (
@@ -292,14 +641,11 @@ export function ActivitiesFeedPane() {
           <View style={styles.dateRow}>
             {(["From", "To"] as const).map((label, i) => (
               <View key={label} style={styles.dateField}>
-                <Text style={[styles.dateLabel, { color: textMuted }]}>{label.toUpperCase()}</Text>
-                <TextInput
-                  style={[styles.dateInput, { color: text, backgroundColor: inputBg, borderColor: border }]}
+                <DatePickerInput
+                  label={label.toUpperCase()}
                   placeholder="YYYY-MM-DD"
-                  placeholderTextColor={textMuted}
                   value={i === 0 ? dateFrom : dateTo}
                   onChangeText={i === 0 ? setDateFrom : setDateTo}
-                  maxLength={10}
                 />
               </View>
             ))}
@@ -346,6 +692,24 @@ export function ActivitiesFeedPane() {
           ))}
 
           <View style={[styles.filterPanelHeader, { marginTop: SPACING[12] }]}>
+            <Text style={[styles.panelSectionTitle, { color: textMuted }]}>Application Mode</Text>
+          </View>
+          {FILTER_MODES.map((m) => (
+            <View key={m.value} style={[styles.filterRow, { borderBottomColor: borderSoft }]}>
+              <View style={styles.filterRowLeft}>
+                <Lucide name={m.icon} size={14} color={textMuted} />
+                <Text style={[styles.filterRowLabel, { color: text }]}>{m.label}</Text>
+              </View>
+              <Switch
+                value={activeModes.has(m.value)}
+                onValueChange={() => toggleMode(m.value)}
+                trackColor={{ false: isDark ? colors.neutral[700] : colors.neutral[200], true: brandColor }}
+                thumbColor={COLORS.neutral.white}
+              />
+            </View>
+          ))}
+
+          <View style={[styles.filterPanelHeader, { marginTop: SPACING[12] }]}>
             <Text style={[styles.panelSectionTitle, { color: textMuted }]}>Category Filters</Text>
           </View>
           {FILTER_CATEGORIES.map((c) => (
@@ -370,10 +734,11 @@ export function ActivitiesFeedPane() {
         <Lucide name="search" size={14} color={textMuted} />
         <TextInput
           style={[styles.searchInput, { color: text }]}
-          placeholder="Search applications…"
+          placeholder="Search by Ref, OR, SOA, applicant, variant, personnel..."
           placeholderTextColor={textMuted}
           value={searchQuery}
           onChangeText={setSearchQuery}
+          accessibilityLabel="Search applications by Reference, OR, SOA, applicant, variant, or personnel"
         />
         {searchQuery.length > 0 && (
           <Pressable onPress={() => setSearchQuery("")}>
@@ -390,7 +755,7 @@ export function ActivitiesFeedPane() {
             <Pressable
               key={tab.key}
               style={styles.tabItem}
-              onPress={() => setActiveQueueTab(tab.key)}
+              onPress={() => setActiveQueueTab?.(tab.key)}
             >
               <Text style={[styles.tabText, { color: isActive ? brandColor : textMuted }, isActive && { fontWeight: TYPOGRAPHY.weights.semibold }]}>
                 {tab.label}
@@ -403,7 +768,30 @@ export function ActivitiesFeedPane() {
 
       {/* ── Feed List ── */}
       <ScrollView style={styles.feedScroll} showsVerticalScrollIndicator={false}>
-        {filteredGroups.length === 0 ? (
+        {isLoading ? (
+          <View style={{ padding: SPACING[12], gap: SPACING[12] }}>
+            {[1, 2, 3, 4, 5].map((idx) => (
+              <View
+                key={idx}
+                style={{
+                  padding: SPACING[16],
+                  borderRadius: RADIUS.card,
+                  borderWidth: 1,
+                  borderColor: borderSoft,
+                  backgroundColor: surface,
+                  gap: SPACING[10],
+                }}
+              >
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <SkeletonLoader width={130} height={14} borderRadius={4} />
+                  <SkeletonLoader width={75} height={20} borderRadius={10} />
+                </View>
+                <SkeletonLoader width={180} height={18} borderRadius={4} />
+                <SkeletonLoader width={140} height={13} borderRadius={4} />
+              </View>
+            ))}
+          </View>
+        ) : filteredGroups.length === 0 ? (
           <View style={styles.emptyState}>
             <Lucide name="inbox" size={28} color={textMuted} />
             <Text style={[styles.emptyTitle, { color: textMuted }]}>No applications</Text>
@@ -428,17 +816,42 @@ export function ActivitiesFeedPane() {
                   />
                 </Pressable>
                 {!isCollapsed &&
-                  group.items.map((app) => (
-                    <ActivityCard
-                      key={app.id}
-                      application={app}
-                      isActive={selectedId === app.id}
-                      onPress={() => setSelectedId(app.id)}
-                      onMenuAction={(action, id) => {
-                        console.log(`[Menu] ${action} on ${id}`);
-                      }}
-                    />
-                  ))}
+                  group.items.map((app) => {
+                    const isComplaintOrRequest =
+                      app.category === "Complaints and Request" ||
+                      (typeof app.permitTitle === "string" &&
+                        (app.permitTitle.includes("1-24") ||
+                          app.permitTitle.includes("1-25") ||
+                          app.permitTitle.toLowerCase().includes("complaint") ||
+                          app.permitTitle.toLowerCase().includes("blocking")));
+                    const canEvaluate =
+                      isEvaluatorOrSupervisorRole(currentRole) ||
+                      (isComplaintOrRequest && currentRole === "Legal") ||
+                      isAdmin;
+
+                    return (
+                      <ActivityCard
+                        key={app.id}
+                        application={app}
+                        isActive={selectedId === app.id}
+                        onPress={() => setSelectedId?.(app.id)}
+                        currentUserName={officerName}
+                        isAdmin={isAdmin}
+                        canEvaluate={canEvaluate}
+                        onMenuAction={(action, id) => {
+                          if (action === "evaluate") {
+                            void evaluateApplication(id);
+                          } else if (action === "release_evaluation") {
+                            void releaseEvaluation(id);
+                          } else if (action === "pin") {
+                            void togglePinApplication(id);
+                          } else if (action === "archive") {
+                            void toggleArchiveApplication(id);
+                          }
+                        }}
+                      />
+                    );
+                  })}
               </View>
             );
           })
@@ -448,13 +861,33 @@ export function ActivitiesFeedPane() {
         {filteredGroups.length > 0 && (
           <View style={styles.seeMoreRow}>
             <Text style={[styles.seeMoreText, { color: textMuted }]}>
-              Showing{" "}
-              {applications.filter((a) => activeQueueTab === "activity" || a.queueTab === activeQueueTab).length}{" "}
+              Showing {filteredGroups.reduce((acc, g) => acc + g.items.length, 0)}
+              {pagination?.totalCount !== undefined ? ` of ${pagination.totalCount}` : ""}{" "}
               activities
             </Text>
-            <Pressable style={[styles.loadMoreBtn, { backgroundColor: surface, borderColor: border }]}>
-              <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
-            </Pressable>
+            {hasMore ? (
+              <Pressable
+                disabled={isLoading || isLoadingMore}
+                style={[
+                  styles.loadMoreBtn,
+                  { backgroundColor: surface, borderColor: border },
+                  (isLoading || isLoadingMore) && { opacity: 0.6 },
+                  Platform.select({ web: { cursor: isLoading || isLoadingMore ? 'auto' : 'pointer' } }),
+                ]}
+                onPress={handleLoadMore}
+              >
+                {isLoadingMore ? (
+                  <View style={styles.loadingRow}>
+                    <ActivityIndicator size="small" color={brandColor} />
+                    <Text style={[styles.loadMoreText, { color: brandColor }]}>Loading...</Text>
+                  </View>
+                ) : (
+                  <Text style={[styles.loadMoreText, { color: brandColor }]}>Load older activities</Text>
+                )}
+              </Pressable>
+            ) : (
+              <Text style={[styles.allLoadedText, { color: textMuted }]}>All activities loaded</Text>
+            )}
           </View>
         )}
 
@@ -705,5 +1138,15 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: TYPOGRAPHY.sizes.body,
     fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  loadingRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: SPACING[6],
+  },
+  allLoadedText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.caption,
+    fontStyle: "italic",
   },
 });

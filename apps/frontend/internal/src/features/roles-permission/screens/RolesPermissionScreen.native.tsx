@@ -37,6 +37,12 @@ export function RolesPermissionScreen() {
     hasUnsavedChanges,
     isSubmitting,
     isLoading,
+    isCurrentRoleReadOnly,
+    isSuperAdmin,
+    canCreateRole,
+    canUpdateRole,
+    canDeleteRole,
+    canAssignPermissions,
     handleTogglePermission,
     handleToggleSelectAll,
     resetChanges,
@@ -67,10 +73,12 @@ export function RolesPermissionScreen() {
       setIsEditingRoleName(false);
       return;
     }
-    const ok = await updateRole(selectedRole.id, trimmed);
-    if (ok) {
+    const res = await updateRole(selectedRole.id, trimmed);
+    if (res.ok) {
       showToast(`Role renamed to "${trimmed}"`);
       setIsEditingRoleName(false);
+    } else if (res.error) {
+      showToast(res.error);
     }
   };
 
@@ -86,22 +94,34 @@ export function RolesPermissionScreen() {
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 4000);
   };
 
   const handleSave = async () => {
-    const ok = await savePermissions();
-    if (ok && selectedRole) showToast(`Saved for "${selectedRole.name}"`);
+    const res = await savePermissions();
+    if (res.ok && selectedRole) {
+      showToast(`Saved for "${selectedRole.name}"`);
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   const handleAddRole = async (data: { name: string; initialPermissionIds: string[] }) => {
-    const ok = await createRole(data.name, undefined, data.initialPermissionIds);
-    if (ok) showToast(`Role "${data.name}" created.`);
+    const res = await createRole(data.name, undefined, data.initialPermissionIds);
+    if (res.ok) {
+      showToast(`Role "${data.name}" created.`);
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    const ok = await deleteRole(roleId);
-    if (ok) showToast('Role deleted.');
+    const res = await deleteRole(roleId);
+    if (res.ok) {
+      showToast('Role deleted.');
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   return (
@@ -115,18 +135,20 @@ export function RolesPermissionScreen() {
               <Lucide name="search" size={14} color={mutedColor} />
               <TextInput
                 style={[styles.searchInput, { color: textColor }]}
-                placeholder="Search roles..."
+                placeholder="Search roles by name or key..."
                 placeholderTextColor={mutedColor}
                 value={roleSearchQuery}
                 onChangeText={setRoleSearchQuery}
               />
             </View>
-            <Pressable
-              style={[styles.addBtn, { backgroundColor: accentBg }]}
-              onPress={() => setIsAddModalOpen(true)}
-            >
-              <Lucide name="plus" size={15} color="#FFFFFF" />
-            </Pressable>
+            {canCreateRole && (
+              <Pressable
+                style={[styles.addBtn, { backgroundColor: accentBg }]}
+                onPress={() => setIsAddModalOpen(true)}
+              >
+                <Lucide name="plus" size={15} color="#FFFFFF" />
+              </Pressable>
+            )}
           </View>
 
           {/* Role List */}
@@ -140,7 +162,7 @@ export function RolesPermissionScreen() {
                   setSelectedRoleId(role.id);
                   setMobileView('permissions');
                 }}
-                onDeletePress={() => setRoleToDelete(role)}
+                onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
               />
             ))}
           </ScrollView>
@@ -181,7 +203,7 @@ export function RolesPermissionScreen() {
                 <View style={styles.roleNameRow}>
                   <Text style={[styles.roleNameText, { color: textColor }]}>{selectedRole.name}</Text>
                   {hasUnsavedChanges && <View style={styles.unsavedDot} />}
-                  {!selectedRole.isSystemRole && (
+                  {!selectedRole.isSystemRole && canUpdateRole && (
                     <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                       <Lucide name="edit-2" size={13} color={mutedColor} />
                     </Pressable>
@@ -189,24 +211,40 @@ export function RolesPermissionScreen() {
                 </View>
               )}
               <Text style={[styles.roleScopeText, { color: mutedColor }]}>
-                {selectedRole.isSystemRole ? 'System Role' : 'Custom Role'}
+                {selectedRole.isSystemRole ? 'Standard Role' : 'Custom Role'}
               </Text>
             </View>
-            <Pressable
-              style={[
-                styles.saveBtn,
-                {
-                  backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                  opacity: !hasUnsavedChanges || isSubmitting ? 0.5 : 1,
-                },
-              ]}
-              onPress={handleSave}
-              disabled={!hasUnsavedChanges || isSubmitting}
-            >
-              <Lucide name="save" size={14} color="#FFFFFF" />
-              <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving…' : 'Save'}</Text>
-            </Pressable>
+            {isCurrentRoleReadOnly ? (
+              <View style={[styles.readOnlyIndicator, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+                <Lucide name="lock" size={13} color={mutedColor} />
+                <Text style={[styles.readOnlyIndicatorText, { color: mutedColor }]}>Read-Only</Text>
+              </View>
+            ) : (
+              <Pressable
+                style={[
+                  styles.saveBtn,
+                  {
+                    backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                    opacity: !hasUnsavedChanges || isSubmitting ? 0.5 : 1,
+                  },
+                ]}
+                onPress={handleSave}
+                disabled={!hasUnsavedChanges || isSubmitting}
+              >
+                <Lucide name="save" size={14} color="#FFFFFF" />
+                <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving…' : 'Save'}</Text>
+              </Pressable>
+            )}
           </View>
+
+          {isCurrentRoleReadOnly && (
+            <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
+              <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+              <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                Standard role: Permissions are read-only.
+              </Text>
+            </View>
+          )}
 
           {/* Permission Search */}
           <View style={[styles.searchRow, { backgroundColor: inputBg, borderColor: inputBorder, marginHorizontal: SPACING[16] }]}>
@@ -228,6 +266,7 @@ export function RolesPermissionScreen() {
                 category={cat}
                 activePermissionIds={activePermissions}
                 onTogglePermission={handleTogglePermission}
+                readOnly={isCurrentRoleReadOnly}
               />
             ))}
           </ScrollView>
@@ -381,6 +420,34 @@ const styles = StyleSheet.create({
   categoriesContent: {
     padding: SPACING[16],
     gap: SPACING[10],
+  },
+  readOnlyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[10],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    marginHorizontal: SPACING[16],
+  },
+  readOnlyBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  readOnlyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+  },
+  readOnlyIndicatorText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
   toast: {
     position: 'absolute',

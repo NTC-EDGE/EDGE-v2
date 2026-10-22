@@ -132,6 +132,7 @@ export function FeedbackScreen() {
     { id: 'all', label: 'All Submissions', count: state.stats.total },
     { id: '5', label: '5 Stars ★' },
     { id: '4', label: '4+ Stars' },
+    { id: 'critical', label: 'Needs Attention (1-2★)', count: state.stats.criticalCount },
     { id: 'anon', label: 'Anonymous Only', count: state.stats.anonCount },
   ];
 
@@ -481,8 +482,6 @@ const styles = StyleSheet.create({
     padding: SPACING[24],
     paddingBottom: 80,
     gap: SPACING[16],
-    maxWidth: 1200,
-    alignSelf: 'center',
     width: '100%',
   },
   headerActions: {

@@ -10,6 +10,8 @@ export function useShellState() {
   const [isSwitcherHovered, setIsSwitcherHovered] = useState(false);
   const [isLogoutHovered, setIsLogoutHovered] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSignOutConfirmVisible, setIsSignOutConfirmVisible] = useState(false);
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const toggleRoleDropdown = () => {
     setShowRoleDropdown((prev) => !prev);
@@ -36,6 +38,28 @@ export function useShellState() {
     setIsSidebarOpen((prev) => !prev);
   };
 
+  const promptSignOut = () => {
+    setIsSignOutConfirmVisible(true);
+  };
+
+  const closeSignOutModal = () => {
+    if (!isSigningOut) {
+      setIsSignOutConfirmVisible(false);
+    }
+  };
+
+  const confirmSignOut = async () => {
+    setIsSigningOut(true);
+    try {
+      await logout();
+    } catch (err: unknown) {
+      console.error('Sign out error:', err);
+    } finally {
+      setIsSigningOut(false);
+      setIsSignOutConfirmVisible(false);
+    }
+  };
+
   return {
     currentRole,
     user,
@@ -52,6 +76,12 @@ export function useShellState() {
     openSidebar,
     closeSidebar,
     toggleSidebar,
+    isSignOutConfirmVisible,
+    setIsSignOutConfirmVisible,
+    isSigningOut,
+    promptSignOut,
+    closeSignOutModal,
+    confirmSignOut,
   };
 }
 

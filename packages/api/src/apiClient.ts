@@ -7,15 +7,59 @@ const getApiUrl = (): string => {
   if (typeof envUrl === 'string' && envUrl.trim().length > 0) {
     return envUrl.trim();
   }
-  throw new Error(
-    '[EDGE API] No API base URL configured. ' +
-    'Set NEXT_PUBLIC_API_URL (Next.js) or EXPO_PUBLIC_API_URL (Expo) in your .env file.'
-  );
+  return 'http://localhost:5000';
 };
 
 export const apiClient = axios.create({
   baseURL: getApiUrl(),
+  timeout: 10000,
 });
+
+// Server Unreachable State Management (Circuit Breaker)
+let isServerUnreachable = false;
+let lastUnreachableTimestamp = 0;
+const listeners = new Set<(unreachable: boolean) => void>();
+
+export const getIsServerUnreachable = (): boolean => isServerUnreachable;
+
+export const subscribeServerUnreachable = (listener: (unreachable: boolean) => void): (() => void) => {
+  listeners.add(listener);
+  return () => {
+    listeners.delete(listener);
+  };
+};
+
+export const setServerUnreachable = (unreachable: boolean): void => {
+  isServerUnreachable = unreachable;
+  if (unreachable) {
+    lastUnreachableTimestamp = Date.now();
+  }
+  listeners.forEach((l) => l(unreachable));
+};
+
+// Response Interceptor to detect network / server offline states
+apiClient.interceptors.response.use(
+  (response) => {
+    if (isServerUnreachable) {
+      setServerUnreachable(false);
+    }
+    return response;
+  },
+  (error) => {
+    const status = error.response?.status;
+    const isNetworkErr =
+      error.code === 'ERR_NETWORK' ||
+      error.code === 'ECONNREFUSED' ||
+      error.code === 'ETIMEDOUT' ||
+      !error.response ||
+      (typeof status === 'number' && status >= 502 && status <= 504);
+
+    if (isNetworkErr) {
+      setServerUnreachable(true);
+    }
+    return Promise.reject(error);
+  }
+);
 
 // Attach dynamic token interceptor to ensure all requests automatically include fresh JWT bearer tokens
 attachTokenInterceptor(apiClient);
@@ -29,6 +73,11 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   config?: SWRConfiguration<Data, Error>
 ): SWRResponse<Data, Error> {
   const customFetcher = async (url: string): Promise<Data> => {
+    // If server was recently flagged offline, check if 15 seconds have passed before allowing automated background refetch
+    if (isServerUnreachable && Date.now() - lastUnreachableTimestamp < 15000) {
+      throw new Error('[EDGE API] Server currently unreachable. Automated retries paused.');
+    }
+
     let token: string | null = null;
     try {
       token = await clerkGetToken();
@@ -49,20 +98,31 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   };
 
   const defaultConfig: SWRConfiguration<Data, Error> = {
-    revalidateOnFocus: true,
+    revalidateOnFocus: false,
     revalidateIfStale: true,
     keepPreviousData: true,
-    dedupingInterval: 5000,
+    dedupingInterval: 10000,
+    shouldRetryOnError: true,
     onErrorRetry: (error, _key, _config, revalidate, opts) => {
-      // Never retry on 403 Forbidden — it is not a transient error
-      if (
-        typeof error === 'object' &&
-        error !== null &&
-        (error as { response?: { status?: number } }).response?.status === 403
-      ) {
+      const status = (error as any)?.response?.status;
+      const isNetworkErr =
+        (error as any)?.code === 'ERR_NETWORK' ||
+        (error as any)?.code === 'ECONNREFUSED' ||
+        !(error as any)?.response ||
+        (typeof status === 'number' && status >= 502 && status <= 504) ||
+        (error as any)?.message?.includes('Server currently unreachable');
+
+      // Circuit Breaker: Suppress rapid repeated retries when backend server is detected offline
+      if (isNetworkErr) {
+        if (opts.retryCount >= 1) return;
+        setTimeout(() => revalidate({ retryCount: opts.retryCount }), 15000);
         return;
       }
-      // Retry up to 3 times for 401 errors to allow Clerk authentication token to settle
+
+      // Never retry on 403 Forbidden
+      if (status === 403) return;
+
+      // Retry up to 3 times for transient errors
       if (opts.retryCount < 3) {
         setTimeout(() => revalidate({ retryCount: opts.retryCount }), 1200);
       }

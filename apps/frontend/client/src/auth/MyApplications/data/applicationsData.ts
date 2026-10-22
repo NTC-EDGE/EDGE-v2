@@ -12,8 +12,8 @@ export type ApplicationStatus =
   | 'PENDING';
 
 export type ApplicationMode = 'SINGLE' | 'BULK';
-export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK';
-export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'PENDING';
+export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK' | 'ASSESSMENT';
+export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'READY_FOR_PAYMENT' | 'DECLINED' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
 export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
 
@@ -24,22 +24,71 @@ export interface ApplicationDocument {
   size: string;
   category: 'ATTACHMENT' | 'ISSUED_PERMIT' | 'RECEIPT' | 'SOA' | 'ADMISSION_SLIP';
   uploadedAt: string;
+  url?: string;
+  storedFileId?: string;
 }
 
 export interface RawRequirement {
   id?: string;
-  name?: string;
+  applicantId?: string;
+  requirementId?: string;
+  serviceVariantRequirementId?: string;
+  storedFileId?: string;
   fileName?: string;
+  name?: string;
+  contentType?: string;
+  fileSizeBytes?: number;
   url?: string;
   size?: string;
   category?: string;
   uploadedAt?: string;
+  isApproved?: boolean;
 }
 
 export interface Schedule {
   date: string;
   time: string;
   venue: string;
+}
+
+export interface SoaLineItem {
+  id?: string;
+  particular: string;
+  itemCode: string;
+  description?: string;
+  validityYears: number;
+  noOfUnits: number;
+  feeRate: number;
+  amount: number;
+}
+
+export interface SoaData {
+  id?: string;
+  soaNumber: string;
+  status: string;
+  issuedToType?: string;
+  issuedToName?: string;
+  issuedToAddress?: string;
+  totalAmount: number;
+  dueDate?: string;
+  remarks?: string;
+  preparedByName?: string;
+  preparedByTitle?: string;
+  approvedByName?: string;
+  approvedByTitle?: string;
+  lineItems: SoaLineItem[];
+}
+
+export interface OpData {
+  id?: string;
+  opNumber: string;
+  status: string;
+  amountDue: number;
+  amountReceived: number;
+  paymentMethod?: string;
+  officialReceiptNumber?: string;
+  paidAt?: string;
+  remarks?: string;
 }
 
 export interface SingleApplication {
@@ -51,6 +100,18 @@ export interface SingleApplication {
   element: ExamineeType;
   status: ApplicationStatus;
   submittedAt: string;
+  // SOA & Billing
+  soa?: SoaData;
+  op?: OpData;
+  soaItems?: SoaLineItem[];
+  totalAmountDue?: number;
+  dueDate?: string;
+  opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
   // Basic Info
   applicantName: string;
   sex: 'Male' | 'Female';
@@ -75,11 +136,62 @@ export interface SingleApplication {
   applicants?: BulkApplicant[];
   companyName?: string;
   companyDetail?: { name?: string };
+  company?: { name?: string };
+  rawStatus?: string;
+  Company?: { Name?: string };
+  representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   soaNumber?: string | null;
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  office?: string;
+  remarks?: string;
+  serviceVariantName?: string;
+  variant?: string;
+  tenantName?: string;
+  tenantId?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  intent?: 'Regular' | 'AssessmentOnly';
+  isAssessmentOnly?: boolean;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
+  histories?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  history?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  applicantType?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 }
 
 export interface BulkApplicant {
@@ -101,6 +213,14 @@ export interface BulkApplicant {
   mobileNumber?: string;
   email?: string;
   schedule?: Schedule;
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  birthDate?: string;
+  civilStatus?: string;
+  companyName?: string;
+  representativeName?: string;
+  notes?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
 
   // Compatibility fields
   details?: {
@@ -120,6 +240,15 @@ export interface BulkApplicant {
     streetAddress?: string;
     mobileNumber?: string;
     email?: string;
+    birthDate?: string;
+    civilStatus?: string;
+    companyName?: string;
+    representativeName?: string;
+    notes?: string;
+    birthMonth?: string;
+    birthDay?: string;
+    birthYear?: string;
+    formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   };
   firstName?: string;
   lastName?: string;
@@ -129,12 +258,24 @@ export interface BulkApplicant {
   applicantType?: string;
   includedInSoa?: boolean;
   examineeType?: ExamineeType;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
 }
 
 export interface BulkApplication {
   id: string;
   referenceNumber: string;
   mode: 'BULK';
+  intent?: 'Regular' | 'AssessmentOnly';
+  isAssessmentOnly?: boolean;
+  assessedAt?: string;
+  convertedToRegularAt?: string;
+  assessmentVersion?: number;
+  assessmentRemarks?: string;
   companyName: string;
   serviceName: string;
   serviceCategory: string;
@@ -143,15 +284,72 @@ export interface BulkApplication {
   submittedAt: string;
   applicants: BulkApplicant[];
   soaNumber: string | null;
+  rawStatus?: string;
+
+  // SOA & Billing
+  soa?: SoaData;
+  op?: OpData;
+  soaItems?: SoaLineItem[];
+  totalAmountDue?: number;
+  dueDate?: string;
+  opNumber?: string | null;
+  officialReceiptNumber?: string;
+  amountPaid?: number;
+  paidAt?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
 
   // Backend dynamic fields compatibility
   submissionMode?: string;
   Applicants?: BulkApplicant[];
+  applicationApplicants?: BulkApplicant[];
+  ApplicationApplicants?: BulkApplicant[];
   companyDetail?: { name?: string };
+  company?: { name?: string };
+  Company?: { Name?: string };
+  representativeName?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
   documents?: RawRequirement[];
   Documents?: RawRequirement[];
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  office?: string;
+  remarks?: string;
+  serviceVariantName?: string;
+  variant?: string;
+  tenantName?: string;
+  tenantId?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  histories?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  history?: Array<{
+    id: string;
+    action: string;
+    fromStatus?: string;
+    toStatus: string;
+    staffName: string;
+    staffRole: string;
+    remarks?: string;
+    timestamp: string;
+  }>;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    accountType?: string;
+    company?: { name?: string; address?: string };
+  } | null;
 
   // Single Application fields (optional here for API compatibility)
   applicantName?: string;
@@ -177,36 +375,36 @@ export type Application = SingleApplication | BulkApplication;
 
 export function getStatusLabel(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return 'For Approval';
+    case 'FOR_APPROVAL':     return 'For Issuance';
     case 'FOR_EVALUATION':   return 'For Evaluation';
-    case 'APPROVED':         return 'Approved';
-    case 'DECLINED':         return 'Declined';
+    case 'APPROVED':         return 'Issued';
+    case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
-    case 'READY_FOR_PAYMENT':return 'Ready For Payment';
-    case 'PENDING':          return 'Pending';
+    case 'READY_FOR_PAYMENT':return 'For Payment';
+    case 'PENDING':          return 'Submitted';
   }
 }
 
 export function getStatusColor(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return '#2F56E8';
+    case 'FOR_APPROVAL':     return '#2563EB';
     case 'FOR_EVALUATION':   return '#D97706';
     case 'APPROVED':         return '#16A34A';
     case 'DECLINED':         return '#DC2626';
     case 'EXPIRING_SOON':    return '#EA580C';
-    case 'READY_FOR_PAYMENT':return '#16A34A';
-    case 'PENDING':          return '#94A3B8';
+    case 'READY_FOR_PAYMENT':return '#059669';
+    case 'PENDING':          return '#64748B';
   }
 }
 
 export function getStatusBgColor(status: ApplicationStatus): string {
   switch (status) {
-    case 'FOR_APPROVAL':     return '#EEF2FF';
+    case 'FOR_APPROVAL':     return '#EFF6FF';
     case 'FOR_EVALUATION':   return '#FEF3C7';
     case 'APPROVED':         return '#DCFCE7';
     case 'DECLINED':         return '#FEE2E2';
     case 'EXPIRING_SOON':    return '#FFF7ED';
-    case 'READY_FOR_PAYMENT':return '#DCFCE7';
+    case 'READY_FOR_PAYMENT':return '#D1FAE5';
     case 'PENDING':          return '#F1F5F9';
   }
 }
@@ -234,511 +432,125 @@ export function formatRelativeTime(isoDate: string): string {
 
 export function getAppDocuments(app: Application): ApplicationDocument[] {
   const docs: ApplicationDocument[] = [];
-  const ref = app.referenceNumber;
+  const rawList: RawRequirement[] = (
+    app.requirements ||
+    app.Requirements ||
+    (app as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
+    (app as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
+    app.documents ||
+    app.Documents ||
+    []
+  );
 
-  if (app.mode === 'SINGLE') {
-    docs.push({
-      id: `${app.id}-doc-1`,
-      name: `Admission_Slip_${ref.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-      type: 'PDF',
-      size: '284 KB',
-      category: 'ADMISSION_SLIP',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-2`,
-      name: `Submitted_Application_Form.pdf`,
-      type: 'PDF',
-      size: '1.4 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-3`,
-      name: `Government_ID_Verification.pdf`,
-      type: 'PDF',
-      size: '890 KB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
+  // If there are actual attachments mapped on the application
+  if (rawList.length > 0) {
+    return rawList.map((req, idx) => {
+      const urlStr = req.url || '';
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
 
-    if (app.status === 'APPROVED' || app.status === 'READY_FOR_PAYMENT') {
-      docs.push({
-        id: `${app.id}-doc-4`,
-        name: `Official_Receipt_OR-2026.pdf`,
-        type: 'PDF',
-        size: '195 KB',
-        category: 'RECEIPT',
-        uploadedAt: app.submittedAt,
-      });
-    }
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `Attachment_${idx + 1}.pdf` : req.name || `Requirement_${idx + 1}`);
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z', 'tar', 'gz'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
 
-    if (app.status === 'APPROVED') {
-      docs.push({
-        id: `${app.id}-doc-5`,
-        name: `NTC_Official_License_Certificate.pdf`,
-        type: 'PDF',
-        size: '560 KB',
-        category: 'ISSUED_PERMIT',
-        uploadedAt: app.submittedAt,
-      });
-    }
-  } else {
-    docs.push({
-      id: `${app.id}-doc-1`,
-      name: `Statement_of_Account_${app.soaNumber ?? 'BATCH-2026'}.pdf`,
-      type: 'PDF',
-      size: '410 KB',
-      category: 'SOA',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-2`,
-      name: `Master_Applicant_Roster_${app.companyName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`,
-      type: 'PDF',
-      size: '2.4 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
-    docs.push({
-      id: `${app.id}-doc-3`,
-      name: `Company_SEC_Board_Resolution.pdf`,
-      type: 'PDF',
-      size: '1.8 MB',
-      category: 'ATTACHMENT',
-      uploadedAt: app.submittedAt,
-    });
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
 
-    if (app.status === 'APPROVED') {
+      let category: ApplicationDocument['category'] = 'ATTACHMENT';
+      const catLower = (req.category || '').toLowerCase();
+      const nameLower = rawName.toLowerCase();
+      if (catLower.includes('admission') || nameLower.includes('admission')) {
+        category = 'ADMISSION_SLIP';
+      } else if (catLower.includes('receipt') || nameLower.includes('receipt') || nameLower.includes('official_receipt')) {
+        category = 'RECEIPT';
+      } else if (catLower.includes('soa') || nameLower.includes('soa') || nameLower.includes('statement_of_account')) {
+        category = 'SOA';
+      } else if (catLower.includes('permit') || catLower.includes('license') || nameLower.includes('license') || nameLower.includes('certificate')) {
+        category = 'ISSUED_PERMIT';
+      }
+
+      return {
+        id: req.id || req.storedFileId || `req-doc-${idx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
+        category,
+        uploadedAt: req.uploadedAt || app.submittedAt,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
+      };
+    });
+  }
+
+  // Also check if any applicant has actual attached requirements
+  const rawApplicants = (app.applicants || app.Applicants || []);
+  for (let aIdx = 0; aIdx < rawApplicants.length; aIdx++) {
+    const ap = rawApplicants[aIdx];
+    const apReqs: RawRequirement[] = (
+      (ap as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).requirements ||
+      (ap as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).Requirements ||
+      []
+    );
+    for (let rIdx = 0; rIdx < apReqs.length; rIdx++) {
+      const req = apReqs[rIdx];
+      const urlStr = req.url || '';
+      const hasFile = Boolean(
+        (urlStr && urlStr.trim() !== '' && urlStr.trim().toLowerCase() !== 'none' && urlStr.trim().toLowerCase() !== 'null') ||
+        (req.storedFileId && req.storedFileId.trim() !== '' && req.storedFileId.trim().toLowerCase() !== 'none' && req.storedFileId.trim().toLowerCase() !== 'null')
+      );
+
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || (hasFile ? `${ap.name || 'Applicant'}_Attachment_${rIdx + 1}.pdf` : req.name || `Requirement_${rIdx + 1}`);
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
+
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
+
       docs.push({
-        id: `${app.id}-doc-4`,
-        name: `Batch_Approved_Certificates.zip`,
-        type: 'ZIP',
-        size: '8.7 MB',
-        category: 'ISSUED_PERMIT',
-        uploadedAt: app.submittedAt,
-      });
-      docs.push({
-        id: `${app.id}-doc-5`,
-        name: `Batch_Official_Payment_Receipt.pdf`,
-        type: 'PDF',
-        size: '320 KB',
-        category: 'RECEIPT',
-        uploadedAt: app.submittedAt,
+        id: req.id || req.storedFileId || `ap-${aIdx}-req-${rIdx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || (hasFile ? '350 KB' : ''),
+        category: 'ATTACHMENT',
+        uploadedAt: req.uploadedAt || app.submittedAt,
+        url: hasFile ? req.url : undefined,
+        storedFileId: hasFile ? req.storedFileId : undefined,
       });
     }
   }
 
   return docs;
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Mock data – 8 Single + 7 Bulk = 15 records (V1 NTC service names)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const mockApplications: Application[] = [
-  // ── SINGLE APPLICATIONS ──────────────────────────────────────────────────
-
-  {
-    id: 'app-001',
-    referenceNumber: '61-7-2026-0101-101',
-    mode: 'SINGLE',
-    serviceName: 'Admission Slip for Radio Operator Examination',
-    serviceCategory: 'Exams',
-    element: 'New',
-    status: 'FOR_APPROVAL',
-    submittedAt: '2026-07-21T09:30:00.000Z',
-    applicantName: 'Juan dela Cruz',
-    sex: 'Male',
-    nationality: 'Filipino',
-    streetAddress: '123 Rizal Avenue, Sampaloc',
-    barangay: 'Barangay 395',
-    cityMunicipality: 'Manila',
-    province: 'Metro Manila',
-    region: 'NCR – National Capital Region',
-    zipCode: '1008',
-    mobileNumber: '+63 917 123 4567',
-    email: 'juan.delacruz@email.com',
-    examineeType: 'New',
-    schedule: {
-      date: 'August 15, 2026',
-      time: '8:00 AM',
-      venue: 'NTC Main Office, Commonwealth Avenue, Quezon City',
-    },
-  },
-
-  {
-    id: 'app-002',
-    referenceNumber: '61-7-2026-0102-102',
-    mode: 'SINGLE',
-    serviceName: 'Radio Operator Certificates (ROC) excluding Amateur ROC',
-    serviceCategory: 'Certificates',
-    element: 'New',
-    status: 'APPROVED',
-    submittedAt: '2026-07-20T14:00:00.000Z',
-    applicantName: 'Maria Santos',
-    sex: 'Female',
-    nationality: 'Filipino',
-    streetAddress: '456 Osmeña Blvd, Lahug',
-    barangay: 'Lahug',
-    cityMunicipality: 'Cebu City',
-    province: 'Cebu',
-    region: 'Region VII – Central Visayas',
-    zipCode: '6000',
-    mobileNumber: '+63 918 234 5678',
-    email: 'maria.santos@email.com',
-    examineeType: 'New',
-    schedule: {
-      date: 'July 20, 2026',
-      time: '9:00 AM',
-      venue: 'NTC Region VII Office, Cebu City',
-    },
-  },
-
-  {
-    id: 'app-003',
-    referenceNumber: '61-7-2026-0103-103',
-    mode: 'SINGLE',
-    serviceName: 'Certificates in the Amateur Service',
-    serviceCategory: 'Certificates',
-    element: 'Renewal',
-    status: 'FOR_EVALUATION',
-    submittedAt: '2026-07-18T10:00:00.000Z',
-    applicantName: 'Roberto Reyes',
-    sex: 'Male',
-    nationality: 'Filipino',
-    streetAddress: '789 MacArthur Highway, Sindalan',
-    barangay: 'Sindalan',
-    cityMunicipality: 'San Fernando',
-    province: 'Pampanga',
-    region: 'Region III – Central Luzon',
-    zipCode: '2000',
-    mobileNumber: '+63 919 345 6789',
-    email: 'roberto.reyes@email.com',
-    examineeType: 'Renewal',
-    schedule: {
-      date: 'August 1, 2026',
-      time: '10:00 AM',
-      venue: 'NTC Region III Office, San Fernando, Pampanga',
-    },
-  },
-
-  {
-    id: 'app-004',
-    referenceNumber: '61-7-2026-0104-104',
-    mode: 'SINGLE',
-    serviceName: 'TVRO Registration Certificate',
-    serviceCategory: 'Certificates',
-    element: 'Renewal',
-    status: 'EXPIRING_SOON',
-    submittedAt: '2026-07-15T09:00:00.000Z',
-    applicantName: 'Ana Gonzalez',
-    sex: 'Female',
-    nationality: 'Filipino',
-    streetAddress: '321 JP Rizal Street, Sta. Rosa',
-    barangay: 'Market Area',
-    cityMunicipality: 'Santa Rosa',
-    province: 'Laguna',
-    region: 'Region IV-A – CALABARZON',
-    zipCode: '4026',
-    mobileNumber: '+63 920 456 7890',
-    email: 'ana.gonzalez@email.com',
-    examineeType: 'Renewal',
-    schedule: {
-      date: 'N/A',
-      time: 'N/A',
-      venue: 'N/A',
-    },
-  },
-
-  {
-    id: 'app-005',
-    referenceNumber: '61-7-2026-0105-105',
-    mode: 'SINGLE',
-    serviceName: 'Licenses in the Amateur Service',
-    serviceCategory: 'Licenses',
-    element: 'New',
-    status: 'APPROVED',
-    submittedAt: '2026-07-10T11:30:00.000Z',
-    applicantName: 'Miguel Torres',
-    sex: 'Male',
-    nationality: 'Filipino',
-    streetAddress: '654 Quezon Avenue, Tamag',
-    barangay: 'Tamag',
-    cityMunicipality: 'Vigan City',
-    province: 'Ilocos Sur',
-    region: 'Region I – Ilocos Region',
-    zipCode: '2700',
-    mobileNumber: '+63 921 567 8901',
-    email: 'miguel.torres@email.com',
-    examineeType: 'New',
-    schedule: {
-      date: 'July 10, 2026',
-      time: '2:00 PM',
-      venue: 'NTC Region I Office, San Fernando, La Union',
-    },
-  },
-
-  {
-    id: 'app-006',
-    referenceNumber: '61-7-2026-0106-106',
-    mode: 'SINGLE',
-    serviceName: 'Permits for Mobile Phone',
-    serviceCategory: 'Permits',
-    element: 'New',
-    status: 'FOR_APPROVAL',
-    submittedAt: '2026-07-05T08:00:00.000Z',
-    applicantName: 'Carla Ramos',
-    sex: 'Female',
-    nationality: 'Filipino',
-    streetAddress: '987 Taft Avenue, Malate',
-    barangay: 'Barangay 690',
-    cityMunicipality: 'Manila',
-    province: 'Metro Manila',
-    region: 'NCR – National Capital Region',
-    zipCode: '1004',
-    mobileNumber: '+63 922 678 9012',
-    email: 'carla.ramos@email.com',
-    examineeType: 'New',
-    schedule: {
-      date: 'N/A',
-      time: 'N/A',
-      venue: 'N/A',
-    },
-  },
-
-  {
-    id: 'app-007',
-    referenceNumber: '61-7-2026-0107-107',
-    mode: 'SINGLE',
-    serviceName: 'Copy of Licenses',
-    serviceCategory: 'Licenses',
-    element: 'Additional',
-    status: 'APPROVED',
-    submittedAt: '2026-06-30T09:00:00.000Z',
-    applicantName: 'Jerome Aquino',
-    sex: 'Male',
-    nationality: 'Filipino',
-    streetAddress: '147 Echague Street',
-    barangay: 'Centro',
-    cityMunicipality: 'Ilagan City',
-    province: 'Isabela',
-    region: 'Region II – Cagayan Valley',
-    zipCode: '3300',
-    mobileNumber: '+63 923 789 0123',
-    email: 'jerome.aquino@email.com',
-    examineeType: 'Additional',
-    schedule: {
-      date: 'N/A',
-      time: 'N/A',
-      venue: 'N/A',
-    },
-  },
-
-  {
-    id: 'app-008',
-    referenceNumber: '61-7-2026-0108-108',
-    mode: 'SINGLE',
-    serviceName: 'Certificate of Registration as a Value-Added Service (VAS) Provider',
-    serviceCategory: 'Certificates',
-    element: 'New',
-    status: 'FOR_EVALUATION',
-    submittedAt: '2026-06-25T10:00:00.000Z',
-    applicantName: 'Patricia Lim',
-    sex: 'Female',
-    nationality: 'Filipino',
-    streetAddress: '258 Ayala Avenue, Makati CBD',
-    barangay: 'Bel-Air',
-    cityMunicipality: 'Makati City',
-    province: 'Metro Manila',
-    region: 'NCR – National Capital Region',
-    zipCode: '1209',
-    mobileNumber: '+63 924 890 1234',
-    email: 'patricia.lim@corp.ph',
-    examineeType: 'New',
-    schedule: {
-      date: 'N/A',
-      time: 'N/A',
-      venue: 'N/A',
-    },
-  },
-
-  // ── BULK APPLICATIONS ─────────────────────────────────────────────────────
-
-  {
-    id: 'app-009',
-    referenceNumber: '61-7-2026-1729-921',
-    mode: 'BULK',
-    companyName: 'Dezza Collection',
-    serviceName: 'Customer Premises Equipment (CPE) Supplier Accreditation',
-    serviceCategory: 'Accreditations',
-    element: 'Modification',
-    status: 'FOR_EVALUATION',
-    submittedAt: '2026-07-21T09:10:00.000Z',
-    soaNumber: null,
-    applicants: [
-      { id: 'ap-001', name: 'Davis Montgomery',   applicationType: 'Amateur',     status: 'PENDING',         includedInSOA: false },
-      { id: 'ap-002', name: 'Maria Santos',        applicationType: 'Commercial',  status: 'FOR_EVALUATION',  includedInSOA: false },
-      { id: 'ap-003', name: 'Roberto dela Cruz',   applicationType: 'Maritime',    status: 'PENDING',         includedInSOA: false },
-      { id: 'ap-004', name: 'Ana Gonzalez',        applicationType: 'Amateur',     status: 'FOR_EVALUATION',  includedInSOA: false },
-      { id: 'ap-005', name: 'Miguel Torres',       applicationType: 'Commercial',  status: 'PENDING',         includedInSOA: false },
-    ],
-  },
-
-  {
-    id: 'app-010',
-    referenceNumber: '61-7-2026-1002-B02',
-    mode: 'BULK',
-    companyName: 'Pacific Telecom Corporation',
-    serviceName: 'Radio Operator Certificates (ROC) excluding Amateur ROC',
-    serviceCategory: 'Certificates',
-    element: 'New',
-    status: 'APPROVED',
-    submittedAt: '2026-07-18T08:00:00.000Z',
-    soaNumber: 'SOA #61-7-2026-2002-S02',
-    applicants: [
-      { id: 'ap-010', name: 'Eduardo Flores',      applicationType: 'Commercial',   status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-011', name: 'Carmen Lopez',        applicationType: 'Maritime',     status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-012', name: 'Andres Mendoza',      applicationType: 'Commercial',   status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-013', name: 'Rosario Cruz',        applicationType: 'Aeronautical', status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-014', name: 'Fernando Garcia',     applicationType: 'Commercial',   status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-015', name: 'Lourdes Castillo',    applicationType: 'Maritime',     status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-016', name: 'Antonio Batista',     applicationType: 'Commercial',   status: 'DECLINED',  includedInSOA: false },
-      { id: 'ap-017', name: 'Grace Villanueva',    applicationType: 'Maritime',     status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-018', name: 'Manuel Soriano',      applicationType: 'Commercial',   status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-019', name: 'Elizabeth Fernandez', applicationType: 'Aeronautical', status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-020', name: 'Ricardo Navarro',     applicationType: 'Commercial',   status: 'APPROVED',  includedInSOA: true  },
-      { id: 'ap-021', name: 'Marites Cunanan',     applicationType: 'Maritime',     status: 'DECLINED',  includedInSOA: false },
-    ],
-  },
-
-  {
-    id: 'app-011',
-    referenceNumber: '61-7-2026-1003-B03',
-    mode: 'BULK',
-    companyName: 'Metro Networks Inc.',
-    serviceName: 'Licenses for Government and Private Radio Stations in the Fixed and Land Mobile Service',
-    serviceCategory: 'Licenses',
-    element: 'New',
-    status: 'FOR_APPROVAL',
-    submittedAt: '2026-07-15T10:00:00.000Z',
-    soaNumber: null,
-    applicants: [
-      { id: 'ap-022', name: 'Benjamin Dela Rosa',  applicationType: 'Land Mobile',  status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-023', name: 'Cristina Hernandez',  applicationType: 'Fixed',        status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-024', name: 'Alfredo Magalona',    applicationType: 'Land Mobile',  status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-025', name: 'Josephine Bautista',  applicationType: 'Fixed',        status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-026', name: 'Domingo Ramirez',     applicationType: 'Land Mobile',  status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-027', name: 'Remedios Salvador',   applicationType: 'Fixed',        status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-028', name: 'Enrique Pascual',     applicationType: 'Land Mobile',  status: 'FOR_APPROVAL', includedInSOA: false },
-      { id: 'ap-029', name: 'Sylvia Aguilar',      applicationType: 'Fixed',        status: 'FOR_APPROVAL', includedInSOA: false },
-    ],
-  },
-
-  {
-    id: 'app-012',
-    referenceNumber: '61-7-2026-1004-B04',
-    mode: 'BULK',
-    companyName: 'Philippine Maritime Academy',
-    serviceName: 'Admission Slip for Radio Operator Examination',
-    serviceCategory: 'Exams',
-    element: 'New',
-    status: 'FOR_EVALUATION',
-    submittedAt: '2026-07-10T09:00:00.000Z',
-    soaNumber: null,
-    applicants: [
-      { id: 'ap-030', name: 'Lorenzo Mercado',    applicationType: 'Maritime', status: 'FOR_EVALUATION', includedInSOA: false },
-      { id: 'ap-031', name: 'Natividad Coronado', applicationType: 'Maritime', status: 'APPROVED',       includedInSOA: true  },
-      { id: 'ap-032', name: 'Amado Valencia',     applicationType: 'Maritime', status: 'FOR_EVALUATION', includedInSOA: false },
-      { id: 'ap-033', name: 'Teresita Espiritu',  applicationType: 'Maritime', status: 'APPROVED',       includedInSOA: true  },
-      { id: 'ap-034', name: 'Rodrigo Macapagal',  applicationType: 'Maritime', status: 'FOR_EVALUATION', includedInSOA: false },
-      { id: 'ap-035', name: 'Consolacion Borja',  applicationType: 'Maritime', status: 'APPROVED',       includedInSOA: true  },
-      { id: 'ap-036', name: 'Arturo Salcedo',     applicationType: 'Maritime', status: 'FOR_EVALUATION', includedInSOA: false },
-      { id: 'ap-037', name: 'Florencia Dizon',    applicationType: 'Maritime', status: 'PENDING',        includedInSOA: false },
-      { id: 'ap-038', name: 'Marcelo Santos',     applicationType: 'Maritime', status: 'PENDING',        includedInSOA: false },
-      { id: 'ap-039', name: 'Lydia Reyes',        applicationType: 'Maritime', status: 'DECLINED',       includedInSOA: false },
-      { id: 'ap-040', name: 'Arsenio dela Cruz',  applicationType: 'Maritime', status: 'APPROVED',       includedInSOA: true  },
-      { id: 'ap-041', name: 'Gloria Aquino',      applicationType: 'Maritime', status: 'PENDING',        includedInSOA: false },
-      { id: 'ap-042', name: 'Patricio Lim',       applicationType: 'Maritime', status: 'FOR_EVALUATION', includedInSOA: false },
-      { id: 'ap-043', name: 'Delia Ramos',        applicationType: 'Maritime', status: 'PENDING',        includedInSOA: false },
-      { id: 'ap-044', name: 'Cesar Villanueva',   applicationType: 'Maritime', status: 'APPROVED',       includedInSOA: true  },
-    ],
-  },
-
-  {
-    id: 'app-013',
-    referenceNumber: '61-7-2026-1005-B05',
-    mode: 'BULK',
-    companyName: 'TeleStar Philippines Inc.',
-    serviceName: 'Permits for Radio Communications Equipment',
-    serviceCategory: 'Permits',
-    element: 'New',
-    status: 'READY_FOR_PAYMENT',
-    submittedAt: '2026-07-05T11:00:00.000Z',
-    soaNumber: 'SOA #61-7-2026-2005-S05',
-    applicants: [
-      { id: 'ap-045', name: 'Alfonso Gutierrez', applicationType: 'Radio Equipment', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-046', name: 'Melissa Torres',    applicationType: 'Radio Equipment', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-047', name: 'Bernardo Lopez',    applicationType: 'Radio Equipment', status: 'DECLINED', includedInSOA: false },
-    ],
-  },
-
-  {
-    id: 'app-014',
-    referenceNumber: '61-7-2026-1006-B06',
-    mode: 'BULK',
-    companyName: 'Nexus Communications Corp.',
-    serviceName: 'Customer Premises Equipment (CPE) Supplier Accreditation',
-    serviceCategory: 'Accreditations',
-    element: 'New',
-    status: 'APPROVED',
-    submittedAt: '2026-06-20T09:00:00.000Z',
-    soaNumber: 'SOA #61-7-2026-2006-S06',
-    applicants: [
-      { id: 'ap-048', name: 'Diana Mendez',        applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-049', name: 'Fernando Cruz',       applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-050', name: 'Guadalupe Santos',    applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-051', name: 'Herminio Reyes',      applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-052', name: 'Imelda Flores',       applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-053', name: 'Jacinto Garcia',      applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-054', name: 'Katrina Lopez',       applicationType: 'Renewal',       status: 'DECLINED', includedInSOA: false },
-      { id: 'ap-055', name: 'Leonardo Castro',     applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-056', name: 'Marisol Dela Torre',  applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-057', name: 'Narciso Bautista',    applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-058', name: 'Ofelia Navarro',      applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-059', name: 'Porfirio Macaraeg',   applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-060', name: 'Queenie Salazar',     applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-061', name: 'Renato Espino',       applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-062', name: 'Serafina Alcantara',  applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-063', name: 'Timoteo Soriano',     applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-064', name: 'Ursula Catapang',     applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-065', name: 'Victor Magpantay',    applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-066', name: 'Wilhelmina Perez',    applicationType: 'Renewal',       status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-067', name: 'Xavier Domingo',      applicationType: 'New Applicant', status: 'APPROVED', includedInSOA: true  },
-    ],
-  },
-
-  {
-    id: 'app-015',
-    referenceNumber: '61-7-2026-1007-B07',
-    mode: 'BULK',
-    companyName: 'Southern Star Shipping Lines',
-    serviceName: 'Radio Operator Certificates (ROC) excluding Amateur ROC',
-    serviceCategory: 'Certificates',
-    element: 'Renewal',
-    status: 'EXPIRING_SOON',
-    submittedAt: '2026-05-28T09:00:00.000Z',
-    soaNumber: 'SOA #61-7-2026-2007-S07',
-    applicants: [
-      { id: 'ap-068', name: 'Yolanda Castañeda',       applicationType: 'Maritime', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-069', name: 'Zenaida Buenaventura',    applicationType: 'Maritime', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-070', name: 'Aloysius Macaraeg',       applicationType: 'Maritime', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-071', name: 'Beatriz Ocampo',          applicationType: 'Maritime', status: 'APPROVED', includedInSOA: true  },
-      { id: 'ap-072', name: 'Calixto Manalang',        applicationType: 'Maritime', status: 'DECLINED', includedInSOA: false },
-      { id: 'ap-073', name: 'Dolores Manalo',          applicationType: 'Maritime', status: 'APPROVED', includedInSOA: true  },
-    ],
-  },
-];
 
 export interface EnrichedBulkApplicant extends BulkApplicant {
   sex: 'Male' | 'Female';
@@ -754,7 +566,7 @@ export interface EnrichedBulkApplicant extends BulkApplicant {
   schedule: Schedule;
 }
 
-// Helper to deterministically generate applicant details for bulk applications
+// Helper to provide enriched applicant details for bulk applications
 export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: string): EnrichedBulkApplicant {
   const hash = (applicant.id + applicant.name).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
   const isFemale = hash % 2 === 0;
@@ -772,7 +584,6 @@ export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: stri
   ];
   const index = hash % cities.length;
 
-  // Use applicant's own details if already provided, otherwise fallback to deterministic mock values
   return {
     id: applicant.id,
     name: applicant.name,
@@ -797,47 +608,811 @@ export function getEnrichedApplicant(applicant: BulkApplicant, serviceName: stri
   };
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Normalization & API Data Mappers
+// ─────────────────────────────────────────────────────────────────────────────
+
+export function normalizeApplicationStatus(rawStatus: string | undefined | null): ApplicationStatus {
+  if (!rawStatus) return 'PENDING';
+  const s = rawStatus.toUpperCase().replace(/\s+/g, '_').replace(/_/g, '');
+  if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
+  if (s.includes('FORORDEROFPAYMENT') || s.includes('FORACCOUNTANT') || s.includes('EVALUAT') || s.includes('UNDEREVALUATION')) return 'FOR_EVALUATION';
+  if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
+  if (s.includes('PENDINGPAYMENT') || s.includes('READYFORPAYMENT') || s.includes('FORPAYMENT') || s === 'PAYMENT' || s === 'FOR_PAYMENT') return 'READY_FOR_PAYMENT';
+  if (s.includes('EXPIR')) return 'EXPIRING_SOON';
+  if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
+  if (s === 'APPROVED' || s === 'COMPLETED' || s === 'ISSUED') return 'APPROVED';
+  return 'PENDING';
+}
+
+interface ApiApplicantDto {
+  id?: string;
+  name?: string;
+  applicantType?: string;
+  status?: string;
+  includedInSOA?: boolean;
+  companyName?: string;
+  company?: { name?: string; address?: string };
+  representativeName?: string;
+  notes?: string;
+  evaluationRemarks?: string;
+  birthDate?: string;
+  birthMonth?: string;
+  birthDay?: string;
+  birthYear?: string;
+  civilStatus?: string;
+  examineeType?: string;
+  details?: {
+    firstName?: string;
+    lastName?: string;
+    middleName?: string;
+    sex?: string;
+    nationality?: string;
+    address?: string;
+    streetAddress?: string;
+    barangay?: string;
+    barangayName?: string;
+    cityMunicipality?: string;
+    province?: string;
+    region?: string;
+    zipCode?: string;
+    contactNumber?: string;
+    mobileNumber?: string;
+    emailAddress?: string;
+    email?: string;
+    birthDate?: string;
+    birthMonth?: string;
+    birthDay?: string;
+    birthYear?: string;
+    civilStatus?: string;
+    companyName?: string;
+    representativeName?: string;
+    notes?: string;
+    examineeType?: string;
+    formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  };
+  formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
+  firstName?: string;
+  lastName?: string;
+  middleName?: string;
+  sex?: string;
+  nationality?: string;
+  address?: string;
+  streetAddress?: string;
+  barangay?: string;
+  barangayName?: string;
+  cityMunicipality?: string;
+  province?: string;
+  region?: string;
+  zipCode?: string;
+  contactNumber?: string;
+  mobileNumber?: string;
+  emailAddress?: string;
+  email?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
+}
+
+export interface ApiApplicationDto {
+  id?: string;
+  tenantId?: string;
+  applicationNumber?: string;
+  referenceNumber?: string;
+  status?: string;
+  submissionMode?: string;
+  mode?: string;
+  office?: string;
+  remarks?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  lastModifiedAt?: string;
+  submittedAt?: string;
+  serviceName?: string;
+  serviceCategory?: string;
+  serviceId?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
+  soaNumber?: string | null;
+  officialReceiptNumber?: string;
+  OfficialReceiptNumber?: string;
+  amountPaid?: number;
+  AmountPaid?: number;
+  paidAt?: string;
+  PaidAt?: string;
+  intent?: string;
+  Intent?: string;
+  assessedAt?: string;
+  AssessedAt?: string;
+  convertedToRegularAt?: string;
+  ConvertedToRegularAt?: string;
+  assessmentVersion?: number;
+  AssessmentVersion?: number;
+  assessmentRemarks?: string;
+  AssessmentRemarks?: string;
+  evaluatingOfficer?: string;
+  issuingOfficer?: string;
+  filingUser?: {
+    id?: string;
+    name?: string;
+    email?: string;
+    company?: { name?: string; address?: string };
+  };
+  services?: Array<{ id?: string; name?: string; category?: string }>;
+  applicants?: ApiApplicantDto[];
+  Applicants?: ApiApplicantDto[];
+  applicationApplicants?: ApiApplicantDto[];
+  ApplicationApplicants?: ApiApplicantDto[];
+  requirements?: RawRequirement[];
+  Requirements?: RawRequirement[];
+  applicationRequirements?: RawRequirement[];
+  ApplicationRequirements?: RawRequirement[];
+  documents?: RawRequirement[];
+  Documents?: RawRequirement[];
+  companyName?: string;
+  applicantName?: string;
+  histories?: Array<{
+    id?: string;
+    action?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    staffName?: string;
+    staffRole?: string;
+    remarks?: string;
+    timestamp?: string;
+  }>;
+  Histories?: Array<{
+    id?: string;
+    action?: string;
+    fromStatus?: string;
+    toStatus?: string;
+    staffName?: string;
+    staffRole?: string;
+    remarks?: string;
+    timestamp?: string;
+  }>;
+  statementsOfAccount?: Array<{
+    id?: string;
+    soaNumber?: string;
+    status?: string;
+    issuedToType?: string;
+    issuedToName?: string;
+    issuedToAddress?: string;
+    totalAmount?: number;
+    dueDate?: string;
+    remarks?: string;
+    lineItems?: Array<{
+      id?: string;
+      particular?: string;
+      itemCode?: string;
+      description?: string;
+      validityYears?: number;
+      noOfUnits?: number;
+      feeRate?: number;
+      amount?: number;
+    }>;
+  }>;
+  StatementsOfAccount?: Array<{
+    id?: string;
+    soaNumber?: string;
+    status?: string;
+    issuedToType?: string;
+    issuedToName?: string;
+    issuedToAddress?: string;
+    totalAmount?: number;
+    dueDate?: string;
+    remarks?: string;
+    lineItems?: Array<{
+      id?: string;
+      particular?: string;
+      itemCode?: string;
+      description?: string;
+      validityYears?: number;
+      noOfUnits?: number;
+      feeRate?: number;
+      amount?: number;
+    }>;
+  }>;
+  ordersOfPayment?: Array<{
+    id?: string;
+    opNumber?: string;
+    status?: string;
+    amountDue?: number;
+    amountReceived?: number;
+    paymentMethod?: string;
+    officialReceiptNumber?: string;
+    paidAt?: string;
+    remarks?: string;
+  }>;
+  OrdersOfPayment?: Array<{
+    id?: string;
+    opNumber?: string;
+    status?: string;
+    amountDue?: number;
+    amountReceived?: number;
+    paymentMethod?: string;
+    officialReceiptNumber?: string;
+    paidAt?: string;
+    remarks?: string;
+  }>;
+}
+
+export function mapApiApplicationToApplication(dto: ApiApplicationDto): Application {
+  const modeStr = (dto.submissionMode || dto.mode || '').toString().toUpperCase();
+  const isBulk = modeStr === 'BULK';
+  const rawStatus = dto.status || 'PENDING';
+  const status = normalizeApplicationStatus(rawStatus);
+
+  const rawApplicants = dto.applicants || dto.Applicants || [];
+  const filingUser = dto.filingUser;
+  const companyName =
+    dto.companyName ||
+    filingUser?.company?.name ||
+    (rawApplicants.length > 0 ? rawApplicants[0]?.company?.name : undefined) ||
+    filingUser?.name ||
+    'Company Applicant';
+
+  const isGenericCandidate = (val?: string | null): boolean => {
+    if (!val || typeof val !== 'string') return true;
+    const lower = val.trim().toLowerCase();
+    if (['applicant details', 'applicant detail', 'applicant', 'unnamed applicant', 'unnamed', 'n/a', 'na', 'none', 'juan dela cruz'].includes(lower)) return true;
+    if (/^applicant(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    if (/^draft(\s+applicant)?(\s*#?\s*\d+)?$/i.test(lower)) return true;
+    return false;
+  };
+
+  const isValidCandidate = (val?: string | null): val is string => {
+    return typeof val === 'string' && val.trim().length > 0 && !isGenericCandidate(val);
+  };
+
+  const formatProperName = (name?: string | null): string => {
+    if (!name || typeof name !== 'string') return '';
+    const trimmed = name.trim();
+    if (!trimmed) return '';
+
+    return trimmed
+      .split(/\s+/)
+      .map((word) => {
+        if (!word) return '';
+        if (word.includes('-')) {
+          return word
+            .split('-')
+            .map((part) => {
+              if (!part) return '';
+              if (part === part.toLowerCase()) {
+                return part.charAt(0).toUpperCase() + part.slice(1);
+              }
+              return part;
+            })
+            .join('-');
+        }
+        if (word === word.toLowerCase()) {
+          return word.charAt(0).toUpperCase() + word.slice(1);
+        }
+        return word;
+      })
+      .join(' ');
+  };
+
+  const firstApplicant = rawApplicants.length > 0 ? rawApplicants[0] : undefined;
+  const firstDetails = firstApplicant?.details || firstApplicant;
+  const rawFirstAppCandidate =
+    firstDetails?.firstName && firstDetails?.lastName
+      ? [firstDetails.firstName, firstDetails.middleName, firstDetails.lastName].filter(Boolean).join(' ')
+      : firstApplicant?.name;
+
+  const firstDetailsComp = firstDetails?.companyName;
+  const firstAppComp = firstApplicant?.companyName;
+  const firstAppNestedComp = firstApplicant?.company?.name;
+
+  const applicantName =
+    isValidCandidate(dto.applicantName)
+      ? formatProperName(dto.applicantName)
+      : isValidCandidate(rawFirstAppCandidate)
+        ? formatProperName(rawFirstAppCandidate)
+        : isValidCandidate(firstDetailsComp)
+          ? formatProperName(firstDetailsComp)
+          : isValidCandidate(firstAppComp)
+            ? formatProperName(firstAppComp)
+            : isValidCandidate(firstAppNestedComp)
+              ? formatProperName(firstAppNestedComp)
+              : isValidCandidate(companyName)
+                ? formatProperName(companyName)
+                : formatProperName(filingUser?.name) || 'Applicant';
+
+  const refNumber =
+    dto.referenceNumber ||
+    dto.applicationNumber ||
+    (dto.id ? String(dto.id).slice(0, 8).toUpperCase() : 'REF-PENDING');
+
+  const serviceFromList = dto.services && dto.services.length > 0 ? dto.services[0]?.name : undefined;
+  const serviceName = dto.serviceName || serviceFromList || dto.remarks || dto.office || 'NTC Service Application';
+  const categoryFromList = dto.services && dto.services.length > 0 ? dto.services[0]?.category : undefined;
+  const serviceCategory = dto.serviceCategory || categoryFromList || 'General';
+  const submittedAt = dto.updatedAt || dto.lastModifiedAt || dto.createdAt || dto.submittedAt || new Date().toISOString();
+
+  const mappedApplicants: BulkApplicant[] = rawApplicants.map((ap, idx) => {
+    const apDetails = ap.details || ap;
+    const apFormFields = ap.formFieldValues || apDetails.formFieldValues || [];
+    const findApFv = (predicate: (lbl: string, id: string) => boolean) =>
+      apFormFields.find((f: { fieldLabel?: string; label?: string; key?: string; fieldId?: string; value?: string }) =>
+        predicate((f.fieldLabel || f.label || f.key || '').toLowerCase(), f.fieldId || '')
+      )?.value;
+
+    const rawCandidate =
+      apDetails.firstName && apDetails.lastName
+        ? [apDetails.firstName, apDetails.middleName, apDetails.lastName].filter(Boolean).join(' ')
+        : ap.name;
+
+    const fvNameCandidate = findApFv((lbl) =>
+      lbl.includes('full name') ||
+      lbl.includes('applicant name') ||
+      lbl.includes('name of applicant') ||
+      lbl.includes('business name') ||
+      lbl.includes('company name') ||
+      lbl.includes('corporate name')
+    );
+
+    const appType = ap.applicantType || 'Individual';
+    const appStatus = normalizeApplicationStatus(rawStatus);
+
+    const compName =
+      apDetails.companyName ||
+      ap.companyName ||
+      ap.company?.name ||
+      (appType === 'Company' ? companyName : undefined);
+
+    const repName =
+      apDetails.representativeName ||
+      ap.representativeName ||
+      (appType === 'Company' ? (filingUser?.name || undefined) : undefined);
+
+    const name =
+      isValidCandidate(rawCandidate)
+        ? formatProperName(rawCandidate)
+        : isValidCandidate(fvNameCandidate)
+          ? formatProperName(fvNameCandidate)
+          : isValidCandidate(compName)
+            ? formatProperName(compName)
+            : isValidCandidate(repName)
+              ? formatProperName(repName)
+              : formatProperName(filingUser?.name) || formatProperName(compName) || formatProperName(repName) || 'Applicant';
+
+    const birthDate =
+      apDetails.birthDate ||
+      (apDetails.birthMonth && apDetails.birthDay && apDetails.birthYear
+        ? `${apDetails.birthMonth} ${apDetails.birthDay}, ${apDetails.birthYear}`
+        : findApFv((lbl) => lbl.includes('birth')));
+
+    const civilStatus = apDetails.civilStatus || findApFv((lbl) => lbl.includes('civil') || lbl.includes('marital'));
+    const barangay = apDetails.barangayName || apDetails.barangay || findApFv((lbl) => lbl.includes('barangay')) || '';
+    const cityMunicipality = apDetails.cityMunicipality || findApFv((lbl) => lbl.includes('city') || lbl.includes('municipality')) || 'N/A';
+    const province = apDetails.province || findApFv((lbl) => lbl.includes('province')) || 'N/A';
+    const region = apDetails.region || findApFv((lbl) => lbl.includes('region')) || 'N/A';
+    const zipCode = apDetails.zipCode || findApFv((lbl) => lbl.includes('zip')) || '';
+
+    const notes = apDetails.notes || ap.notes || ap.evaluationRemarks;
+
+    return {
+      id: ap.id || `app-cand-${idx}`,
+      name,
+      applicationType: appType,
+      status: appStatus,
+      includedInSOA: ap.includedInSOA !== undefined ? ap.includedInSOA : true,
+      sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
+      nationality: apDetails.nationality || 'Filipino',
+      streetAddress: apDetails.address || apDetails.streetAddress || 'N/A',
+      barangay,
+      cityMunicipality,
+      province,
+      region,
+      zipCode,
+      mobileNumber: apDetails.contactNumber || apDetails.mobileNumber || 'N/A',
+      email: apDetails.emailAddress || apDetails.email || 'N/A',
+      examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+      birthDate,
+      civilStatus,
+      companyName: compName,
+      representativeName: repName,
+      notes,
+      details: {
+        firstName: apDetails.firstName,
+        lastName: apDetails.lastName,
+        sex: apDetails.sex === 'Female' ? 'Female' : 'Male',
+        nationality: apDetails.nationality,
+        address: apDetails.address || apDetails.streetAddress,
+        barangay,
+        cityMunicipality,
+        province,
+        region,
+        zipCode,
+        contactNumber: apDetails.contactNumber || apDetails.mobileNumber,
+        emailAddress: apDetails.emailAddress || apDetails.email,
+        examineeType: (apDetails.examineeType || ap.examineeType || 'New') as ExamineeType,
+        birthDate,
+        civilStatus,
+        companyName: compName,
+        representativeName: repName,
+        notes,
+        formFieldValues: apFormFields,
+      },
+      formFieldValues: apFormFields,
+      serviceId: ap.serviceId || dto.serviceId,
+      serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
+    };
+  });
+
+  const reqDocs =
+    dto.requirements ||
+    dto.Requirements ||
+    (dto as { applicationRequirements?: RawRequirement[] }).applicationRequirements ||
+    (dto as { ApplicationRequirements?: RawRequirement[] }).ApplicationRequirements ||
+    dto.documents ||
+    dto.Documents ||
+    [];
+  const rawVariantName =
+    dto.serviceVariantName ||
+    (rawApplicants.length > 0 ? (rawApplicants[0] as { serviceVariantName?: string })?.serviceVariantName : undefined);
+
+  const primaryFormFieldValues = firstApplicant?.formFieldValues || [];
+
+  const variantFromFields = primaryFormFieldValues.find(
+    (fv) =>
+      fv.fieldLabel?.toLowerCase().includes('permit / license type') ||
+      fv.fieldLabel?.toLowerCase().includes('type of certificate') ||
+      fv.fieldLabel?.toLowerCase().includes('application variant') ||
+      fv.fieldLabel?.toLowerCase().includes('application type') ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000024' ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000014'
+  )?.value;
+
+  const resolvedVariantName = rawVariantName || variantFromFields || '';
+
+  const rawHistories = dto.histories || dto.Histories || [];
+  const mappedHistories = rawHistories.map((h, hIdx) => ({
+    id: h.id || `hist-${hIdx}`,
+    action: h.action || (h.toStatus ? `Status: ${h.toStatus}` : 'Application Event'),
+    fromStatus: h.fromStatus,
+    toStatus: h.toStatus || 'Submitted',
+    staffName: h.staffName || 'Authorized Officer',
+    staffRole: h.staffRole || 'Processing Officer',
+    remarks: h.remarks,
+    timestamp: h.timestamp || '',
+  }));
+
+  const hasSubmission = mappedHistories.some(
+    (h) => h.action.toLowerCase().includes('submitted') || h.action.toLowerCase().includes('application received')
+  );
+  if (!hasSubmission) {
+    const submissionDate =
+      dto.submittedAt ||
+      dto.createdAt ||
+      (mappedHistories.length > 0 ? mappedHistories[0].timestamp : '') ||
+      new Date().toISOString();
+    const submitterName =
+      dto.filingUser?.name ||
+      dto.applicantName ||
+      (firstApplicant?.name) ||
+      'Applicant';
+
+    mappedHistories.unshift({
+      id: `init-${dto.id || 'app'}`,
+      action: 'Application Submitted',
+      fromStatus: undefined,
+      toStatus: 'Submitted',
+      staffName: submitterName,
+      staffRole: 'Applicant',
+      remarks: 'Application submitted through the portal.',
+      timestamp: submissionDate,
+    });
+  }
+
+  const rawSoas = (dto.statementsOfAccount || dto.StatementsOfAccount || []);
+  const rawOps = (dto.ordersOfPayment || dto.OrdersOfPayment || []);
+  const sortedSoas = [...rawSoas].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const sortedOps = [...rawOps].sort((a, b) => {
+    const timeA = 'createdAt' in a && typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0;
+    const timeB = 'createdAt' in b && typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0;
+    return timeB - timeA;
+  });
+  const primarySoaDto = sortedSoas.length > 0 ? sortedSoas[0] : undefined;
+  const primaryOpDto = sortedOps.length > 0 ? sortedOps[0] : undefined;
+
+  const resolvedOrNumber =
+    dto.officialReceiptNumber ||
+    dto.OfficialReceiptNumber ||
+    primaryOpDto?.officialReceiptNumber ||
+    undefined;
+
+  const resolvedAmountPaid =
+    typeof dto.amountPaid === 'number'
+      ? dto.amountPaid
+      : typeof dto.AmountPaid === 'number'
+        ? dto.AmountPaid
+        : typeof primaryOpDto?.amountReceived === 'number'
+          ? primaryOpDto.amountReceived
+          : undefined;
+
+  const resolvedPaidAt =
+    dto.paidAt ||
+    dto.PaidAt ||
+    primaryOpDto?.paidAt ||
+    undefined;
+
+  const mappedSoa: SoaData | undefined = primarySoaDto
+    ? {
+        id: primarySoaDto.id,
+        soaNumber: primarySoaDto.soaNumber || (dto.soaNumber ?? ''),
+        status: primarySoaDto.status || 'Active',
+        issuedToType: primarySoaDto.issuedToType,
+        issuedToName: primarySoaDto.issuedToName,
+        issuedToAddress: primarySoaDto.issuedToAddress,
+        totalAmount: typeof primarySoaDto.totalAmount === 'number' ? primarySoaDto.totalAmount : 0,
+        dueDate: primarySoaDto.dueDate,
+        remarks: primarySoaDto.remarks,
+        preparedByName: (primarySoaDto as { preparedByName?: string }).preparedByName,
+        preparedByTitle: (primarySoaDto as { preparedByTitle?: string }).preparedByTitle,
+        approvedByName: (primarySoaDto as { approvedByName?: string }).approvedByName,
+        approvedByTitle: (primarySoaDto as { approvedByTitle?: string }).approvedByTitle,
+        lineItems: (primarySoaDto.lineItems || []).map((li) => ({
+          id: li.id,
+          particular: li.particular || 'Regulatory Fee Assessment',
+          itemCode: li.itemCode || 'NTC-FEE',
+          description: li.description,
+          validityYears: typeof li.validityYears === 'number' && li.validityYears > 0 ? li.validityYears : 1,
+          noOfUnits: typeof li.noOfUnits === 'number' && li.noOfUnits > 0 ? li.noOfUnits : 1,
+          feeRate: typeof li.feeRate === 'number' ? li.feeRate : 0,
+          amount: typeof li.amount === 'number' ? li.amount : 0,
+        })),
+      }
+    : undefined;
+
+  const mappedOp: OpData | undefined = primaryOpDto
+    ? {
+        id: primaryOpDto.id,
+        opNumber: primaryOpDto.opNumber || '',
+        status: primaryOpDto.status || 'Active',
+        amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
+        amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : (resolvedAmountPaid ?? 0),
+        paymentMethod: primaryOpDto.paymentMethod,
+        officialReceiptNumber: primaryOpDto.officialReceiptNumber || resolvedOrNumber,
+        paidAt: primaryOpDto.paidAt || resolvedPaidAt,
+        remarks: primaryOpDto.remarks,
+      }
+    : (resolvedOrNumber ? {
+        id: 'op-auto-gen',
+        opNumber: '',
+        status: 'PAID',
+        amountDue: 0,
+        amountReceived: resolvedAmountPaid ?? 0,
+        officialReceiptNumber: resolvedOrNumber,
+        paidAt: resolvedPaidAt,
+      } : undefined);
+
+  let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
+  const svcLower = (serviceName || '').toLowerCase();
+  const catLower = (serviceCategory || '').toLowerCase();
+  const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
+
+  if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || dto.soaNumber)) {
+    const units = isBulk ? (mappedApplicants.length || 1) : 1;
+    if (isExam) {
+      mappedSoaItems = [
+        {
+          id: 'fee-exam-1',
+          particular: 'Examination Fee',
+          itemCode: '4-02-01-030',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: 50,
+          amount: 50 * units,
+        },
+      ];
+    } else {
+      const filingFee = 180;
+      const permitFee = 1200;
+      mappedSoaItems = [
+        {
+          id: 'fee-filing-1',
+          particular: 'Filing & Processing Fee',
+          itemCode: 'NTC-FF-01',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: filingFee,
+          amount: filingFee * units,
+        },
+        {
+          id: 'fee-lic-1',
+          particular: `${serviceName || 'Permit / License'} Regulatory Fee`,
+          itemCode: 'NTC-RF-02',
+          validityYears: 1,
+          noOfUnits: units,
+          feeRate: permitFee,
+          amount: permitFee * units,
+        },
+      ];
+    }
+  }
+
+  const calculatedTotalDue =
+    mappedSoa && typeof mappedSoa.totalAmount === 'number' && mappedSoa.totalAmount > 0
+      ? mappedSoa.totalAmount
+      : mappedOp && typeof mappedOp.amountDue === 'number' && mappedOp.amountDue > 0
+      ? mappedOp.amountDue
+      : mappedSoaItems.length > 0
+      ? mappedSoaItems.reduce((acc, item) => acc + (typeof item.amount === 'number' ? item.amount : 0), 0)
+      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? (isExam ? 50 : 1380) : undefined);
+
+  const resolvedDueDate = mappedSoa?.dueDate;
+  const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
+  const resolvedOpNumber = mappedOp?.opNumber || (status === 'READY_FOR_PAYMENT' ? `OP-${refNumber}` : null);
+
+  const rawIntentStr = (dto.intent || dto.Intent || '').toString().toLowerCase();
+  const isAssessmentOnly = rawIntentStr === 'assessmentonly' || rawIntentStr === 'assessment_only' || rawIntentStr === 'assessment';
+  const intent: 'Regular' | 'AssessmentOnly' = isAssessmentOnly ? 'AssessmentOnly' : 'Regular';
+
+  if (isBulk) {
+    const bulkApp: BulkApplication = {
+      id: dto.id || '',
+      referenceNumber: refNumber,
+      mode: 'BULK',
+      intent,
+      isAssessmentOnly,
+      assessedAt: dto.assessedAt || dto.AssessedAt,
+      convertedToRegularAt: dto.convertedToRegularAt || dto.ConvertedToRegularAt,
+      assessmentVersion: dto.assessmentVersion || dto.AssessmentVersion || 1,
+      assessmentRemarks: dto.assessmentRemarks || dto.AssessmentRemarks,
+      companyName,
+      serviceName,
+      serviceCategory,
+      element: (resolvedVariantName || 'New') as ExamineeType,
+      status,
+      submittedAt,
+      applicants: mappedApplicants,
+      soaNumber: resolvedSoaNumber,
+      soa: mappedSoa,
+      op: mappedOp,
+      soaItems: mappedSoaItems,
+      totalAmountDue: calculatedTotalDue,
+      dueDate: resolvedDueDate,
+      opNumber: resolvedOpNumber,
+      officialReceiptNumber: resolvedOrNumber,
+      amountPaid: resolvedAmountPaid,
+      paidAt: resolvedPaidAt,
+      submissionMode: 'BULK',
+      documents: reqDocs,
+      requirements: reqDocs,
+      formFieldValues: primaryFormFieldValues,
+      office: dto.office,
+      remarks: dto.remarks,
+      serviceVariantName: resolvedVariantName,
+      tenantId: dto.tenantId,
+      serviceId: dto.serviceId,
+      serviceVariantId: dto.serviceVariantId,
+      histories: mappedHistories,
+      history: mappedHistories,
+      evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+      issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
+      filingUser: dto.filingUser,
+      rawStatus,
+    };
+    return bulkApp;
+  }
+
+  const singleApp: SingleApplication = {
+    id: dto.id || '',
+    referenceNumber: refNumber,
+    mode: 'SINGLE',
+    applicantType: firstApplicant?.applicantType || (dto as { applicantType?: string }).applicantType || 'Individual',
+    intent,
+    isAssessmentOnly,
+    assessedAt: dto.assessedAt || dto.AssessedAt,
+    convertedToRegularAt: dto.convertedToRegularAt || dto.ConvertedToRegularAt,
+    assessmentVersion: dto.assessmentVersion || dto.AssessmentVersion || 1,
+    assessmentRemarks: dto.assessmentRemarks || dto.AssessmentRemarks,
+    serviceName,
+    serviceCategory,
+    element: (resolvedVariantName || 'New') as ExamineeType,
+    status,
+    submittedAt,
+    serviceId: dto.serviceId,
+    serviceVariantId: dto.serviceVariantId,
+    filingUser: dto.filingUser,
+    applicantName,
+    sex: firstDetails?.sex === 'Female' ? 'Female' : 'Male',
+    nationality: firstDetails?.nationality || 'Filipino',
+    streetAddress: firstDetails?.address || firstDetails?.streetAddress || 'N/A',
+    barangay: firstDetails?.barangayName || firstDetails?.barangay || '',
+    cityMunicipality: firstDetails?.cityMunicipality || 'N/A',
+    province: firstDetails?.province || 'N/A',
+    region: firstDetails?.region || 'N/A',
+    zipCode: firstDetails?.zipCode || '',
+    mobileNumber: firstDetails?.contactNumber || firstDetails?.mobileNumber || 'N/A',
+    email: firstDetails?.emailAddress || firstDetails?.email || 'N/A',
+    examineeType: (resolvedVariantName || 'New') as ExamineeType,
+    schedule: {
+      date: 'TBD',
+      time: 'TBD',
+      venue: dto.office || 'NTC Regional Office',
+    },
+    submissionMode: 'SINGLE',
+    applicants: mappedApplicants,
+    documents: reqDocs,
+    requirements: reqDocs,
+    formFieldValues: primaryFormFieldValues,
+    office: dto.office,
+    remarks: dto.remarks,
+    serviceVariantName: resolvedVariantName,
+    tenantId: dto.tenantId,
+    soaNumber: resolvedSoaNumber,
+    soa: mappedSoa,
+    op: mappedOp,
+    soaItems: mappedSoaItems,
+    totalAmountDue: calculatedTotalDue,
+    dueDate: resolvedDueDate,
+    opNumber: resolvedOpNumber,
+    officialReceiptNumber: resolvedOrNumber,
+    amountPaid: resolvedAmountPaid,
+    paidAt: resolvedPaidAt,
+    histories: mappedHistories,
+    history: mappedHistories,
+    evaluatingOfficer: (primarySoaDto as { preparedByName?: string })?.preparedByName || dto.evaluatingOfficer,
+    issuingOfficer: (primarySoaDto as { approvedByName?: string })?.approvedByName || dto.issuingOfficer,
+    rawStatus,
+  };
+  return singleApp;
+}
+
 export function getApplicantDocuments(applicant: BulkApplicant): ApplicationDocument[] {
   const docs: ApplicationDocument[] = [];
-  const refId = applicant.id;
-  const safeName = applicant.name.replace(/[^a-zA-Z0-9]/g, '_');
-  const dateStr = '2026-07-21T09:30:00.000Z';
+  const rawReqs: RawRequirement[] =
+    (applicant as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).requirements ||
+    (applicant as { requirements?: RawRequirement[]; Requirements?: RawRequirement[] }).Requirements ||
+    [];
 
-  docs.push({
-    id: `${refId}-doc-1`,
-    name: `${safeName}_Application_Form.pdf`,
-    type: 'PDF',
-    size: '1.2 MB',
-    category: 'ATTACHMENT',
-    uploadedAt: dateStr,
-  });
+  if (rawReqs.length > 0) {
+    return rawReqs.map((req, idx) => {
+      const urlStr = req.url || '';
+      const rawName = req.fileName || req.name || (urlStr ? urlStr.split('/').pop() : undefined) || `${applicant.name || 'Applicant'}_Attachment_${idx + 1}.pdf`;
+      const ext = rawName.toLowerCase().split('.').pop() || '';
+      
+      let typ: 'PDF' | 'IMAGE' | 'DOCX' | 'ZIP' = 'PDF';
+      if (['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg'].includes(ext)) {
+        typ = 'IMAGE';
+      } else if (['zip', 'rar', '7z'].includes(ext)) {
+        typ = 'ZIP';
+      } else if (['doc', 'docx'].includes(ext)) {
+        typ = 'DOCX';
+      }
 
-  docs.push({
-    id: `${refId}-doc-2`,
-    name: `${safeName}_Government_ID.pdf`,
-    type: 'PDF',
-    size: '720 KB',
-    category: 'ATTACHMENT',
-    uploadedAt: dateStr,
-  });
+      let sizeFormatted = req.size;
+      if (!sizeFormatted && req.fileSizeBytes) {
+        if (req.fileSizeBytes >= 1024 * 1024) {
+          sizeFormatted = `${(req.fileSizeBytes / (1024 * 1024)).toFixed(1)} MB`;
+        } else {
+          sizeFormatted = `${Math.round(req.fileSizeBytes / 1024)} KB`;
+        }
+      }
 
-  if (applicant.status === 'APPROVED') {
-    docs.push({
-      id: `${refId}-doc-3`,
-      name: `${safeName}_Approved_Permit.pdf`,
-      type: 'PDF',
-      size: '480 KB',
-      category: 'ISSUED_PERMIT',
-      uploadedAt: dateStr,
-    });
-  } else if (applicant.status === 'READY_FOR_PAYMENT') {
-    docs.push({
-      id: `${refId}-doc-3`,
-      name: `${safeName}_Statement_of_Account.pdf`,
-      type: 'PDF',
-      size: '210 KB',
-      category: 'SOA',
-      uploadedAt: dateStr,
+      return {
+        id: req.id || req.storedFileId || `${applicant.id}-req-${idx + 1}`,
+        name: rawName,
+        type: typ,
+        size: sizeFormatted || '350 KB',
+        category: 'ATTACHMENT',
+        uploadedAt: req.uploadedAt || new Date().toISOString(),
+        url: req.url,
+        storedFileId: req.storedFileId,
+      };
     });
   }
 

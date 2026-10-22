@@ -64,6 +64,12 @@ export function RolesPermissionScreen() {
     hasUnsavedChanges,
     isSubmitting,
     isLoading,
+    isCurrentRoleReadOnly,
+    isSuperAdmin,
+    canCreateRole,
+    canUpdateRole,
+    canDeleteRole,
+    canAssignPermissions,
     handleTogglePermission,
     handleToggleSelectAll,
     resetChanges,
@@ -94,10 +100,12 @@ export function RolesPermissionScreen() {
       setIsEditingRoleName(false);
       return;
     }
-    const ok = await updateRole(selectedRole.id, trimmed);
-    if (ok) {
+    const res = await updateRole(selectedRole.id, trimmed);
+    if (res.ok) {
       showToast(`Role renamed to "${trimmed}"`);
       setIsEditingRoleName(false);
+    } else if (res.error) {
+      showToast(res.error);
     }
   };
 
@@ -117,24 +125,34 @@ export function RolesPermissionScreen() {
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    setTimeout(() => setToastMsg(null), 4000);
   };
 
   const handleSave = async () => {
-    const ok = await savePermissions();
-    if (ok && selectedRole) {
+    const res = await savePermissions();
+    if (res.ok && selectedRole) {
       showToast(`Permissions saved for "${selectedRole.name}"`);
+    } else if (res.error) {
+      showToast(res.error);
     }
   };
 
   const handleAddRole = async (data: { name: string; initialPermissionIds: string[] }) => {
-    const ok = await createRole(data.name, undefined, data.initialPermissionIds);
-    if (ok) showToast(`Role "${data.name}" created.`);
+    const res = await createRole(data.name, undefined, data.initialPermissionIds);
+    if (res.ok) {
+      showToast(`Role "${data.name}" created.`);
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   const handleDeleteRole = async (roleId: string) => {
-    const ok = await deleteRole(roleId);
-    if (ok) showToast('Role deleted.');
+    const res = await deleteRole(roleId);
+    if (res.ok) {
+      showToast('Role deleted.');
+    } else if (res.error) {
+      showToast(res.error);
+    }
   };
 
   // Scope filter counts
@@ -156,13 +174,15 @@ export function RolesPermissionScreen() {
               <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
                 <View style={styles.leftHeaderTop}>
                   <Text style={[styles.leftTitle, { color: textColor }]}>Roles Directory</Text>
-                  <Pressable
-                    style={[styles.addBtn, { backgroundColor: accentBg }]}
-                    onPress={() => setIsAddModalOpen(true)}
-                  >
-                    <Lucide name="plus" size={14} color="#FFFFFF" />
-                    <Text style={styles.addBtnText}>Add</Text>
-                  </Pressable>
+                  {canCreateRole && (
+                    <Pressable
+                      style={[styles.addBtn, { backgroundColor: accentBg }]}
+                      onPress={() => setIsAddModalOpen(true)}
+                    >
+                      <Lucide name="plus" size={14} color="#FFFFFF" />
+                      <Text style={styles.addBtnText}>Add</Text>
+                    </Pressable>
+                  )}
                 </View>
 
                 {/* Search */}
@@ -170,7 +190,7 @@ export function RolesPermissionScreen() {
                   <Lucide name="search" size={14} color={mutedColor} />
                   <TextInput
                     style={[styles.searchInput, { color: textColor }]}
-                    placeholder="Search roles..."
+                    placeholder="Search roles by name or key..."
                     placeholderTextColor={mutedColor}
                     value={roleSearchQuery}
                     onChangeText={setRoleSearchQuery}
@@ -195,7 +215,7 @@ export function RolesPermissionScreen() {
                       setSelectedRoleId(role.id);
                       setMobileView('permissions');
                     }}
-                    onDeletePress={() => setRoleToDelete(role)}
+                    onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
                   />
                 ))}
               </ScrollView>
@@ -240,7 +260,7 @@ export function RolesPermissionScreen() {
                           {selectedRole.name}
                         </Text>
                         {hasUnsavedChanges && <View style={styles.unsavedDot} />}
-                        {!selectedRole.isSystemRole && (
+                        {!selectedRole.isSystemRole && canUpdateRole && (
                           <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                             <Lucide name="edit-2" size={13} color={mutedColor} />
                           </Pressable>
@@ -248,30 +268,36 @@ export function RolesPermissionScreen() {
                       </View>
                     )}
                     <Text style={[styles.roleScopeBadgeText, { color: mutedColor }]}>
-                      {selectedRole.isSystemRole ? 'SYSTEM ROLE' : 'CUSTOM ROLE'}
+                      {selectedRole.isSystemRole ? 'STANDARD ROLE' : 'CUSTOM ROLE'}
                     </Text>
                   </View>
                 </View>
 
-                <Pressable
-                  style={[
-                    styles.saveBtn,
-                    {
-                      backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                      opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
-                    },
-                  ]}
-                  onPress={handleSave}
-                  disabled={!hasUnsavedChanges || isSubmitting}
-                >
-                  <Lucide name="save" size={14} color="#FFFFFF" />
-                  <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : 'Save'}</Text>
-                </Pressable>
+                {isCurrentRoleReadOnly ? (
+                  <View style={[styles.readOnlyIndicator, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+                    <Lucide name="lock" size={13} color={mutedColor} />
+                    <Text style={[styles.readOnlyIndicatorText, { color: mutedColor }]}>Read-Only</Text>
+                  </View>
+                ) : (
+                  <Pressable
+                    style={[
+                      styles.saveBtn,
+                      {
+                        backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                        opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
+                      },
+                    ]}
+                    onPress={handleSave}
+                    disabled={!hasUnsavedChanges || isSubmitting}
+                  >
+                    <Lucide name="save" size={14} color="#FFFFFF" />
+                    <Text style={styles.saveBtnText}>{isSubmitting ? 'Saving...' : 'Save'}</Text>
+                  </Pressable>
+                )}
               </View>
 
-              {/* Body */}
-              <ScrollView style={styles.rightBody} contentContainerStyle={styles.rightBodyContent} showsVerticalScrollIndicator={false}>
-                {/* Search */}
+              {/* Sticky Search Header Bar for Permissions (Mobile) */}
+              <View style={[styles.mobilePermSearchHeader, { backgroundColor: panelBg, borderBottomColor: borderColor }]}>
                 <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
                   <Lucide name="search" size={14} color={mutedColor} />
                   <TextInput
@@ -287,6 +313,18 @@ export function RolesPermissionScreen() {
                     </Pressable>
                   )}
                 </View>
+              </View>
+
+              {/* Body */}
+              <ScrollView style={styles.rightBody} contentContainerStyle={styles.rightBodyContent} showsVerticalScrollIndicator={false}>
+                {isCurrentRoleReadOnly && (
+                  <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
+                    <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+                    <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                      Standard role: Permissions are read-only. Tenant administrators cannot modify standard system roles.
+                    </Text>
+                  </View>
+                )}
 
                 {/* Categories */}
                 {categories.map((cat) => (
@@ -295,6 +333,7 @@ export function RolesPermissionScreen() {
                     category={cat}
                     activePermissionIds={activePermissions}
                     onTogglePermission={handleTogglePermission}
+                    readOnly={isCurrentRoleReadOnly}
                   />
                 ))}
               </ScrollView>
@@ -311,14 +350,16 @@ export function RolesPermissionScreen() {
             <View style={[styles.leftHeader, { borderBottomColor: borderColor }]}>
               <View style={styles.leftHeaderTop}>
                 <Text style={[styles.leftTitle, { color: textColor }]}>Roles</Text>
-                <Pressable
-                  style={[styles.addBtn, { backgroundColor: accentBg }]}
-                  onPress={() => setIsAddModalOpen(true)}
-                  accessibilityLabel="Add new role"
-                >
-                  <Lucide name="plus" size={14} color="#FFFFFF" />
-                  <Text style={styles.addBtnText}>Add</Text>
-                </Pressable>
+                {canCreateRole && (
+                  <Pressable
+                    style={[styles.addBtn, { backgroundColor: accentBg }]}
+                    onPress={() => setIsAddModalOpen(true)}
+                    accessibilityLabel="Add new role"
+                  >
+                    <Lucide name="plus" size={14} color="#FFFFFF" />
+                    <Text style={styles.addBtnText}>Add</Text>
+                  </Pressable>
+                )}
               </View>
 
               {/* Search */}
@@ -326,7 +367,7 @@ export function RolesPermissionScreen() {
                 <Lucide name="search" size={14} color={mutedColor} />
                 <TextInput
                   style={[styles.searchInput, { color: textColor }]}
-                  placeholder="Search roles..."
+                  placeholder="Search roles by name or key..."
                   placeholderTextColor={mutedColor}
                   value={roleSearchQuery}
                   onChangeText={setRoleSearchQuery}
@@ -358,7 +399,7 @@ export function RolesPermissionScreen() {
                     role={role}
                     isSelected={selectedRole?.id === role.id}
                     onPress={() => setSelectedRoleId(role.id)}
-                    onDeletePress={() => setRoleToDelete(role)}
+                    onDeletePress={canDeleteRole && !role.isSystemRole ? () => setRoleToDelete(role) : undefined}
                   />
                 ))
               )}
@@ -412,7 +453,7 @@ export function RolesPermissionScreen() {
                           {hasUnsavedChanges && (
                             <View style={styles.unsavedDot} />
                           )}
-                          {!selectedRole.isSystemRole && (
+                          {!selectedRole.isSystemRole && canUpdateRole && (
                             <Pressable onPress={startEditingRoleName} style={styles.editTitleBtn} hitSlop={6} accessibilityLabel="Rename role">
                               <Lucide name="edit-2" size={13} color={mutedColor} />
                             </Pressable>
@@ -446,36 +487,60 @@ export function RolesPermissionScreen() {
                             },
                           ]}
                         >
-                          {selectedRole.isSystemRole ? 'SYSTEM' : 'CUSTOM'}
+                          {selectedRole.isSystemRole ? 'STANDARD' : 'CUSTOM'}
                         </Text>
                       </View>
                     </View>
                   </View>
 
+                  {/* Search Permissions inside Role Header Card */}
+                  <View style={[styles.headerPermSearch, { backgroundColor: inputBg, borderColor: inputBorder }]}>
+                    <Lucide name="search" size={14} color={mutedColor} />
+                    <TextInput
+                      style={[styles.permSearchInput, { color: textColor }]}
+                      placeholder="Search permissions..."
+                      placeholderTextColor={mutedColor}
+                      value={permissionQuery}
+                      onChangeText={setPermissionQuery}
+                    />
+                    {permissionQuery.length > 0 && (
+                      <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
+                        <Lucide name="x" size={13} color={mutedColor} />
+                      </Pressable>
+                    )}
+                  </View>
+
                   <View style={styles.rightHeaderActions}>
-                    {hasUnsavedChanges && (
+                    {hasUnsavedChanges && !isCurrentRoleReadOnly && (
                       <Pressable onPress={resetChanges} style={styles.discardBtn}>
                         <Text style={[styles.discardBtnText, { color: mutedColor }]}>
                           Discard
                         </Text>
                       </Pressable>
                     )}
-                    <Pressable
-                      style={[
-                        styles.saveBtn,
-                        {
-                          backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
-                          opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
-                        },
-                      ]}
-                      onPress={handleSave}
-                      disabled={!hasUnsavedChanges || isSubmitting}
-                    >
-                      <Lucide name="save" size={14} color="#FFFFFF" />
-                      <Text style={styles.saveBtnText}>
-                        {isSubmitting ? 'Saving…' : 'Save Changes'}
-                      </Text>
-                    </Pressable>
+                    {isCurrentRoleReadOnly ? (
+                      <View style={[styles.readOnlyIndicator, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}>
+                        <Lucide name="lock" size={13} color={mutedColor} />
+                        <Text style={[styles.readOnlyIndicatorText, { color: mutedColor }]}>Read-Only</Text>
+                      </View>
+                    ) : (
+                      <Pressable
+                        style={[
+                          styles.saveBtn,
+                          {
+                            backgroundColor: hasUnsavedChanges && !isSubmitting ? accentBg : (isDark ? colors.neutral[700] : colors.neutral[200]),
+                            opacity: !hasUnsavedChanges || isSubmitting ? 0.55 : 1,
+                          },
+                        ]}
+                        onPress={handleSave}
+                        disabled={!hasUnsavedChanges || isSubmitting}
+                      >
+                        <Lucide name="save" size={14} color="#FFFFFF" />
+                        <Text style={styles.saveBtnText}>
+                          {isSubmitting ? 'Saving…' : 'Save Changes'}
+                        </Text>
+                      </Pressable>
+                    )}
                   </View>
                 </View>
 
@@ -485,37 +550,32 @@ export function RolesPermissionScreen() {
                   contentContainerStyle={styles.rightBodyContent}
                   showsVerticalScrollIndicator={false}
                 >
-                  <View style={styles.matrixToolbar}>
-                    <View style={[styles.permSearchRow, { backgroundColor: inputBg, borderColor: inputBorder }]}>
-                      <Lucide name="search" size={14} color={mutedColor} />
-                      <TextInput
-                        style={[styles.permSearchInput, { color: textColor }]}
-                        placeholder="Search permissions..."
-                        placeholderTextColor={mutedColor}
-                        value={permissionQuery}
-                        onChangeText={setPermissionQuery}
-                      />
-                      {permissionQuery.length > 0 && (
-                        <Pressable onPress={() => setPermissionQuery('')} hitSlop={8}>
-                          <Lucide name="x" size={13} color={mutedColor} />
-                        </Pressable>
-                      )}
-                    </View>
-
-                    <Pressable
-                      style={[styles.selectAllBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}
-                      onPress={handleToggleSelectAll}
-                    >
-                      <Lucide
-                        name={isAllSelected ? 'x-circle' : 'check-circle'}
-                        size={13}
-                        color={mutedColor}
-                      />
-                      <Text style={[styles.selectAllText, { color: mutedColor }]}>
-                        {isAllSelected ? 'Deselect All' : 'Select All'}
+                  {isCurrentRoleReadOnly && (
+                    <View style={[styles.readOnlyBanner, { backgroundColor: isDark ? 'rgba(245, 158, 11, 0.12)' : '#FEF3C7', borderColor: isDark ? 'rgba(245, 158, 11, 0.3)' : '#FDE68A' }]}>
+                      <Lucide name="lock" size={14} color={isDark ? '#FBBF24' : '#B45309'} />
+                      <Text style={[styles.readOnlyBannerText, { color: isDark ? '#FCD34D' : '#92400E' }]}>
+                        Standard system role: Permissions are read-only to preserve consistency across all tenants. To customize permissions for this role, click Add to create a custom role.
                       </Text>
-                    </Pressable>
-                  </View>
+                    </View>
+                  )}
+
+                  {!isCurrentRoleReadOnly && (
+                    <View style={[styles.matrixToolbar, { justifyContent: 'flex-end' }]}>
+                      <Pressable
+                        style={[styles.selectAllBtn, { backgroundColor: isDark ? colors.neutral[700] : colors.neutral[100] }]}
+                        onPress={handleToggleSelectAll}
+                      >
+                        <Lucide
+                          name={isAllSelected ? 'x-circle' : 'check-circle'}
+                          size={13}
+                          color={mutedColor}
+                        />
+                        <Text style={[styles.selectAllText, { color: mutedColor }]}>
+                          {isAllSelected ? 'Deselect All' : 'Select All'}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
 
                   {categories.length === 0 ? (
                     <View style={styles.emptyPerms}>
@@ -530,6 +590,7 @@ export function RolesPermissionScreen() {
                         category={cat}
                         activePermissionIds={activePermissions}
                         onTogglePermission={handleTogglePermission}
+                        readOnly={isCurrentRoleReadOnly}
                       />
                     ))
                   )}
@@ -767,6 +828,22 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: SPACING[10],
   },
+  headerPermSearch: {
+    flex: 1,
+    maxWidth: 360,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    borderWidth: 1,
+    borderRadius: RADIUS.input,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: 7,
+  },
+  mobilePermSearchHeader: {
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
+  },
   discardBtn: {
     paddingHorizontal: 12,
     paddingVertical: 8,
@@ -833,6 +910,34 @@ const styles = StyleSheet.create({
   emptyPerms: {
     paddingVertical: SPACING[32],
     alignItems: 'center',
+  },
+  readOnlyBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[8],
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[10],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    marginBottom: SPACING[12],
+  },
+  readOnlyBannerText: {
+    flex: 1,
+    fontSize: 12,
+    fontWeight: '500',
+    lineHeight: 18,
+  },
+  readOnlyIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING[6],
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: RADIUS.button,
+  },
+  readOnlyIndicatorText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 
   // Toast

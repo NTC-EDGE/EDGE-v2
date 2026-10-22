@@ -9,5 +9,6 @@ public class FormFieldValue : BaseEntity
     public FormSubmission? FormSubmission { get; set; }
     public Guid FieldId { get; set; }
     public Field? Field { get; set; }
+    public string? CustomLabel { get; set; }
     public string Value { get; set; } = string.Empty;
 }

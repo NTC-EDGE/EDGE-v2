@@ -65,12 +65,17 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
   const statusBg = getStatusBgColor(app.status);
   const documents = getAppDocuments(app);
 
-  // Status timeline steps
+  // Status timeline steps (5-stage standard lifecycle)
+  const isPaymentDone = app.status === 'READY_FOR_PAYMENT' || app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' || Boolean(app.soaNumber);
+  const isIssuanceDone = app.status === 'FOR_APPROVAL' || app.status === 'APPROVED';
+  const isCompletedDone = app.status === 'APPROVED';
+
   const steps = [
     { label: 'Submitted', sub: 'Received', done: true },
-    { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' },
-    { label: 'For Approval', sub: 'Awaiting decision', done: app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' },
-    { label: 'Approved', sub: 'License ready', done: app.status === 'APPROVED' },
+    { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' || isPaymentDone },
+    { label: 'Payment', sub: 'Fee assessment', done: isPaymentDone },
+    { label: 'Issuance', sub: 'Document release', done: isIssuanceDone },
+    { label: 'Issued', sub: 'License ready', done: isCompletedDone },
   ];
 
   return (
@@ -232,44 +237,53 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
                 </Text>
               </View>
 
-              {documents.map((doc) => {
-                const isZip = doc.type === 'ZIP';
-                return (
-                  <View key={doc.id} style={styles.documentCard}>
-                    <View style={[styles.docIconWrap, isZip && styles.docIconWrapAmber]}>
-                      <Icon
-                        name={isZip ? 'folder' : 'file-text'}
-                        size={20}
-                        color={isZip ? '#D97706' : COLORS.brand[700]}
-                      />
-                    </View>
-
-                    <View style={styles.docInfoWrap}>
-                      <Text style={styles.docName}>{doc.name}</Text>
-                      <View style={styles.docMetaRow}>
-                        <View style={[styles.docTypeBadge, isZip && styles.docTypeBadgeAmber]}>
-                          <Text style={[styles.docTypeText, isZip && styles.docTypeTextAmber]}>
-                            {doc.type}
-                          </Text>
-                        </View>
-                        <Text style={styles.docDot}>•</Text>
-                        <Text style={styles.docCategory}>{doc.category.replace('_', ' ')}</Text>
-                        <Text style={styles.docDot}>•</Text>
-                        <Text style={styles.docSize}>{doc.size}</Text>
+              {documents.length === 0 ? (
+                <View style={{ padding: 24, backgroundColor: '#F8FAFC', borderRadius: 10, alignItems: 'center', marginVertical: 12 }}>
+                  <Icon name="file-text" size={32} color="#94A3B8" />
+                  <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#64748B', marginTop: 8 }}>
+                    No attached documents or files submitted with this application.
+                  </Text>
+                </View>
+              ) : (
+                documents.map((doc) => {
+                  const isZip = doc.type === 'ZIP';
+                  return (
+                    <View key={doc.id} style={styles.documentCard}>
+                      <View style={[styles.docIconWrap, isZip && styles.docIconWrapAmber]}>
+                        <Icon
+                          name={isZip ? 'folder' : 'file-text'}
+                          size={20}
+                          color={isZip ? '#D97706' : COLORS.brand[700]}
+                        />
                       </View>
-                    </View>
 
-                    <TouchableOpacity
-                      onPress={() => onDownloadDocument(doc)}
-                      style={styles.docDownloadBtn}
-                      activeOpacity={0.8}
-                    >
-                      <Icon name="download" size={14} color="#FFFFFF" />
-                      <Text style={styles.docDownloadBtnText}>Download</Text>
-                    </TouchableOpacity>
-                  </View>
-                );
-              })}
+                      <View style={styles.docInfoWrap}>
+                        <Text style={styles.docName}>{doc.name}</Text>
+                        <View style={styles.docMetaRow}>
+                          <View style={[styles.docTypeBadge, isZip && styles.docTypeBadgeAmber]}>
+                            <Text style={[styles.docTypeText, isZip && styles.docTypeTextAmber]}>
+                              {doc.type}
+                            </Text>
+                          </View>
+                          <Text style={styles.docDot}>•</Text>
+                          <Text style={styles.docCategory}>{doc.category.replace('_', ' ')}</Text>
+                          <Text style={styles.docDot}>•</Text>
+                          <Text style={styles.docSize}>{doc.size}</Text>
+                        </View>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => onDownloadDocument(doc)}
+                        style={styles.docDownloadBtn}
+                        activeOpacity={0.8}
+                      >
+                        <Icon name="download" size={14} color="#FFFFFF" />
+                        <Text style={styles.docDownloadBtnText}>Download</Text>
+                      </TouchableOpacity>
+                    </View>
+                  );
+                })
+              )}
             </View>
           )}
         </ScrollView>

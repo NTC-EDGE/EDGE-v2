@@ -69,7 +69,9 @@ public class PdfFormFillerService : IPdfFormFillerService
         IPdfRendererFactory? rendererFactory = null)
     {
         _configuration = configuration;
-        _templateProvider = templateProvider ?? new FileSystemPdfTemplateProvider();
+        _templateProvider = templateProvider ?? new CloudflareR2PdfTemplateProvider(
+            Microsoft.Extensions.Options.Options.Create(new EDGE.Infrastructure.Options.CloudflareR2Options()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CloudflareR2PdfTemplateProvider>.Instance);
         _fieldRenderer = new PdfFieldRenderer();
 
         if (rendererFactory == null)
@@ -89,25 +91,31 @@ public class PdfFormFillerService : IPdfFormFillerService
 
     public string? ResolveTemplatePath(string templateName)
     {
-        if (_templateProvider is FileSystemPdfTemplateProvider fileSystemProvider)
+        var fileName = templateName.EndsWith(".pdf", StringComparison.OrdinalIgnoreCase) ? templateName : $"{templateName}.pdf";
+        var searchRoots = new[]
         {
-            return fileSystemProvider.ResolveTemplatePath(templateName);
-        }
-
-        var candidatePaths = new[]
-        {
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Printing", "Templates", templateName),
-            Path.Combine(AppDomain.CurrentDomain.BaseDirectory, templateName),
-            Path.Combine(Directory.GetCurrentDirectory(), "Printing", "Templates", templateName),
-            Path.Combine(Directory.GetCurrentDirectory(), "EDGE.Infrastructure", "Printing", "Templates", templateName),
-            Path.Combine(Directory.GetCurrentDirectory(), "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", templateName)
+            Directory.GetCurrentDirectory(),
+            AppDomain.CurrentDomain.BaseDirectory
         };
 
-        foreach (var path in candidatePaths)
+        foreach (var root in searchRoots)
         {
-            if (File.Exists(path))
+            var dir = new DirectoryInfo(root);
+            while (dir != null)
             {
-                return path;
+                var directTemplates = Path.Combine(dir.FullName, "templates", fileName);
+                if (File.Exists(directTemplates))
+                {
+                    return Path.GetFullPath(directTemplates);
+                }
+
+                var infrastructureTemplates = Path.Combine(dir.FullName, "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", fileName);
+                if (File.Exists(infrastructureTemplates))
+                {
+                    return Path.GetFullPath(infrastructureTemplates);
+                }
+
+                dir = dir.Parent;
             }
         }
 
@@ -116,7 +124,10 @@ public class PdfFormFillerService : IPdfFormFillerService
 
     public bool TemplateExists(string templateName)
     {
-        return ResolveTemplatePath(templateName) != null;
+        var exists = _templateProvider.TemplateExistsAsync(templateName).GetAwaiter().GetResult();
+        if (exists) return true;
+        var localPath = ResolveTemplatePath(templateName);
+        return localPath != null && File.Exists(localPath);
     }
 
     public byte[]? GetTemplate(string templateName)
@@ -126,6 +137,11 @@ public class PdfFormFillerService : IPdfFormFillerService
 
         if (resource == null)
         {
+            var localPath = ResolveTemplatePath(templateName);
+            if (localPath != null && File.Exists(localPath))
+            {
+                return File.ReadAllBytes(localPath);
+            }
             return null;
         }
 

@@ -1,4 +1,5 @@
 using MediatR;
+using EDGE.Domain.Authorization;
 using EDGE.Domain.Entities;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.TenantMembers.DTOs;
@@ -8,20 +9,39 @@ namespace EDGE.Application.TenantMembers.Commands;
 public class UpdateMemberDetailsCommandHandler : IRequestHandler<UpdateMemberDetailsCommand, TenantMemberDto>
 {
     private readonly ITenantMemberRepository _memberRepository;
+    private readonly IRoleRepository _roleRepository;
+    private readonly ITenantContextService _tenantContextService;
     private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateMemberDetailsCommandHandler(ITenantMemberRepository memberRepository, IUnitOfWork unitOfWork)
+    public UpdateMemberDetailsCommandHandler(
+        ITenantMemberRepository memberRepository,
+        IRoleRepository roleRepository,
+        ITenantContextService tenantContextService,
+        IUnitOfWork unitOfWork)
     {
         _memberRepository = memberRepository;
+        _roleRepository = roleRepository;
+        _tenantContextService = tenantContextService;
         _unitOfWork = unitOfWork;
     }
 
     public async Task<TenantMemberDto> Handle(UpdateMemberDetailsCommand request, CancellationToken cancellationToken)
     {
+        await _tenantContextService.EnsureUserActiveMemberAsync(
+            request.TenantId,
+            "You are only authorized to update members in your own regional tenant.",
+            cancellationToken);
+
         var member = await _memberRepository.GetByIdAsync(request.MemberId, cancellationToken);
         if (member == null || member.TenantId != request.TenantId)
         {
             throw new KeyNotFoundException($"Tenant member with ID '{request.MemberId}' was not found in Tenant '{request.TenantId}'.");
+        }
+
+        var role = await _roleRepository.GetByIdAsync(request.RoleId, cancellationToken);
+        if (role == null || (role.TenantId != null && role.TenantId != request.TenantId))
+        {
+            throw new InvalidOperationException($"Role '{request.RoleId}' is not valid for tenant '{request.TenantId}'.");
         }
 
         member.RoleId = request.RoleId;

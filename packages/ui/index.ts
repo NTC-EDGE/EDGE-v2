@@ -7,11 +7,14 @@ export * from './theme/tokens';
 export * from './theme/themeStorage';
 export { ThemeProvider, ThemeContext, type ThemeProviderProps } from './theme/ThemeProvider';
 export { useTheme } from './theme/useTheme';
+export * from './utils/webStyles';
 
 // Existing Shared UI Components
 export * from './components/Avatar';
 export * from './components/Button';
 export * from './components/FormFieldInput';
+export * from './components/DatePickerField';
+export * from './components/DatePickerInput';
 export * from './components/AlertToast';
 export * from './tables/DataTable';
 export * from './tables/StatusBadge';
@@ -24,6 +27,8 @@ export * from './components/ThemeToggle';
 export * from './components/PageHeader';
 export * from './components/EmptyState';
 export * from './components/SearchBar';
+export * from './components/ConfirmationModal';
+export * from './components/ModalDialog';
 
 // Navigation & Integrations
 export { Feather as Icon } from '@expo/vector-icons';

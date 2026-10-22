@@ -17,7 +17,6 @@ public record CreateFieldOfficeCommand(
     string? ContactPhone = null,
     string? ContactEmail = null,
     Guid? OfficerInChargeId = null,
-    bool IsActive = true,
     bool AllowSpectrumInspection = true,
     bool AllowPermitIssuance = true,
     bool AllowComplaintReception = true

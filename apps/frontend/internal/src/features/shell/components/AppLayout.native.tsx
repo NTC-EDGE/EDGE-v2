@@ -13,6 +13,9 @@ import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { MobileBottomTabBar } from "./MobileBottomTabBar";
+import { SignOutConfirmModal } from "../../auth/components/SignOutConfirmModal";
+import { IncomingCallModal } from "../../meet/components/IncomingCallModal";
+import { acceptIncomingCall } from "../../meet/utils/meetingNavigationHelper";
 
 export interface AppLayoutProps {
   children: React.ReactNode;
@@ -29,7 +32,6 @@ export function AppLayout({
   const {
     currentRole,
     user,
-    logout,
     showRoleDropdown,
     toggleRoleDropdown,
     closeRoleDropdown,
@@ -41,6 +43,11 @@ export function AppLayout({
     isSidebarOpen,
     closeSidebar,
     toggleSidebar,
+    isSignOutConfirmVisible,
+    isSigningOut,
+    promptSignOut,
+    closeSignOutModal,
+    confirmSignOut,
   } = useShellState();
 
   const sidebarAnim = useRef(new Animated.Value(0)).current;
@@ -105,7 +112,7 @@ export function AppLayout({
           isLogoutHovered={isLogoutHovered}
           setIsLogoutHovered={setIsLogoutHovered}
           user={user}
-          onLogout={logout}
+          onLogout={promptSignOut}
           isMobile={true}
           onMenuPress={toggleSidebar}
           onNavigate={handleLinkPress}
@@ -130,7 +137,7 @@ export function AppLayout({
                   onNavigate={handleLinkPress}
                   isMobile={true}
                   onClose={closeSidebar}
-                  onLogout={logout}
+                  onLogout={promptSignOut}
                   onRoleSelect={handleRoleSelect}
                 />
               </Animated.View>
@@ -139,6 +146,21 @@ export function AppLayout({
 
           <View style={styles.mainContentArea}>{children}</View>
         </View>
+
+        {/* Sign Out Confirmation Modal */}
+        <SignOutConfirmModal
+          visible={isSignOutConfirmVisible}
+          loading={isSigningOut}
+          onClose={closeSignOutModal}
+          onConfirm={confirmSignOut}
+        />
+
+        {/* Incoming Call Ringing Modal */}
+        <IncomingCallModal
+          onAccept={(code) => {
+            acceptIncomingCall(code, handleLinkPress);
+          }}
+        />
 
         {activeScreen !== "AccountSettings" && (
           <MobileBottomTabBar

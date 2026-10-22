@@ -1,0 +1,90 @@
+import { StyleSheet } from 'react-native';
+import { COLORS, SPACING, RADIUS, TYPOGRAPHY } from '@edge/ui';
+
+export const employeesScreenStyles = StyleSheet.create({
+  container: {
+    width: '100%',
+    position: 'relative',
+  },
+  toastContainer: {
+    position: 'fixed' as never,
+    bottom: 24,
+    right: 24,
+    zIndex: 99999,
+    maxWidth: 440,
+    backgroundColor: COLORS.neutral.white,
+    borderLeftWidth: 4,
+    borderLeftColor: COLORS.semantic.success,
+    borderRadius: RADIUS.button,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: SPACING[12],
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 25,
+  },
+  toastText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.neutral[900],
+  },
+  topSection: {
+    width: '100%',
+    zIndex: 50,
+  },
+  listArea: {
+    width: '100%',
+    zIndex: 10,
+  },
+  cardsGrid: {
+    width: '100%',
+  },
+  tableSection: {
+    width: '100%',
+    zIndex: 10,
+  },
+  emptyState: {
+    backgroundColor: COLORS.neutral.white,
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    padding: SPACING[40],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 18,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: COLORS.neutral[800],
+    marginBottom: 4,
+  },
+  emptyText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 14,
+    color: COLORS.neutral[500],
+    textAlign: 'center',
+    maxWidth: 400,
+    marginBottom: SPACING[16],
+  },
+  resetFilterBtn: {
+    backgroundColor: COLORS.neutral[100],
+    borderWidth: 1,
+    borderColor: COLORS.neutral[200],
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 8,
+    borderRadius: RADIUS.button,
+  },
+  resetFilterText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: COLORS.brand[700],
+  },
+});

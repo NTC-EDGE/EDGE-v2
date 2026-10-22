@@ -22,6 +22,9 @@ public static class EndpointConfiguration
         apiV2Group.MapTenantEndpoints();
         apiV2Group.MapTenantMemberEndpoints();
         apiV2Group.MapApplicationEndpoints();
+        apiV2Group.MapSoaEndpoints();
+        apiV2Group.MapSoaNoteEndpoints();
+        apiV2Group.MapOpEndpoints();
         apiV2Group.MapUserEndpoints();
         apiV2Group.MapRoleEndpoints();
         apiV2Group.MapPermissionEndpoints();
@@ -31,13 +34,14 @@ public static class EndpointConfiguration
         apiV2Group.MapServiceCategoryEndpoints();
         apiV2Group.MapFieldOfficeEndpoints();
         apiV2Group.MapApplicantEndpoints();
-        apiV2Group.MapNoteEndpoints();
+        apiV2Group.MapServiceNoteEndpoints();
         apiV2Group.MapStorageEndpoints();
         apiV2Group.MapRegionEndpoints();
         apiV2Group.MapProvinceEndpoints();
         apiV2Group.MapMunicipalityEndpoints();
         apiV2Group.MapBarangayEndpoints();
         apiV2Group.MapFeeEndpoints();
+        apiV2Group.MapFeeCalculationEndpoints();
         apiV2Group.MapElementEndpoints();
         apiV2Group.MapServiceVariantFeeEndpoints();
         apiV2Group.MapServiceVariantElementFeeEndpoints();
@@ -54,5 +58,11 @@ public static class EndpointConfiguration
         apiV2Group.MapNotificationTemplateEndpoints();
         apiV2Group.MapSystemErrorLogEndpoints();
         apiV2Group.MapDocumentTypeEndpoints();
+        apiV2Group.MapServiceInformationEndpoints();
+        apiV2Group.MapReportEndpoints();
+        apiV2Group.MapReceiptEndpoints();
+        apiV2Group.MapTemplateEndpoints();
+        apiV2Group.MapChatEndpoints();
+        apiV2Group.MapMeetingEndpoints();
     }
 }

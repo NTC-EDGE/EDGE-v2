@@ -1,7 +1,9 @@
-import React from "react";
+import React, { useState } from "react";
 import { Modal, View, Text, TouchableOpacity } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ValidatedInput } from "../../../../../../shared/components/ValidatedInput";
+import { SubmissionFailureModal } from "../../../../shared/components/SubmissionFailureModal";
+import { useToast } from "../../../../../../shared/components/Toast";
 import { styles } from "../ExamFilingWizard.styles";
 
 interface ExamWizardModalsProps {
@@ -17,13 +19,16 @@ interface ExamWizardModalsProps {
   bulkErrors: Record<string, string>;
   bulkTouched: Record<string, boolean>;
   isSubmitting: boolean;
-  handleBulkFinalSubmit: () => Promise<void>;
+  setIsSubmitting: (submitting: boolean) => void;
+  validateBulkSubmit: () => boolean;
+  submitApplicationPayload: (isDraft?: boolean) => Promise<void>;
+  onSuccess: () => void;
   isConfirmModalOpen: boolean;
   setIsConfirmModalOpen: (open: boolean) => void;
   appMode: "SINGLE" | "BULK" | "";
   applicantsCount: number;
-  handleFinalSubmit: () => Promise<void>;
   handleConfirmApplicantInBulk: () => void;
+  onSaveDraft?: () => Promise<boolean | void> | void;
 }
 
 export function ExamWizardModals({
@@ -39,14 +44,96 @@ export function ExamWizardModals({
   bulkErrors,
   bulkTouched,
   isSubmitting,
-  handleBulkFinalSubmit,
+  setIsSubmitting,
+  validateBulkSubmit,
+  submitApplicationPayload,
+  onSuccess,
   isConfirmModalOpen,
   setIsConfirmModalOpen,
   appMode,
   applicantsCount,
-  handleFinalSubmit,
   handleConfirmApplicantInBulk,
+  onSaveDraft,
 }: ExamWizardModalsProps) {
+  const toast = useToast();
+  const [isFailureModalOpen, setIsFailureModalOpen] = useState(false);
+  const [failureErrorMessage, setFailureErrorMessage] = useState("");
+  const [isRetrying, setIsRetrying] = useState(false);
+  const [isSavingDraftState, setIsSavingDraftState] = useState(false);
+  const [lastSubmissionType, setLastSubmissionType] = useState<"single" | "bulk">("single");
+
+  const executeSubmission = async (isBulk = false) => {
+    setIsSubmitting(true);
+    setIsRetrying(true);
+    setLastSubmissionType(isBulk ? "bulk" : "single");
+    try {
+      await submitApplicationPayload(false);
+      setIsFailureModalOpen(false);
+      if (isBulk) {
+        setIsBulkSubmitOpen(false);
+        toast.success(
+          "Applications Submitted",
+          "Your bulk radio operator exam applications have been submitted successfully."
+        );
+      } else {
+        toast.success(
+          "Application Submitted",
+          "Your radio operator exam application has been received and is now under review."
+        );
+      }
+      onSuccess();
+    } catch (err: unknown) {
+      console.error("Exam application submission failed:", err);
+      const msg =
+        err instanceof Error && err.message.length > 0
+          ? err.message
+          : "Failed to submit exam application. Please try again.";
+      setFailureErrorMessage(msg);
+      setIsFailureModalOpen(true);
+      toast.error("Submission Incomplete", msg);
+    } finally {
+      setIsSubmitting(false);
+      setIsRetrying(false);
+    }
+  };
+
+  const handleBulkFinalSubmit = async () => {
+    if (!validateBulkSubmit()) return;
+    await executeSubmission(true);
+  };
+
+  const handleSingleFinalSubmit = async () => {
+    await executeSubmission(false);
+  };
+
+  const handleRetry = async () => {
+    await executeSubmission(lastSubmissionType === "bulk");
+  };
+
+  const handleSaveDraftAction = async () => {
+    setIsSavingDraftState(true);
+    try {
+      if (onSaveDraft) {
+        await onSaveDraft();
+      } else {
+        await submitApplicationPayload(true);
+      }
+      setIsFailureModalOpen(false);
+      toast.success(
+        "Draft Saved",
+        "Your exam application progress has been saved as a draft."
+      );
+    } catch (draftErr: unknown) {
+      const draftMsg =
+        draftErr instanceof Error && draftErr.message.length > 0
+          ? draftErr.message
+          : "Failed to save draft. Please check your connection.";
+      toast.error("Draft Save Failed", draftMsg);
+    } finally {
+      setIsSavingDraftState(false);
+    }
+  };
+
   return (
     <>
       {/* CSV Import Preview Modal */}
@@ -164,7 +251,7 @@ export function ExamWizardModals({
                   if (appMode === "BULK") {
                     handleConfirmApplicantInBulk();
                   } else {
-                    handleFinalSubmit();
+                    handleSingleFinalSubmit();
                   }
                 }}
                 style={[styles.btnPrimary, styles.btnPrimaryActive]}
@@ -177,6 +264,18 @@ export function ExamWizardModals({
           </View>
         </View>
       </Modal>
+
+      {/* Submission Failure Modal */}
+      <SubmissionFailureModal
+        visible={isFailureModalOpen}
+        errorMessage={failureErrorMessage}
+        onRetry={handleRetry}
+        onSaveDraft={handleSaveDraftAction}
+        onClose={() => setIsFailureModalOpen(false)}
+        isRetrying={isRetrying}
+        isSavingDraft={isSavingDraftState}
+      />
     </>
   );
 }
+

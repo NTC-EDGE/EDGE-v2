@@ -17,24 +17,25 @@ public class GetServiceVariantRequirementsQueryHandler(IServiceVariantRequiremen
     {
         var list = await repository.GetByServiceVariantIdAsync(request.ServiceVariantId, cancellationToken);
 
-        var dtos = list.Select(svr => new ServiceVariantRequirementDto
-        {
-            Id = svr.Id,
-            RequirementId = svr.RequirementId,
-            Requirement = svr.Requirement != null ? new RequirementDto
+        var dtos = list
+            .OrderBy(svr => svr.CreatedAt)
+            .Select(svr => new ServiceVariantRequirementDto
             {
-                Id = svr.Requirement.Id,
-                Name = svr.Requirement.Name,
-                Description = svr.Requirement.Description
-            } : null,
-            ServiceVariantId = svr.ServiceVariantId,
-            ServiceVariantType = svr.ServiceVariant?.Type.ToString(),
-            ServiceName = svr.ServiceVariant?.Service?.Name,
-            ServiceCode = svr.ServiceVariant?.Service?.Code,
-            ContextKey = svr.ContextKey,
-
-            IsRequired = svr.IsRequired
-        }).ToList();
+                Id = svr.Id,
+                TenantId = svr.TenantId,
+                RequirementId = svr.RequirementId,
+                Requirement = svr.Requirement != null ? new RequirementDto
+                {
+                    Id = svr.Requirement.Id,
+                    Name = svr.Requirement.Name,
+                    Description = svr.Requirement.Description
+                } : null,
+                ServiceVariantId = svr.ServiceVariantId,
+                ServiceVariantType = svr.ServiceVariant?.Type.ToString(),
+                ServiceName = svr.ServiceVariant?.Service?.Name,
+                ServiceCode = svr.ServiceVariant?.Service?.Code,
+                IsRequired = svr.IsRequired
+            }).ToList();
 
         return ApiResponse<List<ServiceVariantRequirementDto>>.Success(dtos);
     }

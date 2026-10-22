@@ -3,7 +3,10 @@ using FluentValidation;
 using EDGE.Application.ServiceVariants.Commands.CreateServiceVariant;
 using EDGE.Application.ServiceVariants.Commands.UpdateServiceVariant;
 using EDGE.Application.ServiceVariants.Commands.DeleteServiceVariant;
+using EDGE.Application.ServiceVariants.Commands.SetServiceVariantFormula;
 using EDGE.Application.ServiceVariants.Queries.GetServiceVariantById;
+using EDGE.Application.ServiceVariants.Queries.GetServiceVariantFormula;
+using EDGE.Application.ServiceVariants.DTOs;
 using EDGE.Application.Services.Queries.GetServiceVariants;
 using EDGE.Application.Services.Dtos;
 using EDGE.Application.Common.Models;
@@ -14,6 +17,7 @@ namespace EDGE.Api.Endpoints;
 
 public record CreateServiceVariantRequest(Guid ServiceId, string Type, string? Description);
 public record UpdateServiceVariantRequest(Guid ServiceId, string Type, string? Description);
+public record SetServiceVariantFormulaRequest(string FormulaExpression, string? Description, bool ApplyLateRenewalSurcharge);
 
 public static class ServiceVariantEndpoints
 {
@@ -34,6 +38,21 @@ public static class ServiceVariantEndpoints
             .WithDescription("Retrieves details of a specific service variant by its ID.")
             .Produces<ApiResponse<ServiceVariantDto>>(StatusCodes.Status200OK)
             .Produces<ApiResponse<ServiceVariantDto>>(StatusCodes.Status404NotFound);
+
+        variants.MapGet("/{id:guid}/formula", GetServiceVariantFormula)
+            .WithName("GetServiceVariantFormula")
+            .WithSummary("Get statutory formula for service variant")
+            .WithDescription("Retrieves the statutory formula and surcharge settings for a specific service variant.")
+            .Produces<ApiResponse<ServiceVariantFormulaDto>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest);
+
+        variants.MapPut("/{id:guid}/formula", SetServiceVariantFormula)
+            .WithName("SetServiceVariantFormula")
+            .WithSummary("Set statutory formula for service variant")
+            .WithDescription("Atomically creates or updates the statutory calculation formula for a service variant.")
+            .Produces<ApiResponse<bool>>(StatusCodes.Status200OK)
+            .Produces<HttpValidationProblemDetails>(StatusCodes.Status400BadRequest)
+            .Produces<ApiResponse<bool>>(StatusCodes.Status404NotFound);
 
         variants.MapPost("/", CreateServiceVariant)
             .WithName("CreateServiceVariant")
@@ -142,6 +161,47 @@ public static class ServiceVariantEndpoints
 
         var result = await mediator.Send(command);
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> GetServiceVariantFormula(
+        Guid id,
+        IValidator<GetServiceVariantFormulaQuery> validator,
+        IMediator mediator)
+    {
+        var query = new GetServiceVariantFormulaQuery(id);
+        var validationResult = await validator.ValidateAsync(query);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(query);
+        return Results.Ok(result);
+    }
+
+    [HasPermission(Permissions.SystemAdmin)]
+    public static async Task<IResult> SetServiceVariantFormula(
+        Guid id,
+        SetServiceVariantFormulaRequest request,
+        IValidator<SetServiceVariantFormulaCommand> validator,
+        IMediator mediator)
+    {
+        var command = new SetServiceVariantFormulaCommand(
+            id,
+            request.FormulaExpression,
+            request.Description,
+            request.ApplyLateRenewalSurcharge
+        );
+
+        var validationResult = await validator.ValidateAsync(command);
+        if (!validationResult.IsValid)
+        {
+            return Results.ValidationProblem(validationResult.ToDictionary());
+        }
+
+        var result = await mediator.Send(command);
+        return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
     [HasPermission(Permissions.SystemAdmin)]

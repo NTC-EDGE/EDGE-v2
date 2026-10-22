@@ -1,0 +1,123 @@
+import { StyleSheet, Platform } from 'react-native';
+import { SPACING, TYPOGRAPHY } from '@edge/ui';
+
+export const modalStyles = StyleSheet.create({
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: SPACING[16],
+  },
+  modalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    height: '92%',
+    maxHeight: '94%',
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    display: 'flex',
+    flexDirection: 'column',
+    ...Platform.select({
+      web: {
+        boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+      },
+    }),
+  },
+  modalBody: {
+    flex: 1,
+    minHeight: 500,
+    backgroundColor: '#FFFFFF',
+  },
+  modalBodyContent: {
+    padding: SPACING[16],
+  },
+  paperContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: SPACING[20],
+  },
+  republicHeader: {
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  republicTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#64748B',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+  },
+  agencyTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 15,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#0F172A',
+    letterSpacing: 0.5,
+    marginTop: 2,
+  },
+  officeTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 12,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#0284C7',
+    marginTop: 2,
+  },
+  footerNoteContainer: {
+    marginTop: 12,
+    paddingTop: 8,
+    borderTopWidth: 0.8,
+    borderTopColor: '#E2E8F0',
+    alignItems: 'center',
+  },
+  footerNoteText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 9,
+    color: '#94A3B8',
+    textAlign: 'center',
+  },
+  modalFooter: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+    paddingHorizontal: SPACING[20],
+    paddingVertical: SPACING[12],
+    borderTopWidth: 1,
+    borderTopColor: '#E2E8F0',
+    backgroundColor: '#FFFFFF',
+    gap: 10,
+  },
+  secondaryBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#CBD5E1',
+    backgroundColor: '#FFFFFF',
+  },
+  secondaryBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.semibold,
+    color: '#475569',
+  },
+  primaryPayBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#0284C7',
+    paddingVertical: 9,
+    paddingHorizontal: 18,
+    borderRadius: 8,
+  },
+  primaryPayBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    color: '#FFFFFF',
+  },
+});

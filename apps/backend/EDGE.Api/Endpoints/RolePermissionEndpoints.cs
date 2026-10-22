@@ -82,7 +82,7 @@ public static class RolePermissionEndpoints
         return success ? Results.Ok(new { Message = "Permission revoked successfully." }) : Results.NotFound("Mapping not found.");
     }
 
-    [HasPermission(Permissions.AssignRolePermissions)]
+    [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> ResetRolePermissions([FromServices] ApplicationDbContext context)
     {
         await RolePermissionDataSeeder.SeedAsync(context, forceResetPermissions: true);
