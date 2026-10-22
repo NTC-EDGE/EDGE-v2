@@ -529,11 +529,25 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         placeholder: "State briefly the reason and details for mandatory tape preservation...",
       };
     }
+    if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && (fIdLower.includes("callsign") || labelLower.includes("call sign"))) {
+      fieldToRender = {
+        ...fieldToRender,
+        label: "Call Sign",
+        placeholder: fieldToRender.placeholder || "e.g. DU1ABC, 4D1XYZ (if existing)",
+      };
+    }
+    if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && (fIdLower === "frequency" || labelLower.includes("frequency"))) {
+      fieldToRender = {
+        ...fieldToRender,
+        label: "Frequency(ies)",
+        placeholder: fieldToRender.placeholder || "e.g. Within Authorized Amateur Band / 144.000 - 146.000 MHz",
+      };
+    }
 
     const isFieldRequired = fieldToRender.isRequired ?? false;
 
     const isAmateurPurchaseParticulars =
-      flags.isAmateurPurchasePossessVariant &&
+      (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) &&
       (fIdLower.includes("particular") ||
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
@@ -730,7 +744,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       if (k === "broadcast_details" || t.includes("broadcast")) return false;
     }
 
-    if (flags.isAmateurPurchasePossessVariant) {
+    if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) {
       const isStationEquipmentSec =
         k === "stationequipment" ||
         k.includes("station") ||
@@ -806,7 +820,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               }
             }
 
-            if (flags.isAmateurPurchasePossessVariant) {
+            if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) {
               const secKey = (section.key || section.id || "").toLowerCase();
               const secTitle = (section.title || "").toLowerCase();
               const isStationSec =
@@ -819,7 +833,16 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                   rawTargetId.includes("particular") ||
                   labelLower.includes("particular") ||
                   rawTargetId === "fd000000-0000-0000-0000-000000000340";
-                if (!isParticulars) {
+                const isCallSign =
+                  rawTargetId.includes("callsign") ||
+                  rawTargetId.includes("call_sign") ||
+                  labelLower.includes("call sign") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000028";
+                const isFrequency =
+                  rawTargetId.includes("frequency") ||
+                  labelLower.includes("frequency") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000103";
+                if (!isParticulars && !isCallSign && !isFrequency) {
                   return false;
                 }
               }
@@ -828,6 +851,28 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             return true;
           })
           .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));
+
+        const secKey = (section.key || section.id || "").toLowerCase();
+        const secTitle = (section.title || "").toLowerCase();
+        const isStationEquipmentSec =
+          secKey.includes("station") ||
+          secTitle.includes("station") ||
+          secKey.includes("particular") ||
+          secTitle.includes("particular");
+
+        if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              if (id.includes("callsign") || id.includes("call_sign") || lbl.includes("call sign") || id === "fd000000-0000-0000-0000-000000000028") return 1;
+              if (id.includes("frequency") || lbl.includes("frequency") || id === "fd000000-0000-0000-0000-000000000103") return 2;
+              if (id.includes("particular") || lbl.includes("particular") || id === "fd000000-0000-0000-0000-000000000340") return 3;
+              return 4;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
 
         if (visibleFields.length === 0) return null;
 
