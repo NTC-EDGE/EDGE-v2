@@ -235,7 +235,9 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
   if (idLower === "technicianexpirydate" || labelLower.includes("certificate/number date of expiry") || (labelLower.includes("expiry") && defaultIndex > 2)) return 95;
 
   // Station / Equipment fields
-  if (idLower === "callsign" || labelLower.includes("call sign")) return 201;
+  if (idLower === "noofyears" || idLower === "no_of_years" || labelLower.includes("number of years") || labelLower.includes("no. of years")) return 200.5;
+  if (idLower === "preferredcallsign" || idLower === "preferred_call_sign" || labelLower.includes("preferred call sign") || labelLower.includes("preferred")) return 201;
+  if ((idLower === "callsign" || labelLower.includes("call sign")) && !idLower.includes("preferred") && !labelLower.includes("preferred")) return 201.5;
   if (idLower === "servicearea" || labelLower.includes("points of comm") || labelLower.includes("service area")) return 202;
   if (idLower === "frequency" || labelLower.includes("frequency: within") || labelLower === "frequency") return 203;
   if (idLower === "bandwidth" || labelLower === "bandwidth") return 204;

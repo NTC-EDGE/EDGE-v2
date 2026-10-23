@@ -3,7 +3,11 @@ import { View, Text } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
-import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS, DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
+import {
+  DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS,
+} from "./form-repeater/formRepeaterColumns";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
@@ -413,6 +417,10 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       fIdLower === "frequencyunit" ||
       fIdLower === "unit" ||
       labelLower === "unit" ||
+      fIdLower === "noofyears" ||
+      fIdLower === "no_of_years" ||
+      labelLower.includes("number of years") ||
+      labelLower.includes("no. of years") ||
       fIdLower === "sex" ||
       fIdLower === "stationclass" ||
       isActionRequestedField ||
@@ -503,6 +511,20 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     else if (fIdLower === "bandwidthunit" || fIdLower === "unit" || labelLower === "unit" || labelLower.includes("bandwidth unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "stationclass" || labelLower.includes("station class") || labelLower.includes("class of station")) {
       dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "FA", value: "FA" }, { label: "MA", value: "MA" }, { label: "Others", value: "Others" }];
+    }
+    else if (fIdLower === "noofyears" || fIdLower === "no_of_years" || labelLower.includes("number of years") || labelLower.includes("no. of years")) {
+      dropdownOptions = flags.isVanity
+        ? [
+            { label: "1 Year", value: "1" },
+            { label: "2 Years", value: "2" },
+            { label: "3 Years", value: "3" },
+          ]
+        : [
+            { label: "1 Year", value: "1" },
+            { label: "2 Years", value: "2" },
+            { label: "3 Years", value: "3" },
+            { label: "5 Years", value: "5" },
+          ];
     }
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
@@ -596,6 +618,37 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         };
       }
     }
+    if (flags.isVanity) {
+      const isPref =
+        fIdLower.includes("preferred") ||
+        labelLower.includes("preferred") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000261";
+      const isDirectCallSign =
+        fIdLower === "callsign" ||
+        fIdLower === "call_sign" ||
+        labelLower === "call sign" ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000028";
+      if (
+        fIdLower.includes("noofyears") ||
+        fIdLower.includes("no_of_years") ||
+        labelLower.includes("number of years") ||
+        labelLower.includes("no. of years") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000201"
+      ) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "No. of Years",
+          isRequired: true,
+        };
+      } else if (isPref || isDirectCallSign) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Preferred Call Sign",
+          isRequired: true,
+          placeholder: fieldToRender.placeholder || "e.g. 4F1AAA, DU1VANITY",
+        };
+      }
+    }
 
     const isFieldRequired = fieldToRender.isRequired ?? false;
 
@@ -611,15 +664,25 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
 
+    const isAmateurVanityParticulars =
+      flags.isVanity &&
+      (fIdLower.includes("particular") ||
+        labelLower.includes("particular") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000340");
+
     const customRepeaterColumns = isAmateurPurchaseParticulars
       ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
       : isAmateurSellTransferParticulars
       ? DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS
+      : isAmateurVanityParticulars
+      ? DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS
       : undefined;
 
     const customAddButtonLabel =
       isAmateurPurchaseParticulars || isAmateurSellTransferParticulars
         ? "Add Station / Class Particulars"
+        : isAmateurVanityParticulars
+        ? "Add Equipment"
         : undefined;
 
     return (
@@ -797,7 +860,18 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       if (k === "broadcast_details" || t.includes("broadcast")) return false;
     }
 
-    if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant || flags.isAmateurStorageVariant) {
+    if (flags.isVanity) {
+      const isStationEquipmentSec =
+        k === "stationequipment" ||
+        k.includes("station") ||
+        t.includes("station") ||
+        k.includes("particular") ||
+        t.includes("particular");
+
+      if (!isStationEquipmentSec) {
+        return false;
+      }
+    } else if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant || flags.isAmateurStorageVariant) {
       const isStationEquipmentSec =
         k === "stationequipment" ||
         k.includes("station") ||
@@ -954,6 +1028,54 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               }
             }
 
+            if (flags.isVanity) {
+              const secKey = (section.key || section.id || "").toLowerCase();
+              const secTitle = (section.title || "").toLowerCase();
+              const isStationSec =
+                secKey.includes("station") ||
+                secTitle.includes("station") ||
+                secKey.includes("particular") ||
+                secTitle.includes("particular");
+              if (isStationSec) {
+                const hasExplicitPreferred = section.fields.some((f) => {
+                  const fid = (f.fieldId || f.id || "").toLowerCase();
+                  const flbl = (f.label || "").toLowerCase();
+                  return (
+                    fid.includes("preferred") ||
+                    flbl.includes("preferred") ||
+                    fid === "fd000000-0000-0000-0000-000000000261"
+                  );
+                });
+
+                const isPreferred =
+                  rawTargetId.includes("preferred") ||
+                  labelLower.includes("preferred") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000261";
+                const isNoOfYears =
+                  rawTargetId.includes("noofyears") ||
+                  rawTargetId.includes("no_of_years") ||
+                  labelLower.includes("number of years") ||
+                  labelLower.includes("no. of years") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000201";
+                const isParticulars =
+                  rawTargetId.includes("particular") ||
+                  labelLower.includes("particular") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000340";
+                const isCallSignFallback =
+                  !hasExplicitPreferred &&
+                  (rawTargetId === "callsign" ||
+                    rawTargetId === "call_sign" ||
+                    labelLower === "call sign" ||
+                    rawTargetId === "fd000000-0000-0000-0000-000000000028" ||
+                    (rawTargetId.includes("callsign") && !rawTargetId.includes("preferred")) ||
+                    (labelLower.includes("call sign") && !labelLower.includes("preferred")));
+
+                if (!isNoOfYears && !isPreferred && !isCallSignFallback && !isParticulars) {
+                  return false;
+                }
+              }
+            }
+
             return true;
           })
           .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));
@@ -1000,6 +1122,44 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
           });
         }
 
+        if (flags.isVanity && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              const isPreferred =
+                id.includes("preferred") ||
+                lbl.includes("preferred") ||
+                id === "fd000000-0000-0000-0000-000000000261" ||
+                id === "callsign" ||
+                id === "call_sign" ||
+                lbl === "call sign" ||
+                id === "fd000000-0000-0000-0000-000000000028";
+              if (
+                id.includes("noofyears") ||
+                id.includes("no_of_years") ||
+                lbl.includes("number of years") ||
+                lbl.includes("no. of years") ||
+                id === "fd000000-0000-0000-0000-000000000201"
+              ) {
+                return 1;
+              }
+              if (isPreferred) {
+                return 2;
+              }
+              if (
+                id.includes("particular") ||
+                lbl.includes("particular") ||
+                id === "fd000000-0000-0000-0000-000000000340"
+              ) {
+                return 3;
+              }
+              return 4;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
+
         if (visibleFields.length === 0) return null;
 
         const sectionDisplayNum = sIdx + 1;
@@ -1012,6 +1172,9 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         }
         if (flags.isAmateurStorageVariant && isStationEquipmentSec) {
           displaySectionTitle = "Station/Equipment";
+        }
+        if (flags.isVanity && isStationEquipmentSec) {
+          displaySectionTitle = "Particulars";
         }
 
         return (

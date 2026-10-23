@@ -221,4 +221,184 @@ describe("Amateur Permit Purchase/Possess Form Fields & Ordering", () => {
       expect(visibleFields[8]?.label).toBe("Particulars");
     });
   });
+
+  describe("Special Permit for Use of Vanity Call Sign", () => {
+    it("buildFormVariantFlags correctly flags Special Permit for Use of Vanity Call Sign", () => {
+      const flags = buildFormVariantFlags(
+        "Permits",
+        "PERMITS IN THE AMATEUR SERVICE",
+        "var-am-vanity-new",
+        [
+          {
+            id: "var-am-vanity-new",
+            name: "Special Permit for Use of Vanity Call Sign",
+            description: "Special Permit for Use of Vanity Call Sign",
+            type: "New",
+            fee: 1000,
+          },
+        ]
+      );
+
+      expect(flags.isAmateurPermitService).toBe(true);
+      expect(flags.isVanity).toBe(true);
+      expect(flags.isVanityNew).toBe(true);
+      expect(flags.isVanityOrSpecialEvent).toBe(true);
+      expect(flags.showNumberOfYears).toBe(true);
+    });
+
+    it("filters station section fields retaining only No. of Years, Preferred Call Sign, and Particulars (dropping redundant regular Call Sign)", () => {
+      const rawFields: FieldDto[] = [
+        { id: "fd000000-0000-0000-0000-000000000028", label: "Call Sign", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000201", label: "No. of Years", fieldType: "dropdown" },
+        { id: "fd000000-0000-0000-0000-000000000261", label: "Preferred Call Sign", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000102", label: "Points of Comm/Service Area", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000103", label: "Frequency", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000104", label: "Bandwidth", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000260", label: "Unit", fieldType: "select" },
+        { id: "fd000000-0000-0000-0000-000000000105", label: "Emission", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000106", label: "Power Output (watts)", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000107", label: "Hours of Operation", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000340", label: "Particulars", fieldType: "repeater" },
+      ];
+
+      const hasExplicitPreferred = rawFields.some((f) => {
+        const fid = (f.fieldId || f.id || "").toLowerCase();
+        const flbl = (f.label || "").toLowerCase();
+        return (
+          fid.includes("preferred") ||
+          flbl.includes("preferred") ||
+          fid === "fd000000-0000-0000-0000-000000000261"
+        );
+      });
+
+      const filtered = rawFields.filter((f) => {
+        const rawTargetId = (f.fieldId || f.id || "").toLowerCase();
+        const labelLower = (f.label || "").toLowerCase();
+
+        const isPreferred =
+          rawTargetId.includes("preferred") ||
+          labelLower.includes("preferred") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000261";
+        const isNoOfYears =
+          rawTargetId.includes("noofyears") ||
+          rawTargetId.includes("no_of_years") ||
+          labelLower.includes("number of years") ||
+          labelLower.includes("no. of years") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000201";
+        const isParticulars =
+          rawTargetId.includes("particular") ||
+          labelLower.includes("particular") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000340";
+        const isCallSignFallback =
+          !hasExplicitPreferred &&
+          (rawTargetId === "callsign" ||
+            rawTargetId === "call_sign" ||
+            labelLower === "call sign" ||
+            rawTargetId === "fd000000-0000-0000-0000-000000000028");
+
+        return isNoOfYears || isPreferred || isCallSignFallback || isParticulars;
+      });
+
+      expect(filtered.length).toBe(3);
+      expect(filtered.map((f) => f.label)).toEqual([
+        "No. of Years",
+        "Preferred Call Sign",
+        "Particulars",
+      ]);
+    });
+
+    it("falls back to Call Sign as Preferred Call Sign when explicit Preferred Call Sign is absent", () => {
+      const rawFields: FieldDto[] = [
+        { id: "fd000000-0000-0000-0000-000000000028", label: "Call Sign", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000201", label: "No. of Years", fieldType: "dropdown" },
+        { id: "fd000000-0000-0000-0000-000000000340", label: "Particulars", fieldType: "repeater" },
+      ];
+
+      const hasExplicitPreferred = rawFields.some((f) => {
+        const fid = (f.fieldId || f.id || "").toLowerCase();
+        const flbl = (f.label || "").toLowerCase();
+        return (
+          fid.includes("preferred") ||
+          flbl.includes("preferred") ||
+          fid === "fd000000-0000-0000-0000-000000000261"
+        );
+      });
+
+      const filtered = rawFields.filter((f) => {
+        const rawTargetId = (f.fieldId || f.id || "").toLowerCase();
+        const labelLower = (f.label || "").toLowerCase();
+
+        const isPreferred =
+          rawTargetId.includes("preferred") ||
+          labelLower.includes("preferred") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000261";
+        const isNoOfYears =
+          rawTargetId.includes("noofyears") ||
+          rawTargetId.includes("no_of_years") ||
+          labelLower.includes("number of years") ||
+          labelLower.includes("no. of years") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000201";
+        const isParticulars =
+          rawTargetId.includes("particular") ||
+          labelLower.includes("particular") ||
+          rawTargetId === "fd000000-0000-0000-0000-000000000340";
+        const isCallSignFallback =
+          !hasExplicitPreferred &&
+          (rawTargetId === "callsign" ||
+            rawTargetId === "call_sign" ||
+            labelLower === "call sign" ||
+            rawTargetId === "fd000000-0000-0000-0000-000000000028");
+
+        return isNoOfYears || isPreferred || isCallSignFallback || isParticulars;
+      });
+
+      expect(filtered.length).toBe(3);
+      expect(hasExplicitPreferred).toBe(false);
+    });
+
+    it("sorts visibleFields deterministically for Vanity variant: No. of Years, Preferred Call Sign, Particulars", () => {
+      const visibleFields: FieldDto[] = [
+        { id: "fd000000-0000-0000-0000-000000000340", label: "Particulars", fieldType: "repeater" },
+        { id: "fd000000-0000-0000-0000-000000000261", label: "Preferred Call Sign", fieldType: "text" },
+        { id: "fd000000-0000-0000-0000-000000000201", label: "No. of Years", fieldType: "dropdown" },
+      ];
+
+      visibleFields.sort((a, b) => {
+        const getPriority = (f: FieldDto) => {
+          const id = (f.fieldId || f.id || "").toLowerCase();
+          const lbl = (f.label || "").toLowerCase();
+          const isPreferred =
+            id.includes("preferred") ||
+            lbl.includes("preferred") ||
+            id === "fd000000-0000-0000-0000-000000000261";
+          if (
+            id.includes("noofyears") ||
+            id.includes("no_of_years") ||
+            lbl.includes("number of years") ||
+            lbl.includes("no. of years") ||
+            lbl.includes("years") ||
+            id === "fd000000-0000-0000-0000-000000000201"
+          ) {
+            return 1;
+          }
+          if (isPreferred) {
+            return 2;
+          }
+          if (
+            id.includes("particular") ||
+            lbl.includes("particular") ||
+            id === "fd000000-0000-0000-0000-000000000340"
+          ) {
+            return 3;
+          }
+          return 4;
+        };
+        return getPriority(a) - getPriority(b);
+      });
+
+      expect(visibleFields[0]?.label).toBe("No. of Years");
+      expect(visibleFields[1]?.label).toBe("Preferred Call Sign");
+      expect(visibleFields[2]?.label).toBe("Particulars");
+    });
+  });
 });
