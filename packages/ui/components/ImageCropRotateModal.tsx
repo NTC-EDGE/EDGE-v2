@@ -15,6 +15,32 @@ import { Feather as Lucide } from '@expo/vector-icons';
 import { COLORS, TYPOGRAPHY } from '../theme/tokens';
 import { useTheme } from '../theme/useTheme';
 
+import {
+  CropPercent,
+  AspectRatioPreset,
+  DragHandleType,
+  DEFAULT_CROP,
+  FULL_CROP,
+  clamp,
+  calculateNewCrop,
+  computeCropForPreset,
+  nudgeCropInset,
+  nudgeCropExpand,
+} from './imageCropUtils';
+
+export {
+  CropPercent,
+  AspectRatioPreset,
+  DragHandleType,
+  DEFAULT_CROP,
+  FULL_CROP,
+  clamp,
+  calculateNewCrop,
+  computeCropForPreset,
+  nudgeCropInset,
+  nudgeCropExpand,
+};
+
 export interface EditedImageResult {
   uri: string;
   name: string;
@@ -27,8 +53,6 @@ export interface EditedImageResult {
   cropped: boolean;
 }
 
-export type AspectRatioPreset = 'free' | 'doc' | 'card' | '1:1' | 'orig';
-
 export interface ImageCropRotateModalProps {
   visible: boolean;
   imageUri: string | null;
@@ -40,29 +64,51 @@ export interface ImageCropRotateModalProps {
   allowDownload?: boolean;
 }
 
-interface CropPercent {
-  left: number;   // 0 to 100
-  top: number;    // 0 to 100
-  right: number;  // 0 to 100
-  bottom: number; // 0 to 100
+function getEventCoords(e: unknown): { x: number; y: number } {
+  if (typeof e === 'object' && e !== null) {
+    if ('nativeEvent' in e && typeof e.nativeEvent === 'object' && e.nativeEvent !== null) {
+      const ne = e.nativeEvent;
+      if ('touches' in ne && Array.isArray(ne.touches) && ne.touches.length > 0) {
+        const t0 = ne.touches[0];
+        if (typeof t0 === 'object' && t0 !== null) {
+          if ('clientX' in t0 && typeof t0.clientX === 'number' && 'clientY' in t0 && typeof t0.clientY === 'number') {
+            return { x: t0.clientX, y: t0.clientY };
+          }
+          if ('pageX' in t0 && typeof t0.pageX === 'number' && 'pageY' in t0 && typeof t0.pageY === 'number') {
+            return { x: t0.pageX, y: t0.pageY };
+          }
+        }
+      }
+      if ('clientX' in ne && typeof ne.clientX === 'number' && 'clientY' in ne && typeof ne.clientY === 'number') {
+        return { x: ne.clientX, y: ne.clientY };
+      }
+      if ('pageX' in ne && typeof ne.pageX === 'number' && 'pageY' in ne && typeof ne.pageY === 'number') {
+        return { x: ne.pageX, y: ne.pageY };
+      }
+    }
+    if ('clientX' in e && typeof e.clientX === 'number' && 'clientY' in e && typeof e.clientY === 'number') {
+      return { x: e.clientX, y: e.clientY };
+    }
+    if ('pageX' in e && typeof e.pageX === 'number' && 'pageY' in e && typeof e.pageY === 'number') {
+      return { x: e.pageX, y: e.pageY };
+    }
+  }
+  return { x: 0, y: 0 };
 }
 
-const DEFAULT_CROP: CropPercent = {
-  left: 4,
-  top: 4,
-  right: 96,
-  bottom: 96,
-};
-
-const FULL_CROP: CropPercent = {
-  left: 0,
-  top: 0,
-  right: 100,
-  bottom: 100,
-};
-
-function clamp(val: number, min: number, max: number): number {
-  return Math.max(min, Math.min(val, max));
+function getElementBoundingBox(element: unknown): { left: number; top: number; width: number; height: number } | null {
+  if (typeof element !== 'object' || element === null) return null;
+  if ('getBoundingClientRect' in element && typeof element.getBoundingClientRect === 'function') {
+    const rect = element.getBoundingClientRect();
+    if (typeof rect === 'object' && rect !== null) {
+      const left = typeof rect.left === 'number' ? rect.left : 0;
+      const top = typeof rect.top === 'number' ? rect.top : 0;
+      const width = typeof rect.width === 'number' ? rect.width : 0;
+      const height = typeof rect.height === 'number' ? rect.height : 0;
+      return { left, top, width, height };
+    }
+  }
+  return null;
 }
 
 export function ImageCropRotateModal({
@@ -75,8 +121,8 @@ export function ImageCropRotateModal({
   onDownload,
   allowDownload = true,
 }: ImageCropRotateModalProps) {
-  const { isDark, colors } = useTheme();
-  const { width: screenWidth, height: screenHeight } = useWindowDimensions();
+  const { isDark } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const isMobile = screenWidth < 680;
 
   const [rotation, setRotation] = useState<number>(0);
@@ -91,10 +137,12 @@ export function ImageCropRotateModal({
     height: 420,
   });
 
-  // Track dragging state for crop box and handles
+  const viewportRef = useRef<View>(null);
+
+  // Track active drag state for crop box and handles
   const dragRef = useRef<{
     active: boolean;
-    handle: string | null;
+    handle: DragHandleType | null;
     startX: number;
     startY: number;
     startCrop: CropPercent;
@@ -110,7 +158,27 @@ export function ImageCropRotateModal({
     imgDispH: 0,
   });
 
-  // Reset state when a new image or modal visibility changes
+  // Inject web CSS cursor styles on web platforms
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof document === 'undefined') return;
+    const styleId = 'edge-crop-cursors-style';
+    let styleTag = document.getElementById(styleId);
+    if (styleTag === null) {
+      styleTag = document.createElement('style');
+      styleTag.id = styleId;
+      styleTag.textContent = `
+        [data-testid="crop-viewport"] { cursor: crosshair !important; user-select: none !important; -webkit-user-select: none !important; }
+        [data-testid="crop-box"] { cursor: move !important; user-select: none !important; -webkit-user-select: none !important; }
+        [data-testid="crop-handle-tl"], [data-testid="crop-handle-br"] { cursor: nwse-resize !important; }
+        [data-testid="crop-handle-tr"], [data-testid="crop-handle-bl"] { cursor: nesw-resize !important; }
+        [data-testid="crop-handle-t"], [data-testid="crop-handle-b"] { cursor: ns-resize !important; }
+        [data-testid="crop-handle-l"], [data-testid="crop-handle-r"] { cursor: ew-resize !important; }
+      `;
+      document.head.appendChild(styleTag);
+    }
+  }, []);
+
+  // Reset state when modal opens with a new image
   useEffect(() => {
     if (visible && imageUri !== null && imageUri.trim() !== '') {
       setRotation(0);
@@ -186,49 +254,26 @@ export function ImageCropRotateModal({
     setAspectRatio('free');
   };
 
-  const handleApplyPreset = (preset: AspectRatioPreset) => {
-    setAspectRatio(preset);
-    let targetRatio = 0; // width / height
-
-    if (preset === 'doc') {
-      targetRatio = 1 / 1.414; // A4 portrait standard
-    } else if (preset === 'card') {
-      targetRatio = 1.586; // Standard CR80 ID Card
-    } else if (preset === '1:1') {
-      targetRatio = 1.0;
-    } else if (preset === 'orig') {
-      targetRatio = rotNaturalW / rotNaturalH;
-    } else {
-      return; // Free mode, keep current crop
-    }
-
-    // Adjust crop box around center to fit target ratio
-    const currentRotRatio = rotNaturalW / rotNaturalH;
-    let newCropW = 90;
-    let newCropH = 90;
-
-    if (targetRatio > currentRotRatio) {
-      // Wider than image: clamp width to 90%, height shrinks
-      newCropW = 90;
-      newCropH = Math.min(90, (90 * currentRotRatio) / targetRatio);
-    } else {
-      // Taller than image: clamp height to 90%, width shrinks
-      newCropH = 90;
-      newCropW = Math.min(90, (90 * targetRatio) / currentRotRatio);
-    }
-
-    const halfW = newCropW / 2;
-    const halfH = newCropH / 2;
-    setCrop({
-      left: Math.round(50 - halfW),
-      top: Math.round(50 - halfH),
-      right: Math.round(50 + halfW),
-      bottom: Math.round(50 + halfH),
-    });
+  const handleNudgeInset = () => {
+    setAspectRatio('free');
+    setCrop((c) => nudgeCropInset(c));
   };
 
-  // Dragging handlers for interactive mouse and touch
-  const handlePointerDown = (handle: string, clientX: number, clientY: number) => {
+  const handleNudgeExpand = () => {
+    setAspectRatio('free');
+    setCrop((c) => nudgeCropExpand(c));
+  };
+
+  const handleApplyPreset = (preset: AspectRatioPreset) => {
+    setAspectRatio(preset);
+    if (preset === 'free') return;
+    const newCrop = computeCropForPreset(rotNaturalW, rotNaturalH, preset);
+    setCrop(newCrop);
+  };
+
+  // Pointer drag start handler
+  const handlePointerDown = (handle: DragHandleType, clientX: number, clientY: number) => {
+    setAspectRatio('free');
     dragRef.current = {
       active: true,
       handle,
@@ -240,59 +285,150 @@ export function ImageCropRotateModal({
     };
   };
 
+  // Pointer drag move handler
   const handlePointerMove = (clientX: number, clientY: number) => {
-    if (!dragRef.current.active) return;
+    if (!dragRef.current.active || dragRef.current.handle === null) return;
     const { handle, startX, startY, startCrop, imgDispW: w, imgDispH: h } = dragRef.current;
     if (w <= 0 || h <= 0) return;
 
     const deltaXPercent = ((clientX - startX) / w) * 100;
     const deltaYPercent = ((clientY - startY) / h) * 100;
-    const minSize = 10; // Minimum 10% crop box
 
-    if (handle === 'box') {
-      const boxW = startCrop.right - startCrop.left;
-      const boxH = startCrop.bottom - startCrop.top;
-      const newLeft = clamp(startCrop.left + deltaXPercent, 0, 100 - boxW);
-      const newTop = clamp(startCrop.top + deltaYPercent, 0, 100 - boxH);
-      setCrop({
-        left: Math.round(newLeft),
-        top: Math.round(newTop),
-        right: Math.round(newLeft + boxW),
-        bottom: Math.round(newTop + boxH),
-      });
-      return;
-    }
-
-    let nextLeft = startCrop.left;
-    let nextTop = startCrop.top;
-    let nextRight = startCrop.right;
-    let nextBottom = startCrop.bottom;
-
-    if (handle === 'tl' || handle === 'l' || handle === 'bl') {
-      nextLeft = clamp(startCrop.left + deltaXPercent, 0, nextRight - minSize);
-    }
-    if (handle === 'tr' || handle === 'r' || handle === 'br') {
-      nextRight = clamp(startCrop.right + deltaXPercent, nextLeft + minSize, 100);
-    }
-    if (handle === 'tl' || handle === 't' || handle === 'tr') {
-      nextTop = clamp(startCrop.top + deltaYPercent, 0, nextBottom - minSize);
-    }
-    if (handle === 'bl' || handle === 'b' || handle === 'br') {
-      nextBottom = clamp(startCrop.bottom + deltaYPercent, nextTop + minSize, 100);
-    }
-
-    setCrop({
-      left: Math.round(nextLeft),
-      top: Math.round(nextTop),
-      right: Math.round(nextRight),
-      bottom: Math.round(nextBottom),
-    });
+    const newCrop = calculateNewCrop(handle, startCrop, deltaXPercent, deltaYPercent, 6);
+    setCrop(newCrop);
   };
 
+  // Pointer drag end handler
   const handlePointerUp = () => {
     dragRef.current.active = false;
     dragRef.current.handle = null;
   };
+
+  // Viewport background click/drag handler: snaps closest edge or corner and initiates drag
+  const handleViewportPointerDown = (e: unknown) => {
+    const coords = getEventCoords(e);
+    let relX = 0;
+    let relY = 0;
+
+    const rect = getElementBoundingBox(viewportRef.current);
+    if (rect !== null) {
+      relX = coords.x - rect.left;
+      relY = coords.y - rect.top;
+    } else if (typeof e === 'object' && e !== null && 'nativeEvent' in e) {
+      const ne = e.nativeEvent;
+      if (typeof ne === 'object' && ne !== null) {
+        if ('locationX' in ne && typeof ne.locationX === 'number') {
+          relX = ne.locationX;
+        }
+        if ('locationY' in ne && typeof ne.locationY === 'number') {
+          relY = ne.locationY;
+        }
+      }
+    }
+
+    if (imgDispW <= 0 || imgDispH <= 0) return;
+
+    const imgX = relX - offsetX;
+    const imgY = relY - offsetY;
+    const clickPctX = clamp((imgX / imgDispW) * 100, 0, 100);
+    const clickPctY = clamp((imgY / imgDispH) * 100, 0, 100);
+
+    setAspectRatio('free');
+
+    let newCrop = { ...crop };
+    let targetHandle: DragHandleType = 'box';
+
+    const isLeft = clickPctX < crop.left;
+    const isRight = clickPctX > crop.right;
+    const isTop = clickPctY < crop.top;
+    const isBottom = clickPctY > crop.bottom;
+
+    if (isTop && isLeft) {
+      newCrop = { ...newCrop, left: clickPctX, top: clickPctY };
+      targetHandle = 'tl';
+    } else if (isTop && isRight) {
+      newCrop = { ...newCrop, right: clickPctX, top: clickPctY };
+      targetHandle = 'tr';
+    } else if (isBottom && isLeft) {
+      newCrop = { ...newCrop, left: clickPctX, bottom: clickPctY };
+      targetHandle = 'bl';
+    } else if (isBottom && isRight) {
+      newCrop = { ...newCrop, right: clickPctX, bottom: clickPctY };
+      targetHandle = 'br';
+    } else if (isTop) {
+      newCrop = { ...newCrop, top: clickPctY };
+      targetHandle = 't';
+    } else if (isBottom) {
+      newCrop = { ...newCrop, bottom: clickPctY };
+      targetHandle = 'b';
+    } else if (isLeft) {
+      newCrop = { ...newCrop, left: clickPctX };
+      targetHandle = 'l';
+    } else if (isRight) {
+      newCrop = { ...newCrop, right: clickPctX };
+      targetHandle = 'r';
+    } else {
+      targetHandle = 'box';
+    }
+
+    setCrop(newCrop);
+    dragRef.current = {
+      active: true,
+      handle: targetHandle,
+      startX: coords.x,
+      startY: coords.y,
+      startCrop: newCrop,
+      imgDispW,
+      imgDispH,
+    };
+  };
+
+  // Window global listeners for web to ensure smooth dragging across entire window
+  useEffect(() => {
+    if (Platform.OS !== 'web' || typeof window === 'undefined') {
+      return;
+    }
+
+    const onWindowMouseMove = (e: MouseEvent) => {
+      if (!dragRef.current.active) return;
+      e.preventDefault();
+      handlePointerMove(e.clientX, e.clientY);
+    };
+
+    const onWindowMouseUp = () => {
+      if (dragRef.current.active) {
+        handlePointerUp();
+      }
+    };
+
+    const onWindowTouchMove = (e: TouchEvent) => {
+      if (!dragRef.current.active) return;
+      if (e.touches.length > 0) {
+        const touch = e.touches[0];
+        if (touch !== undefined) {
+          handlePointerMove(touch.clientX, touch.clientY);
+        }
+      }
+    };
+
+    const onWindowTouchEnd = () => {
+      if (dragRef.current.active) {
+        handlePointerUp();
+      }
+    };
+
+    window.addEventListener('mousemove', onWindowMouseMove);
+    window.addEventListener('mouseup', onWindowMouseUp);
+    window.addEventListener('touchmove', onWindowTouchMove);
+    window.addEventListener('touchend', onWindowTouchEnd);
+
+    return () => {
+      window.removeEventListener('mousemove', onWindowMouseMove);
+      window.removeEventListener('mouseup', onWindowMouseUp);
+      window.removeEventListener('touchmove', onWindowTouchMove);
+      window.removeEventListener('touchend', onWindowTouchEnd);
+    };
+  }, []);
 
   // Offscreen Canvas Export Processing
   const processCanvasExport = useCallback(async (): Promise<EditedImageResult | null> => {
@@ -422,14 +558,15 @@ export function ImageCropRotateModal({
         style={styles.backdrop}
         onStartShouldSetResponder={() => true}
         onResponderMove={(e) => {
-          handlePointerMove(e.nativeEvent.pageX, e.nativeEvent.pageY);
+          const coords = getEventCoords(e);
+          handlePointerMove(coords.x, coords.y);
         }}
         onResponderRelease={handlePointerUp}
       >
         <View
           style={[
             styles.modalContainer,
-            { maxWidth: isMobile ? '98%' : 920, maxHeight: isMobile ? '98%' : '92%' },
+            { maxWidth: isMobile ? '98%' : 940, maxHeight: isMobile ? '98%' : '92%' },
             isDark ? { backgroundColor: '#0B1120', borderColor: '#1E293B' } : { backgroundColor: '#0F172A', borderColor: '#334155' },
           ]}
         >
@@ -442,7 +579,7 @@ export function ImageCropRotateModal({
               <View style={{ flex: 1 }}>
                 <Text style={styles.headerTitle}>{title}</Text>
                 <Text style={styles.headerSubtitle} numberOfLines={1}>
-                  {fileName} · Rotate, crop borders, and align document
+                  {fileName} · Drag handles freely, rotate, or align borders
                 </Text>
               </View>
             </View>
@@ -456,21 +593,21 @@ export function ImageCropRotateModal({
             </TouchableOpacity>
           </View>
 
-          {/* Quick Toolbar: Aspect ratio presets & rotation buttons */}
+          {/* Quick Toolbar: Presets, Rotation & Nudge Controls */}
           <View style={styles.toolbar}>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.toolbarScroll}
             >
-              {/* Rotation buttons */}
+              {/* Rotation & Flip Buttons */}
               <TouchableOpacity
                 onPress={handleRotateCCW}
                 style={styles.toolBtn}
                 activeOpacity={0.7}
                 accessibilityLabel="Rotate 90 degrees counter-clockwise"
               >
-                <Lucide name="rotate-ccw" size={15} color="#E2E8F0" />
+                <Lucide name="rotate-ccw" size={14} color="#E2E8F0" />
                 <Text style={styles.toolBtnText}>90° Left</Text>
               </TouchableOpacity>
 
@@ -480,7 +617,7 @@ export function ImageCropRotateModal({
                 activeOpacity={0.7}
                 accessibilityLabel="Rotate 90 degrees clockwise"
               >
-                <Lucide name="rotate-cw" size={15} color="#E2E8F0" />
+                <Lucide name="rotate-cw" size={14} color="#E2E8F0" />
                 <Text style={styles.toolBtnText}>90° Right</Text>
               </TouchableOpacity>
 
@@ -490,7 +627,7 @@ export function ImageCropRotateModal({
                 activeOpacity={0.7}
                 accessibilityLabel="Flip horizontally"
               >
-                <Lucide name="repeat" size={15} color={flipHorizontal ? '#38BDF8' : '#E2E8F0'} />
+                <Lucide name="repeat" size={14} color={flipHorizontal ? '#38BDF8' : '#E2E8F0'} />
                 <Text style={[styles.toolBtnText, flipHorizontal && { color: '#38BDF8' }]}>Flip</Text>
               </TouchableOpacity>
 
@@ -502,7 +639,7 @@ export function ImageCropRotateModal({
                 style={[styles.toolBtn, aspectRatio === 'free' && styles.toolBtnActive]}
                 activeOpacity={0.7}
               >
-                <Text style={[styles.toolBtnText, aspectRatio === 'free' && { color: '#38BDF8' }]}>Free</Text>
+                <Text style={[styles.toolBtnText, aspectRatio === 'free' && { color: '#38BDF8' }]}>Free Crop</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
@@ -531,12 +668,34 @@ export function ImageCropRotateModal({
                 <Text style={[styles.toolBtnText, aspectRatio === '1:1' && { color: '#38BDF8' }]}>1:1</Text>
               </TouchableOpacity>
 
+              <View style={styles.toolDivider} />
+
+              {/* Nudge Inset & Expand */}
+              <TouchableOpacity
+                onPress={handleNudgeInset}
+                style={styles.toolBtn}
+                activeOpacity={0.7}
+                accessibilityLabel="Inset crop box slightly"
+              >
+                <Lucide name="minimize-2" size={13} color="#94A3B8" />
+                <Text style={styles.toolBtnText}>+ Inset</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleNudgeExpand}
+                style={styles.toolBtn}
+                activeOpacity={0.7}
+                accessibilityLabel="Expand crop box slightly"
+              >
+                <Lucide name="maximize-2" size={13} color="#94A3B8" />
+                <Text style={styles.toolBtnText}>- Expand</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 onPress={handleFitFull}
                 style={styles.toolBtn}
                 activeOpacity={0.7}
               >
-                <Lucide name="maximize-2" size={14} color="#94A3B8" />
                 <Text style={styles.toolBtnText}>Full Frame</Text>
               </TouchableOpacity>
 
@@ -553,6 +712,8 @@ export function ImageCropRotateModal({
 
           {/* Viewport Surface */}
           <View
+            ref={viewportRef}
+            testID="crop-viewport"
             style={styles.viewport}
             onLayout={(e) => {
               const { width, height } = e.nativeEvent.layout;
@@ -560,9 +721,17 @@ export function ImageCropRotateModal({
                 setViewportSize({ width, height });
               }
             }}
+            onStartShouldSetResponder={() => true}
+            onResponderGrant={handleViewportPointerDown}
+            onResponderMove={(e) => {
+              const coords = getEventCoords(e);
+              handlePointerMove(coords.x, coords.y);
+            }}
+            onResponderRelease={handlePointerUp}
           >
-            {/* The Rotated Display Image */}
+            {/* The Rotated Display Image (pointerEvents none so it won't interfere with mouse drag) */}
             <View
+              pointerEvents="none"
               style={[
                 styles.imageContainer,
                 {
@@ -642,8 +811,9 @@ export function ImageCropRotateModal({
               ]}
             />
 
-            {/* The Crop Box */}
+            {/* The Interactive Crop Box */}
             <View
+              testID="crop-box"
               style={[
                 styles.cropBox,
                 {
@@ -655,8 +825,14 @@ export function ImageCropRotateModal({
               ]}
               onStartShouldSetResponder={() => true}
               onResponderGrant={(e) => {
-                handlePointerDown('box', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                const coords = getEventCoords(e);
+                handlePointerDown('box', coords.x, coords.y);
               }}
+              onResponderMove={(e) => {
+                const coords = getEventCoords(e);
+                handlePointerMove(coords.x, coords.y);
+              }}
+              onResponderRelease={handlePointerUp}
             >
               {/* 3x3 Rule-of-Thirds Grid */}
               <View pointerEvents="none" style={styles.gridLineH1} />
@@ -667,75 +843,153 @@ export function ImageCropRotateModal({
               {/* Edge Handles */}
               {/* Top Handle */}
               <View
-                style={[styles.edgeHandle, styles.edgeHandleTop]}
+                testID="crop-handle-t"
+                style={[styles.edgeHitTargetH, styles.edgeHandleTop]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('t', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('t', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.edgePillH} />
+              </View>
+
               {/* Bottom Handle */}
               <View
-                style={[styles.edgeHandle, styles.edgeHandleBottom]}
+                testID="crop-handle-b"
+                style={[styles.edgeHitTargetH, styles.edgeHandleBottom]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('b', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('b', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.edgePillH} />
+              </View>
+
               {/* Left Handle */}
               <View
-                style={[styles.edgeHandle, styles.edgeHandleLeft]}
+                testID="crop-handle-l"
+                style={[styles.edgeHitTargetV, styles.edgeHandleLeft]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('l', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('l', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.edgePillV} />
+              </View>
+
               {/* Right Handle */}
               <View
-                style={[styles.edgeHandle, styles.edgeHandleRight]}
+                testID="crop-handle-r"
+                style={[styles.edgeHitTargetV, styles.edgeHandleRight]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('r', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('r', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.edgePillV} />
+              </View>
 
               {/* Corner Handles */}
               {/* Top-Left */}
               <View
-                style={[styles.cornerHandle, styles.cornerTL]}
+                testID="crop-handle-tl"
+                style={[styles.cornerHitTarget, styles.cornerTL]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('tl', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('tl', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.cornerVisual} />
+              </View>
+
               {/* Top-Right */}
               <View
-                style={[styles.cornerHandle, styles.cornerTR]}
+                testID="crop-handle-tr"
+                style={[styles.cornerHitTarget, styles.cornerTR]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('tr', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('tr', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.cornerVisual} />
+              </View>
+
               {/* Bottom-Left */}
               <View
-                style={[styles.cornerHandle, styles.cornerBL]}
+                testID="crop-handle-bl"
+                style={[styles.cornerHitTarget, styles.cornerBL]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('bl', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('bl', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.cornerVisual} />
+              </View>
+
               {/* Bottom-Right */}
               <View
-                style={[styles.cornerHandle, styles.cornerBR]}
+                testID="crop-handle-br"
+                style={[styles.cornerHitTarget, styles.cornerBR]}
                 onStartShouldSetResponder={() => true}
                 onResponderGrant={(e) => {
-                  handlePointerDown('br', e.nativeEvent.pageX, e.nativeEvent.pageY);
+                  const coords = getEventCoords(e);
+                  handlePointerDown('br', coords.x, coords.y);
                 }}
-              />
+                onResponderMove={(e) => {
+                  const coords = getEventCoords(e);
+                  handlePointerMove(coords.x, coords.y);
+                }}
+                onResponderRelease={handlePointerUp}
+              >
+                <View style={styles.cornerVisual} />
+              </View>
 
               {/* Center Drag Hint Badge */}
               <View pointerEvents="none" style={styles.centerHintBadge}>
-                <Lucide name="move" size={11} color="rgba(255, 255, 255, 0.85)" />
-                <Text style={styles.centerHintText}>Drag to reposition</Text>
+                <Lucide name="move" size={11} color="rgba(255, 255, 255, 0.9)" />
+                <Text style={styles.centerHintText}>Drag freely</Text>
               </View>
             </View>
           </View>
@@ -798,10 +1052,11 @@ export function ImageCropRotateModal({
 const styles = StyleSheet.create({
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    backgroundColor: 'rgba(0, 0, 0, 0.88)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: 12,
+    userSelect: 'none',
   },
   modalContainer: {
     width: '100%',
@@ -813,6 +1068,7 @@ const styles = StyleSheet.create({
     shadowRadius: 24,
     elevation: 16,
     flexDirection: 'column',
+    userSelect: 'none',
   },
   header: {
     flexDirection: 'row',
@@ -899,19 +1155,22 @@ const styles = StyleSheet.create({
   viewport: {
     flex: 1,
     minHeight: 380,
-    maxHeight: 520,
+    maxHeight: 540,
     backgroundColor: '#050811',
     position: 'relative',
     overflow: 'hidden',
+    userSelect: 'none',
   },
   imageContainer: {
     position: 'absolute',
     justifyContent: 'center',
     alignItems: 'center',
+    userSelect: 'none',
   },
   displayImage: {
     width: '100%',
     height: '100%',
+    userSelect: 'none',
   },
   dimOverlay: {
     position: 'absolute',
@@ -921,7 +1180,9 @@ const styles = StyleSheet.create({
     position: 'absolute',
     borderWidth: 2,
     borderColor: '#38BDF8',
-    backgroundColor: 'rgba(56, 189, 248, 0.05)',
+    backgroundColor: 'rgba(56, 189, 248, 0.06)',
+    zIndex: 10,
+    userSelect: 'none',
   },
   gridLineH1: {
     position: 'absolute',
@@ -955,70 +1216,107 @@ const styles = StyleSheet.create({
     width: 1,
     backgroundColor: 'rgba(255, 255, 255, 0.25)',
   },
-  cornerHandle: {
+  cornerHitTarget: {
     position: 'absolute',
-    width: 22,
-    height: 22,
-    borderColor: '#FFFFFF',
-    backgroundColor: '#38BDF8',
-    borderRadius: 3,
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 20,
+    cursor: 'pointer',
+    userSelect: 'none',
   },
   cornerTL: {
-    top: -6,
-    left: -6,
-    borderTopWidth: 3,
-    borderLeftWidth: 3,
+    top: -18,
+    left: -18,
   },
   cornerTR: {
-    top: -6,
-    right: -6,
-    borderTopWidth: 3,
-    borderRightWidth: 3,
+    top: -18,
+    right: -18,
   },
   cornerBL: {
-    bottom: -6,
-    left: -6,
-    borderBottomWidth: 3,
-    borderLeftWidth: 3,
+    bottom: -18,
+    left: -18,
   },
   cornerBR: {
-    bottom: -6,
-    right: -6,
-    borderBottomWidth: 3,
-    borderRightWidth: 3,
+    bottom: -18,
+    right: -18,
   },
-  edgeHandle: {
+  cornerVisual: {
+    width: 14,
+    height: 14,
+    backgroundColor: '#0284C7',
+    borderColor: '#FFFFFF',
+    borderWidth: 2,
+    borderRadius: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 3,
+  },
+  edgeHitTargetH: {
     position: 'absolute',
-    backgroundColor: '#38BDF8',
-    borderRadius: 2,
+    width: 48,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 15,
+    cursor: 'pointer',
+    userSelect: 'none',
   },
   edgeHandleTop: {
-    top: -4,
+    top: -12,
     left: '50%',
-    marginLeft: -16,
-    width: 32,
-    height: 8,
+    marginLeft: -24,
   },
   edgeHandleBottom: {
-    bottom: -4,
+    bottom: -12,
     left: '50%',
-    marginLeft: -16,
-    width: 32,
-    height: 8,
+    marginLeft: -24,
+  },
+  edgePillH: {
+    width: 24,
+    height: 6,
+    backgroundColor: '#0284C7',
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    borderRadius: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  edgeHitTargetV: {
+    position: 'absolute',
+    width: 24,
+    height: 48,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 15,
+    cursor: 'pointer',
+    userSelect: 'none',
   },
   edgeHandleLeft: {
-    left: -4,
+    left: -12,
     top: '50%',
-    marginTop: -16,
-    width: 8,
-    height: 32,
+    marginTop: -24,
   },
   edgeHandleRight: {
-    right: -4,
+    right: -12,
     top: '50%',
-    marginTop: -16,
-    width: 8,
-    height: 32,
+    marginTop: -24,
+  },
+  edgePillV: {
+    width: 6,
+    height: 24,
+    backgroundColor: '#0284C7',
+    borderColor: '#FFFFFF',
+    borderWidth: 1,
+    borderRadius: 3,
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 2,
+    elevation: 2,
   },
   centerHintBadge: {
     position: 'absolute',
