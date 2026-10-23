@@ -1,8 +1,9 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { StyleSheet, View, Text } from "react-native";
 import { COLORS, useTheme, TYPOGRAPHY, Icon as LucideIcon } from "@edge/ui";
 import { useShellState } from "../hooks/useShellState";
-import { ROLE_NAVIGATION_LINKS } from "../context/RoleContext";
+import { ROLE_NAVIGATION_LINKS, NavigationLink } from "../context/RoleContext";
+import { usePermissions } from "../context/PermissionContext";
 import { Sidebar } from "./Sidebar";
 import { Header } from "./Header";
 import { StandardScreenWrapper } from "./StandardScreenWrapper";
@@ -40,7 +41,28 @@ export function AppLayout({
     confirmSignOut,
   } = useShellState();
 
-  const links = ROLE_NAVIGATION_LINKS[currentRole];
+  const { isSuperAdmin, isAdmin, canVerifyCashier, hasAnyPermission } = usePermissions();
+  const baseLinks = ROLE_NAVIGATION_LINKS[currentRole];
+  const hasCashierAccess =
+    isSuperAdmin ||
+    isAdmin ||
+    currentRole === 'Cashier' ||
+    currentRole === 'Regional Director' ||
+    canVerifyCashier ||
+    hasAnyPermission('receipts.read', 'receipts.issue', 'billing.collect');
+
+  const links = useMemo(() => {
+    if (hasCashierAccess && !baseLinks.some((l) => l.screen === 'ReceiptManagement')) {
+      const receiptLink: NavigationLink = {
+        name: 'Receipt Management',
+        screen: 'ReceiptManagement',
+        icon: 'printer',
+        group: 'Operations',
+      };
+      return [...baseLinks, receiptLink];
+    }
+    return baseLinks;
+  }, [baseLinks, hasCashierAccess]);
 
   const handleLinkPress = (screenName: string) => {
     if (onNavigate !== undefined) {

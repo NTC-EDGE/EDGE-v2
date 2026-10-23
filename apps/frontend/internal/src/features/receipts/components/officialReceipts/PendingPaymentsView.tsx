@@ -11,7 +11,10 @@ interface PendingPaymentsViewProps {
   onSearchChange: (q: string) => void;
   onRefresh: () => void;
   canIssueReceipt: boolean;
+  canEndorse?: boolean;
   onIssueReceiptForPendingPayment: (p: PendingPaymentDto) => void;
+  onViewDetailsForPendingPayment?: (p: PendingPaymentDto) => void;
+  onEndorsePendingPayment?: (p: PendingPaymentDto) => void;
 }
 
 export function PendingPaymentsView({
@@ -21,7 +24,10 @@ export function PendingPaymentsView({
   onSearchChange,
   onRefresh,
   canIssueReceipt,
+  canEndorse = true,
   onIssueReceiptForPendingPayment,
+  onViewDetailsForPendingPayment,
+  onEndorsePendingPayment,
 }: PendingPaymentsViewProps) {
   const { colors } = useTheme();
 
@@ -70,11 +76,14 @@ export function PendingPaymentsView({
         <ScrollView showsVerticalScrollIndicator={false}>
           <View style={styles.grid}>
             {pendingPayments.map((payment) => {
-              const formattedDate = new Date(payment.billedAt).toLocaleDateString('en-US', {
+              const billedDate = new Date(payment.billedAt);
+              const formattedDate = billedDate.toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'short',
                 day: 'numeric',
               });
+              const daysSinceBilled = Math.floor((Date.now() - billedDate.getTime()) / (1000 * 60 * 60 * 24));
+              const isOverdue = daysSinceBilled >= 30;
 
               return (
                 <View
@@ -90,7 +99,17 @@ export function PendingPaymentsView({
                       </View>
                       <Text style={[styles.opNumber, { color: colors.brand.primary }]}>{payment.opNumber}</Text>
                     </View>
-                    <Text style={[styles.dateText, { color: colors.textMuted }]}>Billed: {formattedDate}</Text>
+                    <View style={styles.headerRightBox}>
+                      <Text style={[styles.dateText, { color: colors.textMuted }]}>
+                        Billed: {formattedDate} ({daysSinceBilled}d ago)
+                      </Text>
+                      {isOverdue && (
+                        <View style={[styles.overdueBadge, { backgroundColor: '#FEE2E2', borderColor: '#FCA5A5' }]}>
+                          <Lucide name="alert-triangle" size={10} color="#DC2626" />
+                          <Text style={styles.overdueText}>OVERDUE</Text>
+                        </View>
+                      )}
+                    </View>
                   </View>
 
                   {/* Card Body */}
@@ -165,6 +184,7 @@ export function PendingPaymentsView({
                                     <Text style={{ fontWeight: '700' }}>{item.mode}:</Text> ₱{item.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                     {item.mode === 'Check' && item.checkNumber ? ` (${item.checkBank || 'Bank'} #${item.checkNumber})` : ''}
                                     {item.mode === 'Online' && item.referenceNumber ? ` (Ref: ${item.referenceNumber})` : ''}
+                                    {item.proofFileId ? ' • [Proof Uploaded]' : ''}
                                   </Text>
                                 </View>
                               ))}
@@ -235,9 +255,31 @@ export function PendingPaymentsView({
                     )}
                   </View>
 
-                  {/* Card Footer Action */}
-                  {canIssueReceipt && (
-                    <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                  {/* Card Footer Actions */}
+                  <View style={[styles.cardFooter, { borderTopColor: colors.border }]}>
+                    <View style={styles.cardFooterActionsLeft}>
+                      {onViewDetailsForPendingPayment !== undefined && (
+                        <TouchableOpacity
+                          onPress={() => onViewDetailsForPendingPayment(payment)}
+                          style={[styles.viewDetailsBtn, { borderColor: colors.border, backgroundColor: colors.neutral[50] }]}
+                        >
+                          <Lucide name="eye" size={13} color={colors.neutral[700]} />
+                          <Text style={[styles.viewDetailsBtnText, { color: colors.neutral[700] }]}>View Details</Text>
+                        </TouchableOpacity>
+                      )}
+
+                      {canEndorse && onEndorsePendingPayment !== undefined && (
+                        <TouchableOpacity
+                          onPress={() => onEndorsePendingPayment(payment)}
+                          style={[styles.endorseBtn, { borderColor: '#F59E0B', backgroundColor: '#FEF3C7' }]}
+                        >
+                          <Lucide name="corner-up-left" size={13} color="#D97706" />
+                          <Text style={[styles.endorseBtnText, { color: '#B45309' }]}>Endorse for Re-Review</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+
+                    {canIssueReceipt && (
                       <TouchableOpacity
                         onPress={() => onIssueReceiptForPendingPayment(payment)}
                         style={[styles.issueActionBtn, { backgroundColor: colors.brand.primary }]}
@@ -245,8 +287,8 @@ export function PendingPaymentsView({
                         <Lucide name="printer" size={14} color="#fff" />
                         <Text style={styles.issueActionBtnText}>Collect & Issue Official Receipt</Text>
                       </TouchableOpacity>
-                    </View>
-                  )}
+                    )}
+                  </View>
                 </View>
               );
             })}
