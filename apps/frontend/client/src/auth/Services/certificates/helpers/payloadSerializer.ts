@@ -1,7 +1,7 @@
 import { NTCService } from "../../data/servicesData";
-import { GeneralApplicantData } from "../../shared/hooks/useGeneralServiceWizard";
+import { GeneralApplicantData } from "../../shared/types/generalApplicantTypes";
 import { synthesizeAllApplicantFieldValues, FIELD_GUID_MAP } from "../../shared/helpers/applicantFieldSynthesizer";
-import { formatCompositeAddress } from "../../../../shared/formPreview";
+import { formatCompositeAddress } from "../../../../shared/formPreview/core/formPreviewHelpers";
 
 /**
  * Static GUID registry is imported directly from applicantFieldSynthesizer
@@ -54,7 +54,7 @@ export interface SerializedApplicantPayload {
   email: string;
   contactNumber: string;
   address: string;
-  birthDate: string;
+  birthDate?: string;
   sex?: string;
   civilStatus?: string;
   nationality?: string;
@@ -86,9 +86,10 @@ export function serializeCertificateApplicant(
     December: "12",
   };
 
-  const birthDate = app.birthYear && app.birthMonth && app.birthDay
-    ? `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${app.birthDay.padStart(2, "0")}`
-    : app.birthDate || "2000-01-01";
+  const hasBirthDate = Boolean(app.birthYear && app.birthMonth && app.birthDay);
+  const birthDate = hasBirthDate
+    ? `${app.birthYear}-${monthMap[app.birthMonth] || "01"}-${(app.birthDay || "1").padStart(2, "0")}`
+    : (app.birthDate && app.birthDate.trim() !== "" ? app.birthDate.trim() : undefined);
 
   // Synthesize ALL applicant inputs: dynamic form fields, standard particulars, and specialized models
   const synthesized = synthesizeAllApplicantFieldValues(app, formFields);
@@ -164,30 +165,30 @@ export function serializeCertificateApplicant(
 
   if (!finalFirstName && fullNameField) {
     const parts = fullNameField.split(/\s+/);
-    finalFirstName = parts[0] || "Applicant";
-    finalLastName = parts.slice(1).join(" ") || "Detail";
+    finalFirstName = parts[0] || "";
+    finalLastName = parts.slice(1).join(" ") || "";
   }
 
   const isComp = (app.applicantType || "").toLowerCase() === "company";
   const effectiveFirstName = isComp
-    ? app.representativeFirstName || finalFirstName || "Representative"
-    : finalFirstName || "Applicant";
+    ? app.representativeFirstName || finalFirstName || ""
+    : finalFirstName || "";
   const effectiveMiddleName = isComp
     ? app.representativeMiddleName || app.middleName
     : app.middleName;
   const effectiveLastName = isComp
-    ? app.representativeLastName || finalLastName || "Officer"
-    : finalLastName || "Detail";
+    ? app.representativeLastName || finalLastName || ""
+    : finalLastName || "";
   const effectiveSuffix = isComp
     ? app.representativeSuffix || app.suffix
     : app.suffix;
 
-  const emailVal = app.email || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "applicant@example.com";
-  const contactVal = app.contactNo || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value || "";
+  const emailVal = app.email?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
+  const contactVal = app.contactNo?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value?.trim() || "";
 
   const compositeAddress = formatCompositeAddress(app);
 
-  const addressVal = compositeAddress || app.address || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value || "Philippines";
+  const addressVal = compositeAddress || app.address?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
 
   return {
     applicantType: app.applicantType || "individual",

@@ -6,6 +6,7 @@ import {
   storageService,
   ApplicantRequirementItemDto,
   mutateApplications,
+  resolveEffectiveTenantId,
 } from "@edge/api";
 import { DocumentPreviewFile } from "../../../../shared/components/DocumentPreviewModal";
 import { ApplicantItem, ApplicationData } from "../../../../types/application";
@@ -143,9 +144,7 @@ export function ApplicantRequirementsSection({
   };
 
   const handlePreview = async (reqItem: ApplicantRequirementItemDto) => {
-    const tenantId = typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
-      ? app.tenantId
-      : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+    const tenantId = resolveEffectiveTenantId(app.tenantId, app.address?.region) || undefined;
 
     let fileUrl = '';
     if (typeof reqItem.storedFileId === 'string' && reqItem.storedFileId.trim() !== '' && reqItem.storedFileId !== 'null') {

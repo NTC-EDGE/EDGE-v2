@@ -11,6 +11,7 @@ import {
   SubmitPaymentRequest,
 } from '@edge/api';
 import { useToast } from '../../../../../shared/components/Toast';
+import { resolveApplicationTenantId } from '../../../../../shared/helpers/tenantHelper';
 import { ModeOfPayment, CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
 
 interface UseClientPaymentSubmissionProps {
@@ -73,10 +74,7 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
     return 0;
   }, [app]);
 
-  const tenantId =
-    typeof app.tenantId === 'string' && app.tenantId.trim() !== ''
-      ? app.tenantId
-      : 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
+  const tenantId = resolveApplicationTenantId(app);
 
   const [selectedMode, setSelectedMode] = useState<ModeOfPayment>('LandBank');
   const [referenceNumber, setReferenceNumber] = useState('');
@@ -345,6 +343,13 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
         setErrorMessage('Please provide the transaction reference or e-receipt number.');
         return;
       }
+    }
+
+    if (tenantId === null) {
+      const msg = 'Regional office (tenant) context is missing for this application. Please refresh or contact support.';
+      setErrorMessage(msg);
+      toast.error('Missing Context', msg);
+      return;
     }
 
     setIsSubmitting(true);

@@ -138,7 +138,7 @@ export const getRequirementsList = (
 export const mapApplicantsPayload = (
   applicants: ExamApplicantData[],
   formFields: any[],
-  serviceName?: string | null
+  _serviceName?: string | null
 ) => {
   const months: Record<string, string> = {
     January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
@@ -146,34 +146,37 @@ export const mapApplicantsPayload = (
   };
 
   return applicants.map((app) => {
+    const hasBirthDate = Boolean(app.birthMonth && app.birthDay && app.birthYear);
     const monthNum = months[app.birthMonth] || "01";
-    const day = app.birthDay.padStart(2, '0');
-    const birthDate = `${monthNum}/${day}/${app.birthYear}`;
+    const day = (app.birthDay || "1").padStart(2, '0');
+    const birthDate = hasBirthDate ? `${monthNum}/${day}/${app.birthYear}` : undefined;
 
-    let examCat = "radio";
-    const sNameLower = (serviceName || app.examType || "").toLowerCase();
-    if (sNameLower.includes("rroc") || sNameLower.includes("aircraft")) examCat = "rroc";
-    if (sNameLower.includes("amateur")) examCat = "amateur";
-
-    let examTaker = "first taker";
-    const etLower = (app.examineeType || "").toLowerCase();
-    if (etLower.includes("repeat") || etLower.includes("retake")) examTaker = "retaker";
-    if (etLower.includes("upgrade")) examTaker = "upgrade";
-
-    const address = `${app.street}, ${app.barangay}, ${app.city}, ${app.province}, ${app.zipCode}`;
+    const address = [app.street, app.barangay, app.city, app.province, app.zipCode].filter(Boolean).join(', ');
     const formFieldValues: Array<{ fieldId: string; value: string }> = [];
 
-    if (formFields.length > 0) {
-      const mappings = [
-        { 
-          fieldId: "fd000000-0000-0000-0000-000000000007", 
-          terms: ["exam category", "category"], 
-          value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial") 
-        },
-        { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
-        { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
-        { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
-      ];
+    if (Array.isArray(formFields) && formFields.length > 0) {
+      const mappings: Array<{ fieldId: string; terms: string[]; value: string }> = [];
+      if (app.examType) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000007",
+          terms: ["exam category", "category"],
+          value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial")
+        });
+      }
+      if (app.examineeType) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000008",
+          terms: ["examinee type", "type"],
+          value: app.examineeType,
+        });
+      }
+      if (app.selectedOption) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000009",
+          terms: ["elements", "element"],
+          value: app.selectedOption,
+        });
+      }
 
       const ignoredBioTerms = [
         "full name", "first name", "last name", "middle name", "applicant name", "name",
@@ -186,34 +189,31 @@ export const mapApplicantsPayload = (
 
       formFields.forEach((field: any) => {
         const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId;
-        if (labelLower.includes("school") || labelLower.includes("university")) {
+        const id = field.fieldId || field.id;
+        if (!id) return;
+
+        if ((labelLower.includes("school") || labelLower.includes("university")) && app.schoolName) {
           formFieldValues.push({ fieldId: id, value: app.schoolName });
           return;
         }
-        if (labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) {
+        if ((labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) && app.courseDegree) {
           formFieldValues.push({ fieldId: id, value: app.courseDegree });
           return;
         }
-        if (labelLower.includes("graduat") || labelLower.includes("year graduated")) {
+        if ((labelLower.includes("graduat") || labelLower.includes("year graduated")) && app.yearGraduated) {
           formFieldValues.push({ fieldId: id, value: app.yearGraduated });
           return;
         }
         if (ignoredBioTerms.some(t => labelLower.includes(t))) return;
 
         const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
-        if (match) {
+        if (match && match.value) {
           formFieldValues.push({
             fieldId: id,
             value: match.value
           });
         }
       });
-    } else {
-      formFieldValues.push(
-        { fieldId: "f0100000-0000-0000-0000-000000000001", value: examCat },
-        { fieldId: "f0100000-0000-0000-0000-000000000002", value: examTaker }
-      );
     }
 
     return {
@@ -226,12 +226,12 @@ export const mapApplicantsPayload = (
       contactNumber: app.contactNo,
       address: address,
       birthDate: birthDate,
-      sex: app.sex,
-      nationality: app.nationality,
-      zipCode: app.zipCode,
-      schoolAttended: app.schoolName,
-      courseTaken: app.courseDegree,
-      yearGraduated: app.yearGraduated,
+      sex: app.sex || undefined,
+      nationality: app.nationality || undefined,
+      zipCode: app.zipCode || undefined,
+      schoolAttended: app.schoolName || undefined,
+      courseTaken: app.courseDegree || undefined,
+      yearGraduated: app.yearGraduated || undefined,
       eSignature: app.signature || undefined,
       formFieldValues,
     };

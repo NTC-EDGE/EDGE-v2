@@ -1,3 +1,4 @@
+// @ts-expect-error - bun test runtime module
 import { describe, it, expect } from "bun:test";
 import {
   PERMIT_DETAILS_SERVICE_OPTIONS,
@@ -7,6 +8,11 @@ import {
 } from "./dynamicFormConstants";
 import { resolveFileFromUpload } from "../../../auth/Services/shared/helpers/requirementUploadHelper";
 import { isAllowedRequirementFileType } from "../../../../../internal/src/utils/fileValidation";
+import { resolveApplicationTenantId } from "../../helpers/tenantHelper";
+import { initialGeneralApplicant } from "../../../auth/Services/shared/types/generalApplicantTypes";
+import { initialExamApplicant } from "../../../auth/Services/exams/radio-operator/types/examTypes";
+import { serializeCertificateApplicant } from "../../../auth/Services/certificates/helpers/payloadSerializer";
+import { mapApplicantsPayload } from "../../../auth/Services/exams/radio-operator/helpers/examMapping";
 
 describe("Dead Code & Typo Prevention - Permit Service Options & Labels", () => {
   it("provides clean, professional user-facing labels without typos", () => {
@@ -104,15 +110,12 @@ describe("Dead Code & Typo Prevention - Permit Service Options & Labels", () => 
 
 describe("Cross-Platform File Pickers & Nullable Safety Checks", () => {
   it("resolveFileFromUpload handles undefined and null file properties safely", async () => {
-    // String upload
     const resString = await resolveFileFromUpload("");
     expect(resString).toBeNull();
 
-    // Descriptor with empty URI and no File
     const resEmpty = await resolveFileFromUpload({ name: "test.pdf" });
     expect(resEmpty).toBeNull();
 
-    // Descriptor with null/undefined properties
     const resNullish = await resolveFileFromUpload({
       name: "valid.png",
       uri: undefined,
@@ -130,5 +133,107 @@ describe("Cross-Platform File Pickers & Nullable Safety Checks", () => {
     expect(isAllowedRequirementFileType("photo.jpg", undefined)).toBe(true);
     expect(isAllowedRequirementFileType(undefined, "image/jpeg")).toBe(true);
     expect(isAllowedRequirementFileType("malware.exe", "application/x-msdownload")).toBe(false);
+  });
+});
+
+describe("Multi-Tenant Dynamic Context & Fallback Elimination", () => {
+  it("resolves authentic tenantId from application entity without hardcoded fallbacks", () => {
+    const validTenantId = "bb2de653-8376-4e0f-9353-059fd8e4e1b9";
+    const appWithTenant = {
+      tenantId: validTenantId,
+    };
+    expect(resolveApplicationTenantId(appWithTenant)).toBe(validTenantId);
+  });
+
+  it("resolves regional fallback from application entity when region is a valid GUID", () => {
+    const validRegionId = "cc3ef764-9487-5f1a-a464-160ae9f5f2ca";
+    const appWithRegion = {
+      tenantId: undefined,
+      region: validRegionId,
+    };
+    expect(resolveApplicationTenantId(appWithRegion)).toBe(validRegionId);
+  });
+
+  it("returns null when application has no tenantId or region GUID (no phantom hardcoded GUID)", () => {
+    expect(resolveApplicationTenantId(null)).toBeNull();
+    expect(resolveApplicationTenantId(undefined)).toBeNull();
+    expect(resolveApplicationTenantId({})).toBeNull();
+    expect(
+      resolveApplicationTenantId({
+        tenantId: "not-a-guid",
+        region: "NCR",
+      })
+    ).toBeNull();
+  });
+});
+
+describe("Payload Purity - Preventing Altered Payloads from Artificial Fallbacks", () => {
+  it("initialGeneralApplicant starts with undefined specialized models and blank birth fields", () => {
+    const applicant = initialGeneralApplicant(1);
+    expect(applicant.radioCertData).toBeUndefined();
+    expect(applicant.deviceRegData).toBeUndefined();
+    expect(applicant.tvroRegData).toBeUndefined();
+    expect(applicant.vasData).toBeUndefined();
+    expect(applicant.copyOfCertData).toBeUndefined();
+    expect(applicant.copyOfPermitData).toBeUndefined();
+    expect(applicant.amateurLicenseData).toBeUndefined();
+    expect(applicant.lifetimeLicenseData).toBeUndefined();
+    expect(applicant.permitData).toBeUndefined();
+    expect(applicant.birthMonth).toBe("");
+    expect(applicant.birthDay).toBe("");
+    expect(applicant.birthYear).toBe("");
+  });
+
+  it("initialExamApplicant starts with blank birth date and blank sex to prevent artificial defaults", () => {
+    const examApp = initialExamApplicant(1);
+    expect(examApp.birthMonth).toBe("");
+    expect(examApp.birthDay).toBe("");
+    expect(examApp.birthYear).toBe("");
+    expect(examApp.sex).toBe("");
+  });
+
+  it("serializeCertificateApplicant does not fabricate 2000-01-01, applicant@example.com, or Philippines", () => {
+    const app = initialGeneralApplicant(1);
+    app.firstName = "Maria";
+    app.lastName = "Santos";
+
+    const dummyService = {
+      id: "srv-1",
+      title: "General Service",
+      description: "General Service Description",
+      requirements: [],
+      fee: "0",
+      time: "1 day",
+    };
+
+    const payload = serializeCertificateApplicant(app, dummyService);
+    expect(payload.birthDate).toBeUndefined();
+    expect(payload.email).toBe("");
+    expect(payload.address).toBe("");
+    expect(payload.firstName).toBe("Maria");
+    expect(payload.lastName).toBe("Santos");
+  });
+
+  it("mapApplicantsPayload does not fabricate random admission slip numbers or fake GUIDs", () => {
+    const examApp = initialExamApplicant(1);
+    examApp.firstName = "Juan";
+    examApp.lastName = "Dela Cruz";
+    examApp.email = "juan@realdomain.ph";
+    examApp.contactNo = "09171234567";
+
+    const mapped = mapApplicantsPayload([examApp], []);
+    expect(mapped.length).toBe(1);
+    const applicantPayload = mapped[0];
+
+    // Verify birthDate is undefined when not entered
+    expect(applicantPayload?.birthDate).toBeUndefined();
+
+    // Verify no fake GUIDs or random ADM numbers are in formFieldValues
+    const fieldValues = applicantPayload?.formFieldValues || [];
+    const hasRandomAdm = fieldValues.some((fv) => fv.value.startsWith("ADM-"));
+    expect(hasRandomAdm).toBe(false);
+
+    const hasFakeGuid = fieldValues.some((fv) => fv.fieldId.startsWith("f0100000"));
+    expect(hasFakeGuid).toBe(false);
   });
 });

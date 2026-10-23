@@ -156,6 +156,7 @@ export interface ApplicationServiceItem {
 export interface ApplicationData {
   id: string;
   tenantId?: string;
+  region?: string;
   referenceNumber: string;
   applicationNumber: string;
   applicant: string;

@@ -48,6 +48,15 @@ export interface PermitStationParticularItem {
   antenna: PermitAntennaParticulars;
 }
 
+export interface AmateurPermitParticulars {
+  make?: string;
+  type?: string;
+  model?: string;
+  serialNumber?: string;
+  powerOutput?: string;
+  frequencyRange?: string;
+}
+
 export interface AmateurPermitData {
   id: number;
   applicationType: PermitApplicationType;
@@ -103,6 +112,9 @@ export interface AmateurPermitData {
   nameOfDealerOrSeller: string;
   amateurLicenseNoOrPermitToPossessNo: string;
   sellerAddress: string;
+  sourceOfEquipment?: string;
+  storageAddress?: string;
+  particulars?: AmateurPermitParticulars;
 
   // Intended Use of Equipment
   intendedUseAdditionalRadioEquipment: boolean;

@@ -18,7 +18,7 @@ import {
   useTheme,
   Icon as Lucide,
 } from '@edge/ui';
-import { apiClient, safeAsync, TenantMemberDto } from '@edge/api';
+import { apiClient, safeAsync, TenantMemberDto, resolveEffectiveTenantId } from '@edge/api';
 import { useAuthContext } from '../../../auth/context/AuthContext';
 
 export interface EndorsePerson {
@@ -133,12 +133,13 @@ export function EndorseModal({
     let isCancelled = false;
 
     const fetchMembers = async () => {
-      setIsLoading(true);
-      const effectiveTenantId =
-        tenantId && tenantId.trim().length > 0
-          ? tenantId
-          : '00000000-0000-0000-0000-000000000001';
+      const effectiveTenantId = resolveEffectiveTenantId(tenantId);
+      if (!effectiveTenantId) {
+        setMembers([]);
+        return;
+      }
 
+      setIsLoading(true);
       const [res, err] = await safeAsync(async () => {
         const response = await apiClient.get<TenantMemberDto[]>(
           `/api/v2/tenants/${effectiveTenantId}/members`

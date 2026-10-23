@@ -1229,7 +1229,7 @@ export function ApplicationReviewScreenContent({
       />
       <IssueReceiptModal
         visible={showCashier}
-        tenantId={app.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001'}
+        tenantId={app.tenantId || user?.tenantId || ''}
         nextOr={nextOr}
         pendingPayment={pendingPaymentPayload}
         onClose={() => setShowCashier(false)}

@@ -1,3 +1,4 @@
+// @ts-expect-error - bun test runtime module
 import { mock, describe, it, expect } from 'bun:test';
 import React from 'react';
 

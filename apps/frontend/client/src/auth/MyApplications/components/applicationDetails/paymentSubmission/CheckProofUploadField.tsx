@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import { Icon, ImageCropRotateModal, EditedImageResult } from '@edge/ui';
 import * as DocumentPicker from 'expo-document-picker';

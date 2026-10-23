@@ -1,5 +1,6 @@
-import { GeneralApplicantData } from '../hooks/useGeneralServiceWizard';
-import { isSuppressedValue, formatCompositeAddress } from '../../../../shared/formPreview';
+import { GeneralApplicantData } from '../types/generalApplicantTypes';
+import { isSuppressedValue } from '../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { formatCompositeAddress } from '../../../../shared/formPreview/core/formPreviewHelpers';
 
 /**
  * Static GUID registry — mirrors FastTrackSeederData.cs / CommonSeederData.cs GetFieldsPool().
