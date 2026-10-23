@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import * as DocumentPicker from "expo-document-picker";
 import { Platform } from "react-native";
 import { useUser, useAuth } from "@clerk/expo";
 import { apiClient } from "@edge/api";

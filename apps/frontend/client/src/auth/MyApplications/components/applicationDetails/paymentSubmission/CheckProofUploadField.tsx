@@ -21,9 +21,9 @@ function isBlob(val: unknown): val is Blob {
 }
 
 function isImageFile(file: CheckProofFile | null): boolean {
-  if (file === null) return false;
-  if (typeof file.type === 'string' && file.type.startsWith('image/')) return true;
-  const ext = (file.name || '').toLowerCase().split('.').pop() || '';
+  if (file === null || file === undefined) return false;
+  if (typeof file?.type === 'string' && file.type.startsWith('image/')) return true;
+  const ext = (file?.name || '').toLowerCase().split('.').pop() || '';
   return ['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext);
 }
 
@@ -61,11 +61,17 @@ export function CheckProofUploadField({
         const asset = result.assets[0];
         if (asset !== undefined && asset !== null) {
           const rawBlob = 'file' in asset && isBlob(asset.file) ? asset.file : undefined;
+          const resolvedSize = typeof asset?.size === 'number'
+            ? asset.size
+            : (rawBlob && typeof rawBlob?.size === 'number' ? rawBlob.size : undefined);
+          const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType)
+            || (rawBlob && typeof rawBlob?.type === 'string' ? rawBlob.type : undefined);
+          const resolvedName = asset?.name || (rawBlob && 'name' in rawBlob && typeof rawBlob.name === 'string' ? rawBlob.name : 'proof_document');
           onFileChange({
-            name: asset.name,
-            uri: asset.uri,
-            type: asset.mimeType || undefined,
-            size: asset.size || undefined,
+            name: resolvedName,
+            uri: asset?.uri || '',
+            type: resolvedType,
+            size: resolvedSize,
             file: rawBlob,
           });
         }
@@ -106,11 +112,17 @@ export function CheckProofUploadField({
         const asset = result.assets[0];
         if (asset !== undefined && asset !== null) {
           const rawBlob = 'file' in asset && isBlob(asset.file) ? asset.file : undefined;
+          const resolvedSize = typeof asset?.fileSize === 'number'
+            ? asset.fileSize
+            : (rawBlob && typeof rawBlob?.size === 'number' ? rawBlob.size : undefined);
+          const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType)
+            || (rawBlob && typeof rawBlob?.type === 'string' ? rawBlob.type : 'image/jpeg');
+          const resolvedName = asset?.fileName || `check_proof_${Date.now()}.jpg`;
           onFileChange({
-            name: asset.fileName || `check_proof_${Date.now()}.jpg`,
-            uri: asset.uri,
-            type: asset.mimeType || 'image/jpeg',
-            size: asset.fileSize || undefined,
+            name: resolvedName,
+            uri: asset?.uri || '',
+            type: resolvedType,
+            size: resolvedSize,
             file: rawBlob,
           });
         }
@@ -123,11 +135,11 @@ export function CheckProofUploadField({
 
   const handleCameraCapture = (captured: CapturedPhoto) => {
     onFileChange({
-      name: captured.name,
-      uri: captured.uri,
-      type: captured.type,
-      size: captured.file && typeof captured.file.size === 'number' ? captured.file.size : undefined,
-      file: captured.file,
+      name: captured?.name || `check_photo_${Date.now()}.jpg`,
+      uri: captured?.uri || '',
+      type: captured?.type || 'image/jpeg',
+      size: captured?.file && typeof captured.file?.size === 'number' ? captured.file.size : undefined,
+      file: captured?.file,
     });
   };
 
@@ -138,7 +150,7 @@ export function CheckProofUploadField({
         <View style={styles.proofCompactCard}>
           <Icon name="check-circle" size={14} color="#16A34A" />
           <Text style={styles.proofCompactFileName} numberOfLines={1}>
-            {file.name}
+            {file?.name}
           </Text>
           {onPreview !== undefined && (
             <TouchableOpacity
@@ -168,20 +180,20 @@ export function CheckProofUploadField({
           >
             <Icon name="trash-2" size={13} color="#DC2626" />
           </TouchableOpacity>
-          {isImageFile(file) && typeof file.uri === 'string' && (
+          {isImageFile(file) && typeof file?.uri === 'string' && (
             <ImageCropRotateModal
               visible={isCropModalOpen}
               imageUri={file.uri}
-              fileName={file.name}
+              fileName={file?.name}
               title="Crop & Rotate Check Proof"
               onClose={() => setIsCropModalOpen(false)}
               onApply={(result) => {
                 onFileChange({
-                  name: result.name,
-                  uri: result.uri,
-                  type: result.type,
-                  size: result.blob?.size,
-                  file: result.file,
+                  name: result?.name || 'check_proof.jpg',
+                  uri: result?.uri || '',
+                  type: result?.type || 'image/jpeg',
+                  size: result?.blob?.size ?? (result?.file && typeof result.file?.size === 'number' ? result.file.size : undefined),
+                  file: result?.file,
                 });
                 setIsCropModalOpen(false);
               }}
@@ -232,7 +244,7 @@ export function CheckProofUploadField({
       {file !== null ? (
         <View style={styles.proofAttachedCard}>
           <View style={styles.proofAttachedLeft}>
-            {isImageFile(file) && typeof file.uri === 'string' && file.uri.trim() !== '' && !hasImageError ? (
+            {isImageFile(file) && typeof file?.uri === 'string' && file.uri.trim() !== '' && !hasImageError ? (
               <Image
                 source={{ uri: file.uri }}
                 style={styles.proofThumbnail}
@@ -251,10 +263,10 @@ export function CheckProofUploadField({
             )}
             <View style={styles.proofAttachedInfo}>
               <Text style={styles.proofAttachedName} numberOfLines={1}>
-                {file.name}
+                {file?.name}
               </Text>
               <Text style={styles.proofAttachedMeta}>
-                {formatFileSize(file.size) ? `${formatFileSize(file.size)} • ` : ''}Photo Attached
+                {formatFileSize(file?.size) ? `${formatFileSize(file?.size)} • ` : ''}Photo Attached
                 ✓
               </Text>
             </View>
@@ -326,20 +338,20 @@ export function CheckProofUploadField({
         instructionText="Position physical check clearly within frame"
       />
 
-      {file !== null && isImageFile(file) && typeof file.uri === 'string' && (
+      {file !== null && isImageFile(file) && typeof file?.uri === 'string' && (
         <ImageCropRotateModal
           visible={isCropModalOpen}
           imageUri={file.uri}
-          fileName={file.name}
+          fileName={file?.name}
           title="Crop & Rotate Check Proof"
           onClose={() => setIsCropModalOpen(false)}
           onApply={(result) => {
             onFileChange({
-              name: result.name,
-              uri: result.uri,
-              type: result.type,
-              size: result.blob?.size,
-              file: result.file,
+              name: result?.name || 'check_proof.jpg',
+              uri: result?.uri || '',
+              type: result?.type || 'image/jpeg',
+              size: result?.blob?.size ?? (result?.file && typeof result.file?.size === 'number' ? result.file.size : undefined),
+              file: result?.file,
             });
             setIsCropModalOpen(false);
           }}

@@ -2,7 +2,7 @@
  * Shared utility to validate acceptable document attachment file types (Images & PDFs)
  * across both web file input and native mobile document pickers.
  */
-export function isAllowedRequirementFileType(fileName: string, mimeType: string): boolean {
+export function isAllowedRequirementFileType(fileName?: string, mimeType?: string): boolean {
   const cleanFileName = (fileName || '').toLowerCase();
   const cleanMimeType = (mimeType || '').toLowerCase();
 

@@ -97,11 +97,12 @@ export function SharedDocumentUpload({
       const file = files[0];
       if (!file) return;
 
-      const fileName = file.name || "uploaded_document";
+      const fileName = file?.name || "uploaded_document";
       const ext = fileName.toLowerCase().split(".").pop() || "";
       const validExts = ["pdf", "png", "jpg", "jpeg", "webp"];
+      const rawType = typeof file?.type === "string" ? file.type : "";
       const isImageOrPdf =
-        (file.type && (file.type.startsWith("image/") || file.type === "application/pdf")) ||
+        (rawType !== "" && (rawType.startsWith("image/") || rawType === "application/pdf")) ||
         validExts.includes(ext);
 
       if (!isImageOrPdf) {
@@ -123,7 +124,7 @@ export function SharedDocumentUpload({
       onUpload(slotKey, {
         name: fileName,
         uri: fileUri,
-        type: file.type || undefined,
+        type: rawType || undefined,
         file,
       });
     },
@@ -200,11 +201,13 @@ export function SharedDocumentUpload({
         const asset = result.assets[0];
         if (!asset) return;
         const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        const resolvedName = asset?.name || (rawWebFile && 'name' in rawWebFile && typeof rawWebFile.name === 'string' ? rawWebFile.name : 'document');
+        const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : undefined);
         setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
         onUpload(activeSlotKey, {
-          name: asset.name,
-          uri: asset.uri,
-          type: asset.mimeType || undefined,
+          name: resolvedName,
+          uri: asset?.uri || "",
+          type: resolvedType,
           file: rawWebFile,
         });
       }
@@ -218,10 +221,10 @@ export function SharedDocumentUpload({
     if (!activeSlotKey) return;
     setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
     onUpload(activeSlotKey, {
-      name: captured.name,
-      uri: captured.uri,
-      type: captured.type,
-      file: captured.file,
+      name: captured?.name || `camera_photo_${Date.now()}.jpg`,
+      uri: captured?.uri || "",
+      type: captured?.type || "image/jpeg",
+      file: captured?.file,
     });
   };
 
@@ -230,15 +233,15 @@ export function SharedDocumentUpload({
     if (!targetKey) return;
     setImageLoadErrors((prev) => ({ ...prev, [targetKey]: false }));
     onUpload(targetKey, {
-      name: result.name,
-      uri: result.uri,
-      type: result.type,
-      file: result.file,
+      name: result?.name || "document.jpg",
+      uri: result?.uri || "",
+      type: result?.type || "image/jpeg",
+      file: result?.file,
     });
     setPreviewFile({
-      name: result.name,
-      uri: result.uri,
-      type: result.type,
+      name: result?.name || "document.jpg",
+      uri: result?.uri || "",
+      type: result?.type || "image/jpeg",
     });
   };
 
@@ -269,12 +272,13 @@ export function SharedDocumentUpload({
       if (!result.canceled && result.assets && result.assets.length > 0) {
         const asset = result.assets[0];
         if (!asset) return;
-        const fileName = asset.fileName || `scanned_doc_${Date.now()}.jpg`;
+        const fileName = asset?.fileName || `scanned_doc_${Date.now()}.jpg`;
         const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : "image/jpeg");
         onUpload(activeSlotKey, {
           name: fileName,
-          uri: asset.uri,
-          type: asset.mimeType || "image/jpeg",
+          uri: asset?.uri || "",
+          type: resolvedType,
           file: rawWebFile,
         });
       }

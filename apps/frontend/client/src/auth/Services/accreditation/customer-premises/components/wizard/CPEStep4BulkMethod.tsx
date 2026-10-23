@@ -79,13 +79,13 @@ export function CPEStep4BulkMethod({
       }
 
       if (setUploadedFileName) {
-        setUploadedFileName(asset.name || "CPE_Supplier_Import.csv");
+        setUploadedFileName(asset?.name || "CPE_Supplier_Import.csv");
       }
 
       let fileText = "";
-      if (Platform.OS === "web" && asset.file) {
+      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
         fileText = await asset.file.text();
-      } else if (asset.uri) {
+      } else if (asset?.uri) {
         const response = await fetch(asset.uri);
         fileText = await response.text();
       }

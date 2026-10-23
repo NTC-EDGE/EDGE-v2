@@ -54,16 +54,16 @@ const inferMimeFromName = (name: string): string => {
 export const resolveFileFromUpload = async (
   upload: UploadFileDescriptor | string
 ): Promise<File | Blob | null> => {
-  const name = typeof upload === "string" ? upload : upload.name;
-  const uri = typeof upload === "string" ? "" : (upload.uri ?? "");
-  const explicitType = typeof upload === "object" && upload !== null ? upload.type : undefined;
+  const name = typeof upload === "string" ? upload : (upload?.name || "document");
+  const uri = typeof upload === "string" ? "" : (upload?.uri ?? "");
+  const explicitType = typeof upload === "object" && upload !== null ? upload?.type : undefined;
   const fallbackMime = inferMimeFromName(name);
 
   // 1. Prefer direct in-memory File / Blob when available (immune to blob: URL revocation)
-  if (typeof upload === "object" && upload !== null && upload.file instanceof Blob && upload.file.size > 0) {
+  if (typeof upload === "object" && upload !== null && upload?.file instanceof Blob && (upload.file?.size ?? 0) > 0) {
     const rawBlob = upload.file;
     const mimeType =
-      explicitType || (rawBlob.type && rawBlob.type.trim() !== "" ? rawBlob.type : fallbackMime);
+      explicitType || (rawBlob?.type && rawBlob.type.trim() !== "" ? rawBlob.type : fallbackMime);
     if (typeof File !== "undefined") {
       try {
         return new File([rawBlob], name, { type: mimeType });
@@ -84,7 +84,7 @@ export const resolveFileFromUpload = async (
     }
     const blob = await res.blob();
     const mimeType =
-      explicitType || (blob.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
+      explicitType || (blob?.type && blob.type.trim() !== "" ? blob.type : fallbackMime);
 
     if (typeof File !== "undefined") {
       try {

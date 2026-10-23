@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
-import { CopyOfPermitData } from '../../../permits';
+import type { CopyOfPermitData } from '../../../permits';
+import { formatPermitServiceLabel } from '../../../../../shared/components/dynamic-form/dynamicFormConstants';
 import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface CopyOfPermitReviewCardProps {
@@ -37,11 +38,12 @@ export function CopyOfPermitReviewCard({
       ? "Certified True Copy"
       : getFv('copyType') || getFv('Copy Type') || selectedVariantName;
 
-  const detailsService =
+  const rawDetailsService =
     copyOfPermit?.detailsService ||
     getFv('detailsService') ||
     getFv('DetailsService') ||
     getFv('details_service');
+  const detailsService = rawDetailsService ? formatPermitServiceLabel(rawDetailsService) : undefined;
 
   const type =
     copyOfPermit?.targetPermitType ||

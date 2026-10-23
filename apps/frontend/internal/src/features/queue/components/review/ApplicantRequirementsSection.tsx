@@ -123,11 +123,11 @@ export function ApplicantRequirementsSection({
           const selectedFile = files[0];
           if (!selectedFile) return;
 
-          if (!isAllowedRequirementFileType(selectedFile.name, selectedFile.type)) {
+          if (!isAllowedRequirementFileType(selectedFile?.name, selectedFile?.type)) {
             toast.error('Only image files and PDF documents are allowed.');
             return;
           }
-          await uploadAndAttach(selectedFile, selectedFile.name, reqItem);
+          await uploadAndAttach(selectedFile, selectedFile?.name || 'attachment', reqItem);
         } finally {
           if (typeof document !== 'undefined' && document.body && document.body.contains(input)) {
             document.body.removeChild(input);
