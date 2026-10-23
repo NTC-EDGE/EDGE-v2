@@ -1,5 +1,6 @@
 import { apiClient } from '../apiClient';
 import { safeAsync } from '../utils/safeAsync';
+import { ReturnTargetDto } from '../types';
 
 export type BookletStatus = 'Active' | 'Exhausted' | 'Cancelled' | 'Archived';
 export type ReceiptStatus = 'Issued' | 'Deposited' | 'Cancelled';
@@ -538,6 +539,12 @@ export const receiptService = {
   getCancelledOrReport: async (params: { tenantId: string; fromDate?: string; toDate?: string }) => {
     return safeAsync(async () => {
       const res = await apiClient.get<{ data: CancelledOrReportDto }>('/api/v2/receipts/reports/cancelled', { params });
+      return res.data.data;
+    });
+  },
+  returnOp: async (opId: string, payload: { remarks: string; returnTo: ReturnTargetDto }) => {
+    return safeAsync(async () => {
+      const res = await apiClient.patch<{ data: boolean }>(`/api/v2/ops/${opId}/return`, payload);
       return res.data.data;
     });
   },

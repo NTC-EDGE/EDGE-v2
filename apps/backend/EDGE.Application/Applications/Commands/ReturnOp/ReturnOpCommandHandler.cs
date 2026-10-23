@@ -65,7 +65,7 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
             Timestamp = DateTime.UtcNow
         }, cancellationToken);
 
-        if (request.ReturnTo == ReturnTarget.Evaluator && op.StatementOfAccount != null)
+        if ((request.ReturnTo == ReturnTarget.Evaluator || request.ReturnTo == ReturnTarget.Supervisor) && op.StatementOfAccount != null)
         {
             var soa = op.StatementOfAccount;
             var prevSoaStatus = soa.Status;
@@ -89,13 +89,19 @@ public class ReturnOpCommandHandler : IRequestHandler<ReturnOpCommand, ApiRespon
         var app = await _repository.GetByIdAsync(op.ApplicationId, cancellationToken);
         if (app != null)
         {
-            var targetAppStatus = request.ReturnTo == ReturnTarget.Evaluator
-                ? ApplicationStatus.Returned
-                : ApplicationStatus.ForAccountant;
+            var targetAppStatus = request.ReturnTo switch
+            {
+                ReturnTarget.Accountant => ApplicationStatus.ForAccountant,
+                ReturnTarget.Supervisor => ApplicationStatus.Evaluating,
+                _ => ApplicationStatus.Returned
+            };
 
-            var actionName = request.ReturnTo == ReturnTarget.Evaluator
-                ? "OP Returned to Evaluator"
-                : "OP Returned to Accountant";
+            var actionName = request.ReturnTo switch
+            {
+                ReturnTarget.Accountant => "OP Returned to Accountant",
+                ReturnTarget.Supervisor => "OP Endorsed to Supervisor",
+                _ => "OP Returned to Evaluator"
+            };
 
             app.Status = targetAppStatus;
             app.Remarks = $"Order of Payment returned by Cashier: {request.Remarks}";
