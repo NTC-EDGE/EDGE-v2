@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert, Platform } from 'react-native';
 import { Icon } from '@edge/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { CameraCaptureModal, CapturedPhoto } from '../../../../../shared/components/CameraCaptureModal';
 import { CheckProofFile } from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
 
@@ -41,6 +42,8 @@ export function CheckProofUploadField({
   compact = false,
   onPreview,
 }: CheckProofUploadFieldProps) {
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+
   const handlePickDocument = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({
@@ -68,6 +71,16 @@ export function CheckProofUploadField({
   };
 
   const handleTakePhoto = async () => {
+    if (
+      Platform.OS === 'web' &&
+      typeof navigator !== 'undefined' &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === 'function'
+    ) {
+      setIsCameraModalOpen(true);
+      return;
+    }
+
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -102,6 +115,16 @@ export function CheckProofUploadField({
     }
   };
 
+  const handleCameraCapture = (captured: CapturedPhoto) => {
+    onFileChange({
+      name: captured.name,
+      uri: captured.uri,
+      type: captured.type,
+      size: captured.file && typeof captured.file.size === 'number' ? captured.file.size : undefined,
+      file: captured.file,
+    });
+  };
+
   // Compact layout (used inside CombinationPaymentSection rows)
   if (compact) {
     if (file !== null) {
@@ -134,16 +157,16 @@ export function CheckProofUploadField({
     }
 
     return (
-      <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
-        <TouchableOpacity
-          style={styles.proofCompactAttachBtn}
-          onPress={handlePickDocument}
-          activeOpacity={0.7}
-        >
-          <Icon name="paperclip" size={12} color="#475569" />
-          <Text style={styles.proofCompactAttachBtnText}>Attach Check Photo / Proof</Text>
-        </TouchableOpacity>
-        {Platform.OS !== 'web' && (
+      <>
+        <View style={{ flexDirection: 'row', gap: 6, flexWrap: 'wrap' }}>
+          <TouchableOpacity
+            style={styles.proofCompactAttachBtn}
+            onPress={handlePickDocument}
+            activeOpacity={0.7}
+          >
+            <Icon name="paperclip" size={12} color="#475569" />
+            <Text style={styles.proofCompactAttachBtnText}>Attach Check Photo / Proof</Text>
+          </TouchableOpacity>
           <TouchableOpacity
             style={styles.proofCompactAttachBtn}
             onPress={handleTakePhoto}
@@ -152,8 +175,16 @@ export function CheckProofUploadField({
             <Icon name="camera" size={12} color="#475569" />
             <Text style={styles.proofCompactAttachBtnText}>Camera</Text>
           </TouchableOpacity>
-        )}
-      </View>
+        </View>
+        <CameraCaptureModal
+          visible={isCameraModalOpen}
+          onClose={() => setIsCameraModalOpen(false)}
+          onCapture={handleCameraCapture}
+          onFallbackToFilePick={handlePickDocument}
+          title="Capture Check Photo"
+          instructionText="Position physical check clearly within frame"
+        />
+      </>
     );
   }
 
@@ -234,6 +265,15 @@ export function CheckProofUploadField({
           </View>
         </View>
       )}
+
+      <CameraCaptureModal
+        visible={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        onFallbackToFilePick={handlePickDocument}
+        title="Capture Check Photo"
+        instructionText="Position physical check clearly within frame"
+      />
     </View>
   );
 }

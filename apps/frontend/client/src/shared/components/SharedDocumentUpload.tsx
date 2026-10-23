@@ -6,6 +6,7 @@ import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
 import { UploadChoiceDialog } from "../../auth/Services/shared/components/UploadChoiceDialog";
 import { DocumentPreviewModal } from "./DocumentPreviewModal";
+import { CameraCaptureModal, CapturedPhoto } from "./CameraCaptureModal";
 
 export interface DocumentRequirement {
   key: string;       // Unique lookup key in uploads object
@@ -42,6 +43,7 @@ export function SharedDocumentUpload({
   const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [activeSlotKey, setActiveSlotKey] = useState<string | null>(null);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
 
@@ -202,9 +204,30 @@ export function SharedDocumentUpload({
     }
   };
 
+  const handleCameraCapture = (captured: CapturedPhoto) => {
+    if (!activeSlotKey) return;
+    onUpload(activeSlotKey, {
+      name: captured.name,
+      uri: captured.uri,
+      type: captured.type,
+      file: captured.file,
+    });
+  };
+
   const handleCameraLaunch = async () => {
     if (!activeSlotKey) return;
     setIsSheetOpen(false);
+
+    if (
+      Platform.OS === "web" &&
+      typeof navigator !== "undefined" &&
+      navigator.mediaDevices &&
+      typeof navigator.mediaDevices.getUserMedia === "function"
+    ) {
+      setIsCameraModalOpen(true);
+      return;
+    }
+
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
       if (!permissionResult.granted) {
@@ -685,6 +708,15 @@ export function SharedDocumentUpload({
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+      />
+
+      {/* Live Camera Viewfinder Modal */}
+      <CameraCaptureModal
+        visible={isCameraModalOpen}
+        onClose={() => setIsCameraModalOpen(false)}
+        onCapture={handleCameraCapture}
+        onFallbackToFilePick={handleDocumentPick}
+        title={`Scan / Take Photo - ${activeReq?.label || "Document"}`}
       />
     </View>
   );
