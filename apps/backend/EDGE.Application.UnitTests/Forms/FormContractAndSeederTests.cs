@@ -154,6 +154,7 @@ public class FormContractAndSeederTests
         var stationSection = ntc109!.Sections.FirstOrDefault(s => s.Key.Equals("stationEquipment", StringComparison.OrdinalIgnoreCase));
         stationSection.Should().NotBeNull("stationEquipment section must exist in NTC_1_09 form.");
 
+        stationSection!.FieldKeys.Should().Contain(new[] { "noOfYears", "preferredCallSign", "callSign" });
         stationSection!.FieldKeys.Should().ContainInOrder(new[]
         {
             "callSign",
@@ -166,5 +167,23 @@ public class FormContractAndSeederTests
             "hoursOfOperation",
             "particulars"
         }, "NTC 1-09 Station/Equipment section must contain operating parameters before particulars in order.");
+    }
+
+    [Fact]
+    public void Ntc109_StationEquipmentSection_ContainsVanityCallSignParameters()
+    {
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        var ntc109 = formDefs.FirstOrDefault(f => f.ServiceKey.Equals("NTC_1_09", StringComparison.OrdinalIgnoreCase));
+        ntc109.Should().NotBeNull("NTC_1_09 form definition must exist in seeded forms.");
+
+        var stationSection = ntc109!.Sections.FirstOrDefault(s => s.Key.Equals("stationEquipment", StringComparison.OrdinalIgnoreCase));
+        stationSection.Should().NotBeNull("stationEquipment section must exist in NTC_1_09 form.");
+
+        stationSection!.FieldKeys.Should().ContainInOrder(new[]
+        {
+            "noOfYears",
+            "preferredCallSign",
+            "particulars"
+        }, "NTC 1-09 Station/Equipment section must contain no. of years, preferred call sign, and particulars.");
     }
 }
