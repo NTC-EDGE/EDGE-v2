@@ -409,7 +409,15 @@ export function ApplicationDetailsPage({
         onSuccess={() => {
           setAppState((prev) => ({
             ...prev,
+            status: 'PAYMENT_SUBMITTED',
             remarks: 'Payment submitted via client. Waiting for Cashier verification.',
+            op: prev.op ? { ...prev.op, status: 'Processing' } : {
+              id: 'op-submitted',
+              opNumber: prev.opNumber || '',
+              status: 'Processing',
+              amountDue: prev.totalAmountDue || 0,
+              amountReceived: prev.totalAmountDue || 0,
+            },
           }));
           refetch();
         }}

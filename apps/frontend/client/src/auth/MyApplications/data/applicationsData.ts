@@ -9,11 +9,12 @@ export type ApplicationStatus =
   | 'DECLINED'
   | 'EXPIRING_SOON'
   | 'READY_FOR_PAYMENT'
+  | 'PAYMENT_SUBMITTED'
   | 'PENDING';
 
 export type ApplicationMode = 'SINGLE' | 'BULK';
 export type ModeFilterOption = 'ALL' | 'SINGLE' | 'BULK' | 'ASSESSMENT';
-export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'READY_FOR_PAYMENT' | 'DECLINED' | 'PENDING';
+export type StatusFilterOption = 'ALL' | 'FOR_APPROVAL' | 'FOR_EVALUATION' | 'APPROVED' | 'EXPIRING_SOON' | 'READY_FOR_PAYMENT' | 'PAYMENT_SUBMITTED' | 'DECLINED' | 'PENDING';
 export type DensityOption = 'std' | 'cozy' | 'compact';
 export type ExamineeType = 'New' | 'Renewal' | 'Modification' | 'Upgrading' | 'Additional';
 
@@ -393,6 +394,7 @@ export function getStatusLabel(status: ApplicationStatus): string {
     case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
     case 'READY_FOR_PAYMENT':return 'For Payment';
+    case 'PAYMENT_SUBMITTED':return 'Verification in Progress';
     case 'PENDING':          return 'Submitted';
   }
 }
@@ -405,6 +407,7 @@ export function getStatusColor(status: ApplicationStatus): string {
     case 'DECLINED':         return '#DC2626';
     case 'EXPIRING_SOON':    return '#EA580C';
     case 'READY_FOR_PAYMENT':return '#059669';
+    case 'PAYMENT_SUBMITTED':return '#0284C7';
     case 'PENDING':          return '#64748B';
   }
 }
@@ -417,6 +420,7 @@ export function getStatusBgColor(status: ApplicationStatus): string {
     case 'DECLINED':         return '#FEE2E2';
     case 'EXPIRING_SOON':    return '#FFF7ED';
     case 'READY_FOR_PAYMENT':return '#D1FAE5';
+    case 'PAYMENT_SUBMITTED':return '#E0F2FE';
     case 'PENDING':          return '#F1F5F9';
   }
 }
@@ -630,11 +634,81 @@ export function normalizeApplicationStatus(rawStatus: string | undefined | null)
   if (s.includes('FORISSUANCE') || s.includes('ISSUANCE') || s.includes('FORAPPROVAL') || s.includes('APPROVAL')) return 'FOR_APPROVAL';
   if (s.includes('FORORDEROFPAYMENT') || s.includes('FORACCOUNTANT') || s.includes('EVALUAT') || s.includes('UNDEREVALUATION')) return 'FOR_EVALUATION';
   if (s.includes('DECLIN') || s.includes('REJECT') || s.includes('RETURN')) return 'DECLINED';
+  if (s.includes('PAYMENTSUBMITTED') || s.includes('VERIFICATIONINPROGRESS') || s.includes('AWAITINGVERIFICATION') || s.includes('PAYMENTPROCESSING')) return 'PAYMENT_SUBMITTED';
   if (s.includes('PENDINGPAYMENT') || s.includes('READYFORPAYMENT') || s.includes('FORPAYMENT') || s === 'PAYMENT' || s === 'FOR_PAYMENT') return 'READY_FOR_PAYMENT';
   if (s.includes('EXPIR')) return 'EXPIRING_SOON';
   if (s.includes('DRAFT') || s.includes('SUBMIT')) return 'PENDING';
   if (s === 'APPROVED' || s === 'COMPLETED' || s === 'ISSUED') return 'APPROVED';
   return 'PENDING';
+}
+
+export function isApplicationPaymentSubmitted(app: Application): boolean {
+  const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
+  const hasOr = Boolean(typeof orNumber === 'string' && orNumber.trim().length > 0);
+  if (hasOr) return false;
+
+  const opStatusLower = (app.op?.status ?? '').toLowerCase();
+  const isOpBilled = opStatusLower === 'billed' || opStatusLower === 'active';
+  const isOpReturned = opStatusLower === 'returned';
+  if (isOpBilled || isOpReturned) return false;
+
+  if (opStatusLower === 'processing' || opStatusLower === 'paid') {
+    return true;
+  }
+
+  const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
+  if (
+    remarksLower.includes('payment submitted') ||
+    remarksLower.includes('waiting for cashier verification') ||
+    remarksLower.includes('awaiting cashier verification') ||
+    remarksLower.includes('verification in progress')
+  ) {
+    return true;
+  }
+
+  const opRemarksLower = (typeof app.op?.remarks === 'string' ? app.op.remarks : '').toLowerCase();
+  if (
+    opRemarksLower.includes('payment submitted') ||
+    opRemarksLower.includes('waiting for cashier verification') ||
+    opRemarksLower.includes('awaiting cashier verification') ||
+    opRemarksLower.includes('verification in progress')
+  ) {
+    return true;
+  }
+
+  const rawStatusLower = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
+  if (
+    rawStatusLower === 'payment_submitted' ||
+    rawStatusLower === 'paymentsubmitted' ||
+    rawStatusLower === 'payment_processing' ||
+    rawStatusLower === 'paymentprocessing' ||
+    rawStatusLower === 'awaiting_verification'
+  ) {
+    return true;
+  }
+
+  const statusStr = (typeof app.status === 'string' ? app.status : '').toUpperCase();
+  if (statusStr === 'PAYMENT_SUBMITTED') {
+    return true;
+  }
+
+  const histories = app.histories || app.history || [];
+  if (Array.isArray(histories) && histories.length > 0) {
+    const hasSubmittedHistory = histories.some((h) => {
+      const act = (h.action || '').toLowerCase();
+      const rem = (h.remarks || '').toLowerCase();
+      return (
+        act.includes('awaiting cashier verification') ||
+        act.includes('submitted payment') ||
+        act.includes('payment submitted') ||
+        rem.includes('awaiting cashier verification') ||
+        rem.includes('payment submitted')
+      );
+    });
+    if (hasSubmittedHistory) return true;
+  }
+
+  return false;
 }
 
 interface ApiApplicantDto {
@@ -737,6 +811,22 @@ export interface ApiApplicationDto {
   AmountPaid?: number;
   paidAt?: string;
   PaidAt?: string;
+  opStatus?: string;
+  OpStatus?: string;
+  orderOfPaymentId?: string;
+  OrderOfPaymentId?: string;
+  opNumber?: string;
+  OpNumber?: string;
+  paymentMethod?: string;
+  PaymentMethod?: string;
+  checkNumber?: string;
+  checkName?: string;
+  checkBank?: string;
+  checkDate?: string;
+  payorName?: string;
+  paymentRemarks?: string;
+  totalAmountDue?: number;
+  TotalAmountDue?: number;
   intent?: string;
   Intent?: string;
   assessedAt?: string;
@@ -858,7 +948,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const modeStr = (dto.submissionMode || dto.mode || '').toString().toUpperCase();
   const isBulk = modeStr === 'BULK';
   const rawStatus = dto.status || 'PENDING';
-  const status = normalizeApplicationStatus(rawStatus);
+  let status = normalizeApplicationStatus(rawStatus);
 
   const rawApplicants = dto.applicants || dto.Applicants || [];
   const filingUser = dto.filingUser;
@@ -1145,6 +1235,46 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     primaryOpDto?.officialReceiptNumber ||
     undefined;
 
+  const hasOr = Boolean(resolvedOrNumber && resolvedOrNumber.trim().length > 0);
+
+  const opStatusLower = (primaryOpDto?.status || dto.opStatus || dto.OpStatus || '').toLowerCase();
+  const isOpBilled = opStatusLower === 'billed' || opStatusLower === 'active';
+  const isOpReturned = opStatusLower === 'returned';
+
+  const dtoRemarks = typeof dto.remarks === 'string' ? dto.remarks.toLowerCase() : '';
+  const dtoPaymentRemarks = typeof dto.paymentRemarks === 'string' ? dto.paymentRemarks.toLowerCase() : '';
+
+  const isPaymentSubmitted =
+    !hasOr &&
+    !isOpBilled &&
+    !isOpReturned && (
+      opStatusLower === 'processing' ||
+      opStatusLower === 'paid' ||
+      dtoRemarks.includes('payment submitted') ||
+      dtoRemarks.includes('waiting for cashier verification') ||
+      dtoRemarks.includes('awaiting cashier verification') ||
+      dtoRemarks.includes('verification in progress') ||
+      dtoPaymentRemarks.includes('payment submitted') ||
+      dtoPaymentRemarks.includes('waiting for cashier verification') ||
+      dtoPaymentRemarks.includes('awaiting cashier verification') ||
+      dtoPaymentRemarks.includes('verification in progress') ||
+      mappedHistories.some((h) => {
+        const act = (h.action || '').toLowerCase();
+        const rem = (h.remarks || '').toLowerCase();
+        return (
+          act.includes('awaiting cashier verification') ||
+          act.includes('submitted payment') ||
+          act.includes('payment submitted') ||
+          rem.includes('awaiting cashier verification') ||
+          rem.includes('payment submitted')
+        );
+      })
+    );
+
+  if (isPaymentSubmitted) {
+    status = 'PAYMENT_SUBMITTED';
+  }
+
   const resolvedAmountPaid =
     typeof dto.amountPaid === 'number'
       ? dto.amountPaid
@@ -1192,22 +1322,24 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     ? {
         id: primaryOpDto.id,
         opNumber: primaryOpDto.opNumber || '',
-        status: primaryOpDto.status || 'Active',
+        status: isPaymentSubmitted && primaryOpDto.status !== 'Returned' ? 'Processing' : (primaryOpDto.status || 'Active'),
         amountDue: typeof primaryOpDto.amountDue === 'number' ? primaryOpDto.amountDue : 0,
         amountReceived: typeof primaryOpDto.amountReceived === 'number' ? primaryOpDto.amountReceived : (resolvedAmountPaid ?? 0),
-        paymentMethod: primaryOpDto.paymentMethod,
+        paymentMethod: primaryOpDto.paymentMethod || dto.paymentMethod || dto.PaymentMethod,
         officialReceiptNumber: primaryOpDto.officialReceiptNumber || resolvedOrNumber,
         paidAt: primaryOpDto.paidAt || resolvedPaidAt,
-        remarks: primaryOpDto.remarks,
+        remarks: primaryOpDto.remarks || dto.paymentRemarks || dto.remarks,
       }
-    : (resolvedOrNumber ? {
-        id: 'op-auto-gen',
-        opNumber: '',
-        status: 'PAID',
-        amountDue: 0,
+    : ((dto.opStatus || dto.OpStatus || dto.orderOfPaymentId || dto.OrderOfPaymentId || dto.opNumber || dto.OpNumber || resolvedOrNumber || isPaymentSubmitted) ? {
+        id: dto.orderOfPaymentId || dto.OrderOfPaymentId || (resolvedOrNumber ? 'op-auto-gen' : 'op-summary'),
+        opNumber: dto.opNumber || dto.OpNumber || (status === 'READY_FOR_PAYMENT' || status === 'PAYMENT_SUBMITTED' ? `OP-${refNumber}` : ''),
+        status: isPaymentSubmitted ? 'Processing' : (dto.opStatus || dto.OpStatus || (resolvedOrNumber ? 'PAID' : 'Active')),
+        amountDue: typeof dto.totalAmountDue === 'number' ? dto.totalAmountDue : typeof dto.TotalAmountDue === 'number' ? dto.TotalAmountDue : 0,
         amountReceived: resolvedAmountPaid ?? 0,
+        paymentMethod: dto.paymentMethod || dto.PaymentMethod,
         officialReceiptNumber: resolvedOrNumber,
         paidAt: resolvedPaidAt,
+        remarks: dto.paymentRemarks || dto.remarks,
       } : undefined);
 
   let mappedSoaItems: SoaLineItem[] = mappedSoa?.lineItems || [];
@@ -1215,7 +1347,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   const catLower = (serviceCategory || '').toLowerCase();
   const isExam = catLower.includes('exam') || svcLower.includes('exam') || svcLower.includes('admission');
 
-  if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || dto.soaNumber)) {
+  if (mappedSoaItems.length === 0 && (status === 'READY_FOR_PAYMENT' || status === 'PAYMENT_SUBMITTED' || dto.soaNumber)) {
     const units = isBulk ? (mappedApplicants.length || 1) : 1;
     if (isExam) {
       mappedSoaItems = [
@@ -1262,11 +1394,11 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       ? mappedOp.amountDue
       : mappedSoaItems.length > 0
       ? mappedSoaItems.reduce((acc, item) => acc + (typeof item.amount === 'number' ? item.amount : 0), 0)
-      : (status === 'READY_FOR_PAYMENT' || dto.soaNumber ? (isExam ? 50 : 1380) : undefined);
+      : (status === 'READY_FOR_PAYMENT' || status === 'PAYMENT_SUBMITTED' || dto.soaNumber ? (isExam ? 50 : 1380) : undefined);
 
   const resolvedDueDate = mappedSoa?.dueDate;
-  const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' ? `SOA-${refNumber}` : null);
-  const resolvedOpNumber = mappedOp?.opNumber || (status === 'READY_FOR_PAYMENT' ? `OP-${refNumber}` : null);
+  const resolvedSoaNumber = mappedSoa?.soaNumber || dto.soaNumber || (status === 'READY_FOR_PAYMENT' || status === 'PAYMENT_SUBMITTED' ? `SOA-${refNumber}` : null);
+  const resolvedOpNumber = mappedOp?.opNumber || (status === 'READY_FOR_PAYMENT' || status === 'PAYMENT_SUBMITTED' ? `OP-${refNumber}` : null);
 
   const rawIntentStr = (dto.intent || dto.Intent || '').toString().toLowerCase();
   const isAssessmentOnly = rawIntentStr === 'assessmentonly' || rawIntentStr === 'assessment_only' || rawIntentStr === 'assessment';
