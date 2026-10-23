@@ -1,6 +1,9 @@
 {
   "name": "ntc-edge-monorepo",
   "version": "1.0.0",
+  "engines": {
+    "node": ">=24.22.1"
+  },
   "overrides": {
     "lru-cache": "^7.18.3",
     "postcss": "^8.5.10",

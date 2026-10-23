@@ -2,6 +2,9 @@
   "name": "ntc-edge-app",
   "version": "1.0.0",
   "main": "index.ts",
+  "engines": {
+    "node": ">=24.22.1"
+  },
   "dependencies": {
     "@clerk/expo": "^3.2.0",
     "@edge/api": "workspace:*",
