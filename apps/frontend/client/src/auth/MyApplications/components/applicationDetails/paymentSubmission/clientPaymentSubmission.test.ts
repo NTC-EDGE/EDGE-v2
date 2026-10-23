@@ -3,8 +3,12 @@ import {
   parsePaymentBreakdown,
   PaymentBreakdown,
   SubmitPaymentRequest,
+  storageService,
+  ApiResponse,
+  StoredFileDto,
 } from '@edge/api';
 import { CheckProofFile, CombinationRow } from './paymentSubmissionTypes';
+import { uploadCheckProof } from './checkProofUploadHelper';
 
 describe('Client Payment Submission & Check Proof', () => {
   it('serializes single check payment breakdown with proof of check metadata', () => {
@@ -141,5 +145,97 @@ describe('Client Payment Submission & Check Proof', () => {
     const checkRow = combinationRows.find((r) => r.mode === 'Check');
     expect(checkRow?.checkProofFile?.name).toBe('sec_bank_check.png');
     expect(checkRow?.checkProofFile?.type).toBe('image/png');
+  });
+
+  describe('uploadCheckProof error surfacing & reliability', () => {
+    it('returns an explicit error when proof file cannot be loaded into memory', async () => {
+      const result = await uploadCheckProof({ name: 'unreachable_check.jpg', uri: '' }, 'tenant-abc');
+      expect(result.success).toBe(false);
+      if (!result.success) {
+        expect(result.error).toContain('unreachable_check.jpg');
+        expect(result.error).toContain('could not be loaded');
+      }
+    });
+
+    it('returns an explicit network error when proof uri fetch fails', async () => {
+      const originalFetch = global.fetch;
+      const failingFetch = (async () => {
+        throw new Error('Connection reset by peer');
+      });
+      Object.assign(failingFetch, originalFetch);
+      global.fetch = failingFetch;
+
+      try {
+        const result = await uploadCheckProof(
+          { name: 'check_scan.jpg', uri: 'http://localhost:9999/failed-proof.jpg' },
+          'tenant-abc'
+        );
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toContain('Connection reset by peer');
+          expect(result.error).toContain('check_scan.jpg');
+        }
+      } finally {
+        global.fetch = originalFetch;
+      }
+    });
+
+    it('explicitly surfaces storage service rejections to downstream caller', async () => {
+      const originalUpload = storageService.uploadFile;
+      storageService.uploadFile = async () => [
+        null,
+        'Storage service quota exceeded or cluster unavailable',
+      ];
+
+      try {
+        const blob = new Blob(['sample check image data'], { type: 'image/jpeg' });
+        const result = await uploadCheckProof(
+          { name: 'bank_check.jpg', uri: 'blob:bank-check', file: blob },
+          'tenant-region-3'
+        );
+
+        expect(result.success).toBe(false);
+        if (!result.success) {
+          expect(result.error).toBe('Storage service quota exceeded or cluster unavailable');
+        }
+      } finally {
+        storageService.uploadFile = originalUpload;
+      }
+    });
+
+    it('returns stored file identifier on successful upload', async () => {
+      const originalUpload = storageService.uploadFile;
+      const mockSuccessResponse: ApiResponse<StoredFileDto> = {
+        succeeded: true,
+        message: 'File uploaded successfully',
+        errors: {},
+        data: {
+          id: 'stored-proof-guid-456',
+          fileName: 'bank_check.jpg',
+          contentType: 'image/jpeg',
+          fileSizeBytes: 1024,
+          category: 'payments',
+          tenantId: 'tenant-region-3',
+          uploadedByUserId: 'user-test-123',
+          createdAt: new Date().toISOString(),
+        },
+      };
+      storageService.uploadFile = async () => [mockSuccessResponse, null];
+
+      try {
+        const blob = new Blob(['sample check image data'], { type: 'image/jpeg' });
+        const result = await uploadCheckProof(
+          { name: 'bank_check.jpg', uri: 'blob:bank-check', file: blob },
+          'tenant-region-3'
+        );
+
+        expect(result.success).toBe(true);
+        if (result.success) {
+          expect(result.fileId).toBe('stored-proof-guid-456');
+        }
+      } finally {
+        storageService.uploadFile = originalUpload;
+      }
+    });
   });
 });

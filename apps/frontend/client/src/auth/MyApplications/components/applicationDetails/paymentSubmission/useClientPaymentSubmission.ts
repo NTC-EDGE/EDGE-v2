@@ -2,7 +2,6 @@ import { useState, useMemo, useEffect } from 'react';
 import { Application } from '../../../data/applicationsData';
 import {
   applicationService,
-  storageService,
   PaymentMethodDto,
   PaymentBreakdown,
   PaymentBreakdownItem,
@@ -13,6 +12,7 @@ import {
 import { useToast } from '../../../../../shared/components/Toast';
 import { resolveApplicationTenantId } from '../../../../../shared/helpers/tenantHelper';
 import { ModeOfPayment, CombinationRow, CheckProofFile } from './paymentSubmissionTypes';
+import { uploadCheckProof } from './checkProofUploadHelper';
 
 interface UseClientPaymentSubmissionProps {
   app: Application;
@@ -21,42 +21,7 @@ interface UseClientPaymentSubmissionProps {
   visible?: boolean;
 }
 
-async function uploadCheckProof(
-  proof: CheckProofFile,
-  tenantId: string
-): Promise<string | null> {
-  let fileBlob: Blob | null = null;
-  if (proof.file instanceof Blob) {
-    fileBlob = proof.file;
-  } else if (typeof proof.uri === 'string' && proof.uri.trim() !== '') {
-    try {
-      const res = await fetch(proof.uri);
-      if (res.ok) {
-        fileBlob = await res.blob();
-      }
-    } catch (fetchErr) {
-      console.warn('Could not read check proof file:', fetchErr);
-    }
-  }
 
-  if (fileBlob === null) {
-    return null;
-  }
-
-  const [storageRes, storageErr] = await storageService.uploadFile(
-    fileBlob,
-    proof.name || `check_proof_${Date.now()}.jpg`,
-    'payments',
-    tenantId
-  );
-
-  if (storageErr !== null || !storageRes?.data) {
-    console.warn('Check proof upload failed:', storageErr);
-    return null;
-  }
-
-  return storageRes.data.id;
-}
 
 export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }: UseClientPaymentSubmissionProps) {
   const toast = useToast();
@@ -356,17 +321,30 @@ export function useClientPaymentSubmission({ app, onClose, onSuccess, visible }:
 
     let singleProofFileId: string | null = null;
     if (selectedMode === 'Check' && checkProofFile !== null) {
-      singleProofFileId = await uploadCheckProof(checkProofFile, tenantId);
+      const uploadRes = await uploadCheckProof(checkProofFile, tenantId);
+      if (!uploadRes.success) {
+        setIsSubmitting(false);
+        const msg = `Check Proof Upload Failed: ${uploadRes.error}`;
+        setErrorMessage(msg);
+        toast.error('Upload Failed', msg);
+        return;
+      }
+      singleProofFileId = uploadRes.fileId;
     }
 
     const combinationProofIdMap = new Map<string, string>();
     if (selectedMode === 'Combination') {
       for (const row of combinationRows) {
         if (row.mode === 'Check' && row.checkProofFile !== null && row.checkProofFile !== undefined) {
-          const uploadedId = await uploadCheckProof(row.checkProofFile, tenantId);
-          if (uploadedId !== null) {
-            combinationProofIdMap.set(row.id, uploadedId);
+          const uploadRes = await uploadCheckProof(row.checkProofFile, tenantId);
+          if (!uploadRes.success) {
+            setIsSubmitting(false);
+            const msg = `Check Proof Upload Failed for "${row.checkBank || 'Check'}": ${uploadRes.error}`;
+            setErrorMessage(msg);
+            toast.error('Upload Failed', msg);
+            return;
           }
+          combinationProofIdMap.set(row.id, uploadRes.fileId);
         }
       }
     }

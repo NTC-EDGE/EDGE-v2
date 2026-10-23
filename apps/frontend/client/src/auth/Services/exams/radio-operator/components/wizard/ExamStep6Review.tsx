@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { View, Text, TouchableOpacity, Image } from "react-native";
 import { Icon, COLORS, TYPOGRAPHY } from "@edge/ui";
 import { ExamApplicantData } from "../../types/examTypes";
+import { getUploadItemFileName } from "../../helpers/examMapping";
 import { styles } from "../ExamFilingWizard.styles";
 import { DocumentPreviewModal } from "../../../../../../shared/components/DocumentPreviewModal";
 import { ExamScheduleCardData, formatFriendlyDate, formatFullExamDate } from "../../../../shared/components/ExamScheduleCard";
@@ -130,12 +131,7 @@ export function ExamStep6Review({
         ) : (
           Object.keys(activeApplicant.uploads).map((key) => {
             const uploadItem = activeApplicant.uploads[key];
-            const fileName =
-              typeof uploadItem === "string"
-                ? uploadItem
-                : (uploadItem !== null && typeof uploadItem === "object" && "name" in uploadItem && typeof (uploadItem as { name: string }).name === "string"
-                    ? (uploadItem as { name: string }).name
-                    : "");
+            const fileName = getUploadItemFileName(uploadItem);
 
             return (
               <View

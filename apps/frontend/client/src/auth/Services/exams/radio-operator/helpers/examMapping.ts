@@ -86,6 +86,73 @@ export const getFieldValidationError = (field: keyof ExamApplicantData, value: s
   return undefined;
 };
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+/**
+ * Safely extracts document/asset file name from an upload item or string descriptor
+ * using defensive null-checks and runtime type guards without type assertions.
+ */
+export const getUploadItemFileName = (uploadItem: unknown): string => {
+  if (typeof uploadItem === "string" && uploadItem.trim() !== "") {
+    return uploadItem.trim();
+  }
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.name === "string" && uploadItem.name.trim() !== "") {
+      return uploadItem.name.trim();
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.name === "string" && rawFile.name.trim() !== "") {
+      return rawFile.name.trim();
+    }
+    const rawUri = uploadItem.uri;
+    if (typeof rawUri === "string" && rawUri.trim() !== "") {
+      const parts = rawUri.split("/");
+      const last = parts[parts.length - 1];
+      if (last && last.trim() !== "") {
+        return decodeURIComponent(last.trim());
+      }
+    }
+  }
+  return "Supporting Document";
+};
+
+/**
+ * Safely extracts document/asset file size from an upload item.
+ */
+export const getUploadItemFileSize = (uploadItem: unknown): number | undefined => {
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.size === "number" && uploadItem.size > 0) {
+      return uploadItem.size;
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.size === "number" && rawFile.size > 0) {
+      return rawFile.size;
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Safely extracts document/asset mime type from an upload item.
+ */
+export const getUploadItemMimeType = (uploadItem: unknown): string | undefined => {
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.type === "string" && uploadItem.type.trim() !== "") {
+      return uploadItem.type.trim();
+    }
+    if (typeof uploadItem.mimeType === "string" && uploadItem.mimeType.trim() !== "") {
+      return uploadItem.mimeType.trim();
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.type === "string" && rawFile.type.trim() !== "") {
+      return rawFile.type.trim();
+    }
+  }
+  return undefined;
+};
+
 export interface ExamRequirementItem {
   id?: string;
   name: string;
@@ -95,18 +162,34 @@ export interface ExamRequirementItem {
 }
 
 export const getRequirementsList = (
-  dbRequirements: any[],
+  dbRequirements: unknown[],
   examineeType: string,
   serviceName?: string | null
 ): ExamRequirementItem[] => {
-  if (dbRequirements && dbRequirements.length > 0) {
-    return dbRequirements.map((r: any, idx: number) => ({
-      id: r.id || r.requirementId,
-      name: r.name || r.label || r.title || `Requirement ${idx + 1}`,
-      isRequired: r.isRequired !== undefined ? r.isRequired : true,
-      description: r.description,
-      hint: r.hint || r.description,
-    }));
+  if (Array.isArray(dbRequirements) && dbRequirements.length > 0) {
+    return dbRequirements.map((rRaw, idx) => {
+      const r = isRecord(rRaw) ? rRaw : {};
+      const id = typeof r.id === "string" ? r.id : typeof r.requirementId === "string" ? r.requirementId : undefined;
+      const name =
+        typeof r.name === "string" && r.name.trim() !== ""
+          ? r.name
+          : typeof r.label === "string" && r.label.trim() !== ""
+          ? r.label
+          : typeof r.title === "string" && r.title.trim() !== ""
+          ? r.title
+          : `Requirement ${idx + 1}`;
+      const isRequired = typeof r.isRequired === "boolean" ? r.isRequired : true;
+      const description = typeof r.description === "string" ? r.description : undefined;
+      const hint = typeof r.hint === "string" ? r.hint : description;
+
+      return {
+        id,
+        name,
+        isRequired,
+        description,
+        hint,
+      };
+    });
   }
   const list: ExamRequirementItem[] = [
     {
@@ -137,7 +220,7 @@ export const getRequirementsList = (
 
 export const mapApplicantsPayload = (
   applicants: ExamApplicantData[],
-  formFields: any[],
+  formFields: unknown[],
   _serviceName?: string | null
 ) => {
   const months: Record<string, string> = {
@@ -187,9 +270,11 @@ export const mapApplicantsPayload = (
         "signature", "declare", "declaration", "terms"
       ];
 
-      formFields.forEach((field: any) => {
-        const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId || field.id;
+      formFields.forEach((fieldRaw) => {
+        const field = isRecord(fieldRaw) ? fieldRaw : {};
+        const label = typeof field.label === "string" ? field.label : "";
+        const labelLower = label.toLowerCase();
+        const id = typeof field.fieldId === "string" ? field.fieldId : typeof field.id === "string" ? field.id : undefined;
         if (!id) return;
 
         if ((labelLower.includes("school") || labelLower.includes("university")) && app.schoolName) {

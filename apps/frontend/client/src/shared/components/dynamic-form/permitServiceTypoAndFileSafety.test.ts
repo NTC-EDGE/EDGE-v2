@@ -12,7 +12,13 @@ import { resolveApplicationTenantId } from "../../helpers/tenantHelper";
 import { initialGeneralApplicant } from "../../../auth/Services/shared/types/generalApplicantTypes";
 import { initialExamApplicant } from "../../../auth/Services/exams/radio-operator/types/examTypes";
 import { serializeCertificateApplicant } from "../../../auth/Services/certificates/helpers/payloadSerializer";
-import { mapApplicantsPayload } from "../../../auth/Services/exams/radio-operator/helpers/examMapping";
+import {
+  mapApplicantsPayload,
+  getRequirementsList,
+  getUploadItemFileName,
+  getUploadItemFileSize,
+  getUploadItemMimeType,
+} from "../../../auth/Services/exams/radio-operator/helpers/examMapping";
 
 describe("Dead Code & Typo Prevention - Permit Service Options & Labels", () => {
   it("provides clean, professional user-facing labels without typos", () => {
@@ -235,5 +241,89 @@ describe("Payload Purity - Preventing Altered Payloads from Artificial Fallbacks
 
     const hasFakeGuid = fieldValues.some((fv) => fv.fieldId.startsWith("f0100000"));
     expect(hasFakeGuid).toBe(false);
+  });
+
+  describe("Exam Mapping & Asset Property Defensive Null-Checks", () => {
+    it("getUploadItemFileName safely resolves file names from multiple asset descriptor formats without type assertions", () => {
+      // 1. Direct string
+      expect(getUploadItemFileName("passport_photo.jpg")).toBe("passport_photo.jpg");
+
+      // 2. Object with name property
+      expect(getUploadItemFileName({ name: "transcript_of_records.pdf" })).toBe("transcript_of_records.pdf");
+
+      // 3. Object with nested file.name property
+      expect(getUploadItemFileName({ file: { name: "birth_cert.png" } })).toBe("birth_cert.png");
+
+      // 4. Object with uri property
+      expect(getUploadItemFileName({ uri: "file:///data/user/0/documents/nbi_clearance.pdf" })).toBe("nbi_clearance.pdf");
+
+      // 5. Fallback for null, undefined, or empty objects
+      expect(getUploadItemFileName(null)).toBe("Supporting Document");
+      expect(getUploadItemFileName(undefined)).toBe("Supporting Document");
+      expect(getUploadItemFileName({})).toBe("Supporting Document");
+      expect(getUploadItemFileName("   ")).toBe("Supporting Document");
+    });
+
+    it("getUploadItemFileSize safely resolves file sizes with null guards", () => {
+      expect(getUploadItemFileSize({ size: 204800 })).toBe(204800);
+      expect(getUploadItemFileSize({ file: { size: 102400 } })).toBe(102400);
+      expect(getUploadItemFileSize(null)).toBeUndefined();
+      expect(getUploadItemFileSize({})).toBeUndefined();
+      expect(getUploadItemFileSize({ size: 0 })).toBeUndefined();
+    });
+
+    it("getUploadItemMimeType safely resolves mime types from various property structures", () => {
+      expect(getUploadItemMimeType({ type: "application/pdf" })).toBe("application/pdf");
+      expect(getUploadItemMimeType({ mimeType: "image/png" })).toBe("image/png");
+      expect(getUploadItemMimeType({ file: { type: "image/jpeg" } })).toBe("image/jpeg");
+      expect(getUploadItemMimeType(null)).toBeUndefined();
+      expect(getUploadItemMimeType({})).toBeUndefined();
+    });
+
+    it("getRequirementsList safely handles unknown/malformed db requirement arrays", () => {
+      const rawDbList: unknown[] = [
+        { id: "req-1", name: "Custom Clearance", isRequired: true, description: "Valid clearance" },
+        { requirementId: "req-2", title: "Valid ID", isRequired: false },
+        { label: "Photo" },
+        null,
+        "unexpected-string",
+      ];
+
+      const resolved = getRequirementsList(rawDbList, "First Taker");
+      expect(resolved.length).toBe(5);
+      expect(resolved[0]?.name).toBe("Custom Clearance");
+      expect(resolved[0]?.isRequired).toBe(true);
+      expect(resolved[1]?.id).toBe("req-2");
+      expect(resolved[1]?.name).toBe("Valid ID");
+      expect(resolved[1]?.isRequired).toBe(false);
+      expect(resolved[2]?.name).toBe("Photo");
+      expect(resolved[3]?.name).toBe("Requirement 4");
+      expect(resolved[4]?.name).toBe("Requirement 5");
+    });
+
+    it("mapApplicantsPayload handles unknown form fields array without throw or corruption", () => {
+      const examApp = initialExamApplicant(1);
+      examApp.firstName = "Pedro";
+      examApp.lastName = "Penduko";
+      examApp.schoolName = "STI College";
+      examApp.courseDegree = "BSIT";
+      examApp.yearGraduated = "2022";
+
+      const rawFormFields: unknown[] = [
+        { fieldId: "f-school", label: "School Attended" },
+        { id: "f-course", label: "Course / Degree" },
+        null,
+        123,
+      ];
+
+      const mapped = mapApplicantsPayload([examApp], rawFormFields);
+      expect(mapped.length).toBe(1);
+      expect(mapped[0]?.firstName).toBe("Pedro");
+      expect(mapped[0]?.lastName).toBe("Penduko");
+
+      const values = mapped[0]?.formFieldValues || [];
+      expect(values.find((v) => v.fieldId === "f-school")?.value).toBe("STI College");
+      expect(values.find((v) => v.fieldId === "f-course")?.value).toBe("BSIT");
+    });
   });
 });
