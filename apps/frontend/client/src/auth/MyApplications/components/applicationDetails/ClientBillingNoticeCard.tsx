@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
-import { Application } from '../../data/applicationsData';
+import { Application, isApplicationPaymentSubmitted } from '../../data/applicationsData';
 import {
   formatCurrency,
   getEffectiveLineItems,
@@ -65,27 +65,14 @@ export function ClientBillingNoticeCard({
 
   const isAssessmentOnly = app.isAssessmentOnly || app.intent === 'AssessmentOnly';
 
+  const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+
   const isReadyForPayment =
     !hasOr && (
       app.status === 'READY_FOR_PAYMENT' ||
+      app.status === 'PAYMENT_SUBMITTED' ||
+      isPaymentSubmitted ||
       (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
-    );
-
-  const opStatusLower = (app.op?.status ?? '').toLowerCase();
-  const isOpBilled = opStatusLower === 'billed' || opStatusLower === 'active';
-  const isOpReturned = opStatusLower === 'returned';
-
-  const isPaymentSubmitted =
-    !hasOr &&
-    !isOpBilled &&
-    !isOpReturned && (
-      (typeof app.remarks === 'string' &&
-        (app.remarks.toLowerCase().includes('payment submitted') ||
-         app.remarks.toLowerCase().includes('waiting for cashier verification') ||
-         app.remarks.toLowerCase().includes('verification in progress'))) ||
-      (app.op !== undefined &&
-        typeof app.op.status === 'string' &&
-        (opStatusLower === 'processing' || opStatusLower === 'paid'))
     );
 
   if (!isReadyForPayment && !app.soaNumber && !isAssessmentOnly && !hasOr) {

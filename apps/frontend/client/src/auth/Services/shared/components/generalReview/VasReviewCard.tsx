@@ -5,18 +5,18 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface VasReviewCardProps {
   isCertificateService: boolean;
-  serviceTitle: string;
+  serviceTitle?: string | null;
   vasData?: VASProviderData | null;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
 }
 
 export function VasReviewCard({
   isCertificateService,
-  serviceTitle,
+  serviceTitle = '',
   vasData,
   formFieldValues = [],
 }: VasReviewCardProps) {
-  const serviceTitleLower = serviceTitle.toLowerCase();
+  const serviceTitleLower = (serviceTitle || '').toLowerCase();
   const isVasService = isCertificateService && (serviceTitleLower.includes('vas') || serviceTitleLower.includes('value-added'));
 
   const findFieldValue = (keys: string[]): string => {
@@ -130,4 +130,3 @@ export function VasReviewCard({
     </SectionCard>
   );
 }
-

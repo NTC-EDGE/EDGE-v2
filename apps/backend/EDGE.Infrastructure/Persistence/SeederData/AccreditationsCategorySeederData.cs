@@ -19,8 +19,6 @@ public static class AccreditationsCategorySeederData
         ""applicationTypes"": [""NEW"", ""RENEWAL"", ""MODIFICATION""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""typeOfApplication"", ""required"": true },
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""personnel"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,

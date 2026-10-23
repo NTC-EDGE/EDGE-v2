@@ -28,7 +28,6 @@ public static class PermitsCategorySeederData
         ""applicationTypes"": [""PURCHASE"", ""POSSESS"", ""SELL/TRANSFER"", ""Permit to Purchase"", ""Permit to Possess for Storage"", ""Permit to Purchase/Possess"", ""Permit to Sell/Transfer"", ""Temporary Permit to Operate an Amateur Radio Station - Foreign Visitor"", ""Special Permit for Use of Vanity Call Sign"", ""Special Permit for the Use of Special Event Call Sign""],
         ""elements"": [""Class A"", ""Class B"", ""Class C""],
         ""requiredSections"": [
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""stationEquipment"", ""required"": true },
             { ""key"": ""sourceOfEquipment"", ""required"": false },
             { ""key"": ""intendedUse"", ""required"": false }
@@ -53,10 +52,6 @@ public static class PermitsCategorySeederData
         ""applicationTypes"": [""New""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""natureOfService"", ""required"": true },
-            { ""key"": ""classOfStation"", ""required"": true },
-            { ""key"": ""typeOfRadioService"", ""required"": true },
-            { ""key"": ""applicant"", ""required"": true },
             { ""key"": ""station"", ""required"": true },
             { ""key"": ""equipment"", ""required"": true }
         ],
@@ -65,6 +60,25 @@ public static class PermitsCategorySeederData
             ""natureOfService"": [""CV (PRIVATE)"",""CO (GOVERNMENT)"",""CP (PUBLIC CORRESPONDENCE)""],
             ""typeOfRadioService"": [""FIXED AND LAND MOBILE"",""AERONAUTICAL"",""BROADCAST"",""P"",""BC"",""OTHERS, specify""],
             ""classOfStation"": [""RT"",""FA"",""FX"",""MA"",""FB"",""TC"",""ML"",""OTHERS, specify""]
+        },
+        ""entityType"": ""Application""
+    }";
+
+    public static readonly string NtcCopyPermitsContract = @"
+    {
+        ""formNo"": ""NTC 1-21"",
+        ""revisionNo"": ""02"",
+        ""revisionDate"": ""2023-03-31"",
+        ""serviceCategory"": ""Permits"",
+        ""group"": null,
+        ""applicationTypes"": [""Certified True Copy"", ""Duplicate Copy""],
+        ""elements"": [],
+        ""requiredSections"": [
+            { ""key"": ""permitCopyParticulars"", ""required"": true }
+        ],
+        ""allowsBulkSubmission"": false,
+        ""categorySpecific"": {
+            ""copyType"": [""Certified True Copy"",""Duplicate Copy""]
         },
         ""entityType"": ""Application""
     }";
@@ -80,7 +94,7 @@ public static class PermitsCategorySeederData
         ["NTC_PTE_PERMITS"] = Ntc109Contract,
         ["NTC_EQUIP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
         ["NTC_MP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
-        ["NTC_COPY_PERMITS"] = CertificatesCategorySeederData.Ntc121Contract
+        ["NTC_COPY_PERMITS"] = NtcCopyPermitsContract
     };
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
@@ -92,7 +106,7 @@ public static class PermitsCategorySeederData
         new("NTC_PTE_PERMITS", SvcPteId, categoryId, "PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)", null, "NTC_PTE_PERMITS", "PERMITS FOR PTEs", Ntc109Contract),
         new("NTC_EQUIP_PERMITS", SvcEquipId, categoryId, "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT", AccreditationsCategorySeederData.Ntc118Contract),
         new("NTC_MP_PERMITS", SvcMpId, categoryId, "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE", AccreditationsCategorySeederData.Ntc118Contract),
-        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", CertificatesCategorySeederData.Ntc121Contract)
+        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", NtcCopyPermitsContract)
     };
 
     // Variant IDs
@@ -511,7 +525,7 @@ public static class PermitsCategorySeederData
     {
         new("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
         {
-            new("stationEquipment", "Station/Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "particulars" }),
+            new("stationEquipment", "Station/Equipment", new() { "noOfYears", "preferredCallSign", "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "particulars" }),
             new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
         }),
@@ -549,7 +563,7 @@ public static class PermitsCategorySeederData
         }),
         new("NTC_COPY_PERMITS", Guid.Parse("fb500000-0000-0000-0000-000000000001"), Guid.Parse("fb5a0000-0000-0000-0000-000000000000"), new()
         {
-            new("permitLicenseCertificateNo", "Permit / Certificate Particulars", new() { "permitRslNo", "stationClass" }),
+            new("permitCopyParticulars", "Permit Details", new() { "detailsService", "targetPermitType", "permitNo", "noOfCopies" }),
             new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
         })
     };

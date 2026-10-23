@@ -79,13 +79,13 @@ export function CPEStep4BulkMethod({
       }
 
       if (setUploadedFileName) {
-        setUploadedFileName(asset.name || "CPE_Supplier_Import.csv");
+        setUploadedFileName(asset?.name || "CPE_Supplier_Import.csv");
       }
 
       let fileText = "";
-      if (Platform.OS === "web" && asset.file) {
+      if (Platform.OS === "web" && asset?.file && typeof asset.file.text === "function") {
         fileText = await asset.file.text();
-      } else if (asset.uri) {
+      } else if (asset?.uri) {
         const response = await fetch(asset.uri);
         fileText = await response.text();
       }
@@ -98,18 +98,18 @@ export function CPEStep4BulkMethod({
             id: idx + 1,
             businessName: app.firstName || `CPE Supplier ${idx + 1}`,
             businessType: "Corporation",
-            secDtiRegNo: "SEC-2023-00192",
-            contactNo: app.contactNo,
-            email: app.email,
-            province: "Metro Manila",
-            city: "Quezon City",
-            barangay: "Diliman",
-            street: app.address || "Commonwealth Ave",
+            secDtiRegNo: "",
+            contactNo: app.contactNo || "",
+            email: app.email || "",
+            province: app.province || "",
+            city: app.city || "",
+            barangay: app.barangay || "",
+            street: app.street || app.address || "",
             years: "3",
             variation: "Mobile",
             applicationType: "NEW",
-            supervisingEngineer: { name: "Engr. Roberto Dela Cruz", peceNumber: "PECE-0012948" },
-            technician: { name: "Juan Santos", certificateNumber: "ECT-009812" },
+            supervisingEngineer: { name: "", peceNumber: "" },
+            technician: { name: "", certificateNumber: "" },
             uploads: {},
           }));
           setApplicants(mappedCPE);

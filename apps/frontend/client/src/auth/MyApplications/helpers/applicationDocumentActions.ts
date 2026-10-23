@@ -2,13 +2,7 @@ import { Platform, Alert } from 'react-native';
 import { storageService, applicationService } from '@edge/api';
 import { ApplicationDocument, Application, RawRequirement } from '../data/applicationsData';
 import { DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
-
-const DEFAULT_TENANT_ID = 'aa0cd342-7265-4d9e-9242-948fc7e3d0a8';
-
-function isGuid(val: unknown): val is string {
-  if (typeof val !== 'string') return false;
-  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(val);
-}
+import { resolveApplicationTenantId, isGuid } from '../../../shared/helpers/tenantHelper';
 
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null;
@@ -24,21 +18,7 @@ function extractCompanyName(company: unknown): string {
   return '';
 }
 
-function resolveTenantId(app?: Application | null): string {
-  if (app?.tenantId !== undefined && app.tenantId !== null && isGuid(app.tenantId)) {
-    return app.tenantId;
-  }
-  if (app?.region !== undefined && app.region !== null && isGuid(app.region)) {
-    return app.region;
-  }
-  if (typeof process !== 'undefined') {
-    const envTenant = process.env.EXPO_PUBLIC_DEFAULT_TENANT_ID ?? process.env.NEXT_PUBLIC_DEFAULT_TENANT_ID;
-    if (typeof envTenant === 'string' && isGuid(envTenant)) {
-      return envTenant;
-    }
-  }
-  return DEFAULT_TENANT_ID;
-}
+const resolveTenantId = resolveApplicationTenantId;
 
 function getMimeType(docName: string, docType?: string): string {
   const lowerName = docName.toLowerCase();
@@ -95,7 +75,7 @@ export function resolveDocumentFileUrl(
   const storedId = doc.storedFileId ?? matchedReq?.storedFileId;
   if (typeof storedId === 'string' && storedId.trim() !== '' && storedId.toLowerCase() !== 'none' && storedId.toLowerCase() !== 'null') {
     const tenantId = resolveTenantId(app);
-    return storageService.getFileDownloadUrl(storedId.trim(), tenantId);
+    return storageService.getFileDownloadUrl(storedId.trim(), tenantId || undefined);
   }
 
   return undefined;

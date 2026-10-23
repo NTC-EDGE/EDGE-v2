@@ -6,16 +6,19 @@ declare module 'react-native' {
   }
   interface ViewStyle {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
+    userSelect?: 'auto' | 'text' | 'none' | 'contain' | 'all';
     transition?: string;
     backgroundImage?: string;
     boxShadow?: string;
   }
   interface TextStyle {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
+    userSelect?: 'auto' | 'text' | 'none' | 'contain' | 'all';
     transition?: string;
   }
   interface ImageStyle {
     cursor?: 'auto' | 'pointer' | 'default' | 'not-allowed';
+    userSelect?: 'auto' | 'text' | 'none' | 'contain' | 'all';
     transition?: string;
   }
 }
@@ -25,5 +28,3 @@ declare global {
     env: Record<string, string | undefined>;
   };
 }
-
-

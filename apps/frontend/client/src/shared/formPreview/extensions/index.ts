@@ -13,6 +13,7 @@ import { RadioCertPreview } from './RadioCertPreview';
 import { AmateurLicensePreview } from './AmateurLicensePreview';
 import { LifetimeAmateurPreview } from './LifetimeAmateurPreview';
 import { CopyOfCertPreview } from './CopyOfCertPreview';
+import { CopyOfPermitPreview } from './CopyOfPermitPreview';
 import { PermitPreview } from './PermitPreview';
 
 const EXTENSIONS: PreviewExtension[] = [
@@ -23,8 +24,21 @@ const EXTENSIONS: PreviewExtension[] = [
   AmateurLicensePreview,
   LifetimeAmateurPreview,
   CopyOfCertPreview,
+  CopyOfPermitPreview,
   PermitPreview,
 ];
+
+export {
+  DeviceRegistrationPreview,
+  TvroRegistrationPreview,
+  VasProviderPreview,
+  RadioCertPreview,
+  AmateurLicensePreview,
+  LifetimeAmateurPreview,
+  CopyOfCertPreview,
+  CopyOfPermitPreview,
+  PermitPreview,
+};
 
 /**
  * Returns the matching PreviewExtension for the given service, or null

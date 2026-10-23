@@ -51,7 +51,8 @@ export const isRemovedAmateurSection = (_titleOrKey: string): boolean => {
  */
 export const isApplicantParticularField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
-  const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
+  const rawLower = labelOrId.toLowerCase().trim();
+  const lower = rawLower.replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
 
   // DTI / SEC registration — always suppress from form sections
   if (
@@ -62,7 +63,49 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('dtisecregistration') ||
     lower.includes('dti_sec_registration') ||
     lower === 'fd000000 0000 0000 0000 000000000086' ||
-    lower === 'fd000000-0000-0000-0000-000000000086'
+    rawLower === 'fd000000-0000-0000-0000-000000000086'
+  ) {
+    return true;
+  }
+
+  // Educational background fields — rendered inside Primary Applicant Details
+  if (
+    rawLower === 'fd000000-0000-0000-0000-000000000006' ||
+    lower === 'fd000000 0000 0000 0000 000000000006' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000061' ||
+    lower === 'fd000000 0000 0000 0000 000000000061' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000062' ||
+    lower === 'fd000000 0000 0000 0000 000000000062' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000063' ||
+    lower === 'fd000000 0000 0000 0000 000000000063' ||
+    lower === 'education' ||
+    lower === 'school' ||
+    lower === 'school attended' ||
+    lower === 'schoolattended' ||
+    lower === 'school name' ||
+    lower === 'schoolname' ||
+    lower === 'school / university attended' ||
+    lower === 'school/university attended' ||
+    lower === 'course' ||
+    lower === 'course taken' ||
+    lower === 'coursetaken' ||
+    lower === 'course degree' ||
+    lower === 'coursedegree' ||
+    lower === 'course / degree program' ||
+    lower === 'course/degree program' ||
+    lower === 'degree' ||
+    lower === 'year graduated' ||
+    lower === 'yeargraduated' ||
+    lower === 'special order no' ||
+    lower === 'special order number' ||
+    lower === 'special order (so) no.' ||
+    lower === 'special order (so) number' ||
+    lower === 'special order (so) no' ||
+    lower === 'special order' ||
+    lower === 'specialorderno' ||
+    lower === 'so number' ||
+    lower === 'educational background' ||
+    lower === 'educational qualification'
   ) {
     return true;
   }
@@ -73,10 +116,6 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     lower.includes('seller') ||
     lower.includes('buyer') ||
     lower.includes('equipment') ||
-    lower.includes('school') ||
-    lower.includes('institution') ||
-    lower.includes('course') ||
-    lower.includes('degree') ||
     lower.includes('station') ||
     lower.includes('satellite') ||
     lower.includes('vessel') ||
@@ -172,7 +211,8 @@ export const isSignatureOrDeclarationField = (labelOrId: string): boolean => {
 
 export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
   if (!labelOrId) return false;
-  const lower = labelOrId.toLowerCase().replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
+  const rawLower = labelOrId.toLowerCase().trim();
+  const lower = rawLower.replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
     lower === 'service category' ||
     lower === 'service name' ||
@@ -186,6 +226,34 @@ export const isJurisdictionOrVariantField = (labelOrId: string): boolean => {
     lower === 'certificatetype' ||
     lower === 'filing mode' ||
     lower === 'application mode' ||
+    lower === 'exam category' ||
+    lower === 'examcategory' ||
+    lower === 'exam type' ||
+    lower === 'examtype' ||
+    lower === 'examination type' ||
+    lower === 'examinee type' ||
+    lower === 'examineetype' ||
+    lower === 'type of examinee' ||
+    lower === 'examinee classification' ||
+    lower === 'elements' ||
+    lower === 'exam elements' ||
+    lower === 'selected elements' ||
+    lower === 'selected exam elements' ||
+    lower === 'admission number' ||
+    lower === 'admission slip' ||
+    lower === 'admission slip number' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000007' ||
+    lower === 'fd000000 0000 0000 0000 000000000007' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000008' ||
+    lower === 'fd000000 0000 0000 0000 000000000008' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000009' ||
+    lower === 'fd000000 0000 0000 0000 000000000009' ||
+    rawLower === 'fd000000-0000-0000-0000-000000000011' ||
+    lower === 'fd000000 0000 0000 0000 000000000011' ||
+    rawLower === 'f0100000-0000-0000-0000-000000000001' ||
+    lower === 'f0100000 0000 0000 0000 000000000001' ||
+    rawLower === 'f0100000-0000-0000-0000-000000000002' ||
+    lower === 'f0100000 0000 0000 0000 000000000002' ||
     lower.includes('permit / license type') ||
     lower.includes('permit/license type') ||
     lower.includes('permit / certificate type') ||
@@ -206,27 +274,37 @@ export const isRemovedVasField = (_label: string, _fieldId: string): boolean => 
 };
 
 export const isExamEducationField = (label: string, fieldId: string): boolean => {
-  const lbl = label.toLowerCase();
-  const id = fieldId.toLowerCase();
+  const lbl = (label || '').toLowerCase();
+  const rawId = (fieldId || '').toLowerCase().trim();
+  const id = rawId.replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
     lbl.includes('school') ||
     lbl.includes('course') ||
     lbl.includes('degree') ||
     lbl.includes('educat') ||
     lbl.includes('attain') ||
-    lbl.includes('graduat') ||
-    lbl.includes('year') ||
+    lbl.includes('year graduated') ||
+    lbl.includes('yeargraduated') ||
     id.includes('school') ||
     id.includes('course') ||
     id.includes('degree') ||
     id.includes('educat') ||
-    id.includes('graduat')
+    id.includes('graduat') ||
+    rawId === 'fd000000-0000-0000-0000-000000000006' ||
+    id === 'fd000000 0000 0000 0000 000000000006' ||
+    rawId === 'fd000000-0000-0000-0000-000000000061' ||
+    id === 'fd000000 0000 0000 0000 000000000061' ||
+    rawId === 'fd000000-0000-0000-0000-000000000062' ||
+    id === 'fd000000 0000 0000 0000 000000000062' ||
+    rawId === 'fd000000-0000-0000-0000-000000000063' ||
+    id === 'fd000000 0000 0000 0000 000000000063'
   );
 };
 
 export const isExamAssistanceField = (label: string, fieldId: string): boolean => {
-  const lbl = label.toLowerCase();
-  const id = fieldId.toLowerCase();
+  const lbl = (label || '').toLowerCase();
+  const rawId = (fieldId || '').toLowerCase().trim();
+  const id = rawId.replace(/['']/g, '').replace(/[-_]/g, ' ').trim();
   return (
     lbl.includes('assist') ||
     lbl.includes('special') ||

@@ -573,6 +573,40 @@ export function handleWizardNext({
           return;
         }
 
+        const isCopyOfPermit =
+          Boolean(
+            ((service.title || "").toLowerCase().includes("copy") && (service.title || "").toLowerCase().includes("permit")) ||
+            ((service.category || "").toLowerCase().includes("permit") && (service.title || "").toLowerCase().includes("copy")) ||
+            (service.code || "").toLowerCase().includes("copy")
+          );
+
+        if (isCopyOfPermit) {
+          const matchedVar = variants?.find((v) => String(v.id) === String(activeApplicant.selectedVariantId));
+          const varDesc = (matchedVar?.description || matchedVar?.name || activeApplicant.selectedVariantName || "").toLowerCase();
+          const isDuplicate = varDesc.includes("duplicate") || String(activeApplicant.selectedVariantId || "").toLowerCase().includes("151");
+
+          // Skip obsolete legacy permit fields
+          if (
+            idLower === "stationclass" ||
+            idLower === "callsign" ||
+            idLower === "permitrslno" ||
+            idLower.includes("station class") ||
+            idLower.includes("call sign")
+          ) {
+            return;
+          }
+
+          // Skip Circumstances for Certified True Copy
+          if (!isDuplicate && (idLower.includes("circumstances") || idLower === "fd000000-0000-0000-0000-000000000037")) {
+            return;
+          }
+
+          // Skip No. of Copies for Duplicate Copy
+          if (isDuplicate && (idLower.includes("copies") || idLower.includes("noofcopies") || idLower === "fd000000-0000-0000-0000-000000000243")) {
+            return;
+          }
+        }
+
         let val = filledMap.get(idLower);
         if (!val) {
           val =
@@ -585,6 +619,22 @@ export function handleWizardNext({
             filledMap.get("applicant / named individual details");
         }
         if (val === undefined || val === null || (typeof val === "string" && val.trim() === "")) {
+          // Resolve fallback for Copy of Permits
+          if (isCopyOfPermit) {
+            const cp = activeApplicant.copyOfPermitData;
+            if (idLower.includes("detailsservice") || idLower.includes("details_service") || idLower === "fd000000-0000-0000-0000-000000000244") {
+              val = cp?.detailsService || "Permits in AMateur";
+            } else if (idLower.includes("targetpermittype") || idLower.includes("target_permit_type") || idLower === "type" || idLower === "fd000000-0000-0000-0000-000000000245") {
+              val = cp?.targetPermitType || "Amateur Radio Station Permit to Purchase";
+            } else if (idLower.includes("permitno") || idLower.includes("permit_no") || idLower.includes("permit no") || idLower === "fd000000-0000-0000-0000-000000000246") {
+              val = cp?.permitNo;
+            } else if (idLower.includes("copies") || idLower.includes("noofcopies") || idLower === "fd000000-0000-0000-0000-000000000243") {
+              val = cp?.numberOfCopies || "1";
+            } else if (idLower.includes("circumstances") || idLower === "fd000000-0000-0000-0000-000000000037") {
+              val = cp?.circumstances;
+            }
+          }
+
           // Resolve fallback for Action Requested (NTC 1-24 Blocking / Unblocking)
           if (
             idLower === "action_requested" ||

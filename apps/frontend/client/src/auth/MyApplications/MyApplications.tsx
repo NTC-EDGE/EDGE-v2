@@ -28,6 +28,7 @@ function mapStatusFilterToBackend(status: StatusFilterOption): string | null {
     case 'FOR_EVALUATION':
       return 'Evaluating';
     case 'READY_FOR_PAYMENT':
+    case 'PAYMENT_SUBMITTED':
       return 'PendingPayment';
     case 'FOR_APPROVAL':
       return 'ForIssuance';
@@ -345,7 +346,10 @@ export function MyApplications() {
         {selectedApp !== null ? (
           <ApplicationDetailsPage
             app={selectedApp}
-            onBack={() => setSelectedApp(null)}
+            onBack={() => {
+              setSelectedApp(null);
+              fetchApplications(true);
+            }}
             onDownloadDoc={handleDownloadDoc}
           />
         ) : (
@@ -599,6 +603,7 @@ export function MyApplications() {
                           ["PENDING", "Submitted"],
                           ["FOR_EVALUATION", "For Evaluation"],
                           ["READY_FOR_PAYMENT", "For Payment"],
+                          ["PAYMENT_SUBMITTED", "Verification in Progress"],
                           ["FOR_APPROVAL", "For Issuance"],
                           ["APPROVED", "Issued"],
                           ["DECLINED", "Returned"],

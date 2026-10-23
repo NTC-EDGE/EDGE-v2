@@ -3,12 +3,14 @@ import { View, Text, ActivityIndicator, TouchableOpacity, StyleSheet } from "rea
 import { COLORS, TYPOGRAPHY, Icon } from "@edge/ui";
 import { NTCService } from "../../data/servicesData";
 import { GeneralApplicantData } from "../hooks/useGeneralServiceWizard";
-import { DynamicFormRenderer } from "../../../../shared/components/DynamicFormRenderer";
+import { DynamicFormRenderer, FormDto } from "../../../../shared/components/DynamicFormRenderer";
 import { ApplicantInformationFormSection } from "./applicant-info/ApplicantInformationFormSection";
 import { FormSignatureInput } from "../../../../shared/components/FormSignatureInput";
 import { useServiceForm } from "../hooks/useServiceForm";
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
 import { evaluateVisibilityCondition, FormEvaluationContext } from "../../../../shared/components/dynamic-form/dynamicFormUtils";
+import { initialCopyOfPermitData } from "../../permits";
+import { PERMIT_DETAILS_SERVICE_OPTIONS } from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
 interface GeneralFilingDetailsStepProps {
   service: NTCService;
@@ -47,6 +49,106 @@ export function GeneralFilingDetailsStep({
     (service.title || "").toLowerCase().includes("admission") ||
     (service.title || "").toLowerCase().includes("operator examination");
 
+  const sTitle = (service.title || "").toLowerCase();
+  const sCat = (service.category || "").toLowerCase();
+  const sCode = (service.code || "").toLowerCase();
+  const isCopyOfPermit =
+    Boolean(
+      (sTitle.includes("copy") && sTitle.includes("permit")) ||
+      (sCat.includes("permit") && sTitle.includes("copy")) ||
+      sCode.includes("copy_permit") ||
+      sCode.includes("copy-permit")
+    );
+
+  const fallbackCopyOfPermitForm: FormDto = {
+    id: "synthetic-copy-of-permits-form",
+    formId: "synthetic-copy-of-permits-form",
+    version: "1.0",
+    sections: [
+      {
+        id: "permit_copy_particulars",
+        key: "permitCopyParticulars",
+        title: "Permit Details",
+        description: "Particulars of the permit copy request",
+        fields: [
+          {
+            id: "fd000000-0000-0000-0000-000000000244",
+            fieldId: "detailsService",
+            label: "DetailsService",
+            fieldType: "dropdown",
+            isRequired: true,
+            placeholder: "Select Service...",
+            options: PERMIT_DETAILS_SERVICE_OPTIONS,
+          },
+          {
+            id: "fd000000-0000-0000-0000-000000000245",
+            fieldId: "targetPermitType",
+            label: "Type",
+            fieldType: "dropdown",
+            isRequired: true,
+            placeholder: "Select Permit Type...",
+          },
+          {
+            id: "fd000000-0000-0000-0000-000000000246",
+            fieldId: "permitNo",
+            label: "Permit no.",
+            fieldType: "text",
+            isRequired: true,
+            placeholder: "Enter Permit no.",
+          },
+          {
+            id: "fd000000-0000-0000-0000-000000000243",
+            fieldId: "noOfCopies",
+            label: "No. of Copies",
+            fieldType: "dropdown",
+            isRequired: false,
+            placeholder: "Select No. of Copies",
+            options: [
+              { label: "1 Copy", value: "1" },
+              { label: "2 Copies", value: "2" },
+              { label: "3 Copies", value: "3" },
+              { label: "4 Copies", value: "4" },
+              { label: "5 Copies", value: "5" },
+              { label: "10 Copies", value: "10" },
+            ],
+          },
+          {
+            id: "fd000000-0000-0000-0000-000000000037",
+            fieldId: "circumstances",
+            label: "Circumstances Relating to Lost/Mutilation of Permit",
+            fieldType: "textarea",
+            isRequired: false,
+            placeholder: "State the circumstances leading to the loss or mutilation...",
+          },
+        ],
+      },
+    ],
+  };
+
+  let effectiveForm: FormDto | null = null;
+  if (isCopyOfPermit) {
+    if (form && form.sections && form.sections.length > 0) {
+      const sanitizedSections = form.sections.filter(
+        (s) =>
+          s.key !== "permitLicenseCertificateNo" &&
+          s.id !== "permitLicenseCertificateNo" &&
+          s.key !== "stationClass" &&
+          s.id !== "stationClass" &&
+          !(s.title && s.title.toLowerCase().includes("station class")) &&
+          !(s.title && s.title.toLowerCase().includes("certificate particulars"))
+      );
+      if (sanitizedSections.some((s) => s.key === "permitCopyParticulars" || s.id === "permit_copy_particulars" || (s.title && s.title.toLowerCase().includes("permit details")))) {
+        effectiveForm = { ...form, sections: sanitizedSections };
+      } else {
+        effectiveForm = fallbackCopyOfPermitForm;
+      }
+    } else {
+      effectiveForm = fallbackCopyOfPermitForm;
+    }
+  } else {
+    effectiveForm = form && form.sections && form.sections.length > 0 ? form : null;
+  }
+
   const isBulk = appMode === "BULK" && applicants.length > 1;
 
   // Build key-value map for dynamic service fields from activeApplicant.formFieldValues
@@ -59,7 +161,7 @@ export function GeneralFilingDetailsStep({
   }
 
   useEffect(() => {
-    if (!form || !form.sections || form.sections.length === 0) {
+    if (!effectiveForm || !effectiveForm.sections || effectiveForm.sections.length === 0) {
       onRequiredFieldsChange?.([]);
       return;
     }
@@ -82,7 +184,7 @@ export function GeneralFilingDetailsStep({
 
     const requiredFieldIds: string[] = [];
 
-    form.sections.forEach((sec) => {
+    effectiveForm.sections.forEach((sec) => {
       if (!sec) return;
       const k = (sec.key || sec.id || "").trim().toLowerCase();
       const t = (sec.title || "").trim().toLowerCase();
@@ -224,22 +326,111 @@ export function GeneralFilingDetailsStep({
       }
     }
 
+    const isCopyOfPermitOuter = isCopyOfPermit;
+
+    if (isCopyOfPermitOuter) {
+      // Clear any legacy permit fields that might have leaked into requiredFieldIds
+      const legacyPermitKeys = ["stationclass", "callsign", "permitrslno", "frequency", "bandwidth", "poweroutput"];
+      for (let i = requiredFieldIds.length - 1; i >= 0; i--) {
+        const idLower = (requiredFieldIds[i] || "").toLowerCase();
+        if (legacyPermitKeys.some((k) => idLower.includes(k))) {
+          requiredFieldIds.splice(i, 1);
+        }
+      }
+
+      if (!requiredFieldIds.includes("detailsService")) requiredFieldIds.push("detailsService");
+      if (!requiredFieldIds.includes("targetPermitType")) requiredFieldIds.push("targetPermitType");
+      if (!requiredFieldIds.includes("permitNo")) requiredFieldIds.push("permitNo");
+      const isDuplicateOuter = vDescOuter.includes("duplicate") || vIdOuter.includes("151");
+      if (isDuplicateOuter) {
+        if (!requiredFieldIds.includes("circumstances")) requiredFieldIds.push("circumstances");
+        const noOfCopiesIdx = requiredFieldIds.indexOf("noOfCopies");
+        if (noOfCopiesIdx !== -1) requiredFieldIds.splice(noOfCopiesIdx, 1);
+        const noOfCopiesGuidIdx = requiredFieldIds.indexOf("fd000000-0000-0000-0000-000000000243");
+        if (noOfCopiesGuidIdx !== -1) requiredFieldIds.splice(noOfCopiesGuidIdx, 1);
+      } else {
+        if (!requiredFieldIds.includes("noOfCopies")) requiredFieldIds.push("noOfCopies");
+        const circIdx = requiredFieldIds.indexOf("circumstances");
+        if (circIdx !== -1) requiredFieldIds.splice(circIdx, 1);
+        const circGuidIdx = requiredFieldIds.indexOf("fd000000-0000-0000-0000-000000000037");
+        if (circGuidIdx !== -1) requiredFieldIds.splice(circGuidIdx, 1);
+      }
+    }
+
     onRequiredFieldsChange?.(requiredFieldIds);
   }, [
-    form,
+    effectiveForm,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedElementId,
     activeApplicant.applicantType,
     onRequiredFieldsChange,
     variants,
+    isCopyOfPermit,
   ]);
 
   const handleDynamicFieldChange = (fieldId: string, fieldLabel: string, value: string) => {
     updateActiveApplicant((prevApp) => {
       const currentArr = prevApp.formFieldValues || [];
-      const filtered = currentArr.filter((item) => item.fieldId !== fieldId);
+      const fIdLower = fieldId.toLowerCase().trim();
+      const lblLower = fieldLabel.toLowerCase().trim();
+
+      const isMatchingField = (item: { fieldId: string; fieldLabel: string }) => {
+        const itemFId = (item.fieldId || '').toLowerCase().trim();
+        const itemLbl = (item.fieldLabel || '').toLowerCase().trim();
+        if (itemFId === fIdLower) return true;
+        if (lblLower.length > 0 && itemLbl === lblLower) return true;
+
+        const isPermitServiceAlias =
+          (fIdLower.includes('detailsservice') || fIdLower.includes('details_service') || fIdLower === 'fd000000-0000-0000-0000-000000000244') &&
+          (itemFId.includes('detailsservice') || itemFId.includes('details_service') || itemFId === 'fd000000-0000-0000-0000-000000000244' || itemLbl.includes('detailsservice'));
+        if (isPermitServiceAlias) return true;
+
+        const isPermitTypeAlias =
+          (fIdLower.includes('targetpermittype') || fIdLower.includes('target_permit_type') || fIdLower === 'fd000000-0000-0000-0000-000000000245') &&
+          (itemFId.includes('targetpermittype') || itemFId.includes('target_permit_type') || itemFId === 'fd000000-0000-0000-0000-000000000245' || itemLbl === 'type');
+        if (isPermitTypeAlias) return true;
+
+        const isCopiesAlias =
+          (fIdLower.includes('copies') || fIdLower === 'fd000000-0000-0000-0000-000000000243') &&
+          (itemFId.includes('copies') || itemFId === 'fd000000-0000-0000-0000-000000000243' || itemLbl.includes('copies'));
+        if (isCopiesAlias) return true;
+
+        const isPermitNoAlias =
+          (fIdLower.includes('permitno') || fIdLower.includes('permit_no') || fIdLower === 'fd000000-0000-0000-0000-000000000246') &&
+          (itemFId.includes('permitno') || itemFId.includes('permit_no') || itemFId === 'fd000000-0000-0000-0000-000000000246' || itemLbl.includes('permit no'));
+        if (isPermitNoAlias) return true;
+
+        return false;
+      };
+
+      const filtered = currentArr.filter((item) => !isMatchingField(item));
+      const nextArr = [...filtered, { fieldId, fieldLabel, value }];
+
+      const isCopyOfPermitService = isCopyOfPermit;
+
+      let nextCopyOfPermit = prevApp.copyOfPermitData;
+      if (isCopyOfPermitService) {
+        nextCopyOfPermit = {
+          ...(prevApp.copyOfPermitData || initialCopyOfPermitData(prevApp.id)),
+        };
+        const fIdLower = fieldId.toLowerCase();
+        const lblLower = fieldLabel.toLowerCase();
+        if (fIdLower.includes("detailsservice") || fIdLower.includes("details_service") || lblLower.includes("detailsservice")) {
+          nextCopyOfPermit.detailsService = value;
+        } else if (fIdLower.includes("targetpermittype") || fIdLower.includes("target_permit_type") || lblLower === "type") {
+          nextCopyOfPermit.targetPermitType = value;
+        } else if (fIdLower.includes("permitno") || fIdLower.includes("permit_no") || lblLower.includes("permit no")) {
+          nextCopyOfPermit.permitNo = value;
+        } else if (fIdLower.includes("copies") || lblLower.includes("copies")) {
+          nextCopyOfPermit.numberOfCopies = value;
+        } else if (fIdLower.includes("circumstances") || lblLower.includes("circumstances")) {
+          nextCopyOfPermit.circumstances = value;
+        }
+      }
+
       return {
-        formFieldValues: [...filtered, { fieldId, fieldLabel, value }],
+        formFieldValues: nextArr,
+        ...(nextCopyOfPermit ? { copyOfPermitData: nextCopyOfPermit } : {}),
       };
     });
   };
@@ -351,10 +542,10 @@ export function GeneralFilingDetailsStep({
           <ActivityIndicator size="small" color={COLORS.brand[700]} />
           <Text style={styles.loadingText}>Loading dynamic service specifications...</Text>
         </View>
-      ) : form && form.sections && form.sections.length > 0 ? (
+      ) : effectiveForm && effectiveForm.sections && effectiveForm.sections.length > 0 ? (
         <DynamicFormRenderer
           key={`dynamic-form-${activeApplicant.id || currentApplicantIndex}`}
-          form={form}
+          form={effectiveForm}
           values={dynamicValuesRecord}
           onChange={handleDynamicFieldChange}
           applicantName={getApplicantDisplayName(activeApplicant)}

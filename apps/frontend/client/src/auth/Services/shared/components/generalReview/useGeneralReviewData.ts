@@ -117,6 +117,34 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
       activeApplicant.selectedVariantName ||
       '';
 
+    // For Copy of Permits (Certified True Copy), statutory fees are assessed by the evaluator
+    // upon review of records, so no fee computation should appear in the application summary preview.
+    const appTypeLower = appType.toLowerCase();
+    const copyOfPermit = activeApplicant.copyOfPermitData;
+    const copyType = typeof copyOfPermit?.copyType === 'string'
+      ? copyOfPermit.copyType.toLowerCase()
+      : '';
+
+    const isDuplicate =
+      appTypeLower.includes('duplicate') ||
+      copyType === 'duplicate' ||
+      (typeof activeApplicant.selectedVariantId === 'string' &&
+        activeApplicant.selectedVariantId.toLowerCase().includes('151'));
+
+    const isCertifiedTrueCopy =
+      categoryFlags.isCopyOfPermitService &&
+      (!isDuplicate ||
+        copyType === 'certified_true_copy' ||
+        appTypeLower.includes('certified true copy') ||
+        appTypeLower.includes('true copy') ||
+        appTypeLower.includes('ctc') ||
+        (typeof activeApplicant.selectedVariantId === 'string' &&
+          activeApplicant.selectedVariantId.toLowerCase().includes('150')));
+
+    if (isCertifiedTrueCopy) {
+      return null;
+    }
+
     const element =
       activeApplicant.permitData?.stationClass ||
       activeApplicant.selectedElementTitle ||
@@ -134,22 +162,37 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
       }
     }
 
+    const copiesVal =
+      activeApplicant.copyOfPermitData?.numberOfCopies ||
+      activeApplicant.formFieldValues?.find(
+        (f) =>
+          f.fieldId === 'no_of_copies' ||
+          f.fieldId === 'noOfCopies' ||
+          f.fieldLabel?.toLowerCase().includes('copies')
+      )?.value ||
+      1;
+    const copies = parseInt(String(copiesVal), 10) || 1;
+
     return computePermitFees({
       activity: service.title,
       applicationType: appType,
       element,
       validityYears: 1,
       noOfUnits: unitCount,
+      noOfCopies: copies,
       asOfDate: new Date(),
     });
   }, [
     categoryFlags.isPermitService,
+    categoryFlags.isCopyOfPermitService,
     service.title,
     variants,
     activeApplicant.selectedVariantId,
     activeApplicant.selectedVariantName,
     activeApplicant.selectedElementTitle,
     activeApplicant.permitData,
+    activeApplicant.copyOfPermitData,
+    activeApplicant.formFieldValues,
   ]);
 
   const licenseFeeComputation = useMemo(() => {
@@ -166,6 +209,26 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
       matchedVariantObj?.name ||
       activeApplicant.selectedVariantName ||
       '';
+
+    // For Copy of Licenses (Certified True Copy), statutory fees are assessed by the evaluator
+    // upon review of records, so no fee computation should appear in the application summary preview.
+    const sLower = typeof service.title === 'string' ? service.title.toLowerCase() : '';
+    const appTypeLower = appType.toLowerCase();
+    const copyOfCert = activeApplicant.copyOfCertData;
+    const copyType = typeof copyOfCert?.copyType === 'string'
+      ? copyOfCert.copyType.toLowerCase()
+      : '';
+
+    const isLicenseCtc =
+      (sLower.includes('copy') || appTypeLower.includes('copy')) &&
+      (copyType === 'certified_true_copy' ||
+        appTypeLower.includes('certified true copy') ||
+        appTypeLower.includes('true copy') ||
+        appTypeLower.includes('ctc'));
+
+    if (isLicenseCtc) {
+      return null;
+    }
 
     const element =
       activeApplicant.amateurLicenseData?.classOfStation ||
@@ -226,6 +289,8 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
     activeApplicant.selectedElementTitle,
     activeApplicant.amateurLicenseData,
     activeApplicant.lifetimeLicenseData,
+    activeApplicant.copyOfCertData,
+    activeApplicant.formFieldValues,
   ]);
 
   const requestFeeComputation = useMemo(() => {

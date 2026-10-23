@@ -1362,7 +1362,7 @@ export interface SubmitPaymentRequest {
   checkDate?: string | null;
 }
 
-export type ReturnTargetDto = 'Accountant' | 'Evaluator';
+export type ReturnTargetDto = 'Accountant' | 'Evaluator' | 'Supervisor';
 
 export interface ReturnOpRequest {
   remarks: string;

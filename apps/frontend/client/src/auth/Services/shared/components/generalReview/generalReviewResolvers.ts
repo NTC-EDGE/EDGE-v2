@@ -1,7 +1,8 @@
 import { NTCService } from '../../../data/servicesData';
 import { GeneralApplicantData } from '../../hooks/useGeneralServiceWizard';
 import { FIELD_ID_SIGNATURE, FIELD_ID_ADDRESS, FIELD_ID_STREET } from '../../../../../shared/constants/fieldIds';
-import { isApplicantParticularField, formatCompositeAddress } from '../../../../../shared/formPreview';
+import { isApplicantParticularField } from '../../../../../shared/formPreview/core/formPreviewFieldCheckers';
+import { formatCompositeAddress } from '../../../../../shared/formPreview/core/formPreviewHelpers';
 
 export function resolveServiceCategoryFlags(service: NTCService) {
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
@@ -60,6 +61,18 @@ export function resolveServiceCategoryFlags(service: NTCService) {
       serviceTitleLower.includes('scam') ||
       serviceTitleLower.includes('tape preservation'));
 
+  const serviceCodeLower = (service.code ?? service.id ?? '').toLowerCase().trim();
+
+  const isCopyOfPermitService =
+    isPermitService &&
+    (serviceTitleLower.includes('copy of permit') ||
+      serviceTitleLower.includes('copy') ||
+      serviceTitleLower.includes('duplicate') ||
+      serviceCodeLower.includes('copy_permit') ||
+      serviceCodeLower.includes('copy'));
+
+  const isAmateurPermitService = isPermitService && !isCopyOfPermitService;
+
   return {
     isExamService,
     isLicenseService,
@@ -67,6 +80,8 @@ export function resolveServiceCategoryFlags(service: NTCService) {
     isCertificateService,
     isAmateurCertService,
     isRequestOrComplaintService,
+    isCopyOfPermitService,
+    isAmateurPermitService,
   };
 }
 
@@ -145,6 +160,36 @@ export function resolveApplicantParticulars(
     formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) => fv.fieldId === 'nationality' || fv.fieldLabel.toLowerCase().includes('nationality') || fv.fieldLabel.toLowerCase().includes('citizenship'))?.value ||
     null;
 
+  const resolvedSchool =
+    activeApplicant.schoolName ||
+    activeApplicant.schoolAttended ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('school') || fv.fieldLabel.toLowerCase().includes('institution') || fv.fieldLabel.toLowerCase().includes('university')
+    )?.value ||
+    null;
+
+  const resolvedCourse =
+    activeApplicant.courseDegree ||
+    activeApplicant.courseTaken ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('course') || fv.fieldLabel.toLowerCase().includes('degree') || fv.fieldLabel.toLowerCase().includes('program')
+    )?.value ||
+    null;
+
+  const resolvedYearGraduated =
+    activeApplicant.yearGraduated ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('graduat') || fv.fieldLabel.toLowerCase().includes('year graduated')
+    )?.value ||
+    null;
+
+  const resolvedSpecialOrderNo =
+    activeApplicant.specialOrderNo ||
+    formFieldValues.find((fv: { fieldId: string; fieldLabel: string; value: string }) =>
+      fv.fieldLabel.toLowerCase().includes('special order') || fv.fieldLabel.toLowerCase().includes('so number')
+    )?.value ||
+    null;
+
   const signatureEntry = formFieldValues.find(
     (fv: { fieldId: string; fieldLabel: string; value: string }) =>
       fv.fieldId === FIELD_ID_SIGNATURE ||
@@ -167,6 +212,10 @@ export function resolveApplicantParticulars(
     resolvedSex,
     resolvedCivilStatus,
     resolvedNationality,
+    resolvedSchool,
+    resolvedCourse,
+    resolvedYearGraduated,
+    resolvedSpecialOrderNo,
     signatureEntry,
   };
 }

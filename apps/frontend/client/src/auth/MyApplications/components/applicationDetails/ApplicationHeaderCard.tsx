@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Icon } from '@edge/ui';
-import { Application, formatRelativeTime } from '../../data/applicationsData';
+import { Application, formatRelativeTime, isApplicationPaymentSubmitted, getStatusBgColor, getStatusColor } from '../../data/applicationsData';
 import { safeGetStatusLabel } from './applicationDetailsTypes';
 import { getStatusLabel } from '../../data/applicationsData';
 import { styles } from './applicationDetailsStyles';
@@ -29,6 +29,11 @@ export function ApplicationHeaderCard({
   primaryName,
   docsCount,
 }: ApplicationHeaderCardProps) {
+  const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+  const effectiveStatus = isPaymentSubmitted ? 'PAYMENT_SUBMITTED' : app.status;
+  const effectiveStatusBg = isPaymentSubmitted ? getStatusBgColor('PAYMENT_SUBMITTED') : statusBg;
+  const effectiveStatusColor = isPaymentSubmitted ? getStatusColor('PAYMENT_SUBMITTED') : statusColor;
+
   return (
     <View style={styles.headerCard}>
       <View style={styles.badgeRow}>
@@ -39,10 +44,10 @@ export function ApplicationHeaderCard({
           </Text>
         </View>
 
-        <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
-          <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
-          <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-            {safeGetStatusLabel(app.status, getStatusLabel)}
+        <View style={[styles.statusBadge, { backgroundColor: effectiveStatusBg }]}>
+          <View style={[styles.statusDot, { backgroundColor: effectiveStatusColor }]} />
+          <Text style={[styles.statusBadgeText, { color: effectiveStatusColor }]}>
+            {safeGetStatusLabel(effectiveStatus, getStatusLabel)}
           </Text>
         </View>
       </View>

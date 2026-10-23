@@ -18,6 +18,7 @@ import {
   TYPOGRAPHY,
   Icon as Lucide,
   toast,
+  EditedImageResult,
 } from "@edge/ui";
 import { ApplicationData, ApplicationStatus } from "../../../types/application";
 import { useRole } from "../../shell/context/RoleContext";
@@ -281,6 +282,18 @@ export function ApplicationReviewScreenContent({
       }
     };
   }, [previewCustomDoc?.uri]);
+
+  const handleSaveEditedPreviewDoc = useCallback((result: EditedImageResult) => {
+    setPreviewCustomDoc((prev) => {
+      if (prev === null) return null;
+      return {
+        ...prev,
+        uri: result.uri,
+        name: result.name,
+      };
+    });
+    toast.success('Document updated with cropped and rotated image.');
+  }, []);
 
   const handlePrintSoa = useCallback(() => {
     if (selectedApplication !== null) {
@@ -1125,7 +1138,11 @@ export function ApplicationReviewScreenContent({
       />
 
       {/* ── Modals ── */}
-      <CustomDocPreviewModal previewCustomDoc={previewCustomDoc} onClose={handleClosePreviewDoc} />
+      <CustomDocPreviewModal
+        previewCustomDoc={previewCustomDoc}
+        onClose={handleClosePreviewDoc}
+        onSaveEditedImage={handleSaveEditedPreviewDoc}
+      />
 
       {/* ApproveModal is reused for evaluation and accountant approval */}
       <ApproveModal
@@ -1212,7 +1229,7 @@ export function ApplicationReviewScreenContent({
       />
       <IssueReceiptModal
         visible={showCashier}
-        tenantId={app.tenantId || user?.tenantId || '00000000-0000-0000-0000-000000000001'}
+        tenantId={app.tenantId || user?.tenantId || ''}
         nextOr={nextOr}
         pendingPayment={pendingPaymentPayload}
         onClose={() => setShowCashier(false)}

@@ -47,6 +47,7 @@ public class ApplicationSummaryDto
     public string? PaymentRemarks { get; set; }
     public Guid? OrderOfPaymentId { get; set; }
     public string? OpNumber { get; set; }
+    public string? OpStatus { get; set; }
 
     public string? EvaluatingOfficer { get; set; }
     public string? AccountingOfficer { get; set; }

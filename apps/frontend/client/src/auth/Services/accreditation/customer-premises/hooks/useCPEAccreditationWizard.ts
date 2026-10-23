@@ -355,7 +355,7 @@ export function useCPEAccreditationWizard({
           email: string;
           contactNumber: string;
           address: string;
-          birthDate: string;
+          birthDate?: string;
           formFieldValues: Array<{ fieldId: string; fieldLabel: string; value: string }>;
         }> = [];
 
@@ -376,12 +376,12 @@ export function useCPEAccreditationWizard({
               applicantType: "company",
               companyName: app.businessName || undefined,
               representativeName: app.engineerName || undefined,
-              firstName: app.businessName || app.engineerName || "Applicant",
-              lastName: app.entityType || "N/A",
-              email: app.email || "applicant@example.com",
+              firstName: app.businessName || app.engineerName || "",
+              lastName: app.entityType || "",
+              email: app.email || "",
               contactNumber: app.contactNo || "",
               address: addr,
-              birthDate: "1990-01-01T00:00:00Z",
+              birthDate: undefined,
               formFieldValues: fvList,
             };
           });

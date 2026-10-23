@@ -3,11 +3,17 @@ import { View, Text } from "react-native";
 import { DynamicFormField } from "./dynamic-form/DynamicFormField";
 import { DynamicFormRendererProps, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 import { parseOptions, evaluateVisibilityCondition, FormEvaluationContext, buildFormVariantFlags } from "./dynamic-form/dynamicFormUtils";
-import { DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS, DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS } from "./form-repeater/formRepeaterColumns";
+import {
+  DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS,
+  DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS,
+} from "./form-repeater/formRepeaterColumns";
 import { useLocationData } from "./dynamic-form/useLocationData";
 import { dynamicFormStyles as styles } from "./dynamic-form/DynamicFormRenderer.styles";
 import { FormGrid } from "./FormGrid";
 import { SPAM_COMPLAINT_NATURES, TELCO_COMPLAINT_NATURES } from "./NatureOfComplaintCheckboxGroup";
+import { PERMIT_DETAILS_SERVICE_OPTIONS, resolvePermitTypes } from "./dynamic-form/dynamicFormConstants";
+import { usePermitServicesQuery } from "../../auth/Services/permits/hooks/usePermitServicesQuery";
 
 export type { DynamicFormRendererProps, FormDto, FormSectionDto, FieldDto } from "./dynamic-form/dynamicFormTypes";
 
@@ -103,6 +109,73 @@ const SYNTHETIC_BROADCAST_SECTION: FormSectionDto = {
   ],
 };
 
+const SYNTHETIC_COPY_OF_PERMITS_SECTION: FormSectionDto = {
+  id: "permit_copy_particulars",
+  key: "permitCopyParticulars",
+  title: "Permit Details",
+  description: "Particulars of the permit copy request",
+  fields: [
+    {
+      id: "fd000000-0000-0000-0000-000000000244",
+      fieldId: "detailsService",
+      label: "DetailsService",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select Service...",
+      options: PERMIT_DETAILS_SERVICE_OPTIONS,
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000245",
+      fieldId: "targetPermitType",
+      label: "Type",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select Permit Type...",
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000246",
+      fieldId: "permitNo",
+      label: "Permit no.",
+      fieldType: "text",
+      isRequired: true,
+      placeholder: "Enter Permit no.",
+    },
+    {
+      id: "fd000000-0000-0000-0000-000000000243",
+      fieldId: "noOfCopies",
+      label: "No. of Copies",
+      fieldType: "dropdown",
+      isRequired: true,
+      placeholder: "Select No. of Copies",
+      options: [
+        { label: "1 Copy", value: "1" },
+        { label: "2 Copies", value: "2" },
+        { label: "3 Copies", value: "3" },
+        { label: "4 Copies", value: "4" },
+        { label: "5 Copies", value: "5" },
+        { label: "10 Copies", value: "10" },
+      ],
+    },
+  ],
+};
+
+const SYNTHETIC_CIRCUMSTANCES_SECTION: FormSectionDto = {
+  id: "circumstances_section",
+  key: "circumstances",
+  title: "Circumstances of Loss/Damage",
+  description: "Circumstances Relating to Lost/Mutilation of Permit",
+  fields: [
+    {
+      id: "fd000000-0000-0000-0000-000000000037",
+      fieldId: "circumstances",
+      label: "Circumstances Relating to Lost/Mutilation of Permit",
+      fieldType: "textarea",
+      isRequired: true,
+      placeholder: "State the circumstances leading to the loss or mutilation...",
+    },
+  ],
+};
+
 export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   form,
   values = {},
@@ -181,15 +254,44 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     Boolean(serviceCategory && serviceCategory.toLowerCase().includes("permit")) ||
     Boolean(serviceTitle && serviceTitle.toLowerCase().includes("permit"));
 
+  const sTitle = (serviceTitle || "").toLowerCase();
+  const sCat = (serviceCategory || "").toLowerCase();
+  const isCopyOfPermit =
+    Boolean(
+      (sTitle.includes("copy") && sTitle.includes("permit")) ||
+      (sCat.includes("permit") && sTitle.includes("copy")) ||
+      sTitle.includes("copy of permit")
+    );
+
+  const { serviceOptions: dynamicPermitServices, getTypesForService } = usePermitServicesQuery(isCopyOfPermit);
+
   useEffect(() => {
     if (!isBlockingOrUnblocking) return;
     const targetVal = isUnblocking ? "UNBLOCK GSM Handset" : "BLOCK GSM Handset";
     const currentVal = (values && values["action_requested"]) || (values && values["Action Requested"]) || (values && values["fd000000-0000-0000-0000-000000000307"]) || "";
     if (currentVal !== targetVal) {
       onChange("action_requested", "Action Requested", targetVal);
-      onChange("fd000000-0000-0000-0000-000000000307", "Action Requested", targetVal);
     }
   }, [isBlockingOrUnblocking, isUnblocking, values, onChange]);
+
+  // Pre-initialize Copy of Permit default values if unselected
+  useEffect(() => {
+    if (!isCopyOfPermit) return;
+    const currentService =
+      values?.["detailsService"] ||
+      values?.["details_service"] ||
+      values?.["DetailsService"] ||
+      values?.["fd000000-0000-0000-0000-000000000244"];
+    if (!currentService) {
+      const defaultSvc = PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ?? "Permits in AMateur";
+      const dynamicTypes = getTypesForService(defaultSvc);
+      const availableTypes = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(defaultSvc);
+      const defaultType = availableTypes[0]?.value ?? "";
+      onChange("detailsService", "DetailsService", defaultSvc);
+      onChange("targetPermitType", "Type", defaultType);
+      onChange("noOfCopies", "No. of Copies", "1");
+    }
+  }, [isCopyOfPermit, values, onChange, getTypesForService]);
 
   const evaluationContext: FormEvaluationContext = {
     variantType: matchedVariant?.type ? String(matchedVariant.type) : undefined,
@@ -207,6 +309,38 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
   if (isTapePreservation && !rawSections.some((s) => s.key === "broadcast_details" || s.id === "broadcast_details" || (s.title && s.title.toLowerCase().includes("broadcast")))) {
     rawSections = [SYNTHETIC_BROADCAST_SECTION, ...rawSections];
   }
+  if (isCopyOfPermit) {
+    const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+    // Remove obsolete legacy section that lacked DetailsService
+    rawSections = rawSections.filter(
+      (s) =>
+        s.key !== "permitLicenseCertificateNo" &&
+        s.id !== "permitLicenseCertificateNo" &&
+        !(s.title && s.title.toLowerCase().includes("certificate particulars"))
+    );
+    if (
+      !rawSections.some(
+        (s) =>
+          s.key === "permitCopyParticulars" ||
+          s.id === "permit_copy_particulars" ||
+          (s.title && s.title.toLowerCase().includes("permit details"))
+      )
+    ) {
+      rawSections = [SYNTHETIC_COPY_OF_PERMITS_SECTION, ...rawSections];
+    }
+    if (
+      isDuplicate &&
+      !rawSections.some(
+        (s) =>
+          s.key === "circumstances" ||
+          s.id === "circumstances" ||
+          s.id === "circumstances_section" ||
+          (s.title && s.title.toLowerCase().includes("circumstances"))
+      )
+    ) {
+      rawSections = [...rawSections, SYNTHETIC_CIRCUMSTANCES_SECTION];
+    }
+  }
   const sections = rawSections;
 
   const renderFieldInstance = (
@@ -220,6 +354,19 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const rawType = (field.fieldType || field.type || "").toLowerCase();
 
     const isActionRequestedField = fIdLower === "action_requested" || labelLower.includes("action requested");
+    const isDetailsServiceField =
+      fIdLower === "detailsservice" ||
+      fIdLower === "details_service" ||
+      fIdLower === "fd000000-0000-0000-0000-000000000244" ||
+      labelLower === "detailsservice" ||
+      labelLower === "details service";
+    const isPermitTypeField =
+      isCopyOfPermit &&
+      (fIdLower === "targetpermittype" ||
+        fIdLower === "target_permit_type" ||
+        fIdLower === "fd000000-0000-0000-0000-000000000245" ||
+        labelLower === "type" ||
+        labelLower.includes("permit type"));
     const isNatureOfComplaintField = fIdLower === "complaint_types" || fIdLower === "fd000000-0000-0000-0000-000000000327" || labelLower === "nature of complaint" || labelLower.includes("nature of complaint") || labelLower.includes("complaint category");
     const isOthersSpecificationField = fIdLower === "others_specification" || fIdLower === "fd000000-0000-0000-0000-000000000328" || labelLower.includes("if others, please specify");
     const isIncidentTypeField = fIdLower === "loss_reason" || fIdLower === "fd000000-0000-0000-0000-000000000313" || labelLower === "incident type" || labelLower.includes("incident type");
@@ -262,7 +409,29 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     const isVasServicesField = fIdLower.includes("valueaddedservices") || labelLower.includes("value added service");
     const isSignature = rawType === "signature" || labelLower.includes("signature");
     const isCheckbox = rawType === "checkbox" || labelLower.includes("declare");
-    const isDropdown = rawType === "dropdown" || rawType === "select" || rawType === "radio" || fIdLower === "bandwidthunit" || fIdLower === "frequencyunit" || fIdLower === "sex" || fIdLower === "stationclass" || isActionRequestedField || isIncidentTypeField || isUnblockingDetailsField;
+    const isDropdown =
+      rawType === "dropdown" ||
+      rawType === "select" ||
+      rawType === "radio" ||
+      fIdLower === "bandwidthunit" ||
+      fIdLower === "frequencyunit" ||
+      fIdLower === "unit" ||
+      labelLower === "unit" ||
+      fIdLower === "noofyears" ||
+      fIdLower === "no_of_years" ||
+      labelLower.includes("number of years") ||
+      labelLower.includes("no. of years") ||
+      fIdLower === "sex" ||
+      fIdLower === "stationclass" ||
+      isActionRequestedField ||
+      isIncidentTypeField ||
+      isUnblockingDetailsField ||
+      isDetailsServiceField ||
+      isPermitTypeField ||
+      fIdLower === "noofcopies" ||
+      fIdLower === "no_of_copies" ||
+      labelLower === "no. of copies" ||
+      labelLower.includes("no. of copies");
     const isDate = rawType === "date" || labelLower.includes("date");
     const isNumber = rawType === "number" || labelLower.includes("power") || labelLower.includes("watts") || labelLower.includes("height") || labelLower.includes("weight") || labelLower.includes("gain") || labelLower.includes("diameter");
     const isContactField = labelLower.includes("contact") || labelLower.includes("mobile") || rawType === "tel";
@@ -299,7 +468,29 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
     }
 
     let dropdownOptions: Array<{ label: string; value: string }> = [];
-    if (isIncidentTypeField) {
+    if (isDetailsServiceField) {
+      dropdownOptions = dynamicPermitServices.length > 0 ? dynamicPermitServices : PERMIT_DETAILS_SERVICE_OPTIONS;
+    } else if (isPermitTypeField) {
+      const currentDetailsService =
+        values?.["detailsService"] ||
+        values?.["details_service"] ||
+        values?.["DetailsService"] ||
+        values?.["fd000000-0000-0000-0000-000000000244"] ||
+        (dynamicPermitServices.length > 0 ? dynamicPermitServices[0]?.value : undefined) ||
+        PERMIT_DETAILS_SERVICE_OPTIONS[0]?.value ||
+        "Permits in AMateur";
+      const dynamicTypes = getTypesForService(currentDetailsService);
+      dropdownOptions = dynamicTypes.length > 0 ? dynamicTypes : resolvePermitTypes(currentDetailsService);
+    } else if (fIdLower === "noofcopies" || fIdLower === "no_of_copies" || labelLower === "no. of copies" || labelLower.includes("no. of copies")) {
+      dropdownOptions = [
+        { label: "1 Copy", value: "1" },
+        { label: "2 Copies", value: "2" },
+        { label: "3 Copies", value: "3" },
+        { label: "4 Copies", value: "4" },
+        { label: "5 Copies", value: "5" },
+        { label: "10 Copies", value: "10" },
+      ];
+    } else if (isIncidentTypeField) {
       dropdownOptions = [
         { label: "Lost / Misplaced", value: "Lost / Misplaced" },
         { label: "Stolen (Theft / Robbery / Hold-up)", value: "Stolen (Theft / Robbery / Hold-up)" },
@@ -317,9 +508,23 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         },
       ];
     } else if (fIdLower === "frequencyunit" || labelLower.includes("frequency unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
-    else if (fIdLower === "bandwidthunit" || labelLower === "unit") dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
+    else if (fIdLower === "bandwidthunit" || fIdLower === "unit" || labelLower === "unit" || labelLower.includes("bandwidth unit")) dropdownOptions = [{ label: "KHz", value: "KHz" }, { label: "MHz", value: "MHz" }, { label: "GHz", value: "GHz" }];
     else if (fIdLower === "stationclass" || labelLower.includes("station class") || labelLower.includes("class of station")) {
       dropdownOptions = [{ label: "RT", value: "RT" }, { label: "FX", value: "FX" }, { label: "FB", value: "FB" }, { label: "FX/FB", value: "FX/FB" }, { label: "ML", value: "ML" }, { label: "P", value: "P" }, { label: "FA", value: "FA" }, { label: "MA", value: "MA" }, { label: "Others", value: "Others" }];
+    }
+    else if (fIdLower === "noofyears" || fIdLower === "no_of_years" || labelLower.includes("number of years") || labelLower.includes("no. of years")) {
+      dropdownOptions = flags.isVanity
+        ? [
+            { label: "1 Year", value: "1" },
+            { label: "2 Years", value: "2" },
+            { label: "3 Years", value: "3" },
+          ]
+        : [
+            { label: "1 Year", value: "1" },
+            { label: "2 Years", value: "2" },
+            { label: "3 Years", value: "3" },
+            { label: "5 Years", value: "5" },
+          ];
     }
     else if (labelLower === "region" || fIdLower === "region" || fIdLower.includes("region")) dropdownOptions = regions.map((r: { id: string; name: string }) => ({ label: r.name, value: r.name }));
     else if (labelLower === "province" || fIdLower === "province" || fIdLower.includes("province")) dropdownOptions = provinces.map((p: { id: string; name: string }) => ({ label: p.name, value: p.name }));
@@ -348,11 +553,107 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         placeholder: "State briefly the reason and details for mandatory tape preservation...",
       };
     }
+    if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && (fIdLower.includes("callsign") || labelLower.includes("call sign"))) {
+      fieldToRender = {
+        ...fieldToRender,
+        label: "Call Sign",
+        placeholder: fieldToRender.placeholder || "e.g. DU1ABC, 4D1XYZ (if existing)",
+      };
+    }
+    if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && (fIdLower === "frequency" || labelLower.includes("frequency"))) {
+      fieldToRender = {
+        ...fieldToRender,
+        label: "Frequency(ies)",
+        placeholder: fieldToRender.placeholder || "e.g. Within Authorized Amateur Band / 144.000 - 146.000 MHz",
+      };
+    }
+    if (flags.isAmateurStorageVariant) {
+      if (fIdLower.includes("callsign") || labelLower.includes("call sign")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Call Sign",
+          placeholder: fieldToRender.placeholder || "e.g. DU1ABC, 4D1XYZ (if existing)",
+        };
+      } else if (fIdLower.includes("servicearea") || labelLower.includes("service area") || labelLower.includes("points of comm")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Points of Comm/Service Area",
+          isRequired: true,
+          placeholder: fieldToRender.placeholder || "e.g. Nationwide, Regional, Fixed Point",
+        };
+      } else if (fIdLower === "frequency" || (fIdLower.includes("frequency") && !fIdLower.includes("unit"))) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Frequency",
+          placeholder: "Within authorized amateur band",
+        };
+      } else if (fIdLower === "bandwidth" || (fIdLower.includes("bandwidth") && !fIdLower.includes("unit"))) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Bandwidth",
+          placeholder: fieldToRender.placeholder || "e.g. 16, 25, 200",
+        };
+      } else if (fIdLower === "bandwidthunit" || fIdLower === "unit" || labelLower.includes("bandwidth unit") || labelLower === "unit") {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Unit",
+        };
+      } else if (fIdLower.includes("emission") || labelLower.includes("emission")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Emission",
+          placeholder: fieldToRender.placeholder || "e.g. 16K0F3E, 200KF8E, A3E",
+        };
+      } else if (fIdLower.includes("power") || labelLower.includes("power output")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Power Output (watts)",
+          placeholder: fieldToRender.placeholder || "e.g. 50W, 100W",
+        };
+      } else if (fIdLower.includes("hour") || labelLower.includes("hours of operation")) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Hours of Operation",
+          placeholder: fieldToRender.placeholder || "e.g. 24 Hours / H24, Intermittent",
+        };
+      }
+    }
+    if (flags.isVanity) {
+      const isPref =
+        fIdLower.includes("preferred") ||
+        labelLower.includes("preferred") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000261";
+      const isDirectCallSign =
+        fIdLower === "callsign" ||
+        fIdLower === "call_sign" ||
+        labelLower === "call sign" ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000028";
+      if (
+        fIdLower.includes("noofyears") ||
+        fIdLower.includes("no_of_years") ||
+        labelLower.includes("number of years") ||
+        labelLower.includes("no. of years") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000201"
+      ) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "No. of Years",
+          isRequired: true,
+        };
+      } else if (isPref || isDirectCallSign) {
+        fieldToRender = {
+          ...fieldToRender,
+          label: "Preferred Call Sign",
+          isRequired: true,
+          placeholder: fieldToRender.placeholder || "e.g. 4F1AAA, DU1VANITY",
+        };
+      }
+    }
 
     const isFieldRequired = fieldToRender.isRequired ?? false;
 
     const isAmateurPurchaseParticulars =
-      flags.isAmateurPurchasePossessVariant &&
+      (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) &&
       (fIdLower.includes("particular") ||
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
@@ -363,15 +664,25 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         labelLower.includes("particular") ||
         rawTargetId === "fd000000-0000-0000-0000-000000000340");
 
+    const isAmateurVanityParticulars =
+      flags.isVanity &&
+      (fIdLower.includes("particular") ||
+        labelLower.includes("particular") ||
+        rawTargetId === "fd000000-0000-0000-0000-000000000340");
+
     const customRepeaterColumns = isAmateurPurchaseParticulars
       ? DEFAULT_AMATEUR_PURCHASE_PARTICULARS_COLUMNS
       : isAmateurSellTransferParticulars
       ? DEFAULT_AMATEUR_SELL_TRANSFER_PARTICULARS_COLUMNS
+      : isAmateurVanityParticulars
+      ? DEFAULT_AMATEUR_EQUIPMENT_REPEATER_COLUMNS
       : undefined;
 
     const customAddButtonLabel =
       isAmateurPurchaseParticulars || isAmateurSellTransferParticulars
         ? "Add Station / Class Particulars"
+        : isAmateurVanityParticulars
+        ? "Add Equipment"
         : undefined;
 
     return (
@@ -443,6 +754,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         onChange={onChange}
         onStructuredNameChange={onStructuredNameChange}
         onDropdownChange={(v) => {
+          if (isDetailsServiceField) {
+            onChange(rawTargetId, fieldToRender.label, v);
+            const availableTypes = getTypesForService(v);
+            const firstType = availableTypes[0]?.value || "";
+            onChange("targetPermitType", "Type", firstType);
+            return;
+          }
+          if (isPermitTypeField) {
+            onChange(rawTargetId, fieldToRender.label, v);
+            return;
+          }
           onChange(rawTargetId, fieldToRender.label, v);
           if (isIncidentTypeField && v !== "Others") {
             onChange("incident_others_specify", "Please specify", "");
@@ -538,7 +860,18 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       if (k === "broadcast_details" || t.includes("broadcast")) return false;
     }
 
-    if (flags.isAmateurPurchasePossessVariant) {
+    if (flags.isVanity) {
+      const isStationEquipmentSec =
+        k === "stationequipment" ||
+        k.includes("station") ||
+        t.includes("station") ||
+        k.includes("particular") ||
+        t.includes("particular");
+
+      if (!isStationEquipmentSec) {
+        return false;
+      }
+    } else if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant || flags.isAmateurStorageVariant) {
       const isStationEquipmentSec =
         k === "stationequipment" ||
         k.includes("station") ||
@@ -551,6 +884,13 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         t.includes("intended");
 
       if (!isStationEquipmentSec && !isIntendedUseSec) {
+        return false;
+      }
+    }
+
+    if (isCopyOfPermit) {
+      const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+      if (!isDuplicate && (k === "circumstances" || t.includes("circumstances"))) {
         return false;
       }
     }
@@ -597,7 +937,17 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
               if (rawTargetId === "identity_proof_type" || rawTargetId === "proof_of_ownership_type" || labelLower.includes("government identification") || labelLower.includes("proof of ownership")) return false;
             }
 
-            if (flags.isAmateurPurchasePossessVariant) {
+            if (isCopyOfPermit) {
+              const isDuplicate = varDesc.includes("duplicate") || varId.includes("151");
+              if (!isDuplicate && (rawTargetId.includes("circumstances") || labelLower.includes("circumstances"))) {
+                return false;
+              }
+              if (isDuplicate && (rawTargetId.includes("noofcopies") || rawTargetId.includes("no_of_copies") || labelLower.includes("no. of copies"))) {
+                return false;
+              }
+            }
+
+            if (flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) {
               const secKey = (section.key || section.id || "").toLowerCase();
               const secTitle = (section.title || "").toLowerCase();
               const isStationSec =
@@ -610,7 +960,117 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
                   rawTargetId.includes("particular") ||
                   labelLower.includes("particular") ||
                   rawTargetId === "fd000000-0000-0000-0000-000000000340";
-                if (!isParticulars) {
+                const isCallSign =
+                  rawTargetId.includes("callsign") ||
+                  rawTargetId.includes("call_sign") ||
+                  labelLower.includes("call sign") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000028";
+                const isFrequency =
+                  rawTargetId.includes("frequency") ||
+                  labelLower.includes("frequency") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000103";
+                if (!isParticulars && !isCallSign && !isFrequency) {
+                  return false;
+                }
+              }
+            }
+
+            if (flags.isAmateurStorageVariant) {
+              const secKey = (section.key || section.id || "").toLowerCase();
+              const secTitle = (section.title || "").toLowerCase();
+              const isStationSec =
+                secKey.includes("station") ||
+                secTitle.includes("station") ||
+                secKey.includes("particular") ||
+                secTitle.includes("particular");
+              if (isStationSec) {
+                const allowedStorageKeys = [
+                  "callsign",
+                  "call_sign",
+                  "call sign",
+                  "servicearea",
+                  "service_area",
+                  "service area",
+                  "pointsofcomm",
+                  "points of comm",
+                  "frequency",
+                  "bandwidth",
+                  "bandwidthunit",
+                  "bandwidth unit",
+                  "unit",
+                  "emission",
+                  "poweroutput",
+                  "power_output",
+                  "power output",
+                  "power",
+                  "hoursofoperation",
+                  "hours_of_operation",
+                  "hours of operation",
+                  "hour",
+                  "particulars",
+                  "particular",
+                  "fd000000-0000-0000-0000-000000000028",
+                  "fd000000-0000-0000-0000-000000000102",
+                  "fd000000-0000-0000-0000-000000000103",
+                  "fd000000-0000-0000-0000-000000000104",
+                  "fd000000-0000-0000-0000-000000000260",
+                  "fd000000-0000-0000-0000-000000000105",
+                  "fd000000-0000-0000-0000-000000000106",
+                  "fd000000-0000-0000-0000-000000000107",
+                  "fd000000-0000-0000-0000-000000000340",
+                ];
+                const matchesAllowed = allowedStorageKeys.some(
+                  (k) => rawTargetId.includes(k) || labelLower.includes(k)
+                );
+                if (!matchesAllowed) {
+                  return false;
+                }
+              }
+            }
+
+            if (flags.isVanity) {
+              const secKey = (section.key || section.id || "").toLowerCase();
+              const secTitle = (section.title || "").toLowerCase();
+              const isStationSec =
+                secKey.includes("station") ||
+                secTitle.includes("station") ||
+                secKey.includes("particular") ||
+                secTitle.includes("particular");
+              if (isStationSec) {
+                const hasExplicitPreferred = section.fields.some((f) => {
+                  const fid = (f.fieldId || f.id || "").toLowerCase();
+                  const flbl = (f.label || "").toLowerCase();
+                  return (
+                    fid.includes("preferred") ||
+                    flbl.includes("preferred") ||
+                    fid === "fd000000-0000-0000-0000-000000000261"
+                  );
+                });
+
+                const isPreferred =
+                  rawTargetId.includes("preferred") ||
+                  labelLower.includes("preferred") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000261";
+                const isNoOfYears =
+                  rawTargetId.includes("noofyears") ||
+                  rawTargetId.includes("no_of_years") ||
+                  labelLower.includes("number of years") ||
+                  labelLower.includes("no. of years") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000201";
+                const isParticulars =
+                  rawTargetId.includes("particular") ||
+                  labelLower.includes("particular") ||
+                  rawTargetId === "fd000000-0000-0000-0000-000000000340";
+                const isCallSignFallback =
+                  !hasExplicitPreferred &&
+                  (rawTargetId === "callsign" ||
+                    rawTargetId === "call_sign" ||
+                    labelLower === "call sign" ||
+                    rawTargetId === "fd000000-0000-0000-0000-000000000028" ||
+                    (rawTargetId.includes("callsign") && !rawTargetId.includes("preferred")) ||
+                    (labelLower.includes("call sign") && !labelLower.includes("preferred")));
+
+                if (!isNoOfYears && !isPreferred && !isCallSignFallback && !isParticulars) {
                   return false;
                 }
               }
@@ -619,6 +1079,86 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
             return true;
           })
           .filter((f) => evaluateVisibilityCondition(f.visibilityCondition, evaluationContext));
+
+        const secKey = (section.key || section.id || "").toLowerCase();
+        const secTitle = (section.title || "").toLowerCase();
+        const isStationEquipmentSec =
+          secKey.includes("station") ||
+          secTitle.includes("station") ||
+          secKey.includes("particular") ||
+          secTitle.includes("particular");
+
+        if ((flags.isAmateurPurchasePossessVariant || flags.isAmateurPurchaseVariant) && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              if (id.includes("callsign") || id.includes("call_sign") || lbl.includes("call sign") || id === "fd000000-0000-0000-0000-000000000028") return 1;
+              if (id.includes("frequency") || lbl.includes("frequency") || id === "fd000000-0000-0000-0000-000000000103") return 2;
+              if (id.includes("particular") || lbl.includes("particular") || id === "fd000000-0000-0000-0000-000000000340") return 3;
+              return 4;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
+
+        if (flags.isAmateurStorageVariant && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              if (id.includes("callsign") || id.includes("call_sign") || lbl.includes("call sign") || id === "fd000000-0000-0000-0000-000000000028") return 1;
+              if (id.includes("servicearea") || lbl.includes("service area") || lbl.includes("points of comm") || id === "fd000000-0000-0000-0000-000000000102") return 2;
+              if (id === "frequency" || (id.includes("frequency") && !id.includes("unit")) || lbl === "frequency" || lbl.includes("authorized amateur band") || id === "fd000000-0000-0000-0000-000000000103") return 3;
+              if (((id.includes("bandwidth") && !id.includes("unit")) || (lbl.includes("bandwidth") && !lbl.includes("unit"))) && id !== "bandwidthunit" || id === "fd000000-0000-0000-0000-000000000104") return 4;
+              if (id === "bandwidthunit" || id === "unit" || id.includes("unit") || lbl === "unit" || lbl.includes("bandwidth unit") || id === "fd000000-0000-0000-0000-000000000260") return 5;
+              if (id.includes("emission") || lbl.includes("emission") || id === "fd000000-0000-0000-0000-000000000105") return 6;
+              if (id.includes("power") || lbl.includes("power output") || id === "fd000000-0000-0000-0000-000000000106") return 7;
+              if (id.includes("hour") || lbl.includes("hours of operation") || id === "fd000000-0000-0000-0000-000000000107") return 8;
+              if (id.includes("particular") || lbl.includes("particular") || id === "fd000000-0000-0000-0000-000000000340") return 9;
+              return 10;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
+
+        if (flags.isVanity && isStationEquipmentSec) {
+          visibleFields.sort((a, b) => {
+            const getPriority = (f: FieldDto) => {
+              const id = (f.fieldId || f.id || "").toLowerCase();
+              const lbl = (f.label || "").toLowerCase();
+              const isPreferred =
+                id.includes("preferred") ||
+                lbl.includes("preferred") ||
+                id === "fd000000-0000-0000-0000-000000000261" ||
+                id === "callsign" ||
+                id === "call_sign" ||
+                lbl === "call sign" ||
+                id === "fd000000-0000-0000-0000-000000000028";
+              if (
+                id.includes("noofyears") ||
+                id.includes("no_of_years") ||
+                lbl.includes("number of years") ||
+                lbl.includes("no. of years") ||
+                id === "fd000000-0000-0000-0000-000000000201"
+              ) {
+                return 1;
+              }
+              if (isPreferred) {
+                return 2;
+              }
+              if (
+                id.includes("particular") ||
+                lbl.includes("particular") ||
+                id === "fd000000-0000-0000-0000-000000000340"
+              ) {
+                return 3;
+              }
+              return 4;
+            };
+            return getPriority(a) - getPriority(b);
+          });
+        }
 
         if (visibleFields.length === 0) return null;
 
@@ -629,6 +1169,12 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
         if (isTapePreservation && (section.key === "complaint_details" || (section.title && section.title.toLowerCase().includes("details of complaint")))) {
           displaySectionTitle = "Request Details";
           displaySectionDesc = "State briefly the details and reason for mandatory tape preservation";
+        }
+        if (flags.isAmateurStorageVariant && isStationEquipmentSec) {
+          displaySectionTitle = "Station/Equipment";
+        }
+        if (flags.isVanity && isStationEquipmentSec) {
+          displaySectionTitle = "Particulars";
         }
 
         return (

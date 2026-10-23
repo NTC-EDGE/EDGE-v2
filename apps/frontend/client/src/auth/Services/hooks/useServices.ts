@@ -18,6 +18,7 @@ import {
   initialGeneralApplicant,
 } from "../shared/GeneralServiceWizard";
 import { uploadRequirementsAfterSubmit } from "../shared/helpers/requirementUploadHelper";
+import { resolveEffectiveTenantId } from "../../../shared/helpers/tenantHelper";
 import { CurrentUserProfile } from "@edge/api";
 
 const isGuid = (val?: string | null): boolean => {
@@ -444,9 +445,12 @@ export function useServices() {
     const isGuid = (val?: string): boolean =>
       Boolean(val && /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(val));
 
-    const effectiveTenantId = isGuid(selectedRegionId)
-      ? selectedRegionId
-      : (backendCategories?.[0]?.id || "00000000-0000-0000-0000-000000000001");
+    const effectiveTenantId = resolveEffectiveTenantId(selectedRegionId);
+    if (!effectiveTenantId) {
+      toast.error("Region Required", "Please select an NTC Regional Office before saving your draft.");
+      setIsSavingDraft(false);
+      return false;
+    }
 
     try {
       const months: Record<string, string> = {
@@ -462,23 +466,26 @@ export function useServices() {
         email: string;
         contactNumber: string;
         address: string;
-        birthDate: string;
+        birthDate?: string;
         formFieldValues: Array<{ fieldId: string; value: string }>;
       }> = [];
       let svId: string | null = null;
       let sveIds: string[] = [];
 
       if (activeWizardService === "cpe-accreditation") {
-        mappedApplicants = applicants.map(app => ({
-          serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
-          firstName: "CPE Supplier",
-          lastName: app.businessName || "Draft",
-          email: app.email || "draft@example.com",
-          contactNumber: app.contactNo || "",
-          address: `${app.unitBldgNo || ""}, ${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
-          birthDate: "1990-01-01",
-          formFieldValues: []
-        }));
+        mappedApplicants = applicants.map(app => {
+          const compAddress = [app.unitBldgNo, app.street, app.barangay, app.city, app.province].filter(Boolean).join(", ");
+          return {
+            serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
+            firstName: app.businessName?.trim() || "",
+            lastName: app.entityType?.trim() || "",
+            email: app.email?.trim() || "",
+            contactNumber: app.contactNo?.trim() || "",
+            address: compAddress,
+            birthDate: undefined,
+            formFieldValues: []
+          };
+        });
       } else if (activeWizardService === "radio-operator-exam") {
         const activeApp = examApplicants[currentExamApplicantIndex];
         if (activeApp) {
@@ -486,17 +493,19 @@ export function useServices() {
           sveIds = activeApp.selectedElementId ? [activeApp.selectedElementId] : [];
         }
         mappedApplicants = examApplicants.map(app => {
+          const hasBirth = Boolean(app.birthYear && app.birthMonth && app.birthDay);
           const monthNum = months[app.birthMonth] || "01";
           const day = (app.birthDay || "1").padStart(2, '0');
+          const compAddress = [app.street, app.barangay, app.city, app.province].filter(Boolean).join(", ");
           return {
             serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
             serviceVariantId: app.selectedVariantId && isGuid(app.selectedVariantId) ? app.selectedVariantId : (svId && isGuid(svId) ? svId : null),
-            firstName: app.firstName || "Draft",
-            lastName: app.lastName || "Applicant",
-            email: app.email || "draft@example.com",
-            contactNumber: app.contactNo || "",
-            address: `${app.street || ""}, ${app.barangay || ""}, ${app.city || ""}, ${app.province || ""}` || "N/A",
-            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}` : "1990-01-01",
+            firstName: app.firstName?.trim() || "",
+            lastName: app.lastName?.trim() || "",
+            email: app.email?.trim() || "",
+            contactNumber: app.contactNo?.trim() || "",
+            address: compAddress,
+            birthDate: hasBirth ? `${app.birthYear}-${monthNum}-${day}` : undefined,
             formFieldValues: []
           };
         });
@@ -507,6 +516,7 @@ export function useServices() {
           sveIds = activeApp.selectedElementId ? [activeApp.selectedElementId] : [];
         }
         mappedApplicants = generalApplicants.map(app => {
+          const hasBirth = Boolean(app.birthYear && app.birthMonth && app.birthDay);
           const monthNum = months[app.birthMonth] || "01";
           const day = (app.birthDay || "1").padStart(2, '0');
 
@@ -523,19 +533,23 @@ export function useServices() {
             (fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000005"
           )?.value || "";
 
-          const fullName = fullNameField.trim() || `${app.firstName} ${app.lastName}`.trim() || "Applicant";
-          const firstName = fullName.split(" ")[0] || "Applicant";
-          const lastName = fullName.split(" ").slice(1).join(" ") || "Detail";
+          let firstName = app.firstName?.trim() || "";
+          let lastName = app.lastName?.trim() || "";
+          if (!firstName && !lastName && fullNameField.trim()) {
+            const parts = fullNameField.trim().split(/\s+/);
+            firstName = parts[0] || "";
+            lastName = parts.slice(1).join(" ") || "";
+          }
 
           return {
             serviceId: selectedService?.id && isGuid(selectedService.id) ? selectedService.id : null,
             serviceVariantId: app.selectedVariantId && isGuid(app.selectedVariantId) ? app.selectedVariantId : (svId && isGuid(svId) ? svId : null),
             firstName,
             lastName,
-            email: emailField.trim() || app.email || "draft@example.com",
-            contactNumber: contactNoField.trim() || app.contactNo || "",
-            address: addressField.trim() || app.address || "N/A",
-            birthDate: app.birthYear ? `${app.birthYear}-${monthNum}-${day}` : "1990-01-01",
+            email: emailField.trim() || app.email?.trim() || "",
+            contactNumber: contactNoField.trim() || app.contactNo?.trim() || "",
+            address: addressField.trim() || app.address?.trim() || "",
+            birthDate: hasBirth ? `${app.birthYear}-${monthNum}-${day}` : undefined,
             formFieldValues: Array.from(
               (app.formFieldValues || []).reduce((map, fv) => {
                 if (isGuid(fv.fieldId)) {

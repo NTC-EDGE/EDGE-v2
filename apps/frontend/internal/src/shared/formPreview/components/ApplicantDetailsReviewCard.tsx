@@ -73,8 +73,11 @@ export interface ApplicantDetailsSnapshot {
   representativeContactNumber?: string | null;
   notes?: string | null;
   schoolAttended?: string | null;
+  schoolName?: string | null;
   courseTaken?: string | null;
+  courseDegree?: string | null;
   yearGraduated?: string | null;
+  specialOrderNo?: string | null;
 }
 
 export interface ApplicantDetailsReviewCardProps {
@@ -88,8 +91,11 @@ export interface ApplicantDetailsReviewCardProps {
   resolvedCivilStatus: string | null;
   resolvedNationality: string | null;
   schoolAttended?: string | null;
+  schoolName?: string | null;
   courseTaken?: string | null;
+  courseDegree?: string | null;
   yearGraduated?: string | null;
+  specialOrderNo?: string | null;
 }
 
 export function ApplicantDetailsReviewCard({
@@ -103,8 +109,11 @@ export function ApplicantDetailsReviewCard({
   resolvedCivilStatus,
   resolvedNationality,
   schoolAttended: propSchoolAttended,
+  schoolName: propSchoolName,
   courseTaken: propCourseTaken,
+  courseDegree: propCourseDegree,
   yearGraduated: propYearGraduated,
+  specialOrderNo: propSpecialOrderNo,
 }: ApplicantDetailsReviewCardProps) {
   const applicantType = (activeApplicant?.applicantType || 'individual').trim().toLowerCase();
   const isCompany = applicantType === 'company';
@@ -129,10 +138,27 @@ export function ApplicantDetailsReviewCard({
   const representativeContactNumber = isCompany ? (activeApplicant?.representativeContactNumber || null) : null;
   const notes = activeApplicant?.notes || null;
 
-  const schoolAttended = propSchoolAttended || activeApplicant?.schoolAttended || null;
-  const courseTaken = propCourseTaken || activeApplicant?.courseTaken || null;
-  const yearGraduated = propYearGraduated || activeApplicant?.yearGraduated || null;
-  const hasEducationalBackground = Boolean(schoolAttended || courseTaken || yearGraduated);
+  const schoolAttended =
+    propSchoolAttended ||
+    propSchoolName ||
+    activeApplicant?.schoolAttended ||
+    activeApplicant?.schoolName ||
+    null;
+  const courseTaken =
+    propCourseTaken ||
+    propCourseDegree ||
+    activeApplicant?.courseTaken ||
+    activeApplicant?.courseDegree ||
+    null;
+  const yearGraduated =
+    propYearGraduated ||
+    activeApplicant?.yearGraduated ||
+    null;
+  const specialOrderNo =
+    propSpecialOrderNo ||
+    activeApplicant?.specialOrderNo ||
+    null;
+  const hasEducationalBackground = Boolean(schoolAttended || courseTaken || yearGraduated || specialOrderNo);
 
   const formattedBirthDate = formatFullDateOfBirth(resolvedBirthDate);
 
@@ -289,6 +315,9 @@ export function ApplicantDetailsReviewCard({
                 </View>
               ) : null}
             </View>
+            {specialOrderNo ? (
+              <SummaryRow label="Special Order (SO) No." value={specialOrderNo} />
+            ) : null}
           </>
         )}
         {notes ? <SummaryRow label="Special Notes / Remarks" value={notes} /> : null}

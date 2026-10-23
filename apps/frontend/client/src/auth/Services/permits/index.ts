@@ -4,3 +4,5 @@ export * from "./forms/AmateurPermitForm";
 export * from "./forms/PermitFormStyles";
 export * from "./helpers/permitSerializer";
 export * from "./helpers/permitFeeCalculator";
+export * from "./forms/CopyOfPermitForm";
+export * from "./hooks/usePermitServicesQuery";

@@ -375,19 +375,19 @@ export function ApplicationDetailsPage({
         onClose={() => handleSetPreviewCustomDoc(null)}
         onDownload={(file) => {
           if (typeof file === 'object' && file !== null && 'name' in file) {
-            const rawCategory = typeof file.category === 'string' ? file.category : 'ATTACHMENT';
+            const rawCategory = typeof file?.category === 'string' ? file.category : 'ATTACHMENT';
             let catVal: ApplicationDocument['category'] = 'ATTACHMENT';
             if (rawCategory === 'ADMISSION_SLIP' || rawCategory === 'RECEIPT' || rawCategory === 'SOA' || rawCategory === 'ISSUED_PERMIT') {
               catVal = rawCategory;
             }
             const docToDownload: ApplicationDocument = {
               id: previewCustomDoc?.referenceNumber || 'doc-preview',
-              name: file.name,
+              name: typeof file?.name === 'string' ? file.name : 'document',
               category: catVal,
-              type: file.type === 'IMAGE' ? 'IMAGE' : file.type === 'DOCX' ? 'DOCX' : file.type === 'ZIP' ? 'ZIP' : 'PDF',
-              size: file.size || '350 KB',
-              uploadedAt: file.uploadedAt || app.submittedAt || new Date().toISOString(),
-              url: file.uri,
+              type: file?.type === 'IMAGE' ? 'IMAGE' : file?.type === 'DOCX' ? 'DOCX' : file?.type === 'ZIP' ? 'ZIP' : 'PDF',
+              size: (typeof file?.size === 'string' || typeof file?.size === 'number') ? String(file.size) : '350 KB',
+              uploadedAt: (typeof file?.uploadedAt === 'string' ? file.uploadedAt : null) || app.submittedAt || new Date().toISOString(),
+              url: typeof file?.uri === 'string' ? file.uri : '',
             };
             if (onDownloadDoc !== undefined) {
               onDownloadDoc(docToDownload);
@@ -409,7 +409,15 @@ export function ApplicationDetailsPage({
         onSuccess={() => {
           setAppState((prev) => ({
             ...prev,
+            status: 'PAYMENT_SUBMITTED',
             remarks: 'Payment submitted via client. Waiting for Cashier verification.',
+            op: prev.op ? { ...prev.op, status: 'Processing' } : {
+              id: 'op-submitted',
+              opNumber: prev.opNumber || '',
+              status: 'Processing',
+              amountDue: prev.totalAmountDue || 0,
+              amountReceived: prev.totalAmountDue || 0,
+            },
           }));
           refetch();
         }}

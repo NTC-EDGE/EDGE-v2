@@ -86,6 +86,73 @@ export const getFieldValidationError = (field: keyof ExamApplicantData, value: s
   return undefined;
 };
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null;
+}
+
+/**
+ * Safely extracts document/asset file name from an upload item or string descriptor
+ * using defensive null-checks and runtime type guards without type assertions.
+ */
+export const getUploadItemFileName = (uploadItem: unknown): string => {
+  if (typeof uploadItem === "string" && uploadItem.trim() !== "") {
+    return uploadItem.trim();
+  }
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.name === "string" && uploadItem.name.trim() !== "") {
+      return uploadItem.name.trim();
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.name === "string" && rawFile.name.trim() !== "") {
+      return rawFile.name.trim();
+    }
+    const rawUri = uploadItem.uri;
+    if (typeof rawUri === "string" && rawUri.trim() !== "") {
+      const parts = rawUri.split("/");
+      const last = parts[parts.length - 1];
+      if (last && last.trim() !== "") {
+        return decodeURIComponent(last.trim());
+      }
+    }
+  }
+  return "Supporting Document";
+};
+
+/**
+ * Safely extracts document/asset file size from an upload item.
+ */
+export const getUploadItemFileSize = (uploadItem: unknown): number | undefined => {
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.size === "number" && uploadItem.size > 0) {
+      return uploadItem.size;
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.size === "number" && rawFile.size > 0) {
+      return rawFile.size;
+    }
+  }
+  return undefined;
+};
+
+/**
+ * Safely extracts document/asset mime type from an upload item.
+ */
+export const getUploadItemMimeType = (uploadItem: unknown): string | undefined => {
+  if (isRecord(uploadItem)) {
+    if (typeof uploadItem.type === "string" && uploadItem.type.trim() !== "") {
+      return uploadItem.type.trim();
+    }
+    if (typeof uploadItem.mimeType === "string" && uploadItem.mimeType.trim() !== "") {
+      return uploadItem.mimeType.trim();
+    }
+    const rawFile = uploadItem.file;
+    if (isRecord(rawFile) && typeof rawFile.type === "string" && rawFile.type.trim() !== "") {
+      return rawFile.type.trim();
+    }
+  }
+  return undefined;
+};
+
 export interface ExamRequirementItem {
   id?: string;
   name: string;
@@ -95,18 +162,34 @@ export interface ExamRequirementItem {
 }
 
 export const getRequirementsList = (
-  dbRequirements: any[],
+  dbRequirements: unknown[],
   examineeType: string,
   serviceName?: string | null
 ): ExamRequirementItem[] => {
-  if (dbRequirements && dbRequirements.length > 0) {
-    return dbRequirements.map((r: any, idx: number) => ({
-      id: r.id || r.requirementId,
-      name: r.name || r.label || r.title || `Requirement ${idx + 1}`,
-      isRequired: r.isRequired !== undefined ? r.isRequired : true,
-      description: r.description,
-      hint: r.hint || r.description,
-    }));
+  if (Array.isArray(dbRequirements) && dbRequirements.length > 0) {
+    return dbRequirements.map((rRaw, idx) => {
+      const r = isRecord(rRaw) ? rRaw : {};
+      const id = typeof r.id === "string" ? r.id : typeof r.requirementId === "string" ? r.requirementId : undefined;
+      const name =
+        typeof r.name === "string" && r.name.trim() !== ""
+          ? r.name
+          : typeof r.label === "string" && r.label.trim() !== ""
+          ? r.label
+          : typeof r.title === "string" && r.title.trim() !== ""
+          ? r.title
+          : `Requirement ${idx + 1}`;
+      const isRequired = typeof r.isRequired === "boolean" ? r.isRequired : true;
+      const description = typeof r.description === "string" ? r.description : undefined;
+      const hint = typeof r.hint === "string" ? r.hint : description;
+
+      return {
+        id,
+        name,
+        isRequired,
+        description,
+        hint,
+      };
+    });
   }
   const list: ExamRequirementItem[] = [
     {
@@ -137,8 +220,8 @@ export const getRequirementsList = (
 
 export const mapApplicantsPayload = (
   applicants: ExamApplicantData[],
-  formFields: any[],
-  serviceName?: string | null
+  formFields: unknown[],
+  _serviceName?: string | null
 ) => {
   const months: Record<string, string> = {
     January: "01", February: "02", March: "03", April: "04", May: "05", June: "06",
@@ -146,34 +229,37 @@ export const mapApplicantsPayload = (
   };
 
   return applicants.map((app) => {
+    const hasBirthDate = Boolean(app.birthMonth && app.birthDay && app.birthYear);
     const monthNum = months[app.birthMonth] || "01";
-    const day = app.birthDay.padStart(2, '0');
-    const birthDate = `${monthNum}/${day}/${app.birthYear}`;
+    const day = (app.birthDay || "1").padStart(2, '0');
+    const birthDate = hasBirthDate ? `${monthNum}/${day}/${app.birthYear}` : undefined;
 
-    let examCat = "radio";
-    const sNameLower = (serviceName || app.examType || "").toLowerCase();
-    if (sNameLower.includes("rroc") || sNameLower.includes("aircraft")) examCat = "rroc";
-    if (sNameLower.includes("amateur")) examCat = "amateur";
-
-    let examTaker = "first taker";
-    const etLower = (app.examineeType || "").toLowerCase();
-    if (etLower.includes("repeat") || etLower.includes("retake")) examTaker = "retaker";
-    if (etLower.includes("upgrade")) examTaker = "upgrade";
-
-    const address = `${app.street}, ${app.barangay}, ${app.city}, ${app.province}, ${app.zipCode}`;
+    const address = [app.street, app.barangay, app.city, app.province, app.zipCode].filter(Boolean).join(', ');
     const formFieldValues: Array<{ fieldId: string; value: string }> = [];
 
-    if (formFields.length > 0) {
-      const mappings = [
-        { 
-          fieldId: "fd000000-0000-0000-0000-000000000007", 
-          terms: ["exam category", "category"], 
-          value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial") 
-        },
-        { fieldId: "fd000000-0000-0000-0000-000000000008", terms: ["examinee type", "type"], value: app.examineeType },
-        { fieldId: "fd000000-0000-0000-0000-000000000009", terms: ["elements", "element"], value: app.selectedOption },
-        { fieldId: "fd000000-0000-0000-0000-000000000011", terms: ["admission number", "admission slip"], value: `ADM-${Math.floor(100000 + Math.random() * 900000)}` },
-      ];
+    if (Array.isArray(formFields) && formFields.length > 0) {
+      const mappings: Array<{ fieldId: string; terms: string[]; value: string }> = [];
+      if (app.examType) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000007",
+          terms: ["exam category", "category"],
+          value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial")
+        });
+      }
+      if (app.examineeType) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000008",
+          terms: ["examinee type", "type"],
+          value: app.examineeType,
+        });
+      }
+      if (app.selectedOption) {
+        mappings.push({
+          fieldId: "fd000000-0000-0000-0000-000000000009",
+          terms: ["elements", "element"],
+          value: app.selectedOption,
+        });
+      }
 
       const ignoredBioTerms = [
         "full name", "first name", "last name", "middle name", "applicant name", "name",
@@ -184,36 +270,35 @@ export const mapApplicantsPayload = (
         "signature", "declare", "declaration", "terms"
       ];
 
-      formFields.forEach((field: any) => {
-        const labelLower = (field.label || "").toLowerCase();
-        const id = field.fieldId;
-        if (labelLower.includes("school") || labelLower.includes("university")) {
+      formFields.forEach((fieldRaw) => {
+        const field = isRecord(fieldRaw) ? fieldRaw : {};
+        const label = typeof field.label === "string" ? field.label : "";
+        const labelLower = label.toLowerCase();
+        const id = typeof field.fieldId === "string" ? field.fieldId : typeof field.id === "string" ? field.id : undefined;
+        if (!id) return;
+
+        if ((labelLower.includes("school") || labelLower.includes("university")) && app.schoolName) {
           formFieldValues.push({ fieldId: id, value: app.schoolName });
           return;
         }
-        if (labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) {
+        if ((labelLower.includes("course") || labelLower.includes("degree") || labelLower.includes("program")) && app.courseDegree) {
           formFieldValues.push({ fieldId: id, value: app.courseDegree });
           return;
         }
-        if (labelLower.includes("graduat") || labelLower.includes("year graduated")) {
+        if ((labelLower.includes("graduat") || labelLower.includes("year graduated")) && app.yearGraduated) {
           formFieldValues.push({ fieldId: id, value: app.yearGraduated });
           return;
         }
         if (ignoredBioTerms.some(t => labelLower.includes(t))) return;
 
         const match = mappings.find(m => m.fieldId === id || m.terms.some(t => labelLower.includes(t)));
-        if (match) {
+        if (match && match.value) {
           formFieldValues.push({
             fieldId: id,
             value: match.value
           });
         }
       });
-    } else {
-      formFieldValues.push(
-        { fieldId: "f0100000-0000-0000-0000-000000000001", value: examCat },
-        { fieldId: "f0100000-0000-0000-0000-000000000002", value: examTaker }
-      );
     }
 
     return {
@@ -226,12 +311,12 @@ export const mapApplicantsPayload = (
       contactNumber: app.contactNo,
       address: address,
       birthDate: birthDate,
-      sex: app.sex,
-      nationality: app.nationality,
-      zipCode: app.zipCode,
-      schoolAttended: app.schoolName,
-      courseTaken: app.courseDegree,
-      yearGraduated: app.yearGraduated,
+      sex: app.sex || undefined,
+      nationality: app.nationality || undefined,
+      zipCode: app.zipCode || undefined,
+      schoolAttended: app.schoolName || undefined,
+      courseTaken: app.courseDegree || undefined,
+      yearGraduated: app.yearGraduated || undefined,
       eSignature: app.signature || undefined,
       formFieldValues,
     };

@@ -1,3 +1,13 @@
+/**
+ * buildDynamicSections.ts
+ *
+ * Shared section-building engine used by both:
+ *  - Wizard Step 5 Review & Submit
+ *  - My Application Details preview
+ *
+ * Source of truth: generalReview/dynamicSectionsBuilder.ts (wizard)
+ */
+
 import {
   DynamicSectionGroup,
   FormFieldValue,
@@ -28,6 +38,13 @@ type ServiceFormSchema = {
   sections?: RawSection[];
 };
 
+/**
+ * Builds structured dynamic section groups from the service form schema
+ * and a flat list of submitted field values.
+ *
+ * All field/section filtering logic is centralised here — extensions can
+ * pass `skipFieldIds` and `skipFieldLabels` to suppress additional fields.
+ */
 export function buildDynamicSections(
   form: ServiceFormSchema | null | undefined,
   formFieldValues: FormFieldValue[],
@@ -52,11 +69,21 @@ export function buildDynamicSections(
       const sectionKey = section.key || section.id || '';
       const sectionTitle = section.title || `Section ${sIdx + 1}`;
 
+      // Mark all fields in suppressed sections as rendered (so they don't leak into remaining)
       const markSectionRendered = () => {
         (section.fields || []).forEach((field) => {
-          if (field.fieldId) renderedIds.add(field.fieldId);
-          if (field.id) renderedIds.add(field.id);
-          if (field.label) renderedIds.add(field.label);
+          if (field.fieldId) {
+            renderedIds.add(field.fieldId);
+            renderedIds.add(field.fieldId.toLowerCase().trim());
+          }
+          if (field.id) {
+            renderedIds.add(field.id);
+            renderedIds.add(field.id.toLowerCase().trim());
+          }
+          if (field.label) {
+            renderedIds.add(field.label);
+            renderedIds.add(field.label.toLowerCase().trim());
+          }
         });
       };
 
@@ -78,12 +105,15 @@ export function buildDynamicSections(
         const idLower = fieldId.toLowerCase().trim();
         const labelLower = fieldLabel.toLowerCase().trim();
 
+        // Extension-provided skips
         if (
           skipFieldIds.some((s) => idLower === s.toLowerCase()) ||
           skipFieldLabels.some((s) => labelLower === s.toLowerCase())
         ) {
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           return;
         }
 
@@ -94,7 +124,9 @@ export function buildDynamicSections(
           isRepeaterSubField(fieldLabel, fieldId)
         ) {
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           return;
         }
 
@@ -108,9 +140,13 @@ export function buildDynamicSections(
           const val = matchedFv.value.trim();
           sectionFields.push({ fieldId, label: fieldLabel || matchedFv.fieldLabel, value: val });
           renderedIds.add(fieldId);
+          renderedIds.add(idLower);
           renderedIds.add(matchedFv.fieldId);
+          renderedIds.add((matchedFv.fieldId || '').toLowerCase().trim());
           renderedIds.add(fieldLabel);
+          renderedIds.add(labelLower);
           renderedIds.add(matchedFv.fieldLabel);
+          renderedIds.add((matchedFv.fieldLabel || '').toLowerCase().trim());
         }
       });
 
@@ -163,6 +199,17 @@ export function buildDynamicSections(
     return true;
   });
 
-  return { dynamicSectionsToRender, remainingFields };
-}
+  // Deduplicate remaining fields by label/fieldId to ensure no duplicate display
+  const seenLabels = new Set<string>();
+  const deduplicatedRemainingFields: FormFieldValue[] = [];
+  for (let i = remainingFields.length - 1; i >= 0; i--) {
+    const fv = remainingFields[i];
+    const normalizedKey = (fv.fieldLabel || fv.fieldId || '').toLowerCase().trim();
+    if (!seenLabels.has(normalizedKey)) {
+      seenLabels.add(normalizedKey);
+      deduplicatedRemainingFields.unshift(fv);
+    }
+  }
 
+  return { dynamicSectionsToRender, remainingFields: deduplicatedRemainingFields };
+}

@@ -39,6 +39,8 @@ export function useReceiptsState() {
   const [transferringBooklet, setTransferringBooklet] = useState<OrBookletDto | null>(null);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [selectedPendingPayment, setSelectedPendingPayment] = useState<PendingPaymentDto | null>(null);
+  const [selectedDetailsPayment, setSelectedDetailsPayment] = useState<PendingPaymentDto | null>(null);
+  const [selectedEndorsePayment, setSelectedEndorsePayment] = useState<PendingPaymentDto | null>(null);
   const [editingReceipt, setEditingReceipt] = useState<OfficialReceiptDto | null>(null);
   const [cancellingReceipt, setCancellingReceipt] = useState<OfficialReceiptDto | null>(null);
   const [isDepositModalOpen, setIsDepositModalOpen] = useState(false);
@@ -239,6 +241,10 @@ export function useReceiptsState() {
     setIsIssueModalOpen,
     selectedPendingPayment,
     setSelectedPendingPayment,
+    selectedDetailsPayment,
+    setSelectedDetailsPayment,
+    selectedEndorsePayment,
+    setSelectedEndorsePayment,
     handleOpenIssueWithPendingPayment,
     handleOpenIssueNew,
     handleCloseIssueModal,

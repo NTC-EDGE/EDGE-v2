@@ -66,7 +66,7 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
   const documents = getAppDocuments(app);
 
   // Status timeline steps (5-stage standard lifecycle)
-  const isPaymentDone = app.status === 'READY_FOR_PAYMENT' || app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' || Boolean(app.soaNumber);
+  const isPaymentDone = app.status === 'READY_FOR_PAYMENT' || app.status === 'PAYMENT_SUBMITTED' || app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' || Boolean(app.soaNumber);
   const isIssuanceDone = app.status === 'FOR_APPROVAL' || app.status === 'APPROVED';
   const isCompletedDone = app.status === 'APPROVED';
 

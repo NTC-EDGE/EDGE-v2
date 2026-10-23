@@ -71,6 +71,9 @@ export function buildFormVariantFlags(
   const isAmateurSellTransfer =
     isAmateurPermitService &&
     (varDesc.includes("sell") || varDesc.includes("transfer") || titLower.includes("sell") || titLower.includes("transfer"));
+  const isAmateurStorageVariant =
+    isAmateurPermitService &&
+    (varDesc.includes("storage") || titLower.includes("storage"));
   const isAmateurCert = catLower.includes("certificate") && (titLower.includes("amateur") || titLower.includes("ntc 1-03") || titLower.includes("ntc_1_03"));
   const isCpeAccreditation = catLower.includes("accreditation") && (titLower.includes("customer premises") || titLower.includes("cpe"));
   const isRocService = catLower.includes("certificate") && (titLower.includes("radio operator certificates (roc)") || titLower.includes("ntc 1-02"));
@@ -109,6 +112,7 @@ export function buildFormVariantFlags(
     isAeroStationPossess,
     isAmateurPurchaseVariant,
     isAmateurPurchasePossessVariant,
+    isAmateurStorageVariant,
     isAmateurSellTransfer,
     isAmateurCert,
     isCpeAccreditation,
@@ -231,7 +235,9 @@ export function getFieldSortPriority(field: FieldDto, defaultIndex: number): num
   if (idLower === "technicianexpirydate" || labelLower.includes("certificate/number date of expiry") || (labelLower.includes("expiry") && defaultIndex > 2)) return 95;
 
   // Station / Equipment fields
-  if (idLower === "callsign" || labelLower.includes("call sign")) return 201;
+  if (idLower === "noofyears" || idLower === "no_of_years" || labelLower.includes("number of years") || labelLower.includes("no. of years")) return 200.5;
+  if (idLower === "preferredcallsign" || idLower === "preferred_call_sign" || labelLower.includes("preferred call sign") || labelLower.includes("preferred")) return 201;
+  if ((idLower === "callsign" || labelLower.includes("call sign")) && !idLower.includes("preferred") && !labelLower.includes("preferred")) return 201.5;
   if (idLower === "servicearea" || labelLower.includes("points of comm") || labelLower.includes("service area")) return 202;
   if (idLower === "frequency" || labelLower.includes("frequency: within") || labelLower === "frequency") return 203;
   if (idLower === "bandwidth" || labelLower === "bandwidth") return 204;
@@ -277,6 +283,7 @@ export function getSectionTitle(
     const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
+      if (flags.isAmateurStorageVariant) return "Station/Equipment";
       if (flags.isAmateurPurchaseVariant || flags.isVanityOrSpecialEvent) return "Particulars";
       if (flags.isAmateurSellTransfer) return "Particulars of Station, Equipment & Antenna";
       if (flags.isForeignVisitor) return "Particulars of Equipment";

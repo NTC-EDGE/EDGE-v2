@@ -62,10 +62,7 @@ public static class ExamsCategorySeederData
             { ""code"": ""Class C"", ""condition"": ""For Class D Holder"", ""description"": ""For Class D Holder, Elements 3 & 4"" },
             { ""code"": ""Class D"", ""condition"": ""Standard"", ""description"": ""Element 2"" }
         ],
-        ""requiredSections"": [
-            { ""key"": ""applicantPerson"", ""required"": true },
-            { ""key"": ""applicantEducation"", ""required"": false }
-        ],
+        ""requiredSections"": [],
         ""allowsBulkSubmission"": true,
         ""categorySpecific"": {
             ""examCategories"": [""Radiotelegraphy"", ""Radiotelephony"", ""Amateur"", ""Restricted Radio Operator Certificate - Aircraft""]

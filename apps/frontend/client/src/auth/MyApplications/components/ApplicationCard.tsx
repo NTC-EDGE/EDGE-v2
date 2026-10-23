@@ -10,10 +10,12 @@ import { Icon } from '@edge/ui';
 import { COLORS, SPACING, TYPOGRAPHY } from '@edge/ui';
 import {
   Application,
+  ApplicationStatus,
   getStatusLabel,
   getStatusColor,
   getStatusBgColor,
   formatRelativeTime,
+  isApplicationPaymentSubmitted,
 } from '../data/applicationsData';
 import {
   FIELD_ID_TYPE_OF_CERT,
@@ -34,8 +36,10 @@ export function ApplicationCard({
 }: ApplicationCardProps) {
   const isBulk = app.mode === 'BULK';
   const primaryName = isBulk ? app.companyName : app.applicantName;
-  const statusColor = getStatusColor(app.status);
-  const statusBg = getStatusBgColor(app.status);
+  const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+  const effectiveStatus: ApplicationStatus = isPaymentSubmitted ? 'PAYMENT_SUBMITTED' : app.status;
+  const statusColor = getStatusColor(effectiveStatus);
+  const statusBg = getStatusBgColor(effectiveStatus);
   const totalApplicants = isBulk ? app.applicants.length : 1;
 
   const resolvedVariant =
@@ -62,14 +66,15 @@ export function ApplicationCard({
 
   const isReadyForPayment =
     !isPaid &&
-    (app.status === 'READY_FOR_PAYMENT' ||
+    !isPaymentSubmitted &&
+    (effectiveStatus === 'READY_FOR_PAYMENT' ||
     (typeof app.rawStatus === 'string' && app.rawStatus.toUpperCase().includes('PAYMENT')));
 
   return (
     <TouchableOpacity
       onPress={onPress}
       activeOpacity={0.88}
-      style={[styles.card, isPaid && { borderLeftColor: '#059669' }, style]}
+      style={[styles.card, isPaid && { borderLeftColor: '#059669' }, isPaymentSubmitted && { borderLeftColor: '#0284C7' }, style]}
     >
       {/* ── Card Top Header ────────────────────── */}
       <View style={styles.cardTopHeader}>
@@ -159,7 +164,7 @@ export function ApplicationCard({
           <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
             <View style={[styles.statusDot, { backgroundColor: statusColor }]} />
             <Text style={[styles.statusBadgeText, { color: statusColor }]}>
-              {getStatusLabel(app.status)}
+              {getStatusLabel(effectiveStatus)}
             </Text>
           </View>
         </View>
@@ -227,6 +232,12 @@ export function ApplicationCard({
             <Icon name="credit-card" size={13} color="#FFFFFF" />
             <Text style={styles.payNowBtnText}>Proceed to Payment</Text>
             <Icon name="chevron-right" size={14} color="#FFFFFF" />
+          </View>
+        ) : isPaymentSubmitted ? (
+          <View style={[styles.viewDetailsBtn, { backgroundColor: '#F0F9FF', borderColor: '#BAE6FD' }]}>
+            <Icon name="clock" size={13} color="#0284C7" />
+            <Text style={[styles.viewDetailsBtnText, { color: '#0284C7', marginLeft: 4, marginRight: 2 }]}>Awaiting Verification</Text>
+            <Icon name="chevron-right" size={14} color="#0284C7" />
           </View>
         ) : (
           <View style={styles.viewDetailsBtn}>
