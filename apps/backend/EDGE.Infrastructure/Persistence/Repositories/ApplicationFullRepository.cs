@@ -320,6 +320,56 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .OrderByDescending(s => s.CreatedAt)
                     .Select(s => (decimal?)s.TotalAmount)
                     .FirstOrDefault(),
+                AmountPaid = app.OrdersOfPayment
+                    .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => (decimal?)o.AmountReceived)
+                    .FirstOrDefault(),
+                PaidAt = app.OrdersOfPayment
+                    .Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrEmpty(o.OfficialReceiptNumber))
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.PaidAt)
+                    .FirstOrDefault(),
+                PaymentMethod = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.PaymentMethod != null ? o.PaymentMethod.ToString() : null)
+                    .FirstOrDefault(),
+                CheckNumber = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckNumber)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckName = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckName)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckBank = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckBank)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                CheckDate = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckDate)
+                    .FirstOrDefault(d => d != null),
+                PayorName = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.CheckName)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                PaymentRemarks = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.Remarks)
+                    .FirstOrDefault(r => !string.IsNullOrEmpty(r)),
+                OrderOfPaymentId = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => (Guid?)o.Id)
+                    .FirstOrDefault(),
+                OpNumber = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.OpNumber)
+                    .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                OpStatus = app.OrdersOfPayment
+                    .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                    .Select(o => o.Status.ToString())
+                    .FirstOrDefault(),
                 Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
                 {
                     Id = h.Id,
@@ -721,6 +771,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.OpNumber)
                         .FirstOrDefault(n => !string.IsNullOrEmpty(n)),
+                    OpStatus = app.OrdersOfPayment
+                        .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.Status.ToString())
+                        .FirstOrDefault(),
                     Histories = app.Histories.Select(h => new EDGE.Application.Applications.Dtos.ApplicationHistoryDto
                     {
                         Id = h.Id,
