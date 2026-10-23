@@ -18,6 +18,7 @@ import {
   storageService,
   applicationService,
 } from '@edge/api';
+import { DocumentPreviewModal, DocumentPreviewFile } from '../../../shared/components/DocumentPreviewModal';
 
 interface PendingPaymentDetailsModalProps {
   visible: boolean;
@@ -45,6 +46,7 @@ export function PendingPaymentDetailsModal({
   const isMobile = width < 768;
 
   const [activeTab, setActiveTab] = useState<DetailsTab>('overview');
+  const [previewProofDoc, setPreviewProofDoc] = useState<DocumentPreviewFile | null>(null);
 
   const applicationId = payment !== null ? payment.applicationId : undefined;
   const {
@@ -103,19 +105,20 @@ export function PendingPaymentDetailsModal({
     }
   };
 
-  const handleOpenProofFile = (fileId: string) => {
+  const handleOpenProofFile = (fileId: string, proofFileName?: string) => {
     const url = storageService.getFileDownloadUrl(fileId, payment.tenantId);
-    if (typeof window !== 'undefined') {
-      const win = window.open(url, '_blank');
-      if (win !== null) {
-        win.focus();
-      }
-    } else {
-      Linking.openURL(url);
-    }
+    setPreviewProofDoc({
+      uri: url,
+      name: proofFileName || 'Check / Payment Proof',
+      category: 'Proof of Payment',
+      type: 'IMAGE',
+      referenceNumber: payment.referenceNumber ?? undefined,
+      applicantName: payment.payorName ?? undefined,
+    });
   };
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -490,7 +493,7 @@ export function PendingPaymentDetailsModal({
 
                           {item.proofFileId && (
                             <TouchableOpacity
-                              onPress={() => item.proofFileId && handleOpenProofFile(item.proofFileId)}
+                              onPress={() => item.proofFileId && handleOpenProofFile(item.proofFileId, item.proofFileName)}
                               style={[styles.proofBtn, { backgroundColor: colors.brand.indigoLight }]}
                             >
                               <Lucide name="image" size={13} color={colors.brand.primary} />
@@ -504,7 +507,7 @@ export function PendingPaymentDetailsModal({
 
                       {breakdown.proofOfPaymentFileId && (
                         <TouchableOpacity
-                          onPress={() => breakdown.proofOfPaymentFileId && handleOpenProofFile(breakdown.proofOfPaymentFileId)}
+                          onPress={() => breakdown.proofOfPaymentFileId && handleOpenProofFile(breakdown.proofOfPaymentFileId, breakdown.proofFileName)}
                           style={[styles.proofBtn, { backgroundColor: '#F0FDF4', borderColor: '#86EFAC' }]}
                         >
                           <Lucide name="file-text" size={14} color="#16A34A" />
@@ -708,6 +711,16 @@ export function PendingPaymentDetailsModal({
         </View>
       </View>
     </Modal>
+
+    {previewProofDoc !== null && (
+      <DocumentPreviewModal
+        visible={previewProofDoc !== null}
+        file={previewProofDoc}
+        onClose={() => setPreviewProofDoc(null)}
+        label={previewProofDoc?.name}
+      />
+    )}
+    </>
   );
 }
 

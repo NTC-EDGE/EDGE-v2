@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform } from "react-native";
-import { Icon } from "@edge/ui";
+import { Icon, EditedImageResult } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
 import * as ImagePicker from "expo-image-picker";
@@ -214,6 +214,22 @@ export function SharedDocumentUpload({
     });
   };
 
+  const handleSaveEditedDocument = (result: EditedImageResult) => {
+    const targetKey = activeSlotKey || activeReq?.key;
+    if (!targetKey) return;
+    onUpload(targetKey, {
+      name: result.name,
+      uri: result.uri,
+      type: result.type,
+      file: result.file,
+    });
+    setPreviewFile({
+      name: result.name,
+      uri: result.uri,
+      type: result.type,
+    });
+  };
+
   const handleCameraLaunch = async () => {
     if (!activeSlotKey) return;
     setIsSheetOpen(false);
@@ -388,6 +404,7 @@ export function SharedDocumentUpload({
                       <View style={{ flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: 10, marginTop: 8 }}>
                         <TouchableOpacity
                           onPress={() => {
+                            setActiveSlotKey(activeReq.key);
                             setPreviewFile(uploadData);
                             setPreviewLabel(activeReq.label);
                             setIsPreviewOpen(true);
@@ -609,6 +626,7 @@ export function SharedDocumentUpload({
 
                     <TouchableOpacity
                       onPress={() => {
+                        setActiveSlotKey(req.key);
                         setPreviewFile(uploadData);
                         setPreviewLabel(req.label);
                         setIsPreviewOpen(true);
@@ -708,6 +726,7 @@ export function SharedDocumentUpload({
         onClose={() => setIsPreviewOpen(false)}
         file={previewFile}
         label={previewLabel}
+        onSaveEditedImage={handleSaveEditedDocument}
       />
 
       {/* Live Camera Viewfinder Modal */}

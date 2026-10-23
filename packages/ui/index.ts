@@ -29,6 +29,7 @@ export * from './components/EmptyState';
 export * from './components/SearchBar';
 export * from './components/ConfirmationModal';
 export * from './components/ModalDialog';
+export * from './components/ImageCropRotateModal';
 
 // Navigation & Integrations
 export { Feather as Icon } from '@expo/vector-icons';

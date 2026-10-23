@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, Image, Alert, Platform } from 'react-native';
-import { Icon } from '@edge/ui';
+import { Icon, ImageCropRotateModal, EditedImageResult } from '@edge/ui';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { CameraCaptureModal, CapturedPhoto } from '../../../../../shared/components/CameraCaptureModal';
@@ -43,6 +43,7 @@ export function CheckProofUploadField({
   onPreview,
 }: CheckProofUploadFieldProps) {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   const handlePickDocument = async () => {
     try {
@@ -144,6 +145,16 @@ export function CheckProofUploadField({
               <Icon name="eye" size={13} color="#0F2C59" />
             </TouchableOpacity>
           )}
+          {isImageFile(file) && (
+            <TouchableOpacity
+              onPress={() => setIsCropModalOpen(true)}
+              style={styles.proofActionBtn}
+              activeOpacity={0.7}
+              accessibilityLabel="Crop & rotate check photo"
+            >
+              <Icon name="crop" size={13} color="#0284C7" />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             onPress={() => onFileChange(null)}
             style={styles.proofRemoveBtn}
@@ -152,6 +163,26 @@ export function CheckProofUploadField({
           >
             <Icon name="trash-2" size={13} color="#DC2626" />
           </TouchableOpacity>
+          {isImageFile(file) && typeof file.uri === 'string' && (
+            <ImageCropRotateModal
+              visible={isCropModalOpen}
+              imageUri={file.uri}
+              fileName={file.name}
+              title="Crop & Rotate Check Proof"
+              onClose={() => setIsCropModalOpen(false)}
+              onApply={(result) => {
+                onFileChange({
+                  name: result.name,
+                  uri: result.uri,
+                  type: result.type,
+                  size: result.blob?.size,
+                  file: result.file,
+                });
+                setIsCropModalOpen(false);
+              }}
+              allowDownload={false}
+            />
+          )}
         </View>
       );
     }
@@ -230,6 +261,16 @@ export function CheckProofUploadField({
                 <Icon name="eye" size={14} color="#0F2C59" />
               </TouchableOpacity>
             )}
+            {isImageFile(file) && (
+              <TouchableOpacity
+                style={styles.proofActionBtn}
+                onPress={() => setIsCropModalOpen(true)}
+                activeOpacity={0.7}
+                accessibilityLabel="Crop & rotate check photo"
+              >
+                <Icon name="crop" size={14} color="#0284C7" />
+              </TouchableOpacity>
+            )}
             <TouchableOpacity
               style={styles.proofRemoveBtn}
               onPress={() => onFileChange(null)}
@@ -274,6 +315,27 @@ export function CheckProofUploadField({
         title="Capture Check Photo"
         instructionText="Position physical check clearly within frame"
       />
+
+      {file !== null && isImageFile(file) && typeof file.uri === 'string' && (
+        <ImageCropRotateModal
+          visible={isCropModalOpen}
+          imageUri={file.uri}
+          fileName={file.name}
+          title="Crop & Rotate Check Proof"
+          onClose={() => setIsCropModalOpen(false)}
+          onApply={(result) => {
+            onFileChange({
+              name: result.name,
+              uri: result.uri,
+              type: result.type,
+              size: result.blob?.size,
+              file: result.file,
+            });
+            setIsCropModalOpen(false);
+          }}
+          allowDownload={false}
+        />
+      )}
     </View>
   );
 }

@@ -10,7 +10,7 @@ import {
   Platform,
   ScrollView,
 } from "react-native";
-import { Icon, TYPOGRAPHY } from "@edge/ui";
+import { Icon, TYPOGRAPHY, ImageCropRotateModal, EditedImageResult } from "@edge/ui";
 
 export interface DocumentPreviewFile {
   name: string;
@@ -29,6 +29,8 @@ export interface DocumentPreviewModalProps {
   onClose: () => void;
   file: DocumentPreviewFile | string | null;
   label?: string;
+  onSaveEditedImage?: (result: EditedImageResult) => void;
+  allowEditImage?: boolean;
 }
 
 function isDocumentPreviewFile(file: unknown): file is DocumentPreviewFile {
@@ -40,6 +42,8 @@ export function DocumentPreviewModal({
   onClose,
   file,
   label,
+  onSaveEditedImage,
+  allowEditImage = true,
 }: DocumentPreviewModalProps) {
   if (!file) return null;
 
@@ -49,6 +53,13 @@ export function DocumentPreviewModal({
   const fileCategory = isObj && typeof file.category === "string" ? file.category : undefined;
   const fileSize = isObj && typeof file.size === "string" ? file.size : undefined;
   const fileType = isObj && typeof file.type === "string" ? file.type : undefined;
+
+  const [activeImageUri, setActiveImageUri] = React.useState<string>(fileUri);
+  const [isCropModalOpen, setIsCropModalOpen] = React.useState<boolean>(false);
+
+  React.useEffect(() => {
+    setActiveImageUri(fileUri);
+  }, [fileUri, file]);
 
   const fileNameLower = (fileName || "").toLowerCase();
   const uriLower = (fileUri || "").toLowerCase();
@@ -89,6 +100,16 @@ export function DocumentPreviewModal({
     setRotation(0);
   };
 
+  const handleApplyCropRotate = (result: EditedImageResult) => {
+    setActiveImageUri(result.uri);
+    setIsCropModalOpen(false);
+    setScale(1);
+    setRotation(0);
+    if (onSaveEditedImage !== undefined) {
+      onSaveEditedImage(result);
+    }
+  };
+
   const handleOpenExternal = async () => {
     if (!fileUri) return;
     try {
@@ -121,6 +142,7 @@ export function DocumentPreviewModal({
   };
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -176,6 +198,17 @@ export function DocumentPreviewModal({
                 >
                   <Icon name="rotate-cw" size={16} color="#0F2C59" />
                 </TouchableOpacity>
+                {allowEditImage && (
+                  <TouchableOpacity
+                    onPress={() => setIsCropModalOpen(true)}
+                    style={styles.cropActionBtn}
+                    activeOpacity={0.7}
+                    accessibilityLabel="Crop & Rotate Image"
+                  >
+                    <Icon name="crop" size={14} color="#0F2C59" />
+                    <Text style={styles.cropActionBtnText}>Crop & Rotate</Text>
+                  </TouchableOpacity>
+                )}
                 {scale !== 1 || rotation !== 0 ? (
                   <TouchableOpacity
                     onPress={handleResetZoom}
@@ -209,10 +242,10 @@ export function DocumentPreviewModal({
                   }}
                 />
               </View>
-            ) : isImage && fileUri ? (
+            ) : isImage && (activeImageUri || fileUri) ? (
               <View style={styles.imageWrapper}>
                 <Image
-                  source={{ uri: fileUri }}
+                  source={{ uri: activeImageUri || fileUri }}
                   style={[
                     styles.previewImage,
                     {
@@ -284,6 +317,19 @@ export function DocumentPreviewModal({
         </View>
       </View>
     </Modal>
+
+    {isImage && Boolean(activeImageUri || fileUri) && (
+      <ImageCropRotateModal
+        visible={isCropModalOpen}
+        imageUri={activeImageUri || fileUri}
+        fileName={fileName}
+        title="Evaluator Document Correction: Crop & Rotate"
+        onClose={() => setIsCropModalOpen(false)}
+        onApply={handleApplyCropRotate}
+        allowDownload={true}
+      />
+    )}
+    </>
   );
 }
 
@@ -386,6 +432,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     color: "#475569",
+  },
+  cropActionBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    backgroundColor: "#F1F5F9",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 4,
+  },
+  cropActionBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#0F2C59",
   },
   bodyContent: {
     padding: 16,

@@ -10,7 +10,7 @@ import {
   useWindowDimensions,
   Platform,
 } from 'react-native';
-import { Icon, COLORS, TYPOGRAPHY } from '@edge/ui';
+import { Icon, COLORS, TYPOGRAPHY, ImageCropRotateModal, EditedImageResult } from '@edge/ui';
 
 export interface CapturedPhoto {
   name: string;
@@ -48,6 +48,7 @@ export function CameraCaptureModal({
   const [capturedPreviewUrl, setCapturedPreviewUrl] = useState<string | null>(null);
   const [capturedBlob, setCapturedBlob] = useState<Blob | null>(null);
   const [capturedFileName, setCapturedFileName] = useState<string | null>(null);
+  const [isCropModalOpen, setIsCropModalOpen] = useState(false);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -233,6 +234,13 @@ export function CameraCaptureModal({
     }
   };
 
+  const handleApplyCroppedPhoto = (result: EditedImageResult) => {
+    setCapturedPreviewUrl(result.uri);
+    setCapturedBlob(result.blob ?? null);
+    setCapturedFileName(result.name);
+    setIsCropModalOpen(false);
+  };
+
   const handleConfirmPhoto = () => {
     if (capturedBlob === null || capturedPreviewUrl === null) {
       return;
@@ -285,6 +293,7 @@ export function CameraCaptureModal({
   }
 
   return (
+    <>
     <Modal
       visible={visible}
       transparent
@@ -421,14 +430,22 @@ export function CameraCaptureModal({
           {/* Bottom Controls Bar */}
           <View style={styles.controlsBar}>
             {capturedPreviewUrl !== null ? (
-              // Actions when photo is taken: Retake or Confirm
+              // Actions when photo is taken: Retake, Crop & Rotate, or Confirm
               <View style={styles.reviewActionsRow}>
                 <TouchableOpacity
                   onPress={handleRetake}
                   style={styles.retakeBtn}
                 >
-                  <Icon name="rotate-ccw" size={16} color={COLORS.neutral.white} />
-                  <Text style={styles.retakeBtnText}>Retake Photo</Text>
+                  <Icon name="rotate-ccw" size={15} color={COLORS.neutral.white} />
+                  <Text style={styles.retakeBtnText}>Retake</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={() => setIsCropModalOpen(true)}
+                  style={styles.cropRotateBtn}
+                >
+                  <Icon name="crop" size={15} color="#38BDF8" />
+                  <Text style={styles.cropRotateBtnText}>Crop & Rotate</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -436,7 +453,7 @@ export function CameraCaptureModal({
                   style={styles.usePhotoBtn}
                 >
                   <Icon name="check" size={16} color={COLORS.neutral.white} />
-                  <Text style={styles.usePhotoBtnText}>Use This Photo</Text>
+                  <Text style={styles.usePhotoBtnText}>Use Photo</Text>
                 </TouchableOpacity>
               </View>
             ) : errorMessage === null ? (
@@ -488,6 +505,19 @@ export function CameraCaptureModal({
         </View>
       </View>
     </Modal>
+
+    {capturedPreviewUrl !== null && (
+      <ImageCropRotateModal
+        visible={isCropModalOpen}
+        imageUri={capturedPreviewUrl}
+        fileName={capturedFileName ?? 'captured_document.jpg'}
+        title="Crop & Rotate Captured Photo"
+        onClose={() => setIsCropModalOpen(false)}
+        onApply={handleApplyCroppedPhoto}
+        allowDownload={false}
+      />
+    )}
+    </>
   );
 }
 
@@ -831,6 +861,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
     color: '#F8FAFC',
+  },
+  cropRotateBtn: {
+    flex: 1.2,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: '#1E293B',
+    borderWidth: 1,
+    borderColor: '#38BDF8',
+    paddingVertical: 12,
+    borderRadius: 10,
+  },
+  cropRotateBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#38BDF8',
   },
   usePhotoBtn: {
     flex: 1.3,
