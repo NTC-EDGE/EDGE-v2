@@ -50,6 +50,7 @@ export function SharedDocumentUpload({
   const [previewFile, setPreviewFile] = useState<{ name: string; uri?: string; type?: string } | string | null>(null);
   const [previewLabel, setPreviewLabel] = useState<string>("");
   const [isPreviewOpen, setIsPreviewOpen] = useState(false);
+  const [imageLoadErrors, setImageLoadErrors] = useState<Record<string, boolean>>({});
 
   // Safely clamp selected index in case requirements list changes dynamically
   const activeIndex = Math.max(0, Math.min(selectedReqIndex, requirements.length - 1));
@@ -61,6 +62,11 @@ export function SharedDocumentUpload({
     (key: string) => {
       setIsPreviewOpen(false);
       setPreviewFile(null);
+      setImageLoadErrors((prev) => {
+        const next = { ...prev };
+        delete next[key];
+        return next;
+      });
       onRemove(key);
     },
     [onRemove]
@@ -111,6 +117,9 @@ export function SharedDocumentUpload({
           ? URL.createObjectURL(file)
           : "";
 
+      if (slotKey) {
+        setImageLoadErrors((prev) => ({ ...prev, [slotKey]: false }));
+      }
       onUpload(slotKey, {
         name: fileName,
         uri: fileUri,
@@ -191,6 +200,7 @@ export function SharedDocumentUpload({
         const asset = result.assets[0];
         if (!asset) return;
         const rawWebFile = "file" in asset && asset.file instanceof Blob ? asset.file : undefined;
+        setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
         onUpload(activeSlotKey, {
           name: asset.name,
           uri: asset.uri,
@@ -206,6 +216,7 @@ export function SharedDocumentUpload({
 
   const handleCameraCapture = (captured: CapturedPhoto) => {
     if (!activeSlotKey) return;
+    setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
     onUpload(activeSlotKey, {
       name: captured.name,
       uri: captured.uri,
@@ -217,6 +228,7 @@ export function SharedDocumentUpload({
   const handleSaveEditedDocument = (result: EditedImageResult) => {
     const targetKey = activeSlotKey || activeReq?.key;
     if (!targetKey) return;
+    setImageLoadErrors((prev) => ({ ...prev, [targetKey]: false }));
     onUpload(targetKey, {
       name: result.name,
       uri: result.uri,
@@ -387,15 +399,20 @@ export function SharedDocumentUpload({
 
                   {uploadData ? (
                     <View style={styles.previewBox}>
-                      {isImage ? (
+                      {isImage && !imageLoadErrors[activeReq.key] ? (
                         <Image
                           source={{ uri: fileUri }}
                           style={styles.imagePreview}
+                          onError={() => {
+                            setImageLoadErrors((prev) => ({ ...prev, [activeReq.key]: true }));
+                          }}
                         />
                       ) : (
                         <View style={styles.pdfPreviewPlaceholder}>
-                          <Icon name="file-text" size={48} color={COLORS.neutral[400]} />
-                          <Text style={styles.pdfPlaceholderText}>Scanned PDF Document</Text>
+                          <Icon name={isImage ? "image" : "file-text"} size={48} color={COLORS.neutral[400]} />
+                          <Text style={styles.pdfPlaceholderText}>
+                            {isImage ? "Image Document Attached" : "Scanned PDF Document"}
+                          </Text>
                         </View>
                       )}
                       <Text style={styles.fileNameText} numberOfLines={1}>
@@ -605,14 +622,17 @@ export function SharedDocumentUpload({
 
                 {uploadData ? (
                   <View style={styles.mobileSuccessRow}>
-                    {isImage ? (
+                    {isImage && !imageLoadErrors[req.key] ? (
                       <Image
                         source={{ uri: fileUri }}
                         style={styles.mobileThumbnail}
+                        onError={() => {
+                          setImageLoadErrors((prev) => ({ ...prev, [req.key]: true }));
+                        }}
                       />
                     ) : (
                       <View style={styles.mobileIconPlaceholder}>
-                        <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                        <Icon name={isImage ? "image" : "file-text"} size={20} color={COLORS.neutral[500]} />
                       </View>
                     )}
                     <View style={styles.mobileFileDetails}>

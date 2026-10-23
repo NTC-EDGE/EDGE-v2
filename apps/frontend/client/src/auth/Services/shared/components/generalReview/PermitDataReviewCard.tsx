@@ -5,7 +5,7 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface PermitDataReviewCardProps {
   isPermitService: boolean;
-  serviceTitle?: string;
+  serviceTitle?: string | null;
   permitData?: AmateurPermitData | null;
   hasDynamicForm?: boolean;
 }
@@ -18,7 +18,7 @@ export function PermitDataReviewCard({
 }: PermitDataReviewCardProps) {
   if (hasDynamicForm) return null;
 
-  const sLower = serviceTitle.toLowerCase();
+  const sLower = (serviceTitle || '').toLowerCase();
   const isCopyOfPermit =
     sLower.includes('copy of permit') ||
     sLower.includes('copy') ||
@@ -49,16 +49,8 @@ export function PermitDataReviewCard({
   const dealerOrSeller =
     permitData.nameOfDealer || permitData.nameOfDealerOrSeller || '';
 
-  const intendedUseParts = [
-    permitData.intendedUseStorageAt ? `Storage (${permitData.storageAtSpecify || 'Specified Location'})` : '',
-    permitData.intendedUseNewRadioStation ? `New Station (${permitData.newRadioStationSpecify || 'Standard'})` : '',
-    permitData.intendedUseAdditionalRadioEquipment ? 'Additional Radio Equipment' : '',
-    permitData.intendedUseChangeOfEquipment ? 'Change of Equipment' : '',
-    permitData.intendedUseOthers ? (permitData.othersSpecify ? `Other (${permitData.othersSpecify})` : 'Other') : '',
-  ].filter(Boolean);
-
   return (
-    <SectionCard icon="file-text" title="Permit Application Particulars" accentColor="#4F46E5">
+    <SectionCard icon="file-text" title="Amateur Radio Permit Particulars" accentColor="#0284C7">
       <View style={{ gap: 4 }}>
         <View style={{ flexDirection: 'row', gap: 8 }}>
           {permitData.applicationType ? (
@@ -73,48 +65,57 @@ export function PermitDataReviewCard({
           ) : null}
         </View>
 
-        {permitData.applicant ? <SummaryRow label="Applicant Name" value={permitData.applicant} /> : null}
-
-        {(permitData.frequency || permitData.powerOutput) ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {permitData.frequency ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Frequency Range" value={permitData.frequency} />
-              </View>
-            ) : null}
-            {permitData.powerOutput ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Power Output" value={`${permitData.powerOutput} Watts`} />
-              </View>
-            ) : null}
-          </View>
+        {permitData.applicant ? (
+          <SummaryRow label="Applicant Name" value={permitData.applicant} />
         ) : null}
 
-        {(permitData.bandwidth || permitData.emission) ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {permitData.bandwidth ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Bandwidth" value={`${permitData.bandwidth} ${permitData.unit || 'MHz'}`} />
-              </View>
-            ) : null}
-            {permitData.emission ? (
-              <View style={{ flex: 1 }}>
-                <SummaryRow label="Emission Class" value={permitData.emission} />
-              </View>
-            ) : null}
-          </View>
-        ) : null}
-
-        {equipmentCount > 0 ? (
-          <SummaryRow label="Declared Equipment / Station Count" value={`${equipmentCount} Unit(s)`} />
+        {permitData.frequency ? (
+          <SummaryRow label="Operating Frequency / Band" value={permitData.frequency} />
         ) : null}
 
         {dealerOrSeller ? (
-          <SummaryRow label="Source of Equipment (Dealer / Seller)" value={dealerOrSeller} />
+          <SummaryRow label="Dealer / Seller" value={dealerOrSeller} />
         ) : null}
 
-        {intendedUseParts.length > 0 ? (
-          <SummaryRow label="Intended Purpose / Use" value={intendedUseParts.join(', ')} />
+        {permitData.sourceOfEquipment ? (
+          <SummaryRow label="Source of Equipment" value={permitData.sourceOfEquipment} />
+        ) : null}
+
+        {permitData.sellerAddress ? (
+          <SummaryRow label="Seller Address" value={permitData.sellerAddress} />
+        ) : null}
+
+        {equipmentCount > 0 ? (
+          <SummaryRow label="Equipment / Units Listed" value={`${equipmentCount} Unit(s)`} />
+        ) : null}
+
+        {permitData.particulars && (permitData.particulars.make || permitData.particulars.type || permitData.particulars.model) ? (
+          <SummaryRow
+            label="Make / Type / Model"
+            value={[permitData.particulars.make, permitData.particulars.type, permitData.particulars.model]
+              .filter(Boolean)
+              .join(' ')}
+          />
+        ) : null}
+
+        {permitData.particulars && permitData.particulars.serialNumber ? (
+          <SummaryRow label="Serial Number" value={permitData.particulars.serialNumber} />
+        ) : null}
+
+        {permitData.particulars && permitData.particulars.powerOutput ? (
+          <SummaryRow label="Power Output" value={permitData.particulars.powerOutput} />
+        ) : null}
+
+        {permitData.particulars && permitData.particulars.frequencyRange ? (
+          <SummaryRow label="Frequency Range" value={permitData.particulars.frequencyRange} />
+        ) : null}
+
+        {permitData.storageAddress ? (
+          <SummaryRow label="Storage Address" value={permitData.storageAddress} />
+        ) : null}
+
+        {permitData.remarks ? (
+          <SummaryRow label="Remarks" value={permitData.remarks} />
         ) : null}
       </View>
     </SectionCard>

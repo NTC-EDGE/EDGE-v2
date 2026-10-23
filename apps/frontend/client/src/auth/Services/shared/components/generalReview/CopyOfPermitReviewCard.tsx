@@ -5,7 +5,7 @@ import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface CopyOfPermitReviewCardProps {
   isPermitService: boolean;
-  serviceTitle: string;
+  serviceTitle?: string | null;
   copyOfPermit?: CopyOfPermitData | null;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   selectedVariantName?: string;
@@ -13,13 +13,13 @@ interface CopyOfPermitReviewCardProps {
 
 export function CopyOfPermitReviewCard({
   isPermitService,
-  serviceTitle,
+  serviceTitle = '',
   copyOfPermit,
   formFieldValues = [],
   selectedVariantName,
 }: CopyOfPermitReviewCardProps) {
   const isCopyOfPermitService =
-    isPermitService && serviceTitle.toLowerCase().includes('copy');
+    isPermitService && (serviceTitle || '').toLowerCase().includes('copy');
   if (!isCopyOfPermitService) return null;
 
   const getFv = (fieldKey: string) => {

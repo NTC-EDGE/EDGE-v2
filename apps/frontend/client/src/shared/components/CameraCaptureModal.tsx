@@ -222,9 +222,6 @@ export function CameraCaptureModal({
   };
 
   const handleRetake = () => {
-    if (capturedPreviewUrl !== null && typeof URL !== 'undefined') {
-      URL.revokeObjectURL(capturedPreviewUrl);
-    }
     setCapturedPreviewUrl(null);
     setCapturedBlob(null);
     setCapturedFileName(null);
@@ -252,9 +249,15 @@ export function CameraCaptureModal({
         ? new File([capturedBlob], fileName, { type: 'image/jpeg' })
         : capturedBlob;
 
+    const confirmedUrl = capturedPreviewUrl;
+    // Clear modal preview state before calling onCapture and closing
+    setCapturedPreviewUrl(null);
+    setCapturedBlob(null);
+    setCapturedFileName(null);
+
     onCapture({
       name: fileName,
-      uri: capturedPreviewUrl,
+      uri: confirmedUrl,
       type: 'image/jpeg',
       file: photoFile,
     });
@@ -271,9 +274,6 @@ export function CameraCaptureModal({
 
   const handleCloseModal = () => {
     stopCamera();
-    if (capturedPreviewUrl !== null && typeof URL !== 'undefined') {
-      URL.revokeObjectURL(capturedPreviewUrl);
-    }
     setCapturedPreviewUrl(null);
     setCapturedBlob(null);
     setCapturedFileName(null);

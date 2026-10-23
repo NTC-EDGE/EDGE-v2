@@ -4,15 +4,15 @@ import { CopyOfCertificateData } from '../../../certificates';
 import { SectionCard, SummaryRow } from '../../../../../shared/formPreview';
 
 interface CopyOfCertReviewCardProps {
-  serviceTitle: string;
+  serviceTitle?: string | null;
   copyOfCert?: CopyOfCertificateData | null;
 }
 
 export function CopyOfCertReviewCard({
-  serviceTitle,
+  serviceTitle = '',
   copyOfCert,
 }: CopyOfCertReviewCardProps) {
-  const sLower = serviceTitle.toLowerCase();
+  const sLower = (serviceTitle || '').toLowerCase();
   const isCopyOfCertService =
     (sLower.includes('copy of cert') ||
       sLower.includes('copy of license') ||

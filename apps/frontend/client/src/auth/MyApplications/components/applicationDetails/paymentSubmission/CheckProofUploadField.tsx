@@ -44,6 +44,11 @@ export function CheckProofUploadField({
 }: CheckProofUploadFieldProps) {
   const [isCameraModalOpen, setIsCameraModalOpen] = useState(false);
   const [isCropModalOpen, setIsCropModalOpen] = useState(false);
+  const [hasImageError, setHasImageError] = useState(false);
+
+  useEffect(() => {
+    setHasImageError(false);
+  }, [file]);
 
   const handlePickDocument = async () => {
     try {
@@ -227,8 +232,13 @@ export function CheckProofUploadField({
       {file !== null ? (
         <View style={styles.proofAttachedCard}>
           <View style={styles.proofAttachedLeft}>
-            {isImageFile(file) && typeof file.uri === 'string' && file.uri.trim() !== '' ? (
-              <Image source={{ uri: file.uri }} style={styles.proofThumbnail} resizeMode="cover" />
+            {isImageFile(file) && typeof file.uri === 'string' && file.uri.trim() !== '' && !hasImageError ? (
+              <Image
+                source={{ uri: file.uri }}
+                style={styles.proofThumbnail}
+                resizeMode="cover"
+                onError={() => setHasImageError(true)}
+              />
             ) : (
               <View
                 style={[

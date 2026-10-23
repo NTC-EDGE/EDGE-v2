@@ -45,6 +45,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
 
   const reviewData = useGeneralReviewData(props);
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
+  const serviceTitle = service?.title || service?.name || '';
 
   const handlePreviewFile = (file: PreviewFileTarget, label: string) => {
     setPreviewFile(file);
@@ -115,7 +116,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
             <RadioCertReviewCard
               isCertificateService={reviewData.isCertificateService}
               isAmateurCertService={reviewData.isAmateurCertService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               radioCert={activeApplicant.radioCertData}
             />
 
@@ -126,27 +127,27 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
 
             <TvroRegReviewCard
               isCertificateService={reviewData.isCertificateService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               tvroReg={activeApplicant.tvroRegData}
             />
 
             <VasReviewCard
               isCertificateService={reviewData.isCertificateService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               vasData={activeApplicant.vasData}
               formFieldValues={activeApplicant.formFieldValues}
             />
 
             {!reviewData.isCopyOfPermitService && (
               <CopyOfCertReviewCard
-                serviceTitle={service.title}
+                serviceTitle={serviceTitle}
                 copyOfCert={activeApplicant.copyOfCertData}
               />
             )}
 
             <CopyOfPermitReviewCard
               isPermitService={reviewData.isPermitService}
-              serviceTitle={service.title}
+              serviceTitle={serviceTitle}
               copyOfPermit={activeApplicant.copyOfPermitData}
               formFieldValues={activeApplicant.formFieldValues}
               selectedVariantName={reviewData.variantLabel}
@@ -155,7 +156,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
             {!reviewData.isCopyOfPermitService && (
               <PermitDataReviewCard
                 isPermitService={reviewData.isPermitService}
-                serviceTitle={service.title}
+                serviceTitle={serviceTitle}
                 permitData={activeApplicant.permitData}
                 hasDynamicForm={Boolean(form?.sections && form.sections.length > 0)}
               />
