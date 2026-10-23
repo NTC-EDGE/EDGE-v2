@@ -42,6 +42,7 @@ export interface SubmittedFormStructuredViewProps {
   serviceVariantId?: string | null;
   singleApplicant?: SubmittedApplicantData | null;
   showApplicantCard?: boolean;
+  isExamService?: boolean;
 }
 
 export function SubmittedFormStructuredView({
@@ -53,6 +54,7 @@ export function SubmittedFormStructuredView({
   serviceVariantId,
   singleApplicant,
   showApplicantCard = false,
+  isExamService,
 }: SubmittedFormStructuredViewProps) {
   const api = useApi();
   const { data: allServicesRes } = api.useQuery<{ succeeded?: boolean; data?: Array<{ id: string; name?: string; title?: string }> }>('/api/v2/services?pageSize=9999');
@@ -75,6 +77,15 @@ export function SubmittedFormStructuredView({
   const effectiveVariantId = serviceVariantId || app.serviceVariantId;
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
+  const isExam =
+    isExamService ??
+    Boolean(
+      (app.serviceCategory || '').toLowerCase().includes('exam') ||
+      (app.serviceName || '').toLowerCase().includes('exam') ||
+      (app.serviceName || '').toLowerCase().includes('operator examination') ||
+      (app.serviceName || '').toLowerCase().includes('admission')
+    );
+
   const applicantName = singleApplicant?.applicantName || singleApplicant?.name || primaryName;
   const fullAddress = formatCompositeAddress(
     singleApplicant
@@ -96,6 +107,7 @@ export function SubmittedFormStructuredView({
         title: app.serviceName || '',
         category: app.serviceCategory || '',
       }}
+      isExamService={isExam}
       form={form}
       formFieldValues={formFieldValues}
       resolvedFullName={applicantName}

@@ -228,7 +228,17 @@ export function ApplicantRecordTab({
                     civilStatus: activeApplicant.basicInfo?.civilStatus,
                     nationality: activeApplicant.basicInfo?.nationality,
                     notes: activeApplicant.evaluationRemarks,
+                    schoolAttended: activeApplicant.schoolAttended,
+                    courseTaken: activeApplicant.courseTaken,
+                    yearGraduated: activeApplicant.yearGraduated,
                   } : undefined}
+                  schoolAttended={activeApplicant?.schoolAttended}
+                  courseTaken={activeApplicant?.courseTaken}
+                  yearGraduated={activeApplicant?.yearGraduated}
+                  isExamService={Boolean(
+                    (app.serviceCategory || app.category || '').toLowerCase().includes('exam') ||
+                    (app.serviceName || app.permitTitle || '').toLowerCase().includes('exam')
+                  )}
                   showApplicantCard={false}
                   showSignatureCard={true}
                   onPreviewFile={onPreviewFile}

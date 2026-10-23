@@ -166,6 +166,7 @@ export function SingleApplicantSection({
         serviceId={app.serviceId}
         serviceVariantId={app.serviceVariantId}
         singleApplicant={singleApplicant}
+        isExamService={isExamService}
       />
 
       {/* Section 4: Attached Requirements & Document Proofs */}

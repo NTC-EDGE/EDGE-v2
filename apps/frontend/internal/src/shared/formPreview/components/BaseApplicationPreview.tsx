@@ -47,7 +47,7 @@ export interface BaseApplicationPreviewProps {
   companyName?: string | null;
   representativeName?: string | null;
   notes?: string | null;
-  // Flags
+  // Flags (optional, derived if not passed)
   isExamService?: boolean;
   isLicenseService?: boolean;
   isPermitService?: boolean;
@@ -133,6 +133,59 @@ export function BaseApplicationPreview({
     });
   }, [form, formFieldValues, isAmateur, isVas, extension, showApplicantCard]);
 
+  const schoolAttendedVal =
+    schoolAttended ||
+    schoolName ||
+    activeApplicant?.schoolAttended ||
+    activeApplicant?.schoolName ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000006' ||
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000061' ||
+        fv.fieldLabel.toLowerCase().includes('school') ||
+        fv.fieldLabel.toLowerCase().includes('university')
+    )?.value ||
+    null;
+
+  const courseTakenVal =
+    courseTaken ||
+    courseDegree ||
+    activeApplicant?.courseTaken ||
+    activeApplicant?.courseDegree ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000062' ||
+        fv.fieldLabel.toLowerCase().includes('course') ||
+        fv.fieldLabel.toLowerCase().includes('degree') ||
+        fv.fieldLabel.toLowerCase().includes('program')
+    )?.value ||
+    null;
+
+  const yearGraduatedVal =
+    yearGraduated ||
+    activeApplicant?.yearGraduated ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldId === 'fd000000-0000-0000-0000-000000000063' ||
+        fv.fieldLabel.toLowerCase().includes('year graduated') ||
+        fv.fieldLabel.toLowerCase().includes('yeargraduated')
+    )?.value ||
+    null;
+
+  const specialOrderNoVal =
+    specialOrderNo ||
+    activeApplicant?.specialOrderNo ||
+    formFieldValues.find(
+      (fv) =>
+        fv.fieldLabel.toLowerCase().includes('special order') ||
+        fv.fieldLabel.toLowerCase().includes('so number')
+    )?.value ||
+    null;
+
+  const hasEducationInApplicantCard = Boolean(
+    schoolAttendedVal || courseTakenVal || yearGraduatedVal || specialOrderNoVal
+  );
+
   const examEducationFields = useMemo(() => {
     if (!isExam) return [];
     return remainingFields.filter((f) => isExamEducationField(f.fieldLabel, f.fieldId));
@@ -144,14 +197,13 @@ export function BaseApplicationPreview({
   }, [isExam, remainingFields]);
 
   const nonExamRemainingFields = useMemo(() => {
-    if (!isExam) return remainingFields;
+    if (isExam) return [];
     return remainingFields.filter(
       (f) =>
         !examEducationFields.some((ef) => ef.fieldId === f.fieldId || ef.fieldLabel === f.fieldLabel) &&
         !examAssistanceFields.some((af) => af.fieldId === f.fieldId || af.fieldLabel === f.fieldLabel)
     );
   }, [isExam, remainingFields, examEducationFields, examAssistanceFields]);
-
 
   const resolvedSig =
     signatureEntry ||
@@ -171,27 +223,6 @@ export function BaseApplicationPreview({
         }
       : null);
 
-  const schoolAttendedVal =
-    schoolAttended ||
-    schoolName ||
-    activeApplicant?.schoolAttended ||
-    activeApplicant?.schoolName ||
-    null;
-  const courseTakenVal =
-    courseTaken ||
-    courseDegree ||
-    activeApplicant?.courseTaken ||
-    activeApplicant?.courseDegree ||
-    null;
-  const yearGraduatedVal =
-    yearGraduated ||
-    activeApplicant?.yearGraduated ||
-    null;
-  const specialOrderNoVal =
-    specialOrderNo ||
-    activeApplicant?.specialOrderNo ||
-    null;
-
   const applicantData: ActiveApplicantSnapshot = activeApplicant || {
     applicantType,
     companyName,
@@ -207,7 +238,7 @@ export function BaseApplicationPreview({
 
   return (
     <View style={{ gap: 16 }}>
-      {/* Top Header Slot */}
+      {/* Top Header Slot (e.g. Hero banner, Jurisdiction, Bulk Cohort) */}
       {headerSlot}
 
       {/* Extension Before Sections */}
@@ -252,6 +283,7 @@ export function BaseApplicationPreview({
         examEducationFields={examEducationFields}
         examAssistanceFields={examAssistanceFields}
         onPreviewFile={onPreviewFile}
+        suppressEducationSection={hasEducationInApplicantCard}
       />
 
       {/* Extension After Sections */}
@@ -263,10 +295,10 @@ export function BaseApplicationPreview({
           </React.Fragment>
         ))}
 
-      {/* Fallback Specialized Cards */}
+      {/* Fallback Specialized Cards when dynamic sections are empty */}
       {dynamicSectionsToRender.length === 0 && renderSpecializedCards ? renderSpecializedCards() : null}
 
-      {/* Footer Slot */}
+      {/* Footer Slot (e.g. Attached Requirements / Documents) */}
       {footerSlot}
 
       {/* Digital Signature */}
