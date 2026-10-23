@@ -1,8 +1,9 @@
 import React from 'react';
 import { View, Text, TextInput } from 'react-native';
 import { Icon, DatePickerInput } from '@edge/ui';
-import { ModeOfPayment } from './paymentSubmissionTypes';
+import { ModeOfPayment, CheckProofFile } from './paymentSubmissionTypes';
 import { styles } from './paymentSubmissionStyles';
+import { CheckProofUploadField } from './CheckProofUploadField';
 
 interface SingleModeDetailsProps {
   selectedMode: ModeOfPayment;
@@ -14,6 +15,9 @@ interface SingleModeDetailsProps {
   setCheckBank: (v: string) => void;
   checkDate: string;
   setCheckDate: (v: string) => void;
+  checkProofFile: CheckProofFile | null;
+  setCheckProofFile: (file: CheckProofFile | null) => void;
+  onPreviewCheckProof?: (file: CheckProofFile) => void;
 }
 
 export function SingleModeDetails({
@@ -26,6 +30,9 @@ export function SingleModeDetails({
   setCheckBank,
   checkDate,
   setCheckDate,
+  checkProofFile,
+  setCheckProofFile,
+  onPreviewCheckProof,
 }: SingleModeDetailsProps) {
   if (selectedMode === 'Combination') {
     return null;
@@ -76,6 +83,11 @@ export function SingleModeDetails({
           value={checkDate}
           onChangeText={setCheckDate}
           placeholder="YYYY-MM-DD"
+        />
+        <CheckProofUploadField
+          file={checkProofFile}
+          onFileChange={setCheckProofFile}
+          onPreview={onPreviewCheckProof}
         />
       </View>
     );
