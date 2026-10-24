@@ -41,6 +41,7 @@ public class CreateFormCommandHandler : IRequestHandler<CreateFormCommand, FormD
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(s => new FormSectionDto
                 {

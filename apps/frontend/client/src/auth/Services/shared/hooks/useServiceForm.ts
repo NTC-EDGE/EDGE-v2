@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useMemo } from "react";
 import { useApi } from "../../../../shared/hooks/useApi";
 import { FormDto } from "../../../../shared/components/DynamicFormRenderer";
 
@@ -9,63 +9,37 @@ interface ApiResponseEnvelope<T> {
 }
 
 /**
- * Lazily fetches the dynamic form layout for a given service (and optionally a variant)
- * from the backend API.
+ * Dynamically fetches the form layout for a given service from the backend API.
+ * Uses SWR with automatic revalidation on focus so that changes saved in the Admin
+ * Form Builder immediately reflect in the Client without requiring a hard page refresh.
  *
  * Returns:
  * - `form`: A fully resolved `FormDto` from the DB when the service has form records seeded,
- *           or `null` when none exist (triggering the hardcoded form fallback in GeneralFilingDetailsStep).
+ *           or `null` when none exist.
  * - `loading`: True while the API request is in flight.
- *
- * Endpoint priority:
- * 1. GET /api/v2/services/{serviceId}/variants/{variantId}/form  (variant-specific form)
- * 2. GET /api/v2/services/{serviceId}/form                       (base service form fallback)
- * 3. null                                                        (renders hardcoded form)
+ * - `refetch`: Function to explicitly re-fetch the latest template from the server.
  */
 export function useServiceForm(serviceId: string | undefined, variantId?: string | null) {
   const api = useApi();
-  const [form, setForm] = useState<FormDto | null>(null);
-  const [loading, setLoading] = useState(false);
+  const endpoint = serviceId ? `/api/v2/services/${serviceId}/form` : null;
 
-  useEffect(() => {
-    let isMounted = true;
+  const { data: rawRes, isLoading, mutate } = api.useQuery<ApiResponseEnvelope<FormDto>>(endpoint, {
+    revalidateOnFocus: true,
+    revalidateIfStale: true,
+    dedupingInterval: 2000,
+  });
 
-    async function fetchForm() {
-      if (!serviceId) {
-        if (isMounted) setForm(null);
-        return;
-      }
-
-      if (isMounted) setLoading(true);
-
-      try {
-        // Query the seeded form definition for the service
-        const endpoint = `/api/v2/services/${serviceId}/form`;
-        const rawRes = await api.get<ApiResponseEnvelope<FormDto>>(endpoint).catch(() => null);
-        const formDto = rawRes?.data ?? null;
-
-        if (isMounted) {
-          // Only set form when the response has meaningful seeded sections
-          // If no seeded form exists, fall back to null → hardcoded form renders instead
-          if (formDto && Array.isArray(formDto.sections) && formDto.sections.length > 0) {
-            setForm(formDto);
-          } else {
-            setForm(null);
-          }
-        }
-      } catch {
-        if (isMounted) setForm(null);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
+  const form = useMemo(() => {
+    const formDto = rawRes?.data;
+    if (formDto && Array.isArray(formDto.sections) && formDto.sections.length > 0) {
+      return formDto;
     }
+    return null;
+  }, [rawRes]);
 
-    fetchForm();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [serviceId, variantId]);
-
-  return { form, loading };
+  return {
+    form,
+    loading: isLoading,
+    refetch: mutate,
+  };
 }

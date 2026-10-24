@@ -21,6 +21,7 @@ export const AVAILABLE_VAS_SERVICES = [
 interface VasServicesCheckboxGroupProps {
   label?: string;
   value?: string;
+  options?: Array<{ label: string; value: string } | string>;
   onChange: (value: string) => void;
   error?: string;
   required?: boolean;
@@ -29,10 +30,15 @@ interface VasServicesCheckboxGroupProps {
 export function VasServicesCheckboxGroup({
   label = 'VALUE ADDED SERVICE',
   value = '',
+  options,
   onChange,
   error,
   required = true,
 }: VasServicesCheckboxGroupProps) {
+  const availableServices: string[] =
+    options !== undefined && options.length > 0
+      ? options.map((opt) => (typeof opt === 'string' ? opt : opt.label || opt.value))
+      : AVAILABLE_VAS_SERVICES;
   const parseSelected = (valStr: string): string[] => {
     if (!valStr || valStr.trim() === '') return [];
     try {
@@ -46,7 +52,7 @@ export function VasServicesCheckboxGroup({
 
   const selectedList = parseSelected(value);
   const [otherSpecify, setOtherSpecify] = useState<string>(() => {
-    const custom = selectedList.find((s) => !AVAILABLE_VAS_SERVICES.includes(s) && s !== 'Others');
+    const custom = selectedList.find((s) => !availableServices.includes(s) && s !== 'Others');
     return custom || '';
   });
 
@@ -55,7 +61,7 @@ export function VasServicesCheckboxGroup({
     if (selectedList.includes(srv)) {
       updated = selectedList.filter((s) => s !== srv);
       if (srv === 'Others') {
-        updated = updated.filter((s) => AVAILABLE_VAS_SERVICES.includes(s));
+        updated = updated.filter((s) => availableServices.includes(s));
       }
     } else {
       updated = [...selectedList, srv];
@@ -65,7 +71,7 @@ export function VasServicesCheckboxGroup({
 
   const handleOtherSpecifyChange = (text: string) => {
     setOtherSpecify(text);
-    const standardSelected = selectedList.filter((s) => AVAILABLE_VAS_SERVICES.includes(s));
+    const standardSelected = selectedList.filter((s) => availableServices.includes(s));
     if (text.trim()) {
       onChange([...standardSelected, text.trim()].join(', '));
     } else {
@@ -73,7 +79,7 @@ export function VasServicesCheckboxGroup({
     }
   };
 
-  const hasOthersSelected = selectedList.includes('Others') || selectedList.some((s) => !AVAILABLE_VAS_SERVICES.includes(s));
+  const hasOthersSelected = selectedList.includes('Others') || selectedList.some((s) => !availableServices.includes(s));
 
   return (
     <View style={[styles.cardContainer, error !== undefined && error.length > 0 ? styles.cardContainerError : null]}>
@@ -96,7 +102,7 @@ export function VasServicesCheckboxGroup({
       </Text>
 
       <View style={styles.checkboxGrid}>
-        {AVAILABLE_VAS_SERVICES.map((serviceName) => {
+        {availableServices.map((serviceName) => {
           const isSelected = selectedList.includes(serviceName) || (serviceName === 'Others' && hasOthersSelected);
           return (
             <TouchableOpacity

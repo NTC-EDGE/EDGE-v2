@@ -176,7 +176,7 @@ export function FormCanvas({
     >
       {/* Canvas scroll area */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-3xl mx-auto py-8 px-6 min-h-full">
+        <div className="w-full max-w-[1600px] mx-auto py-6 px-6 lg:px-10 min-h-full">
           {/* Form Header Card */}
           <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
             {/* Metadata Pills */}
@@ -448,13 +448,15 @@ export function FormCanvas({
 
                         {/* Right Side: Section Actions */}
                         <div className="flex items-center gap-1">
-                          {group.headerField && (
+                          {group.headerField ? (
                             <>
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onSelectField(group.headerField!.id);
+                                  if (group.headerField) {
+                                    onSelectField(group.headerField.id);
+                                  }
                                 }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
                                 title="Configure section properties"
@@ -465,7 +467,9 @@ export function FormCanvas({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onDuplicateField(group.headerField!.id);
+                                  if (group.headerField) {
+                                    onDuplicateField(group.headerField.id);
+                                  }
                                 }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
                                 title="Duplicate section and all fields"
@@ -476,14 +480,28 @@ export function FormCanvas({
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  onDeleteField(group.headerField!.id);
+                                  if (group.headerField) {
+                                    onDeleteField(group.headerField.id);
+                                  }
                                 }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
-                                title="Delete section header"
+                                title="Delete section and its fields"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
                             </>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onDeleteField("default-section");
+                              }}
+                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                              title="Delete section and its fields"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
                           )}
                         </div>
                       </div>
@@ -514,21 +532,34 @@ export function FormCanvas({
                             </div>
                           ) : (
                             <>
-                              {group.childFields.map(({ field, originalIndex }) => (
-                                <CanvasField
-                                  key={`${field.id}-${originalIndex}`}
-                                  field={field}
-                                  isSelected={selectedFieldId === field.id}
-                                  isDragOver={dragOverIndex === originalIndex}
-                                  onSelect={() => onSelectField(field.id)}
-                                  onEdit={() => onSelectField(field.id)}
-                                  onDuplicate={() => onDuplicateField(field.id)}
-                                  onDelete={() => onDeleteField(field.id)}
-                                  onDragStart={(e) => handleFieldDragStart(e, field.id)}
-                                  onDragOver={(e) => handleFieldDragOver(e, originalIndex)}
-                                  onDrop={(e) => handleFieldDrop(e, originalIndex)}
-                                />
-                              ))}
+                              <div className="grid grid-cols-1 xl:grid-cols-2 gap-3.5">
+                                {group.childFields.map(({ field, originalIndex }) => {
+                                  const isHalfWidth =
+                                    field.type !== "repeater" &&
+                                    field.type !== "divider" &&
+                                    field.type !== "section-header" &&
+                                    (field.cols ?? 2) === 1;
+                                  return (
+                                    <div
+                                      key={`${field.id}-${originalIndex}`}
+                                      className={isHalfWidth ? "col-span-1" : "col-span-1 xl:col-span-2"}
+                                    >
+                                      <CanvasField
+                                        field={field}
+                                        isSelected={selectedFieldId === field.id}
+                                        isDragOver={dragOverIndex === originalIndex}
+                                        onSelect={() => onSelectField(field.id)}
+                                        onEdit={() => onSelectField(field.id)}
+                                        onDuplicate={() => onDuplicateField(field.id)}
+                                        onDelete={() => onDeleteField(field.id)}
+                                        onDragStart={(e) => handleFieldDragStart(e, field.id)}
+                                        onDragOver={(e) => handleFieldDragOver(e, originalIndex)}
+                                        onDrop={(e) => handleFieldDrop(e, originalIndex)}
+                                      />
+                                    </div>
+                                  );
+                                })}
+                              </div>
 
                               {/* Drop zone inside the section */}
                               <div

@@ -5,6 +5,7 @@ export type FieldType =
   | 'email'
   | 'phone'
   | 'date'
+  | 'time'
   | 'select'
   | 'radio'
   | 'checkbox'
@@ -23,10 +24,24 @@ export interface RepeaterColumn {
   id: string;
   key: string;
   label: string;
-  type: 'text' | 'number' | 'select' | 'date' | 'file';
+  type: 'text' | 'number' | 'select' | 'date' | 'file' | 'equipments' | 'serials';
   placeholder?: string;
   required?: boolean;
   options?: FieldOption[];
+}
+
+export interface FieldCondition {
+  serviceCodes?: string[];
+  services?: string[];
+  applicationTypes?: string[];
+  variants?: string[];
+  elements?: string[];
+  applicantTypes?: ('individual' | 'company')[];
+  fieldDependencies?: Array<{
+    fieldId: string;
+    operator: 'equals' | 'not_equals' | 'contains' | 'is_empty' | 'is_not_empty';
+    value?: string;
+  }>;
 }
 
 export interface FormField {
@@ -51,6 +66,8 @@ export interface FormField {
   minRows?: number;
   maxRows?: number;
   addButtonLabel?: string;
+  visibilityCondition?: string;
+  condition?: FieldCondition;
 }
 
 export interface FormSchema {

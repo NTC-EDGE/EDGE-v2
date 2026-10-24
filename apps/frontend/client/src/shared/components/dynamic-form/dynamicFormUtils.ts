@@ -150,22 +150,131 @@ export function getElementFieldLabel(category?: string, title?: string): string 
   return "Classification / Element";
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+export interface ValidationRulesMetadata {
+  cols?: 1 | 2;
+  placeholder?: string;
+  helpText?: string;
+  minLength?: number;
+  maxLength?: number;
+  min?: number;
+  max?: number;
+  acceptedFileTypes?: string;
+  maxFileSizeMb?: number;
+}
+
+export function parseValidationRulesMetadata(field: FieldDto): ValidationRulesMetadata {
+  const meta: ValidationRulesMetadata = {};
+  if (typeof field.validationRules === "string" && field.validationRules.trim().startsWith("{")) {
+    try {
+      const parsed: unknown = JSON.parse(field.validationRules);
+      if (isRecord(parsed)) {
+        if (parsed.cols === 1 || parsed.cols === 2) {
+          meta.cols = parsed.cols;
+        }
+        if (typeof parsed.placeholder === "string" && parsed.placeholder.trim().length > 0) {
+          meta.placeholder = parsed.placeholder.trim();
+        }
+        if (typeof parsed.helpText === "string" && parsed.helpText.trim().length > 0) {
+          meta.helpText = parsed.helpText.trim();
+        }
+        if (typeof parsed.minLength === "number") meta.minLength = parsed.minLength;
+        if (typeof parsed.maxLength === "number") meta.maxLength = parsed.maxLength;
+        if (typeof parsed.min === "number") meta.min = parsed.min;
+        if (typeof parsed.max === "number") meta.max = parsed.max;
+        if (typeof parsed.acceptedFileTypes === "string") meta.acceptedFileTypes = parsed.acceptedFileTypes;
+        if (typeof parsed.maxFileSizeMb === "number") meta.maxFileSizeMb = parsed.maxFileSizeMb;
+      }
+    } catch {
+      // Ignore invalid JSON
+    }
+  }
+  return meta;
+}
+
 export function parseOptions(field: FieldDto): Array<{ label: string; value: string }> {
+  const normalizeItem = (item: unknown): { label: string; value: string } | null => {
+    if (item === null || item === undefined) return null;
+    if (typeof item === "string") {
+      const trimmed = item.trim();
+      return trimmed.length > 0 ? { label: trimmed, value: trimmed } : null;
+    }
+    if (typeof item === "number" || typeof item === "boolean") {
+      const str = String(item);
+      return { label: str, value: str };
+    }
+    if (isRecord(item)) {
+      const rawLabel = item["label"];
+      const rawName = item["name"];
+      const rawValue = item["value"];
+      const rawId = item["id"];
+      const label =
+        typeof rawLabel === "string"
+          ? rawLabel
+          : typeof rawName === "string"
+          ? rawName
+          : typeof rawValue === "string"
+          ? rawValue
+          : "";
+      const value =
+        typeof rawValue === "string"
+          ? rawValue
+          : typeof rawId === "string"
+          ? rawId
+          : label;
+      if (label.length > 0 || value.length > 0) {
+        return {
+          label: label.length > 0 ? label : value,
+          value: value.length > 0 ? value : label,
+        };
+      }
+    }
+    return null;
+  };
+
+  // 1. Direct field.options (if provided in DTO)
   if (field.options !== null && field.options !== undefined && Array.isArray(field.options) && field.options.length > 0) {
-    return field.options.map((opt) => (typeof opt === "string" ? { label: opt, value: opt } : opt));
+    const list: Array<{ label: string; value: string }> = [];
+    for (let i = 0; i < field.options.length; i++) {
+      const norm = normalizeItem(field.options[i]);
+      if (norm !== null) {
+        list.push(norm);
+      }
+    }
+    if (list.length > 0) {
+      return list;
+    }
   }
 
+  // 2. Parsed from validationRules (supports raw JSON array string and { options: [...] } envelope)
   if (field.validationRules !== null && field.validationRules !== undefined && typeof field.validationRules === "string") {
     try {
       const parsed: unknown = JSON.parse(field.validationRules);
+      let targetArray: unknown[] | null = null;
       if (Array.isArray(parsed)) {
-        return parsed.map((item) => {
-          const str = typeof item === "string" ? item : String(item);
-          return { label: str, value: str };
-        });
+        targetArray = parsed;
+      } else if (isRecord(parsed)) {
+        const rawOpts = parsed["options"];
+        if (Array.isArray(rawOpts)) {
+          targetArray = rawOpts;
+        }
+      }
+
+      if (targetArray !== null) {
+        const list: Array<{ label: string; value: string }> = [];
+        for (let i = 0; i < targetArray.length; i++) {
+          const norm = normalizeItem(targetArray[i]);
+          if (norm !== null) {
+            list.push(norm);
+          }
+        }
+        return list;
       }
     } catch {
-      // Ignored if not JSON array
+      // Ignored if not JSON
     }
   }
 
@@ -266,27 +375,44 @@ export function getSectionTitle(
   isAmateurSellTransfer?: boolean,
   isAeroStationPurchase?: boolean
 ): string {
-  const flags: FormVariantFlags =
+  const isAmateurPermitService =
     typeof flagsOrAmateurPermit === "object"
-      ? flagsOrAmateurPermit
-      : ({
-          isAmateurPermitService: flagsOrAmateurPermit,
-          isAmateurPurchaseVariant: isAmateurPurchaseVariant ?? false,
-          isVanityOrSpecialEvent: isVanityOrSpecialEvent ?? false,
-          isForeignVisitor: isForeignVisitor ?? false,
-          isAmateurSellTransfer: isAmateurSellTransfer ?? false,
-          isAeroStationPurchase: isAeroStationPurchase ?? false,
-        } as unknown as FormVariantFlags);
+      ? flagsOrAmateurPermit.isAmateurPermitService
+      : flagsOrAmateurPermit;
+  const isStorage =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isAmateurStorageVariant
+      : false;
+  const isPurchase =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isAmateurPurchaseVariant
+      : Boolean(isAmateurPurchaseVariant);
+  const isVanitySpecial =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isVanityOrSpecialEvent
+      : Boolean(isVanityOrSpecialEvent);
+  const isForeign =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isForeignVisitor
+      : Boolean(isForeignVisitor);
+  const isSellTransfer =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isAmateurSellTransfer
+      : Boolean(isAmateurSellTransfer);
+  const isAeroPurchase =
+    typeof flagsOrAmateurPermit === "object"
+      ? flagsOrAmateurPermit.isAeroStationPurchase
+      : Boolean(isAeroStationPurchase);
 
-  if (flags.isAmateurPermitService || flags.isAeroStationPurchase) {
+  if (isAmateurPermitService || isAeroPurchase) {
     const k = (sec.key || sec.id || "").trim().toLowerCase();
     const t = (sec.title || "").trim().toLowerCase();
     if (k === "applicant" || t.includes("applicant")) return "Applicant Details";
     if (k === "stationequipment" || k === "proposedstation" || t.includes("station/equipment") || t.includes("proposed station") || t.includes("station") || k === "particulars" || t.includes("particulars")) {
-      if (flags.isAmateurStorageVariant) return "Station/Equipment";
-      if (flags.isAmateurPurchaseVariant || flags.isVanityOrSpecialEvent) return "Particulars";
-      if (flags.isAmateurSellTransfer) return "Particulars of Station, Equipment & Antenna";
-      if (flags.isForeignVisitor) return "Particulars of Equipment";
+      if (isStorage) return "Station/Equipment";
+      if (isPurchase || isVanitySpecial) return "Particulars";
+      if (isSellTransfer) return "Particulars of Station, Equipment & Antenna";
+      if (isForeign) return "Particulars of Equipment";
       return "Particulars of Proposed Station / Equipment";
     }
     if (k === "sourceofequipment" || t.includes("source")) return "Source of Equipment";
@@ -299,12 +425,128 @@ export function getSectionTitle(
 }
 
 export interface FormEvaluationContext {
+  serviceCategory?: string;
+  serviceTitle?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  applicationType?: string;
   variantType?: string;
   variantId?: string;
+  variantName?: string;
   variantDescription?: string;
   elementCodes?: string[];
+  elementNames?: string[];
   applicantType?: "individual" | "company";
   formValues?: Record<string, string>;
+}
+
+export interface SingleDependencyRule {
+  fieldId?: string;
+  fieldKey?: string;
+  fieldLabel?: string;
+  operator?: string;
+  value?: unknown;
+}
+
+const SEMANTIC_FIELD_ALIASES: Record<string, string[]> = {
+  loss_reason: ["fd000000-0000-0000-0000-000000000313", "incident type", "loss_reason"],
+  "fd000000-0000-0000-0000-000000000313": ["loss_reason", "incident type", "fd000000-0000-0000-0000-000000000313"],
+  complaint_types: ["fd000000-0000-0000-0000-000000000327", "nature of complaint", "complaint_types"],
+  "fd000000-0000-0000-0000-000000000327": ["complaint_types", "nature of complaint", "fd000000-0000-0000-0000-000000000327"],
+  knownbyanothername: ["fd000000-0000-0000-0000-000000000234", "known by other name", "knownbyanothername", "known_by_other_name"],
+  "fd000000-0000-0000-0000-000000000234": ["knownbyanothername", "known by other name", "fd000000-0000-0000-0000-000000000234"],
+  action_requested: ["fd000000-0000-0000-0000-000000000307", "action requested", "action_requested"],
+  "fd000000-0000-0000-0000-000000000307": ["action_requested", "action requested", "fd000000-0000-0000-0000-000000000307"],
+};
+
+export function resolveFieldValue(formValues: Record<string, string>, dep: SingleDependencyRule): string | undefined {
+  if (dep.fieldId && typeof formValues[dep.fieldId] === "string") {
+    return formValues[dep.fieldId];
+  }
+  if (dep.fieldKey && typeof formValues[dep.fieldKey] === "string") {
+    return formValues[dep.fieldKey];
+  }
+  if (dep.fieldLabel && typeof formValues[dep.fieldLabel] === "string") {
+    return formValues[dep.fieldLabel];
+  }
+
+  const baseKeys = [dep.fieldId, dep.fieldKey, dep.fieldLabel]
+    .filter((k): k is string => typeof k === "string" && k.length > 0)
+    .map((k) => k.toLowerCase().trim());
+
+  if (baseKeys.length === 0) return undefined;
+
+  const expandedKeys = new Set<string>(baseKeys);
+  for (const k of baseKeys) {
+    const aliases = SEMANTIC_FIELD_ALIASES[k];
+    if (aliases) {
+      for (const a of aliases) {
+        expandedKeys.add(a.toLowerCase().trim());
+      }
+    }
+  }
+
+  for (const [key, val] of Object.entries(formValues)) {
+    if (expandedKeys.has(key.toLowerCase().trim())) {
+      return val;
+    }
+  }
+
+  return undefined;
+}
+
+export function checkSingleDependency(dep: SingleDependencyRule, formValues: Record<string, string>): boolean {
+  const rawParentVal = resolveFieldValue(formValues, dep);
+  const parentVal = rawParentVal !== undefined ? rawParentVal.trim() : "";
+  const op = (dep.operator || "equals").toLowerCase();
+
+  if (op === "notempty" || op === "is_not_empty") {
+    return parentVal.length > 0;
+  }
+
+  if (op === "isempty" || op === "is_empty") {
+    return parentVal.length === 0;
+  }
+
+  if (op === "in") {
+    if (Array.isArray(dep.value)) {
+      return dep.value.some((item) => {
+        const itemStr = typeof item === "string" ? item.trim().toLowerCase() : String(item).trim().toLowerCase();
+        return itemStr === parentVal.toLowerCase();
+      });
+    }
+    return false;
+  }
+
+  const expectedStr =
+    typeof dep.value === "string"
+      ? dep.value.trim().toLowerCase()
+      : dep.value !== null && dep.value !== undefined
+      ? String(dep.value).trim().toLowerCase()
+      : "";
+
+  if (op === "notequals" || op === "not_equals") {
+    return parentVal.toLowerCase() !== expectedStr;
+  }
+
+  if (op === "contains") {
+    return expectedStr.length > 0 && parentVal.toLowerCase().includes(expectedStr);
+  }
+
+  // Default: equals
+  return parentVal.toLowerCase() === expectedStr;
+}
+
+function toStringArray(val: unknown): string[] {
+  if (typeof val === "string" && val.trim().length > 0) {
+    return [val.trim()];
+  }
+  if (Array.isArray(val)) {
+    return val
+      .filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      .map((item) => item.trim());
+  }
+  return [];
 }
 
 export function evaluateVisibilityCondition(
@@ -318,50 +560,147 @@ export function evaluateVisibilityCondition(
 
     // 1. JSON Rule Syntax
     if (trimmed.startsWith("{")) {
-      const rule = JSON.parse(trimmed);
+      const rule: unknown = JSON.parse(trimmed);
+      if (!isRecord(rule)) return true;
 
-      // Positive Variant Match
-      if (rule.variants && Array.isArray(rule.variants) && rule.variants.length > 0) {
-        const vType = (context.variantType || "").toUpperCase();
-        const vId = context.variantId || "";
-        const vDesc = (context.variantDescription || "").toUpperCase();
-        const matches = rule.variants.some((v: string) => {
-          const vUpper = v.toUpperCase();
-          return vUpper === vType || v === vId || vDesc.includes(vUpper);
+      // Service Match (For forms shared across multiple services)
+      const services = toStringArray(rule.services);
+      if (services.length > 0) {
+        const sTitle = (context.serviceTitle || "").toLowerCase().trim();
+        const sName = (context.serviceName || "").toLowerCase().trim();
+        const sCode = (context.serviceCode || "").toLowerCase().trim();
+        const matchesService = services.some((s) => {
+          const sLower = s.toLowerCase().trim();
+          return (
+            sLower === sTitle ||
+            sLower === sName ||
+            sLower === sCode ||
+            (sTitle.length > 0 && sTitle.includes(sLower)) ||
+            (sLower.length > 0 && sLower.includes(sTitle))
+          );
+        });
+        if (!matchesService) return false;
+      }
+
+      // Service Code Match
+      const serviceCodes = toStringArray(rule.serviceCodes);
+      if (serviceCodes.length > 0) {
+        const sCode = (context.serviceCode || "").toLowerCase().trim();
+        const matchesCode = serviceCodes.some(
+          (c) => c.toLowerCase().trim() === sCode
+        );
+        if (!matchesCode) return false;
+      }
+
+      // Application Type & Variant Description Match
+      const appTypes = [
+        ...toStringArray(rule.applicationTypes),
+        ...toStringArray(rule.variantDescription),
+      ];
+      if (appTypes.length > 0) {
+        const appType = (context.applicationType || "").toLowerCase().trim();
+        const vType = (context.variantType || "").toLowerCase().trim();
+        const vDesc = (context.variantDescription || "").toLowerCase().trim();
+        const vName = (context.variantName || "").toLowerCase().trim();
+        const matchesAppType = appTypes.some((t) => {
+          const tLower = t.toLowerCase().trim();
+          return (
+            tLower === appType ||
+            tLower === vType ||
+            tLower === vDesc ||
+            tLower === vName ||
+            (vDesc.length > 0 && vDesc.includes(tLower)) ||
+            (vName.length > 0 && vName.includes(tLower)) ||
+            (appType.length > 0 && appType.includes(tLower))
+          );
+        });
+        if (!matchesAppType) return false;
+      }
+
+      // Positive Variant Match (supports both Admin Builder `variants` and Seeder `variantType`)
+      const variants = [
+        ...toStringArray(rule.variants),
+        ...toStringArray(rule.variantType),
+      ];
+      if (variants.length > 0) {
+        const vType = (context.variantType || "").toUpperCase().trim();
+        const vId = (context.variantId || "").trim();
+        const vDesc = (context.variantDescription || "").toUpperCase().trim();
+        const vName = (context.variantName || "").toUpperCase().trim();
+        const matches = variants.some((v) => {
+          const vUpper = v.toUpperCase().trim();
+          return (
+            vUpper === vType ||
+            v === vId ||
+            (vDesc.length > 0 && vDesc.includes(vUpper)) ||
+            (vName.length > 0 && vName.includes(vUpper))
+          );
         });
         if (!matches) return false;
       }
 
       // Negative Variant Match (Excluded)
-      if (rule.excludedVariants && Array.isArray(rule.excludedVariants) && rule.excludedVariants.length > 0) {
-        const vType = (context.variantType || "").toUpperCase();
-        const vId = context.variantId || "";
-        const matches = rule.excludedVariants.some((v: string) => {
-          const vUpper = v.toUpperCase();
+      const excludedVariants = toStringArray(rule.excludedVariants);
+      if (excludedVariants.length > 0) {
+        const vType = (context.variantType || "").toUpperCase().trim();
+        const vId = (context.variantId || "").trim();
+        const matches = excludedVariants.some((v) => {
+          const vUpper = v.toUpperCase().trim();
           return vUpper === vType || v === vId;
         });
         if (matches) return false;
       }
 
-      // Element Codes Match
-      if (rule.elements && Array.isArray(rule.elements) && rule.elements.length > 0) {
-        const elemCodes = context.elementCodes || [];
-        const matches = elemCodes.some((code) => rule.elements.includes(code));
+      // Element Codes & Names Match
+      const elements = toStringArray(rule.elements);
+      if (elements.length > 0) {
+        const elemCodes = (context.elementCodes || []).map((c) => c.toLowerCase());
+        const elemNames = (context.elementNames || []).map((n) => n.toLowerCase());
+        const matches = elements.some((elem) => {
+          const elemLower = elem.toLowerCase();
+          return (
+            elemCodes.includes(elemLower) ||
+            elemCodes.some((c) => c.includes(elemLower) || elemLower.includes(c)) ||
+            elemNames.some((n) => n.includes(elemLower) || elemLower.includes(n))
+          );
+        });
         if (!matches) return false;
       }
 
-      // Applicant Type Match
-      if (rule.applicantType && rule.applicantType !== context.applicantType) {
+      // Applicant Type Match (array or single)
+      const applicantTypes = toStringArray(rule.applicantTypes);
+      if (applicantTypes.length > 0) {
+        if (context.applicantType && !applicantTypes.includes(context.applicantType)) {
+          return false;
+        }
+      } else if (typeof rule.applicantType === "string" && rule.applicantType !== context.applicantType) {
         return false;
       }
 
-      // Dynamic Inter-field Dependencies
-      if (rule.dependsOn && context.formValues) {
-        const parentVal = context.formValues[rule.dependsOn.fieldId] || context.formValues[rule.dependsOn.fieldKey];
-        if (rule.dependsOn.operator === "equals" && parentVal !== rule.dependsOn.value) return false;
-        if (rule.dependsOn.operator === "notEquals" && parentVal === rule.dependsOn.value) return false;
-        if (rule.dependsOn.operator === "in" && Array.isArray(rule.dependsOn.value) && !rule.dependsOn.value.includes(parentVal)) return false;
-        if (rule.dependsOn.operator === "notEmpty" && (!parentVal || !parentVal.trim())) return false;
+      // Dynamic Inter-field Dependencies (`fieldDependencies`, `dependsOn`, or top-level `field`)
+      const rawDeps = rule.fieldDependencies ?? rule.dependsOn;
+      if (rawDeps && context.formValues) {
+        const depList = Array.isArray(rawDeps) ? rawDeps : [rawDeps];
+        for (const depItem of depList) {
+          if (isRecord(depItem)) {
+            const singleDep: SingleDependencyRule = {
+              fieldId: typeof depItem.fieldId === "string" ? depItem.fieldId : typeof depItem.field === "string" ? depItem.field : undefined,
+              fieldKey: typeof depItem.fieldKey === "string" ? depItem.fieldKey : undefined,
+              fieldLabel: typeof depItem.fieldLabel === "string" ? depItem.fieldLabel : undefined,
+              operator: typeof depItem.operator === "string" ? depItem.operator : undefined,
+              value: depItem.value,
+            };
+            if (!checkSingleDependency(singleDep, context.formValues)) return false;
+          }
+        }
+      } else if (typeof rule.field === "string" && rule.field.trim().length > 0) {
+        if (!context.formValues) return false;
+        const singleDep: SingleDependencyRule = {
+          fieldId: rule.field.trim(),
+          operator: typeof rule.operator === "string" ? rule.operator : "equals",
+          value: rule.value,
+        };
+        if (!checkSingleDependency(singleDep, context.formValues)) return false;
       }
 
       return true;

@@ -120,6 +120,16 @@ function PreviewField({ field }: { field: FormField }) {
               <span>{opt.label}</span>
             </label>
           ))}
+          {(field.options ?? []).length === 0 && (
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                value="true"
+                className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+              />
+              <span>{field.placeholder || field.label || 'Checkbox option'}</span>
+            </label>
+          )}
         </div>
         {helpText}
       </div>
@@ -156,6 +166,7 @@ function PreviewField({ field }: { field: FormField }) {
     email: "email",
     phone: "tel",
     date: "date",
+    time: "time",
   };
 
   return (
@@ -358,7 +369,7 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-5xl xl:max-w-6xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/80 pr-10 sm:pr-12">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="min-w-0">
@@ -431,9 +442,27 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
                   <span>Preview Submission Validated: All required fields were entered correctly!</span>
                 </div>
               )}
-              {form.fields.map((field) => (
-                <PreviewField key={field.id} field={field} />
-              ))}
+              {form.fields.map((field, idx) => {
+                const nextField = form.fields[idx + 1];
+                const isEmptySection =
+                  field.type === "section-header" &&
+                  (!nextField || nextField.type === "section-header");
+                return (
+                  <React.Fragment key={field.id}>
+                    <PreviewField field={field} />
+                    {isEmptySection && (
+                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-dashed border-amber-300 dark:border-amber-800 text-center">
+                        <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                          Empty Section (0 fields)
+                        </p>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                          This section currently has no fields configured.
+                        </p>
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </form>
           )}
         </div>

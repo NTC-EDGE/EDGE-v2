@@ -44,7 +44,8 @@ public class ContractFormValidator
             return new ContractFormValidationResult(new List<string> { "INVALID_CONTRACT_JSON: The service contract could not be parsed." });
         }
 
-        var formKeys = form.Sections.Select(s => s.Key).ToHashSet();
+        var activeSections = form.Sections.Where(s => !s.IsDeleted).ToList();
+        var formKeys = activeSections.Select(s => s.Key).ToHashSet();
 
         foreach (var section in requiredSections.Where(s => s.Required))
         {
@@ -61,7 +62,13 @@ public class ContractFormValidator
                 section.Key.Equals("accounting", System.StringComparison.OrdinalIgnoreCase) ||
                 section.Key.Equals("cashier", System.StringComparison.OrdinalIgnoreCase) ||
                 section.Key.Equals("vasRegistration", System.StringComparison.OrdinalIgnoreCase) ||
-                section.Key.Equals("bsd", System.StringComparison.OrdinalIgnoreCase))
+                section.Key.Equals("bsd", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("complainant", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("typeOfCertificate", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("permitType", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("typeOfApplication", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("applicationType", System.StringComparison.OrdinalIgnoreCase) ||
+                section.Key.Equals("assistanceRequest", System.StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
@@ -70,7 +77,7 @@ public class ContractFormValidator
                 errors.Add($"MISSING_REQUIRED_SECTION: '{section.Key}' is required by the contract but has no matching FormSection.Key.");
         }
 
-        var duplicates = form.Sections
+        var duplicates = activeSections
             .GroupBy(s => s.Key)
             .Where(g => g.Count() > 1)
             .Select(g => g.Key);

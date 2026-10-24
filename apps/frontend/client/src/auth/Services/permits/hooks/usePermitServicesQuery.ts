@@ -3,7 +3,7 @@ import { useApi } from "../../../../shared/hooks/useApi";
 import {
   PERMIT_DETAILS_SERVICE_OPTIONS as FALLBACK_SERVICES,
   resolvePermitTypes as fallbackResolveTypes,
-} from "../forms/CopyOfPermitForm";
+} from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
 export interface DynamicPermitServiceItem {
   id: string;

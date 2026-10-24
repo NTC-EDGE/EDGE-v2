@@ -2,6 +2,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using Microsoft.Extensions.Logging;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Application.Forms.Dtos;
@@ -14,15 +15,18 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
     private readonly IFormRepository _formRepository;
     private readonly IServiceRepository _serviceRepository;
     private readonly ContractFormValidator _contractValidator;
+    private readonly ILogger<GetFormByServiceIdQueryHandler>? _logger;
 
     public GetFormByServiceIdQueryHandler(
         IFormRepository formRepository,
         IServiceRepository serviceRepository,
-        ContractFormValidator contractValidator)
+        ContractFormValidator contractValidator,
+        ILogger<GetFormByServiceIdQueryHandler>? logger = null)
     {
         _formRepository = formRepository;
         _serviceRepository = serviceRepository;
         _contractValidator = contractValidator;
+        _logger = logger;
     }
 
     public async Task<ApiResponse<FormDto>> Handle(GetFormByServiceIdQuery request, CancellationToken cancellationToken)
@@ -47,8 +51,10 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             var validationResult = _contractValidator.Validate(service.Contract, form);
             if (!validationResult.IsValid)
             {
-                return ApiResponse<FormDto>.Fail(
-                    $"Form layout validation failed: {string.Join("; ", validationResult.Errors)}");
+                _logger?.LogWarning(
+                    "Form layout for Service ID {ServiceId} has contract discrepancies: {Errors}. Serving dynamic form schema directly.",
+                    request.ServiceId,
+                    string.Join("; ", validationResult.Errors));
             }
         }
 
@@ -62,8 +68,14 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
         {
             FormId = form.Id,
             ServiceId = form.ServiceId,
+            ServiceName = form.Service?.Name ?? service.Name,
+            ServiceCode = form.Service?.Code ?? service.Code,
             Version = form.Version,
+            CategorySelectionRequired = form.CategorySelectionRequired,
+            CreatedAt = form.CreatedAt,
+            UpdatedAt = form.LastModifiedAt,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(fs => new FormSectionDto
                 {

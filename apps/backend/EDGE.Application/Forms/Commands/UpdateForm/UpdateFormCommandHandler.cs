@@ -41,6 +41,7 @@ public class UpdateFormCommandHandler : IRequestHandler<UpdateFormCommand, ApiRe
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(s => new FormSectionDto
                 {

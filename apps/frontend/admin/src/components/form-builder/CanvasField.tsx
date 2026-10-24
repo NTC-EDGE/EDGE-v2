@@ -75,6 +75,12 @@ function FieldPreview({ field }: { field: FormField }) {
         {(field.options ?? []).length > 4 && (
           <p className="text-[10px] text-slate-400 italic">+{(field.options ?? []).length - 4} more options…</p>
         )}
+        {(field.options ?? []).length === 0 && (
+          <label className="flex items-center gap-2 text-xs text-slate-600 dark:text-slate-400">
+            <input type="checkbox" disabled className="pointer-events-none text-indigo-600 rounded" />
+            <span>{field.placeholder || field.label || 'Checkbox option'}</span>
+          </label>
+        )}
       </div>
     );
   }
@@ -167,6 +173,7 @@ function FieldPreview({ field }: { field: FormField }) {
     email: "email",
     phone: "tel",
     date: "date",
+    time: "time",
   };
 
   return (
@@ -298,6 +305,13 @@ export function CanvasField({
               <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 flex items-center gap-1 flex-shrink-0">
                 <Layout className="w-2.5 h-2.5" />
                 {(field.cols ?? 2) === 1 ? "Half Width" : "Full Width"}
+              </span>
+            )}
+
+            {/* Conditional Visibility badge */}
+            {Boolean(field.visibilityCondition && field.visibilityCondition.trim() !== "") && (
+              <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800/60 flex-shrink-0">
+                Conditional
               </span>
             )}
           </div>

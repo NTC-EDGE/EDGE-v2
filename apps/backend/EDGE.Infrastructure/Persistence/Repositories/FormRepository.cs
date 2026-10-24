@@ -24,10 +24,12 @@ public class FormRepository : IFormRepository
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
-            .Include(f => f.Sections.OrderBy(fs => fs.OrderIndex))
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
-            .FirstOrDefaultAsync(f => f.ServiceId == serviceId, cancellationToken);
+            .Where(f => f.ServiceId == serviceId && !f.IsDeleted)
+            .OrderByDescending(f => f.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -35,7 +37,7 @@ public class FormRepository : IFormRepository
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
-            .Include(f => f.Sections.OrderBy(fs => fs.OrderIndex))
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
@@ -45,8 +47,9 @@ public class FormRepository : IFormRepository
     {
         return await _context.Forms
             .Include(f => f.Service)
-            .Include(f => f.Sections)
-                .ThenInclude(fs => fs.SectionFields)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
             .OrderByDescending(f => f.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -237,6 +240,12 @@ public class FormRepository : IFormRepository
             _context.FormSections.RemoveRange(obsoleteSections);
         }
         await _context.SaveChangesAsync(cancellationToken);
+
+        foreach (var obsoleteSec in obsoleteSections)
+        {
+            form.Sections.Remove(obsoleteSec);
+            _context.Entry(obsoleteSec).State = EntityState.Detached;
+        }
 
         // 4. Refresh SectionFields for each section
         var allActiveSecIds = targetSections.Select(s => s.Id).ToList();

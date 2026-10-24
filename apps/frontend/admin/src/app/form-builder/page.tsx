@@ -12,6 +12,12 @@ import {
   Sparkles,
   Layers,
   Building2,
+  Save,
+  RotateCcw,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
 } from "lucide-react";
 import { FormSchema, FormField, FieldType } from "@/components/form-builder/types";
 import {
@@ -24,6 +30,8 @@ import {
   convertSchemaToBackendSections,
   reorderFieldsWithSections,
   duplicateFieldWithSection,
+  deleteFieldWithSection,
+  BackendFormDtoLike,
 } from "@/components/form-builder/utils";
 import { useFormBuilderService } from "@/services/formBuilderService";
 import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
@@ -38,6 +46,25 @@ import { UnsavedChangesDialog } from "@/components/form-builder/UnsavedChangesDi
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 
 type View = "list" | "builder";
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+function isBackendFormDtoLike(val: unknown): val is BackendFormDtoLike {
+  return isRecord(val);
+}
+
+function getHttpStatus(err: unknown): number | undefined {
+  if (isRecord(err) && isRecord(err["response"]) && typeof err["response"]["status"] === "number") {
+    return err["response"]["status"];
+  }
+  return undefined;
+}
+
+function isFormSchema(val: unknown): val is FormSchema {
+  return isRecord(val) && typeof val["id"] === "string" && Array.isArray(val["fields"]);
+}
 
 function FormBuilderContent() {
   const [currentPage, setCurrentPage] = useState(1);
@@ -94,6 +121,9 @@ function FormBuilderContent() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
+  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const originalFormRef = useRef<string | null>(null);
 
   // Warn on browser tab / window navigation if unsaved changes exist
@@ -116,7 +146,7 @@ function FormBuilderContent() {
       : apiResponse.data && Array.isArray(apiResponse.data)
       ? apiResponse.data
       : [];
-    return rawList.map((f: unknown) => convertBackendFormToSchema(f as Parameters<typeof convertBackendFormToSchema>[0]));
+    return rawList.filter(isBackendFormDtoLike).map((f) => convertBackendFormToSchema(f));
   }, [apiResponse]);
 
   // Forms list reflecting backend API response
@@ -168,7 +198,7 @@ function FormBuilderContent() {
               };
             }
           } catch (updateErr: unknown) {
-            const status = (updateErr as { response?: { status?: number } })?.response?.status;
+            const status = getHttpStatus(updateErr);
             // If 404 (client-generated UUID not yet created on backend), create on backend
             if (status === 404) {
               try {
@@ -215,7 +245,9 @@ function FormBuilderContent() {
 
         return {
           success: true,
-          message: "Form saved successfully.",
+          message: formToSave.serviceId
+            ? "Form template saved successfully."
+            : "Form saved locally only. To reflect in client applications, associate this template with a Service.",
           form: current,
         };
       } catch (err: unknown) {
@@ -303,8 +335,10 @@ function FormBuilderContent() {
   const handleDeleteField = useCallback(
     (id: string) => {
       if (!activeForm) return;
-      const fields = activeForm.fields.filter((f) => f.id !== id);
-      if (selectedFieldId === id) setSelectedFieldId(null);
+      const fields = deleteFieldWithSection(activeForm.fields, id);
+      if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
+        setSelectedFieldId(null);
+      }
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -339,11 +373,13 @@ function FormBuilderContent() {
     if (result.success) {
       originalFormRef.current = JSON.stringify(result.form);
       setIsDirty(false);
+      setIsSaveConfirmOpen(false);
       setToast({
         message: result.message || "Form template saved to backend successfully.",
         type: "success",
       });
     } else {
+      setIsSaveConfirmOpen(false);
       setToast({
         message: result.message || "Failed to save form to backend.",
         type: "error",
@@ -351,21 +387,23 @@ function FormBuilderContent() {
     }
   };
 
-  // Auto-save on changes/drags (debounced 1200ms)
-  useEffect(() => {
-    if (!isDirty || !activeForm || isSaving) return;
-
-    const timer = setTimeout(() => {
-      persistFormToBackend(activeForm).then((result) => {
-        if (result.success) {
-          originalFormRef.current = JSON.stringify(result.form);
-          setIsDirty(false);
-        }
-      });
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [isDirty, activeForm, isSaving, persistFormToBackend]);
+  const handleResetChanges = useCallback(() => {
+    if (!originalFormRef.current) return;
+    try {
+      const parsed: unknown = JSON.parse(originalFormRef.current);
+      if (isFormSchema(parsed)) {
+        setActiveForm(parsed);
+        setSelectedFieldId(null);
+        setIsDirty(false);
+        setToast({
+          message: "Unsaved changes reverted to last saved version.",
+          type: "info",
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
   const handleTogglePublish = async () => {
     if (!activeForm) return;
@@ -543,8 +581,10 @@ function FormBuilderContent() {
   const handleDiscardAndExit = () => {
     if (originalFormRef.current) {
       try {
-        const original = JSON.parse(originalFormRef.current) as FormSchema;
-        saveFormSchema(original);
+        const parsed: unknown = JSON.parse(originalFormRef.current);
+        if (isFormSchema(parsed)) {
+          saveFormSchema(parsed);
+        }
       } catch {
         // ignore
       }
@@ -580,14 +620,14 @@ function FormBuilderContent() {
             <div className="flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-indigo-500 shrink-0" />
               <span
-                className="text-sm font-semibold text-slate-800 dark:text-white max-w-[200px] truncate"
+                className="text-sm font-semibold text-slate-800 dark:text-white max-w-[320px] xl:max-w-[480px] truncate"
                 title={activeForm.name || "Untitled Form"}
               >
                 {activeForm.name || "Untitled Form"}
               </span>
               {activeForm.serviceName && (
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[360px]"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[420px] xl:max-w-[560px]"
                   title={`Associated Service: ${activeForm.serviceName}${activeForm.serviceCode ? ` (${activeForm.serviceCode})` : ""}`}
                 >
                   <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -600,11 +640,46 @@ function FormBuilderContent() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Background Saving Load Indicator / Auto-Save Status */}
+            {/* Workspace Panel Toggles for Desktop Width Control */}
+            <div className="hidden lg:flex items-center gap-1 mr-1 pr-2 border-r border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsLeftPanelOpen((prev) => !prev)}
+                className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                  isLeftPanelOpen
+                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+                title={isLeftPanelOpen ? "Hide Field Palette" : "Show Field Palette"}
+              >
+                {isLeftPanelOpen ? (
+                  <PanelLeftClose className="w-4 h-4" />
+                ) : (
+                  <PanelLeftOpen className="w-4 h-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                  isRightPanelOpen
+                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+                title={isRightPanelOpen ? "Hide Properties Inspector" : "Show Properties Inspector"}
+              >
+                {isRightPanelOpen ? (
+                  <PanelRightClose className="w-4 h-4" />
+                ) : (
+                  <PanelRightOpen className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            {/* Save Status Indicator */}
             {isSaving ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold animate-pulse">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
-                <span>Saving in background…</span>
+                <span>Saving changes…</span>
               </div>
             ) : !isDirty ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
@@ -614,9 +689,35 @@ function FormBuilderContent() {
             ) : (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Syncing…</span>
+                <span>Unsaved changes</span>
               </div>
             )}
+
+            {isDirty && !isSaving && (
+              <button
+                type="button"
+                onClick={handleResetChanges}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium transition-all"
+                title="Revert all unsaved edits back to last saved state"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsSaveConfirmOpen(true)}
+              disabled={!isDirty || isSaving}
+              className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
+                isDirty && !isSaving
+                  ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 cursor-pointer"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed"
+              }`}
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save Changes
+            </button>
 
             <button
               type="button"
@@ -657,19 +758,26 @@ function FormBuilderContent() {
           )}
         </div>
 
-        {/* Three-panel layout */}
+        {/* Three-panel layout utilizing full desktop width */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left Panel: Field Palette */}
-          <div className="w-60 flex-shrink-0 overflow-hidden">
-            <FieldPalette onAddField={handleAddField} />
-          </div>
+          {isLeftPanelOpen && (
+            <div className="w-64 xl:w-72 2xl:w-80 flex-shrink-0 overflow-hidden transition-all duration-200">
+              <FieldPalette onAddField={handleAddField} />
+            </div>
+          )}
 
           {/* Center Panel: Canvas */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <FormCanvas
               form={activeForm}
               selectedFieldId={selectedFieldId}
-              onSelectField={setSelectedFieldId}
+              onSelectField={(fieldId) => {
+                setSelectedFieldId(fieldId);
+                if (fieldId !== null) {
+                  setIsRightPanelOpen(true);
+                }
+              }}
               onUpdateForm={handleUpdateForm}
               onAddField={handleAddField}
               onReorderFields={handleReorderFields}
@@ -679,16 +787,30 @@ function FormBuilderContent() {
           </div>
 
           {/* Right Panel: Field Properties & Form Details */}
-          <div className="w-80 flex-shrink-0 overflow-hidden">
-            <FieldEditor
-              field={selectedField}
-              form={activeForm}
-              onUpdateField={handleUpdateField}
-              onUpdateForm={handleUpdateForm}
-              onSelectField={setSelectedFieldId}
-            />
-          </div>
+          {isRightPanelOpen && (
+            <div className="w-80 lg:w-96 xl:w-[420px] 2xl:w-[460px] flex-shrink-0 overflow-hidden transition-all duration-200">
+              <FieldEditor
+                field={selectedField}
+                form={activeForm}
+                onUpdateField={handleUpdateField}
+                onUpdateForm={handleUpdateForm}
+                onSelectField={setSelectedFieldId}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Save Changes Confirmation Dialog */}
+        <ConfirmActionDialog
+          isOpen={isSaveConfirmOpen}
+          onClose={() => !isSaving && setIsSaveConfirmOpen(false)}
+          title="Save Form Changes"
+          description={`Are you sure you want to save all changes to "${activeForm.name || activeForm.serviceName || "this form"}"? This will update the form structure and reflect in client applications.`}
+          confirmLabel="Confirm & Save Changes"
+          cancelLabel="Keep Editing"
+          loading={isSaving}
+          onConfirm={handleManualSave}
+        />
 
         {/* Unsaved Changes Confirmation Dialog */}
         <UnsavedChangesDialog

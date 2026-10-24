@@ -36,6 +36,7 @@ public class GetFormByIdQueryHandler : IRequestHandler<GetFormByIdQuery, ApiResp
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(fs => new FormSectionDto
                 {

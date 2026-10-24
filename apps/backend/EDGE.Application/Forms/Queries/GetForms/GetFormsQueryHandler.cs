@@ -66,6 +66,7 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             CreatedAt = f.CreatedAt,
             UpdatedAt = f.LastModifiedAt,
             Sections = f.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(s => new FormSectionDto
                 {

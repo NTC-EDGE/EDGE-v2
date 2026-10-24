@@ -3,7 +3,7 @@ import { useApi } from "../../../../shared/hooks/useApi";
 import {
   CERTIFICATE_SERVICES_OPTIONS as FALLBACK_SERVICES,
   resolveCertificateTypes as fallbackResolveTypes,
-} from "../forms/CopyOfCertificateForm";
+} from "../../../../shared/components/dynamic-form/dynamicFormConstants";
 
 export interface DynamicCertificateServiceItem {
   id: string;
