@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import {
   LayoutGrid,
   MousePointerClick,
@@ -18,9 +18,15 @@ import {
   Plus,
   CheckCircle2,
   Radio,
+  Sparkles,
 } from "lucide-react";
-import { FormField, FormSchema, FieldType, FormVersionSummary } from "./types";
+import { FormField, FormSchema, FieldType, FormVersionSummary, LinkedServiceItem } from "./types";
 import { CanvasField } from "./CanvasField";
+import { ServiceVariantToolbar } from "./ServiceVariantToolbar";
+import { LinkServiceModal } from "./LinkServiceModal";
+import { collectAllFormVariants, getEffectiveLinkedServices } from "./canonicalFormServices";
+import { ServiceItem, ServiceCategory } from "@/services/catalogService";
+import { parseFieldCondition } from "./utils";
 
 interface FormCanvasProps {
   form: FormSchema;
@@ -35,6 +41,8 @@ interface FormCanvasProps {
   onSetActive?: () => void;
   onCreateNewVersion?: () => void;
   onDeleteVersion?: () => void;
+  catalogServices?: ServiceItem[];
+  catalogCategories?: ServiceCategory[];
 }
 
 interface SectionGroup {
@@ -58,12 +66,33 @@ export function FormCanvas({
   onSetActive,
   onCreateNewVersion,
   onDeleteVersion,
+  catalogServices = [],
+  catalogCategories = [],
 }: FormCanvasProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
+
+  // Variant filtering & link service modal states
+  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  const [isLinkServiceModalOpen, setIsLinkServiceModalOpen] = useState(false);
+
+  // Reset selected variant whenever viewing a different form
+  useEffect(() => {
+    setSelectedVariant("ALL");
+  }, [form.id]);
+
+  // Aggregate all variants linked to or used by this form
+  const formVariants = useMemo(() => {
+    return collectAllFormVariants(form, catalogServices);
+  }, [form, catalogServices]);
+
+  // Determine effective linked services (canonical defaults or saved custom)
+  const effectiveLinkedServices = useMemo(() => {
+    return getEffectiveLinkedServices(form, catalogServices);
+  }, [form, catalogServices]);
 
   const toggleSectionCollapse = useCallback((sectionId: string) => {
     setCollapsedSectionIds((prev) => {
@@ -147,37 +176,145 @@ export function FormCanvas({
   };
 
   // Group fields into section containers
-  const sectionGroups: SectionGroup[] = [];
-  let currentGroup: SectionGroup = {
-    id: "default-section",
-    headerField: null,
-    headerIndex: -1,
-    title: "General Information",
-    childFields: [],
-  };
+  const sectionGroups: SectionGroup[] = useMemo(() => {
+    const groups: SectionGroup[] = [];
+    let currentGroup: SectionGroup = {
+      id: "default-section",
+      headerField: null,
+      headerIndex: -1,
+      title: "General Information",
+      childFields: [],
+    };
 
-  form.fields.forEach((field, index) => {
-    if (field.type === "section-header") {
-      if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
-        sectionGroups.push(currentGroup);
+    form.fields.forEach((field, index) => {
+      if (field.type === "section-header") {
+        if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
+          groups.push(currentGroup);
+        }
+        currentGroup = {
+          id: field.id,
+          headerField: field,
+          headerIndex: index,
+          title: field.sectionTitle || field.label || "Untitled Section",
+          childFields: [],
+        };
+      } else {
+        currentGroup.childFields.push({ field, originalIndex: index });
       }
-      currentGroup = {
-        id: field.id,
-        headerField: field,
-        headerIndex: index,
-        title: field.sectionTitle || field.label || "Untitled Section",
-        childFields: [],
-      };
-    } else {
-      currentGroup.childFields.push({ field, originalIndex: index });
-    }
-  });
+    });
 
-  if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
-    sectionGroups.push(currentGroup);
-  }
+    if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
+      groups.push(currentGroup);
+    }
+    return groups;
+  }, [form.fields]);
+
+  // Evaluates if a given field is visible/applicable for the selected variant
+  const isFieldApplicable = useCallback(
+    (field: FormField): boolean => {
+      if (selectedVariant === "ALL") return true;
+      if (field.type === "divider") return true;
+
+      const cond =
+        field.condition ??
+        (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
+
+      // If no condition at all, it's a universal field for all variants
+      if (!cond) return true;
+
+      const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
+      const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
+
+      // If no variant or application type constraints, universal
+      if (!hasVariants && !hasAppTypes) return true;
+
+      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const target = normalize(selectedVariant);
+
+      const matches = (list?: string[]) => {
+        if (!list || list.length === 0) return false;
+        return list.some((item) => {
+          const norm = normalize(item);
+          return norm === target || norm.includes(target) || target.includes(norm);
+        });
+      };
+
+      return matches(cond.variants) || matches(cond.applicationTypes);
+    },
+    [selectedVariant]
+  );
+
+  // Evaluates if a section container should be visible for the selected variant
+  const isSectionApplicable = useCallback(
+    (
+      headerField: FormField | null,
+      childFields: Array<{ field: FormField; originalIndex: number }>
+    ): boolean => {
+      if (selectedVariant === "ALL") return true;
+
+      // If header itself has a condition
+      if (headerField) {
+        const cond =
+          headerField.condition ??
+          (headerField.visibilityCondition
+            ? parseFieldCondition(headerField.visibilityCondition)
+            : undefined);
+
+        if (
+          cond &&
+          ((cond.variants && cond.variants.length > 0) ||
+            (cond.applicationTypes && cond.applicationTypes.length > 0))
+        ) {
+          if (!isFieldApplicable(headerField)) {
+            return false;
+          }
+        }
+      }
+
+      // Check if any child fields in this section apply to this variant
+      const applicableChildCount = childFields.filter((cf) => isFieldApplicable(cf.field)).length;
+      if (applicableChildCount > 0) {
+        return true;
+      }
+
+      // Empty section with matching header
+      if (childFields.length === 0 && headerField && isFieldApplicable(headerField)) {
+        return true;
+      }
+
+      return false;
+    },
+    [selectedVariant, isFieldApplicable]
+  );
+
+  // Filtered sections and child fields depending on selectedVariant
+  const displayedSectionGroups = useMemo(() => {
+    if (selectedVariant === "ALL") {
+      return sectionGroups;
+    }
+    return sectionGroups
+      .filter((group) => isSectionApplicable(group.headerField, group.childFields))
+      .map((group) => ({
+        ...group,
+        childFields: group.childFields.filter((cf) => isFieldApplicable(cf.field)),
+      }));
+  }, [sectionGroups, selectedVariant, isSectionApplicable, isFieldApplicable]);
+
+  const applicableFieldsCount = useMemo(() => {
+    return form.fields.filter((f) => isFieldApplicable(f)).length;
+  }, [form.fields, isFieldApplicable]);
 
   const sectionCount = form.fields.filter((f) => f.type === "section-header").length;
+
+  const handleSaveLinkedServices = (
+    updatedServices: LinkedServiceItem[],
+    updatedVariants?: string[]
+  ) => {
+    onUpdateForm({
+      linkedServices: updatedServices,
+      linkedVariants: updatedVariants,
+    });
+  };
 
   return (
     <div
@@ -312,6 +449,17 @@ export function FormCanvas({
             </div>
           </div>
 
+          {/* Service Variants & Conditional Toolbar (Top Controls) */}
+          <ServiceVariantToolbar
+            variants={formVariants}
+            selectedVariant={selectedVariant}
+            onSelectVariant={setSelectedVariant}
+            onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)}
+            totalFieldsCount={form.fields.length}
+            applicableFieldsCount={applicableFieldsCount}
+            linkedServicesCount={effectiveLinkedServices.length}
+          />
+
           {/* Form Header Card */}
           <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
             {/* Metadata Pills */}
@@ -348,10 +496,20 @@ export function FormCanvas({
                 </span>
               )}
 
+              {/* Active Variant Filter Indicator Pill */}
+              {selectedVariant !== "ALL" && (
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-indigo-600 text-white font-semibold flex items-center gap-1 shadow-sm">
+                  <Sparkles className="w-3 h-3" />
+                  Variant View: {selectedVariant}
+                </span>
+              )}
+
               {/* Counts */}
               <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 font-mono font-medium flex items-center gap-1">
                 <Layers className="w-3 h-3" />
-                {form.fields.length} {form.fields.length === 1 ? "field" : "fields"}
+                {selectedVariant === "ALL"
+                  ? `${form.fields.length} ${form.fields.length === 1 ? "field" : "fields"}`
+                  : `${applicableFieldsCount} of ${form.fields.length} fields`}
                 {sectionCount > 0 && ` · ${sectionCount} ${sectionCount === 1 ? "section" : "sections"}`}
               </span>
 
@@ -438,7 +596,9 @@ export function FormCanvas({
               <div className="flex items-center gap-1.5">
                 <Info className="w-3.5 h-3.5 text-indigo-400 shrink-0" />
                 <span>
-                  Tip: Drag section headers to reorder whole sections. Click any field to edit properties.
+                  {selectedVariant === "ALL"
+                    ? "Tip: Drag section headers to reorder whole sections. Click any field to edit properties."
+                    : `Filtered view for variant: "${selectedVariant}". Fields with no conditional rules are universal and always visible.`}
                 </span>
               </div>
               <button
@@ -478,6 +638,26 @@ export function FormCanvas({
                 Click or drag component types from the left palette onto this canvas to add input fields, sections, and attachments.
               </p>
             </div>
+          ) : displayedSectionGroups.length === 0 ? (
+            /* Variant empty state: All existing fields are conditioned on other variants */
+            <div className="py-16 px-6 rounded-2xl border-2 border-dashed border-slate-300 dark:border-slate-700 bg-white/70 dark:bg-slate-900/60 text-center">
+              <div className="w-12 h-12 rounded-2xl bg-indigo-50 dark:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 flex items-center justify-center text-indigo-600 dark:text-indigo-400 mx-auto mb-3">
+                <Layers className="w-6 h-6" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+                No sections or fields active for &quot;{selectedVariant}&quot;
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-md mx-auto">
+                Existing fields in this form template have conditional visibility restricted to other service variants. Click below to show all base fields or select another variant above.
+              </p>
+              <button
+                type="button"
+                onClick={() => setSelectedVariant("ALL")}
+                className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
+              >
+                Show All Sections & Fields
+              </button>
+            </div>
           ) : (
             <div
               onDragOver={handleCanvasDragOver}
@@ -485,7 +665,7 @@ export function FormCanvas({
               onDrop={handleCanvasDrop}
               className="space-y-6"
             >
-              {sectionGroups.map((group, groupIdx) => {
+              {displayedSectionGroups.map((group) => {
                 const isCollapsed = collapsedSectionIds.has(group.id);
                 const isSectionSelected = group.headerField ? selectedFieldId === group.headerField.id : false;
                 const isHeaderDragOver = group.headerIndex >= 0 && dragOverIndex === group.headerIndex;
@@ -664,7 +844,9 @@ export function FormCanvas({
                               className="py-8 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 flex flex-col items-center justify-center text-center p-4 bg-white dark:bg-slate-900"
                             >
                               <p className="text-xs font-semibold text-slate-600 dark:text-slate-300">
-                                No fields inside this section yet
+                                {selectedVariant === "ALL"
+                                  ? "No fields inside this section yet"
+                                  : `No fields configured for "${selectedVariant}" inside this section`}
                               </p>
                               <p className="text-[11px] text-slate-400 mt-0.5">
                                 Drag components from the left palette to add fields to {group.title}.
@@ -753,6 +935,16 @@ export function FormCanvas({
           )}
         </div>
       </div>
+
+      {/* Link / Add Service Modal */}
+      <LinkServiceModal
+        isOpen={isLinkServiceModalOpen}
+        onClose={() => setIsLinkServiceModalOpen(false)}
+        form={form}
+        catalogServices={catalogServices}
+        catalogCategories={catalogCategories}
+        onSaveLinkedServices={handleSaveLinkedServices}
+      />
     </div>
   );
 }

@@ -81,6 +81,23 @@ export interface FormVersionSummary {
   fieldsCount: number;
 }
 
+export interface LinkedServiceItem {
+  id: string;
+  name: string;
+  code?: string;
+  categoryName?: string;
+}
+
+export interface ServiceVariantToolbarItem {
+  id: string;
+  name: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  categoryName?: string;
+  source: 'service' | 'field-condition' | 'catalog' | 'custom';
+}
+
 export interface FormSchema {
   id: string;
   serviceId?: string;
@@ -96,4 +113,6 @@ export interface FormSchema {
   isPublished: boolean;
   tags?: string[];
   availableVersions?: FormVersionSummary[];
+  linkedServices?: LinkedServiceItem[];
+  linkedVariants?: string[];
 }

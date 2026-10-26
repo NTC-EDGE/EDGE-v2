@@ -730,6 +730,11 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
       }
     }
   }
+
+  const localMatch = typeof window !== 'undefined'
+    ? getCachedLocalForms().find((f) => f.id === formId || (dto.serviceId && f.serviceId === dto.serviceId))
+    : undefined;
+
   return {
     id: formId,
     serviceId: dto.serviceId,
@@ -743,6 +748,9 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
     isPublished: dto.isActive !== false,
+    availableVersions: localMatch?.availableVersions,
+    linkedServices: localMatch?.linkedServices,
+    linkedVariants: localMatch?.linkedVariants,
   };
 }
 

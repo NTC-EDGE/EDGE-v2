@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2, Sliders } from "lucide-react";
 import { parseFieldCondition } from "./utils";
+import { collectAllFormVariants } from "./canonicalFormServices";
 import {
   Dialog,
   DialogContent,
@@ -375,17 +376,9 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
   const [formValues, setFormValues] = useState<Record<string, string>>({});
 
   const availableVariants = React.useMemo(() => {
-    const list: string[] = [];
-    for (const f of form.fields) {
-      const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
-      if (cond && cond.variants) {
-        for (const v of cond.variants) {
-          if (!list.includes(v)) list.push(v);
-        }
-      }
-    }
-    return list;
-  }, [form.fields]);
+    const all = collectAllFormVariants(form);
+    return all.map((v) => v.name);
+  }, [form]);
 
   const handleFieldValueChange = (fieldId: string, val: string) => {
     setFormValues((prev) => ({
@@ -400,13 +393,26 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
     if (!cond) return true;
 
     // 1. Variant filter
-    if (selectedVariant !== "ALL" && cond.variants && cond.variants.length > 0) {
-      const selUpper = selectedVariant.toUpperCase().trim();
-      const match = cond.variants.some((v) => {
-        const vUpper = v.toUpperCase().trim();
-        return vUpper === selUpper || vUpper.includes(selUpper) || selUpper.includes(vUpper);
-      });
-      if (!match) return false;
+    if (selectedVariant !== "ALL") {
+      const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
+      const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
+
+      if (hasVariants || hasAppTypes) {
+        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const target = normalize(selectedVariant);
+
+        const matchesList = (list?: string[]) => {
+          if (!list || list.length === 0) return false;
+          return list.some((item) => {
+            const norm = normalize(item);
+            return norm === target || norm.includes(target) || target.includes(norm);
+          });
+        };
+
+        if (!matchesList(cond.variants) && !matchesList(cond.applicationTypes)) {
+          return false;
+        }
+      }
     }
 
     // 2. Parent-child dependencies

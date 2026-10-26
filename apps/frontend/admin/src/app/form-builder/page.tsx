@@ -845,6 +845,8 @@ function FormBuilderContent() {
           <div className="flex-1 min-w-0 overflow-hidden">
             <FormCanvas
               form={activeForm}
+              catalogServices={services}
+              catalogCategories={categories}
               selectedFieldId={selectedFieldId}
               onSelectField={(fieldId) => {
                 setSelectedFieldId(fieldId);
