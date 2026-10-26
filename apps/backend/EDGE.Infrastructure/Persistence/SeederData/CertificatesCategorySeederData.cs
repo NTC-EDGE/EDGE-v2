@@ -163,7 +163,8 @@ public static class CertificatesCategorySeederData
         ""applicationTypes"": [""Certified True Copy"", ""Duplicate Copy""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""copyParticulars"", ""required"": true }
+            { ""key"": ""permitLicenseCertificateNo"", ""required"": true },
+            { ""key"": ""circumstances"", ""required"": true }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
@@ -470,6 +471,13 @@ public static class CertificatesCategorySeederData
             new("vasParticulars", "VAS Registration Particulars", new() { "entityType", "cpcnPaCaNo", "cpcnDateOfExpiry", "corVasNo", "corVasExpiryDate" }),
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" })
+        }),
+        // Canonical Form: NTC 1-21 (Unified Certified True Copy / Duplicate Request)
+        // Shared across NTC_1_21, NTC_COPY_PERMITS, and NTC_COPY_LICENSES
+        new("NTC_1_21", Guid.Parse("f7600000-0000-0000-0000-000000000001"), Guid.Parse("f76a0000-0000-0000-0000-000000000000"), new()
+        {
+            new("permitLicenseCertificateNo", "Reference & Particulars", new() { "callSign", "permitRslNo", "stationLocation", "detailsService", "targetPermitType", "permitNo", "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" }),
+            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
         }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {

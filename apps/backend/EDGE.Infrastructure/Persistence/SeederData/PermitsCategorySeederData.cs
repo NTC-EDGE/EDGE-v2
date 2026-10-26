@@ -48,18 +48,16 @@ public static class PermitsCategorySeederData
         ""revisionNo"": ""02"",
         ""revisionDate"": ""2023-03-31"",
         ""serviceCategory"": ""Permits"",
-        ""group"": null,
-        ""applicationTypes"": [""New""],
+        ""group"": ""Dealer/Manufacturer/Service Center/Retailer/Reseller Permit"",
+        ""applicationTypes"": [""NEW"", ""RENEWAL"", ""MODIFICATION""],
         ""elements"": [],
         ""requiredSections"": [
-            { ""key"": ""station"", ""required"": true },
-            { ""key"": ""equipment"", ""required"": true }
+            { ""key"": ""personnel"", ""required"": false }
         ],
         ""allowsBulkSubmission"": false,
         ""categorySpecific"": {
-            ""natureOfService"": [""CV (PRIVATE)"",""CO (GOVERNMENT)"",""CP (PUBLIC CORRESPONDENCE)""],
-            ""typeOfRadioService"": [""FIXED AND LAND MOBILE"",""AERONAUTICAL"",""BROADCAST"",""P"",""BC"",""OTHERS, specify""],
-            ""classOfStation"": [""RT"",""FA"",""FX"",""MA"",""FB"",""TC"",""ML"",""OTHERS, specify""]
+            ""equipmentCategory"": [""Radio Communications Equipment (RCE)"", ""Mobile Phone""],
+            ""permitCategory"": [""Dealer"", ""Manufacturer"", ""Service Center"", ""Retailer/Reseller""]
         },
         ""entityType"": ""Application""
     }";
@@ -92,21 +90,21 @@ public static class PermitsCategorySeederData
         ["NTC_MAR_PERMITS"] = Ntc109Contract,
         ["NTC_FLM_PERMITS"] = Ntc109Contract,
         ["NTC_PTE_PERMITS"] = Ntc109Contract,
-        ["NTC_EQUIP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
-        ["NTC_MP_PERMITS"] = AccreditationsCategorySeederData.Ntc118Contract,
+        ["NTC_EQUIP_PERMITS"] = Ntc114Contract,
+        ["NTC_MP_PERMITS"] = Ntc114Contract,
         ["NTC_COPY_PERMITS"] = NtcCopyPermitsContract
     };
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
         new("NTC_1_09", Svc109Id, categoryId, "PERMITS IN THE AMATEUR SERVICE", "Permits in the Amateur Service", "NTC_1_09", "PERMITS IN THE AMATEUR SERVICE (NTC 1-09)", Ntc109Contract),
-        new("NTC_AERO_PERMITS", SvcAeroId, categoryId, "PERMITS IN THE AERONAUTICAL SERVICE", null, "NTC_AERO_PERMITS", "PERMITS IN THE AERONAUTICAL SERVICE", Ntc109Contract),
-        new("NTC_MAR_PERMITS", SvcMarId, categoryId, "PERMITS IN THE MARITIME SERVICE", null, "NTC_MAR_PERMITS", "PERMITS IN THE MARITIME SERVICE", Ntc109Contract),
-        new("NTC_FLM_PERMITS", SvcFlmId, categoryId, "PERMITS TO GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_FLM_PERMITS", "PERMITS TO FIXED AND LAND MOBILE STATIONS", Ntc109Contract),
-        new("NTC_PTE_PERMITS", SvcPteId, categoryId, "PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)", null, "NTC_PTE_PERMITS", "PERMITS FOR PTEs", Ntc109Contract),
-        new("NTC_EQUIP_PERMITS", SvcEquipId, categoryId, "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT", AccreditationsCategorySeederData.Ntc118Contract),
-        new("NTC_MP_PERMITS", SvcMpId, categoryId, "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE", AccreditationsCategorySeederData.Ntc118Contract),
-        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS", NtcCopyPermitsContract)
+        new("NTC_AERO_PERMITS", SvcAeroId, categoryId, "PERMITS IN THE AERONAUTICAL SERVICE", null, "NTC_AERO_PERMITS", "PERMITS IN THE AERONAUTICAL SERVICE (NTC 1-09)", Ntc109Contract),
+        new("NTC_MAR_PERMITS", SvcMarId, categoryId, "PERMITS IN THE MARITIME SERVICE", null, "NTC_MAR_PERMITS", "PERMITS IN THE MARITIME SERVICE (NTC 1-09)", Ntc109Contract),
+        new("NTC_FLM_PERMITS", SvcFlmId, categoryId, "PERMITS TO GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_FLM_PERMITS", "PERMITS TO FIXED AND LAND MOBILE STATIONS (NTC 1-09)", Ntc109Contract),
+        new("NTC_PTE_PERMITS", SvcPteId, categoryId, "PERMITS FOR PUBLIC TELECOMMUNICATIONS ENTITIES (PTEs)", null, "NTC_PTE_PERMITS", "PERMITS FOR PTEs (NTC 1-09)", Ntc109Contract),
+        new("NTC_EQUIP_PERMITS", SvcEquipId, categoryId, "PERMITS FOR RADIO COMMUNICATIONS EQUIPMENT", null, "NTC_EQUIP_PERMITS", "PERMITS FOR EQUIPMENT (NTC 1-18)", AccreditationsCategorySeederData.Ntc118Contract),
+        new("NTC_MP_PERMITS", SvcMpId, categoryId, "PERMITS FOR MOBILE PHONE", null, "NTC_MP_PERMITS", "PERMITS FOR MOBILE PHONE (NTC 1-18)", AccreditationsCategorySeederData.Ntc118Contract),
+        new("NTC_COPY_PERMITS", SvcCopyId, categoryId, "COPY OF PERMITS", null, "NTC_COPY_PERMITS", "COPY OF PERMITS (NTC 1-21)", NtcCopyPermitsContract)
     };
 
     // Variant IDs
@@ -523,23 +521,13 @@ public static class PermitsCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        // Canonical Form: NTC 1-09 (Permits to Purchase / Possess / Storage / Sell / Vanity / Special Event)
+        // Canonical Form: NTC 1-09 (Permit to Purchase/Possess/Storage/Sell/Transfer)
         // Shared across NTC_1_09, NTC_AERO_PERMITS, NTC_MAR_PERMITS, NTC_FLM_PERMITS, NTC_PTE_PERMITS
-        new("NTC_1_09", Guid.Parse("f0900000-0000-0000-0000-000000000001"), Guid.Parse("f09a0000-0000-0000-0000-000000000000"), new()
+        new("NTC_1_09", Guid.Parse("fb200000-0000-0000-0000-000000000001"), Guid.Parse("fb2a0000-0000-0000-0000-000000000000"), new()
         {
-            new("stationEquipment", "Particulars of Proposed Station / Equipment", new() {
-                "noOfYears", "preferredCallSign", "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation",
-                "stationClass", "exactLocation", "longitude", "latitude", "configuration", "dataRate", "remarks", "equipmentDetails", "antennaType", "height", "gain",
-                "directivity", "diameter", "polarization", "beamwidth", "antennaRemarks", "particulars"
-            }),
-            new("sourceOfEquipment", "Source of Equipment", new() { "dealerName", "authorizedSellerBuyer", "orInvoiceNo", "permitRslNo" }),
+            new("stationEquipment", "Particulars of Station & Equipment", new() { "callSign", "serviceArea", "frequency", "bandwidth", "bandwidthUnit", "emission", "powerOutput", "hoursOfOperation", "noOfYears", "preferredCallSign", "particulars" }),
+            new("supplierDealer", "Supplier / Dealer / Source", new() { "dealerName", "dealerAddress" }),
             new("intendedUse", "Intended Use of Equipment", new() { "intendedUseType" })
-        }),
-        // Canonical Form: NTC 1-14 (Equipment / Mobile Phone)
-        // Shared across NTC_EQUIP_PERMITS and NTC_MP_PERMITS
-        new("NTC_EQUIP_PERMITS", Guid.Parse("fb300000-0000-0000-0000-000000000001"), Guid.Parse("fb3a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("personnel", "Supervising ECE & Service Technicians", new() { "officerName", "certificateNumber" })
         })
     };
 

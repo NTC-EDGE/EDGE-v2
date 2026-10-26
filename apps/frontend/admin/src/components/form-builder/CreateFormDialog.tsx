@@ -146,7 +146,12 @@ export function CreateFormDialog({
 
     const svc = servicesList.find((x) => x.id === sId);
     if (svc && !name.trim()) {
-      setName(`${svc.name} Form`);
+      const match = svc.code ? svc.code.match(/^NTC[_-]1[_-](\d{2})$/i) : null;
+      if (match) {
+        setName(`NTC 1-${match[1]}: ${svc.name}`);
+      } else {
+        setName(`${svc.name} Form`);
+      }
     }
 
     const existingForService = existingForms.find((f) => f.serviceId === sId);

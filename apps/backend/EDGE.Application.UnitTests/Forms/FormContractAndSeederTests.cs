@@ -70,6 +70,39 @@ public class FormContractAndSeederTests
     }
 
     [Fact]
+    public void SeededForms_MustMatchExactSpreadsheet13CanonicalFormsAndUniformCodes()
+    {
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        formDefs.Should().HaveCount(13);
+
+        var expectedSpreadsheetCodes = new[]
+        {
+            "NTC_1_01", // Radio Operator Examination
+            "NTC_1_02", // Commercial Radio Operator Certificate
+            "NTC_1_03", // Amateur Radio Operator Certificate & License
+            "NTC_1_04", // Ship Station License
+            "NTC_1_09", // Permit to Purchase/Possess/Storage/Sell/Transfer
+            "NTC_1_11", // Radio Station License
+            "NTC_1_18", // CPE Supplier Accreditation & Equipment/Mobile Phone Permits
+            "NTC_1_19", // RFID / SRD / WDN Registration
+            "NTC_1_20", // VAS Provider Registration
+            "NTC_1_21", // Certified True Copy / Duplicate Copy
+            "NTC_1_22", // TVRO Registration & Station License
+            "NTC_1_24", // Request for Blocking / Unblocking of IMEI and SIM
+            "NTC_1_25"  // Consumer Complaints & Tape Preservation
+        };
+
+        var actualKeys = formDefs.Select(f => f.ServiceKey).ToList();
+        actualKeys.Should().BeEquivalentTo(expectedSpreadsheetCodes, because: "Every one of the 13 canonical forms must match the spreadsheet specification, including NTC_1_25.");
+
+        foreach (var def in formDefs)
+        {
+            System.Text.RegularExpressions.Regex.IsMatch(def.ServiceKey, @"^NTC_1_\d{2}$")
+                .Should().BeTrue(because: $"Form code '{def.ServiceKey}' must follow the uniform NTC_1_XX pattern.");
+        }
+    }
+
+    [Fact]
     public void SeededForms_TotalCount_MustBeStrictlyLessThan15()
     {
         var formDefs = FastTrackSeederData.GetAllFormDefs();

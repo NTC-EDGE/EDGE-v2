@@ -1036,6 +1036,15 @@ function FormBuilderContent() {
   );
 }
 
+function formatFormBadge(code?: string): string {
+  if (!code) return "";
+  const match = code.match(/^NTC[_-]1[_-](\d{2})$/i);
+  if (match) {
+    return `NTC 1-${match[1]}`;
+  }
+  return code;
+}
+
 export default function FormBuilderPage() {
   return (
     <Suspense

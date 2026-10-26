@@ -51,6 +51,15 @@ interface FormsListProps {
   onPageSizeChange?: (pageSize: number) => void;
 }
 
+function formatFormBadge(code?: string): string {
+  if (!code) return "";
+  const match = code.match(/^NTC[_-]1[_-](\d{2})$/i);
+  if (match) {
+    return `NTC 1-${match[1]}`;
+  }
+  return code;
+}
+
 export function FormsList({
   forms,
   onEdit,
@@ -346,17 +355,17 @@ export function FormsList({
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-2 flex-wrap">
                               <span className="text-sm font-semibold text-slate-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-1">
-                                {form.serviceName || form.name || "Untitled Application"}
+                                {form.name || form.serviceName || "Untitled Application"}
                               </span>
                               {form.serviceCode && (
-                                <span className="text-[10px] font-mono font-semibold px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400">
-                                  {form.serviceCode}
+                                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
+                                  {formatFormBadge(form.serviceCode)}
                                 </span>
                               )}
                             </div>
                             <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5 block">
-                              {form.name !== form.serviceName
-                                ? form.name
+                              {form.serviceName && form.name !== form.serviceName
+                                ? form.serviceName
                                 : form.description || "Click to open in Form Builder"}
                             </span>
                           </div>

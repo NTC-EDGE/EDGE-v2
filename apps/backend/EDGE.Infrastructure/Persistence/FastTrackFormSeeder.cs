@@ -13,6 +13,23 @@ namespace EDGE.Infrastructure.Persistence;
 /// </summary>
 public static class FastTrackFormSeeder
 {
+    private static readonly Dictionary<string, string> CanonicalFormDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["NTC_1_01"] = "NTC 1-01: Radio Operator Examination",
+        ["NTC_1_02"] = "NTC 1-02: Commercial Radio Operator Certificate",
+        ["NTC_1_03"] = "NTC 1-03: Amateur Radio Operator Certificate & License",
+        ["NTC_1_04"] = "NTC 1-04: Ship Station License",
+        ["NTC_1_09"] = "NTC 1-09: Permit to Purchase / Possess / Storage / Sell / Transfer",
+        ["NTC_1_11"] = "NTC 1-11: Radio Station License",
+        ["NTC_1_18"] = "NTC 1-18: CPE Supplier Accreditation & Equipment / Mobile Phone Permit",
+        ["NTC_1_19"] = "NTC 1-19: RFID / SRD / WDN Registration",
+        ["NTC_1_20"] = "NTC 1-20: Value-Added Service (VAS) Registration",
+        ["NTC_1_21"] = "NTC 1-21: Certified True Copy / Duplicate Copy",
+        ["NTC_1_22"] = "NTC 1-22: TVRO Registration & Station License",
+        ["NTC_1_24"] = "NTC 1-24: Request for Blocking / Unblocking of IMEI and SIM",
+        ["NTC_1_25"] = "NTC 1-25: Consumer Complaints & Tape Preservation"
+    };
+
     public static async Task SeedFormsInternalAsync(ApplicationDbContext context, ILogger? logger = null)
     {
         // 1. Seed Central Reusable Fields Pool (Deterministic GUIDs)
@@ -212,13 +229,17 @@ public static class FastTrackFormSeeder
         var targetForm = existingForms.FirstOrDefault(f => f.Id == formId)
                       ?? existingForms.FirstOrDefault(f => f.ServiceId == service.Id);
 
+        var resolvedFormName = CanonicalFormDisplayNames.TryGetValue(serviceKey, out var displayName)
+            ? displayName
+            : service.Name;
+
         if (targetForm == null)
         {
             targetForm = new Form
             {
                 Id = formId,
                 ServiceId = service.Id,
-                Name = service.Name,
+                Name = resolvedFormName,
                 Version = "1.0",
                 IsActive = true,
                 CategorySelectionRequired = false
@@ -231,6 +252,8 @@ public static class FastTrackFormSeeder
             targetForm.IsDeleted = false;
             targetForm.IsDeletedBy = string.Empty;
             targetForm.ServiceId = service.Id;
+            targetForm.Name = resolvedFormName;
+            targetForm.IsActive = true;
 
             var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();
             if (redundantForms.Count > 0)
