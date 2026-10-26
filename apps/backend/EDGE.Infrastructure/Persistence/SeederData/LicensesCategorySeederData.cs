@@ -792,46 +792,28 @@ public static class LicensesCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        new("NTC_AMA_LICENSES", Guid.Parse("f7000000-0000-0000-0000-000000000001"), Guid.Parse("f70a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("club", "Club Details (if Club Station)", new() { "clubName", "trusteeName", "trusteeCallSign", "trusteeLicenseNo", "clubAddress" }),
-            new("station", "Station Details", new() { "stationLocation", "stationType", "authorizedPower", "frequencyBands" }),
-            new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
-        }),
-        new("NTC_AERO_LICENSES", Guid.Parse("f7100000-0000-0000-0000-000000000001"), Guid.Parse("f71a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("aircraft", "Aircraft Particulars", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" }),
-            new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
-        }),
+        // Canonical Form: NTC 1-04 (Ship Station License - Maritime)
         new("NTC_MAR_LICENSES", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
         {
             new("vessel", "Particulars of Station / Vessel", new() { "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
             new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" })
         }),
+        // Canonical Form: NTC 1-11 (Radio Station License: FLM, Amateur, Aero, Other)
+        // Shared across NTC_FLM_LICENSES, NTC_AMA_LICENSES, NTC_AERO_LICENSES, NTC_OTHER_LICENSES
         new("NTC_FLM_LICENSES", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
         {
             new("stations", "Particulars of Station / Equipment / Antenna", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
             new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" })
+            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" }),
+            new("club", "Club Details (if Club Station)", new() { "clubName", "trusteeName", "trusteeCallSign", "trusteeLicenseNo", "clubAddress" }),
+            new("aircraft", "Aircraft Particulars (if Aircraft Station)", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" })
         }),
-        new("NTC_OTHER_LICENSES", Guid.Parse("f7400000-0000-0000-0000-000000000001"), Guid.Parse("f74a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("stations", "Particulars of Station(s)", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity" })
-        }),
-        new("NTC_TVRO_CATV_LICENSES", Guid.Parse("f7500000-0000-0000-0000-000000000001"), Guid.Parse("f75a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("headEnd", "Head-End Station Details", new() { "stationLocation", "carrierFrequency", "bandwidth", "serviceArea", "channelCapacity" }),
-            new("equipment", "Head-End Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Dish Antenna Particulars", new() { "antennaType", "diameter", "gain", "azimuth", "elevation" })
-        }),
+        // Canonical Form: NTC 1-05 / 1-21 (Unified Certified True Copy / Duplicate Request)
+        // Shared across NTC_COPY_LICENSES, NTC_COPY_PERMITS, and NTC_1_21
         new("NTC_COPY_LICENSES", Guid.Parse("f7600000-0000-0000-0000-000000000001"), Guid.Parse("f76a0000-0000-0000-0000-000000000000"), new()
         {
-            new("permitLicenseCertificateNo", "License Reference Details", new() { "callSign", "permitRslNo", "stationLocation" }),
+            new("permitLicenseCertificateNo", "Reference & Particulars", new() { "callSign", "permitRslNo", "stationLocation", "detailsService", "targetPermitType", "permitNo", "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" }),
             new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
         })
     };

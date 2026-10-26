@@ -70,6 +70,15 @@ public class FormContractAndSeederTests
     }
 
     [Fact]
+    public void SeededForms_TotalCount_MustBeStrictlyLessThan15()
+    {
+        var formDefs = FastTrackSeederData.GetAllFormDefs();
+        formDefs.Should().NotBeEmpty();
+        formDefs.Count.Should().BeLessThan(15, because: "NTC Citizen's Charter and canonical forms set mandates strictly fewer than 15 baseline forms.");
+        formDefs.Count.Should().Be(13, because: "There are exactly 13 canonical NTC forms across all 6 categories matching the spreadsheet plan.");
+    }
+
+    [Fact]
     public void AllSeededForms_MustValidateCleanlyAgainstContracts()
     {
         var formDefs = FastTrackSeederData.GetAllFormDefs();

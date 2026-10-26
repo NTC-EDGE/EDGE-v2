@@ -579,6 +579,11 @@ export function FormCanvas({
                               Minimized
                             </span>
                           )}
+                          {group.headerField && Boolean(group.headerField.visibilityCondition && group.headerField.visibilityCondition.trim() !== "") && (
+                            <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/70 text-purple-800 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800 shrink-0">
+                              ⚡ Conditional Section
+                            </span>
+                          )}
                         </div>
 
                         {/* Right Side: Section Actions */}
@@ -683,6 +688,7 @@ export function FormCanvas({
                                         field={field}
                                         isSelected={selectedFieldId === field.id}
                                         isDragOver={dragOverIndex === originalIndex}
+                                        allFields={form.fields}
                                         onSelect={() => onSelectField(field.id)}
                                         onEdit={() => onSelectField(field.id)}
                                         onDuplicate={() => onDuplicateField(field.id)}

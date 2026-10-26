@@ -429,60 +429,73 @@ function normalizeDependencyOperator(
 }
 
 export function parseFieldCondition(val: unknown): FieldCondition | undefined {
-  if (!isRecord(val)) return undefined;
+  let targetVal: unknown = val;
+  if (typeof targetVal === "string") {
+    const trimmed = targetVal.trim();
+    if (!trimmed.startsWith("{")) return undefined;
+    try {
+      const parsed: unknown = JSON.parse(trimmed);
+      if (!isRecord(parsed)) return undefined;
+      targetVal = parsed;
+    } catch {
+      return undefined;
+    }
+  }
+  if (!isRecord(targetVal)) return undefined;
+  const valRecord = targetVal;
 
-  const serviceCodes = Array.isArray(val['serviceCodes'])
-    ? val['serviceCodes'].filter((s): s is string => typeof s === 'string')
+  const serviceCodes = Array.isArray(valRecord['serviceCodes'])
+    ? valRecord['serviceCodes'].filter((s): s is string => typeof s === 'string')
     : undefined;
-  const services = Array.isArray(val['services'])
-    ? val['services'].filter((s): s is string => typeof s === 'string')
+  const services = Array.isArray(valRecord['services'])
+    ? valRecord['services'].filter((s): s is string => typeof s === 'string')
     : undefined;
 
   const appTypesList: string[] = [];
-  if (Array.isArray(val['applicationTypes'])) {
-    for (const item of val['applicationTypes']) {
+  if (Array.isArray(valRecord['applicationTypes'])) {
+    for (const item of valRecord['applicationTypes']) {
       if (typeof item === 'string' && !appTypesList.includes(item)) appTypesList.push(item);
     }
   }
-  if (typeof val['variantDescription'] === 'string' && val['variantDescription'].trim().length > 0) {
-    if (!appTypesList.includes(val['variantDescription'])) appTypesList.push(val['variantDescription']);
-  } else if (Array.isArray(val['variantDescription'])) {
-    for (const item of val['variantDescription']) {
+  if (typeof valRecord['variantDescription'] === 'string' && valRecord['variantDescription'].trim().length > 0) {
+    if (!appTypesList.includes(valRecord['variantDescription'])) appTypesList.push(valRecord['variantDescription']);
+  } else if (Array.isArray(valRecord['variantDescription'])) {
+    for (const item of valRecord['variantDescription']) {
       if (typeof item === 'string' && !appTypesList.includes(item)) appTypesList.push(item);
     }
   }
 
   const variantsList: string[] = [];
-  if (Array.isArray(val['variants'])) {
-    for (const item of val['variants']) {
+  if (Array.isArray(valRecord['variants'])) {
+    for (const item of valRecord['variants']) {
       if (typeof item === 'string' && !variantsList.includes(item)) variantsList.push(item);
     }
   }
-  if (typeof val['variantType'] === 'string' && val['variantType'].trim().length > 0) {
-    if (!variantsList.includes(val['variantType'])) variantsList.push(val['variantType']);
-  } else if (Array.isArray(val['variantType'])) {
-    for (const item of val['variantType']) {
+  if (typeof valRecord['variantType'] === 'string' && valRecord['variantType'].trim().length > 0) {
+    if (!variantsList.includes(valRecord['variantType'])) variantsList.push(valRecord['variantType']);
+  } else if (Array.isArray(valRecord['variantType'])) {
+    for (const item of valRecord['variantType']) {
       if (typeof item === 'string' && !variantsList.includes(item)) variantsList.push(item);
     }
   }
 
-  const elements = Array.isArray(val['elements'])
-    ? val['elements'].filter((s): s is string => typeof s === 'string')
+  const elements = Array.isArray(valRecord['elements'])
+    ? valRecord['elements'].filter((s): s is string => typeof s === 'string')
     : undefined;
 
   let applicantTypes: ('individual' | 'company')[] | undefined = undefined;
-  if (Array.isArray(val['applicantTypes'])) {
-    const filtered = val['applicantTypes'].filter(
+  if (Array.isArray(valRecord['applicantTypes'])) {
+    const filtered = valRecord['applicantTypes'].filter(
       (s): s is 'individual' | 'company' => s === 'individual' || s === 'company'
     );
     if (filtered.length > 0) applicantTypes = filtered;
-  } else if (val['applicantType'] === 'individual' || val['applicantType'] === 'company') {
-    applicantTypes = [val['applicantType']];
+  } else if (valRecord['applicantType'] === 'individual' || valRecord['applicantType'] === 'company') {
+    applicantTypes = [valRecord['applicantType']];
   }
 
   let fieldDependencies: FieldCondition['fieldDependencies'] = undefined;
-  if (Array.isArray(val['fieldDependencies'])) {
-    const mapped = val['fieldDependencies']
+  if (Array.isArray(valRecord['fieldDependencies'])) {
+    const mapped = valRecord['fieldDependencies']
       .filter(isRecord)
       .map((dep) => ({
         fieldId:
@@ -498,8 +511,8 @@ export function parseFieldCondition(val: unknown): FieldCondition | undefined {
       }))
       .filter((d) => d.fieldId.length > 0);
     if (mapped.length > 0) fieldDependencies = mapped;
-  } else if (val['dependsOn'] !== undefined && val['dependsOn'] !== null) {
-    const rawDep = val['dependsOn'];
+  } else if (valRecord['dependsOn'] !== undefined && valRecord['dependsOn'] !== null) {
+    const rawDep = valRecord['dependsOn'];
     const list = Array.isArray(rawDep) ? rawDep : [rawDep];
     const mapped = list
       .filter(isRecord)
@@ -517,12 +530,12 @@ export function parseFieldCondition(val: unknown): FieldCondition | undefined {
       }))
       .filter((d) => d.fieldId.length > 0);
     if (mapped.length > 0) fieldDependencies = mapped;
-  } else if (typeof val['field'] === 'string' && val['field'].trim().length > 0) {
+  } else if (typeof valRecord['field'] === 'string' && valRecord['field'].trim().length > 0) {
     fieldDependencies = [
       {
-        fieldId: val['field'].trim(),
-        operator: normalizeDependencyOperator(val['operator']),
-        value: typeof val['value'] === 'string' ? val['value'] : undefined,
+        fieldId: valRecord['field'].trim(),
+        operator: normalizeDependencyOperator(valRecord['operator']),
+        value: typeof valRecord['value'] === 'string' ? valRecord['value'] : undefined,
       },
     ];
   }

@@ -471,10 +471,6 @@ public static class CertificatesCategorySeederData
             new("valueAddedServices", "Value Added Service", new() { "valueAddedServices" }),
             new("knownByAnotherName", "Known by other Name", new() { "knownByAnotherName", "otherTradeName" })
         }),
-        new("NTC_1_21", Guid.Parse("f2100000-0000-0000-0000-000000000001"), Guid.Parse("f21a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("copyParticulars", "Certificate Details", new() { "targetService", "targetCertificateType", "targetCertificateNumber", "noOfCopies" })
-        }),
         new("NTC_1_22", Guid.Parse("f2200000-0000-0000-0000-000000000001"), Guid.Parse("f22a0000-0000-0000-0000-000000000000"), new()
         {
             new("location", "Location", new() { "serviceArea", "exactLocation", "longitude", "latitude" }),

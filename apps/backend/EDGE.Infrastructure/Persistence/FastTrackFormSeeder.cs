@@ -158,6 +158,34 @@ public static class FastTrackFormSeeder
                 logger
             );
         }
+
+        // 4. Purge any non-canonical redundant forms that are no longer part of the canonical form set
+        var canonicalFormIds = formDefs.Select(f => f.FormId).ToHashSet();
+        var obsoleteForms = await context.Forms
+            .IgnoreQueryFilters()
+            .Where(f => !canonicalFormIds.Contains(f.Id))
+            .ToListAsync();
+
+        if (obsoleteForms.Count > 0)
+        {
+            var obsoleteFormIds = obsoleteForms.Select(f => f.Id).ToList();
+            var obsoleteSections = await context.FormSections
+                .IgnoreQueryFilters()
+                .Where(s => obsoleteFormIds.Contains(s.FormId))
+                .ToListAsync();
+            if (obsoleteSections.Count > 0)
+            {
+                var obsoleteSecIds = obsoleteSections.Select(s => s.Id).ToList();
+                var obsoleteSecFields = await context.SectionFields
+                    .Where(sf => obsoleteSecIds.Contains(sf.FormSectionId))
+                    .ToListAsync();
+                if (obsoleteSecFields.Count > 0) context.SectionFields.RemoveRange(obsoleteSecFields);
+                context.FormSections.RemoveRange(obsoleteSections);
+            }
+            context.Forms.RemoveRange(obsoleteForms);
+            await context.SaveChangesAsync();
+            logger?.LogInformation("Form Seeder: Cleaned up {Count} non-canonical redundant forms.", obsoleteForms.Count);
+        }
     }
 
     private static async Task SeedFormForService(
@@ -190,7 +218,9 @@ public static class FastTrackFormSeeder
             {
                 Id = formId,
                 ServiceId = service.Id,
+                Name = service.Name,
                 Version = "1.0",
+                IsActive = true,
                 CategorySelectionRequired = false
             };
             context.Forms.Add(targetForm);

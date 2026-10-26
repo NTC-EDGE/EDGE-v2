@@ -19,16 +19,49 @@ public class FormRepository : IFormRepository
         _context = context;
     }
 
+    private static readonly Dictionary<Guid, Guid> ServiceToCanonicalServiceMap = new()
+    {
+        // Permits sharing NTC 1-09 (Svc109Id = 50000000-0000-0000-0000-000000000009)
+        [Guid.Parse("50000000-0000-0000-0000-000000000061")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_AERO_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000062")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_MAR_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000063")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_FLM_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000064")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_PTE_PERMITS -> NTC_1_09
+
+        // Equipment / Mobile Phone sharing NTC 1-14 (SvcEquipId = 50000000-0000-0000-0000-000000000065)
+        [Guid.Parse("50000000-0000-0000-0000-000000000066")] = Guid.Parse("50000000-0000-0000-0000-000000000065"), // NTC_MP_PERMITS -> NTC_EQUIP_PERMITS
+
+        // Copy of Permits and Copy of Certificates sharing NTC 1-05 / 1-21 (SvcLicCopyId = 50000000-0000-0000-0000-000000000017)
+        [Guid.Parse("50000000-0000-0000-0000-000000000067")] = Guid.Parse("50000000-0000-0000-0000-000000000017"), // NTC_COPY_PERMITS -> NTC_COPY_LICENSES
+        [Guid.Parse("50000000-0000-0000-0000-000000000021")] = Guid.Parse("50000000-0000-0000-0000-000000000017"), // NTC_1_21 (Copy of Certificates) -> NTC_COPY_LICENSES
+
+        // Licenses sharing NTC 1-11 (SvcLicFlmId = 50000000-0000-0000-0000-000000000014)
+        [Guid.Parse("50000000-0000-0000-0000-000000000011")] = Guid.Parse("50000000-0000-0000-0000-000000000014"), // NTC_AMA_LICENSES -> NTC_FLM_LICENSES
+        [Guid.Parse("50000000-0000-0000-0000-000000000012")] = Guid.Parse("50000000-0000-0000-0000-000000000014"), // NTC_AERO_LICENSES -> NTC_FLM_LICENSES
+        [Guid.Parse("50000000-0000-0000-0000-000000000015")] = Guid.Parse("50000000-0000-0000-0000-000000000014"), // NTC_OTHER_LICENSES -> NTC_FLM_LICENSES
+
+        // TVRO CATV sharing NTC 1-22 (Svc122Id = 50000000-0000-0000-0000-000000000022)
+        [Guid.Parse("50000000-0000-0000-0000-000000000016")] = Guid.Parse("50000000-0000-0000-0000-000000000022"), // NTC_TVRO_CATV_LICENSES -> NTC_1_22
+
+        // Requests / Complaints sharing NTC_REQ_COMPLAINTS (SvcReqComplaintsId = 50000000-0000-0000-0000-000000000025)
+        [Guid.Parse("50000000-0000-0000-0000-000000000024")] = Guid.Parse("50000000-0000-0000-0000-000000000025"), // NTC_1_24 -> NTC_REQ_COMPLAINTS
+        [Guid.Parse("50000000-0000-0000-0000-000000000026")] = Guid.Parse("50000000-0000-0000-0000-000000000025"), // NTC_1_25 -> NTC_REQ_COMPLAINTS
+    };
+
     public async Task<Form?> GetFormByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default)
     {
+        var targetServiceId = ServiceToCanonicalServiceMap.TryGetValue(serviceId, out var canonicalId)
+            ? canonicalId
+            : serviceId;
+
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
             .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
-            .Where(f => f.ServiceId == serviceId && !f.IsDeleted)
-            .OrderByDescending(f => f.IsActive)
+            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && !f.IsDeleted)
+            .OrderByDescending(f => f.ServiceId == serviceId)
+            .ThenByDescending(f => f.IsActive)
             .ThenByDescending(f => f.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
     }

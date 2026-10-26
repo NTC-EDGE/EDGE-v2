@@ -3,7 +3,7 @@
 import React from "react";
 import { GripVertical, Pencil, Copy, Trash2, Star, Layout, Paperclip, ChevronDown, ChevronRight } from "lucide-react";
 import { FormField } from "./types";
-import { getFieldLabel, getFieldIcon } from "./utils";
+import { getFieldLabel, getFieldIcon, parseFieldCondition } from "./utils";
 
 interface CanvasFieldProps {
   field: FormField;
@@ -19,6 +19,7 @@ interface CanvasFieldProps {
   isCollapsed?: boolean;
   childFieldCount?: number;
   onToggleCollapse?: () => void;
+  allFields?: FormField[];
 }
 
 function FieldPreview({ field }: { field: FormField }) {
@@ -200,8 +201,85 @@ export function CanvasField({
   isCollapsed = false,
   childFieldCount = 0,
   onToggleCollapse,
+  allFields,
 }: CanvasFieldProps) {
   const isSectionHeader = field.type === "section-header";
+
+  const condition = React.useMemo(() => {
+    if (field.condition && typeof field.condition === "object") {
+      return field.condition;
+    }
+    if (field.visibilityCondition) {
+      return parseFieldCondition(field.visibilityCondition);
+    }
+    return undefined;
+  }, [field.condition, field.visibilityCondition]);
+
+  const dependencyBadges = React.useMemo(() => {
+    if (!condition) {
+      if (Boolean(field.visibilityCondition && field.visibilityCondition.trim() !== "")) {
+        return [{ label: "⚡ Conditional", tooltip: field.visibilityCondition, type: "generic" as const }];
+      }
+      return [];
+    }
+
+    const badges: Array<{ label: string; tooltip?: string; type: "parent" | "variant" | "service" | "applicant" | "generic" }> = [];
+
+    const deps = condition.fieldDependencies ?? [];
+    for (const dep of deps) {
+      const parentField = allFields?.find((f) => {
+        if (f.id === dep.fieldId) return true;
+        const normTarget = dep.fieldId.toLowerCase().replace(/[^a-z0-9]/g, "");
+        const normLabel = f.label.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return normTarget.length > 0 && normLabel === normTarget;
+      });
+      const pLabel = parentField ? parentField.label : dep.fieldId;
+      const op = dep.operator === "equals" ? "=" : dep.operator === "not_equals" ? "≠" : dep.operator === "is_not_empty" ? "filled" : dep.operator === "is_empty" ? "empty" : dep.operator;
+      const valStr = dep.value ? ` "${dep.value}"` : "";
+      badges.push({
+        label: `🔗 Depends on: ${pLabel} ${op}${valStr}`,
+        tooltip: `Shown only when "${pLabel}" is ${op}${valStr}`,
+        type: "parent",
+      });
+    }
+
+    const variants = condition.variants ?? condition.applicationTypes ?? [];
+    if (variants.length > 0) {
+      badges.push({
+        label: variants.length <= 2 ? `⚡ Variant: ${variants.join(", ")}` : `⚡ ${variants.length} Variants`,
+        tooltip: `Active for variants: ${variants.join(", ")}`,
+        type: "variant",
+      });
+    }
+
+    const services = condition.services ?? [];
+    if (services.length > 0) {
+      badges.push({
+        label: services.length === 1 ? `📁 ${services[0]}` : `📁 ${services.length} Services`,
+        tooltip: `Applies to services: ${services.join(", ")}`,
+        type: "service",
+      });
+    }
+
+    const applicantTypes = condition.applicantTypes ?? [];
+    if (applicantTypes.length > 0) {
+      badges.push({
+        label: `👤 ${applicantTypes.join("/")}`,
+        tooltip: `Applicant type: ${applicantTypes.join(", ")}`,
+        type: "applicant",
+      });
+    }
+
+    if (badges.length === 0 && Boolean(field.visibilityCondition && field.visibilityCondition.trim() !== "")) {
+      badges.push({
+        label: "⚡ Conditional",
+        tooltip: field.visibilityCondition,
+        type: "generic",
+      });
+    }
+
+    return badges;
+  }, [condition, field.visibilityCondition, allFields]);
 
   return (
     <div onDragOver={onDragOver} onDrop={onDrop} className="relative">
@@ -308,12 +386,24 @@ export function CanvasField({
               </span>
             )}
 
-            {/* Conditional Visibility badge */}
-            {Boolean(field.visibilityCondition && field.visibilityCondition.trim() !== "") && (
-              <span className="text-[9px] px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 font-semibold border border-purple-200 dark:border-purple-800/60 flex-shrink-0">
-                Conditional
+            {/* Conditional Visibility badges */}
+            {dependencyBadges.map((badge, idx) => (
+              <span
+                key={`badge-${idx}`}
+                title={badge.tooltip || badge.label}
+                className={`text-[9px] px-2 py-0.5 rounded-full font-semibold border flex items-center gap-1 flex-shrink-0 ${
+                  badge.type === "parent"
+                    ? "bg-amber-100 dark:bg-amber-950/60 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+                    : badge.type === "variant"
+                    ? "bg-purple-100 dark:bg-purple-950/60 text-purple-700 dark:text-purple-300 border-purple-200 dark:border-purple-800/60"
+                    : badge.type === "service"
+                    ? "bg-blue-100 dark:bg-blue-950/60 text-blue-700 dark:text-blue-300 border-blue-200 dark:border-blue-800/60"
+                    : "bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700"
+                }`}
+              >
+                {badge.label}
               </span>
-            )}
+            ))}
           </div>
 
           {isSectionHeader && isCollapsed ? (
