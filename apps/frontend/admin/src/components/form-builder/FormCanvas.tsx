@@ -16,8 +16,10 @@ import {
   Copy,
   Trash2,
   Plus,
+  CheckCircle2,
+  Radio,
 } from "lucide-react";
-import { FormField, FormSchema, FieldType } from "./types";
+import { FormField, FormSchema, FieldType, FormVersionSummary } from "./types";
 import { CanvasField } from "./CanvasField";
 
 interface FormCanvasProps {
@@ -29,6 +31,10 @@ interface FormCanvasProps {
   onReorderFields: (fromIndex: number, toIndex: number) => void;
   onDuplicateField: (id: string) => void;
   onDeleteField: (id: string) => void;
+  onSwitchVersion?: (formId: string) => void;
+  onSetActive?: () => void;
+  onCreateNewVersion?: () => void;
+  onDeleteVersion?: () => void;
 }
 
 interface SectionGroup {
@@ -48,6 +54,10 @@ export function FormCanvas({
   onReorderFields,
   onDuplicateField,
   onDeleteField,
+  onSwitchVersion,
+  onSetActive,
+  onCreateNewVersion,
+  onDeleteVersion,
 }: FormCanvasProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
@@ -177,6 +187,131 @@ export function FormCanvas({
       {/* Canvas scroll area */}
       <div className="flex-1 overflow-y-auto">
         <div className="w-full max-w-[1600px] mx-auto py-6 px-6 lg:px-10 min-h-full">
+          {/* Upper Card: Application Service & Available Form Versions List */}
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mb-4 p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm"
+          >
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="w-8 h-8 rounded-xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  {form.serviceName ? <Building2 className="w-4 h-4" /> : <Tag className="w-4 h-4" />}
+                </div>
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate">
+                      {form.serviceName || "Standalone Form Template"}
+                    </span>
+                    {form.serviceCode && (
+                      <span className="text-[10px] font-mono font-semibold text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-950/60 px-1.5 py-0.5 rounded">
+                        {form.serviceCode}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-[11px] text-slate-400 dark:text-slate-500">
+                    Click any version below to view its setup in the editor, or set which version is active on the client portal.
+                  </p>
+                </div>
+              </div>
+
+              {/* Clean Version Actions for Current Form */}
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                {form.serviceId && !(form.isPublished || form.isActive) && onSetActive && (
+                  <button
+                    type="button"
+                    onClick={onSetActive}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Radio className="w-3.5 h-3.5" />
+                    <span>Set v{form.version || "1.0"} as Active</span>
+                  </button>
+                )}
+
+                {onCreateNewVersion && (
+                  <button
+                    type="button"
+                    onClick={onCreateNewVersion}
+                    className="flex items-center gap-1.5 text-xs font-semibold text-indigo-600 dark:text-indigo-300 bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/60 dark:hover:bg-indigo-900/60 px-3 py-1.5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>New Version</span>
+                  </button>
+                )}
+
+                {onDeleteVersion && (
+                  <button
+                    type="button"
+                    onClick={onDeleteVersion}
+                    className="flex items-center gap-1 text-xs font-medium text-slate-400 hover:text-rose-600 dark:hover:text-rose-400 px-2 py-1.5 rounded-xl hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors cursor-pointer"
+                    title="Delete this version"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Available Form Versions & Names List */}
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2.5">
+              {(form.availableVersions && form.availableVersions.length > 0
+                ? form.availableVersions
+                : [
+                    {
+                      formId: form.id,
+                      version: form.version || "1.0",
+                      name: form.name,
+                      isActive: Boolean(form.isPublished || form.isActive),
+                      createdAt: form.createdAt,
+                      updatedAt: form.updatedAt,
+                      sectionsCount: sectionCount,
+                      fieldsCount: form.fields.length,
+                    },
+                  ]
+              ).map((v: FormVersionSummary) => {
+                const isSelected = v.formId === form.id;
+                const isLive = v.isActive;
+                return (
+                  <button
+                    key={v.formId}
+                    type="button"
+                    onClick={() => onSwitchVersion && onSwitchVersion(v.formId)}
+                    className={`flex items-center justify-between gap-2.5 px-3.5 py-2.5 rounded-xl text-left transition-all cursor-pointer ${
+                      isSelected
+                        ? "bg-indigo-50/90 dark:bg-indigo-950/50 ring-2 ring-indigo-500/80"
+                        : "bg-slate-50 hover:bg-slate-100 dark:bg-slate-950/60 dark:hover:bg-slate-800/70"
+                    }`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-mono font-bold text-indigo-600 dark:text-indigo-400">
+                          v{v.version}
+                        </span>
+                        <span className="text-xs font-semibold text-slate-900 dark:text-white truncate">
+                          {v.name || form.name || "Untitled Form"}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2 mt-0.5 text-[10px]">
+                        {isLive ? (
+                          <span className="flex items-center gap-1 font-semibold text-emerald-600 dark:text-emerald-400">
+                            <CheckCircle2 className="w-3 h-3" />
+                            Active on Client
+                          </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-slate-500">Draft</span>
+                        )}
+                        {isSelected && (
+                          <span className="text-indigo-600 dark:text-indigo-400 font-medium">
+                            · Viewing
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Form Header Card */}
           <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
             {/* Metadata Pills */}
@@ -184,17 +319,17 @@ export function FormCanvas({
               {/* Published / Draft Status */}
               <span
                 className={`text-[10px] px-2.5 py-0.5 rounded-full font-semibold border flex items-center gap-1 ${
-                  form.isPublished
+                  form.isPublished || form.isActive
                     ? "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 border-emerald-300 dark:border-emerald-700"
                     : "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border-amber-300 dark:border-amber-700"
                 }`}
               >
                 <span
                   className={`w-1.5 h-1.5 rounded-full ${
-                    form.isPublished ? "bg-emerald-500" : "bg-amber-500"
+                    form.isPublished || form.isActive ? "bg-emerald-500" : "bg-amber-500"
                   }`}
                 />
-                {form.isPublished ? "Published Form" : "Draft Template"}
+                {form.isPublished || form.isActive ? `Active Form (v${form.version || "1.0"})` : `Draft Template (v${form.version || "1.0"})`}
               </span>
 
               {/* Service association */}

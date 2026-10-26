@@ -28,7 +28,8 @@ public class FormRepository : IFormRepository
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
             .Where(f => f.ServiceId == serviceId && !f.IsDeleted)
-            .OrderByDescending(f => f.CreatedAt)
+            .OrderByDescending(f => f.IsActive)
+            .ThenByDescending(f => f.CreatedAt)
             .FirstOrDefaultAsync(cancellationToken);
     }
 
@@ -93,6 +94,8 @@ public class FormRepository : IFormRepository
         string version,
         bool categorySelectionRequired,
         List<FormSectionDto> incomingSections,
+        string? name = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
         // 1. Get or Create Form
@@ -102,10 +105,16 @@ public class FormRepository : IFormRepository
 
         if (form == null)
         {
+            // If isActive is not explicitly provided, only activate if no active form exists for this service yet.
+            // This prevents newly created forms (such as v2 drafts) from immediately usurping the live client form.
+            bool shouldBeActive = isActive ?? (!await _context.Forms.AnyAsync(f => f.ServiceId == serviceId && !f.IsDeleted && f.IsActive, cancellationToken));
+
             form = new Form
             {
                 Id = formId,
                 ServiceId = serviceId,
+                Name = name,
+                IsActive = shouldBeActive,
                 Version = string.IsNullOrWhiteSpace(version) ? "1.0" : version,
                 CategorySelectionRequired = categorySelectionRequired,
                 CreatedAt = DateTime.UtcNow,
@@ -117,11 +126,36 @@ public class FormRepository : IFormRepository
         else
         {
             form.ServiceId = serviceId;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                form.Name = name;
+            }
+            if (isActive.HasValue)
+            {
+                form.IsActive = isActive.Value;
+            }
             form.Version = string.IsNullOrWhiteSpace(version) ? "1.0" : version;
             form.CategorySelectionRequired = categorySelectionRequired;
             form.IsDeleted = false;
             form.LastModifiedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        // If this form is active, deactivate other forms for the same service
+        if (form.IsActive)
+        {
+            var otherActiveForms = await _context.Forms
+                .Where(f => f.ServiceId == serviceId && f.Id != form.Id && !f.IsDeleted && f.IsActive)
+                .ToListAsync(cancellationToken);
+            if (otherActiveForms.Count > 0)
+            {
+                foreach (var other in otherActiveForms)
+                {
+                    other.IsActive = false;
+                    other.LastModifiedAt = DateTime.UtcNow;
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
         }
 
         // 2. Upsert all Fields first
@@ -295,5 +329,49 @@ public class FormRepository : IFormRepository
         }
 
         return await GetByIdAsync(form.Id, cancellationToken) ?? form;
+    }
+
+    public async Task<Form?> SetFormActiveAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        var form = await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Service)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
+            .FirstOrDefaultAsync(f => f.Id == formId && !f.IsDeleted, cancellationToken);
+
+        if (form == null)
+        {
+            return null;
+        }
+
+        form.IsActive = true;
+        form.LastModifiedAt = DateTime.UtcNow;
+
+        var otherActiveForms = await _context.Forms
+            .Where(f => f.ServiceId == form.ServiceId && f.Id != form.Id && !f.IsDeleted && f.IsActive)
+            .ToListAsync(cancellationToken);
+
+        foreach (var other in otherActiveForms)
+        {
+            other.IsActive = false;
+            other.LastModifiedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return form;
+    }
+
+    public async Task<List<Form>> GetVersionsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted))
+                .ThenInclude(fs => fs.SectionFields)
+            .Where(f => f.ServiceId == serviceId && !f.IsDeleted)
+            .OrderByDescending(f => f.IsActive)
+            .ThenByDescending(f => f.CreatedAt)
+            .ToListAsync(cancellationToken);
     }
 }

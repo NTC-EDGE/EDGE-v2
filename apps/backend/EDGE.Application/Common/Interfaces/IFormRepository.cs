@@ -22,5 +22,9 @@ public interface IFormRepository
         string version,
         bool categorySelectionRequired,
         List<FormSectionDto> incomingSections,
+        string? name = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default);
+    Task<Form?> SetFormActiveAsync(Guid formId, CancellationToken cancellationToken = default);
+    Task<List<Form>> GetVersionsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default);
 }

@@ -28,6 +28,8 @@ public class CreateFormCommandHandler : IRequestHandler<CreateFormCommand, FormD
             request.Version,
             request.CategorySelectionRequired,
             request.Sections ?? new List<FormSectionDto>(),
+            request.Name,
+            request.IsActive,
             cancellationToken);
 
         return new FormDto
@@ -36,7 +38,9 @@ public class CreateFormCommandHandler : IRequestHandler<CreateFormCommand, FormD
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name,
             ServiceCode = form.Service?.Code,
+            Name = form.Name,
             Version = form.Version,
+            IsActive = form.IsActive,
             CategorySelectionRequired = form.CategorySelectionRequired,
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,

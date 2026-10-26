@@ -36,7 +36,9 @@ public class DuplicateFormCommandHandler : IRequestHandler<DuplicateFormCommand,
         var clonedForm = new Form
         {
             ServiceId = sourceForm.ServiceId,
+            Name = !string.IsNullOrWhiteSpace(sourceForm.Name) ? $"{sourceForm.Name} (Copy)" : null,
             Version = newVersion,
+            IsActive = false,
             CategorySelectionRequired = sourceForm.CategorySelectionRequired
         };
 
@@ -83,7 +85,9 @@ public class DuplicateFormCommandHandler : IRequestHandler<DuplicateFormCommand,
         {
             FormId = clonedForm.Id,
             ServiceId = clonedForm.ServiceId,
+            Name = clonedForm.Name,
             Version = clonedForm.Version,
+            IsActive = clonedForm.IsActive,
             Sections = clonedForm.Sections.Select(s => new FormSectionDto
             {
                 Key = s.Key,

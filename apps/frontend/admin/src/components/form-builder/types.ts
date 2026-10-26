@@ -70,6 +70,17 @@ export interface FormField {
   condition?: FieldCondition;
 }
 
+export interface FormVersionSummary {
+  formId: string;
+  version: string;
+  name?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  sectionsCount: number;
+  fieldsCount: number;
+}
+
 export interface FormSchema {
   id: string;
   serviceId?: string;
@@ -77,9 +88,12 @@ export interface FormSchema {
   serviceCode?: string;
   name: string;
   description: string;
+  version?: string;
+  isActive?: boolean;
   fields: FormField[];
   createdAt: string;
   updatedAt: string;
   isPublished: boolean;
   tags?: string[];
+  availableVersions?: FormVersionSummary[];
 }

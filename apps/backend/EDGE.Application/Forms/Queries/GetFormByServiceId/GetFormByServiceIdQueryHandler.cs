@@ -64,16 +64,32 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             ? _contractValidator.GetRequiredSectionKeys(service.Contract)
             : new System.Collections.Generic.HashSet<string>();
 
+        var allVersions = (await _formRepository.GetVersionsByServiceIdAsync(form.ServiceId, cancellationToken)) ?? new System.Collections.Generic.List<EDGE.Domain.Entities.Form>();
+        var versionSummaries = allVersions.Select(v => new FormVersionSummaryDto
+        {
+            FormId = v.Id,
+            Version = v.Version,
+            Name = v.Name,
+            IsActive = v.IsActive,
+            CreatedAt = v.CreatedAt,
+            UpdatedAt = v.LastModifiedAt,
+            SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
+            FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<EDGE.Domain.Entities.SectionField>()).Count() ?? 0
+        }).ToList();
+
         var dto = new FormDto
         {
             FormId = form.Id,
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name ?? service.Name,
             ServiceCode = form.Service?.Code ?? service.Code,
+            Name = form.Name,
             Version = form.Version,
+            IsActive = form.IsActive,
             CategorySelectionRequired = form.CategorySelectionRequired,
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
+            AvailableVersions = versionSummaries,
             Sections = form.Sections
                 .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)

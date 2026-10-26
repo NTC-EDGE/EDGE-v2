@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react';
-import { FieldCondition, FieldOption, FieldType, FormField, FormSchema, RepeaterColumn } from './types';
+import { FieldCondition, FieldOption, FieldType, FormField, FormSchema, FormVersionSummary, RepeaterColumn } from './types';
 
 const STORAGE_KEY = 'edge_form_builder_forms';
 
@@ -564,6 +564,7 @@ export interface BackendFormDtoLike {
   serviceName?: string;
   serviceCode?: string;
   name?: string;
+  isActive?: boolean;
   sections?: Array<{
     key?: string;
     title?: string;
@@ -728,7 +729,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
     fields,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
-    isPublished: true,
+    isPublished: dto.isActive !== false,
   };
 }
 

@@ -18,6 +18,7 @@ import {
   PanelLeftOpen,
   PanelRightClose,
   PanelRightOpen,
+  Radio,
 } from "lucide-react";
 import { FormSchema, FormField, FieldType } from "@/components/form-builder/types";
 import {
@@ -80,6 +81,7 @@ function FormBuilderContent() {
     updateForm,
     deleteForm,
     duplicateForm,
+    activateForm,
   } = useFormBuilderService();
   const { data: apiResponse, mutate } = useForms(
     currentPage,
@@ -178,7 +180,9 @@ function FormBuilderContent() {
             const updateRes = await updateForm(formToSave.id, {
               id: formToSave.id,
               serviceId: formToSave.serviceId,
-              version: "1.0",
+              name: formToSave.name,
+              version: formToSave.version || "1.0",
+              isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
               categorySelectionRequired: false,
               sections,
             });
@@ -204,7 +208,9 @@ function FormBuilderContent() {
               try {
                 const createRes = await createForm({
                   serviceId: formToSave.serviceId,
-                  version: "1.0",
+                  name: formToSave.name,
+                  version: formToSave.version || "1.0",
+                  isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
                   categorySelectionRequired: false,
                   sections,
                 });
@@ -405,33 +411,41 @@ function FormBuilderContent() {
     }
   }, []);
 
-  const handleTogglePublish = async () => {
-    if (!activeForm) return;
-    const targetState = !activeForm.isPublished;
-    const updated: FormSchema = {
-      ...activeForm,
-      isPublished: targetState,
-      updatedAt: new Date().toISOString(),
-    };
-    setActiveForm(updated);
-    const result = await persistFormToBackend(updated);
-    if (result.success) {
-      originalFormRef.current = JSON.stringify(result.form);
-      setIsDirty(false);
+  const handleSwitchVersion = async (targetFormId: string) => {
+    if (targetFormId === activeForm?.id) return;
+    try {
+      const res = await getFormById(targetFormId);
+      if (res && res.succeeded && res.data) {
+        const freshSchema = convertBackendFormToSchema(res.data);
+        setActiveForm(freshSchema);
+        originalFormRef.current = JSON.stringify(freshSchema);
+        setSelectedFieldId(null);
+        setIsDirty(false);
+        setToast({
+          message: `Switched to version v${freshSchema.version || "1.0"}.`,
+          type: "info",
+        });
+      }
+    } catch {
       setToast({
-        message: targetState
-          ? "Form published successfully."
-          : "Form unpublished.",
-        type: "success",
-      });
-    } else {
-      setActiveForm((prev) =>
-        prev ? { ...prev, isPublished: !targetState } : prev
-      );
-      setToast({
-        message: `Failed to update publication status: ${result.message}`,
+        message: "Failed to load the selected form version.",
         type: "error",
       });
+    }
+  };
+
+  const handleSetActiveCurrent = async () => {
+    if (!activeForm) return;
+    await handleSetActive(activeForm);
+    try {
+      const res = await getFormById(activeForm.id);
+      if (res && res.succeeded && res.data) {
+        const freshSchema = convertBackendFormToSchema(res.data);
+        setActiveForm(freshSchema);
+        originalFormRef.current = JSON.stringify(freshSchema);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -491,6 +505,8 @@ function FormBuilderContent() {
   const handleCreateNew = (
     name: string,
     description: string,
+    version: string,
+    isActive: boolean,
     serviceId?: string,
     serviceName?: string
   ) => {
@@ -499,35 +515,114 @@ function FormBuilderContent() {
       id: generateId(),
       name,
       description,
+      version: version || "1.0",
       serviceId,
       serviceName,
       fields: [],
       createdAt: now,
       updatedAt: now,
-      isPublished: false,
+      isPublished: isActive,
+      isActive,
     };
     saveFormSchema(newForm);
     setIsCreateDialogOpen(false);
     handleOpenEditor(newForm);
-    setToast({ message: "Form created. Start adding fields!", type: "success" });
+    setToast({
+      message: isActive
+        ? `Form (v${newForm.version}) created as active. Start adding fields!`
+        : `Form (v${newForm.version}) created as draft. Start adding fields!`,
+      type: "success",
+    });
   };
 
   const handleDuplicateForm = async (form: FormSchema) => {
     const now = new Date().toISOString();
+    const curVer = form.version || "1.0";
+    const allNums = (form.availableVersions ?? [])
+      .map((v) => parseFloat(v.version))
+      .filter((n) => !isNaN(n));
+    const curNum = parseFloat(curVer);
+    if (!isNaN(curNum)) {
+      allNums.push(curNum);
+    }
+    const maxVer = allNums.length > 0 ? Math.max(...allNums) : NaN;
+    const nextVer = !isNaN(maxVer) ? `${(Math.floor(maxVer) + 1).toFixed(1)}` : `${curVer}-copy`;
+
     const duplicate: FormSchema = {
       ...form,
       id: generateId(),
-      name: `${form.name} (Copy)`,
+      name: `${form.name} (v${nextVer})`,
+      version: nextVer,
       isPublished: false,
+      isActive: false,
       createdAt: now,
       updatedAt: now,
     };
     saveFormSchema(duplicate);
     if (form.serviceId) {
-      await duplicateForm(form.id).catch(() => null);
+      await duplicateForm(form.id, nextVer).catch(() => null);
       await mutate();
+      if (activeForm && activeForm.id === form.id) {
+        try {
+          const res = await getFormById(form.id);
+          if (res && res.succeeded && res.data) {
+            const freshSchema = convertBackendFormToSchema(res.data);
+            setActiveForm((prev) =>
+              prev ? { ...prev, availableVersions: freshSchema.availableVersions } : prev
+            );
+          }
+        } catch {
+          // ignore
+        }
+      }
     }
-    setToast({ message: "Form duplicated.", type: "success" });
+    setToast({
+      message: `Created new draft version v${nextVer}.`,
+      type: "success",
+    });
+  };
+
+  const handleSetActive = async (form: FormSchema) => {
+    if (!form.serviceId) return;
+    try {
+      const res = await activateForm(form.id);
+      if (res && res.succeeded) {
+        setToast({
+          message: `"${form.name}" (v${form.version || "1.0"}) is now live as the active form on the client portal.`,
+          type: "success",
+        });
+        await mutate();
+      } else {
+        // Fallback to updateForm if needed
+        const sections = convertSchemaToBackendSections(form.fields);
+        const updateRes = await updateForm(form.id, {
+          id: form.id,
+          serviceId: form.serviceId,
+          name: form.name,
+          version: form.version || "1.0",
+          isActive: true,
+          categorySelectionRequired: false,
+          sections,
+        });
+        if (updateRes && updateRes.succeeded) {
+          setToast({
+            message: `"${form.name}" (v${form.version || "1.0"}) is now live as the active form on the client portal.`,
+            type: "success",
+          });
+          await mutate();
+        } else {
+          setToast({
+            message: res?.message || updateRes?.message || "Failed to set form as active.",
+            type: "error",
+          });
+        }
+      }
+    } catch (err: unknown) {
+      setToast({
+        message: getErrorMessage(err, "Failed to set form as active."),
+        type: "error",
+      });
+    }
   };
 
   const handleDeleteFormConfirm = async () => {
@@ -727,27 +822,6 @@ function FormBuilderContent() {
               <Eye className="w-3.5 h-3.5" />
               Preview
             </button>
-            <button
-              type="button"
-              onClick={handleTogglePublish}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeForm.isPublished
-                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20"
-              }`}
-            >
-              {activeForm.isPublished ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5" />
-                  Unpublish
-                </>
-              ) : (
-                <>
-                  <Globe className="w-3.5 h-3.5" />
-                  Publish
-                </>
-              )}
-            </button>
           </div>
         </div>
 
@@ -783,6 +857,10 @@ function FormBuilderContent() {
               onReorderFields={handleReorderFields}
               onDuplicateField={handleDuplicateField}
               onDeleteField={handleDeleteField}
+              onSwitchVersion={handleSwitchVersion}
+              onSetActive={handleSetActiveCurrent}
+              onCreateNewVersion={() => handleDuplicateForm(activeForm)}
+              onDeleteVersion={() => setDeleteTarget(activeForm)}
             />
           </div>
 
@@ -820,6 +898,18 @@ function FormBuilderContent() {
           onDiscard={handleDiscardAndExit}
           isSaving={isSaving}
           formTitle={activeForm.name || activeForm.serviceName || "this form"}
+        />
+
+        {/* Delete Version Confirmation */}
+        <ConfirmActionDialog
+          isOpen={Boolean(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+          title="Delete Form Version"
+          description={`Are you sure you want to delete "${deleteTarget?.name ?? "this form"}" (v${deleteTarget?.version || "1.0"})? This action cannot be undone.`}
+          confirmLabel="Delete Version"
+          cancelLabel="Cancel"
+          loading={false}
+          onConfirm={handleDeleteFormConfirm}
         />
 
         {/* Preview Modal */}
@@ -885,6 +975,7 @@ function FormBuilderContent() {
         onPreview={handleOpenPreview}
         onDuplicate={handleDuplicateForm}
         onDelete={(form) => setDeleteTarget(form)}
+        onSetActive={handleSetActive}
         onCreateNew={() => setIsCreateDialogOpen(true)}
         searchTerm={searchTerm}
         onSearchChange={(term) => {
@@ -918,6 +1009,7 @@ function FormBuilderContent() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onCreate={handleCreateNew}
+        existingForms={forms}
       />
 
       {/* Delete Confirmation */}

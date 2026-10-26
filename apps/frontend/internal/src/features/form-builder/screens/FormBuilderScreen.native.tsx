@@ -14,7 +14,7 @@ import {
 
 export function FormBuilderScreen() {
   const { colors } = useTheme();
-  const { forms: apiForms, isLoading, isError, refetch } = useAdminForms();
+  const { forms: apiForms, isLoading, isError, refetch, activateForm } = useAdminForms();
 
   // Visual Builder Modal State
   const [isVisualBuilderVisible, setIsVisualBuilderVisible] = useState(false);
@@ -37,10 +37,12 @@ export function FormBuilderScreen() {
 
   const formBuilders: FormBuilderItem[] = apiForms.map((f) => ({
     id: f.formId,
-    title: `Form Template v${f.version}`,
-    code: `FORM-${f.formId.substring(0, 5).toUpperCase()}`,
+    title: f.name || (f.serviceName ? `${f.serviceName} Form` : `Form Template v${f.version}`),
+    code: f.serviceCode || `FORM-${f.formId.substring(0, 5).toUpperCase()}`,
     version: f.version,
-    status: 'Published',
+    status: f.isActive ? 'Published' : 'Draft',
+    serviceType: f.serviceName,
+    lastUpdated: f.updatedAt || f.createdAt,
     fieldsCount: f.sections.reduce((acc, s) => acc + s.fields.length, 0),
   }));
 
@@ -57,6 +59,10 @@ export function FormBuilderScreen() {
   const handleEditForm = (item: FormBuilderItem) => {
     setSelectedItem({ id: item.id, title: item.title });
     setModalType('add-form');
+  };
+
+  const handleSetActive = async (id: string, _title: string) => {
+    await activateForm(id);
   };
 
   const handleDeleteForm = (_id: string, title: string) => {
@@ -109,6 +115,7 @@ export function FormBuilderScreen() {
               onEditForm={handleEditForm}
               onDeleteForm={handleDeleteForm}
               onOpenVisualBuilder={handleOpenVisualBuilder}
+            onSetActive={handleSetActive}
             />
           </AnimatedCard>
         )}
