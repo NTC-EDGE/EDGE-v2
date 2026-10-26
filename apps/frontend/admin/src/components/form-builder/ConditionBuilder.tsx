@@ -94,27 +94,71 @@ export function ConditionBuilder({
     selectedApplicantTypes.length > 0 ||
     fieldDependencies.length > 0;
 
-  // Catalog data for the current form's associated service
+  // Catalog data for the current form's associated service (case-insensitive & fuzzy match)
   const currentServiceCatalog = useMemo(() => {
     if (!form?.serviceName) return null;
-    return NTC_CATALOG[form.serviceName] ?? null;
+    const direct = NTC_CATALOG[form.serviceName];
+    if (direct) return direct;
+
+    const targetUpper = form.serviceName.toUpperCase().trim();
+    const upperMatch = NTC_CATALOG[targetUpper];
+    if (upperMatch) return upperMatch;
+
+    for (const [key, item] of Object.entries(NTC_CATALOG)) {
+      const keyUpper = key.toUpperCase().trim();
+      if (keyUpper === targetUpper || keyUpper.includes(targetUpper) || targetUpper.includes(keyUpper)) {
+        return item;
+      }
+    }
+    return null;
   }, [form?.serviceName]);
 
   const availableServices = NTC_SERVICES;
 
   const availableVariants = useMemo(() => {
-    if (!showAllVariants && currentServiceCatalog && currentServiceCatalog.variants.length > 0) {
-      return currentServiceCatalog.variants;
+    const list: string[] = [];
+    if (currentServiceCatalog && currentServiceCatalog.variants.length > 0) {
+      for (const v of currentServiceCatalog.variants) {
+        if (!list.includes(v)) list.push(v);
+      }
     }
-    return NTC_GLOBAL_VARIANTS;
-  }, [showAllVariants, currentServiceCatalog]);
+    if (selectedServices.length > 0) {
+      for (const s of selectedServices) {
+        const item = NTC_CATALOG[s] ?? NTC_CATALOG[s.toUpperCase().trim()];
+        if (item) {
+          for (const v of item.variants) {
+            if (!list.includes(v)) list.push(v);
+          }
+        }
+      }
+    }
+    if (showAllVariants || list.length === 0) {
+      for (const v of NTC_GLOBAL_VARIANTS) {
+        if (!list.includes(v)) list.push(v);
+      }
+    }
+    return list;
+  }, [showAllVariants, currentServiceCatalog, selectedServices]);
 
   const availableApplicationTypes = useMemo(() => {
+    const list: string[] = [];
     if (currentServiceCatalog && currentServiceCatalog.applicationTypes.length > 0) {
-      return currentServiceCatalog.applicationTypes;
+      for (const t of currentServiceCatalog.applicationTypes) {
+        if (!list.includes(t)) list.push(t);
+      }
     }
-    return [];
-  }, [currentServiceCatalog]);
+    if (selectedServices.length > 0) {
+      for (const s of selectedServices) {
+        const item = NTC_CATALOG[s] ?? NTC_CATALOG[s.toUpperCase().trim()];
+        if (item) {
+          for (const t of item.applicationTypes) {
+            if (!list.includes(t)) list.push(t);
+          }
+        }
+      }
+    }
+    return list;
+  }, [currentServiceCatalog, selectedServices]);
 
   const availableElements = useMemo(() => {
     if (!showAllElements && currentServiceCatalog && currentServiceCatalog.elements.length > 0) {
