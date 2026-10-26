@@ -1,7 +1,8 @@
 "use client";
 
 import React, { useState } from "react";
-import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2 } from "lucide-react";
+import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2, Sliders } from "lucide-react";
+import { parseFieldCondition } from "./utils";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +17,13 @@ interface FormPreviewModalProps {
   form: FormSchema;
 }
 
-function PreviewField({ field }: { field: FormField }) {
+interface PreviewFieldProps {
+  field: FormField;
+  value?: string;
+  onChange?: (val: string) => void;
+}
+
+function PreviewField({ field, value = "", onChange }: PreviewFieldProps) {
   const labelEl = (
     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
       {field.label}
@@ -57,6 +64,8 @@ function PreviewField({ field }: { field: FormField }) {
           minLength={field.minLength}
           maxLength={field.maxLength}
           required={field.required}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
         />
         {helpText}
       </div>
@@ -67,7 +76,7 @@ function PreviewField({ field }: { field: FormField }) {
     return (
       <div className={colSpanClass}>
         {labelEl}
-        <select className={inputClass} required={field.required} defaultValue="">
+        <select className={inputClass} required={field.required} value={value} onChange={(e) => onChange?.(e.target.value)}>
           <option value="" disabled>
             {field.placeholder || "-- Please Select --"}
           </option>
@@ -93,6 +102,8 @@ function PreviewField({ field }: { field: FormField }) {
                 type="radio"
                 name={field.id}
                 value={opt.value}
+                checked={value === opt.value}
+                onChange={() => onChange?.(opt.value)}
                 required={field.required}
                 className="w-3.5 h-3.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
               />
@@ -360,6 +371,60 @@ function RepeaterFieldPreview({ field }: { field: FormField }) {
 export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalProps) {
   const [tab, setTab] = useState<"form" | "json">("form");
   const [submitted, setSubmitted] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  const availableVariants = React.useMemo(() => {
+    const list: string[] = [];
+    for (const f of form.fields) {
+      const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
+      if (cond && cond.variants) {
+        for (const v of cond.variants) {
+          if (!list.includes(v)) list.push(v);
+        }
+      }
+    }
+    return list;
+  }, [form.fields]);
+
+  const handleFieldValueChange = (fieldId: string, val: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [fieldId]: val,
+    }));
+  };
+
+  const isFieldVisibleInPreview = (f: FormField): boolean => {
+    if (f.type === "section-header" || f.type === "divider") return true;
+    const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
+    if (!cond) return true;
+
+    // 1. Variant filter
+    if (selectedVariant !== "ALL" && cond.variants && cond.variants.length > 0) {
+      const selUpper = selectedVariant.toUpperCase().trim();
+      const match = cond.variants.some((v) => {
+        const vUpper = v.toUpperCase().trim();
+        return vUpper === selUpper || vUpper.includes(selUpper) || selUpper.includes(vUpper);
+      });
+      if (!match) return false;
+    }
+
+    // 2. Parent-child dependencies
+    if (cond.fieldDependencies && cond.fieldDependencies.length > 0) {
+      for (const dep of cond.fieldDependencies) {
+        const parentVal = formValues[dep.fieldId] ?? formValues[dep.fieldId.toLowerCase()] ?? "";
+        if (dep.operator === "equals" && dep.value && parentVal !== dep.value) return false;
+        if (dep.operator === "not_equals" && dep.value && parentVal === dep.value) return false;
+        if (dep.operator === "is_not_empty" && !parentVal.trim()) return false;
+        if (dep.operator === "is_empty" && parentVal.trim().length > 0) return false;
+        if (dep.operator === "contains" && dep.value && !parentVal.includes(dep.value)) return false;
+      }
+    }
+
+    return true;
+  };
+
+  const visibleFields = form.fields.filter(isFieldVisibleInPreview);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -442,14 +507,14 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
                   <span>Preview Submission Validated: All required fields were entered correctly!</span>
                 </div>
               )}
-              {form.fields.map((field, idx) => {
+              {visibleFields.map((field, idx) => {
                 const nextField = form.fields[idx + 1];
                 const isEmptySection =
                   field.type === "section-header" &&
                   (!nextField || nextField.type === "section-header");
                 return (
                   <React.Fragment key={field.id}>
-                    <PreviewField field={field} />
+                    <PreviewField field={field} value={formValues[field.id]} onChange={(val) => handleFieldValueChange(field.id, val)} />
                     {isEmptySection && (
                       <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-dashed border-amber-300 dark:border-amber-800 text-center">
                         <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
