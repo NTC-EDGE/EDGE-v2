@@ -2,10 +2,12 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
+using System.Threading.Tasks;
 using EDGE.Application.Forms.Services;
 using EDGE.Domain.Entities;
 using EDGE.Infrastructure.Persistence;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Xunit;
 
 namespace EDGE.Application.UnitTests.Forms;
@@ -66,6 +68,103 @@ public class FormContractAndSeederTests
                     }
                 }
             }
+        }
+    }
+
+    [Fact]
+    public void AllServiceDefs_MustHaveUniqueCodesAndUniqueIds()
+    {
+        var categoryIds = new Dictionary<string, Guid>
+        {
+            ["Exams"] = Guid.NewGuid(),
+            ["Certificates"] = Guid.NewGuid(),
+            ["Licenses"] = Guid.NewGuid(),
+            ["Permits"] = Guid.NewGuid(),
+            ["Accreditations"] = Guid.NewGuid(),
+            ["RequestsAndComplaints"] = Guid.NewGuid()
+        };
+
+        var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
+        foreach (var s in serviceDefs)
+        {
+            Console.WriteLine($"Service: Key={s.Key}, Id={s.Id}, Code={s.Code}, Name={s.Name}");
+        }
+
+        var duplicateCodes = serviceDefs.GroupBy(s => s.Code).Where(g => g.Count() > 1).ToList();
+        duplicateCodes.Should().BeEmpty(because: $"There should be no duplicate Codes in ServiceDefs, but found: {string.Join(", ", duplicateCodes.Select(g => $"{g.Key} ({g.Count()})"))}");
+
+        serviceDefs.Select(s => s.Code).Should().OnlyHaveUniqueItems();
+        serviceDefs.Select(s => s.Id).Should().OnlyHaveUniqueItems();
+    }
+
+    [Fact]
+    public async Task BackfillNewServices_SelfHealsCodeCollisions_WhenConflictingLegacyServicesExistInDatabase()
+    {
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: Guid.NewGuid().ToString())
+            .Options;
+
+        using var context = new ApplicationDbContext(options);
+
+        // Seed a dummy tenant
+        var tenant = new Tenant { Id = Guid.NewGuid(), Name = "NTC Central Office", Code = "NTC-CO" };
+        context.Tenants.Add(tenant);
+
+        // Seed conflicting legacy services with codes "NTC_1_04", "NTC_1_11", "NTC_1_25" on obsolete IDs
+        var legacy04 = new Service
+        {
+            Id = Guid.Parse("50000000-0000-0000-0000-000000000013"),
+            Code = "NTC_1_04",
+            Name = "Old Maritime License",
+            ServiceCategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000003")
+        };
+        var legacy11 = new Service
+        {
+            Id = Guid.Parse("50000000-0000-0000-0000-000000000014"),
+            Code = "NTC_1_11",
+            Name = "Old FLM License",
+            ServiceCategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000003")
+        };
+        var legacy25 = new Service
+        {
+            Id = Guid.NewGuid(),
+            Code = "NTC_1_25",
+            Name = "Old Complaint Form Service",
+            ServiceCategoryId = Guid.Parse("c0000000-0000-0000-0000-000000000006")
+        };
+
+        context.Services.AddRange(legacy04, legacy11, legacy25);
+        await context.SaveChangesAsync();
+
+        // Act: Run BackfillNewServicesAsync
+        await FastTrackCatalogSeeder.BackfillNewServicesAsync(context);
+
+        // Assert: No duplicate codes exist across all services in database
+        var allServices = await context.Services.IgnoreQueryFilters().ToListAsync();
+        var codeGroups = allServices.GroupBy(s => s.Code.ToUpperInvariant()).Where(g => g.Count() > 1).ToList();
+        codeGroups.Should().BeEmpty(because: $"All service codes must be strictly unique, but duplicates found: {string.Join(", ", codeGroups.Select(g => $"{g.Key} ({g.Count()})"))}");
+
+        // Canonical services must exist with active status and their target IDs
+        var s104 = allServices.FirstOrDefault(s => s.Id == Guid.Parse("50000000-0000-0000-0000-000000000072"));
+        s104.Should().NotBeNull();
+        s104!.Code.Should().Be("NTC_1_04");
+        s104.IsDeleted.Should().BeFalse();
+
+        var s111 = allServices.FirstOrDefault(s => s.Id == Guid.Parse("50000000-0000-0000-0000-000000000073"));
+        s111.Should().NotBeNull();
+        s111!.Code.Should().Be("NTC_1_11");
+        s111.IsDeleted.Should().BeFalse();
+
+        var s125 = allServices.FirstOrDefault(s => s.Id == Guid.Parse("50000000-0000-0000-0000-000000000080"));
+        s125.Should().NotBeNull();
+        s125!.Code.Should().Be("NTC_1_25");
+        s125.IsDeleted.Should().BeFalse();
+
+        // Conflicting services must have had their codes disambiguated with _LEGACY_ and marked IsDeleted = true
+        var disambiguated = allServices.Where(s => s.Code.Contains("_LEGACY_")).ToList();
+        foreach (var leg in disambiguated)
+        {
+            leg.IsDeleted.Should().BeTrue();
         }
     }
 

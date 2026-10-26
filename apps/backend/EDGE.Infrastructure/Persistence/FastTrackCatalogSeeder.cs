@@ -53,21 +53,36 @@ public static class FastTrackCatalogSeeder
 
         var serviceDefs = FastTrackSeederData.GetServiceDefs(categoryIds);
         var existingServices = await context.Services.IgnoreQueryFilters().ToListAsync();
-        bool anyChange = false;
+        var targetIds = serviceDefs.Select(d => d.Id).ToHashSet();
 
+        // 1. Self-heal and disambiguate any existing services whose Code would collide with a target def but have a different Id.
+        // In PostgreSQL, IX_Services_Code enforces uniqueness across all rows (including soft-deleted ones).
+        bool codeConflictResolved = false;
         foreach (var def in serviceDefs)
         {
-            var s = existingServices.FirstOrDefault(x => x.Id == def.Id)
-                 ?? existingServices.FirstOrDefault(x => x.Code == def.Code);
+            var conflictingServices = existingServices
+                .Where(x => string.Equals(x.Code, def.Code, StringComparison.OrdinalIgnoreCase) && x.Id != def.Id)
+                .ToList();
 
-            if (s != null && s.Id != def.Id)
+            foreach (var conflict in conflictingServices)
             {
-                context.Services.Remove(s);
-                await context.SaveChangesAsync();
-                existingServices.Remove(s);
-                s = null;
-                anyChange = true;
+                conflict.Code = $"{def.Code}_LEGACY_{conflict.Id:N}";
+                conflict.IsDeleted = true;
+                conflict.IsDeletedBy = "System";
+                codeConflictResolved = true;
             }
+        }
+
+        if (codeConflictResolved)
+        {
+            await context.SaveChangesAsync();
+        }
+
+        // 2. Upsert target services by deterministic Id
+        bool anyChange = false;
+        foreach (var def in serviceDefs)
+        {
+            var s = existingServices.FirstOrDefault(x => x.Id == def.Id);
 
             if (s == null)
             {
@@ -104,16 +119,12 @@ public static class FastTrackCatalogSeeder
             }
         }
 
-        var activeReqServiceIds = serviceDefs
-            .Where(d => d.CategoryId == categoryIds["RequestsAndComplaints"])
-            .Select(d => d.Id)
-            .ToHashSet();
-
-        var obsoleteReqServices = existingServices
-            .Where(x => x.ServiceCategoryId == categoryIds["RequestsAndComplaints"] && !activeReqServiceIds.Contains(x.Id) && !x.IsDeleted)
+        // 3. Mark any obsolete non-target services as deleted
+        var obsoleteServices = existingServices
+            .Where(x => !targetIds.Contains(x.Id) && !x.IsDeleted && !x.Code.Contains("_LEGACY_"))
             .ToList();
 
-        foreach (var obs in obsoleteReqServices)
+        foreach (var obs in obsoleteServices)
         {
             obs.IsDeleted = true;
             obs.IsDeletedBy = "System";
@@ -122,6 +133,58 @@ public static class FastTrackCatalogSeeder
 
         if (anyChange)
             await context.SaveChangesAsync();
+
+        // 4. Safely clean up unreferenced legacy services where foreign keys permit
+        try
+        {
+            var legacyServices = existingServices
+                .Where(x => x.Code.Contains("_LEGACY_"))
+                .ToList();
+
+            if (legacyServices.Count > 0)
+            {
+                var legacyIds = legacyServices.Select(x => x.Id).ToList();
+                var servicesWithApps = (await context.Applicants.IgnoreQueryFilters()
+                    .Where(a => a.ServiceId.HasValue && legacyIds.Contains(a.ServiceId.Value))
+                    .Select(a => a.ServiceId!.Value)
+                    .ToListAsync())
+                    .ToHashSet();
+
+                var toRemove = legacyServices.Where(x => !servicesWithApps.Contains(x.Id)).ToList();
+                if (toRemove.Count > 0)
+                {
+                    var toRemoveIds = toRemove.Select(x => x.Id).ToList();
+                    var variantsToRemove = await context.ServiceVariants.IgnoreQueryFilters()
+                        .Where(v => toRemoveIds.Contains(v.ServiceId))
+                        .ToListAsync();
+                    if (variantsToRemove.Count > 0)
+                    {
+                        var varIds = variantsToRemove.Select(v => v.Id).ToList();
+                        var hasVarApps = await context.Applicants.IgnoreQueryFilters()
+                            .AnyAsync(a => a.ServiceVariantId.HasValue && varIds.Contains(a.ServiceVariantId.Value));
+                        if (!hasVarApps)
+                        {
+                            context.ServiceVariants.RemoveRange(variantsToRemove);
+                        }
+                    }
+
+                    var formsToRemove = await context.Forms.IgnoreQueryFilters()
+                        .Where(f => toRemoveIds.Contains(f.ServiceId))
+                        .ToListAsync();
+                    if (formsToRemove.Count > 0)
+                    {
+                        context.Forms.RemoveRange(formsToRemove);
+                    }
+
+                    context.Services.RemoveRange(toRemove);
+                    await context.SaveChangesAsync();
+                }
+            }
+        }
+        catch
+        {
+            // If physical delete fails due to database foreign keys, rows are already safely marked IsDeleted = true with unique _LEGACY_ codes.
+        }
     }
 
     public static async Task BackfillNewCatalogDetailsAsync(ApplicationDbContext context, ILogger? logger = null)

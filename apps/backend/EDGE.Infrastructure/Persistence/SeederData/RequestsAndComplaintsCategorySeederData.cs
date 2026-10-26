@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using EDGE.Domain.Enums;
 
@@ -91,7 +91,6 @@ public static class RequestsAndComplaintsCategorySeederData
     {
         ["NTC_1_24"] = Ntc124Contract,
         ["NTC_1_25"] = Ntc125Contract,
-        ["NTC_1_24"] = NtcReqComplaintsContract,
         ["NTC_REQ_COMPLAINTS"] = NtcReqComplaintsContract
     };
 
