@@ -88,6 +88,35 @@ export function isRequirementMandatory(req: ServiceRequirementItem | string): bo
   return true;
 }
 
+function isValidUploadEntry(val: unknown): boolean {
+  if (val === null || val === undefined) return false;
+  if (typeof val === "string") {
+    const s = val.trim();
+    return (
+      s.startsWith("data:") ||
+      s.startsWith("blob:") ||
+      s.startsWith("http:") ||
+      s.startsWith("https:") ||
+      s.startsWith("file:")
+    );
+  }
+  if (typeof val === "object") {
+    const obj = val as { name?: string; uri?: string; file?: unknown };
+    if (obj.file) return true;
+    if (typeof obj.uri === "string" && obj.uri.trim().length > 0) {
+      const u = obj.uri.trim();
+      return (
+        u.startsWith("data:") ||
+        u.startsWith("blob:") ||
+        u.startsWith("http:") ||
+        u.startsWith("https:") ||
+        u.startsWith("file:")
+      );
+    }
+  }
+  return false;
+}
+
 export function isRequirementUploaded(
   req: ServiceRequirementItem | string,
   idx: number,
@@ -110,20 +139,13 @@ export function isRequirementUploaded(
 
   for (const k of candidateKeys) {
     const val = uploads[k];
-    if (val !== undefined && val !== null) {
-      if (typeof val === "string" && val.trim().length > 0) return true;
-      if (typeof val === "object" && Boolean(val.name || val.uri)) return true;
-    }
+    if (isValidUploadEntry(val)) return true;
   }
 
   // Also check if any key in uploads matches case-insensitively or by prefix/substring
   const uploadEntries = Object.entries(uploads);
   for (const [upKey, upVal] of uploadEntries) {
-    if (!upVal) continue;
-    const isValidVal =
-      (typeof upVal === "string" && upVal.trim().length > 0) ||
-      (typeof upVal === "object" && Boolean(upVal.name || upVal.uri));
-    if (!isValidVal) continue;
+    if (!isValidUploadEntry(upVal)) continue;
 
     const upKeyLower = upKey.toLowerCase().trim();
     if (

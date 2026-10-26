@@ -202,10 +202,17 @@ export function CameraCaptureModal({
 
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
+    let persistentDataUrl = "";
+    try {
+      persistentDataUrl = canvas.toDataURL("image/jpeg", 0.88);
+    } catch {
+      // ignore
+    }
+
     canvas.toBlob(
       (blob) => {
         if (blob !== null) {
-          const previewUrl = URL.createObjectURL(blob);
+          const previewUrl = persistentDataUrl || URL.createObjectURL(blob);
           const fileName = `document_photo_${Date.now()}.jpg`;
           setCapturedPreviewUrl(previewUrl);
           setCapturedBlob(blob);
