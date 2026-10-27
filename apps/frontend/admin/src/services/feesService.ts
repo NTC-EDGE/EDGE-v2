@@ -151,11 +151,20 @@ export function useFeesService() {
   };
 
   // --- SERVICE VARIANT FEES CRUD ---
-  const useServiceVariantFees = (serviceVariantId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceVariantFees = (
+    serviceVariantId?: string,
+    pageNumber?: number,
+    pageSize?: number,
+    searchTerm?: string,
+    enabled = true,
+    filters?: { serviceId?: string; applicationType?: string }
+  ) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
+      if (filters?.serviceId) params.append('serviceId', filters.serviceId);
+      if (filters?.applicationType) params.append('applicationType', filters.applicationType);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);
@@ -187,12 +196,22 @@ export function useFeesService() {
   };
 
   // --- SERVICE VARIANT ELEMENT FEES CRUD ---
-  const useServiceVariantElementFees = (serviceVariantId?: string, elementId?: string, pageNumber?: number, pageSize?: number, searchTerm?: string, enabled = true) => {
+  const useServiceVariantElementFees = (
+    serviceVariantId?: string,
+    elementId?: string,
+    pageNumber?: number,
+    pageSize?: number,
+    searchTerm?: string,
+    enabled = true,
+    filters?: { serviceId?: string; applicationType?: string }
+  ) => {
     let url: string | null = null;
     if (enabled) {
       const params = new URLSearchParams();
       if (serviceVariantId) params.append('serviceVariantId', serviceVariantId);
       if (elementId) params.append('elementId', elementId);
+      if (filters?.serviceId) params.append('serviceId', filters.serviceId);
+      if (filters?.applicationType) params.append('applicationType', filters.applicationType);
       if (pageNumber !== undefined) params.append('pageNumber', pageNumber.toString());
       if (pageSize !== undefined) params.append('pageSize', pageSize.toString());
       if (searchTerm) params.append('searchTerm', searchTerm);

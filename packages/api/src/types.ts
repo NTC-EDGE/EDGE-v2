@@ -646,6 +646,8 @@ export interface ServiceVariantDetail {
   serviceId: string;
   serviceName?: string | null;
   type?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
 }
 
 export type FeeCalculationMode = 'StandardMultiplier' | 'CustomFormula' | 'TieredMatrix' | number;
@@ -706,6 +708,8 @@ export interface ServiceVariantFeeGroup {
   serviceId?: string | null;
   serviceName?: string | null;
   variantType?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
   totalBaseAmount: number;
   fees: ServiceVariantFee[];
   statutoryFormula?: string | null;
@@ -717,6 +721,8 @@ export interface ServiceVariantElementFeeGroup {
   serviceId?: string | null;
   serviceName?: string | null;
   variantType?: string | null;
+  variantName?: string | null;
+  applicationType?: string | null;
   totalBaseAmount: number;
   elementFees: ServiceVariantElementFee[];
   statutoryFormula?: string | null;

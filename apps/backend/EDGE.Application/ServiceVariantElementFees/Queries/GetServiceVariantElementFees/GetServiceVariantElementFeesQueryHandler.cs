@@ -32,17 +32,29 @@ public class GetServiceVariantElementFeesQueryHandler : IRequestHandler<GetServi
 
         var elementFormulas = await _formulaRepository.GetAllElementFormulasAsync(cancellationToken);
 
+        if (request.ServiceId.HasValue)
+        {
+            fees = fees.Where(svef => svef.ServiceVariant != null && svef.ServiceVariant.ServiceId == request.ServiceId.Value).ToList();
+        }
+
         if (request.ElementId.HasValue)
         {
             fees = fees.Where(svef => svef.ElementId == request.ElementId.Value).ToList();
         }
 
+        if (!string.IsNullOrWhiteSpace(request.ApplicationType))
+        {
+            fees = fees.Where(svef => svef.ServiceVariant != null && svef.ServiceVariant.Type.ToString().Equals(request.ApplicationType.Trim(), StringComparison.OrdinalIgnoreCase)).ToList();
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
-            var search = request.SearchTerm.ToLower();
+            var search = request.SearchTerm.Trim().ToLower();
             fees = fees.Where(svef => 
                 (svef.ServiceVariant?.Service != null && svef.ServiceVariant.Service.Name.ToLower().Contains(search)) || 
+                (svef.ServiceVariant?.Service != null && svef.ServiceVariant.Service.Code != null && svef.ServiceVariant.Service.Code.ToLower().Contains(search)) || 
                 (svef.ServiceVariant != null && svef.ServiceVariant.Type.ToString().ToLower().Contains(search)) || 
+                (svef.ServiceVariant != null && svef.ServiceVariant.Description != null && svef.ServiceVariant.Description.ToLower().Contains(search)) || 
                 (svef.Element != null && svef.Element.Code.ToLower().Contains(search)) || 
                 (svef.Element != null && svef.Element.Name.ToLower().Contains(search)) || 
                 (svef.Fee != null && svef.Fee.Code.ToLower().Contains(search)) || 
@@ -57,6 +69,8 @@ public class GetServiceVariantElementFeesQueryHandler : IRequestHandler<GetServi
                 svef.ServiceVariant.Id,
                 svef.ServiceVariant.ServiceId,
                 svef.ServiceVariant.Service?.Name,
+                svef.ServiceVariant.Type.ToString(),
+                svef.ServiceVariant.Description ?? svef.ServiceVariant.Type.ToString(),
                 svef.ServiceVariant.Type.ToString()
             ) : null,
             svef.ElementId,
@@ -75,6 +89,7 @@ public class GetServiceVariantElementFeesQueryHandler : IRequestHandler<GetServi
                 svef.ServiceVariantId,
                 ServiceId = svef.ServiceVariant?.ServiceId,
                 ServiceName = svef.ServiceVariant?.ServiceName,
+                VariantName = svef.ServiceVariant?.VariantName ?? svef.ServiceVariant?.Type,
                 VariantType = svef.ServiceVariant?.Type
             })
             .Select(g => {
@@ -82,15 +97,21 @@ public class GetServiceVariantElementFeesQueryHandler : IRequestHandler<GetServi
                 var ef = firstFee != null
                     ? elementFormulas.FirstOrDefault(f => f.ServiceVariantId == g.Key.ServiceVariantId && f.ElementId == firstFee.ElementId)
                     : null;
+                var elementTotal = g.GroupBy(x => x.ElementId)
+                    .Select(eg => eg.Sum(x => x.Amount))
+                    .FirstOrDefault();
+
                 return new ServiceVariantElementFeeGroupDto(
                     g.Key.ServiceVariantId,
                     g.Key.ServiceId,
                     g.Key.ServiceName,
                     g.Key.VariantType,
-                    g.Sum(x => x.Amount),
+                    elementTotal,
                     g.ToList(),
                     ef?.FormulaExpression,
-                    ef?.ApplyLateRenewalSurcharge
+                    ef?.ApplyLateRenewalSurcharge,
+                    g.Key.VariantName,
+                    g.Key.VariantType
                 );
             })
             .ToList();

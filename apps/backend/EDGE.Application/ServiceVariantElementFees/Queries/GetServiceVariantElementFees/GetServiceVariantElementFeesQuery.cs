@@ -7,7 +7,9 @@ namespace EDGE.Application.ServiceVariantElementFees.Queries.GetServiceVariantEl
 
 public record GetServiceVariantElementFeesQuery(
     Guid? ServiceVariantId = null,
+    Guid? ServiceId = null,
     Guid? ElementId = null,
+    string? ApplicationType = null,
     int? PageNumber = null,
     int? PageSize = null,
     string? SearchTerm = null
