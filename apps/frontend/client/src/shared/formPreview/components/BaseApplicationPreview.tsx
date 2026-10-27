@@ -352,7 +352,7 @@ export function BaseApplicationPreview({
         examEducationFields={examEducationFields}
         examAssistanceFields={examAssistanceFields}
         onPreviewFile={onPreviewFile}
-        suppressEducationSection={hasEducationInApplicantCard}
+        suppressEducationSection={false}
       />
 
       {/* Extension After Sections */}

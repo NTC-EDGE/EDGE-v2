@@ -51,14 +51,13 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression', () => {
     expect(isJurisdictionOrVariantField(FIELD_ID_ADMISSION_NO)).toBe(true);
     expect(isJurisdictionOrVariantField('Admission Slip Number')).toBe(true);
 
-    // Education fields should be recognized as applicant details
-    expect(isApplicantParticularField(FIELD_ID_SCHOOL_NAME)).toBe(true);
-    expect(isApplicantParticularField('School / University Attended')).toBe(true);
-    expect(isApplicantParticularField(FIELD_ID_COURSE_DEGREE)).toBe(true);
-    expect(isApplicantParticularField('Course / Degree Program')).toBe(true);
-    expect(isApplicantParticularField(FIELD_ID_YEAR_GRAD)).toBe(true);
-    expect(isApplicantParticularField('Year Graduated')).toBe(true);
-    expect(isApplicantParticularField('Special Order (SO) Number')).toBe(true);
+    // Education fields are service form fields, NOT generic applicant profile details
+    expect(isApplicantParticularField(FIELD_ID_SCHOOL_NAME)).toBe(false);
+    expect(isApplicantParticularField('School / University Attended')).toBe(false);
+    expect(isApplicantParticularField(FIELD_ID_COURSE_DEGREE)).toBe(false);
+    expect(isApplicantParticularField('Course / Degree Program')).toBe(false);
+    expect(isApplicantParticularField(FIELD_ID_YEAR_GRAD)).toBe(false);
+    expect(isApplicantParticularField('Year Graduated')).toBe(false);
 
     // Education checker identifies them
     expect(isExamEducationField('School / University Attended', FIELD_ID_SCHOOL_NAME)).toBe(true);
@@ -169,14 +168,13 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression', () => {
     expect(previewHtml).not.toContain('Application Particulars &amp; Technical Details');
     expect(previewHtml).not.toContain('Application Particulars & Technical Details');
 
-    // 2. Primary Applicant Details must have Educational Background
+    // 2. Primary Applicant Details only contains personal identity (not educational background)
     expect(previewHtml).toContain('Primary Applicant Details');
-    expect(previewHtml).toContain('EDUCATIONAL BACKGROUND');
+    expect(previewHtml).not.toContain('EDUCATIONAL BACKGROUND');
+
+    // 3. Dedicated "Educational Background & Qualifications" card IS rendered for exam applications
+    expect(previewHtml).toContain('Educational Background &amp; Qualifications');
     expect(previewHtml).toContain('Polytechnic University of the Philippines');
     expect(previewHtml).toContain('BS Electronics Engineering');
-
-    // 3. Separate duplicate "Educational Background & Qualifications" card MUST NOT be rendered
-    expect(previewHtml).not.toContain('Educational Background &amp; Qualifications');
-    expect(previewHtml).not.toContain('Educational Background & Qualifications');
   });
 });

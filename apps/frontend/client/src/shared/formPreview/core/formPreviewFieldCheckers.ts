@@ -75,48 +75,6 @@ export const isApplicantParticularField = (labelOrId: string): boolean => {
     return true;
   }
 
-  // Educational background fields — rendered inside Primary Applicant Details
-  if (
-    rawLower === 'fd000000-0000-0000-0000-000000000006' ||
-    lower === 'fd000000 0000 0000 0000 000000000006' ||
-    rawLower === 'fd000000-0000-0000-0000-000000000061' ||
-    lower === 'fd000000 0000 0000 0000 000000000061' ||
-    rawLower === 'fd000000-0000-0000-0000-000000000062' ||
-    lower === 'fd000000 0000 0000 0000 000000000062' ||
-    rawLower === 'fd000000-0000-0000-0000-000000000063' ||
-    lower === 'fd000000 0000 0000 0000 000000000063' ||
-    lower === 'education' ||
-    lower === 'school' ||
-    lower === 'school attended' ||
-    lower === 'schoolattended' ||
-    lower === 'school name' ||
-    lower === 'schoolname' ||
-    lower === 'school / university attended' ||
-    lower === 'school/university attended' ||
-    lower === 'course' ||
-    lower === 'course taken' ||
-    lower === 'coursetaken' ||
-    lower === 'course degree' ||
-    lower === 'coursedegree' ||
-    lower === 'course / degree program' ||
-    lower === 'course/degree program' ||
-    lower === 'degree' ||
-    lower === 'year graduated' ||
-    lower === 'yeargraduated' ||
-    lower === 'special order no' ||
-    lower === 'special order number' ||
-    lower === 'special order (so) no.' ||
-    lower === 'special order (so) number' ||
-    lower === 'special order (so) no' ||
-    lower === 'special order' ||
-    lower === 'specialorderno' ||
-    lower === 'so number' ||
-    lower === 'educational background' ||
-    lower === 'educational qualification'
-  ) {
-    return true;
-  }
-
   // These keywords indicate service-specific / technical / equipment details — don't suppress
   if (
     lower.includes('dealer') ||

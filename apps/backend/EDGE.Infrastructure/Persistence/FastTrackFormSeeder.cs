@@ -131,7 +131,7 @@ public static class FastTrackFormSeeder
                     s.Title.Contains("Personal Information", StringComparison.OrdinalIgnoreCase) ||
                     s.Title.Contains("Address Information", StringComparison.OrdinalIgnoreCase) ||
                     s.Title.Contains("Contact Information", StringComparison.OrdinalIgnoreCase) ||
-                    s.Title.Contains("Educational Background", StringComparison.OrdinalIgnoreCase) ||
+                    false ||
                     s.Title.Contains("Complainant", StringComparison.OrdinalIgnoreCase) ||
                     s.Title.Contains("Declaration", StringComparison.OrdinalIgnoreCase) ||
                     s.Title.Contains("Acknowledgement and Signature", StringComparison.OrdinalIgnoreCase) ||
