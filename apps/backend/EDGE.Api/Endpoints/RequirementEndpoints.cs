@@ -137,9 +137,13 @@ public static class RequirementEndpoints
     }
 
     [HasPermission(Permissions.ReadRequirements)]
-    public static async Task<IResult> GetRequirements(IMediator mediator)
+    public static async Task<IResult> GetRequirements(
+        int? pageNumber,
+        int? pageSize,
+        string? searchTerm,
+        IMediator mediator)
     {
-        var result = await mediator.Send(new GetRequirementsQuery());
+        var result = await mediator.Send(new GetRequirementsQuery(pageNumber, pageSize, searchTerm));
         return Results.Ok(result);
     }
 

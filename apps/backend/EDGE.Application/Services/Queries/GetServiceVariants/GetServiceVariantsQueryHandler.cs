@@ -28,6 +28,10 @@ public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariants
         {
             variants = variants.Where(v => v.ServiceId == request.ServiceId.Value).ToList();
         }
+        else if (request.CategoryId.HasValue)
+        {
+            variants = variants.Where(v => v.Service != null && v.Service.ServiceCategoryId == request.CategoryId.Value).ToList();
+        }
 
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
@@ -35,9 +39,16 @@ public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariants
             variants = variants.Where(v =>
                 v.Type.ToString().ToLower().Contains(search) ||
                 (v.Description != null && v.Description.ToLower().Contains(search)) ||
-                (v.Service != null && v.Service.Name.ToLower().Contains(search))
+                (v.Service != null && v.Service.Name.ToLower().Contains(search)) ||
+                (v.IsIndividual ? "individual" : "company").Contains(search)
             ).ToList();
         }
+
+        variants = variants
+            .OrderBy(v => v.Service != null ? v.Service.Name : string.Empty)
+            .ThenBy(v => v.Type.ToString())
+            .ThenBy(v => v.Description ?? string.Empty)
+            .ToList();
 
         int totalCount = variants.Count;
         int pageNumber = request.PageNumber ?? 1;

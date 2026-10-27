@@ -204,15 +204,16 @@ public static class ServiceVariantEndpoints
         return result.Succeeded ? Results.Ok(result) : Results.BadRequest(result);
     }
 
-    [HasPermission(Permissions.SystemAdmin)]
+    [HasPermission(Permissions.ReadServices)]
     public static async Task<IResult> GetServiceVariants(
         Guid? serviceId,
+        Guid? categoryId,
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
         IMediator mediator)
     {
-        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId, pageNumber, pageSize, searchTerm));
+        var result = await mediator.Send(new GetServiceVariantsQuery(serviceId, pageNumber, pageSize, searchTerm, categoryId));
         return Results.Ok(result);
     }
 }

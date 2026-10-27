@@ -20,6 +20,8 @@ interface ServiceVariantsTabProps {
   onDeleteVariant: (id: string) => void;
   categories: ServiceCategory[];
   services: ServiceCatalogItem[];
+  filterCategoryId?: string;
+  onFilterCategoryChange?: (categoryId: string) => void;
   filterServiceId: string;
   onFilterServiceChange: (serviceId: string) => void;
   searchTerm: string;
@@ -39,6 +41,8 @@ export function ServiceVariantsTab({
   onDeleteVariant,
   categories,
   services,
+  filterCategoryId = "",
+  onFilterCategoryChange,
   filterServiceId,
   onFilterServiceChange,
   searchTerm,
@@ -46,7 +50,8 @@ export function ServiceVariantsTab({
   onClearFilters,
 }: ServiceVariantsTabProps) {
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [localCategoryId, setLocalCategoryId] = useState<string>("");
+  const selectedCategoryId = filterCategoryId !== undefined && filterCategoryId !== "" ? filterCategoryId : localCategoryId;
 
   // Filter services list based on selected category (UI-only helper for easy navigation)
   const filteredServices = useMemo(() => {
@@ -57,7 +62,10 @@ export function ServiceVariantsTab({
   }, [services, selectedCategoryId]);
 
   const handleCategoryChange = (categoryId: string) => {
-    setSelectedCategoryId(categoryId);
+    setLocalCategoryId(categoryId);
+    if (onFilterCategoryChange) {
+      onFilterCategoryChange(categoryId);
+    }
     if (categoryId.trim().length > 0) {
       const isCurrentServiceInCategory = services.some(
         (s) => s.id === filterServiceId && s.serviceCategoryId === categoryId
@@ -69,7 +77,10 @@ export function ServiceVariantsTab({
   };
 
   const handleClearAll = () => {
-    setSelectedCategoryId("");
+    setLocalCategoryId("");
+    if (onFilterCategoryChange) {
+      onFilterCategoryChange("");
+    }
     onClearFilters();
   };
 
@@ -177,6 +188,27 @@ export function ServiceVariantsTab({
                 })),
               ]}
             />
+          </div>
+
+          {/* Always Visible Search Input */}
+          <div className="relative w-full sm:w-56">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search variants..."
+              value={searchTerm}
+              onChange={(e) => onSearchChange(e.target.value)}
+              className="w-full pl-8 pr-7 py-1.5 bg-white dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+            />
+            {searchTerm.length > 0 && (
+              <button
+                type="button"
+                onClick={() => onSearchChange("")}
+                className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
+              >
+                <X className="w-3 h-3" />
+              </button>
+            )}
           </div>
 
           {/* Filter toggle button */}
