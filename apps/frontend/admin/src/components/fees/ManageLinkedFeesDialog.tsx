@@ -170,7 +170,15 @@ export function ManageLinkedFeesDialog({
     if (isVariant) {
       return safeVariantFeesList.reduce((acc, curr) => acc + (curr.amount || 0), 0);
     }
-    return safeElementFeesList.reduce((acc, curr) => acc + (curr.amount || 0), 0);
+    // For elements: applicants select one element per application during SOA generation.
+    // Calculate per-element rate rather than summing across all elements.
+    const byElem = new Map<string, number>();
+    for (const f of safeElementFeesList) {
+      const key = f.elementId || "default";
+      byElem.set(key, (byElem.get(key) ?? 0) + (f.amount || 0));
+    }
+    const amounts = Array.from(byElem.values());
+    return amounts.length > 0 ? amounts[0] : 0;
   }, [isService, isVariant, safeServiceFeesList, safeVariantFeesList, safeElementFeesList]);
 
   const itemCount = isService
@@ -200,16 +208,22 @@ export function ManageLinkedFeesDialog({
     }
     if (isElement) {
       if (safeElementFeesList.length === 0) return null;
-      const terms = safeElementFeesList.map((f) => {
+      // In element fee schedules, applicants select one element per application during SOA generation.
+      // Deduplicate distinct fee terms so it displays "TOTAL = ROC" instead of repeating "ROC + ROC + ROC + ROC".
+      const distinctTerms: string[] = [];
+      for (const f of safeElementFeesList) {
         const code = f.feeCode ?? "FEE";
-        if (f.multiplyByValidityYears && f.multiplyByUnits) return `(${code})(YR)(UNIT)`;
-        if (f.multiplyByValidityYears) return `(${code})(YR)`;
-        if (f.multiplyByUnits) return `(${code})(UNIT)`;
-        if (f.multiplyByPages) return `(${code})(COPY)`;
-        return code;
-      });
+        let term = code;
+        if (f.multiplyByValidityYears && f.multiplyByUnits) term = `(${code})(YR)(UNIT)`;
+        else if (f.multiplyByValidityYears) term = `(${code})(YR)`;
+        else if (f.multiplyByUnits) term = `(${code})(UNIT)`;
+        else if (f.multiplyByPages) term = `(${code})(COPY)`;
+        if (!distinctTerms.includes(term)) {
+          distinctTerms.push(term);
+        }
+      }
       const hasSur = safeElementFeesList.some((f) => f.applyLateRenewalSurcharge);
-      return `TOTAL = ${terms.join(" + ")}${hasSur ? " + SUR" : ""}`;
+      return `TOTAL = ${distinctTerms.join(" + ")}${hasSur ? " + SUR" : ""}`;
     }
     return null;
   }, [isService, isVariant, isElement, safeServiceFeesList, safeVariantFeesList, safeElementFeesList]);
@@ -401,7 +415,7 @@ export function ManageLinkedFeesDialog({
               <div className="px-3 py-1.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-700 dark:text-emerald-400 text-xs font-mono font-bold flex items-center gap-1.5">
                 <Coins className="w-4 h-4" />
                 <span>
-                  Base Total: ₱
+                  {isElement ? "Rate / Element: ₱" : "Base Total: ₱"}
                   {(totalBaseSum ?? 0).toLocaleString(undefined, {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,

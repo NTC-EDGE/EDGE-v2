@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView } from 'react-native';
 import { Icon } from '@edge/ui';
 import { ClientSoaOpTabsProps } from './clientSoaOpPreviewTypes';
 import { tabsStyles } from './styles/clientSoaOpTabsStyles';
@@ -24,7 +24,12 @@ export function ClientSoaOpTabs({
   return (
     <>
       <View style={tabsStyles.tabBar}>
-        <TouchableOpacity
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={tabsStyles.tabBarScroll}
+        >
+          <TouchableOpacity
           style={[tabsStyles.tabItem, activeTab === 'soa' && tabsStyles.tabItemActiveSoa]}
           onPress={() => onSelectTab('soa')}
           activeOpacity={0.75}
@@ -73,6 +78,7 @@ export function ClientSoaOpTabs({
             </View>
           </TouchableOpacity>
         )}
+        </ScrollView>
       </View>
 
       {activeTab === 'or' && orList.length > 1 && (
@@ -83,7 +89,11 @@ export function ClientSoaOpTabs({
               MULTIPLE RECEIPTS ISSUED ({orList.length} OFFICIAL RECEIPTS):
             </Text>
           </View>
-          <View style={tabsStyles.multiOrChipsRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={tabsStyles.multiOrChipsRow}
+          >
             {orList.map((token, idx) => {
               const isSelected = effectiveSelectedOr === token;
               const label = token.startsWith('#') ? token : `#${token}`;
@@ -101,7 +111,7 @@ export function ClientSoaOpTabs({
                 </TouchableOpacity>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
       )}
 

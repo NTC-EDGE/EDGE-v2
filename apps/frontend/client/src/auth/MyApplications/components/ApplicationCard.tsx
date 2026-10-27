@@ -280,11 +280,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: 14,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
     backgroundColor: '#F8FAFC',
     borderBottomWidth: 1,
     borderBottomColor: '#F1F5F9',
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   leftBadges: {
@@ -357,7 +359,7 @@ const styles = StyleSheet.create({
   },
 
   cardBody: {
-    padding: SPACING[20],
+    padding: SPACING[16],
     flex: 1,
     justifyContent: 'center',
   },
@@ -444,12 +446,13 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: SPACING[20],
-    paddingVertical: 14,
+    paddingHorizontal: SPACING[16],
+    paddingVertical: 12,
     backgroundColor: '#FFFFFF',
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
-    gap: 12,
+    flexWrap: 'wrap',
+    gap: 8,
   },
 
   footerInfo: {
@@ -457,6 +460,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
     flex: 1,
+    minWidth: 120,
   },
   footerInfoText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

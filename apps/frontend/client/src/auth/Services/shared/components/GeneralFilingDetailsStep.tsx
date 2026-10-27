@@ -73,6 +73,20 @@ export function GeneralFilingDetailsStep({
     });
   }
 
+  // Pre-fill educational fields if present on applicant and not yet in dynamicValuesRecord
+  if (activeApplicant.schoolName && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] && !dynamicValuesRecord["schoolName"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000061"] = activeApplicant.schoolName;
+    dynamicValuesRecord["schoolName"] = activeApplicant.schoolName;
+  }
+  if (activeApplicant.courseDegree && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] && !dynamicValuesRecord["courseDegree"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000062"] = activeApplicant.courseDegree;
+    dynamicValuesRecord["courseDegree"] = activeApplicant.courseDegree;
+  }
+  if (activeApplicant.yearGraduated && !dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] && !dynamicValuesRecord["yearGraduated"]) {
+    dynamicValuesRecord["fd000000-0000-0000-0000-000000000063"] = activeApplicant.yearGraduated;
+    dynamicValuesRecord["yearGraduated"] = activeApplicant.yearGraduated;
+  }
+
   useEffect(() => {
     if (!effectiveForm || !effectiveForm.sections || effectiveForm.sections.length === 0) {
       onRequiredFieldsChange?.([]);
@@ -218,9 +232,19 @@ export function GeneralFilingDetailsStep({
         }
       }
 
+      const educationalUpdates: Partial<GeneralApplicantData> = {};
+      if (fIdLower.includes("0061") || lblLower.includes("school") || lblLower.includes("university")) {
+        educationalUpdates.schoolName = value;
+      } else if (fIdLower.includes("0062") || lblLower.includes("course") || lblLower.includes("degree")) {
+        educationalUpdates.courseDegree = value;
+      } else if (fIdLower.includes("0063") || (lblLower.includes("year") && lblLower.includes("grad"))) {
+        educationalUpdates.yearGraduated = value;
+      }
+
       return {
         formFieldValues: nextArr,
         ...(nextCopyOfPermit ? { copyOfPermitData: nextCopyOfPermit } : {}),
+        ...educationalUpdates,
       };
     });
   };
@@ -458,7 +482,7 @@ const styles = StyleSheet.create({
   signatureCard: {
     backgroundColor: COLORS.neutral.white,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     marginTop: 8,
@@ -472,7 +496,8 @@ const styles = StyleSheet.create({
   },
   signatureHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     gap: 12,
   },
   iconCircle: {

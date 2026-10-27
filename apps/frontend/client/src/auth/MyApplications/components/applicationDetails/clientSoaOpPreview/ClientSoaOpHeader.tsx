@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Platform, GestureResponderEvent } from 'react-native';
+import { View, Text, TouchableOpacity, Platform, GestureResponderEvent, useWindowDimensions } from 'react-native';
 import { Icon } from '@edge/ui';
 import { ClientSoaOpHeaderProps } from './clientSoaOpPreviewTypes';
 import { headerStyles } from './styles/clientSoaOpHeaderStyles';
@@ -21,6 +21,8 @@ export function ClientSoaOpHeader({
   onClose,
   dropdownMenu,
 }: Props) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const iconBg = activeTab === 'or'
     ? { backgroundColor: '#ECFDF5' }
     : activeTab === 'op'
@@ -51,20 +53,20 @@ export function ClientSoaOpHeader({
 
   return (
     <View style={headerStyles.modalHeader}>
-      <View style={headerStyles.headerLeft}>
+      <View style={[headerStyles.headerLeft, isMobile && { minWidth: 0, flex: 1 }]}>
         <View style={[headerStyles.headerIconCircle, iconBg]}>
           <Icon name={iconName} size={20} color={iconColor} />
         </View>
-        <View>
-          <Text style={headerStyles.modalTitle}>Application Reports • {tabTitle}</Text>
-          <Text style={headerStyles.modalSubtitle}>
+        <View style={{ flex: 1, minWidth: 0 }}>
+          <Text style={headerStyles.modalTitle} numberOfLines={1}>Application Reports • {tabTitle}</Text>
+          <Text style={headerStyles.modalSubtitle} numberOfLines={1}>
             Ref #{refNum} • {applicantName}
           </Text>
         </View>
       </View>
 
       <View style={headerStyles.headerActions}>
-        {Platform.OS === 'web' && (
+        {Platform.OS === 'web' && !isMobile && (
           <View style={headerStyles.formatSwitcher}>
             <TouchableOpacity
               style={[headerStyles.formatBtn, viewFormat === 'pdf' && headerStyles.formatBtnActive]}
@@ -96,15 +98,16 @@ export function ClientSoaOpHeader({
         )}
 
         <TouchableOpacity
-          style={[headerStyles.printBtn, printBg]}
+          style={[headerStyles.printBtn, printBg, isMobile && { paddingHorizontal: 8 }]}
           onPress={() => {
             onCloseActionMenu();
             onPrint();
           }}
           activeOpacity={0.75}
+          accessibilityLabel="Print report"
         >
           <Icon name="printer" size={15} color="#FFFFFF" />
-          <Text style={headerStyles.printBtnText}>Print</Text>
+          {!isMobile && <Text style={headerStyles.printBtnText}>Print</Text>}
         </TouchableOpacity>
 
         <TouchableOpacity

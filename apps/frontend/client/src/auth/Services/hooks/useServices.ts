@@ -883,10 +883,24 @@ export function useServices() {
   const activeCategory = useMemo(() => {
     let catId = selectedCategoryId;
     if (catId === null && selectedService) {
-      catId = (selectedService as any).serviceCategoryId || (selectedService as any).categoryId || null;
+      catId = selectedService.serviceCategoryId || selectedService.serviceCategory?.id || null;
     }
     if (catId === null || !backendCategories) return null;
-    const category = backendCategories.find((c: any) => c.id === catId || c.code?.toLowerCase() === catId?.toLowerCase());
+    const category = backendCategories.find((c: any) => {
+      if (c.id === catId) return true;
+      if (typeof c.code === "string" && typeof catId === "string") {
+        const cCode = c.code.toLowerCase();
+        const catLower = catId.toLowerCase();
+        if (cCode === catLower) return true;
+        if (catLower === "exams" && cCode === "exam") return true;
+        if (catLower === "certificates" && cCode === "cert") return true;
+        if (catLower === "licenses" && cCode === "lic") return true;
+        if (catLower === "permits" && cCode === "prm") return true;
+        if (catLower === "accreditations" && cCode === "accr") return true;
+        if (catLower === "complaints" && (cCode === "req" || c.type === "RequestsAndComplaints")) return true;
+      }
+      return false;
+    });
     if (!category) return null;
 
     const rawServices = (backendServices && backendServices.length > 0)

@@ -15,6 +15,7 @@ export function Services() {
   const {
     isMobile,
     selectedService,
+    selectedCategoryId,
     isModalOpen,
     setIsModalOpen,
     submitting,
@@ -56,10 +57,11 @@ export function Services() {
         {/* Content Column (Category Grid OR Sub-items List / Bulk Drafts List) */}
         {!hideCategories && <ContentColumn servicesState={servicesState} />}
 
-        {/* Details / Interactive Panel Column (Tablet / Web View) */}
+        {/* Details / Interactive Panel Column (Tablet / Web View / Mobile Selected Category) */}
         {(!isMobile ||
           activeWizardService !== null ||
-          selectedService !== null) && (
+          selectedService !== null ||
+          selectedCategoryId !== null) && (
           <DetailsColumn servicesState={servicesState} />
         )}
       </View>

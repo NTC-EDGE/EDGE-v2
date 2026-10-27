@@ -7,6 +7,7 @@ import {
   ScrollView,
   ActivityIndicator,
   Platform,
+  useWindowDimensions,
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useApi } from "../../shared/hooks/useApi";
@@ -59,6 +60,8 @@ interface SingleApplicationResponse {
 const LIST_PAGE_SIZE = 6;
 
 export function MyApplications() {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const api = useApi();
 
   // Applications list state from API
@@ -359,9 +362,17 @@ export function MyApplications() {
             onScrollBeginDrag={() => setOpenDropdown(null)}
           >
             {/* ── Hero Section ───────────────────────────────────────────── */}
-            <View style={[styles.heroHeader, { flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start" }]}>
-              <View style={{ flex: 1, paddingRight: 16 }}>
-                <Text style={styles.heroTitle}>My Applications Dashboard</Text>
+            <View style={[
+              styles.heroHeader,
+              {
+                flexDirection: isMobile ? "column" : "row",
+                justifyContent: "space-between",
+                alignItems: isMobile ? "stretch" : "flex-start",
+                gap: 12,
+              }
+            ]}>
+              <View style={{ flex: isMobile ? undefined : 1, paddingRight: isMobile ? 0 : 16 }}>
+                <Text style={[styles.heroTitle, isMobile && { fontSize: 20 }]}>My Applications Dashboard</Text>
                 <Text style={styles.heroSubtitle}>
                   View details, check status timelines, and download official
                   documents for your single and bulk applications.
@@ -372,6 +383,7 @@ export function MyApplications() {
                 style={{
                   flexDirection: "row",
                   alignItems: "center",
+                  justifyContent: "center",
                   backgroundColor: "#EFF6FF",
                   borderWidth: 1,
                   borderColor: "#BFDBFE",
@@ -379,6 +391,7 @@ export function MyApplications() {
                   paddingHorizontal: 14,
                   borderRadius: 8,
                   gap: 6,
+                  alignSelf: isMobile ? "flex-start" : "auto",
                 }}
                 activeOpacity={0.8}
               >

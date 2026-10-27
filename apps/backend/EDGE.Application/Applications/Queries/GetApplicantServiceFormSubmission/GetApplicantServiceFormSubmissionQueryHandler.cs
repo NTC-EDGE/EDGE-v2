@@ -21,7 +21,6 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
         Guid.Parse("fd000000-0000-0000-0000-000000000003"), // Complete Address
         Guid.Parse("fd000000-0000-0000-0000-000000000004"), // Contact / Mobile Number
         Guid.Parse("fd000000-0000-0000-0000-000000000005"), // Email Address
-        Guid.Parse("fd000000-0000-0000-0000-000000000006"), // Education / School Attended
         Guid.Parse("fd000000-0000-0000-0000-000000000012"), // Applicant Signature
         Guid.Parse("fd000000-0000-0000-0000-000000000013"), // Declaration
         Guid.Parse("fd000000-0000-0000-0000-000000000041"), // Sex / Gender
@@ -33,9 +32,6 @@ public class GetApplicantServiceFormSubmissionQueryHandler : IRequestHandler<Get
         Guid.Parse("fd000000-0000-0000-0000-000000000054"), // Barangay
         Guid.Parse("fd000000-0000-0000-0000-000000000055"), // Street
         Guid.Parse("fd000000-0000-0000-0000-000000000056"), // Zip Code
-        Guid.Parse("fd000000-0000-0000-0000-000000000061"), // School Name
-        Guid.Parse("fd000000-0000-0000-0000-000000000062"), // Course / Degree
-        Guid.Parse("fd000000-0000-0000-0000-000000000063"), // Year Graduated
         Guid.Parse("fd000000-0000-0000-0000-000000000081"), // Company Name
         Guid.Parse("fd000000-0000-0000-0000-000000000082"), // Representative Name
         Guid.Parse("fd000000-0000-0000-0000-000000000083"), // Position

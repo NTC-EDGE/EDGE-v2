@@ -392,7 +392,7 @@ export function CreateRecordDialog({
                     ) : (
                       variants.map((v) => (
                         <option key={v.id} value={v.id} className="bg-white dark:bg-slate-950 text-slate-900 dark:text-white">
-                          {v.type} {v.description ? `(${v.description})` : ""}
+                          {v.description ? `${v.description} (${v.type})` : v.type}
                         </option>
                       ))
                     )}

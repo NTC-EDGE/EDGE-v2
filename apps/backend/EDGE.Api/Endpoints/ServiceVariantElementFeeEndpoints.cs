@@ -67,14 +67,16 @@ public static class ServiceVariantElementFeeEndpoints
     [HasPermission(Permissions.SystemAdmin)]
     public static async Task<IResult> GetServiceVariantElementFees(
         Guid? serviceVariantId,
+        Guid? serviceId,
         Guid? elementId,
+        string? applicationType,
         int? pageNumber,
         int? pageSize,
         string? searchTerm,
         IValidator<GetServiceVariantElementFeesQuery> validator,
         IMediator mediator)
     {
-        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, elementId, pageNumber, pageSize, searchTerm);
+        var query = new GetServiceVariantElementFeesQuery(serviceVariantId, serviceId, elementId, applicationType, pageNumber, pageSize, searchTerm);
         var validationResult = await validator.ValidateAsync(query);
         if (!validationResult.IsValid)
         {

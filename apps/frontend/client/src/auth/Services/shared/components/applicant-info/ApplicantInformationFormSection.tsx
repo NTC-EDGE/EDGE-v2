@@ -468,40 +468,7 @@ export function ApplicantInformationFormSection({
         </FormGrid>
       </View>
 
-      {/* 4. Academic Background (Exam Services) */}
-      {isExamService && (
-        <View style={{ marginTop: 14 }}>
-          <Text style={styles.subheading}>Academic Background</Text>
-          <FormGrid>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="School / University Attended"
-                placeholder="e.g. University of the Philippines"
-                value={applicant.schoolName || ""}
-                onChangeText={(val) => onChange({ schoolName: val })}
-              />
-            </FormCol>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="Course / Degree Program"
-                placeholder="e.g. BS Electronics Engineering"
-                value={applicant.courseDegree || ""}
-                onChangeText={(val) => onChange({ courseDegree: val })}
-              />
-            </FormCol>
-            <FormCol span={4}>
-              <ValidatedInput
-                label="Year Graduated"
-                placeholder="e.g. 2020"
-                value={applicant.yearGraduated || ""}
-                onChangeText={(val) => onChange({ yearGraduated: val })}
-              />
-            </FormCol>
-          </FormGrid>
-        </View>
-      )}
-
-      {/* 5. Applicant Signature */}
+      {/* 4. Applicant Signature */}
       {includeSignature && (
         <View style={{ marginTop: 14 }}>
           <Text style={styles.subheading}>Applicant Signature</Text>

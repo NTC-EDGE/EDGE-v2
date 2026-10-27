@@ -293,33 +293,6 @@ export function ApplicantDetailsReviewCard({
             </View>
           </>
         )}
-        {hasEducationalBackground && !isCompany && (
-          <>
-            <View style={{ marginTop: 8, marginBottom: 4, borderTopWidth: 1, borderTopColor: '#E2E8F0', paddingTop: 8 }}>
-              <Text style={{ fontSize: 11, fontWeight: '700', color: '#64748B', letterSpacing: 0.5, marginBottom: 4 }}>
-                EDUCATIONAL BACKGROUND
-              </Text>
-            </View>
-            {schoolAttended ? (
-              <SummaryRow label="School / University Attended" value={schoolAttended} />
-            ) : null}
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {courseTaken ? (
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Course / Program / Degree" value={courseTaken} />
-                </View>
-              ) : null}
-              {yearGraduated ? (
-                <View style={{ flex: 1 }}>
-                  <SummaryRow label="Year Graduated" value={yearGraduated} />
-                </View>
-              ) : null}
-            </View>
-            {specialOrderNo ? (
-              <SummaryRow label="Special Order (SO) No." value={specialOrderNo} />
-            ) : null}
-          </>
-        )}
         {notes ? <SummaryRow label="Special Notes / Remarks" value={notes} /> : null}
       </SectionCard>
     </>

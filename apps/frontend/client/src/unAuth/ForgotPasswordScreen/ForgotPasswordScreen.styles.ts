@@ -43,7 +43,7 @@ export const styles = StyleSheet.create({
     borderColor: COLORS.glass.border,
     borderWidth: 1.5,
     borderRadius: RADIUS.dialog,
-    padding: SPACING[32],
+    padding: SPACING[24],
     width: "100%",
   },
   logoWrapper: {

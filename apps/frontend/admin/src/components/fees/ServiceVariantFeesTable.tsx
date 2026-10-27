@@ -5,6 +5,14 @@ import { Scale, Coins, Settings2, Tag } from "lucide-react";
 import { ServiceVariantFeeGroup } from "@edge/api";
 import { Button } from "@/components/ui/button";
 
+export function formatApplicationType(type?: string | null): string {
+  if (!type) return "Standard";
+  return type
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/_/g, " ")
+    .trim();
+}
+
 export interface ServiceVariantFeesTableProps {
   groups: ServiceVariantFeeGroup[];
   totalCount: number;
@@ -60,7 +68,7 @@ export function ServiceVariantFeesTable({
             <thead>
               <tr className="border-b border-slate-200 dark:border-slate-800 bg-slate-50/80 dark:bg-slate-950/70 text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3.5 px-6">Service & Variant</th>
-                <th className="py-3.5 px-6">Variant Type</th>
+                <th className="py-3.5 px-6">Application Type</th>
                 <th className="py-3.5 px-6">Statutory Formula</th>
                 <th className="py-3.5 px-6">Component Fees</th>
                 <th className="py-3.5 px-6">Base Sum Total</th>
@@ -89,25 +97,32 @@ export function ServiceVariantFeesTable({
                     className="hover:bg-slate-50/60 dark:hover:bg-slate-800/30 transition-colors cursor-pointer"
                     onClick={() => onManageFees(group)}
                   >
-                    <td className="py-4 px-6 min-w-[200px] max-w-sm break-words whitespace-normal">
+                    <td className="py-4 px-6 min-w-[220px] max-w-sm break-words whitespace-normal">
                       <div className="flex items-center gap-3 min-w-0">
                         <div className="p-2 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-200 dark:border-indigo-800/60 shrink-0">
                           <Scale className="w-4 h-4" />
                         </div>
                         <div className="min-w-0 flex-1">
                           <span className="font-bold text-sm text-slate-900 dark:text-white break-words block">
-                            {group.serviceName ?? "Unknown Service"}
+                            {group.variantName ?? group.serviceName ?? "Standard Variant"}
                           </span>
-                          <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">
-                            Dynamic Formula & Penalty Configuration
-                          </p>
+                          {group.serviceName && group.variantName && group.variantName !== group.serviceName ? (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">
+                              Service: {group.serviceName}
+                            </p>
+                          ) : (
+                            <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5 break-words">
+                              Dynamic Formula & Penalty Configuration
+                            </p>
+                          )}
                         </div>
                       </div>
                     </td>
 
                     <td className="py-4 px-6 min-w-[140px] break-words whitespace-normal">
-                      <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 text-[11px] font-semibold border border-slate-200 dark:border-slate-700 break-words inline-block">
-                        {group.variantType ?? "Standard Variant"}
+                      <span className="px-2.5 py-1 rounded-full bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 text-xs font-semibold border border-indigo-200/80 dark:border-indigo-800/60 inline-flex items-center gap-1.5 shadow-xs">
+                        <Tag className="w-3 h-3 text-indigo-500 dark:text-indigo-400" />
+                        {formatApplicationType(group.applicationType ?? group.variantType)}
                       </span>
                     </td>
 

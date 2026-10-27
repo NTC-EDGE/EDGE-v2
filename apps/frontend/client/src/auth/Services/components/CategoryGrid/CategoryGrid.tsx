@@ -79,7 +79,7 @@ export function CategoryGrid({
 
   const visibleCategories = useMemo(() => {
     if (!backendCategories) return [];
-    return backendCategories.map((c: any) => {
+    const list = backendCategories.map((c: any) => {
       const code = c.code?.toUpperCase();
       const id = code === "EXAM" ? "exams"
                : code === "CERT" ? "certificates"
@@ -105,7 +105,14 @@ export function CategoryGrid({
         services: []
       };
     });
-  }, [backendCategories]);
+
+    if (!searchQuery.trim()) return list;
+    const q = searchQuery.toLowerCase().trim();
+    return list.filter((cat) =>
+      cat.title.toLowerCase().includes(q) ||
+      cat.description.toLowerCase().includes(q)
+    );
+  }, [backendCategories, searchQuery]);
 
   // Helper to map category ID to icon color gradient styles
   const getCategoryTheme = (id: string) => {
@@ -141,7 +148,7 @@ export function CategoryGrid({
       {/* Transaction Active Lock Banner */}
       {isWizardActive && showActiveBanner && (
         <View style={{
-          backgroundColor: "#fffbebf",
+          backgroundColor: "#FFFBEB",
           borderColor: "#fde68a",
           borderWidth: 1,
           borderRadius: 12,

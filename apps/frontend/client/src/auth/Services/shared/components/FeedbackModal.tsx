@@ -38,8 +38,22 @@ export function FeedbackModal({
             ))}
           </View>
           <TextInput
-            style={{ width: "100%", borderWidth: 1, borderColor: COLORS.neutral[300], borderRadius: 8, padding: 12, minHeight: 64, marginBottom: 24, textAlignVertical: "top", fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13 }}
+            style={{
+              width: "100%",
+              borderWidth: 1,
+              borderColor: COLORS.neutral[300],
+              borderRadius: 8,
+              padding: 12,
+              minHeight: 68,
+              marginBottom: 24,
+              textAlignVertical: "top",
+              fontFamily: TYPOGRAPHY.fonts.primary,
+              fontSize: 13,
+              color: COLORS.neutral[800],
+              backgroundColor: COLORS.neutral.white,
+            }}
             placeholder="Any comments or feature suggestions?"
+            placeholderTextColor="rgba(148, 163, 184, 0.65)"
             multiline
             value={comment}
             onChangeText={setComment}

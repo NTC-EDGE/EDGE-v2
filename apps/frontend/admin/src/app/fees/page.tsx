@@ -2,7 +2,9 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
-import { CircleDollarSign, Plus, Search, Coins, Tag, Blocks, Scale, Loader2 } from "lucide-react";
+import { CircleDollarSign, Plus, Search, Coins, Tag, Blocks, Scale, Loader2, X } from "lucide-react";
+import { SearchableSelect } from "@/components/ui/searchable-select";
+import { formatApplicationType } from "@/components/fees/ServiceVariantFeesTable";
 import { useFeesService } from "@/services/feesService";
 import { useAdminScope } from "@/lib/admin-scope-context";
 import { useSWRConfig } from "swr";
@@ -42,6 +44,21 @@ const isValidFeeTab = (val: string | null): val is TabType => {
   if (val === null) return false;
   return VALID_FEE_TABS.some((t) => t === val);
 };
+
+const APPLICATION_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "All Application Types" },
+  { value: "New", label: "New Application" },
+  { value: "Renewal", label: "Renewal" },
+  { value: "Modification", label: "Modification" },
+  { value: "FirstTaker", label: "First Taker" },
+  { value: "Retaker", label: "Retaker" },
+  { value: "Upgrade", label: "Upgrade" },
+  { value: "VSAT", label: "VSAT" },
+  { value: "Private", label: "Private" },
+  { value: "CivicActionGroup", label: "Civic Action Group" },
+  { value: "Government", label: "Government" },
+  { value: "NA", label: "N/A" },
+];
 
 interface ConfirmConfig {
   title: string;
@@ -90,11 +107,41 @@ function FeesNotesContent() {
     params.set("tab", newTab);
     router.replace(`${pathname}?${params.toString()}`, { scroll: false });
   };
-  const [searchTerm, setSearchTermState] = useState("");
-  const setSearchTerm = (term: string) => {
-    setSearchTermState(term);
+  const [searchInput, setSearchInput] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+  const [serviceFilter, setServiceFilter] = useState("");
+  const [applicationTypeFilter, setApplicationTypeFilter] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(searchInput.trim());
+      setCurrentPage(1);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const handleServiceFilterChange = (val: string) => {
+    setServiceFilter(val);
     setCurrentPage(1);
   };
+
+  const handleAppTypeFilterChange = (val: string) => {
+    setApplicationTypeFilter(val);
+    setCurrentPage(1);
+  };
+
+  const handleClearFilters = () => {
+    setSearchInput("");
+    setDebouncedSearch("");
+    setServiceFilter("");
+    setApplicationTypeFilter("");
+    setCurrentPage(1);
+  };
+
+  const hasActiveFilters =
+    searchInput.trim().length > 0 ||
+    serviceFilter !== "" ||
+    applicationTypeFilter !== "";
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
 
@@ -136,30 +183,38 @@ function FeesNotesContent() {
   const { data: fees = [], totalCount: feesTotalCount, mutate: mutateFees, isLoading: loadingFees, error: errorFees } = useFees(
     activeTab === "fees" ? currentPage : 1,
     activeTab === "fees" ? pageSize : 9999,
-    activeTab === "fees" ? searchTerm : undefined,
+    activeTab === "fees" ? debouncedSearch : undefined,
     activeTab === "fees" || activeTab === "service-fees" || isCreateOpen || isEditOpen
   );
   const { groups: serviceFeeGroups = [], data: serviceFees = [], totalCount: serviceFeesTotalCount, mutate: mutateServiceFees, isLoading: loadingSFees, error: errorSFees } = useServiceFees(
-    undefined,
+    activeTab === "service-fees" && serviceFilter ? serviceFilter : undefined,
     activeTab === "service-fees" ? currentPage : 1,
     activeTab === "service-fees" ? pageSize : 9999,
-    activeTab === "service-fees" ? searchTerm : undefined,
+    activeTab === "service-fees" ? debouncedSearch : undefined,
     activeTab === "service-fees" || activeTab === "fees" || isCreateOpen || isEditOpen
   );
   const { groups: serviceVariantFeeGroups = [], totalCount: serviceVariantFeesTotalCount, mutate: mutateServiceVariantFees, isLoading: loadingSVFees, error: errorSVFees } = useServiceVariantFees(
     undefined,
     activeTab === "service-variant-fees" ? currentPage : 1,
     activeTab === "service-variant-fees" ? pageSize : 9999,
-    activeTab === "service-variant-fees" ? searchTerm : undefined,
-    activeTab === "service-variant-fees"
+    activeTab === "service-variant-fees" ? debouncedSearch : undefined,
+    activeTab === "service-variant-fees",
+    {
+      serviceId: activeTab === "service-variant-fees" && serviceFilter ? serviceFilter : undefined,
+      applicationType: activeTab === "service-variant-fees" && applicationTypeFilter ? applicationTypeFilter : undefined,
+    }
   );
   const { groups: serviceVariantElementFeeGroups = [], totalCount: serviceVariantElementFeesTotalCount, mutate: mutateServiceVariantElementFees, isLoading: loadingSVEFees, error: errorSVEFees } = useServiceVariantElementFees(
     undefined,
     undefined,
     activeTab === "service-variant-element-fees" ? currentPage : 1,
     activeTab === "service-variant-element-fees" ? pageSize : 9999,
-    activeTab === "service-variant-element-fees" ? searchTerm : undefined,
-    activeTab === "service-variant-element-fees"
+    activeTab === "service-variant-element-fees" ? debouncedSearch : undefined,
+    activeTab === "service-variant-element-fees",
+    {
+      serviceId: activeTab === "service-variant-element-fees" && serviceFilter ? serviceFilter : undefined,
+      applicationType: activeTab === "service-variant-element-fees" && applicationTypeFilter ? applicationTypeFilter : undefined,
+    }
   );
   const { data: elements = [] } = useElements(
     1,
@@ -170,9 +225,7 @@ function FeesNotesContent() {
 
   const error = errorFees || errorSFees || errorSVFees || errorSVEFees;
 
-  const { data: services = [] } = useServices(
-    isCreateOpen || isEditOpen || activeTab === "service-fees"
-  );
+  const { data: services = [] } = useServices(true);
 
   const invalidatePrefix = (prefix: string) => {
     globalMutate((key: unknown) => typeof key === "string" && key.startsWith(prefix));
@@ -190,24 +243,28 @@ function FeesNotesContent() {
   };
 
   const handleManageVariantFees = (group: ServiceVariantFeeGroup) => {
+    const variantDisplayName = group.variantName || group.serviceName || "Variant";
+    const appTypeLabel = formatApplicationType(group.applicationType ?? group.variantType);
     setManageDialog({
       open: true,
       entityType: "service-variant",
       entityId: group.serviceVariantId,
       serviceId: group.serviceId ?? null,
-      entityTitle: group.serviceName ?? "Unknown Service",
-      entitySubtitle: group.variantType ?? undefined,
+      entityTitle: variantDisplayName,
+      entitySubtitle: `${group.serviceName ? group.serviceName + " • " : ""}${appTypeLabel}`,
     });
   };
 
   const handleManageElementFees = (group: ServiceVariantElementFeeGroup) => {
+    const variantDisplayName = group.variantName || group.serviceName || "Variant Element";
+    const appTypeLabel = formatApplicationType(group.applicationType ?? group.variantType);
     setManageDialog({
       open: true,
       entityType: "service-variant-element",
       entityId: group.serviceVariantId,
       serviceId: group.serviceId ?? null,
-      entityTitle: group.serviceName ?? "Unknown Service",
-      entitySubtitle: group.variantType ?? undefined,
+      entityTitle: variantDisplayName,
+      entitySubtitle: `${group.serviceName ? group.serviceName + " • " : ""}${appTypeLabel}`,
     });
   };
 
@@ -477,10 +534,11 @@ function FeesNotesContent() {
         </div>
       </div>
 
-      <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 rounded-2xl shadow-sm dark:shadow-xl transition-colors duration-200">
+      {/* Tab Navigation */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-3 rounded-2xl shadow-sm dark:shadow-xl transition-colors duration-200">
         <div className="flex flex-wrap gap-2">
           <button
-            onClick={() => { setActiveTab("fees"); setSearchTerm(""); }}
+            onClick={() => setActiveTab("fees")}
             className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
               activeTab === "fees"
                 ? "bg-indigo-600 text-white shadow-sm"
@@ -492,7 +550,7 @@ function FeesNotesContent() {
           </button>
 
           <button
-            onClick={() => { setActiveTab("service-fees"); setSearchTerm(""); }}
+            onClick={() => setActiveTab("service-fees")}
             className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all cursor-pointer ${
               activeTab === "service-fees"
                 ? "bg-indigo-600 text-white shadow-sm"
@@ -504,7 +562,7 @@ function FeesNotesContent() {
           </button>
 
           <button
-            onClick={() => { setActiveTab("service-variant-fees"); setSearchTerm(""); }}
+            onClick={() => setActiveTab("service-variant-fees")}
             className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
               activeTab === "service-variant-fees"
                 ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40"
@@ -512,11 +570,11 @@ function FeesNotesContent() {
             }`}
           >
             <Scale className="w-3.5 h-3.5 text-indigo-400" />
-            <span>Variant Formulas & Rules</span>
+            <span>Variant Rates & Formulas</span>
           </button>
 
           <button
-            onClick={() => { setActiveTab("service-variant-element-fees"); setSearchTerm(""); }}
+            onClick={() => setActiveTab("service-variant-element-fees")}
             className={`px-3 py-2 text-xs font-semibold rounded-xl flex items-center gap-2 transition-all ${
               activeTab === "service-variant-element-fees"
                 ? "bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-400/40"
@@ -527,9 +585,88 @@ function FeesNotesContent() {
             <span>Variant Element Formulas</span>
           </button>
         </div>
-        <div className="relative w-full xl:w-80">
-          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500" />
-          <input type="text" placeholder="Search configurations..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500" />
+      </div>
+
+      {/* Upper Filters & Backend Search Toolbar */}
+      <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+        {/* Backend Search Input */}
+        <div className="relative flex-1 min-w-[240px]">
+          <Search className="w-4 h-4 absolute left-3.5 top-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+          <input
+            type="text"
+            placeholder={
+              activeTab === "fees"
+                ? "Search fee codes and descriptions (server-side)..."
+                : activeTab === "service-fees"
+                ? "Search services, fee codes, and rates (server-side)..."
+                : "Search services, variants, formulas, and fee codes (server-side)..."
+            }
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-10 pr-9 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-xs text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          />
+          {searchInput.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setSearchInput("")}
+              className="absolute right-3 top-3 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300 p-0.5 rounded-full"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+
+        {/* Upper Dropdown Filters */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5">
+          {/* Service Filter (applicable to service-fees, service-variant-fees, service-variant-element-fees) */}
+          {activeTab !== "fees" && (
+            <div className="w-full sm:w-60">
+              <SearchableSelect
+                value={serviceFilter}
+                onChange={handleServiceFilterChange}
+                placeholder="All Services"
+                searchPlaceholder="Filter by service..."
+                maxHeight="max-h-56"
+                clearable
+                options={[
+                  { value: "", label: "All Services" },
+                  ...services.map((s) => ({
+                    value: s.id,
+                    label: s.name,
+                  })),
+                ]}
+              />
+            </div>
+          )}
+
+          {/* Application Type Filter (applicable to service-variant-fees and service-variant-element-fees) */}
+          {(activeTab === "service-variant-fees" || activeTab === "service-variant-element-fees") && (
+            <div className="w-full sm:w-52">
+              <SearchableSelect
+                value={applicationTypeFilter}
+                onChange={handleAppTypeFilterChange}
+                placeholder="All Application Types"
+                searchPlaceholder="Filter application type..."
+                maxHeight="max-h-56"
+                clearable
+                options={APPLICATION_TYPE_OPTIONS}
+              />
+            </div>
+          )}
+
+          {/* Reset / Clear Filters Button */}
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleClearFilters}
+              className="h-9 px-3 rounded-xl border-dashed border-slate-300 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5 text-xs shrink-0"
+            >
+              <X className="w-3.5 h-3.5" />
+              <span>Clear</span>
+            </Button>
+          )}
         </div>
       </div>
 

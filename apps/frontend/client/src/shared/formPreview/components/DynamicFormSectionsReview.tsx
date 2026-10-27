@@ -12,8 +12,6 @@ export interface DynamicFormSectionsReviewProps {
 
 export function DynamicFormSectionsReview({
   dynamicSectionsToRender,
-  isExamService,
-  remainingFields,
   onPreviewFile,
 }: DynamicFormSectionsReviewProps) {
   return (
@@ -30,34 +28,6 @@ export function DynamicFormSectionsReview({
           ))}
         </SectionCard>
       ))}
-
-      {/* Fallback card: Only for non-exam services with equipment/technical specifications */}
-      {!isExamService && remainingFields.length > 0 ? (
-        <SectionCard icon="file-text" title="Application Particulars & Technical Details" accentColor="#0284C7">
-          {remainingFields.map((fv) => (
-            <SummaryRow
-              key={fv.fieldId || fv.fieldLabel}
-              label={fv.fieldLabel}
-              value={fv.value}
-              onPreviewFile={onPreviewFile}
-            />
-          ))}
-        </SectionCard>
-      ) : null}
-
-      {/* Exam services fallback: Exam particulars if any unmapped fields exist, never "Application Particulars & Technical Details" */}
-      {isExamService && remainingFields.length > 0 ? (
-        <SectionCard icon="file-text" title="Examination Details & Particulars" accentColor="#0284C7">
-          {remainingFields.map((fv) => (
-            <SummaryRow
-              key={fv.fieldId || fv.fieldLabel}
-              label={fv.fieldLabel}
-              value={fv.value}
-              onPreviewFile={onPreviewFile}
-            />
-          ))}
-        </SectionCard>
-      ) : null}
     </>
   );
 }
