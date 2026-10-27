@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Settings2, Edit, Trash2, Filter, Search, X, Folder } from "lucide-react";
 import { ServiceVariant } from "@edge/api";
 import { DataTable, ColumnDef, ActionMenuItem } from "@/components/ui/data-table";
@@ -50,8 +50,14 @@ export function ServiceVariantsTab({
   onClearFilters,
 }: ServiceVariantsTabProps) {
   const [showFilters, setShowFilters] = useState(false);
-  const [localCategoryId, setLocalCategoryId] = useState<string>("");
-  const selectedCategoryId = filterCategoryId !== undefined && filterCategoryId !== "" ? filterCategoryId : localCategoryId;
+  const [localCategoryId, setLocalCategoryId] = useState<string>(filterCategoryId);
+  const isControlled = onFilterCategoryChange !== undefined;
+  const selectedCategoryId = isControlled ? filterCategoryId : localCategoryId;
+
+  // Sync local state when controlled filterCategoryId changes externally
+  useEffect(() => {
+    setLocalCategoryId(filterCategoryId);
+  }, [filterCategoryId]);
 
   // Filter services list based on selected category (UI-only helper for easy navigation)
   const filteredServices = useMemo(() => {
