@@ -387,35 +387,66 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
     }));
   };
 
-  const isFieldVisibleInPreview = (f: FormField): boolean => {
+  React.useEffect(() => {
+    if (open) {
+      setSelectedVariant("ALL");
+      setFormValues({});
+      setSubmitted(false);
+    }
+  }, [open, form.id]);
+
+  const isFieldApplicableForVariant = (f: FormField, variant: string): boolean => {
     if (f.type === "section-header" || f.type === "divider") return true;
     const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
     if (!cond) return true;
+    if (variant === "ALL") return true;
 
-    // 1. Variant filter
-    if (selectedVariant !== "ALL") {
-      const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
-      const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
+    const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
+    const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
 
-      if (hasVariants || hasAppTypes) {
-        const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-        const target = normalize(selectedVariant);
+    if (!hasVariants && !hasAppTypes) return true;
 
-        const matchesList = (list?: string[]) => {
-          if (!list || list.length === 0) return false;
-          return list.some((item) => {
-            const norm = normalize(item);
-            return norm === target || norm.includes(target) || target.includes(norm);
-          });
-        };
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const target = normalize(variant);
 
-        if (!matchesList(cond.variants) && !matchesList(cond.applicationTypes)) {
-          return false;
+    const matchesList = (list?: string[]) => {
+      if (!list || list.length === 0) return false;
+      return list.some((item) => {
+        const norm = normalize(item);
+        return norm === target || norm.includes(target) || target.includes(norm);
+      });
+    };
+
+    return matchesList(cond.variants) || matchesList(cond.applicationTypes);
+  };
+
+  const handleVariantChange = (newVariant: string) => {
+    setSelectedVariant(newVariant);
+    setSubmitted(false);
+    // Prune values for fields not applicable to newly selected variant to prevent stale conditional fields from lingering
+    setFormValues((prev) => {
+      if (newVariant === "ALL") return prev;
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const field = form.fields.find(
+          (f) => f.id === key || f.id.toLowerCase() === key.toLowerCase()
+        );
+        if (field && isFieldApplicableForVariant(field, newVariant)) {
+          next[key] = val;
         }
       }
-    }
+      return next;
+    });
+  };
 
-    // 2. Parent-child dependencies
+  const isFieldVisibleInPreview = (f: FormField): boolean => {
+    if (f.type === "section-header" || f.type === "divider") return true;
+    if (!isFieldApplicableForVariant(f, selectedVariant)) return false;
+
+    const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
+    if (!cond) return true;
+
+    // Parent-child dependencies
     if (cond.fieldDependencies && cond.fieldDependencies.length > 0) {
       for (const dep of cond.fieldDependencies) {
         const parentVal = formValues[dep.fieldId] ?? formValues[dep.fieldId.toLowerCase()] ?? "";
@@ -494,6 +525,44 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
             </div>
           </div>
         </DialogHeader>
+
+        {/* Variant Pills Toolbar for Interactive Preview Testing */}
+        {tab === "form" && availableVariants.length > 0 && (
+          <div className="px-4 py-2.5 sm:px-6 sm:py-3 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto flex-shrink-0">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 shrink-0">
+              <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+              Variant View:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleVariantChange("ALL")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                selectedVariant === "ALL"
+                  ? "bg-indigo-600 text-white font-semibold shadow-sm"
+                  : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600"
+              }`}
+            >
+              All Variants ({form.fields.length})
+            </button>
+            {availableVariants.map((v) => {
+              const isSelected = selectedVariant.toLowerCase().trim() === v.toLowerCase().trim();
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => handleVariantChange(v)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                    isSelected
+                      ? "bg-indigo-600 text-white font-semibold shadow-sm"
+                      : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600"
+                  }`}
+                >
+                  {v}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {tab === "json" ? (

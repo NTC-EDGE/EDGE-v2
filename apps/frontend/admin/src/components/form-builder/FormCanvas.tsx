@@ -304,6 +304,34 @@ export function FormCanvas({
     return form.fields.filter((f) => isFieldApplicable(f)).length;
   }, [form.fields, isFieldApplicable]);
 
+  const handleSelectVariant = useCallback(
+    (variantName: string) => {
+      setSelectedVariant(variantName);
+      if (selectedFieldId !== null && variantName !== "ALL") {
+        const field = form.fields.find((f) => f.id === selectedFieldId);
+        if (field && !isFieldApplicable(field)) {
+          onSelectField(null);
+        }
+      }
+    },
+    [selectedFieldId, form.fields, isFieldApplicable, onSelectField]
+  );
+
+  // Safety hook: If the currently selected field is filtered out after switching variants, reset selection to null
+  useEffect(() => {
+    if (selectedFieldId !== null && selectedVariant !== "ALL") {
+      const visibleFieldIds = new Set(
+        displayedSectionGroups.flatMap((g) => [
+          ...(g.headerField ? [g.headerField.id] : []),
+          ...g.childFields.map((cf) => cf.field.id),
+        ])
+      );
+      if (!visibleFieldIds.has(selectedFieldId)) {
+        onSelectField(null);
+      }
+    }
+  }, [selectedVariant, displayedSectionGroups, selectedFieldId, onSelectField]);
+
   const sectionCount = form.fields.filter((f) => f.type === "section-header").length;
 
   const handleSaveLinkedServices = (
@@ -453,7 +481,7 @@ export function FormCanvas({
           <ServiceVariantToolbar
             variants={formVariants}
             selectedVariant={selectedVariant}
-            onSelectVariant={setSelectedVariant}
+            onSelectVariant={handleSelectVariant}
             onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)}
             totalFieldsCount={form.fields.length}
             applicableFieldsCount={applicableFieldsCount}
@@ -652,7 +680,7 @@ export function FormCanvas({
               </p>
               <button
                 type="button"
-                onClick={() => setSelectedVariant("ALL")}
+                onClick={() => handleSelectVariant("ALL")}
                 className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
               >
                 Show All Sections & Fields
