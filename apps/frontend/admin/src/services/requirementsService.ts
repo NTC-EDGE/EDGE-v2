@@ -117,6 +117,7 @@ export function useRequirementsService() {
     pageSize = 50,
     searchTerm?: string,
     serviceId?: string | null,
+    categoryId?: string | null,
     enabled = true
   ) => {
     const params = new URLSearchParams();
@@ -125,8 +126,11 @@ export function useRequirementsService() {
     if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
       params.append('searchTerm', searchTerm.trim());
     }
-    if (serviceId) {
-      params.append('serviceId', serviceId);
+    if (serviceId !== undefined && serviceId !== null && serviceId.trim().length > 0) {
+      params.append('serviceId', serviceId.trim());
+    }
+    if (categoryId !== undefined && categoryId !== null && categoryId.trim().length > 0) {
+      params.append('categoryId', categoryId.trim());
     }
     const endpoint = `/api/v2/service-variants?${params.toString()}`;
     const query = useQuery<PaginatedApiResponse<ServiceVariant>>(enabled ? endpoint : null);

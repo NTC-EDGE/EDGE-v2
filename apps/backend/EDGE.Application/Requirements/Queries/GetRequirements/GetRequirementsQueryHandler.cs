@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -14,25 +13,17 @@ public class GetRequirementsQueryHandler(IRequirementRepository repository)
 {
     public async Task<PaginatedApiResponse<RequirementDto>> Handle(GetRequirementsQuery request, CancellationToken cancellationToken)
     {
-        var requirements = await repository.GetAllAsync(cancellationToken);
-
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var search = request.SearchTerm.ToLower();
-            requirements = requirements.Where(r =>
-                r.Name.ToLower().Contains(search) ||
-                (r.Description != null && r.Description.ToLower().Contains(search))
-            ).ToList();
-        }
-
-        int totalCount = requirements.Count;
         int pageNumber = request.PageNumber ?? 1;
         int pageSize = request.PageSize ?? 10;
         if (pageSize <= 0) pageSize = 1;
 
-        var paginated = requirements.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        var (items, totalCount) = await repository.GetPagedAsync(
+            request.SearchTerm,
+            pageNumber,
+            pageSize,
+            cancellationToken);
 
-        var dtos = paginated.Select(r => new RequirementDto
+        var dtos = items.Select(r => new RequirementDto
         {
             Id = r.Id,
             Name = r.Name,

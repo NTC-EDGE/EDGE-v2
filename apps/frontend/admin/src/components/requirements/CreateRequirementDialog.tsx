@@ -53,7 +53,14 @@ export function CreateRequirementDialog({
   onSubmit,
 }: CreateRequirementDialogProps) {
   const { useServiceVariants } = useRequirementsService();
-  const { data: serviceVariants = [] } = useServiceVariants(1, 9999, undefined, null, open && activeTab === "service-requirements");
+  const { data: serviceVariants = [] } = useServiceVariants(
+    1,
+    9999,
+    undefined,
+    null,
+    null,
+    open && activeTab === "service-requirements"
+  );
 
   const [submitting, setSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);

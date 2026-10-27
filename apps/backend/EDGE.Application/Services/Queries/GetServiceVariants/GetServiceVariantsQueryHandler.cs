@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,42 +10,33 @@ namespace EDGE.Application.Services.Queries.GetServiceVariants;
 
 public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariantsQuery, PaginatedApiResponse<ServiceVariantDto>>
 {
-    private readonly IServiceRepository _serviceRepository;
     private readonly IServiceVariantRepository _variantRepository;
 
-    public GetServiceVariantsQueryHandler(IServiceRepository serviceRepository, IServiceVariantRepository variantRepository)
+    public GetServiceVariantsQueryHandler(IServiceVariantRepository variantRepository)
     {
-        _serviceRepository = serviceRepository;
         _variantRepository = variantRepository;
+    }
+
+    public GetServiceVariantsQueryHandler(IServiceRepository serviceRepository, IServiceVariantRepository variantRepository)
+        : this(variantRepository)
+    {
     }
 
     public async Task<PaginatedApiResponse<ServiceVariantDto>> Handle(GetServiceVariantsQuery request, CancellationToken cancellationToken)
     {
-        var variants = await _variantRepository.GetAllAsync(cancellationToken);
-
-        if (request.ServiceId.HasValue)
-        {
-            variants = variants.Where(v => v.ServiceId == request.ServiceId.Value).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var search = request.SearchTerm.ToLower();
-            variants = variants.Where(v =>
-                v.Type.ToString().ToLower().Contains(search) ||
-                (v.Description != null && v.Description.ToLower().Contains(search)) ||
-                (v.Service != null && v.Service.Name.ToLower().Contains(search))
-            ).ToList();
-        }
-
-        int totalCount = variants.Count;
         int pageNumber = request.PageNumber ?? 1;
         int pageSize = request.PageSize ?? 10;
         if (pageSize <= 0) pageSize = 1;
 
-        var paginated = variants.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        var (items, totalCount) = await _variantRepository.GetPagedAsync(
+            request.ServiceId,
+            request.CategoryId,
+            request.SearchTerm,
+            pageNumber,
+            pageSize,
+            cancellationToken);
 
-        var dtos = paginated.Select(v => new ServiceVariantDto
+        var dtos = items.Select(v => new ServiceVariantDto
         {
             Id = v.Id,
             ServiceId = v.ServiceId,

@@ -63,7 +63,9 @@ export function EditRequirementDialog({
     1,
     9999,
     undefined,
-    selectedServiceId !== "" ? selectedServiceId : null
+    selectedServiceId !== "" ? selectedServiceId : null,
+    null,
+    open && activeTab === "service-requirements"
   );
 
   // Sync state with selected items when open

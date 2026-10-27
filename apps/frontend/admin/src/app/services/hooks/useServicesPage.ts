@@ -86,6 +86,23 @@ export function useServicesPage() {
   const [requirementsSearch, setRequirementsSearch] = useState("");
   const [flatMappingsSearch, setFlatMappingsSearch] = useState("");
 
+  const [debouncedVariantsSearch, setDebouncedVariantsSearch] = useState("");
+  const [debouncedRequirementsSearch, setDebouncedRequirementsSearch] = useState("");
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedVariantsSearch(variantsSearch.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [variantsSearch]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedRequirementsSearch(requirementsSearch.trim());
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [requirementsSearch]);
+
   const [servicesPage, setServicesPage] = useState(1);
   const [variantsPage, setVariantsPage] = useState(1);
   const [requirementsPage, setRequirementsPage] = useState(1);
@@ -101,6 +118,7 @@ export function useServicesPage() {
   const [notesFilterVariantId, setNotesFilterVariantId] = useState("");
 
   // Variants filter state
+  const [variantsFilterCategoryId, setVariantsFilterCategoryId] = useState("");
   const [variantsFilterServiceId, setVariantsFilterServiceId] = useState("");
 
   // Selected Category filter
@@ -180,6 +198,7 @@ export function useServicesPage() {
     9999,
     undefined,
     null,
+    null,
     true
   );
 
@@ -187,8 +206,9 @@ export function useServicesPage() {
   const { data: pagedVariantsRaw = [], totalCount: variantsTotalCount = 0, error: varErr, isLoading: loadingVariants, mutate: mutVar } = useServiceVariants(
     variantsPage,
     pageSize,
-    variantsSearch,
+    debouncedVariantsSearch,
     variantsFilterServiceId.trim().length > 0 ? variantsFilterServiceId.trim() : null,
+    variantsFilterCategoryId.trim().length > 0 ? variantsFilterCategoryId.trim() : null,
     activeTab === "variants"
   );
   // Full list of requirements for dropdowns and mappings
@@ -203,7 +223,7 @@ export function useServicesPage() {
   const { data: pagedRequirementsRaw = [], totalCount: requirementsTotalCount = 0, error: reqErr, isLoading: loadingReqs, mutate: mutPagedReq } = useRequirements(
     requirementsPage,
     pageSize,
-    requirementsSearch,
+    debouncedRequirementsSearch,
     activeTab === "requirements"
   );
   const { data: flatMappings = [], error: mapErr, isLoading: loadingAllMapped, mutate: mutFlatMap } = useServiceVariantRequirements(
@@ -268,10 +288,15 @@ export function useServicesPage() {
     setServicesPage(1);
   }, [selectedCategoryId]);
 
-  // Reset variants page when variants filter changes
+  // Reset variants page when variants filter or search changes
   useEffect(() => {
     setVariantsPage(1);
-  }, [variantsFilterServiceId]);
+  }, [variantsFilterCategoryId, variantsFilterServiceId, debouncedVariantsSearch]);
+
+  // Reset requirements page when search changes
+  useEffect(() => {
+    setRequirementsPage(1);
+  }, [debouncedRequirementsSearch]);
 
   // Reset notes page when notes filter or search changes
   useEffect(() => {
@@ -321,22 +346,16 @@ export function useServicesPage() {
   }, [servicesRaw]);
 
   const filteredVariants = useMemo(() => {
-    if (activeTab === "variants") {
-      return Array(variantsTotalCount).fill({});
-    }
     return pagedVariantsRaw;
-  }, [activeTab, pagedVariantsRaw, variantsTotalCount]);
+  }, [pagedVariantsRaw]);
 
   const pagedVariants = useMemo(() => {
     return pagedVariantsRaw;
   }, [pagedVariantsRaw]);
 
   const filteredRequirements = useMemo(() => {
-    if (activeTab === "requirements") {
-      return Array(requirementsTotalCount).fill({});
-    }
     return pagedRequirementsRaw;
-  }, [activeTab, pagedRequirementsRaw, requirementsTotalCount]);
+  }, [pagedRequirementsRaw]);
 
   const pagedRequirements = useMemo(() => {
     return pagedRequirementsRaw;
@@ -723,7 +742,9 @@ export function useServicesPage() {
     servicesForNotes, variantsForNotesFilter,
     notesFilterServiceId, setNotesFilterServiceId, notesFilterVariantId, setNotesFilterVariantId,
     // Variants filter
+    variantsFilterCategoryId, setVariantsFilterCategoryId,
     variantsFilterServiceId, setVariantsFilterServiceId, variantsTotalCount,
+    requirementsTotalCount,
     handleOpenEditNote, handleNoteSubmit, handleDeleteNoteConfirm,
     categories, servicesRaw, tenants, allVariants, requirements, flatMappings, serviceRequirements,
     loadingServices, loadingVariants, loadingReqs, loadingAllMapped, loadingServiceReqs,
