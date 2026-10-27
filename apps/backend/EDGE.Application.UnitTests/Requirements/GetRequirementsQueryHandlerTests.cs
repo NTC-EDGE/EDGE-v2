@@ -3,11 +3,14 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Moq;
 using Xunit;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Requirements.Queries.GetRequirements;
 using EDGE.Domain.Entities;
+using EDGE.Infrastructure.Persistence;
+using EDGE.Infrastructure.Persistence.Repositories;
 
 namespace EDGE.Application.UnitTests.Requirements;
 
@@ -23,105 +26,83 @@ public class GetRequirementsQueryHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenNoSearchTerm_ReturnsAllPaginatedRequirements()
+    public async Task Handle_WhenCalled_DelegatesToRepositoryAndMapsDtos()
     {
         // Arrange
         var sampleData = new List<Requirement>
         {
             new() { Id = Guid.NewGuid(), Name = "Requirement A", Description = "Desc A" },
-            new() { Id = Guid.NewGuid(), Name = "Requirement B", Description = "Desc B" },
-            new() { Id = Guid.NewGuid(), Name = "Requirement C", Description = "Desc C" }
+            new() { Id = Guid.NewGuid(), Name = "Requirement B", Description = "Desc B" }
         };
-        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sampleData);
+        _mockRepo.Setup(r => r.GetPagedAsync("test", 1, 2, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((sampleData, 5));
 
-        var query = new GetRequirementsQuery(PageNumber: 1, PageSize: 2, SearchTerm: null);
+        var query = new GetRequirementsQuery(PageNumber: 1, PageSize: 2, SearchTerm: "test");
 
         // Act
         var result = await _handler.Handle(query, CancellationToken.None);
 
         // Assert
         result.Should().NotBeNull();
-        result.TotalCount.Should().Be(3);
+        result.TotalCount.Should().Be(5);
         result.PageNumber.Should().Be(1);
         result.PageSize.Should().Be(2);
-        result.TotalPages.Should().Be(2);
+        result.TotalPages.Should().Be(3);
         result.Data.Should().HaveCount(2);
         result.Data[0].Name.Should().Be("Requirement A");
         result.Data[1].Name.Should().Be("Requirement B");
     }
 
     [Fact]
-    public async Task Handle_WithSearchTermMatchingName_FiltersCorrectly()
+    public async Task RequirementRepository_GetPagedAsync_FiltersAndPaginatesAtDatabaseLevel()
     {
         // Arrange
-        var sampleData = new List<Requirement>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Mayor's Permit", Description = "Business permit" },
-            new() { Id = Guid.NewGuid(), Name = "DTI Registration", Description = "DTI certificate" },
-            new() { Id = Guid.NewGuid(), Name = "SEC Permit", Description = "Securities permit" }
-        };
-        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sampleData);
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: $"ReqRepoTests_{Guid.NewGuid()}")
+            .Options;
 
-        var query = new GetRequirementsQuery(PageNumber: 1, PageSize: 10, SearchTerm: "permit");
+        using var context = new ApplicationDbContext(options);
+        var repo = new RequirementRepository(context);
 
-        // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        await repo.AddAsync(new Requirement { Id = Guid.NewGuid(), Name = "Mayor's Permit", Description = "Business permit" });
+        await repo.AddAsync(new Requirement { Id = Guid.NewGuid(), Name = "DTI Registration", Description = "DTI certificate" });
+        await repo.AddAsync(new Requirement { Id = Guid.NewGuid(), Name = "SEC Permit", Description = "Securities permit" });
+        await context.SaveChangesAsync();
+
+        // Act - Search "permit", page 1, size 1
+        var (page1Items, totalCount) = await repo.GetPagedAsync(searchTerm: "permit", pageNumber: 1, pageSize: 1);
+        var (page2Items, _) = await repo.GetPagedAsync(searchTerm: "permit", pageNumber: 2, pageSize: 1);
 
         // Assert
-        result.Should().NotBeNull();
-        result.TotalCount.Should().Be(2);
-        result.Data.Should().HaveCount(2);
-        result.Data.Should().Contain(r => r.Name == "Mayor's Permit");
-        result.Data.Should().Contain(r => r.Name == "SEC Permit");
+        totalCount.Should().Be(2);
+        page1Items.Should().HaveCount(1);
+        page1Items[0].Name.Should().Be("Mayor's Permit");
+
+        page2Items.Should().HaveCount(1);
+        page2Items[0].Name.Should().Be("SEC Permit");
     }
 
     [Fact]
-    public async Task Handle_WithSearchTermMatchingDescription_FiltersCorrectly()
+    public async Task RequirementRepository_GetPagedAsync_WithDescriptionMatch_ReturnsCorrectItem()
     {
         // Arrange
-        var sampleData = new List<Requirement>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Document 1", Description = "Radio station license" },
-            new() { Id = Guid.NewGuid(), Name = "Document 2", Description = "Passport copy" }
-        };
-        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sampleData);
+        var options = new DbContextOptionsBuilder<ApplicationDbContext>()
+            .UseInMemoryDatabase(databaseName: $"ReqRepoDescTests_{Guid.NewGuid()}")
+            .Options;
 
-        var query = new GetRequirementsQuery(PageNumber: 1, PageSize: 10, SearchTerm: "radio station");
+        using var context = new ApplicationDbContext(options);
+        var repo = new RequirementRepository(context);
 
-        // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
-
-        // Assert
-        result.TotalCount.Should().Be(1);
-        result.Data.Should().HaveCount(1);
-        result.Data[0].Name.Should().Be("Document 1");
-    }
-
-    [Fact]
-    public async Task Handle_SecondPage_PaginatesProperly()
-    {
-        // Arrange
-        var sampleData = new List<Requirement>
-        {
-            new() { Id = Guid.NewGuid(), Name = "Req 1", Description = "D1" },
-            new() { Id = Guid.NewGuid(), Name = "Req 2", Description = "D2" },
-            new() { Id = Guid.NewGuid(), Name = "Req 3", Description = "D3" }
-        };
-        _mockRepo.Setup(r => r.GetAllAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(sampleData);
-
-        var query = new GetRequirementsQuery(PageNumber: 2, PageSize: 2, SearchTerm: null);
+        await repo.AddAsync(new Requirement { Id = Guid.NewGuid(), Name = "Doc 1", Description = "Radio station license" });
+        await repo.AddAsync(new Requirement { Id = Guid.NewGuid(), Name = "Doc 2", Description = "Passport copy" });
+        await context.SaveChangesAsync();
 
         // Act
-        var result = await _handler.Handle(query, CancellationToken.None);
+        var (items, totalCount) = await repo.GetPagedAsync(searchTerm: "radio station", pageNumber: 1, pageSize: 10);
 
         // Assert
-        result.TotalCount.Should().Be(3);
-        result.PageNumber.Should().Be(2);
-        result.Data.Should().HaveCount(1);
-        result.Data[0].Name.Should().Be("Req 3");
+        totalCount.Should().Be(1);
+        items.Should().HaveCount(1);
+        items[0].Name.Should().Be("Doc 1");
     }
 }

@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -11,53 +10,33 @@ namespace EDGE.Application.Services.Queries.GetServiceVariants;
 
 public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariantsQuery, PaginatedApiResponse<ServiceVariantDto>>
 {
-    private readonly IServiceRepository _serviceRepository;
     private readonly IServiceVariantRepository _variantRepository;
 
-    public GetServiceVariantsQueryHandler(IServiceRepository serviceRepository, IServiceVariantRepository variantRepository)
+    public GetServiceVariantsQueryHandler(IServiceVariantRepository variantRepository)
     {
-        _serviceRepository = serviceRepository;
         _variantRepository = variantRepository;
+    }
+
+    public GetServiceVariantsQueryHandler(IServiceRepository serviceRepository, IServiceVariantRepository variantRepository)
+        : this(variantRepository)
+    {
     }
 
     public async Task<PaginatedApiResponse<ServiceVariantDto>> Handle(GetServiceVariantsQuery request, CancellationToken cancellationToken)
     {
-        var variants = await _variantRepository.GetAllAsync(cancellationToken);
-
-        if (request.ServiceId.HasValue)
-        {
-            variants = variants.Where(v => v.ServiceId == request.ServiceId.Value).ToList();
-        }
-        else if (request.CategoryId.HasValue)
-        {
-            variants = variants.Where(v => v.Service != null && v.Service.ServiceCategoryId == request.CategoryId.Value).ToList();
-        }
-
-        if (!string.IsNullOrWhiteSpace(request.SearchTerm))
-        {
-            var search = request.SearchTerm.ToLower();
-            variants = variants.Where(v =>
-                v.Type.ToString().ToLower().Contains(search) ||
-                (!string.IsNullOrEmpty(v.Description) && v.Description.ToLower().Contains(search)) ||
-                (v.Service != null && !string.IsNullOrEmpty(v.Service.Name) && v.Service.Name.ToLower().Contains(search)) ||
-                (v.IsIndividual ? "individual" : "company").Contains(search)
-            ).ToList();
-        }
-
-        variants = variants
-            .OrderBy(v => v.Service != null ? (v.Service.Name ?? string.Empty) : string.Empty)
-            .ThenBy(v => v.Type.ToString())
-            .ThenBy(v => v.Description ?? string.Empty)
-            .ToList();
-
-        int totalCount = variants.Count;
         int pageNumber = request.PageNumber ?? 1;
         int pageSize = request.PageSize ?? 10;
         if (pageSize <= 0) pageSize = 1;
 
-        var paginated = variants.Skip((pageNumber - 1) * pageSize).Take(pageSize).ToList();
+        var (items, totalCount) = await _variantRepository.GetPagedAsync(
+            request.ServiceId,
+            request.CategoryId,
+            request.SearchTerm,
+            pageNumber,
+            pageSize,
+            cancellationToken);
 
-        var dtos = paginated.Select(v => new ServiceVariantDto
+        var dtos = items.Select(v => new ServiceVariantDto
         {
             Id = v.Id,
             ServiceId = v.ServiceId,
