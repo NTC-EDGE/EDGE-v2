@@ -117,22 +117,20 @@ export function useRequirementsService() {
     pageSize = 50,
     searchTerm?: string,
     serviceId?: string | null,
-    categoryIdOrEnabled?: string | boolean | null,
-    enabledParam = true
+    categoryId?: string | null,
+    enabled = true
   ) => {
-    const categoryId = typeof categoryIdOrEnabled === 'string' ? categoryIdOrEnabled : null;
-    const enabled = typeof categoryIdOrEnabled === 'boolean' ? categoryIdOrEnabled : enabledParam;
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());
     if (searchTerm !== undefined && searchTerm !== null && searchTerm.trim().length > 0) {
       params.append('searchTerm', searchTerm.trim());
     }
-    if (serviceId) {
-      params.append('serviceId', serviceId);
+    if (serviceId !== undefined && serviceId !== null && serviceId.trim().length > 0) {
+      params.append('serviceId', serviceId.trim());
     }
-    if (categoryId) {
-      params.append('categoryId', categoryId);
+    if (categoryId !== undefined && categoryId !== null && categoryId.trim().length > 0) {
+      params.append('categoryId', categoryId.trim());
     }
     const endpoint = `/api/v2/service-variants?${params.toString()}`;
     const query = useQuery<PaginatedApiResponse<ServiceVariant>>(enabled ? endpoint : null);

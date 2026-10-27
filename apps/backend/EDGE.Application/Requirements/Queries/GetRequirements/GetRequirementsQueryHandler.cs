@@ -20,8 +20,8 @@ public class GetRequirementsQueryHandler(IRequirementRepository repository)
         {
             var search = request.SearchTerm.ToLower();
             requirements = requirements.Where(r =>
-                r.Name.ToLower().Contains(search) ||
-                (r.Description != null && r.Description.ToLower().Contains(search))
+                (!string.IsNullOrEmpty(r.Name) && r.Name.ToLower().Contains(search)) ||
+                (!string.IsNullOrEmpty(r.Description) && r.Description.ToLower().Contains(search))
             ).ToList();
         }
 

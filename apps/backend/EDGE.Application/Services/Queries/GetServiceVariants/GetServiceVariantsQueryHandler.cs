@@ -38,14 +38,14 @@ public class GetServiceVariantsQueryHandler : IRequestHandler<GetServiceVariants
             var search = request.SearchTerm.ToLower();
             variants = variants.Where(v =>
                 v.Type.ToString().ToLower().Contains(search) ||
-                (v.Description != null && v.Description.ToLower().Contains(search)) ||
-                (v.Service != null && v.Service.Name.ToLower().Contains(search)) ||
+                (!string.IsNullOrEmpty(v.Description) && v.Description.ToLower().Contains(search)) ||
+                (v.Service != null && !string.IsNullOrEmpty(v.Service.Name) && v.Service.Name.ToLower().Contains(search)) ||
                 (v.IsIndividual ? "individual" : "company").Contains(search)
             ).ToList();
         }
 
         variants = variants
-            .OrderBy(v => v.Service != null ? v.Service.Name : string.Empty)
+            .OrderBy(v => v.Service != null ? (v.Service.Name ?? string.Empty) : string.Empty)
             .ThenBy(v => v.Type.ToString())
             .ThenBy(v => v.Description ?? string.Empty)
             .ToList();
