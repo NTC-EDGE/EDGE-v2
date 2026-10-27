@@ -323,7 +323,7 @@ export function buildDynamicSections(
         }
 
         if (
-          (showApplicantCard && (isApplicantParticularField(fieldLabel) || isApplicantParticularField(fieldId))) ||
+          isApplicantParticularField(fieldLabel) || isApplicantParticularField(fieldId) ||
           isSignatureOrDeclarationField(fieldLabel) || isSignatureOrDeclarationField(fieldId) ||
           isJurisdictionOrVariantField(fieldLabel) || isJurisdictionOrVariantField(fieldId) ||
           isRepeaterSubField(fieldLabel, fieldId)
