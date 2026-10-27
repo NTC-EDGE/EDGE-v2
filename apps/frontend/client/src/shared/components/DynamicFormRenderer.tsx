@@ -534,6 +534,7 @@ export const DynamicFormRenderer: React.FC<DynamicFormRendererProps> = ({
       k === "applicantcontact" ||
       k === "applicant_information" ||
       t === "applicant particulars" ||
+      t === "applicant details" ||
       t === "applicant information";
 
     if (isPersonalInfoSec) {

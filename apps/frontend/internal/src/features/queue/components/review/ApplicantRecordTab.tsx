@@ -123,6 +123,17 @@ export function ApplicantRecordTab({
     [app, activeApplicant]
   );
 
+  const effectiveVariantName =
+    activeApplicant?.serviceVariantName ||
+    app.serviceVariantName ||
+    app.permitTitle ||
+    null;
+
+  const effectiveVariantId =
+    activeApplicant?.serviceVariantId ||
+    app.services?.find((s) => s.applicantId === activeApplicant?.id)?.serviceVariantId ||
+    null;
+
   return (
     <View style={{ flex: 1, position: 'relative' }}>
       {toastState !== null && (
@@ -211,6 +222,9 @@ export function ApplicantRecordTab({
                   service={{ id: activeApplicant?.serviceId || app.serviceId || '', title: app.serviceName || app.permitTitle, category: app.serviceCategory || app.category }}
                   form={formData}
                   formFieldValues={flatFormValues}
+                  selectedVariantName={effectiveVariantName}
+                  selectedVariantId={effectiveVariantId}
+                  applicationType={activeApplicant?.applicationType || app.applicationType}
                   activeApplicant={activeApplicant ? {
                     applicantType: activeApplicant.applicantType,
                     companyName: activeApplicant.companyDetails?.name,
@@ -231,6 +245,8 @@ export function ApplicantRecordTab({
                     schoolAttended: activeApplicant.schoolAttended,
                     courseTaken: activeApplicant.courseTaken,
                     yearGraduated: activeApplicant.yearGraduated,
+                    selectedVariantName: effectiveVariantName || undefined,
+                    selectedVariantId: effectiveVariantId || undefined,
                   } : undefined}
                   schoolAttended={activeApplicant?.schoolAttended}
                   courseTaken={activeApplicant?.courseTaken}

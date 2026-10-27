@@ -93,6 +93,8 @@ export interface ApplicantItem {
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  applicationType?: string;
   submissionId?: string;
   contactNumber: string;
   email: string;
@@ -150,6 +152,7 @@ export interface ApplicationServiceItem {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  applicationType?: string;
   submissionId?: string;
 }
 

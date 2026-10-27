@@ -315,7 +315,7 @@ export function GeneralFilingDetailsStep({
     <View style={styles.container}>
       {renderBulkCohortBanner()}
 
-      {/* 1. Standardized Applicant Particulars Section */}
+      {/* 1. Standardized Applicant Details Section */}
       <ApplicantInformationFormSection
         applicant={activeApplicant}
         onChange={(partial) => updateActiveApplicant(partial)}
@@ -323,7 +323,7 @@ export function GeneralFilingDetailsStep({
         isExamService={isExamService}
         includeSignature={false}
         errors={errors}
-        title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Particulars"}
+        title={isBulk ? `Applicant #${currentApplicantIndex + 1} Information` : "Applicant Details"}
       />
 
       {/* 2. Dynamic Service Specifications Section (100% Schema-Driven from Form Builder) */}

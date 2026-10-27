@@ -50,7 +50,7 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression (Internal)'
     expect(isJurisdictionOrVariantField(FIELD_ID_ADMISSION_NO)).toBe(true);
     expect(isJurisdictionOrVariantField('Admission Slip Number')).toBe(true);
 
-    // Education fields should be recognized as applicant particulars
+    // Education fields should be recognized as applicant details
     expect(isApplicantParticularField(FIELD_ID_SCHOOL_NAME)).toBe(true);
     expect(isApplicantParticularField('School / University Attended')).toBe(true);
     expect(isApplicantParticularField(FIELD_ID_COURSE_DEGREE)).toBe(true);

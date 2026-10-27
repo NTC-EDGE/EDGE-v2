@@ -357,7 +357,7 @@ export function resolveCanonicalFieldId(
 
 /**
  * Synthesizes all filled fields from the applicant record (dynamic form fields,
- * standard applicant particulars, and specialized wizard models) into a unified,
+ * standard applicant details, and specialized wizard models) into a unified,
  * deduplicated list of FormFieldValue objects.
  */
 export function synthesizeAllApplicantFieldValues(
@@ -637,7 +637,7 @@ export function synthesizeAllApplicantFieldValues(
     }
   }
 
-  // ── 3. Standard Applicant Particulars ───────────────────────────────────────
+  // ── 3. Standard Applicant Details ───────────────────────────────────────
   const fullName = [applicant.firstName, applicant.middleName, applicant.lastName, applicant.suffix]
     .filter(Boolean)
     .join(' ');

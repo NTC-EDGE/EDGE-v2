@@ -90,8 +90,29 @@ export function useGeneralReviewData(props: GeneralReviewSubmitStepProps) {
       isAmateurCertService: categoryFlags.isAmateurCertService,
       skipFieldIds: extension?.skipFieldIds,
       skipFieldLabels: extension?.skipFieldLabels,
+      selectedVariantName: variantLabel,
+      selectedVariantId: activeApplicant.selectedVariantId,
+      serviceTitle: service.title,
+      serviceName: service.name,
+      serviceCode: form?.serviceCode,
+      applicationType: activeApplicant.examineeType || activeApplicant.examType || activeApplicant.selectedElementTitle,
+      applicantType: activeApplicant.applicantType === 'company' ? 'company' : 'individual',
     });
-  }, [form, particulars.formFieldValues, categoryFlags.isAmateurCertService, extension]);
+  }, [
+    form,
+    particulars.formFieldValues,
+    categoryFlags.isAmateurCertService,
+    extension,
+    variantLabel,
+    activeApplicant.selectedVariantId,
+    service.title,
+    service.name,
+    form?.serviceCode,
+    activeApplicant.examineeType,
+    activeApplicant.examType,
+    activeApplicant.selectedElementTitle,
+    activeApplicant.applicantType,
+  ]);
 
   const examEducationFields = useMemo(() => {
     if (!categoryFlags.isExamService) return [];
