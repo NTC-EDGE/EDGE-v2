@@ -5,12 +5,14 @@ import {
   ServiceIdentifier,
   ActiveApplicantSnapshot,
 } from '../core/formPreviewTypes';
+import { detectCanonicalForm } from '../core/canonicalFormDefinitions';
 import { buildDynamicSections } from '../core/buildDynamicSections';
 import {
   isExamEducationField,
   isExamAssistanceField,
 } from '../core/formPreviewFieldCheckers';
 import { getPreviewExtension } from '../extensions';
+import { EquivalentFormHeaderCard } from './EquivalentFormHeaderCard';
 import { ApplicantDetailsReviewCard } from './ApplicantDetailsReviewCard';
 import { DynamicFormSectionsReview } from './DynamicFormSectionsReview';
 import { ExamEducationReviewSection } from './ExamEducationReviewSection';
@@ -23,12 +25,15 @@ export interface BaseApplicationPreviewProps {
       id?: string;
       key?: string;
       title?: string;
-      fields?: Array<{ id?: string; fieldId?: string; label?: string }>;
+      visibilityCondition?: string | null;
+      fields?: Array<{ id?: string; fieldId?: string; label?: string; visibilityCondition?: string | null }>;
     }>;
+    serviceCode?: string;
+    version?: string;
   } | null;
   formFieldValues: FormFieldValue[];
   activeApplicant?: ActiveApplicantSnapshot;
-  // Resolved Applicant Particulars
+  // Resolved Applicant Details
   resolvedFullName?: string | null;
   resolvedEmail?: string;
   resolvedContactNo?: string;
@@ -47,6 +52,12 @@ export interface BaseApplicationPreviewProps {
   companyName?: string | null;
   representativeName?: string | null;
   notes?: string | null;
+  // Service Variant Parameters
+  selectedVariantName?: string | null;
+  selectedVariantId?: string | null;
+  selectedVariantDescription?: string | null;
+  applicationType?: string | null;
+  showEquivalentFormHeader?: boolean;
   // Flags (optional, derived if not passed)
   isExamService?: boolean;
   isLicenseService?: boolean;
@@ -87,6 +98,11 @@ export function BaseApplicationPreview({
   companyName,
   representativeName,
   notes,
+  selectedVariantName,
+  selectedVariantId,
+  selectedVariantDescription,
+  applicationType,
+  showEquivalentFormHeader = true,
   isExamService,
   isAmateurCertService,
   onPreviewFile = () => {},
@@ -100,12 +116,29 @@ export function BaseApplicationPreview({
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
   const serviceTitleLower = (service.title || '').toLowerCase().trim();
 
+  const effectiveVariantName =
+    selectedVariantName ||
+    activeApplicant?.selectedVariantName ||
+    activeApplicant?.selectedVariant ||
+    null;
+
+  const effectiveVariantId =
+    selectedVariantId ||
+    activeApplicant?.selectedVariantId ||
+    null;
+
+  // Detect equivalent statutory application form from service + variant
+  const canonicalForm = useMemo(() => {
+    return detectCanonicalForm(service, effectiveVariantName);
+  }, [service, effectiveVariantName]);
+
   const isExam =
     isExamService ??
     (serviceCategoryLower.includes('exam') ||
       serviceTitleLower.includes('exam') ||
       serviceTitleLower.includes('admission') ||
-      serviceTitleLower.includes('operator examination'));
+      serviceTitleLower.includes('operator examination') ||
+      canonicalForm?.viewType === 'exam');
 
   const isAmateur =
     isAmateurCertService ??
@@ -119,7 +152,8 @@ export function BaseApplicationPreview({
     serviceTitleLower.includes('vas') ||
     serviceTitleLower.includes('value-added') ||
     (service.id || '').toLowerCase().includes('120') ||
-    (service.id || '').toLowerCase().includes('f20');
+    (service.id || '').toLowerCase().includes('f20') ||
+    canonicalForm?.viewType === 'vas_provider';
 
   const extension = getPreviewExtension(service);
 
@@ -130,8 +164,31 @@ export function BaseApplicationPreview({
       skipFieldIds: extension?.skipFieldIds,
       skipFieldLabels: extension?.skipFieldLabels,
       showApplicantCard,
+      selectedVariantName: effectiveVariantName,
+      selectedVariantId: effectiveVariantId,
+      serviceTitle: service.title,
+      serviceName: service.name,
+      serviceCode: form?.serviceCode,
+      applicationType: applicationType || activeApplicant?.applicationType,
+      applicantType: (applicantType || activeApplicant?.applicantType || '').toLowerCase() === 'company' ? 'company' : 'individual',
     });
-  }, [form, formFieldValues, isAmateur, isVas, extension, showApplicantCard]);
+  }, [
+    form,
+    formFieldValues,
+    isAmateur,
+    isVas,
+    extension,
+    showApplicantCard,
+    effectiveVariantName,
+    effectiveVariantId,
+    service.title,
+    service.name,
+    form?.serviceCode,
+    applicationType,
+    activeApplicant?.applicationType,
+    applicantType,
+    activeApplicant?.applicantType,
+  ]);
 
   const schoolAttendedVal =
     schoolAttended ||
@@ -234,12 +291,24 @@ export function BaseApplicationPreview({
     courseDegree: courseTakenVal,
     yearGraduated: yearGraduatedVal,
     specialOrderNo: specialOrderNoVal,
+    selectedVariantName: effectiveVariantName || undefined,
+    selectedVariantId: effectiveVariantId || undefined,
   };
 
   return (
     <View style={{ gap: 16 }}>
       {/* Top Header Slot (e.g. Hero banner, Jurisdiction, Bulk Cohort) */}
       {headerSlot}
+
+      {/* Equivalent Statutory Application Form Card */}
+      {showEquivalentFormHeader && canonicalForm && (
+        <EquivalentFormHeaderCard
+          canonicalForm={canonicalForm}
+          serviceTitle={service.title || service.name}
+          serviceVariantName={effectiveVariantName}
+          version={form?.version || '1.0'}
+        />
+      )}
 
       {/* Extension Before Sections */}
       {extension?.sections

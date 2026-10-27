@@ -346,7 +346,8 @@ export async function uploadRequirementsAfterSubmit({
       if (matchedReq) {
         if (matchedReq.serviceVariantRequirementId) {
           requirementBody.serviceVariantRequirementId = matchedReq.serviceVariantRequirementId;
-        } else if (matchedReq.requirementId) {
+        }
+        if (matchedReq.requirementId) {
           requirementBody.requirementId = matchedReq.requirementId;
         }
       }

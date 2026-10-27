@@ -72,6 +72,48 @@ export function SharedDocumentUpload({
     [onRemove]
   );
 
+  const handleImageLoadFailure = useCallback(
+    (slotKey: string, slotLabel?: string) => {
+      setImageLoadErrors((prev) => ({ ...prev, [slotKey]: true }));
+      onRemove(slotKey);
+      if (previewFile && typeof previewFile === "object" && activeSlotKey === slotKey) {
+        setIsPreviewOpen(false);
+        setPreviewFile(null);
+      }
+      Alert.alert(
+        "Attachment Image Lost",
+        `The image for "${slotLabel || "required document"}" could not be loaded or was lost. Please upload or take the photo again.`
+      );
+    },
+    [onRemove, previewFile, activeSlotKey]
+  );
+
+  // Proactively validate and clear any empty/ghost upload entries
+  useEffect(() => {
+    if (!uploads) return;
+    Object.entries(uploads).forEach(([key, val]) => {
+      if (!val) return;
+      if (typeof val === "string") {
+        const trimmed = val.trim();
+        if (
+          !trimmed.startsWith("data:") &&
+          !trimmed.startsWith("blob:") &&
+          !trimmed.startsWith("http:") &&
+          !trimmed.startsWith("https:") &&
+          !trimmed.startsWith("file:")
+        ) {
+          onRemove(key);
+        }
+      } else if (typeof val === "object") {
+        const uri = typeof val.uri === "string" ? val.uri.trim() : "";
+        const hasFile = Boolean(val.file);
+        if (!uri && !hasFile) {
+          onRemove(key);
+        }
+      }
+    });
+  }, [uploads, onRemove]);
+
   // Prevent default browser behavior on web (opening dropped files in a new tab)
   useEffect(() => {
     if (Platform.OS !== "web" || typeof window === "undefined") return;
@@ -121,12 +163,34 @@ export function SharedDocumentUpload({
       if (slotKey) {
         setImageLoadErrors((prev) => ({ ...prev, [slotKey]: false }));
       }
-      onUpload(slotKey, {
-        name: fileName,
-        uri: fileUri,
-        type: rawType || undefined,
-        file,
-      });
+      if (rawType.startsWith("image/") && typeof FileReader !== "undefined") {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const dataUri = typeof reader.result === "string" ? reader.result : fileUri;
+          onUpload(slotKey, {
+            name: fileName,
+            uri: dataUri,
+            type: rawType || undefined,
+            file,
+          });
+        };
+        reader.onerror = () => {
+          onUpload(slotKey, {
+            name: fileName,
+            uri: fileUri,
+            type: rawType || undefined,
+            file,
+          });
+        };
+        reader.readAsDataURL(file);
+      } else {
+        onUpload(slotKey, {
+          name: fileName,
+          uri: fileUri,
+          type: rawType || undefined,
+          file,
+        });
+      }
     },
     [activeReq?.key, onUpload]
   );
@@ -204,12 +268,34 @@ export function SharedDocumentUpload({
         const resolvedName = asset?.name || (rawWebFile && 'name' in rawWebFile && typeof rawWebFile.name === 'string' ? rawWebFile.name : 'document');
         const resolvedType = (typeof asset?.mimeType === 'string' && asset.mimeType) || (rawWebFile?.type ? rawWebFile.type : undefined);
         setImageLoadErrors((prev) => ({ ...prev, [activeSlotKey]: false }));
-        onUpload(activeSlotKey, {
-          name: resolvedName,
-          uri: asset?.uri || "",
-          type: resolvedType,
-          file: rawWebFile,
-        });
+        if (rawWebFile && (rawWebFile.type.startsWith("image/") || (resolvedType && resolvedType.startsWith("image/"))) && typeof FileReader !== "undefined") {
+          const reader = new FileReader();
+          reader.onload = () => {
+            const dataUri = typeof reader.result === "string" ? reader.result : (asset?.uri || "");
+            onUpload(activeSlotKey, {
+              name: resolvedName,
+              uri: dataUri,
+              type: resolvedType,
+              file: rawWebFile,
+            });
+          };
+          reader.onerror = () => {
+            onUpload(activeSlotKey, {
+              name: resolvedName,
+              uri: asset?.uri || "",
+              type: resolvedType,
+              file: rawWebFile,
+            });
+          };
+          reader.readAsDataURL(rawWebFile);
+        } else {
+          onUpload(activeSlotKey, {
+            name: resolvedName,
+            uri: asset?.uri || "",
+            type: resolvedType,
+            file: rawWebFile,
+          });
+        }
       }
     } catch (err) {
       console.error("Document picking error:", err);
@@ -361,13 +447,6 @@ export function SharedDocumentUpload({
                     (fileType && fileType.startsWith("image/")))
               );
 
-              const extraHint = (activeReq.hint || activeReq.description || "").trim();
-              const isDuplicateHint =
-                !extraHint ||
-                extraHint.toLowerCase() === activeReq.label.toLowerCase() ||
-                activeReq.label.toLowerCase().includes(extraHint.toLowerCase()) ||
-                extraHint.toLowerCase().includes(activeReq.label.toLowerCase());
-
               const hasActiveReqError = Boolean(
                 activeReq &&
                   !uploadData &&
@@ -388,19 +467,6 @@ export function SharedDocumentUpload({
 
               return (
                 <View style={styles.dropzoneContainer}>
-                  <Text style={styles.activeReqTitle}>
-                    {activeReq.label}
-                    {activeReq.required && <Text style={styles.asterisk}>*</Text>}
-                  </Text>
-                  {!isDuplicateHint && (
-                    <View style={styles.hintContainer}>
-                      <Icon name="info" size={14} color="#1D4ED8" style={{ marginTop: 2, marginRight: 6 }} />
-                      <Text style={styles.hintText}>
-                        {extraHint}
-                      </Text>
-                    </View>
-                  )}
-
                   {uploadData ? (
                     <View style={styles.previewBox}>
                       {isImage && !imageLoadErrors[activeReq.key] ? (
@@ -408,14 +474,14 @@ export function SharedDocumentUpload({
                           source={{ uri: fileUri }}
                           style={styles.imagePreview}
                           onError={() => {
-                            setImageLoadErrors((prev) => ({ ...prev, [activeReq.key]: true }));
+                            handleImageLoadFailure(activeReq.key, activeReq.label);
                           }}
                         />
                       ) : (
                         <View style={styles.pdfPreviewPlaceholder}>
-                          <Icon name={isImage ? "image" : "file-text"} size={48} color={COLORS.neutral[400]} />
+                          <Icon name="file-text" size={48} color={COLORS.neutral[400]} />
                           <Text style={styles.pdfPlaceholderText}>
-                            {isImage ? "Image Document Attached" : "Scanned PDF Document"}
+                            Scanned PDF Document
                           </Text>
                         </View>
                       )}
@@ -631,12 +697,12 @@ export function SharedDocumentUpload({
                         source={{ uri: fileUri }}
                         style={styles.mobileThumbnail}
                         onError={() => {
-                          setImageLoadErrors((prev) => ({ ...prev, [req.key]: true }));
+                          handleImageLoadFailure(req.key, req.label);
                         }}
                       />
                     ) : (
                       <View style={styles.mobileIconPlaceholder}>
-                        <Icon name={isImage ? "image" : "file-text"} size={20} color={COLORS.neutral[500]} />
+                        <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
                       </View>
                     )}
                     <View style={styles.mobileFileDetails}>
@@ -759,7 +825,7 @@ export function SharedDocumentUpload({
         onClose={() => setIsCameraModalOpen(false)}
         onCapture={handleCameraCapture}
         onFallbackToFilePick={handleDocumentPick}
-        title={`Scan / Take Photo - ${activeReq?.label || "Document"}`}
+        title="Scan / Take Photo"
       />
     </View>
   );

@@ -187,7 +187,7 @@ export function GeneralBulkApplicationFlow({
   const handleFilingDetailsNext = () => {
     const errors: Record<string, string> = {};
 
-    // 1. Validate Standard Applicant Particulars (ApplicantInformationFormSection)
+    // 1. Validate Standard Applicant Details (ApplicantInformationFormSection)
     const isCompany = activeApplicant?.applicantType === "company";
 
     if (isCompany) {

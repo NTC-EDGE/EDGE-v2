@@ -8,7 +8,9 @@ public class Form : AuditableEntity
 {
     public Guid ServiceId { get; set; }
     public Service? Service { get; set; }
+    public string? Name { get; set; }
     public string Version { get; set; } = "1.0";
+    public bool IsActive { get; set; } = true;
     public bool CategorySelectionRequired { get; set; }
     public ICollection<FormSection> Sections { get; set; } = new List<FormSection>();
 }

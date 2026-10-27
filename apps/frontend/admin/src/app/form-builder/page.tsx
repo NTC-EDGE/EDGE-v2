@@ -12,6 +12,13 @@ import {
   Sparkles,
   Layers,
   Building2,
+  Save,
+  RotateCcw,
+  PanelLeftClose,
+  PanelLeftOpen,
+  PanelRightClose,
+  PanelRightOpen,
+  Radio,
 } from "lucide-react";
 import { FormSchema, FormField, FieldType } from "@/components/form-builder/types";
 import {
@@ -24,6 +31,8 @@ import {
   convertSchemaToBackendSections,
   reorderFieldsWithSections,
   duplicateFieldWithSection,
+  deleteFieldWithSection,
+  BackendFormDtoLike,
 } from "@/components/form-builder/utils";
 import { useFormBuilderService } from "@/services/formBuilderService";
 import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
@@ -39,6 +48,25 @@ import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/u
 
 type View = "list" | "builder";
 
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === "object" && val !== null && !Array.isArray(val);
+}
+
+function isBackendFormDtoLike(val: unknown): val is BackendFormDtoLike {
+  return isRecord(val);
+}
+
+function getHttpStatus(err: unknown): number | undefined {
+  if (isRecord(err) && isRecord(err["response"]) && typeof err["response"]["status"] === "number") {
+    return err["response"]["status"];
+  }
+  return undefined;
+}
+
+function isFormSchema(val: unknown): val is FormSchema {
+  return isRecord(val) && typeof val["id"] === "string" && Array.isArray(val["fields"]);
+}
+
 function FormBuilderContent() {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
@@ -53,6 +81,7 @@ function FormBuilderContent() {
     updateForm,
     deleteForm,
     duplicateForm,
+    activateForm,
   } = useFormBuilderService();
   const { data: apiResponse, mutate } = useForms(
     currentPage,
@@ -94,6 +123,9 @@ function FormBuilderContent() {
   const [toast, setToast] = useState<ToastMessage | null>(null);
   const [isDirty, setIsDirty] = useState(false);
   const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
+  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
   const originalFormRef = useRef<string | null>(null);
 
   // Warn on browser tab / window navigation if unsaved changes exist
@@ -116,7 +148,7 @@ function FormBuilderContent() {
       : apiResponse.data && Array.isArray(apiResponse.data)
       ? apiResponse.data
       : [];
-    return rawList.map((f: unknown) => convertBackendFormToSchema(f as Parameters<typeof convertBackendFormToSchema>[0]));
+    return rawList.filter(isBackendFormDtoLike).map((f) => convertBackendFormToSchema(f));
   }, [apiResponse]);
 
   // Forms list reflecting backend API response
@@ -148,7 +180,9 @@ function FormBuilderContent() {
             const updateRes = await updateForm(formToSave.id, {
               id: formToSave.id,
               serviceId: formToSave.serviceId,
-              version: "1.0",
+              name: formToSave.name,
+              version: formToSave.version || "1.0",
+              isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
               categorySelectionRequired: false,
               sections,
             });
@@ -168,13 +202,15 @@ function FormBuilderContent() {
               };
             }
           } catch (updateErr: unknown) {
-            const status = (updateErr as { response?: { status?: number } })?.response?.status;
+            const status = getHttpStatus(updateErr);
             // If 404 (client-generated UUID not yet created on backend), create on backend
             if (status === 404) {
               try {
                 const createRes = await createForm({
                   serviceId: formToSave.serviceId,
-                  version: "1.0",
+                  name: formToSave.name,
+                  version: formToSave.version || "1.0",
+                  isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
                   categorySelectionRequired: false,
                   sections,
                 });
@@ -215,7 +251,9 @@ function FormBuilderContent() {
 
         return {
           success: true,
-          message: "Form saved successfully.",
+          message: formToSave.serviceId
+            ? "Form template saved successfully."
+            : "Form saved locally only. To reflect in client applications, associate this template with a Service.",
           form: current,
         };
       } catch (err: unknown) {
@@ -303,8 +341,10 @@ function FormBuilderContent() {
   const handleDeleteField = useCallback(
     (id: string) => {
       if (!activeForm) return;
-      const fields = activeForm.fields.filter((f) => f.id !== id);
-      if (selectedFieldId === id) setSelectedFieldId(null);
+      const fields = deleteFieldWithSection(activeForm.fields, id);
+      if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
+        setSelectedFieldId(null);
+      }
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -339,11 +379,13 @@ function FormBuilderContent() {
     if (result.success) {
       originalFormRef.current = JSON.stringify(result.form);
       setIsDirty(false);
+      setIsSaveConfirmOpen(false);
       setToast({
         message: result.message || "Form template saved to backend successfully.",
         type: "success",
       });
     } else {
+      setIsSaveConfirmOpen(false);
       setToast({
         message: result.message || "Failed to save form to backend.",
         type: "error",
@@ -351,49 +393,59 @@ function FormBuilderContent() {
     }
   };
 
-  // Auto-save on changes/drags (debounced 1200ms)
-  useEffect(() => {
-    if (!isDirty || !activeForm || isSaving) return;
+  const handleResetChanges = useCallback(() => {
+    if (!originalFormRef.current) return;
+    try {
+      const parsed: unknown = JSON.parse(originalFormRef.current);
+      if (isFormSchema(parsed)) {
+        setActiveForm(parsed);
+        setSelectedFieldId(null);
+        setIsDirty(false);
+        setToast({
+          message: "Unsaved changes reverted to last saved version.",
+          type: "info",
+        });
+      }
+    } catch {
+      // ignore
+    }
+  }, []);
 
-    const timer = setTimeout(() => {
-      persistFormToBackend(activeForm).then((result) => {
-        if (result.success) {
-          originalFormRef.current = JSON.stringify(result.form);
-          setIsDirty(false);
-        }
-      });
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [isDirty, activeForm, isSaving, persistFormToBackend]);
-
-  const handleTogglePublish = async () => {
-    if (!activeForm) return;
-    const targetState = !activeForm.isPublished;
-    const updated: FormSchema = {
-      ...activeForm,
-      isPublished: targetState,
-      updatedAt: new Date().toISOString(),
-    };
-    setActiveForm(updated);
-    const result = await persistFormToBackend(updated);
-    if (result.success) {
-      originalFormRef.current = JSON.stringify(result.form);
-      setIsDirty(false);
+  const handleSwitchVersion = async (targetFormId: string) => {
+    if (targetFormId === activeForm?.id) return;
+    try {
+      const res = await getFormById(targetFormId);
+      if (res && res.succeeded && res.data) {
+        const freshSchema = convertBackendFormToSchema(res.data);
+        setActiveForm(freshSchema);
+        originalFormRef.current = JSON.stringify(freshSchema);
+        setSelectedFieldId(null);
+        setIsDirty(false);
+        setToast({
+          message: `Switched to version v${freshSchema.version || "1.0"}.`,
+          type: "info",
+        });
+      }
+    } catch {
       setToast({
-        message: targetState
-          ? "Form published successfully."
-          : "Form unpublished.",
-        type: "success",
-      });
-    } else {
-      setActiveForm((prev) =>
-        prev ? { ...prev, isPublished: !targetState } : prev
-      );
-      setToast({
-        message: `Failed to update publication status: ${result.message}`,
+        message: "Failed to load the selected form version.",
         type: "error",
       });
+    }
+  };
+
+  const handleSetActiveCurrent = async () => {
+    if (!activeForm) return;
+    await handleSetActive(activeForm);
+    try {
+      const res = await getFormById(activeForm.id);
+      if (res && res.succeeded && res.data) {
+        const freshSchema = convertBackendFormToSchema(res.data);
+        setActiveForm(freshSchema);
+        originalFormRef.current = JSON.stringify(freshSchema);
+      }
+    } catch {
+      // ignore
     }
   };
 
@@ -453,6 +505,8 @@ function FormBuilderContent() {
   const handleCreateNew = (
     name: string,
     description: string,
+    version: string,
+    isActive: boolean,
     serviceId?: string,
     serviceName?: string
   ) => {
@@ -461,35 +515,114 @@ function FormBuilderContent() {
       id: generateId(),
       name,
       description,
+      version: version || "1.0",
       serviceId,
       serviceName,
       fields: [],
       createdAt: now,
       updatedAt: now,
-      isPublished: false,
+      isPublished: isActive,
+      isActive,
     };
     saveFormSchema(newForm);
     setIsCreateDialogOpen(false);
     handleOpenEditor(newForm);
-    setToast({ message: "Form created. Start adding fields!", type: "success" });
+    setToast({
+      message: isActive
+        ? `Form (v${newForm.version}) created as active. Start adding fields!`
+        : `Form (v${newForm.version}) created as draft. Start adding fields!`,
+      type: "success",
+    });
   };
 
   const handleDuplicateForm = async (form: FormSchema) => {
     const now = new Date().toISOString();
+    const curVer = form.version || "1.0";
+    const allNums = (form.availableVersions ?? [])
+      .map((v) => parseFloat(v.version))
+      .filter((n) => !isNaN(n));
+    const curNum = parseFloat(curVer);
+    if (!isNaN(curNum)) {
+      allNums.push(curNum);
+    }
+    const maxVer = allNums.length > 0 ? Math.max(...allNums) : NaN;
+    const nextVer = !isNaN(maxVer) ? `${(Math.floor(maxVer) + 1).toFixed(1)}` : `${curVer}-copy`;
+
     const duplicate: FormSchema = {
       ...form,
       id: generateId(),
-      name: `${form.name} (Copy)`,
+      name: `${form.name} (v${nextVer})`,
+      version: nextVer,
       isPublished: false,
+      isActive: false,
       createdAt: now,
       updatedAt: now,
     };
     saveFormSchema(duplicate);
     if (form.serviceId) {
-      await duplicateForm(form.id).catch(() => null);
+      await duplicateForm(form.id, nextVer).catch(() => null);
       await mutate();
+      if (activeForm && activeForm.id === form.id) {
+        try {
+          const res = await getFormById(form.id);
+          if (res && res.succeeded && res.data) {
+            const freshSchema = convertBackendFormToSchema(res.data);
+            setActiveForm((prev) =>
+              prev ? { ...prev, availableVersions: freshSchema.availableVersions } : prev
+            );
+          }
+        } catch {
+          // ignore
+        }
+      }
     }
-    setToast({ message: "Form duplicated.", type: "success" });
+    setToast({
+      message: `Created new draft version v${nextVer}.`,
+      type: "success",
+    });
+  };
+
+  const handleSetActive = async (form: FormSchema) => {
+    if (!form.serviceId) return;
+    try {
+      const res = await activateForm(form.id);
+      if (res && res.succeeded) {
+        setToast({
+          message: `"${form.name}" (v${form.version || "1.0"}) is now live as the active form on the client portal.`,
+          type: "success",
+        });
+        await mutate();
+      } else {
+        // Fallback to updateForm if needed
+        const sections = convertSchemaToBackendSections(form.fields);
+        const updateRes = await updateForm(form.id, {
+          id: form.id,
+          serviceId: form.serviceId,
+          name: form.name,
+          version: form.version || "1.0",
+          isActive: true,
+          categorySelectionRequired: false,
+          sections,
+        });
+        if (updateRes && updateRes.succeeded) {
+          setToast({
+            message: `"${form.name}" (v${form.version || "1.0"}) is now live as the active form on the client portal.`,
+            type: "success",
+          });
+          await mutate();
+        } else {
+          setToast({
+            message: res?.message || updateRes?.message || "Failed to set form as active.",
+            type: "error",
+          });
+        }
+      }
+    } catch (err: unknown) {
+      setToast({
+        message: getErrorMessage(err, "Failed to set form as active."),
+        type: "error",
+      });
+    }
   };
 
   const handleDeleteFormConfirm = async () => {
@@ -543,8 +676,10 @@ function FormBuilderContent() {
   const handleDiscardAndExit = () => {
     if (originalFormRef.current) {
       try {
-        const original = JSON.parse(originalFormRef.current) as FormSchema;
-        saveFormSchema(original);
+        const parsed: unknown = JSON.parse(originalFormRef.current);
+        if (isFormSchema(parsed)) {
+          saveFormSchema(parsed);
+        }
       } catch {
         // ignore
       }
@@ -580,14 +715,14 @@ function FormBuilderContent() {
             <div className="flex items-center gap-2">
               <ClipboardList className="w-4 h-4 text-indigo-500 shrink-0" />
               <span
-                className="text-sm font-semibold text-slate-800 dark:text-white max-w-[200px] truncate"
+                className="text-sm font-semibold text-slate-800 dark:text-white max-w-[320px] xl:max-w-[480px] truncate"
                 title={activeForm.name || "Untitled Form"}
               >
                 {activeForm.name || "Untitled Form"}
               </span>
               {activeForm.serviceName && (
                 <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[360px]"
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200/80 dark:border-indigo-800/60 max-w-[420px] xl:max-w-[560px]"
                   title={`Associated Service: ${activeForm.serviceName}${activeForm.serviceCode ? ` (${activeForm.serviceCode})` : ""}`}
                 >
                   <Building2 className="w-3.5 h-3.5 text-indigo-600 dark:text-indigo-400 shrink-0" />
@@ -600,11 +735,46 @@ function FormBuilderContent() {
           </div>
 
           <div className="flex items-center gap-2.5">
-            {/* Background Saving Load Indicator / Auto-Save Status */}
+            {/* Workspace Panel Toggles for Desktop Width Control */}
+            <div className="hidden lg:flex items-center gap-1 mr-1 pr-2 border-r border-slate-200 dark:border-slate-800">
+              <button
+                type="button"
+                onClick={() => setIsLeftPanelOpen((prev) => !prev)}
+                className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                  isLeftPanelOpen
+                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+                title={isLeftPanelOpen ? "Hide Field Palette" : "Show Field Palette"}
+              >
+                {isLeftPanelOpen ? (
+                  <PanelLeftClose className="w-4 h-4" />
+                ) : (
+                  <PanelLeftOpen className="w-4 h-4" />
+                )}
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsRightPanelOpen((prev) => !prev)}
+                className={`p-1.5 rounded-lg border text-xs transition-colors ${
+                  isRightPanelOpen
+                    ? "bg-slate-100 dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200"
+                    : "border-transparent text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800"
+                }`}
+                title={isRightPanelOpen ? "Hide Properties Inspector" : "Show Properties Inspector"}
+              >
+                {isRightPanelOpen ? (
+                  <PanelRightClose className="w-4 h-4" />
+                ) : (
+                  <PanelRightOpen className="w-4 h-4" />
+                )}
+              </button>
+            </div>
+            {/* Save Status Indicator */}
             {isSaving ? (
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold animate-pulse">
                 <Loader2 className="w-3.5 h-3.5 animate-spin text-indigo-600 dark:text-indigo-400" />
-                <span>Saving in background…</span>
+                <span>Saving changes…</span>
               </div>
             ) : !isDirty ? (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200/80 dark:border-emerald-800/50 text-emerald-700 dark:text-emerald-300 text-xs font-medium">
@@ -614,9 +784,35 @@ function FormBuilderContent() {
             ) : (
               <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300 text-xs font-medium">
                 <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                <span>Syncing…</span>
+                <span>Unsaved changes</span>
               </div>
             )}
+
+            {isDirty && !isSaving && (
+              <button
+                type="button"
+                onClick={handleResetChanges}
+                className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 font-medium transition-all"
+                title="Revert all unsaved edits back to last saved state"
+              >
+                <RotateCcw className="w-3.5 h-3.5" />
+                Reset
+              </button>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setIsSaveConfirmOpen(true)}
+              disabled={!isDirty || isSaving}
+              className={`flex items-center gap-1.5 text-xs px-3.5 py-1.5 rounded-lg font-semibold transition-all ${
+                isDirty && !isSaving
+                  ? "bg-indigo-600 hover:bg-indigo-500 text-white shadow-lg shadow-indigo-600/20 cursor-pointer"
+                  : "bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 border border-slate-200 dark:border-slate-700 cursor-not-allowed"
+              }`}
+            >
+              <Save className="w-3.5 h-3.5" />
+              Save Changes
+            </button>
 
             <button
               type="button"
@@ -625,27 +821,6 @@ function FormBuilderContent() {
             >
               <Eye className="w-3.5 h-3.5" />
               Preview
-            </button>
-            <button
-              type="button"
-              onClick={handleTogglePublish}
-              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-semibold transition-all ${
-                activeForm.isPublished
-                  ? "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900/50 border border-amber-200 dark:border-amber-700"
-                  : "bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-600/20"
-              }`}
-            >
-              {activeForm.isPublished ? (
-                <>
-                  <EyeOff className="w-3.5 h-3.5" />
-                  Unpublish
-                </>
-              ) : (
-                <>
-                  <Globe className="w-3.5 h-3.5" />
-                  Publish
-                </>
-              )}
             </button>
           </div>
         </div>
@@ -657,38 +832,65 @@ function FormBuilderContent() {
           )}
         </div>
 
-        {/* Three-panel layout */}
+        {/* Three-panel layout utilizing full desktop width */}
         <div className="flex flex-1 overflow-hidden">
           {/* Left Panel: Field Palette */}
-          <div className="w-60 flex-shrink-0 overflow-hidden">
-            <FieldPalette onAddField={handleAddField} />
-          </div>
+          {isLeftPanelOpen && (
+            <div className="w-64 xl:w-72 2xl:w-80 flex-shrink-0 overflow-hidden transition-all duration-200">
+              <FieldPalette onAddField={handleAddField} />
+            </div>
+          )}
 
           {/* Center Panel: Canvas */}
-          <div className="flex-1 overflow-hidden">
+          <div className="flex-1 min-w-0 overflow-hidden">
             <FormCanvas
               form={activeForm}
+              catalogServices={services}
+              catalogCategories={categories}
               selectedFieldId={selectedFieldId}
-              onSelectField={setSelectedFieldId}
+              onSelectField={(fieldId) => {
+                setSelectedFieldId(fieldId);
+                if (fieldId !== null) {
+                  setIsRightPanelOpen(true);
+                }
+              }}
               onUpdateForm={handleUpdateForm}
               onAddField={handleAddField}
               onReorderFields={handleReorderFields}
               onDuplicateField={handleDuplicateField}
               onDeleteField={handleDeleteField}
+              onSwitchVersion={handleSwitchVersion}
+              onSetActive={handleSetActiveCurrent}
+              onCreateNewVersion={() => handleDuplicateForm(activeForm)}
+              onDeleteVersion={() => setDeleteTarget(activeForm)}
             />
           </div>
 
           {/* Right Panel: Field Properties & Form Details */}
-          <div className="w-80 flex-shrink-0 overflow-hidden">
-            <FieldEditor
-              field={selectedField}
-              form={activeForm}
-              onUpdateField={handleUpdateField}
-              onUpdateForm={handleUpdateForm}
-              onSelectField={setSelectedFieldId}
-            />
-          </div>
+          {isRightPanelOpen && (
+            <div className="w-80 lg:w-96 xl:w-[420px] 2xl:w-[460px] flex-shrink-0 overflow-hidden transition-all duration-200">
+              <FieldEditor
+                field={selectedField}
+                form={activeForm}
+                onUpdateField={handleUpdateField}
+                onUpdateForm={handleUpdateForm}
+                onSelectField={setSelectedFieldId}
+              />
+            </div>
+          )}
         </div>
+
+        {/* Save Changes Confirmation Dialog */}
+        <ConfirmActionDialog
+          isOpen={isSaveConfirmOpen}
+          onClose={() => !isSaving && setIsSaveConfirmOpen(false)}
+          title="Save Form Changes"
+          description={`Are you sure you want to save all changes to "${activeForm.name || activeForm.serviceName || "this form"}"? This will update the form structure and reflect in client applications.`}
+          confirmLabel="Confirm & Save Changes"
+          cancelLabel="Keep Editing"
+          loading={isSaving}
+          onConfirm={handleManualSave}
+        />
 
         {/* Unsaved Changes Confirmation Dialog */}
         <UnsavedChangesDialog
@@ -698,6 +900,18 @@ function FormBuilderContent() {
           onDiscard={handleDiscardAndExit}
           isSaving={isSaving}
           formTitle={activeForm.name || activeForm.serviceName || "this form"}
+        />
+
+        {/* Delete Version Confirmation */}
+        <ConfirmActionDialog
+          isOpen={Boolean(deleteTarget)}
+          onClose={() => setDeleteTarget(null)}
+          title="Delete Form Version"
+          description={`Are you sure you want to delete "${deleteTarget?.name ?? "this form"}" (v${deleteTarget?.version || "1.0"})? This action cannot be undone.`}
+          confirmLabel="Delete Version"
+          cancelLabel="Cancel"
+          loading={false}
+          onConfirm={handleDeleteFormConfirm}
         />
 
         {/* Preview Modal */}
@@ -763,6 +977,7 @@ function FormBuilderContent() {
         onPreview={handleOpenPreview}
         onDuplicate={handleDuplicateForm}
         onDelete={(form) => setDeleteTarget(form)}
+        onSetActive={handleSetActive}
         onCreateNew={() => setIsCreateDialogOpen(true)}
         searchTerm={searchTerm}
         onSearchChange={(term) => {
@@ -796,6 +1011,7 @@ function FormBuilderContent() {
         open={isCreateDialogOpen}
         onOpenChange={setIsCreateDialogOpen}
         onCreate={handleCreateNew}
+        existingForms={forms}
       />
 
       {/* Delete Confirmation */}
@@ -820,6 +1036,15 @@ function FormBuilderContent() {
       )}
     </div>
   );
+}
+
+function formatFormBadge(code?: string): string {
+  if (!code) return "";
+  const match = code.match(/^NTC[_-]1[_-](\d{2})$/i);
+  if (match) {
+    return `NTC 1-${match[1]}`;
+  }
+  return code;
 }
 
 export default function FormBuilderPage() {

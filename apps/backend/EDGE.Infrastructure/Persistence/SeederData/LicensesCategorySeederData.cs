@@ -143,6 +143,7 @@ public static class LicensesCategorySeederData
     public static Dictionary<string, string> GetContractMapEntries() => new(StringComparer.OrdinalIgnoreCase)
     {
         ["NTC_1_04"] = Ntc104Contract,
+        ["NTC_1_05"] = NtcCopyLicenseContract,
         ["NTC_1_11"] = Ntc111Contract,
         ["NTC_AMA_LICENSES"] = NtcAmaLicenseContract,
         ["NTC_AERO_LICENSES"] = NtcAeroLicenseContract,
@@ -155,13 +156,13 @@ public static class LicensesCategorySeederData
 
     public static List<ServiceCategoryDef> GetServiceDefs(Guid categoryId) => new()
     {
-        new("NTC_AMA_LICENSES", SvcLicAmaId, categoryId, "LICENSE IN THE AMATEUR SERVICE", "License in the Amateur Service", "NTC_AMA_LICENSES", "LICENSE IN THE AMATEUR SERVICE", NtcAmaLicenseContract),
-        new("NTC_AERO_LICENSES", SvcLicAeroId, categoryId, "LICENSE IN THE AERONAUTICAL SERVICE", null, "NTC_AERO_LICENSES", "LICENSE IN THE AERONAUTICAL SERVICE", NtcAeroLicenseContract),
-        new("NTC_MAR_LICENSES", SvcLicMarId, categoryId, "LICENSE IN THE MARITIME SERVICE", null, "NTC_MAR_LICENSES", "LICENSE IN THE MARITIME SERVICE", Ntc104Contract),
-        new("NTC_FLM_LICENSES", SvcLicFlmId, categoryId, "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_FLM_LICENSES", "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", Ntc111Contract),
-        new("NTC_OTHER_LICENSES", SvcLicOtherId, categoryId, "OTHER RADIO STATION LICENSES/SERVICES", null, "NTC_OTHER_LICENSES", "OTHER RADIO STATION LICENSES/SERVICES", Ntc111Contract),
-        new("NTC_TVRO_CATV_LICENSES", SvcLicTvroCatvId, categoryId, "TVRO/CATV STATION LICENSE", null, "NTC_TVRO_CATV_LICENSES", "TVRO/CATV STATION LICENSE", NtcTvroCatvLicenseContract),
-        new("NTC_COPY_LICENSES", SvcLicCopyId, categoryId, "COPY OF LICENSES", null, "NTC_COPY_LICENSES", "COPY OF LICENSES", NtcCopyLicenseContract)
+        new("NTC_AMA_LICENSES", SvcLicAmaId, categoryId, "LICENSE IN THE AMATEUR SERVICE", "License in the Amateur Service", "NTC_AMA_LICENSES", "LICENSE IN THE AMATEUR SERVICE (NTC 1-03)", NtcAmaLicenseContract),
+        new("NTC_AERO_LICENSES", SvcLicAeroId, categoryId, "LICENSE IN THE AERONAUTICAL SERVICE", null, "NTC_AERO_LICENSES", "LICENSE IN THE AERONAUTICAL SERVICE (NTC 1-11)", NtcAeroLicenseContract),
+        new("NTC_1_04", SvcLicMarId, categoryId, "LICENSE IN THE MARITIME SERVICE", null, "NTC_1_04", "LICENSE IN THE MARITIME SERVICE (NTC 1-04)", Ntc104Contract),
+        new("NTC_1_11", SvcLicFlmId, categoryId, "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE", null, "NTC_1_11", "LICENSES FOR GOVERNMENT AND PRIVATE RADIO STATIONS IN THE FIXED AND LAND MOBILE SERVICE (NTC 1-11)", Ntc111Contract),
+        new("NTC_OTHER_LICENSES", SvcLicOtherId, categoryId, "OTHER RADIO STATION LICENSES/SERVICES", null, "NTC_OTHER_LICENSES", "OTHER RADIO STATION LICENSES/SERVICES (NTC 1-11)", Ntc111Contract),
+        new("NTC_TVRO_CATV_LICENSES", SvcLicTvroCatvId, categoryId, "TVRO/CATV STATION LICENSE", null, "NTC_TVRO_CATV_LICENSES", "TVRO/CATV STATION LICENSE (NTC 1-22)", NtcTvroCatvLicenseContract),
+        new("NTC_COPY_LICENSES", SvcLicCopyId, categoryId, "COPY OF LICENSES", null, "NTC_COPY_LICENSES", "COPY OF LICENSES (NTC 1-21)", NtcCopyLicenseContract)
     };
 
     // Variant IDs
@@ -792,47 +793,22 @@ public static class LicensesCategorySeederData
 
     public static List<ServiceFormDef> GetFormDefs() => new()
     {
-        new("NTC_AMA_LICENSES", Guid.Parse("f7000000-0000-0000-0000-000000000001"), Guid.Parse("f70a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("club", "Club Details (if Club Station)", new() { "clubName", "trusteeName", "trusteeCallSign", "trusteeLicenseNo", "clubAddress" }),
-            new("station", "Station Details", new() { "stationLocation", "stationType", "authorizedPower", "frequencyBands" }),
-            new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
-        }),
-        new("NTC_AERO_LICENSES", Guid.Parse("f7100000-0000-0000-0000-000000000001"), Guid.Parse("f71a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("aircraft", "Aircraft Particulars", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" }),
-            new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Antenna Particulars", new() { "antennaType", "height", "gain" })
-        }),
-        new("NTC_MAR_LICENSES", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
+        // Canonical Form: NTC 1-04 (Ship Station License - Maritime)
+        new("NTC_1_04", Guid.Parse("f7200000-0000-0000-0000-000000000001"), Guid.Parse("f72a0000-0000-0000-0000-000000000000"), new()
         {
             new("vessel", "Particulars of Station / Vessel", new() { "vesselName", "callSign", "stationLicenseNo", "imoNumber" }),
             new("equipment", "Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber", "frequencyRange", "powerOutput" }),
             new("radioOfficers", "Particulars of Radio Officers", new() { "officerName", "certificateNumber", "expiryDate", "citizenship" })
         }),
-        new("NTC_FLM_LICENSES", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
+        // Canonical Form: NTC 1-11 (Radio Station License: FLM, Aero, Other)
+        // Shared across NTC_1_11, NTC_AERO_LICENSES, NTC_OTHER_LICENSES
+        new("NTC_1_11", Guid.Parse("f7300000-0000-0000-0000-000000000001"), Guid.Parse("f73a0000-0000-0000-0000-000000000000"), new()
         {
             new("stations", "Particulars of Station / Equipment / Antenna", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput", "hoursOfOperation", "configuration", "dataRate", "remarks" }),
             new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "classOfStation", "serialNumber", "frequencyRange", "powerOutput" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity", "polarization", "beamwidth", "diameter" })
-        }),
-        new("NTC_OTHER_LICENSES", Guid.Parse("f7400000-0000-0000-0000-000000000001"), Guid.Parse("f74a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("stations", "Particulars of Station(s)", new() { "stationLocation", "stationClass", "serviceArea", "frequency", "bandwidth", "emission", "powerOutput" }),
-            new("equipment", "Particulars of Equipment", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Particulars of Antenna", new() { "antennaType", "height", "gain", "directivity" })
-        }),
-        new("NTC_TVRO_CATV_LICENSES", Guid.Parse("f7500000-0000-0000-0000-000000000001"), Guid.Parse("f75a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("headEnd", "Head-End Station Details", new() { "stationLocation", "carrierFrequency", "bandwidth", "serviceArea", "channelCapacity" }),
-            new("equipment", "Head-End Equipment Particulars", new() { "equipmentDetails", "makeModel", "serialNumber" }),
-            new("antennas", "Dish Antenna Particulars", new() { "antennaType", "diameter", "gain", "azimuth", "elevation" })
-        }),
-        new("NTC_COPY_LICENSES", Guid.Parse("f7600000-0000-0000-0000-000000000001"), Guid.Parse("f76a0000-0000-0000-0000-000000000000"), new()
-        {
-            new("permitLicenseCertificateNo", "License Reference Details", new() { "callSign", "permitRslNo", "stationLocation" }),
-            new("circumstances", "Circumstances of Loss/Damage", new() { "circumstances" })
+            new("antennas", "Particulars of Antenna System", new() { "antennaType", "height", "gain", "directivity", "polarization" }),
+            new("pointsOfCommunication", "Points of Communication", new() { "stationLocation", "serviceArea" }),
+            new("aircraft", "Aircraft Particulars (if Aircraft Station)", new() { "aircraftRegNo", "aircraftMakeModel", "aircraftSerialNo", "registeredOwner", "baseOfOperation" })
         })
     };
 

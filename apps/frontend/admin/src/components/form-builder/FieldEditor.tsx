@@ -19,7 +19,15 @@ import {
   Sparkles,
 } from "lucide-react";
 import { FormField, FormSchema, FieldType, RepeaterColumn } from "./types";
-import { generateId, getFieldLabel, getFieldIcon, DEFAULT_EQUIPMENT_COLUMNS,
+import { ConditionBuilder } from "./ConditionBuilder";
+import {
+  generateId,
+  getFieldLabel,
+  getFieldIcon,
+  DEFAULT_EQUIPMENT_COLUMNS,
+  DEFAULT_STATION_PARTICULARS_COLUMNS,
+  DEFAULT_DEVICE_REGISTRATION_COLUMNS,
+  DEFAULT_TVRO_EQUIPMENT_COLUMNS,
   DEFAULT_REQUEST_DEVICE_COLUMNS,
   DEFAULT_REQUEST_SIM_COLUMNS,
   DEFAULT_COMPLAINT_ATTACHMENT_COLUMNS,
@@ -65,8 +73,23 @@ function LabeledSection({
 const inputClass =
   "w-full px-3 py-2 text-xs bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all";
 
-const FIELDS_WITH_PLACEHOLDER: FieldType[] = ["text", "textarea", "number", "email", "phone", "date"];
+const FIELDS_WITH_PLACEHOLDER: FieldType[] = ["text", "textarea", "number", "email", "phone", "date", "time"];
 const FIELDS_WITH_OPTIONS: FieldType[] = ["select", "radio", "checkbox"];
+
+function parseRepeaterColType(val: string): RepeaterColumn["type"] {
+  if (
+    val === "text" ||
+    val === "number" ||
+    val === "select" ||
+    val === "date" ||
+    val === "file" ||
+    val === "equipments" ||
+    val === "serials"
+  ) {
+    return val;
+  }
+  return "text";
+}
 
 function formatDate(isoString?: string): string {
   if (!isoString) return "—";
@@ -409,6 +432,36 @@ export function FieldEditor({
     });
   };
 
+  const handleLoadStationParticularsPreset = () => {
+    onUpdateField({
+      label: "Particulars of Station & Equipment",
+      helpText: "Enter station specifications, equipment units, frequencies, and serial numbers.",
+      addButtonLabel: "Add Station",
+      repeaterColumns: [...DEFAULT_STATION_PARTICULARS_COLUMNS],
+      minRows: 1,
+    });
+  };
+
+  const handleLoadDeviceRegistrationPreset = () => {
+    onUpdateField({
+      label: "Particulars of Equipment",
+      helpText: "Enter make/type/model, serial numbers, and frequency range.",
+      addButtonLabel: "Add Equipment",
+      repeaterColumns: [...DEFAULT_DEVICE_REGISTRATION_COLUMNS],
+      minRows: 1,
+    });
+  };
+
+  const handleLoadTvroEquipmentPreset = () => {
+    onUpdateField({
+      label: "Particulars of Equipment",
+      helpText: "Enter TVRO equipment units, serial numbers, and frequency range.",
+      addButtonLabel: "Add Equipment",
+      repeaterColumns: [...DEFAULT_TVRO_EQUIPMENT_COLUMNS],
+      minRows: 1,
+    });
+  };
+
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-l border-slate-200 dark:border-slate-800 flex flex-col">
       {/* Editor Header */}
@@ -728,6 +781,30 @@ export function FieldEditor({
                   <Sparkles className="w-3 h-3 flex-shrink-0" />
                   <span>Proof Documents</span>
                 </button>
+                <button
+                  type="button"
+                  onClick={handleLoadStationParticularsPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-purple-50 dark:bg-purple-950/40 border border-purple-200 dark:border-purple-800/60 text-[11px] text-purple-700 dark:text-purple-300 hover:bg-purple-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>Station & Equip</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadDeviceRegistrationPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-teal-50 dark:bg-teal-950/40 border border-teal-200 dark:border-teal-800/60 text-[11px] text-teal-700 dark:text-teal-300 hover:bg-teal-100 font-semibold transition-colors"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>Device Reg.</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadTvroEquipmentPreset}
+                  className="flex items-center justify-center gap-1 py-1.5 px-2 rounded-lg bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800/60 text-[11px] text-cyan-700 dark:text-cyan-300 hover:bg-cyan-100 font-semibold transition-colors col-span-2"
+                >
+                  <Sparkles className="w-3 h-3 flex-shrink-0" />
+                  <span>TVRO / CATV Equipment</span>
+                </button>
               </div>
             </div>
 
@@ -789,7 +866,7 @@ export function FieldEditor({
                         value={col.type}
                         onChange={(e) =>
                           handleUpdateColumn(col.id, {
-                            type: e.target.value as "text" | "number" | "select" | "date" | "file",
+                            type: parseRepeaterColType(e.target.value),
                           })
                         }
                         className={inputClass}
@@ -799,6 +876,8 @@ export function FieldEditor({
                         <option value="select">Dropdown</option>
                         <option value="date">Date Picker</option>
                         <option value="file">File Upload</option>
+                        <option value="equipments">Equipment Units (Freq & Serial)</option>
+                        <option value="serials">Serial Number List</option>
                       </select>
                     </div>
                   </div>
@@ -930,7 +1009,25 @@ export function FieldEditor({
           </LabeledSection>
         )}
 
-        {/* Options list for select, radio, checkbox */}
+          {/* Conditional Visibility & Logic */}
+        {field.type !== "divider" && (
+          <LabeledSection
+            title={field.type === "section-header" ? "Section Visibility & Logic" : "Conditional Visibility & Logic"}
+            icon={EyeOff}
+            description={
+              field.type === "section-header"
+                ? "Control when this entire section appears based on Service, Variant, Element, Applicant Type, or parent field dependency."
+                : "Control when this field appears based on Service, Variant, Element, Applicant Type, or field dependency."
+            }
+          >
+            <ConditionBuilder
+              field={field}
+              form={form}
+              onUpdateField={onUpdateField}
+            />
+          </LabeledSection>
+        )}
+
         {hasOptions && (
           <LabeledSection
             title="Choice Options"

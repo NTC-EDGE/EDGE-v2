@@ -14,25 +14,6 @@ export const CopyOfCertPreview: PreviewExtension = {
       !c.includes('permit')
     );
   },
-  skipFieldIds: [
-    'targetservice',
-    'target_service',
-    'targetcertificatetype',
-    'target_certificate_type',
-    'certificateno',
-    'certificate_no',
-    'numberofcopies',
-    'number_of_copies',
-    'copytype',
-    'copy_type',
-  ],
-  skipFieldLabels: [
-    'copy type',
-    'service',
-    'type',
-    'certificate number',
-    'certificate no.',
-    'no. of copies',
-    'number of copies',
-  ],
+  skipFieldIds: [],
+  skipFieldLabels: [],
 };

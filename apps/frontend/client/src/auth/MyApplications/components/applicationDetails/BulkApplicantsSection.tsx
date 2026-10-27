@@ -98,7 +98,7 @@ export function BulkApplicantsSection({
         <Text style={styles.alertBannerText}>
           {approvedCount > 0 || declinedCount > 0
             ? `${approvedCount} applicant(s) approved and ${declinedCount} declined. Select any applicant on the left to review their complete application details and attached documents.`
-            : `This bulk application contains ${totalSubmitted} submitted applicant(s). Select an applicant on the left to inspect their full particulars on the right.`}
+            : `This bulk application contains ${totalSubmitted} submitted applicant(s). Select an applicant on the left to inspect their full details on the right.`}
         </Text>
       </View>
 

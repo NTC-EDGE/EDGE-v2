@@ -328,6 +328,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
 
         modelBuilder.Entity<Form>(entity =>
         {
+            entity.Property(e => e.Name).HasMaxLength(250);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
             entity.HasOne(e => e.Service)
                   .WithMany()
                   .HasForeignKey(e => e.ServiceId)

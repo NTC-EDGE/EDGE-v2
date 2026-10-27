@@ -67,6 +67,7 @@ const paletteGroups: PaletteGroup[] = [
       { type: "email", description: "Email address validation", colorClass: "bg-sky-100 dark:bg-sky-900/50" },
       { type: "phone", description: "Phone / mobile number", colorClass: "bg-sky-100 dark:bg-sky-900/50" },
       { type: "date", description: "Date selection picker", colorClass: "bg-teal-100 dark:bg-teal-900/50" },
+      { type: "time", description: "Time selection (HH:MM AM/PM)", colorClass: "bg-teal-100 dark:bg-teal-900/50" },
     ],
   },
   {

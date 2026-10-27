@@ -17,6 +17,7 @@ interface FormBuilderTabProps {
   onEditForm: (item: FormBuilderItem) => void;
   onDeleteForm: (id: string, name: string) => void;
   onOpenVisualBuilder?: (item?: FormBuilderItem) => void;
+  onSetActive?: (id: string, title: string) => void;
 }
 
 export function FormBuilderTab({
@@ -25,6 +26,7 @@ export function FormBuilderTab({
   onEditForm,
   onDeleteForm,
   onOpenVisualBuilder,
+  onSetActive,
 }: FormBuilderTabProps) {
   const { colors, isDark } = useTheme();
   const { width } = useWindowDimensions();
@@ -133,6 +135,11 @@ export function FormBuilderTab({
                     <View style={styles.titleWrapper}>
                       <View style={styles.titleTitleRow}>
                         <Text style={[styles.itemTitle, { color: colors.text }]}>{item.title}</Text>
+                        <View style={[styles.versionBadge, { backgroundColor: isDark ? colors.neutral[800] : colors.neutral[200] }]}>
+                          <Text style={[styles.versionBadgeText, { color: isDark ? colors.neutral[300] : colors.neutral[700] }]}>
+                            v{item.version || '1.0'}
+                          </Text>
+                        </View>
                         <View
                           style={[
                             styles.pillBadge,
@@ -177,6 +184,20 @@ export function FormBuilderTab({
                   </View>
 
                   <View style={styles.actionsRow}>
+                    {isDraft && onSetActive && (
+                      <Pressable
+                        style={({ pressed }) => [
+                          styles.activateBtn,
+                          { backgroundColor: isDark ? 'rgba(16, 185, 129, 0.15)' : '#ecfdf5', borderColor: isDark ? 'rgba(16, 185, 129, 0.3)' : '#a7f3d0' },
+                          pressed && { opacity: 0.7 },
+                          Platform.select({ web: { cursor: 'pointer' } }),
+                        ]}
+                        onPress={() => onSetActive(item.id, item.title)}
+                      >
+                        <Lucide name="check-circle" size={13} color={COLORS.semantic.success} />
+                        <Text style={[styles.activateBtnText, { color: COLORS.semantic.success }]}>Set Active</Text>
+                      </Pressable>
+                    )}
                     <Pressable
                       style={({ pressed }) => [
                         styles.actionBtn,
@@ -383,6 +404,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: SPACING[8],
     paddingVertical: 2,
     borderRadius: RADIUS.button,
+  },
+  versionBadge: {
+    paddingHorizontal: SPACING[6],
+    paddingVertical: 1,
+    borderRadius: RADIUS.xs,
+  },
+  versionBadgeText: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  activateBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: SPACING[8],
+    paddingVertical: 4,
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+  },
+  activateBtnText: {
+    fontSize: 11,
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontWeight: TYPOGRAPHY.weights.semibold,
   },
   badgeText: {
     fontSize: 10,

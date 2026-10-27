@@ -55,7 +55,7 @@ export function ApplicantInformationFormSection({
   isExamService = false,
   includeSignature = true,
   errors = {},
-  title = "Applicant Particulars",
+  title = "Applicant Details",
 }: ApplicantInformationFormSectionProps) {
   const isCompany = applicant.applicantType === "company";
 

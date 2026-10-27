@@ -19,6 +19,9 @@ export interface SubmittedApplicantData {
   mobileNumber?: string;
   email?: string;
   examineeType?: string;
+  applicationType?: string;
+  serviceVariantName?: string;
+  serviceVariantId?: string;
   birthDate?: string | null;
   civilStatus?: string | null;
   companyName?: string | null;
@@ -40,6 +43,7 @@ export interface SubmittedFormStructuredViewProps {
   sectionNumber?: string;
   serviceId?: string;
   serviceVariantId?: string | null;
+  variantLabel?: string;
   singleApplicant?: SubmittedApplicantData | null;
   showApplicantCard?: boolean;
   isExamService?: boolean;
@@ -52,6 +56,7 @@ export function SubmittedFormStructuredView({
   onPreviewFile,
   serviceId,
   serviceVariantId,
+  variantLabel,
   singleApplicant,
   showApplicantCard = false,
   isExamService,
@@ -75,6 +80,12 @@ export function SubmittedFormStructuredView({
 
   const effectiveServiceId = resolvedServiceId || serviceId || app.serviceId;
   const effectiveVariantId = serviceVariantId || app.serviceVariantId;
+  const effectiveVariantName =
+    variantLabel ||
+    singleApplicant?.serviceVariantName ||
+    app.serviceVariantName ||
+    app.variant ||
+    null;
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
   const isExam =
@@ -110,6 +121,9 @@ export function SubmittedFormStructuredView({
       isExamService={isExam}
       form={form}
       formFieldValues={formFieldValues}
+      selectedVariantName={effectiveVariantName}
+      selectedVariantId={effectiveVariantId}
+      applicationType={singleApplicant?.examineeType || singleApplicant?.applicationType || app.element}
       resolvedFullName={applicantName}
       resolvedEmail={singleApplicant?.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined}
       resolvedContactNo={singleApplicant?.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined}

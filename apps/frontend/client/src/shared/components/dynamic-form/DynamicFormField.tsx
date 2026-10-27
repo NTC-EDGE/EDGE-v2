@@ -9,6 +9,7 @@ import { DatePickerInput } from "../DatePickerInput";
 import { FormRepeaterTable, FormRepeaterColumn } from "../FormRepeaterTable";
 import { ApplicantNameField, StructuredNameData } from "../ApplicantNameField";
 import { DeclarationCheckbox } from "../DeclarationCheckbox";
+import { CheckboxGroup } from "../CheckboxGroup";
 import { FormSignatureInput } from "../FormSignatureInput";
 import { IntendedUseCheckboxGroup } from "../IntendedUseCheckboxGroup";
 import { VasServicesCheckboxGroup } from "../VasServicesCheckboxGroup";
@@ -168,6 +169,8 @@ export interface DynamicFormFieldProps {
   span: 12 | 8 | 6 | 4 | 3;
   dropdownOptions: Array<{ label: string; value: string }>;
   placeholder: string;
+  helpText?: string;
+  maxLength?: number;
   isNameField: boolean;
   isRepeaterField: boolean;
   isBsdField: boolean;
@@ -175,12 +178,10 @@ export interface DynamicFormFieldProps {
   isIntendedUseField: boolean;
   isVasServicesField: boolean;
   isNatureOfComplaintField?: boolean;
+  hideInlineOthersSpecify?: boolean;
   isTimeField?: boolean;
   othersSpecifyValue?: string;
   onOthersSpecifyChange?: (text: string) => void;
-  incidentOthersSpecifyValue?: string;
-  onIncidentOthersSpecifyChange?: (text: string) => void;
-  incidentOthersError?: string;
   isSignature: boolean;
   isCheckbox: boolean;
   isDropdown: boolean;
@@ -219,6 +220,8 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   span,
   dropdownOptions,
   placeholder,
+  helpText,
+  maxLength,
   isNameField,
   isRepeaterField,
   isBsdField,
@@ -226,12 +229,10 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
   isIntendedUseField,
   isVasServicesField,
   isNatureOfComplaintField = false,
+  hideInlineOthersSpecify = false,
   isTimeField = false,
   othersSpecifyValue,
   onOthersSpecifyChange,
-  incidentOthersSpecifyValue,
-  onIncidentOthersSpecifyChange,
-  incidentOthersError,
   isSignature,
   isCheckbox,
   isDropdown,
@@ -287,9 +288,9 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
             isRequired={isRequired}
             value={val}
             fieldKey={targetId}
-            columns={customRepeaterColumns || repeaterRules?.columns}
-            addButtonLabel={customAddButtonLabel || repeaterRules?.addButtonLabel}
-            instruction={repeaterRules?.helpText || field.placeholder || ""}
+            columns={repeaterRules?.columns || customRepeaterColumns}
+            addButtonLabel={repeaterRules?.addButtonLabel || customAddButtonLabel}
+            instruction={repeaterRules?.helpText || helpText || field.placeholder || ""}
             minRows={repeaterRules?.minRows}
             maxRows={repeaterRules?.maxRows || maxRows}
             parentMakeTypeModel={parentMakeTypeModel}
@@ -315,16 +316,24 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           </Text>
         </View>
       ) : isIntendedUseField ? (
-        <IntendedUseCheckboxGroup label={displayLabel} required={isRequired} value={val} onChange={(newVal) => onChange(targetId, displayLabel, newVal)} error={err} />
+        <IntendedUseCheckboxGroup
+          label={displayLabel}
+          required={isRequired}
+          value={val}
+          options={dropdownOptions.length > 0 ? dropdownOptions : undefined}
+          onChange={(newVal) => onChange(targetId, displayLabel, newVal)}
+          error={err}
+        />
       ) : isNatureOfComplaintField ? (
         <NatureOfComplaintCheckboxGroup
           label={displayLabel}
           required={isRequired}
           value={val}
-          options={field.options}
+          options={dropdownOptions.length > 0 ? dropdownOptions : field.options}
           onChange={(newVal) => onChange(targetId, displayLabel, newVal)}
           onOthersSpecifyChange={onOthersSpecifyChange}
           othersSpecifyValue={othersSpecifyValue}
+          hideInlineSpecify={hideInlineOthersSpecify}
           error={err}
         />
       ) : isTimeField ? (
@@ -337,33 +346,33 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
           disabled={disabled}
         />
       ) : isVasServicesField ? (
-        <VasServicesCheckboxGroup label={displayLabel} required={isRequired} value={val} onChange={(newVal) => onChange(targetId, displayLabel, newVal)} error={err} />
+        <VasServicesCheckboxGroup
+          label={displayLabel}
+          required={isRequired}
+          value={val}
+          options={dropdownOptions.length > 0 ? dropdownOptions : undefined}
+          onChange={(newVal) => onChange(targetId, displayLabel, newVal)}
+          error={err}
+        />
       ) : isSignature ? (
         <FormSignatureInput label={displayLabel} isRequired={isRequired} value={val} onChange={(sig) => onChange(targetId, displayLabel, sig)} applicantName={applicantName || val} isBulk={isBulk} appMode={appMode} error={err} />
       ) : isCheckbox ? (
-        <DeclarationCheckbox label={displayLabel} isRequired={isRequired} value={val} onChange={(chk) => onChange(targetId, displayLabel, chk)} error={err} />
+        dropdownOptions.length > 0 ? (
+          <CheckboxGroup
+            label={displayLabel}
+            required={isRequired}
+            value={val}
+            options={dropdownOptions}
+            onChange={(newVal) => onChange(targetId, displayLabel, newVal)}
+            error={err}
+            disabled={disabled}
+          />
+        ) : (
+          <DeclarationCheckbox label={displayLabel} isRequired={isRequired} value={val} onChange={(chk) => onChange(targetId, displayLabel, chk)} error={err} />
+        )
       ) : isDropdown ? (
         <View style={{ width: "100%" }}>
-          {isAmateurPermitService && (targetId === "stationClass" || targetId.toLowerCase() === "stationclass") && (
-            <View style={{ width: "100%", marginBottom: 12, marginTop: 12, borderTopWidth: 1, borderTopColor: "#E2E8F0", paddingTop: 12 }}>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#1E293B", textTransform: "uppercase", letterSpacing: 0.5 }}>
-                Particulars of Station
-              </Text>
-            </View>
-          )}
           <Select label={displayLabel} required={isRequired} value={val} onValueChange={onDropdownChange} options={dropdownOptions} placeholder={placeholder} error={err} disabled={disabled} />
-          {(targetId === "loss_reason" || targetId === "fd000000-0000-0000-0000-000000000313" || displayLabel.toLowerCase().includes("incident type")) && val === "Others" && (
-            <View style={{ marginTop: 10 }}>
-              <ValidatedInput
-                label="Please specify"
-                required={true}
-                placeholder="Please specify incident type..."
-                value={incidentOthersSpecifyValue || ""}
-                onChangeText={(text) => onIncidentOthersSpecifyChange?.(text)}
-                error={incidentOthersError}
-              />
-            </View>
-          )}
         </View>
       ) : isDate ? (
         <DatePickerInput label={displayLabel} required={isRequired} value={val} onChangeText={(v) => onChange(targetId, displayLabel, v)} error={err} />
@@ -397,12 +406,17 @@ export const DynamicFormField: React.FC<DynamicFormFieldProps> = ({
               });
             }
           }}
-          placeholder={field.placeholder || (isContactField ? "09XXXXXXXXX or +639XXXXXXXXX" : isEmailField ? "user@example.com" : `Enter ${displayLabel}...`)}
+          placeholder={placeholder || field.placeholder || (isContactField ? "09XXXXXXXXX or +639XXXXXXXXX" : isEmailField ? "user@example.com" : `Enter ${displayLabel}...`)}
           keyboardType={isContactField ? "phone-pad" : isEmailField ? "email-address" : isNumber ? "numeric" : "default"}
           autoCapitalize={isEmailField ? "none" : undefined}
-          maxLength={isContactField ? 13 : undefined}
+          maxLength={maxLength ?? (isContactField ? 13 : undefined)}
           error={err}
         />
+      )}
+      {!isRepeaterField && Boolean(helpText && helpText.trim().length > 0) && (
+        <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, color: "#64748B", marginTop: 4 }}>
+          {helpText}
+        </Text>
       )}
     </FormCol>
   );

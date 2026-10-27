@@ -19,15 +19,59 @@ public class FormRepository : IFormRepository
         _context = context;
     }
 
+    private static readonly Dictionary<Guid, Guid> ServiceToCanonicalServiceMap = new()
+    {
+        // Permits sharing NTC 1-09 (Svc109Id = 50000000-0000-0000-0000-000000000009)
+        [Guid.Parse("50000000-0000-0000-0000-000000000060")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_AERO_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000061")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_MAR_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000062")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_FLM_PERMITS -> NTC_1_09
+        [Guid.Parse("50000000-0000-0000-0000-000000000063")] = Guid.Parse("50000000-0000-0000-0000-000000000009"), // NTC_PTE_PERMITS -> NTC_1_09
+
+        // Equipment / Mobile Phone sharing NTC 1-18 (Svc118Id = 50000000-0000-0000-0000-000000000018)
+        [Guid.Parse("50000000-0000-0000-0000-000000000064")] = Guid.Parse("50000000-0000-0000-0000-000000000018"), // NTC_EQUIP_PERMITS -> NTC_1_18
+        [Guid.Parse("50000000-0000-0000-0000-000000000065")] = Guid.Parse("50000000-0000-0000-0000-000000000018"), // NTC_MP_PERMITS -> NTC_1_18
+
+        // Copy of Permits and Copy of Licenses sharing NTC 1-21 (Svc121Id = 50000000-0000-0000-0000-000000000021)
+        [Guid.Parse("50000000-0000-0000-0000-000000000066")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // NTC_COPY_PERMITS -> NTC_1_21
+        [Guid.Parse("50000000-0000-0000-0000-000000000076")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // NTC_COPY_LICENSES -> NTC_1_21
+        [Guid.Parse("50000000-0000-0000-0000-000000000017")] = Guid.Parse("50000000-0000-0000-0000-000000000021"), // Legacy NTC_COPY_LICENSES -> NTC_1_21
+
+        // Licenses sharing NTC 1-11 (SvcLicFlmId = 50000000-0000-0000-0000-000000000073 / Legacy 50000000-0000-0000-0000-000000000014)
+        [Guid.Parse("50000000-0000-0000-0000-000000000071")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // NTC_AERO_LICENSES -> NTC_1_11
+        [Guid.Parse("50000000-0000-0000-0000-000000000074")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // NTC_OTHER_LICENSES -> NTC_1_11
+        [Guid.Parse("50000000-0000-0000-0000-000000000012")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // Legacy NTC_AERO_LICENSES -> NTC_1_11
+        [Guid.Parse("50000000-0000-0000-0000-000000000015")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // Legacy NTC_OTHER_LICENSES -> NTC_1_11
+        [Guid.Parse("50000000-0000-0000-0000-000000000014")] = Guid.Parse("50000000-0000-0000-0000-000000000073"), // Legacy SvcLicFlmId -> NTC_1_11
+
+        // Amateur License sharing NTC 1-03 (Svc103Id = 50000000-0000-0000-0000-000000000003)
+        [Guid.Parse("50000000-0000-0000-0000-000000000070")] = Guid.Parse("50000000-0000-0000-0000-000000000003"), // NTC_AMA_LICENSES -> NTC_1_03
+        [Guid.Parse("50000000-0000-0000-0000-000000000011")] = Guid.Parse("50000000-0000-0000-0000-000000000003"), // Legacy NTC_AMA_LICENSES -> NTC_1_03
+
+        // TVRO CATV sharing NTC 1-22 (Svc122Id = 50000000-0000-0000-0000-000000000022)
+        [Guid.Parse("50000000-0000-0000-0000-000000000075")] = Guid.Parse("50000000-0000-0000-0000-000000000022"), // NTC_TVRO_CATV_LICENSES -> NTC_1_22
+        [Guid.Parse("50000000-0000-0000-0000-000000000016")] = Guid.Parse("50000000-0000-0000-0000-000000000022"), // Legacy NTC_TVRO_CATV_LICENSES -> NTC_1_22
+
+        // Maritime License (SvcLicMarId = 50000000-0000-0000-0000-000000000072 - NTC 1-04)
+        [Guid.Parse("50000000-0000-0000-0000-000000000013")] = Guid.Parse("50000000-0000-0000-0000-000000000072"), // Legacy SvcLicMarId -> SvcLicMarId (NTC 1-04)
+    };
+
     public async Task<Form?> GetFormByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default)
     {
+        var targetServiceId = ServiceToCanonicalServiceMap.TryGetValue(serviceId, out var canonicalId)
+            ? canonicalId
+            : serviceId;
+
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
-            .Include(f => f.Sections.OrderBy(fs => fs.OrderIndex))
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
-            .FirstOrDefaultAsync(f => f.ServiceId == serviceId, cancellationToken);
+            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && !f.IsDeleted)
+            .OrderByDescending(f => f.ServiceId == serviceId)
+            .ThenByDescending(f => f.IsActive)
+            .ThenByDescending(f => f.CreatedAt)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     public async Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
@@ -35,7 +79,7 @@ public class FormRepository : IFormRepository
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
-            .Include(f => f.Sections.OrderBy(fs => fs.OrderIndex))
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
             .FirstOrDefaultAsync(f => f.Id == id, cancellationToken);
@@ -45,8 +89,9 @@ public class FormRepository : IFormRepository
     {
         return await _context.Forms
             .Include(f => f.Service)
-            .Include(f => f.Sections)
-                .ThenInclude(fs => fs.SectionFields)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
             .OrderByDescending(f => f.CreatedAt)
             .ToListAsync(cancellationToken);
     }
@@ -90,6 +135,8 @@ public class FormRepository : IFormRepository
         string version,
         bool categorySelectionRequired,
         List<FormSectionDto> incomingSections,
+        string? name = null,
+        bool? isActive = null,
         CancellationToken cancellationToken = default)
     {
         // 1. Get or Create Form
@@ -99,10 +146,16 @@ public class FormRepository : IFormRepository
 
         if (form == null)
         {
+            // If isActive is not explicitly provided, only activate if no active form exists for this service yet.
+            // This prevents newly created forms (such as v2 drafts) from immediately usurping the live client form.
+            bool shouldBeActive = isActive ?? (!await _context.Forms.AnyAsync(f => f.ServiceId == serviceId && !f.IsDeleted && f.IsActive, cancellationToken));
+
             form = new Form
             {
                 Id = formId,
                 ServiceId = serviceId,
+                Name = name,
+                IsActive = shouldBeActive,
                 Version = string.IsNullOrWhiteSpace(version) ? "1.0" : version,
                 CategorySelectionRequired = categorySelectionRequired,
                 CreatedAt = DateTime.UtcNow,
@@ -114,11 +167,36 @@ public class FormRepository : IFormRepository
         else
         {
             form.ServiceId = serviceId;
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                form.Name = name;
+            }
+            if (isActive.HasValue)
+            {
+                form.IsActive = isActive.Value;
+            }
             form.Version = string.IsNullOrWhiteSpace(version) ? "1.0" : version;
             form.CategorySelectionRequired = categorySelectionRequired;
             form.IsDeleted = false;
             form.LastModifiedAt = DateTime.UtcNow;
             await _context.SaveChangesAsync(cancellationToken);
+        }
+
+        // If this form is active, deactivate other forms for the same service
+        if (form.IsActive)
+        {
+            var otherActiveForms = await _context.Forms
+                .Where(f => f.ServiceId == serviceId && f.Id != form.Id && !f.IsDeleted && f.IsActive)
+                .ToListAsync(cancellationToken);
+            if (otherActiveForms.Count > 0)
+            {
+                foreach (var other in otherActiveForms)
+                {
+                    other.IsActive = false;
+                    other.LastModifiedAt = DateTime.UtcNow;
+                }
+                await _context.SaveChangesAsync(cancellationToken);
+            }
         }
 
         // 2. Upsert all Fields first
@@ -238,6 +316,12 @@ public class FormRepository : IFormRepository
         }
         await _context.SaveChangesAsync(cancellationToken);
 
+        foreach (var obsoleteSec in obsoleteSections)
+        {
+            form.Sections.Remove(obsoleteSec);
+            _context.Entry(obsoleteSec).State = EntityState.Detached;
+        }
+
         // 4. Refresh SectionFields for each section
         var allActiveSecIds = targetSections.Select(s => s.Id).ToList();
         var currentSectionFields = await _context.SectionFields
@@ -286,5 +370,49 @@ public class FormRepository : IFormRepository
         }
 
         return await GetByIdAsync(form.Id, cancellationToken) ?? form;
+    }
+
+    public async Task<Form?> SetFormActiveAsync(Guid formId, CancellationToken cancellationToken = default)
+    {
+        var form = await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Service)
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
+                .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
+                    .ThenInclude(sf => sf.Field)
+            .FirstOrDefaultAsync(f => f.Id == formId && !f.IsDeleted, cancellationToken);
+
+        if (form == null)
+        {
+            return null;
+        }
+
+        form.IsActive = true;
+        form.LastModifiedAt = DateTime.UtcNow;
+
+        var otherActiveForms = await _context.Forms
+            .Where(f => f.ServiceId == form.ServiceId && f.Id != form.Id && !f.IsDeleted && f.IsActive)
+            .ToListAsync(cancellationToken);
+
+        foreach (var other in otherActiveForms)
+        {
+            other.IsActive = false;
+            other.LastModifiedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync(cancellationToken);
+        return form;
+    }
+
+    public async Task<List<Form>> GetVersionsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default)
+    {
+        return await _context.Forms
+            .IgnoreQueryFilters()
+            .Include(f => f.Sections.Where(fs => !fs.IsDeleted))
+                .ThenInclude(fs => fs.SectionFields)
+            .Where(f => f.ServiceId == serviceId && !f.IsDeleted)
+            .OrderByDescending(f => f.IsActive)
+            .ThenByDescending(f => f.CreatedAt)
+            .ToListAsync(cancellationToken);
     }
 }

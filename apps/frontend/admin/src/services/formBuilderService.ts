@@ -18,21 +18,37 @@ export interface FormSectionApiDto {
   fields: FormFieldApiDto[];
 }
 
+export interface FormVersionSummaryApiDto {
+  formId: string;
+  version: string;
+  name?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt?: string;
+  sectionsCount: number;
+  fieldsCount: number;
+}
+
 export interface FormApiDto {
   formId: string;
   serviceId: string;
   serviceName?: string;
   serviceCode?: string;
+  name?: string;
   version: string;
+  isActive?: boolean;
   categorySelectionRequired?: boolean;
   createdAt?: string;
   updatedAt?: string;
   sections: FormSectionApiDto[];
+  availableVersions?: FormVersionSummaryApiDto[];
 }
 
 export interface CreateFormRequest {
   serviceId: string;
+  name?: string;
   version: string;
+  isActive?: boolean;
   categorySelectionRequired: boolean;
   sections?: FormSectionApiDto[];
 }
@@ -40,7 +56,9 @@ export interface CreateFormRequest {
 export interface UpdateFormRequest {
   id: string;
   serviceId: string;
+  name?: string;
   version: string;
+  isActive?: boolean;
   categorySelectionRequired: boolean;
   sections?: FormSectionApiDto[];
 }
@@ -114,6 +132,10 @@ export function useFormBuilderService() {
     return post<FormApiResponse<FormApiDto>, DuplicateFormRequest>(`/api/v2/forms/${id}/duplicate`, { id, version });
   };
 
+  const activateForm = async (id: string): Promise<FormApiResponse<FormApiDto>> => {
+    return post<FormApiResponse<FormApiDto>, Record<string, never>>(`/api/v2/forms/${id}/activate`, {});
+  };
+
   return {
     useForms,
     useFormById,
@@ -124,5 +146,6 @@ export function useFormBuilderService() {
     updateForm,
     deleteForm,
     duplicateForm,
+    activateForm,
   };
 }

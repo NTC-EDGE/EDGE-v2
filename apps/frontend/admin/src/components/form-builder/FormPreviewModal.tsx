@@ -1,7 +1,9 @@
 "use client";
 
 import React, { useState } from "react";
-import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2 } from "lucide-react";
+import { Building2, Layers, CheckCircle2, Code2, Eye, Plus, Trash2, Sliders } from "lucide-react";
+import { parseFieldCondition } from "./utils";
+import { collectAllFormVariants } from "./canonicalFormServices";
 import {
   Dialog,
   DialogContent,
@@ -16,7 +18,13 @@ interface FormPreviewModalProps {
   form: FormSchema;
 }
 
-function PreviewField({ field }: { field: FormField }) {
+interface PreviewFieldProps {
+  field: FormField;
+  value?: string;
+  onChange?: (val: string) => void;
+}
+
+function PreviewField({ field, value = "", onChange }: PreviewFieldProps) {
   const labelEl = (
     <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1.5">
       {field.label}
@@ -57,6 +65,8 @@ function PreviewField({ field }: { field: FormField }) {
           minLength={field.minLength}
           maxLength={field.maxLength}
           required={field.required}
+          value={value}
+          onChange={(e) => onChange?.(e.target.value)}
         />
         {helpText}
       </div>
@@ -67,7 +77,7 @@ function PreviewField({ field }: { field: FormField }) {
     return (
       <div className={colSpanClass}>
         {labelEl}
-        <select className={inputClass} required={field.required} defaultValue="">
+        <select className={inputClass} required={field.required} value={value} onChange={(e) => onChange?.(e.target.value)}>
           <option value="" disabled>
             {field.placeholder || "-- Please Select --"}
           </option>
@@ -93,6 +103,8 @@ function PreviewField({ field }: { field: FormField }) {
                 type="radio"
                 name={field.id}
                 value={opt.value}
+                checked={value === opt.value}
+                onChange={() => onChange?.(opt.value)}
                 required={field.required}
                 className="w-3.5 h-3.5 text-indigo-600 border-slate-300 focus:ring-indigo-500"
               />
@@ -120,6 +132,16 @@ function PreviewField({ field }: { field: FormField }) {
               <span>{opt.label}</span>
             </label>
           ))}
+          {(field.options ?? []).length === 0 && (
+            <label className="flex items-center gap-2.5 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+              <input
+                type="checkbox"
+                value="true"
+                className="w-3.5 h-3.5 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+              />
+              <span>{field.placeholder || field.label || 'Checkbox option'}</span>
+            </label>
+          )}
         </div>
         {helpText}
       </div>
@@ -156,6 +178,7 @@ function PreviewField({ field }: { field: FormField }) {
     email: "email",
     phone: "tel",
     date: "date",
+    time: "time",
   };
 
   return (
@@ -349,6 +372,96 @@ function RepeaterFieldPreview({ field }: { field: FormField }) {
 export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalProps) {
   const [tab, setTab] = useState<"form" | "json">("form");
   const [submitted, setSubmitted] = useState(false);
+  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  const [formValues, setFormValues] = useState<Record<string, string>>({});
+
+  const availableVariants = React.useMemo(() => {
+    const all = collectAllFormVariants(form);
+    return all.map((v) => v.name);
+  }, [form]);
+
+  const handleFieldValueChange = (fieldId: string, val: string) => {
+    setFormValues((prev) => ({
+      ...prev,
+      [fieldId]: val,
+    }));
+  };
+
+  React.useEffect(() => {
+    if (open) {
+      setSelectedVariant("ALL");
+      setFormValues({});
+      setSubmitted(false);
+    }
+  }, [open, form.id]);
+
+  const isFieldApplicableForVariant = (f: FormField, variant: string): boolean => {
+    if (f.type === "section-header" || f.type === "divider") return true;
+    const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
+    if (!cond) return true;
+    if (variant === "ALL") return true;
+
+    const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
+    const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
+
+    if (!hasVariants && !hasAppTypes) return true;
+
+    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
+    const target = normalize(variant);
+
+    const matchesList = (list?: string[]) => {
+      if (!list || list.length === 0) return false;
+      return list.some((item) => {
+        const norm = normalize(item);
+        return norm === target || norm.includes(target) || target.includes(norm);
+      });
+    };
+
+    return matchesList(cond.variants) || matchesList(cond.applicationTypes);
+  };
+
+  const handleVariantChange = (newVariant: string) => {
+    setSelectedVariant(newVariant);
+    setSubmitted(false);
+    // Prune values for fields not applicable to newly selected variant to prevent stale conditional fields from lingering
+    setFormValues((prev) => {
+      if (newVariant === "ALL") return prev;
+      const next: Record<string, string> = {};
+      for (const [key, val] of Object.entries(prev)) {
+        const field = form.fields.find(
+          (f) => f.id === key || f.id.toLowerCase() === key.toLowerCase()
+        );
+        if (field && isFieldApplicableForVariant(field, newVariant)) {
+          next[key] = val;
+        }
+      }
+      return next;
+    });
+  };
+
+  const isFieldVisibleInPreview = (f: FormField): boolean => {
+    if (f.type === "section-header" || f.type === "divider") return true;
+    if (!isFieldApplicableForVariant(f, selectedVariant)) return false;
+
+    const cond = f.condition ?? (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
+    if (!cond) return true;
+
+    // Parent-child dependencies
+    if (cond.fieldDependencies && cond.fieldDependencies.length > 0) {
+      for (const dep of cond.fieldDependencies) {
+        const parentVal = formValues[dep.fieldId] ?? formValues[dep.fieldId.toLowerCase()] ?? "";
+        if (dep.operator === "equals" && dep.value && parentVal !== dep.value) return false;
+        if (dep.operator === "not_equals" && dep.value && parentVal === dep.value) return false;
+        if (dep.operator === "is_not_empty" && !parentVal.trim()) return false;
+        if (dep.operator === "is_empty" && parentVal.trim().length > 0) return false;
+        if (dep.operator === "contains" && dep.value && !parentVal.includes(dep.value)) return false;
+      }
+    }
+
+    return true;
+  };
+
+  const visibleFields = form.fields.filter(isFieldVisibleInPreview);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -358,7 +471,7 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-3xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[calc(100vw-24px)] sm:w-full sm:max-w-5xl xl:max-w-6xl max-h-[92vh] sm:max-h-[90vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b border-slate-200 dark:border-slate-800 flex-shrink-0 bg-slate-50 dark:bg-slate-900/80 pr-10 sm:pr-12">
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
             <div className="min-w-0">
@@ -413,6 +526,44 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
           </div>
         </DialogHeader>
 
+        {/* Variant Pills Toolbar for Interactive Preview Testing */}
+        {tab === "form" && availableVariants.length > 0 && (
+          <div className="px-4 py-2.5 sm:px-6 sm:py-3 bg-slate-100/70 dark:bg-slate-800/50 border-b border-slate-200 dark:border-slate-800 flex items-center gap-2 overflow-x-auto flex-shrink-0">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 flex items-center gap-1.5 shrink-0">
+              <Sliders className="w-3.5 h-3.5 text-indigo-500" />
+              Variant View:
+            </span>
+            <button
+              type="button"
+              onClick={() => handleVariantChange("ALL")}
+              className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                selectedVariant === "ALL"
+                  ? "bg-indigo-600 text-white font-semibold shadow-sm"
+                  : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600"
+              }`}
+            >
+              All Variants ({form.fields.length})
+            </button>
+            {availableVariants.map((v) => {
+              const isSelected = selectedVariant.toLowerCase().trim() === v.toLowerCase().trim();
+              return (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => handleVariantChange(v)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors shrink-0 ${
+                    isSelected
+                      ? "bg-indigo-600 text-white font-semibold shadow-sm"
+                      : "bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-600 border border-slate-200 dark:border-slate-600"
+                  }`}
+                >
+                  {v}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
         <div className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-5">
           {tab === "json" ? (
             <pre className="p-3 sm:p-4 rounded-xl bg-slate-950 text-emerald-400 text-xs font-mono overflow-auto max-h-[450px]">
@@ -431,9 +582,27 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
                   <span>Preview Submission Validated: All required fields were entered correctly!</span>
                 </div>
               )}
-              {form.fields.map((field) => (
-                <PreviewField key={field.id} field={field} />
-              ))}
+              {visibleFields.map((field, idx) => {
+                const nextField = form.fields[idx + 1];
+                const isEmptySection =
+                  field.type === "section-header" &&
+                  (!nextField || nextField.type === "section-header");
+                return (
+                  <React.Fragment key={field.id}>
+                    <PreviewField field={field} value={formValues[field.id]} onChange={(val) => handleFieldValueChange(field.id, val)} />
+                    {isEmptySection && (
+                      <div className="col-span-1 sm:col-span-2 p-3 rounded-xl bg-amber-50/70 dark:bg-amber-950/30 border border-dashed border-amber-300 dark:border-amber-800 text-center">
+                        <p className="text-xs font-semibold text-amber-800 dark:text-amber-300">
+                          Empty Section (0 fields)
+                        </p>
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                          This section currently has no fields configured.
+                        </p>
+                      </div>
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </form>
           )}
         </div>

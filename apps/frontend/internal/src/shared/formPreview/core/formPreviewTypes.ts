@@ -69,7 +69,7 @@ export interface PreviewExtensionRenderProps {
   onPreviewFile?: (uri: string, label: string) => void;
 }
 
-// ─── Applicant Snapshots ─────────────────────────────────────────────────────
+// ─── Applicant Snapshots (flexible surface shared between wizard & My App) ───
 
 export interface ActiveApplicantSnapshot {
   applicantType?: string;
@@ -113,6 +113,11 @@ export interface ActiveApplicantSnapshot {
   amateurLicenseData?: unknown;
   lifetimeLicenseData?: unknown;
   permitData?: unknown;
+  selectedVariant?: string;
+  selectedVariantName?: string;
+  selectedVariantId?: string;
+  selectedVariantDescription?: string;
+  applicationType?: string;
 }
 
 export interface ApplicationSnapshot {
@@ -120,6 +125,7 @@ export interface ApplicationSnapshot {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantId?: string | null;
+  serviceVariantName?: string | null;
   applicantName?: string;
   companyName?: string | null;
   mode?: string;
@@ -133,10 +139,17 @@ export interface BuildDynamicSectionsOptions {
   skipFieldIds?: string[];
   skipFieldLabels?: string[];
   showApplicantCard?: boolean;
+  selectedVariantName?: string | null;
+  selectedVariantId?: string | null;
+  serviceTitle?: string | null;
+  serviceName?: string | null;
+  serviceCode?: string | null;
+  applicationType?: string | null;
+  applicantType?: 'individual' | 'company' | null;
+  formValuesMap?: Record<string, string>;
 }
 
 export interface BuildDynamicSectionsResult {
   dynamicSectionsToRender: DynamicSectionGroup[];
   remainingFields: FormFieldValue[];
 }
-

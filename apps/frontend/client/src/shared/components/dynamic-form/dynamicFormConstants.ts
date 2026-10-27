@@ -39,6 +39,38 @@ export const TVRO_TYPE_OPTIONS = [
   { label: "CATV Receiver Registration Certificate", value: "CATV Receiver Registration Certificate" },
 ];
 
+export const CERTIFICATE_TYPES_BY_SERVICE: Record<string, Array<{ label: string; value: string }>> = {
+  "Radio Operator Certificates (ROC) excluding Amateur ROC": ROC_TYPE_OPTIONS,
+  "Certificates in the Amateur Service": AMATEUR_CERT_TYPE_OPTIONS,
+  "Certificate of Registration for RFID, SRD, WDN, Devices- Indoor": DEVICE_REG_TYPE_OPTIONS,
+  "Certificate of Registration as a Value-Added Service (VAS) Provider": VAS_TYPE_OPTIONS,
+  "TVRO Registration Certificate": TVRO_TYPE_OPTIONS,
+};
+
+export function resolveCertificateTypes(serviceName?: string): Array<{ label: string; value: string }> {
+  const defaultTypes = ROC_TYPE_OPTIONS;
+  if (!serviceName) return defaultTypes;
+
+  const directMatch = CERTIFICATE_TYPES_BY_SERVICE[serviceName];
+  if (directMatch) return directMatch;
+
+  const sLower = serviceName.toLowerCase();
+  if (sLower.includes("amateur") && !sLower.includes("excluding")) {
+    return AMATEUR_CERT_TYPE_OPTIONS;
+  }
+  if (sLower.includes("rfid") || sLower.includes("srd") || sLower.includes("wdn") || sLower.includes("indoor")) {
+    return DEVICE_REG_TYPE_OPTIONS;
+  }
+  if (sLower.includes("vas") || sLower.includes("value-added")) {
+    return VAS_TYPE_OPTIONS;
+  }
+  if (sLower.includes("tvro") || sLower.includes("catv")) {
+    return TVRO_TYPE_OPTIONS;
+  }
+
+  return defaultTypes;
+}
+
 export const PERMIT_DETAILS_SERVICE_OPTIONS = [
   {
     label: "Permits in Amateur Service",

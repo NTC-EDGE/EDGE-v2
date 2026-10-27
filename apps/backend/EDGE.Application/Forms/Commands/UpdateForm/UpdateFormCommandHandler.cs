@@ -28,6 +28,8 @@ public class UpdateFormCommandHandler : IRequestHandler<UpdateFormCommand, ApiRe
             request.Version,
             request.CategorySelectionRequired,
             request.Sections ?? new List<FormSectionDto>(),
+            request.Name,
+            request.IsActive,
             cancellationToken);
 
         var resultDto = new FormDto
@@ -36,11 +38,14 @@ public class UpdateFormCommandHandler : IRequestHandler<UpdateFormCommand, ApiRe
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name,
             ServiceCode = form.Service?.Code,
+            Name = form.Name,
             Version = form.Version,
+            IsActive = form.IsActive,
             CategorySelectionRequired = form.CategorySelectionRequired,
             CreatedAt = form.CreatedAt,
             UpdatedAt = form.LastModifiedAt,
             Sections = form.Sections
+                .Where(s => !s.IsDeleted)
                 .OrderBy(s => s.OrderIndex)
                 .Select(s => new FormSectionDto
                 {

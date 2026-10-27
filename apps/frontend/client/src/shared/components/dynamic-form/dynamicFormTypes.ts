@@ -30,6 +30,11 @@ export interface FormDto {
   id?: string;
   formId?: string;
   version: string;
+  serviceId?: string;
+  serviceName?: string;
+  serviceCode?: string;
+  name?: string;
+  description?: string;
   sections: FormSectionDto[];
 }
 
@@ -52,7 +57,7 @@ export interface DynamicFormRendererProps {
   onNoOfYearsChange?: (years: string) => void;
   showApplicationTypeSection?: boolean;
   variants?: Array<{ id: string; name?: string; type?: string; description?: string; isIndividual?: boolean; [key: string]: unknown }>;
-  variantElements?: Array<{ id: string; code?: string; description?: string; [key: string]: unknown }>;
+  variantElements?: Array<{ id: string; code?: string; name?: string; description?: string; [key: string]: unknown }>;
   errors?: Record<string, string>;
   hideSections?: string[];
   isBulk?: boolean;

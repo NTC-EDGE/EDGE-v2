@@ -11,5 +11,7 @@ public record UpdateFormCommand(
     Guid ServiceId,
     string Version,
     bool CategorySelectionRequired,
-    List<FormSectionDto>? Sections
+    List<FormSectionDto>? Sections,
+    string? Name = null,
+    bool? IsActive = null
 ) : IRequest<ApiResponse<FormDto>>;
