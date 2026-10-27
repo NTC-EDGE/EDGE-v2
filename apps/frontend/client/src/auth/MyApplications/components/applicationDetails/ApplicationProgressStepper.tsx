@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text } from 'react-native';
+import { View, Text, ScrollView, useWindowDimensions } from 'react-native';
 import { Icon } from '@edge/ui';
 import { styles } from './applicationDetailsStyles';
 
@@ -27,6 +27,8 @@ export function ApplicationProgressStepper({
   status,
   remarks,
 }: ApplicationProgressStepperProps) {
+  const { width } = useWindowDimensions();
+  const isMobile = width < 640;
   const docLabel = getServiceDocumentType(serviceCategory, serviceName);
 
   const remarksLower = (typeof remarks === 'string' ? remarks : '').toLowerCase();
@@ -61,10 +63,8 @@ export function ApplicationProgressStepper({
     { step: 5, label: 'Issued', subLabel: `${docLabel} ready` },
   ];
 
-  return (
-    <View style={styles.sectionCard}>
-      <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
-      <View style={styles.stepperRow}>
+  const stepperNodes = (
+    <View style={[styles.stepperRow, isMobile ? { minWidth: 520, paddingHorizontal: 4 } : null]}>
         {STEPS.map((s, idx) => {
           const isDone = currentStepIndex > s.step || (s.step === 5 && currentStepIndex === 5);
           const isActive = currentStepIndex === s.step && currentStepIndex < 5;
@@ -122,6 +122,18 @@ export function ApplicationProgressStepper({
           );
         })}
       </View>
+  );
+
+  return (
+    <View style={styles.sectionCard}>
+      <Text style={styles.progressHeaderTitle}>APPLICATION PROGRESS</Text>
+      {isMobile ? (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
+          {stepperNodes}
+        </ScrollView>
+      ) : (
+        stepperNodes
+      )}
     </View>
   );
 }

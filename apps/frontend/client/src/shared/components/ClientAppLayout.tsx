@@ -19,6 +19,7 @@ import {
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../hooks/useApi";
 import { useAppNavigation } from "../../navigation";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
 import { ClientFooter } from "./ClientFooter";
 import { ConfirmationDialog } from "./ConfirmationDialog";
@@ -85,6 +86,8 @@ export function ClientAppLayout({
   const isMobile = width < 640;
   const showBottomNav = width < 1024;
   const showSidebar = width >= 1024;
+  const insets = useSafeAreaInsets();
+  const notifDropdownWidth = Math.min(330, width - 24);
   const navigation = useAppNavigation();
 
   // Clerk Auth
@@ -265,7 +268,7 @@ export function ClientAppLayout({
   return (
     <View style={styles.rootContainer}>
       {/* ── 1. Top Header ──────────────────────────────────────────────── */}
-      <View style={styles.topHeader}>
+      <View style={[styles.topHeader, isMobile && { paddingHorizontal: 12 }]}>
         <View style={styles.logoWrapper}>
           <Image
             source={ntcLogo}
@@ -313,7 +316,7 @@ export function ClientAppLayout({
                     onPress={() => setIsNotifOpen(false)}
                     activeOpacity={1}
                   />
-                  <View style={styles.clientNotifDropdown}>
+                  <View style={[styles.clientNotifDropdown, { width: notifDropdownWidth, right: isMobile ? -8 : 0, maxWidth: width - 24 }]}>
                     <View style={styles.clientNotifHeader}>
                       <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
                         <Text style={styles.clientNotifTitle}>Notifications</Text>
@@ -430,7 +433,7 @@ export function ClientAppLayout({
 
       {/* ── 2. Dismissable Processing Hours Notice ────────────────────────── */}
       {!isNoticeDismissed && (
-        <View style={styles.noticeAlert}>
+        <View style={[styles.noticeAlert, isMobile && { padding: 12, paddingRight: 10 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}>
             <Icon name="info" size={16} color="#d97706" style={{ marginRight: 10 }} />
             <Text style={styles.noticeText}>
@@ -532,7 +535,13 @@ export function ClientAppLayout({
 
       {/* ── 4. Bottom Navigation Bar (Mobile & Portrait iPad <1024px) ────────────── */}
       {showBottomNav && (
-        <View style={styles.mobileBottomNav}>
+        <View style={[
+          styles.mobileBottomNav,
+          {
+            height: 56 + (insets.bottom > 0 ? insets.bottom : 0),
+            paddingBottom: insets.bottom > 0 ? insets.bottom : 0,
+          },
+        ]}>
           <TouchableOpacity
             onPress={() => handleTabClick("services")}
             style={[
@@ -578,6 +587,29 @@ export function ClientAppLayout({
               My Applications
             </Text>
           </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => handleTabClick("settings")}
+            style={[
+              styles.mobileNavItem,
+              activeTab === "settings" && styles.mobileNavItemActive,
+            ]}
+            activeOpacity={0.7}
+          >
+            <Icon
+              name="settings"
+              size={20}
+              color={activeTab === "settings" ? "#0F2C59" : "#64748B"}
+            />
+            <Text
+              style={[
+                styles.mobileNavText,
+                activeTab === "settings" && styles.mobileNavTextActive,
+              ]}
+            >
+              Settings
+            </Text>
+          </TouchableOpacity>
         </View>
       )}
 
@@ -592,7 +624,7 @@ export function ClientAppLayout({
         onRequestClose={() => setIsProfileVisible(false)}
       >
         <View style={styles.modalOverlay}>
-          <View style={styles.profileCard}>
+          <View style={[styles.profileCard, isMobile && { padding: 20 }]}>
             <View style={styles.profileAccentLine} />
             <View style={styles.profileHeader}>
               <View style={styles.profileIconContainer}>

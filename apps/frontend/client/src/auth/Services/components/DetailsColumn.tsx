@@ -76,6 +76,7 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
     isMobile,
     width,
     activeCategory,
+    selectedCategoryId,
     handleBackToServices,
     handleBackToCategories,
     handleClearSearch,
@@ -258,6 +259,33 @@ export function DetailsColumn({ servicesState }: DetailsColumnProps) {
             isMobile={isMobile}
             isWizardActive={activeWizardService !== null}
           />
+        ) : isMobile && selectedCategoryId !== null ? (
+          <View style={{ flex: 1, padding: 20 }}>
+            <TouchableOpacity
+              onPress={() => confirmSwitchService(handleBackToCategories)}
+              style={{
+                flexDirection: "row",
+                alignItems: "center",
+                alignSelf: "flex-start",
+                paddingVertical: 8,
+                paddingHorizontal: 12,
+                backgroundColor: "#EFF6FF",
+                borderRadius: 8,
+                marginBottom: 20,
+              }}
+              activeOpacity={0.7}
+            >
+              <Icon name="arrow-left" size={18} color="#1D4ED8" style={{ marginRight: 6 }} />
+              <Text style={{ fontFamily: "Inter, system-ui, sans-serif", fontSize: 14, fontWeight: "600", color: "#1D4ED8" }}>
+                Back to Categories
+              </Text>
+            </TouchableOpacity>
+            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", paddingVertical: 40 }}>
+              <Text style={{ fontFamily: "Inter, system-ui, sans-serif", fontSize: 14, color: "#64748B", fontWeight: "500" }}>
+                Loading category services...
+              </Text>
+            </View>
+          </View>
         ) : (
           !isMobile && (
             <EmptyPlaceholder

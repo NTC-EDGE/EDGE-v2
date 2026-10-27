@@ -126,38 +126,71 @@ export function Settings() {
           {/* ── Main Settings Layout (Sidebar Navigation + Tab Content) ── */}
           <View style={[styles.layoutRow, isCompact && styles.layoutRowCompact]}>
             {/* Navigation Tabs Menu */}
-            <View style={[styles.sidebarNav, isCompact && styles.sidebarNavCompact]}>
-              {SETTINGS_TABS.map((tab) => {
-                const isActive = activeTab === tab.key;
-                return (
-                  <TouchableOpacity
-                    key={tab.key}
-                    onPress={() => setActiveTab(tab.key)}
-                    style={[styles.navItem, isActive && styles.navItemActive]}
-                    activeOpacity={0.7}
-                  >
-                    <View
-                      style={[
-                        styles.navItemIconContainer,
-                        isActive && styles.navItemIconContainerActive,
-                      ]}
+            {isCompact ? (
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                style={styles.compactNavScroll}
+                contentContainerStyle={styles.compactNavScrollContent}
+              >
+                {SETTINGS_TABS.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <TouchableOpacity
+                      key={tab.key}
+                      onPress={() => setActiveTab(tab.key)}
+                      style={[styles.compactNavChip, isActive && styles.compactNavChipActive]}
+                      activeOpacity={0.7}
                     >
                       <Icon
                         name={tab.icon}
-                        size={18}
-                        color={isActive ? "#FFFFFF" : "#64748B"}
+                        size={15}
+                        color={isActive ? "#FFFFFF" : "#475569"}
                       />
-                    </View>
-                    <View style={{ flex: 1 }}>
                       <Text
                         style={[
-                          styles.navItemLabel,
-                          isActive && styles.navItemLabelActive,
+                          styles.compactNavChipText,
+                          isActive && styles.compactNavChipTextActive,
                         ]}
                       >
                         {tab.label}
                       </Text>
-                      {!isCompact && (
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            ) : (
+              <View style={styles.sidebarNav}>
+                {SETTINGS_TABS.map((tab) => {
+                  const isActive = activeTab === tab.key;
+                  return (
+                    <TouchableOpacity
+                      key={tab.key}
+                      onPress={() => setActiveTab(tab.key)}
+                      style={[styles.navItem, isActive && styles.navItemActive]}
+                      activeOpacity={0.7}
+                    >
+                      <View
+                        style={[
+                          styles.navItemIconContainer,
+                          isActive && styles.navItemIconContainerActive,
+                        ]}
+                      >
+                        <Icon
+                          name={tab.icon}
+                          size={18}
+                          color={isActive ? "#FFFFFF" : "#64748B"}
+                        />
+                      </View>
+                      <View style={{ flex: 1 }}>
+                        <Text
+                          style={[
+                            styles.navItemLabel,
+                            isActive && styles.navItemLabelActive,
+                          ]}
+                        >
+                          {tab.label}
+                        </Text>
                         <Text
                           style={[
                             styles.navItemDesc,
@@ -167,17 +200,17 @@ export function Settings() {
                         >
                           {tab.description}
                         </Text>
-                      )}
-                    </View>
-                    <Icon
-                      name="chevron-right"
-                      size={16}
-                      color={isActive ? "#0F2C59" : "#CBD5E1"}
-                    />
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
+                      </View>
+                      <Icon
+                        name="chevron-right"
+                        size={16}
+                        color={isActive ? "#0F2C59" : "#CBD5E1"}
+                      />
+                    </TouchableOpacity>
+                  );
+                })}
+              </View>
+            )}
 
             {/* Tab Content Panel */}
             <View style={styles.tabContentPanel}>
@@ -244,7 +277,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingVertical: SPACING[24],
-    paddingHorizontal: SPACING[20],
+    paddingHorizontal: SPACING[16],
   },
   mainWrapper: {
     width: "100%",
@@ -304,6 +337,40 @@ const styles = StyleSheet.create({
     borderColor: "#E2E8F0",
     padding: SPACING[8],
     gap: 4,
+  },
+  compactNavScroll: {
+    marginBottom: SPACING[16],
+    width: "100%",
+  },
+  compactNavScrollContent: {
+    flexDirection: "row",
+    gap: 8,
+    paddingVertical: 2,
+  },
+  compactNavChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 14,
+    borderRadius: 20,
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#E2E8F0",
+  },
+  compactNavChipActive: {
+    backgroundColor: "#0F2C59",
+    borderColor: "#0F2C59",
+  },
+  compactNavChipText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 13,
+    fontWeight: "600",
+    color: "#475569",
+  },
+  compactNavChipTextActive: {
+    color: "#FFFFFF",
+    fontWeight: "700",
   },
   sidebarNavCompact: {
     width: "100%",

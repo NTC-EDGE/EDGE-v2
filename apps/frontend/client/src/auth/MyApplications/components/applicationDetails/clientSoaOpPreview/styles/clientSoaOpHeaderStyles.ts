@@ -62,8 +62,9 @@ export const headerStyles = StyleSheet.create({
   dropdownMenu: {
     position: 'absolute',
     top: 52,
-    right: 16,
+    right: 8,
     width: 280,
+    maxWidth: 320,
     backgroundColor: '#FFFFFF',
     borderRadius: 10,
     borderWidth: 1,

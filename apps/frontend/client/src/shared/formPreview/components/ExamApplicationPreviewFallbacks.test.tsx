@@ -82,9 +82,9 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression', () => {
     );
     expect(examHtml).not.toContain('Application Particulars &amp; Technical Details');
     expect(examHtml).not.toContain('Application Particulars & Technical Details');
-    expect(examHtml).toContain('Examination Details &amp; Particulars');
+    expect(examHtml).not.toContain('Examination Details &amp; Particulars');
 
-    // For non-exam service: should show "Application Particulars & Technical Details"
+    // For non-exam service: should NOT show manual "Application Particulars & Technical Details" fallback
     const nonExamHtml = renderToString(
       React.createElement(DynamicFormSectionsReview, {
         dynamicSectionsToRender: [],
@@ -93,7 +93,8 @@ describe('Exam Application Preview Fallbacks & Duplicate Suppression', () => {
         onPreviewFile: () => {},
       })
     );
-    expect(nonExamHtml).toContain('Application Particulars &amp; Technical Details');
+    expect(nonExamHtml).not.toContain('Application Particulars &amp; Technical Details');
+    expect(nonExamHtml).not.toContain('Application Particulars & Technical Details');
   });
 
   it('ExamEducationReviewSection suppresses duplicate section when education is already rendered', () => {

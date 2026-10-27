@@ -193,9 +193,12 @@ export const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingHorizontal: SPACING[24],
-    paddingTop: SPACING[24],
+    paddingHorizontal: SPACING[16],
+    paddingTop: SPACING[16],
     paddingBottom: 40,
+    width: "100%",
+    maxWidth: 1200,
+    alignSelf: "center",
   },
 
   // Hero Section
@@ -225,15 +228,15 @@ export const styles = StyleSheet.create({
   },
   statCard: {
     flex: 1,
-    minWidth: 180,
+    minWidth: 140,
     backgroundColor: "#FFFFFF",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "#E2E8F0",
-    padding: SPACING[16],
+    padding: 12,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
+    gap: 10,
     ...Platform.select({
       web: { boxShadow: "0 1px 3px rgba(0,0,0,0.04)" },
     }),
@@ -316,7 +319,11 @@ export const styles = StyleSheet.create({
     fontSize: 14,
     color: "#0F172A",
     padding: 0,
-    outlineStyle: "none" as any,
+    ...Platform.select({
+      web: {
+        outlineWidth: 0,
+      },
+    }),
   },
   clearSearchBtn: {
     padding: 4,
@@ -367,6 +374,7 @@ export const styles = StyleSheet.create({
     top: 46,
     left: 0,
     minWidth: 200,
+    maxWidth: 280,
     backgroundColor: "#FFFFFF",
     borderRadius: 10,
     borderWidth: 1,

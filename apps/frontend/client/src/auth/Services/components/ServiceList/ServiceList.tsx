@@ -61,7 +61,7 @@ export function ServiceList({
         {/* Transaction Active Lock Banner */}
         {isWizardActive && showActiveBanner && (
           <View style={{
-            backgroundColor: "#fffbebf",
+            backgroundColor: "#FFFBEB",
             borderColor: "#fde68a",
             borderWidth: 1,
             borderRadius: 12,

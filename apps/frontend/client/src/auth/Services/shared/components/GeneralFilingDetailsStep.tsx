@@ -458,7 +458,7 @@ const styles = StyleSheet.create({
   signatureCard: {
     backgroundColor: COLORS.neutral.white,
     borderRadius: 12,
-    padding: 20,
+    padding: 16,
     borderWidth: 1,
     borderColor: COLORS.neutral[200],
     marginTop: 8,
@@ -472,7 +472,8 @@ const styles = StyleSheet.create({
   },
   signatureHeaderRow: {
     flexDirection: "row",
-    alignItems: "center",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
     gap: 12,
   },
   iconCircle: {

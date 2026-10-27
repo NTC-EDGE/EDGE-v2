@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform } from "react-native";
+import { View, Text, TouchableOpacity, Image, StyleSheet, Alert, Platform, useWindowDimensions } from "react-native";
 import { Icon, EditedImageResult } from "@edge/ui";
 import { COLORS, TYPOGRAPHY } from "../theme/tokens";
 import * as DocumentPicker from "expo-document-picker";
@@ -40,6 +40,9 @@ export function SharedDocumentUpload({
   isWeb,
   errors = {},
 }: SharedDocumentUploadProps) {
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 768;
+  const isWebLayout = isDesktop && (isWeb !== false);
   const safeUploads = uploads ?? {};
   const [selectedReqIndex, setSelectedReqIndex] = useState(0);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -380,7 +383,7 @@ export function SharedDocumentUpload({
         Please upload clear scanned documents (PDF or JPEG/PNG) for each of the listed requirements below:
       </Text>
 
-      {isWeb ? (
+      {isWebLayout ? (
         /* WEB View: Side-by-Side Split Grid View */
         <View style={styles.webGrid}>
           {/* Left panel: List of requirements */}
@@ -692,75 +695,65 @@ export function SharedDocumentUpload({
 
                 {uploadData ? (
                   <View style={styles.mobileSuccessRow}>
-                    {isImage && !imageLoadErrors[req.key] ? (
-                      <Image
-                        source={{ uri: fileUri }}
-                        style={styles.mobileThumbnail}
-                        onError={() => {
-                          handleImageLoadFailure(req.key, req.label);
-                        }}
-                      />
-                    ) : (
-                      <View style={styles.mobileIconPlaceholder}>
-                        <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                    <View style={styles.mobileFileHeader}>
+                      {isImage && !imageLoadErrors[req.key] ? (
+                        <Image
+                          source={{ uri: fileUri }}
+                          style={styles.mobileThumbnail}
+                          onError={() => {
+                            handleImageLoadFailure(req.key, req.label);
+                          }}
+                        />
+                      ) : (
+                        <View style={styles.mobileIconPlaceholder}>
+                          <Icon name="file-text" size={20} color={COLORS.neutral[500]} />
+                        </View>
+                      )}
+                      <View style={styles.mobileFileDetails}>
+                        <Text style={styles.mobileFileName} numberOfLines={1}>
+                          {fileName}
+                        </Text>
+                        <Text style={styles.mobileUploadedCheck}>
+                          Uploaded ✓
+                        </Text>
                       </View>
-                    )}
-                    <View style={styles.mobileFileDetails}>
-                      <Text style={styles.mobileFileName} numberOfLines={1}>
-                        {fileName}
-                      </Text>
-                      <Text style={styles.mobileUploadedCheck}>
-                        Uploaded ✓
-                      </Text>
                     </View>
 
-                    <TouchableOpacity
-                      onPress={() => {
-                        setActiveSlotKey(req.key);
-                        setPreviewFile(uploadData);
-                        setPreviewLabel(req.label);
-                        setIsPreviewOpen(true);
-                      }}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#EFF6FF",
-                        borderWidth: 1,
-                        borderColor: "#BFDBFE",
-                        paddingVertical: 5,
-                        paddingHorizontal: 10,
-                        borderRadius: 8,
-                        marginRight: 6,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
-                      <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#1D4ED8" }}>
-                        View
-                      </Text>
-                    </TouchableOpacity>
+                    <View style={styles.mobileActionButtonsRow}>
+                      <TouchableOpacity
+                        onPress={() => {
+                          setActiveSlotKey(req.key);
+                          setPreviewFile(uploadData);
+                          setPreviewLabel(req.label);
+                          setIsPreviewOpen(true);
+                        }}
+                        style={styles.mobileViewBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="eye" size={13} color="#1D4ED8" style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileViewBtnText}>
+                          View Document
+                        </Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity
-                      onPress={() => triggerUpload(req.key)}
-                      style={{
-                        flexDirection: "row",
-                        alignItems: "center",
-                        backgroundColor: "#F8FAFC",
-                        borderWidth: 1,
-                        borderColor: "#CBD5E1",
-                        paddingVertical: 5,
-                        paddingHorizontal: 8,
-                        borderRadius: 8,
-                        marginRight: 4,
-                      }}
-                      activeOpacity={0.7}
-                    >
-                      <Icon name="refresh-cw" size={13} color="#334155" />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => triggerUpload(req.key)}
+                        style={styles.mobileReplaceBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="refresh-cw" size={13} color="#334155" style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileReplaceBtnText}>Replace</Text>
+                      </TouchableOpacity>
 
-                    <TouchableOpacity onPress={() => handleRemoveSlot(req.key)} style={styles.mobileTrashBtn}>
-                      <Icon name="trash-2" size={16} color={COLORS.semantic.error} />
-                    </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handleRemoveSlot(req.key)}
+                        style={styles.mobileRemoveBtn}
+                        activeOpacity={0.7}
+                      >
+                        <Icon name="trash-2" size={13} color={COLORS.semantic.error} style={{ marginRight: 4 }} />
+                        <Text style={styles.mobileRemoveBtnText}>Remove</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 ) : (
                   <>
@@ -1013,11 +1006,15 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
   mobileSuccessRow: {
+    flexDirection: "column",
+    backgroundColor: COLORS.semantic.successBg,
+    padding: 12,
+    borderRadius: 10,
+    gap: 10,
+  },
+  mobileFileHeader: {
     flexDirection: "row",
     alignItems: "center",
-    backgroundColor: COLORS.semantic.successBg,
-    padding: 8,
-    borderRadius: 8,
   },
   mobileThumbnail: {
     width: 44,
@@ -1038,11 +1035,11 @@ const styles = StyleSheet.create({
   },
   mobileFileDetails: {
     flex: 1,
-    marginRight: 8,
+    minWidth: 0,
   },
   mobileFileName: {
     fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 12,
+    fontSize: 12.5,
     color: COLORS.neutral[800],
     fontWeight: TYPOGRAPHY.weights.semibold,
   },
@@ -1052,6 +1049,63 @@ const styles = StyleSheet.create({
     color: COLORS.semantic.success,
     marginTop: 2,
   },
+  mobileActionButtonsRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 8,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(16, 185, 129, 0.2)",
+    paddingTop: 8,
+  },
+  mobileViewBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#EFF6FF",
+    borderWidth: 1,
+    borderColor: "#BFDBFE",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileViewBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "700",
+    color: "#1D4ED8",
+  },
+  mobileReplaceBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FFFFFF",
+    borderWidth: 1,
+    borderColor: "#CBD5E1",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileReplaceBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: "#334155",
+  },
+  mobileRemoveBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#FEF2F2",
+    borderWidth: 1,
+    borderColor: "#FECACA",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+  },
+  mobileRemoveBtnText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11.5,
+    fontWeight: "600",
+    color: COLORS.semantic.error,
+  },
   mobileTrashBtn: {
     padding: 6,
   },
@@ -1059,11 +1113,13 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    flexWrap: "wrap",
     borderWidth: 1.5,
     borderStyle: "dashed",
     borderColor: COLORS.brand[500],
-    padding: 10,
+    padding: 12,
     borderRadius: 8,
+    gap: 6,
   },
   mobileDashedBtnText: {
     fontFamily: TYPOGRAPHY.fonts.primary,

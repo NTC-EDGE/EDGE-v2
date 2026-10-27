@@ -560,7 +560,9 @@ const styles = StyleSheet.create({
   col6: {
     width: "50%",
     paddingHorizontal: 8,
-    minWidth: 260,
+    minWidth: 240,
+    maxWidth: "100%",
+    flexGrow: 1,
   },
   selectLabel: {
     fontFamily: TYPOGRAPHY.fonts.primary,
