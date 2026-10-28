@@ -12,6 +12,7 @@ public record SubmitApplicationCommand : IRequest<ApiResponse<Guid>>
     public string Intent { get; init; } = "Regular";          // Regular | AssessmentOnly
     public bool IsDraft { get; init; } = false;
     public Guid? ExistingDraftId { get; init; }
+    public Guid? RenewedFromApplicationId { get; init; }
 
     public Guid? ServiceId { get; init; }
     public Guid? ScheduleId { get; init; }

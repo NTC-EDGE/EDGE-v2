@@ -56,6 +56,11 @@ public class ApplicationDto
     public List<OrderOfPaymentDto> OrdersOfPayment { get; set; } = new();
     public List<ApplicationHistoryDto> Histories { get; set; } = new();
     public List<CorrectionAuditTrailDto> CorrectionAuditTrails { get; set; } = new();
+    public Guid? RenewedFromApplicationId { get; set; }
+    public bool HasActiveRenewal { get; set; }
+    public Guid? ActiveRenewalApplicationId { get; set; }
+    public string? ActiveRenewalReferenceNumber { get; set; }
+    public List<IssuedDocumentDetailSummaryDto> IssuedDocumentDetails { get; set; } = new();
 }
 
 public class FilingUserDto

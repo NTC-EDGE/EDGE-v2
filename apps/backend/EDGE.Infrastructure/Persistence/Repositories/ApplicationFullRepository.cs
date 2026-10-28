@@ -99,6 +99,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(a => a.OrdersOfPayment)
                 .ThenInclude(o => o.Histories)
             .Include(a => a.IssuedDocumentDetails)
+            .Include(a => a.Renewals)
+            .Include(a => a.RenewedFromApplication)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
             .Include(a => a.Tenant)
@@ -713,6 +715,26 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    RenewedFromApplicationId = app.RenewedFromApplicationId,
+                    HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
+                    ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
+                    ActiveRenewalReferenceNumber = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => r.ReferenceNumber).FirstOrDefault(),
+                    IssuedDocumentDetails = app.IssuedDocumentDetails.Select(d => new EDGE.Application.Applications.Dtos.IssuedDocumentDetailSummaryDto
+                    {
+                        Id = d.Id,
+                        ApplicationId = d.ApplicationId,
+                        ApplicantId = d.ApplicantId,
+                        DocumentType = d.DocumentType,
+                        FormNumber = d.FormNumber,
+                        LicenseNumber = d.LicenseNumber,
+                        CallSign = d.CallSign,
+                        StationClass = d.StationClass,
+                        FrequencyBand = d.FrequencyBand,
+                        IssueDate = d.IssueDate,
+                        ExpiryDate = d.ExpiryDate,
+                        OfficialReceiptNumber = d.OfficialReceiptNumber,
+                        Remarks = d.Remarks
+                    }).ToList(),
                     OfficialReceiptNumber = app.OrdersOfPayment
                         .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                         .Select(o => o.OfficialReceiptNumber)

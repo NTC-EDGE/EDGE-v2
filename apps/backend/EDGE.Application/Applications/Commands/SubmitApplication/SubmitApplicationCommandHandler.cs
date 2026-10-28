@@ -341,6 +341,10 @@ public class SubmitApplicationCommandHandler
                     existing.Status = status;
                     existing.Intent = intent;
                     existing.SubmissionMode = submissionMode;
+                    if (request.RenewedFromApplicationId.HasValue && request.RenewedFromApplicationId.Value != Guid.Empty)
+                    {
+                        existing.RenewedFromApplicationId = request.RenewedFromApplicationId;
+                    }
                     if (status == ApplicationStatus.Submitted)
                     {
                         existing.ApplicationNumber = appNumber;
@@ -363,7 +367,8 @@ public class SubmitApplicationCommandHandler
                         SubmissionMode = submissionMode,
                         DataEntryMethod = DataEntryMethod.Manual,
                         UserId = submitterUserId,
-                        IsGuest = isGuest
+                        IsGuest = isGuest,
+                        RenewedFromApplicationId = request.RenewedFromApplicationId.HasValue && request.RenewedFromApplicationId.Value != Guid.Empty ? request.RenewedFromApplicationId : null
                     };
                     await _applicationRepository.AddAsync(application, cancellationToken);
                 }

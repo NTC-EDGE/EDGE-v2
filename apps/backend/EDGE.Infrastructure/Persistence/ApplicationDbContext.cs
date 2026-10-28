@@ -441,6 +441,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.ScheduleId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ReferenceNumber);
+            entity.HasIndex(e => e.RenewedFromApplicationId);
+            entity.HasOne(e => e.RenewedFromApplication)
+                  .WithMany(a => a.Renewals)
+                  .HasForeignKey(e => e.RenewedFromApplicationId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasOne(e => e.Tenant)

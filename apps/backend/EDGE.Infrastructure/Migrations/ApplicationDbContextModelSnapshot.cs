@@ -359,6 +359,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("RenewedFromApplicationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ScheduleId")
                         .HasColumnType("uuid");
 
@@ -381,6 +384,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ReferenceNumber");
 
                     b.HasIndex("RegionId");
+
+                    b.HasIndex("RenewedFromApplicationId");
 
                     b.HasIndex("ScheduleId");
 
@@ -4321,6 +4326,11 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("RegionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("EDGE.Domain.Entities.Application", "RenewedFromApplication")
+                        .WithMany("Renewals")
+                        .HasForeignKey("RenewedFromApplicationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Schedule", "Schedule")
                         .WithMany()
                         .HasForeignKey("ScheduleId")
@@ -4338,6 +4348,8 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Region");
+
+                    b.Navigation("RenewedFromApplication");
 
                     b.Navigation("Schedule");
 
@@ -5433,6 +5445,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("IssuedDocumentDetails");
 
                     b.Navigation("OrdersOfPayment");
+
+                    b.Navigation("Renewals");
 
                     b.Navigation("StatementsOfAccount");
                 });

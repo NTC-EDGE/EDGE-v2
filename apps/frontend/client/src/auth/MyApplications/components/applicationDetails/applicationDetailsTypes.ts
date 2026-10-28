@@ -3,6 +3,7 @@ import { ApplicationDocument, ApplicationStatus, RawRequirement, normalizeApplic
 export interface ApplicationDetailsPageProps {
   app: import('../../data/applicationsData').Application;
   onBack: () => void;
+  onRenew?: (app: import('../../data/applicationsData').Application) => void;
   onDownloadDoc?: (doc: ApplicationDocument) => void;
 }
 

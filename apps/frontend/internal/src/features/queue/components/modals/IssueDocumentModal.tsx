@@ -79,6 +79,9 @@ export function IssueDocumentModal({
   );
   const [expiryDate, setExpiryDate] = useState<string>('');
   const [remarks, setRemarks] = useState<string>('');
+  const [isRenewal, setIsRenewal] = useState<boolean>(false);
+  const [previousExpiryDate, setPreviousExpiryDate] = useState<string>('');
+  const [validityYears, setValidityYears] = useState<number>(1);
 
   // Auto-loaded metadata
   const [officialReceiptNumber, setOfficialReceiptNumber] = useState<string>('');
@@ -575,6 +578,103 @@ export function IssueDocumentModal({
                           >
                             Payment Verified: <Text style={{ fontWeight: '700' }}>OR #{officialReceiptNumber}</Text>
                           </Text>
+                        </View>
+                      )}
+
+                      {/* Renewal Notice & Duration Selector */}
+                      {isRenewal && (
+                        <View
+                          style={{
+                            flexDirection: 'row',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            backgroundColor: isDark ? 'rgba(217, 119, 6, 0.15)' : '#FFFBEB',
+                            borderColor: isDark ? '#D97706' : '#FDE68A',
+                            borderWidth: 1,
+                            borderRadius: RADIUS.card,
+                            padding: SPACING[12],
+                            marginBottom: SPACING[16],
+                            gap: SPACING[8],
+                          }}
+                        >
+                          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
+                            <Lucide name="refresh-cw" size={16} color="#D97706" />
+                            <View style={{ flex: 1 }}>
+                              <Text
+                                style={{
+                                  fontSize: 12,
+                                  fontWeight: '700',
+                                  color: isDark ? '#FBBF24' : '#92400E',
+                                }}
+                              >
+                                License Renewal Active
+                              </Text>
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  color: isDark ? '#FCD34D' : '#B45309',
+                                }}
+                              >
+                                Expiry calculated from original date: {previousExpiryDate ? new Date(previousExpiryDate).toLocaleDateString() : 'N/A'}
+                              </Text>
+                            </View>
+                          </View>
+                          <View style={{ flexDirection: 'row', gap: 6 }}>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setValidityYears(1);
+                                if (previousExpiryDate) {
+                                  const prev = new Date(previousExpiryDate);
+                                  const exp = new Date(prev);
+                                  exp.setFullYear(prev.getFullYear() + 1);
+                                  setExpiryDate(exp.toISOString().split('T')[0] ?? '');
+                                }
+                              }}
+                              style={{
+                                paddingVertical: 4,
+                                paddingHorizontal: 10,
+                                borderRadius: 6,
+                                backgroundColor: validityYears === 1 ? '#D97706' : (isDark ? '#374151' : '#F3F4F6'),
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: '600',
+                                  color: validityYears === 1 ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#4B5563'),
+                                }}
+                              >
+                                +1 Year
+                              </Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                              onPress={() => {
+                                setValidityYears(2);
+                                if (previousExpiryDate) {
+                                  const prev = new Date(previousExpiryDate);
+                                  const exp = new Date(prev);
+                                  exp.setFullYear(prev.getFullYear() + 2);
+                                  setExpiryDate(exp.toISOString().split('T')[0] ?? '');
+                                }
+                              }}
+                              style={{
+                                paddingVertical: 4,
+                                paddingHorizontal: 10,
+                                borderRadius: 6,
+                                backgroundColor: validityYears === 2 ? '#D97706' : (isDark ? '#374151' : '#F3F4F6'),
+                              }}
+                            >
+                              <Text
+                                style={{
+                                  fontSize: 11,
+                                  fontWeight: '600',
+                                  color: validityYears === 2 ? '#FFFFFF' : (isDark ? '#D1D5DB' : '#4B5563'),
+                                }}
+                              >
+                                +2 Years
+                              </Text>
+                            </TouchableOpacity>
+                          </View>
                         </View>
                       )}
 

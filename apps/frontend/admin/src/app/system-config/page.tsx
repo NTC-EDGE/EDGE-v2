@@ -13,7 +13,8 @@ import {
   CheckCircle,
   Globe,
   Settings,
-  Search
+  Search,
+  RefreshCw
 } from "lucide-react";
 import { ToastNotification, ToastMessage, getErrorMessage } from "@/components/ui/toast-notification";
 import { isForbiddenError, PageForbiddenState } from "@/components/PageForbiddenState";
@@ -59,6 +60,8 @@ export default function SystemConfigPage() {
           SMTP_SERVER: "smtp.ntc.gov.ph",
           SMTP_PORT: "587",
           SESSION_TIMEOUT_MINS: "30",
+          "Renewal:DaysBeforeExpiration": "60,30,15,1",
+          "Renewal:DefaultValidityYears": "1",
         };
       });
     }
@@ -115,6 +118,7 @@ export default function SystemConfigPage() {
 
   const tabs = [
     { id: "General", label: "General Settings", icon: Settings },
+    { id: "Renewal", label: "License & Renewal", icon: RefreshCw },
     { id: "Security", label: "Security & Policies", icon: Shield },
     { id: "Email", label: "Email / SMTP", icon: Mail },
     { id: "Upload", label: "File Upload Limits", icon: UploadCloud },
@@ -227,6 +231,62 @@ export default function SystemConfigPage() {
                   value={configsState["SUPPORT_EMAIL"] ?? "support@ntc.gov.ph"}
                   onChange={(e) => handleChange("SUPPORT_EMAIL", e.target.value)}
                   className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === "Renewal" && (
+          <div className="space-y-6 max-w-2xl">
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <RefreshCw className="h-5 w-5 text-indigo-500 dark:text-indigo-400" /> Statutory Renewal & Expiration Reminders
+            </h2>
+            <div className="space-y-4">
+              <div className="p-5 bg-indigo-50/50 dark:bg-slate-950 border border-indigo-100 dark:border-slate-800 rounded-2xl space-y-3">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Notification Milestones (Days Before Expiration)
+                </label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Comma-separated milestones before expiration when reminder notifications will be triggered and the &quot;Renew Application&quot; button becomes visible to clients.
+                </p>
+                <div className="flex flex-wrap gap-2 pt-1 pb-1">
+                  {(configsState["Renewal:DaysBeforeExpiration"] ?? "60,30,15,1,0")
+                    .split(",")
+                    .map((s) => s.trim())
+                    .filter(Boolean)
+                    .map((d) => (
+                      <span
+                        key={d}
+                        className="inline-flex items-center px-2.5 py-1 rounded-lg text-xs font-semibold bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20"
+                      >
+                        {d === "0" ? "On Day of Expiry" : `${d} Days Prior`}
+                      </span>
+                    ))}
+                </div>
+                <input
+                  type="text"
+                  value={configsState["Renewal:DaysBeforeExpiration"] ?? "60,30,15,1,0"}
+                  onChange={(e) => handleChange("Renewal:DaysBeforeExpiration", e.target.value)}
+                  placeholder="e.g. 60,30,15,1,0"
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white font-mono focus:outline-none focus:border-indigo-500"
+                />
+              </div>
+
+              <div className="p-5 bg-indigo-50/50 dark:bg-slate-950 border border-indigo-100 dark:border-slate-800 rounded-2xl space-y-3">
+                <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300">
+                  Default Renewal Validity Duration (Years)
+                </label>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Default number of years added to the original expiration date upon renewal approval (e.g. 1 year default, unless evaluator chooses 2 years).
+                </p>
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  value={configsState["Renewal:DefaultValidityYears"] ?? "1"}
+                  onChange={(e) => handleChange("Renewal:DefaultValidityYears", e.target.value)}
+                  className="w-full px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-800 rounded-xl text-sm text-slate-900 dark:text-white focus:outline-none focus:border-indigo-500"
                 />
               </div>
             </div>

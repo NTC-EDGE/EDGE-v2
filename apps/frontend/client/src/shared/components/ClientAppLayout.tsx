@@ -118,7 +118,7 @@ export function ClientAppLayout({
       title: string;
       description: string;
       timestamp?: string;
-      type: "returned" | "payment" | "status";
+      type: "returned" | "payment" | "status" | "renewal";
       targetTab: "services" | "my-applications" | "settings";
       isRead: boolean;
     }> = [];
@@ -168,6 +168,35 @@ export function ClientAppLayout({
           targetTab: "my-applications",
           isRead: readNotifIds.has(`client_app_${app.id}`),
         });
+
+        const doc = Array.isArray(app.issuedDocumentDetails) && app.issuedDocumentDetails.length > 0
+          ? app.issuedDocumentDetails.find((d) => d.expiryDate) ?? app.issuedDocumentDetails[0]
+          : undefined;
+
+        if (doc?.expiryDate && !app.hasActiveRenewal) {
+          const expiry = new Date(doc.expiryDate);
+          const now = new Date();
+          const daysRemaining = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+          if (daysRemaining <= 60) {
+            const isExpired = daysRemaining <= 0;
+            const isOnDay = daysRemaining === 0;
+            const expiryFormatted = expiry.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+            list.push({
+              id: `client_renew_${app.id}`,
+              appId: app.id,
+              title: isExpired
+                ? (isOnDay ? "Notice: Application Expired Today" : "Notice: Application Expired")
+                : `Permit/License Expiring Soon (${daysRemaining}d remaining)`,
+              description: isExpired
+                ? `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Your application has been expired on ${expiryFormatted}. Please submit your renewal application.`
+                : `Ref #${app.referenceNumber ?? app.applicationNumber ?? "N/A"}: Your issued ${doc.documentType || "license"} (${doc.licenseNumber || doc.formNumber || "Document"}) expires in ${daysRemaining} day(s) (on ${expiryFormatted}). Click to file a renewal application.`,
+              timestamp: doc.issueDate ?? app.createdAt,
+              type: "renewal",
+              targetTab: "my-applications",
+              isRead: readNotifIds.has(`client_renew_${app.id}`),
+            });
+          }
+        }
       } else if (app.status === "Evaluating") {
         list.push({
           id: `client_eval_${app.id}`,
@@ -361,9 +390,9 @@ export function ClientAppLayout({
                           >
                             <View style={styles.clientNotifIconWrap}>
                               <Icon
-                                name={item.type === "returned" ? "alert-circle" : "file-text"}
+                                name={item.type === "returned" ? "alert-circle" : item.type === "renewal" ? "refresh-cw" : item.type === "payment" ? "credit-card" : "file-text"}
                                 size={14}
-                                color={item.isRead ? "#94A3B8" : "#2563EB"}
+                                color={item.isRead ? "#94A3B8" : item.type === "renewal" ? "#D97706" : item.type === "returned" ? "#EF4444" : "#2563EB"}
                               />
                             </View>
                             <View style={{ flex: 1 }}>
