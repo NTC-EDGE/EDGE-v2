@@ -19,6 +19,8 @@ import {
   CheckCircle2,
   Radio,
   Sparkles,
+  Eye,
+  RotateCcw,
 } from "lucide-react";
 import { FormField, FormSchema, FieldType, FormVersionSummary, LinkedServiceItem } from "./types";
 import { CanvasField } from "./CanvasField";
@@ -26,7 +28,7 @@ import { ServiceVariantToolbar } from "./ServiceVariantToolbar";
 import { LinkServiceModal } from "./LinkServiceModal";
 import { collectAllFormVariants, getEffectiveLinkedServices } from "./canonicalFormServices";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
-import { parseFieldCondition } from "./utils";
+import { parseFieldCondition, getVariantEquivalentKey, isFieldApplicableForVariant } from "./utils";
 
 interface FormCanvasProps {
   form: FormSchema;
@@ -43,6 +45,12 @@ interface FormCanvasProps {
   onDeleteVersion?: () => void;
   catalogServices?: ServiceItem[];
   catalogCategories?: ServiceCategory[];
+  // Scoped Variant State & Handlers
+  selectedVariant: string;
+  onSelectVariant: (variantName: string) => void;
+  isVariantEditMode: boolean;
+  onSetVariantEditMode: (editMode: boolean) => void;
+  onRevertVariantToBase?: (variantName: string) => void;
 }
 
 interface SectionGroup {
@@ -68,6 +76,11 @@ export function FormCanvas({
   onDeleteVersion,
   catalogServices = [],
   catalogCategories = [],
+  selectedVariant,
+  onSelectVariant,
+  isVariantEditMode,
+  onSetVariantEditMode,
+  onRevertVariantToBase,
 }: FormCanvasProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
@@ -75,14 +88,12 @@ export function FormCanvas({
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
 
-  // Variant filtering & link service modal states
-  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  // Link service modal state
   const [isLinkServiceModalOpen, setIsLinkServiceModalOpen] = useState(false);
 
-  // Reset selected variant whenever viewing a different form
-  useEffect(() => {
-    setSelectedVariant("ALL");
-  }, [form.id]);
+  // In variant view, form is read-only unless the user explicitly clicks "Edit Form for this Variant"
+  const isReadOnly = selectedVariant !== "ALL" && !isVariantEditMode;
+  const equivalentKey = getVariantEquivalentKey(selectedVariant);
 
   // Aggregate all variants linked to or used by this form
   const formVariants = useMemo(() => {
@@ -120,11 +131,15 @@ export function FormCanvas({
     setCollapsedSectionIds(new Set());
   }, []);
 
-  const handleCanvasDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = "copy";
-    setIsDragOverCanvas(true);
-  }, []);
+  const handleCanvasDragOver = useCallback(
+    (e: React.DragEvent<HTMLDivElement>) => {
+      if (isReadOnly) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "copy";
+      setIsDragOverCanvas(true);
+    },
+    [isReadOnly]
+  );
 
   const handleCanvasDragLeave = useCallback(() => {
     setIsDragOverCanvas(false);
@@ -132,6 +147,7 @@ export function FormCanvas({
 
   const handleCanvasDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
+      if (isReadOnly) return;
       e.preventDefault();
       setIsDragOverCanvas(false);
       const fieldType = e.dataTransfer.getData("fieldType") as FieldType;
@@ -139,21 +155,27 @@ export function FormCanvas({
         onAddField(fieldType);
       }
     },
-    [onAddField]
+    [isReadOnly, onAddField]
   );
 
   const handleFieldDragStart = (e: React.DragEvent<HTMLDivElement>, fieldId: string) => {
+    if (isReadOnly) {
+      e.preventDefault();
+      return;
+    }
     e.dataTransfer.setData("canvasFieldId", fieldId);
     e.dataTransfer.effectAllowed = "move";
   };
 
   const handleFieldDragOver = (e: React.DragEvent<HTMLDivElement>, index: number) => {
+    if (isReadOnly) return;
     e.preventDefault();
     e.stopPropagation();
     setDragOverIndex(index);
   };
 
   const handleFieldDrop = (e: React.DragEvent<HTMLDivElement>, toIndex: number) => {
+    if (isReadOnly) return;
     e.preventDefault();
     e.stopPropagation();
     setDragOverIndex(null);
@@ -209,41 +231,6 @@ export function FormCanvas({
     return groups;
   }, [form.fields]);
 
-  // Evaluates if a given field is visible/applicable for the selected variant
-  const isFieldApplicable = useCallback(
-    (field: FormField): boolean => {
-      if (selectedVariant === "ALL") return true;
-      if (field.type === "divider") return true;
-
-      const cond =
-        field.condition ??
-        (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
-
-      // If no condition at all, it's a universal field for all variants
-      if (!cond) return true;
-
-      const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
-      const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
-
-      // If no variant or application type constraints, universal
-      if (!hasVariants && !hasAppTypes) return true;
-
-      const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
-      const target = normalize(selectedVariant);
-
-      const matches = (list?: string[]) => {
-        if (!list || list.length === 0) return false;
-        return list.some((item) => {
-          const norm = normalize(item);
-          return norm === target || norm.includes(target) || target.includes(norm);
-        });
-      };
-
-      return matches(cond.variants) || matches(cond.applicationTypes);
-    },
-    [selectedVariant]
-  );
-
   // Evaluates if a section container should be visible for the selected variant
   const isSectionApplicable = useCallback(
     (
@@ -265,26 +252,28 @@ export function FormCanvas({
           ((cond.variants && cond.variants.length > 0) ||
             (cond.applicationTypes && cond.applicationTypes.length > 0))
         ) {
-          if (!isFieldApplicable(headerField)) {
+          if (!isFieldApplicableForVariant(headerField, selectedVariant)) {
             return false;
           }
         }
       }
 
       // Check if any child fields in this section apply to this variant
-      const applicableChildCount = childFields.filter((cf) => isFieldApplicable(cf.field)).length;
+      const applicableChildCount = childFields.filter((cf) =>
+        isFieldApplicableForVariant(cf.field, selectedVariant)
+      ).length;
       if (applicableChildCount > 0) {
         return true;
       }
 
       // Empty section with matching header
-      if (childFields.length === 0 && headerField && isFieldApplicable(headerField)) {
+      if (childFields.length === 0 && headerField && isFieldApplicableForVariant(headerField, selectedVariant)) {
         return true;
       }
 
       return false;
     },
-    [selectedVariant, isFieldApplicable]
+    [selectedVariant]
   );
 
   // Filtered sections and child fields depending on selectedVariant
@@ -296,26 +285,13 @@ export function FormCanvas({
       .filter((group) => isSectionApplicable(group.headerField, group.childFields))
       .map((group) => ({
         ...group,
-        childFields: group.childFields.filter((cf) => isFieldApplicable(cf.field)),
+        childFields: group.childFields.filter((cf) => isFieldApplicableForVariant(cf.field, selectedVariant)),
       }));
-  }, [sectionGroups, selectedVariant, isSectionApplicable, isFieldApplicable]);
+  }, [sectionGroups, selectedVariant, isSectionApplicable]);
 
   const applicableFieldsCount = useMemo(() => {
-    return form.fields.filter((f) => isFieldApplicable(f)).length;
-  }, [form.fields, isFieldApplicable]);
-
-  const handleSelectVariant = useCallback(
-    (variantName: string) => {
-      setSelectedVariant(variantName);
-      if (selectedFieldId !== null && variantName !== "ALL") {
-        const field = form.fields.find((f) => f.id === selectedFieldId);
-        if (field && !isFieldApplicable(field)) {
-          onSelectField(null);
-        }
-      }
-    },
-    [selectedFieldId, form.fields, isFieldApplicable, onSelectField]
-  );
+    return form.fields.filter((f) => isFieldApplicableForVariant(f, selectedVariant)).length;
+  }, [form.fields, selectedVariant]);
 
   // Safety hook: If the currently selected field is filtered out after switching variants, reset selection to null
   useEffect(() => {
@@ -481,12 +457,94 @@ export function FormCanvas({
           <ServiceVariantToolbar
             variants={formVariants}
             selectedVariant={selectedVariant}
-            onSelectVariant={handleSelectVariant}
+            onSelectVariant={onSelectVariant}
             onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)}
             totalFieldsCount={form.fields.length}
             applicableFieldsCount={applicableFieldsCount}
             linkedServicesCount={effectiveLinkedServices.length}
           />
+
+          {/* Variant View State Banner: View-Only Mode */}
+          {selectedVariant !== "ALL" && isReadOnly && (
+            <div className="mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
+                  <Eye className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
+                      Viewing Form for &ldquo;{selectedVariant}&rdquo; (Read-Only Preview)
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-200/60 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-semibold">
+                      Key: {equivalentKey}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
+                    This variant preview is currently locked to view-only to prevent accidentally mutating other service variants that share this base form. Click &quot;Edit Form for this Variant&quot; to make isolated adjustments.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                <button
+                  type="button"
+                  onClick={() => onSetVariantEditMode(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 px-3.5 py-2 rounded-xl transition-all shadow-sm shadow-amber-600/30 cursor-pointer"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span>Edit Form for this Variant</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Variant View State Banner: Active Customization Mode */}
+          {selectedVariant !== "ALL" && !isReadOnly && (
+            <div className="mb-4 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-start sm:items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
+                      Active Customization: &ldquo;{selectedVariant}&rdquo;
+                    </span>
+                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 font-semibold">
+                      Scoped Key: {equivalentKey}
+                    </span>
+                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
+                      Other variants protected
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">
+                    Any additions, modifications, or deletions will be scoped strictly to &ldquo;{selectedVariant}&rdquo; using its equivalent key. The base form and other service variants remain untouched.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
+                {onRevertVariantToBase && (
+                  <button
+                    type="button"
+                    onClick={() => onRevertVariantToBase(selectedVariant)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                    title="Remove variant-specific customizations and inherit base form"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>Revert to Base</span>
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => onSetVariantEditMode(false)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Lock / View Only</span>
+                </button>
+              </div>
+            </div>
+          )}
 
           {/* Form Header Card */}
           <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
@@ -579,16 +637,19 @@ export function FormCanvas({
             ) : (
               <div
                 onClick={(e) => {
+                  if (isReadOnly) return;
                   e.stopPropagation();
                   setEditingTitle(true);
                 }}
-                className="group/title flex items-center gap-2 cursor-pointer"
-                title="Click to edit form title"
+                className={`group/title flex items-center gap-2 ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+                title={isReadOnly ? "Form title locked in variant view" : "Click to edit form title"}
               >
                 <h1 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight group-hover/title:text-indigo-600 dark:group-hover/title:text-indigo-400 transition-colors">
                   {form.name || "Untitled Form"}
                 </h1>
-                <Pencil className="w-4 h-4 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+                {!isReadOnly && (
+                  <Pencil className="w-4 h-4 text-slate-400 opacity-0 group-hover/title:opacity-100 transition-opacity" />
+                )}
               </div>
             )}
 
@@ -606,16 +667,19 @@ export function FormCanvas({
             ) : (
               <div
                 onClick={(e) => {
+                  if (isReadOnly) return;
                   e.stopPropagation();
                   setEditingDescription(true);
                 }}
-                className="group/desc flex items-center gap-2 mt-2 cursor-pointer"
-                title="Click to edit form description"
+                className={`group/desc flex items-center gap-2 mt-2 ${isReadOnly ? "cursor-default" : "cursor-pointer"}`}
+                title={isReadOnly ? "Form description locked in variant view" : "Click to edit form description"}
               >
                 <p className="text-sm text-slate-500 dark:text-slate-400 min-h-[20px] group-hover/desc:text-slate-700 dark:group-hover/desc:text-slate-300 transition-colors">
                   {form.description || "Click to add form description or instructions..."}
                 </p>
-                <Pencil className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/desc:opacity-100 transition-opacity" />
+                {!isReadOnly && (
+                  <Pencil className="w-3.5 h-3.5 text-slate-400 opacity-0 group-hover/desc:opacity-100 transition-opacity" />
+                )}
               </div>
             )}
 
@@ -626,17 +690,21 @@ export function FormCanvas({
                 <span>
                   {selectedVariant === "ALL"
                     ? "Tip: Drag section headers to reorder whole sections. Click any field to edit properties."
-                    : `Filtered view for variant: "${selectedVariant}". Fields with no conditional rules are universal and always visible.`}
+                    : isReadOnly
+                    ? `Viewing form for variant: "${selectedVariant}". Read-only preview active. Click "Edit Form for this Variant" to customize.`
+                    : `Editing isolated customizations for variant: "${selectedVariant}". Other variants are protected from changes.`}
                 </span>
               </div>
-              <button
-                type="button"
-                onClick={() => onAddField("section-header")}
-                className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Add New Section
-              </button>
+              {!isReadOnly && (
+                <button
+                  type="button"
+                  onClick={() => onAddField("section-header")}
+                  className="flex items-center gap-1 text-[11px] text-indigo-600 dark:text-indigo-400 hover:underline font-semibold cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  Add New Section
+                </button>
+              )}
             </div>
           </div>
 
@@ -680,7 +748,7 @@ export function FormCanvas({
               </p>
               <button
                 type="button"
-                onClick={() => handleSelectVariant("ALL")}
+                onClick={() => onSelectVariant("ALL")}
                 className="mt-4 px-4 py-2 rounded-xl text-xs font-semibold bg-indigo-600 hover:bg-indigo-500 text-white shadow-md shadow-indigo-600/20 cursor-pointer transition-all"
               >
                 Show All Sections & Fields
@@ -702,12 +770,12 @@ export function FormCanvas({
                   <div
                     key={group.id}
                     onDragOver={(e) => {
-                      if (group.headerIndex >= 0) {
+                      if (!isReadOnly && group.headerIndex >= 0) {
                         handleFieldDragOver(e, group.headerIndex);
                       }
                     }}
                     onDrop={(e) => {
-                      if (group.headerIndex >= 0) {
+                      if (!isReadOnly && group.headerIndex >= 0) {
                         handleFieldDrop(e, group.headerIndex);
                       }
                     }}
@@ -727,9 +795,9 @@ export function FormCanvas({
                     >
                       {/* Section Card Header */}
                       <div
-                        draggable={group.headerField !== null}
+                        draggable={!isReadOnly && group.headerField !== null}
                         onDragStart={(e) => {
-                          if (group.headerField) {
+                          if (!isReadOnly && group.headerField) {
                             handleFieldDragStart(e, group.headerField.id);
                           }
                         }}
@@ -746,7 +814,7 @@ export function FormCanvas({
                       >
                         {/* Left Side: Drag handle, chevron, title, badge */}
                         <div className="flex items-center gap-3 min-w-0">
-                          {group.headerField && (
+                          {group.headerField && !isReadOnly && (
                             <div
                               className="text-slate-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 cursor-grab active:cursor-grabbing p-0.5"
                               title="Drag to move entire section card and all its fields"
@@ -794,64 +862,66 @@ export function FormCanvas({
                           )}
                         </div>
 
-                        {/* Right Side: Section Actions */}
-                        <div className="flex items-center gap-1">
-                          {group.headerField ? (
-                            <>
+                        {/* Right Side: Section Actions (hidden in read-only mode) */}
+                        {!isReadOnly && (
+                          <div className="flex items-center gap-1">
+                            {group.headerField ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (group.headerField) {
+                                      onSelectField(group.headerField.id);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
+                                  title="Configure section properties"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (group.headerField) {
+                                      onDuplicateField(group.headerField.id);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
+                                  title="Duplicate section and all fields"
+                                >
+                                  <Copy className="w-3.5 h-3.5" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    if (group.headerField) {
+                                      onDeleteField(group.headerField.id);
+                                    }
+                                  }}
+                                  className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
+                                  title="Delete section and its fields"
+                                >
+                                  <Trash2 className="w-3.5 h-3.5" />
+                                </button>
+                              </>
+                            ) : (
                               <button
                                 type="button"
                                 onClick={(e) => {
                                   e.stopPropagation();
-                                  if (group.headerField) {
-                                    onSelectField(group.headerField.id);
-                                  }
-                                }}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors"
-                                title="Configure section properties"
-                              >
-                                <Pencil className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (group.headerField) {
-                                    onDuplicateField(group.headerField.id);
-                                  }
-                                }}
-                                className="p-1.5 rounded-lg text-slate-400 hover:text-sky-600 hover:bg-sky-50 dark:hover:bg-sky-900/30 transition-colors"
-                                title="Duplicate section and all fields"
-                              >
-                                <Copy className="w-3.5 h-3.5" />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  if (group.headerField) {
-                                    onDeleteField(group.headerField.id);
-                                  }
+                                  onDeleteField("default-section");
                                 }}
                                 className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
                                 title="Delete section and its fields"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onDeleteField("default-section");
-                              }}
-                              className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/30 transition-colors"
-                              title="Delete section and its fields"
-                            >
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          )}
-                        </div>
+                            )}
+                          </div>
+                        )}
                       </div>
 
                       {/* Section Card Body (Collapsible) */}
@@ -860,11 +930,13 @@ export function FormCanvas({
                           {group.childFields.length === 0 ? (
                             <div
                               onDragOver={(e) => {
+                                if (isReadOnly) return;
                                 e.preventDefault();
                                 e.stopPropagation();
                                 setDragOverIndex(group.headerIndex >= 0 ? group.headerIndex + 1 : form.fields.length);
                               }}
                               onDrop={(e) => {
+                                if (isReadOnly) return;
                                 e.preventDefault();
                                 e.stopPropagation();
                                 handleFieldDrop(e, group.headerIndex >= 0 ? group.headerIndex + 1 : form.fields.length);
@@ -877,7 +949,9 @@ export function FormCanvas({
                                   : `No fields configured for "${selectedVariant}" inside this section`}
                               </p>
                               <p className="text-[11px] text-slate-400 mt-0.5">
-                                Drag components from the left palette to add fields to {group.title}.
+                                {isReadOnly
+                                  ? "Click 'Edit Form for this Variant' above to add fields to this section."
+                                  : `Drag components from the left palette to add fields to ${group.title}.`}
                               </p>
                             </div>
                           ) : (
@@ -899,6 +973,7 @@ export function FormCanvas({
                                         isSelected={selectedFieldId === field.id}
                                         isDragOver={dragOverIndex === originalIndex}
                                         allFields={form.fields}
+                                        isReadOnly={isReadOnly}
                                         onSelect={() => onSelectField(field.id)}
                                         onEdit={() => onSelectField(field.id)}
                                         onDuplicate={() => onDuplicateField(field.id)}
@@ -913,27 +988,29 @@ export function FormCanvas({
                               </div>
 
                               {/* Drop zone inside the section */}
-                              <div
-                                onDragOver={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
-                                  setDragOverIndex(lastChildIndex + 1);
-                                }}
-                                onDrop={(e) => {
-                                  e.preventDefault();
-                                  e.stopPropagation();
-                                  const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
-                                  handleFieldDrop(e, lastChildIndex + 1);
-                                }}
-                                className={`h-8 rounded-xl border border-dashed transition-all flex items-center justify-center text-[10px] ${
-                                  dragOverIndex === (group.childFields[group.childFields.length - 1].originalIndex + 1)
-                                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 font-semibold"
-                                    : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
-                                }`}
-                              >
-                                + Drop component into {group.title}
-                              </div>
+                              {!isReadOnly && (
+                                <div
+                                  onDragOver={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
+                                    setDragOverIndex(lastChildIndex + 1);
+                                  }}
+                                  onDrop={(e) => {
+                                    e.preventDefault();
+                                    e.stopPropagation();
+                                    const lastChildIndex = group.childFields[group.childFields.length - 1].originalIndex;
+                                    handleFieldDrop(e, lastChildIndex + 1);
+                                  }}
+                                  className={`h-8 rounded-xl border border-dashed transition-all flex items-center justify-center text-[10px] ${
+                                    dragOverIndex === (group.childFields[group.childFields.length - 1].originalIndex + 1)
+                                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-600 font-semibold"
+                                      : "border-slate-200 dark:border-slate-800 text-slate-400 hover:border-indigo-300 hover:text-indigo-600"
+                                  }`}
+                                >
+                                  + Drop component into {group.title}
+                                </div>
+                              )}
                             </>
                           )}
                         </div>
@@ -944,21 +1021,23 @@ export function FormCanvas({
               })}
 
               {/* Bottom drop zone for adding new section or field */}
-              <div
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragOverIndex(form.fields.length);
-                }}
-                onDrop={(e) => handleFieldDrop(e, form.fields.length)}
-                onDragEnd={handleFieldDragEnd}
-                className={`h-12 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center text-xs font-semibold ${
-                  dragOverIndex === form.fields.length
-                    ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
-                    : "border-slate-300 dark:border-slate-700 text-slate-400 hover:border-indigo-400 hover:text-indigo-600"
-                }`}
-              >
-                + Drop new field or section at the end
-              </div>
+              {!isReadOnly && (
+                <div
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragOverIndex(form.fields.length);
+                  }}
+                  onDrop={(e) => handleFieldDrop(e, form.fields.length)}
+                  onDragEnd={handleFieldDragEnd}
+                  className={`h-12 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center text-xs font-semibold ${
+                    dragOverIndex === form.fields.length
+                      ? "border-indigo-500 bg-indigo-50 dark:bg-indigo-950/20 text-indigo-600"
+                      : "border-slate-300 dark:border-slate-700 text-slate-400 hover:border-indigo-400 hover:text-indigo-600"
+                  }`}
+                >
+                  + Drop new field or section at the end
+                </div>
+              )}
             </div>
           )}
         </div>

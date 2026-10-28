@@ -33,7 +33,11 @@ import {
   duplicateFieldWithSection,
   deleteFieldWithSection,
   BackendFormDtoLike,
+  isFieldApplicableForVariant,
+  isExclusiveToVariant,
+  excludeVariantFromField,
 } from "@/components/form-builder/utils";
+import { collectAllFormVariants } from "@/components/form-builder/canonicalFormServices";
 import { useFormBuilderService } from "@/services/formBuilderService";
 import { useCatalogService, ServiceCategory, ServiceItem } from "@/services/catalogService";
 import { FieldPalette } from "@/components/form-builder/FieldPalette";
@@ -126,7 +130,75 @@ function FormBuilderContent() {
   const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
   const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
   const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  const [isVariantEditMode, setIsVariantEditMode] = useState<boolean>(false);
   const originalFormRef = useRef<string | null>(null);
+
+  const isReadOnly = selectedVariant !== "ALL" && !isVariantEditMode;
+
+  const currentFormVariants = React.useMemo(() => {
+    if (!activeForm) return [];
+    return collectAllFormVariants(activeForm, services);
+  }, [activeForm, services]);
+
+  const handleSelectVariant = useCallback(
+    (variantName: string) => {
+      setSelectedVariant(variantName);
+      setIsVariantEditMode(false);
+      if (selectedFieldId !== null && variantName !== "ALL" && activeForm) {
+        const field = activeForm.fields.find((f) => f.id === selectedFieldId);
+        if (field && !isFieldApplicableForVariant(field, variantName)) {
+          setSelectedFieldId(null);
+        }
+      }
+    },
+    [selectedFieldId, activeForm]
+  );
+
+  const handleRevertVariantToBase = useCallback(
+    (variantName: string) => {
+      if (!activeForm || variantName === "ALL") return;
+      const normTarget = variantName.toLowerCase().trim();
+
+      const fields: FormField[] = activeForm.fields
+        .filter((f) => !isExclusiveToVariant(f, variantName))
+        .map((f) => {
+          const cond = f.condition;
+          if (!cond || !cond.variants || cond.variants.length === 0) return f;
+          const hasVariant = cond.variants.some((v) => v.toLowerCase().trim() === normTarget);
+          if (!hasVariant) {
+            const updatedVariants = [...cond.variants, variantName];
+            const updatedAppTypes = cond.applicationTypes ? [...cond.applicationTypes, variantName] : [variantName];
+            const updatedCond = {
+              ...cond,
+              variants: updatedVariants,
+              applicationTypes: updatedAppTypes,
+            };
+            return {
+              ...f,
+              condition: updatedCond,
+              visibilityCondition: JSON.stringify(updatedCond),
+            };
+          }
+          return f;
+        });
+
+      const updated: FormSchema = {
+        ...activeForm,
+        fields,
+        updatedAt: new Date().toISOString(),
+      };
+      setActiveForm(updated);
+      setSelectedFieldId(null);
+      setIsVariantEditMode(false);
+      setIsDirty(true);
+      setToast({
+        message: `Reverted customizations for "${variantName}" back to base form.`,
+        type: "info",
+      });
+    },
+    [activeForm]
+  );
 
   // Warn on browser tab / window navigation if unsaved changes exist
   React.useEffect(() => {
@@ -290,6 +362,17 @@ function FormBuilderContent() {
     (type: FieldType, atIndex?: number) => {
       if (!activeForm) return;
       const newField = createDefaultField(type);
+
+      // If in variant edit mode, isolate this new field strictly to this variant
+      if (selectedVariant !== "ALL" && isVariantEditMode) {
+        const cond = {
+          variants: [selectedVariant],
+          applicationTypes: [selectedVariant],
+        };
+        newField.condition = cond;
+        newField.visibilityCondition = JSON.stringify(cond);
+      }
+
       const fields = [...activeForm.fields];
       if (atIndex !== undefined) {
         fields.splice(atIndex, 0, newField);
@@ -305,7 +388,7 @@ function FormBuilderContent() {
       setSelectedFieldId(newField.id);
       setIsDirty(true);
     },
-    [activeForm]
+    [activeForm, selectedVariant, isVariantEditMode]
   );
 
   const handleReorderFields = useCallback(
@@ -327,6 +410,21 @@ function FormBuilderContent() {
     (id: string) => {
       if (!activeForm) return;
       const fields = duplicateFieldWithSection(activeForm.fields, id);
+      if (selectedVariant !== "ALL" && isVariantEditMode) {
+        const originalIndex = activeForm.fields.findIndex((f) => f.id === id);
+        if (originalIndex >= 0 && originalIndex + 1 < fields.length) {
+          const dupField = fields[originalIndex + 1];
+          const cond = {
+            variants: [selectedVariant],
+            applicationTypes: [selectedVariant],
+          };
+          fields[originalIndex + 1] = {
+            ...dupField,
+            condition: cond,
+            visibilityCondition: JSON.stringify(cond),
+          };
+        }
+      }
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -335,14 +433,44 @@ function FormBuilderContent() {
       setActiveForm(updated);
       setIsDirty(true);
     },
-    [activeForm]
+    [activeForm, selectedVariant, isVariantEditMode]
   );
 
   const handleDeleteField = useCallback(
     (id: string) => {
       if (!activeForm) return;
-      const fields = deleteFieldWithSection(activeForm.fields, id);
-      if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
+
+      if (selectedVariant === "ALL" || !isVariantEditMode) {
+        const fields = deleteFieldWithSection(activeForm.fields, id);
+        if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
+          setSelectedFieldId(null);
+        }
+        const updated: FormSchema = {
+          ...activeForm,
+          fields,
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveForm(updated);
+        setIsDirty(true);
+        return;
+      }
+
+      // In Variant Edit Mode:
+      const targetField = activeForm.fields.find((f) => f.id === id);
+      if (!targetField) return;
+
+      let fields: FormField[];
+      if (isExclusiveToVariant(targetField, selectedVariant)) {
+        // Exclusively belongs to this variant -> delete it
+        fields = deleteFieldWithSection(activeForm.fields, id);
+      } else {
+        // Shared or base field -> exclude this variant from it so other variants keep it
+        const allVariantNames = currentFormVariants.map((v) => v.name);
+        const modifiedField = excludeVariantFromField(targetField, selectedVariant, allVariantNames);
+        fields = activeForm.fields.map((f) => (f.id === id ? modifiedField : f));
+      }
+
+      if (selectedFieldId !== null && (!fields.some((f) => f.id === selectedFieldId) || !isFieldApplicableForVariant(targetField, selectedVariant))) {
         setSelectedFieldId(null);
       }
       const updated: FormSchema = {
@@ -353,24 +481,84 @@ function FormBuilderContent() {
       setActiveForm(updated);
       setIsDirty(true);
     },
-    [activeForm, selectedFieldId]
+    [activeForm, selectedFieldId, selectedVariant, isVariantEditMode, currentFormVariants]
   );
 
   const handleUpdateField = useCallback(
     (fieldUpdates: Partial<FormField>) => {
       if (!activeForm || !selectedFieldId) return;
-      const fields = activeForm.fields.map((f) =>
-        f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
-      );
-      const updated: FormSchema = {
-        ...activeForm,
-        fields,
-        updatedAt: new Date().toISOString(),
-      };
-      setActiveForm(updated);
-      setIsDirty(true);
+
+      if (selectedVariant === "ALL" || !isVariantEditMode) {
+        const fields = activeForm.fields.map((f) =>
+          f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
+        );
+        const updated: FormSchema = {
+          ...activeForm,
+          fields,
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveForm(updated);
+        setIsDirty(true);
+        return;
+      }
+
+      // In Variant Edit Mode:
+      const targetField = activeForm.fields.find((f) => f.id === selectedFieldId);
+      if (!targetField) return;
+
+      if (isExclusiveToVariant(targetField, selectedVariant)) {
+        // Already an isolated variant field -> update directly
+        const fields = activeForm.fields.map((f) =>
+          f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
+        );
+        const updated: FormSchema = {
+          ...activeForm,
+          fields,
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveForm(updated);
+        setIsDirty(true);
+      } else {
+        // Shared field being customized for this variant:
+        // 1. Fork targetField exclusively for selectedVariant
+        // 2. Exclude selectedVariant from the original field so other variants keep original
+        const forkedId = generateId();
+        const variantCond = {
+          variants: [selectedVariant],
+          applicationTypes: [selectedVariant],
+        };
+        const forkedField: FormField = {
+          ...targetField,
+          ...fieldUpdates,
+          id: forkedId,
+          condition: variantCond,
+          visibilityCondition: JSON.stringify(variantCond),
+        };
+
+        const allVariantNames = currentFormVariants.map((v) => v.name);
+        const updatedOriginal = excludeVariantFromField(targetField, selectedVariant, allVariantNames);
+
+        const fields: FormField[] = [];
+        for (const f of activeForm.fields) {
+          if (f.id === selectedFieldId) {
+            fields.push(updatedOriginal);
+            fields.push(forkedField);
+          } else {
+            fields.push(f);
+          }
+        }
+
+        const updated: FormSchema = {
+          ...activeForm,
+          fields,
+          updatedAt: new Date().toISOString(),
+        };
+        setActiveForm(updated);
+        setSelectedFieldId(forkedId);
+        setIsDirty(true);
+      }
     },
-    [activeForm, selectedFieldId]
+    [activeForm, selectedFieldId, selectedVariant, isVariantEditMode, currentFormVariants]
   );
 
   const handleManualSave = async () => {
@@ -420,6 +608,8 @@ function FormBuilderContent() {
         setActiveForm(freshSchema);
         originalFormRef.current = JSON.stringify(freshSchema);
         setSelectedFieldId(null);
+        setSelectedVariant("ALL");
+        setIsVariantEditMode(false);
         setIsDirty(false);
         setToast({
           message: `Switched to version v${freshSchema.version || "1.0"}.`,
@@ -454,6 +644,8 @@ function FormBuilderContent() {
   const handleOpenEditor = async (form: FormSchema) => {
     setActiveForm(form);
     setSelectedFieldId(null);
+    setSelectedVariant("ALL");
+    setIsVariantEditMode(false);
     setIsDirty(false);
     originalFormRef.current = JSON.stringify(form);
     setView("builder");
@@ -837,7 +1029,15 @@ function FormBuilderContent() {
           {/* Left Panel: Field Palette */}
           {isLeftPanelOpen && (
             <div className="w-64 xl:w-72 2xl:w-80 flex-shrink-0 overflow-hidden transition-all duration-200">
-              <FieldPalette onAddField={handleAddField} />
+              <FieldPalette
+                onAddField={handleAddField}
+                disabled={isReadOnly}
+                disabledReason={
+                  isReadOnly
+                    ? `Editing locked in view-only mode for "${selectedVariant}". Click "Edit Form for this Variant" to add components.`
+                    : undefined
+                }
+              />
             </div>
           )}
 
@@ -863,6 +1063,11 @@ function FormBuilderContent() {
               onSetActive={handleSetActiveCurrent}
               onCreateNewVersion={() => handleDuplicateForm(activeForm)}
               onDeleteVersion={() => setDeleteTarget(activeForm)}
+              selectedVariant={selectedVariant}
+              onSelectVariant={handleSelectVariant}
+              isVariantEditMode={isVariantEditMode}
+              onSetVariantEditMode={setIsVariantEditMode}
+              onRevertVariantToBase={handleRevertVariantToBase}
             />
           </div>
 
@@ -875,6 +1080,9 @@ function FormBuilderContent() {
                 onUpdateField={handleUpdateField}
                 onUpdateForm={handleUpdateForm}
                 onSelectField={setSelectedFieldId}
+                selectedVariant={selectedVariant}
+                isVariantEditMode={isVariantEditMode}
+                isReadOnly={isReadOnly}
               />
             </div>
           )}

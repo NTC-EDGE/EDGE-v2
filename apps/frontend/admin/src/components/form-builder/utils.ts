@@ -551,6 +551,84 @@ export function parseFieldCondition(val: unknown): FieldCondition | undefined {
   };
 }
 
+export function getVariantEquivalentKey(variantName: string): string {
+  if (!variantName || variantName === 'ALL') return 'all';
+  return variantName
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+export function isFieldApplicableForVariant(field: FormField, selectedVariant: string): boolean {
+  if (!selectedVariant || selectedVariant === 'ALL') return true;
+  if (field.type === 'divider') return true;
+
+  const cond = field.condition ?? (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
+  if (!cond) return true;
+
+  const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
+  const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
+
+  if (!hasVariants && !hasAppTypes) return true;
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const target = normalize(selectedVariant);
+
+  const matches = (list?: string[]) => {
+    if (!list || list.length === 0) return false;
+    return list.some((item) => {
+      const norm = normalize(item);
+      return norm === target || norm.includes(target) || target.includes(norm);
+    });
+  };
+
+  return matches(cond.variants) || matches(cond.applicationTypes);
+}
+
+export function isExclusiveToVariant(field: FormField, variantName: string): boolean {
+  if (!variantName || variantName === 'ALL') return false;
+  const cond = field.condition ?? (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
+  if (!cond || !cond.variants || cond.variants.length === 0) return false;
+  const normTarget = variantName.toLowerCase().trim();
+  return cond.variants.every((v) => v.toLowerCase().trim() === normTarget);
+}
+
+export function excludeVariantFromField(
+  field: FormField,
+  variantName: string,
+  allVariantNames: string[]
+): FormField {
+  const normTarget = variantName.toLowerCase().trim();
+  const cond = field.condition ?? (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
+
+  let updatedVariants: string[];
+  let updatedAppTypes: string[] | undefined;
+
+  if (cond && cond.variants && cond.variants.length > 0) {
+    updatedVariants = cond.variants.filter((v) => v.toLowerCase().trim() !== normTarget);
+    updatedAppTypes = cond.applicationTypes
+      ? cond.applicationTypes.filter((v) => v.toLowerCase().trim() !== normTarget)
+      : undefined;
+  } else {
+    // Was universal, so restrict to all other variants
+    updatedVariants = allVariantNames.filter((v) => v.toLowerCase().trim() !== normTarget);
+    updatedAppTypes = [...updatedVariants];
+  }
+
+  const updatedCond: FieldCondition = {
+    ...cond,
+    variants: updatedVariants.length > 0 ? updatedVariants : undefined,
+    applicationTypes: updatedAppTypes && updatedAppTypes.length > 0 ? updatedAppTypes : undefined,
+  };
+
+  return {
+    ...field,
+    condition: updatedCond,
+    visibilityCondition: JSON.stringify(updatedCond),
+  };
+}
+
 export function normalizeFieldType(type: string): FieldType {
   const lower = type.toLowerCase().trim();
   if (lower === 'dropdown' || lower === 'select' || lower.includes('select') || lower.includes('dropdown')) return 'select';

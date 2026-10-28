@@ -10,20 +10,22 @@ interface PaletteItemProps {
   description: string;
   colorClass: string;
   onAdd?: (type: FieldType) => void;
+  disabled?: boolean;
 }
 
-function PaletteItem({ type, description, colorClass, onAdd }: PaletteItemProps) {
+function PaletteItem({ type, description, colorClass, onAdd, disabled = false }: PaletteItemProps) {
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>) => {
+    if (disabled) return;
     e.dataTransfer.setData("fieldType", type);
     e.dataTransfer.effectAllowed = "copy";
   };
 
   return (
     <div
-      draggable
-      onDragStart={handleDragStart}
-      onClick={() => onAdd && onAdd(type)}
-      className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-sm cursor-grab active:cursor-grabbing transition-all group"
+      draggable={!disabled}
+      onDragStart={!disabled ? handleDragStart : undefined}
+      onClick={() => !disabled && onAdd && onAdd(type)}
+      className={`flex items-center justify-between p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 transition-all group ${disabled ? "opacity-45 bg-slate-100 dark:bg-slate-800/40 cursor-not-allowed" : "bg-white dark:bg-slate-800/80 hover:border-indigo-400 dark:hover:border-indigo-500 hover:shadow-sm cursor-grab active:cursor-grabbing"}`}
       title={`Click or drag to add ${getFieldLabel(type)}`}
     >
       <div className="flex items-center gap-2.5 min-w-0">
@@ -105,9 +107,11 @@ const paletteGroups: PaletteGroup[] = [
 
 interface FieldPaletteProps {
   onAddField?: (type: FieldType) => void;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 
-export function FieldPalette({ onAddField }: FieldPaletteProps) {
+export function FieldPalette({ onAddField, disabled = false, disabledReason }: FieldPaletteProps) {
   return (
     <div className="h-full overflow-y-auto bg-slate-50 dark:bg-slate-900 border-r border-slate-200 dark:border-slate-800 flex flex-col">
       <div className="p-3.5 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/60">
@@ -119,6 +123,11 @@ export function FieldPalette({ onAddField }: FieldPaletteProps) {
         </p>
       </div>
       <div className="flex-1 p-3 space-y-4 overflow-y-auto">
+        {disabled && (
+          <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/70 text-amber-800 dark:text-amber-300 text-[11px] leading-snug">
+            {disabledReason || "Viewing mode active. Click 'Edit Form for this Variant' in the canvas header to add fields."}
+          </div>
+        )}
         {paletteGroups.map((group) => (
           <div key={group.title}>
             <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-2 px-0.5">
@@ -132,6 +141,7 @@ export function FieldPalette({ onAddField }: FieldPaletteProps) {
                   description={item.description}
                   colorClass={item.colorClass}
                   onAdd={onAddField}
+                  disabled={disabled}
                 />
               ))}
             </div>

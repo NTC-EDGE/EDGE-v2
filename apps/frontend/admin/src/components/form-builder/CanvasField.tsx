@@ -20,6 +20,7 @@ interface CanvasFieldProps {
   childFieldCount?: number;
   onToggleCollapse?: () => void;
   allFields?: FormField[];
+  isReadOnly?: boolean;
 }
 
 function FieldPreview({ field }: { field: FormField }) {
@@ -202,6 +203,7 @@ export function CanvasField({
   childFieldCount = 0,
   onToggleCollapse,
   allFields,
+  isReadOnly = false,
 }: CanvasFieldProps) {
   const isSectionHeader = field.type === "section-header";
 
@@ -287,8 +289,8 @@ export function CanvasField({
         <div className="h-0.5 bg-indigo-500 rounded-full mb-2 mx-4 shadow-md shadow-indigo-500/30 transition-all" />
       )}
       <div
-        draggable
-        onDragStart={onDragStart}
+        draggable={!isReadOnly}
+        onDragStart={!isReadOnly ? onDragStart : undefined}
         onClick={(e) => {
           e.stopPropagation();
           onSelect();
@@ -304,8 +306,9 @@ export function CanvasField({
         }`}
       >
         {/* Drag handle */}
-        <div
-          className={`flex-shrink-0 mt-1 cursor-grab active:cursor-grabbing transition-colors ${
+        {!isReadOnly && (
+          <div
+            className={`flex-shrink-0 mt-1 cursor-grab active:cursor-grabbing transition-colors ${
             isSectionHeader
               ? "text-indigo-400 dark:text-indigo-500 group-hover:text-indigo-600 dark:group-hover:text-indigo-300"
               : "text-slate-300 dark:text-slate-600 group-hover:text-indigo-500 dark:group-hover:text-indigo-400"
@@ -313,7 +316,8 @@ export function CanvasField({
           title={isSectionHeader ? "Drag to move entire section and all its child fields" : "Drag to reorder field"}
         >
           <GripVertical className="w-4 h-4" />
-        </div>
+          </div>
+        )}
 
         {/* Section Collapse / Minimize Toggle Button */}
         {isSectionHeader && (
@@ -427,7 +431,8 @@ export function CanvasField({
         </div>
 
         {/* Action Toolbar */}
-        <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        {!isReadOnly && (
+          <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button
             type="button"
             onClick={(e) => {
@@ -460,8 +465,9 @@ export function CanvasField({
             title="Delete field"
           >
             <Trash2 className="w-3.5 h-3.5" />
-          </button>
-        </div>
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
