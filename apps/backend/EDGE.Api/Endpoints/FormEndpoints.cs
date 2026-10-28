@@ -82,9 +82,11 @@ public static class FormEndpoints
         int pageNumber = 1,
         int pageSize = 50,
         string? searchTerm = null,
-        Guid? serviceId = null)
+        Guid? serviceId = null,
+        Guid? serviceVariantId = null,
+        string? formKey = null)
     {
-        var result = await mediator.Send(new GetFormsQuery(pageNumber, pageSize, searchTerm, serviceId));
+        var result = await mediator.Send(new GetFormsQuery(pageNumber, pageSize, searchTerm, serviceId, serviceVariantId, formKey));
         return Results.Ok(result);
     }
 

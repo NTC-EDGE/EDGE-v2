@@ -10,6 +10,11 @@ namespace EDGE.Application.Common.Interfaces;
 public interface IFormRepository
 {
     Task<Form?> GetFormByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default);
+    Task<Form?> GetFormByServiceIdAsync(
+        Guid serviceId,
+        Guid? serviceVariantId,
+        string? formKey = null,
+        CancellationToken cancellationToken = default);
     Task<Form?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default);
     Task<List<Form>> GetAllAsync(CancellationToken cancellationToken = default);
     Task<List<Field>> GetFieldsByIdsAsync(IEnumerable<Guid> fieldIds, CancellationToken cancellationToken = default);
@@ -24,6 +29,9 @@ public interface IFormRepository
         List<FormSectionDto> incomingSections,
         string? name = null,
         bool? isActive = null,
+        string? key = null,
+        Guid? serviceVariantId = null,
+        Guid? baseFormId = null,
         CancellationToken cancellationToken = default);
     Task<Form?> SetFormActiveAsync(Guid formId, CancellationToken cancellationToken = default);
     Task<List<Form>> GetVersionsByServiceIdAsync(Guid serviceId, CancellationToken cancellationToken = default);

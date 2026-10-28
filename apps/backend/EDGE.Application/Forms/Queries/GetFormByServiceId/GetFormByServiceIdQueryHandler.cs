@@ -37,15 +37,18 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             return ApiResponse<FormDto>.Fail($"Service with ID {request.ServiceId} was not found.");
         }
 
-        var form = await _formRepository.GetFormByServiceIdAsync(request.ServiceId, cancellationToken);
+        var form = await _formRepository.GetFormByServiceIdAsync(
+            request.ServiceId,
+            request.ServiceVariantId,
+            request.FormKey,
+            cancellationToken);
+
         if (form == null)
         {
             return ApiResponse<FormDto>.Fail($"Form layout for Service ID {request.ServiceId} was not found.");
         }
 
         // Step 4 — Run ContractFormValidator before returning.
-        // Surfaces seeding mistakes immediately (e.g. a required section key in the
-        // contract that has no matching FormSection) rather than serving a broken form.
         if (!string.IsNullOrWhiteSpace(service.Contract))
         {
             var validationResult = _contractValidator.Validate(service.Contract, form);
@@ -65,24 +68,33 @@ public class GetFormByServiceIdQueryHandler : IRequestHandler<GetFormByServiceId
             : new System.Collections.Generic.HashSet<string>();
 
         var allVersions = (await _formRepository.GetVersionsByServiceIdAsync(form.ServiceId, cancellationToken)) ?? new System.Collections.Generic.List<EDGE.Domain.Entities.Form>();
-        var versionSummaries = allVersions.Select(v => new FormVersionSummaryDto
-        {
-            FormId = v.Id,
-            Version = v.Version,
-            Name = v.Name,
-            IsActive = v.IsActive,
-            CreatedAt = v.CreatedAt,
-            UpdatedAt = v.LastModifiedAt,
-            SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
-            FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<EDGE.Domain.Entities.SectionField>()).Count() ?? 0
-        }).ToList();
+        var versionSummaries = allVersions
+            .Where(v => v.ServiceVariantId == form.ServiceVariantId)
+            .Select(v => new FormVersionSummaryDto
+            {
+                FormId = v.Id,
+                Key = v.Key,
+                ServiceVariantId = v.ServiceVariantId,
+                Version = v.Version,
+                Name = v.Name,
+                IsActive = v.IsActive,
+                CreatedAt = v.CreatedAt,
+                UpdatedAt = v.LastModifiedAt,
+                SectionsCount = v.Sections?.Count(s => !s.IsDeleted) ?? 0,
+                FieldsCount = v.Sections?.Where(s => !s.IsDeleted).SelectMany(s => s.SectionFields ?? Enumerable.Empty<EDGE.Domain.Entities.SectionField>()).Count() ?? 0
+            }).ToList();
 
         var dto = new FormDto
         {
             FormId = form.Id,
+            Key = form.Key,
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name ?? service.Name,
             ServiceCode = form.Service?.Code ?? service.Code,
+            ServiceVariantId = form.ServiceVariantId,
+            ServiceVariantName = form.ServiceVariant?.Description,
+            BaseFormId = form.BaseFormId,
+            BaseFormKey = form.BaseForm?.Key,
             Name = form.Name,
             Version = form.Version,
             IsActive = form.IsActive,

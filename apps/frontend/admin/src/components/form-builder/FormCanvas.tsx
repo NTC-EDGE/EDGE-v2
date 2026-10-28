@@ -26,12 +26,14 @@ import { FormField, FormSchema, FieldType, FormVersionSummary, LinkedServiceItem
 import { CanvasField } from "./CanvasField";
 import { ServiceVariantToolbar } from "./ServiceVariantToolbar";
 import { LinkServiceModal } from "./LinkServiceModal";
+import { ConfirmActionDialog } from "@/components/ui/confirm-action-dialog";
 import { collectAllFormVariants, getEffectiveLinkedServices } from "./canonicalFormServices";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
 import { parseFieldCondition, getVariantEquivalentKey, isFieldApplicableForVariant } from "./utils";
 
 interface FormCanvasProps {
   form: FormSchema;
+  baseForm?: FormSchema | null;
   selectedFieldId: string | null;
   onSelectField: (id: string | null) => void;
   onUpdateForm: (updates: Partial<FormSchema>) => void;
@@ -50,7 +52,10 @@ interface FormCanvasProps {
   onSelectVariant: (variantName: string) => void;
   isVariantEditMode: boolean;
   onSetVariantEditMode: (editMode: boolean) => void;
+  onCustomizeVariant?: (variantName: string) => void;
+  onResetFromBaseForm?: () => void;
   onRevertVariantToBase?: (variantName: string) => void;
+  customizedVariantNames?: string[];
 }
 
 interface SectionGroup {
@@ -63,6 +68,7 @@ interface SectionGroup {
 
 export function FormCanvas({
   form,
+  baseForm,
   selectedFieldId,
   onSelectField,
   onUpdateForm,
@@ -80,19 +86,22 @@ export function FormCanvas({
   onSelectVariant,
   isVariantEditMode,
   onSetVariantEditMode,
+  onCustomizeVariant,
+  onResetFromBaseForm,
   onRevertVariantToBase,
+  customizedVariantNames = [],
 }: FormCanvasProps) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [editingDescription, setEditingDescription] = useState(false);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isDragOverCanvas, setIsDragOverCanvas] = useState(false);
   const [collapsedSectionIds, setCollapsedSectionIds] = useState<Set<string>>(new Set());
+  const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   // Link service modal state
   const [isLinkServiceModalOpen, setIsLinkServiceModalOpen] = useState(false);
 
-  // In variant view, form is read-only unless the user explicitly clicks "Edit Form for this Variant"
-  const isReadOnly = selectedVariant !== "ALL" && !isVariantEditMode;
+  const isReadOnly = false;
   const equivalentKey = getVariantEquivalentKey(selectedVariant);
 
   // Aggregate all variants linked to or used by this form
@@ -463,88 +472,6 @@ export function FormCanvas({
             applicableFieldsCount={applicableFieldsCount}
             linkedServicesCount={effectiveLinkedServices.length}
           />
-
-          {/* Variant View State Banner: View-Only Mode */}
-          {selectedVariant !== "ALL" && isReadOnly && (
-            <div className="mb-4 p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/60 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/50 flex items-center justify-center text-amber-600 dark:text-amber-400 shrink-0">
-                  <Eye className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-amber-900 dark:text-amber-200">
-                      Viewing Form for &ldquo;{selectedVariant}&rdquo; (Read-Only Preview)
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-amber-200/60 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 font-semibold">
-                      Key: {equivalentKey}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-amber-700 dark:text-amber-400 mt-0.5">
-                    This variant preview is currently locked to view-only to prevent accidentally mutating other service variants that share this base form. Click &quot;Edit Form for this Variant&quot; to make isolated adjustments.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                <button
-                  type="button"
-                  onClick={() => onSetVariantEditMode(true)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-amber-600 hover:bg-amber-500 px-3.5 py-2 rounded-xl transition-all shadow-sm shadow-amber-600/30 cursor-pointer"
-                >
-                  <Pencil className="w-3.5 h-3.5" />
-                  <span>Edit Form for this Variant</span>
-                </button>
-              </div>
-            </div>
-          )}
-
-          {/* Variant View State Banner: Active Customization Mode */}
-          {selectedVariant !== "ALL" && !isReadOnly && (
-            <div className="mb-4 p-4 rounded-2xl bg-indigo-50 dark:bg-indigo-950/50 border border-indigo-200 dark:border-indigo-800/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div className="flex items-start sm:items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-indigo-100 dark:bg-indigo-900/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400 shrink-0">
-                  <Sparkles className="w-5 h-5" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-xs font-bold text-indigo-950 dark:text-indigo-200">
-                      Active Customization: &ldquo;{selectedVariant}&rdquo;
-                    </span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-indigo-200/60 dark:bg-indigo-900/60 text-indigo-800 dark:text-indigo-300 font-semibold">
-                      Scoped Key: {equivalentKey}
-                    </span>
-                    <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-800">
-                      Other variants protected
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-indigo-700 dark:text-indigo-300 mt-0.5">
-                    Any additions, modifications, or deletions will be scoped strictly to &ldquo;{selectedVariant}&rdquo; using its equivalent key. The base form and other service variants remain untouched.
-                  </p>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0 self-start sm:self-center">
-                {onRevertVariantToBase && (
-                  <button
-                    type="button"
-                    onClick={() => onRevertVariantToBase(selectedVariant)}
-                    className="flex items-center gap-1.5 text-xs font-medium text-slate-600 dark:text-slate-300 hover:text-rose-600 dark:hover:text-rose-400 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-rose-300 dark:hover:border-rose-800 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
-                    title="Remove variant-specific customizations and inherit base form"
-                  >
-                    <RotateCcw className="w-3.5 h-3.5" />
-                    <span>Revert to Base</span>
-                  </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() => onSetVariantEditMode(false)}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 px-3 py-1.5 rounded-xl transition-all cursor-pointer"
-                >
-                  <Eye className="w-3.5 h-3.5" />
-                  <span>Lock / View Only</span>
-                </button>
-              </div>
-            </div>
-          )}
 
           {/* Form Header Card */}
           <div className="mb-6 p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm relative">
@@ -1051,6 +978,23 @@ export function FormCanvas({
         catalogServices={catalogServices}
         catalogCategories={catalogCategories}
         onSaveLinkedServices={handleSaveLinkedServices}
+      />
+
+      {/* Reset from Base Blueprint Confirmation Dialog */}
+      <ConfirmActionDialog
+        isOpen={isResetConfirmOpen}
+        onClose={() => setIsResetConfirmOpen(false)}
+        title="Reset Form from Base Blueprint"
+        description={`Are you sure you want to reset "${selectedVariant}"? This will copy all ${baseForm?.fields.length ?? 0} fields from the base form blueprint ("${baseForm?.name || 'Base Form'}"). Any custom sections or edits currently on "${selectedVariant}" will be overwritten with the base blueprint, letting you rearrange or delete sections and save strictly to "${selectedVariant}".`}
+        confirmLabel="Confirm & Reset from Base"
+        cancelLabel="Keep Current Form"
+        loading={false}
+        onConfirm={() => {
+          setIsResetConfirmOpen(false);
+          if (onResetFromBaseForm) {
+            onResetFromBaseForm();
+          }
+        }}
       />
     </div>
   );

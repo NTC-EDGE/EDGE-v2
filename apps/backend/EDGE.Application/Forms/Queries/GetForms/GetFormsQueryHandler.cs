@@ -29,11 +29,23 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             forms = forms.Where(f => f.ServiceId == request.ServiceId.Value).ToList();
         }
 
+        if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
+        {
+            forms = forms.Where(f => f.ServiceVariantId == request.ServiceVariantId.Value).ToList();
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.FormKey))
+        {
+            var targetKey = request.FormKey.Trim().ToLowerInvariant();
+            forms = forms.Where(f => f.Key != null && f.Key.ToLowerInvariant() == targetKey).ToList();
+        }
+
         if (!string.IsNullOrWhiteSpace(request.SearchTerm))
         {
             var search = request.SearchTerm.Trim().ToLower();
             forms = forms.Where(f =>
                 (f.Name != null && f.Name.ToLower().Contains(search)) ||
+                (f.Key != null && f.Key.ToLower().Contains(search)) ||
                 (f.Version != null && f.Version.ToLower().Contains(search)) ||
                 (f.Service != null && f.Service.Name != null && f.Service.Name.ToLower().Contains(search)) ||
                 (f.Service != null && f.Service.Code != null && f.Service.Code.ToLower().Contains(search)) ||
@@ -47,9 +59,11 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             ).ToList();
         }
 
-        // Group by application type (ServiceId). Standalone forms without a service are grouped individually.
+        // Group by application type + variant. Standalone forms without a service are grouped individually.
         var grouped = forms
-            .GroupBy(f => f.ServiceId != Guid.Empty ? f.ServiceId.ToString() : f.Id.ToString())
+            .GroupBy(f => f.ServiceVariantId.HasValue
+                ? $"{f.ServiceId}:{f.ServiceVariantId.Value}"
+                : (f.ServiceId != Guid.Empty ? $"{f.ServiceId}:base" : f.Id.ToString()))
             .Select(g =>
             {
                 var allInGroup = g.OrderByDescending(f => f.IsActive).ThenByDescending(f => f.CreatedAt).ToList();
@@ -58,6 +72,8 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
                 var versionSummaries = allInGroup.Select(v => new FormVersionSummaryDto
                 {
                     FormId = v.Id,
+                    Key = v.Key,
+                    ServiceVariantId = v.ServiceVariantId,
                     Version = v.Version,
                     Name = v.Name,
                     IsActive = v.IsActive,
@@ -70,9 +86,14 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
                 return new FormDto
                 {
                     FormId = primary.Id,
+                    Key = primary.Key,
                     ServiceId = primary.ServiceId,
                     ServiceName = primary.Service?.Name,
                     ServiceCode = primary.Service?.Code,
+                    ServiceVariantId = primary.ServiceVariantId,
+                    ServiceVariantName = primary.ServiceVariant?.Description,
+                    BaseFormId = primary.BaseFormId,
+                    BaseFormKey = primary.BaseForm?.Key,
                     Name = primary.Name,
                     Version = primary.Version,
                     IsActive = primary.IsActive,
@@ -108,16 +129,19 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             .ToList();
 
         int totalCount = grouped.Count;
-        int pageNumber = request.PageNumber.GetValueOrDefault(1);
-        int pageSize = request.PageSize.GetValueOrDefault(50);
-        if (pageNumber <= 0) pageNumber = 1;
-        if (pageSize <= 0) pageSize = 50;
+        int pageNumber = request.PageNumber ?? 1;
+        int pageSize = request.PageSize ?? 50;
 
         var paginated = grouped
             .Skip((pageNumber - 1) * pageSize)
             .Take(pageSize)
             .ToList();
 
-        return new PaginatedApiResponse<FormDto>(paginated, pageNumber, pageSize, totalCount);
+        return new PaginatedApiResponse<FormDto>(
+            paginated,
+            totalCount,
+            pageNumber,
+            pageSize,
+            "Forms retrieved successfully.");
     }
 }

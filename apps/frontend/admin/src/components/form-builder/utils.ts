@@ -650,7 +650,12 @@ export function normalizeFieldType(type: string): FieldType {
 export interface BackendFormDtoLike {
   formId?: string;
   id?: string;
+  key?: string;
   serviceId?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
+  baseFormId?: string;
+  baseFormKey?: string;
   version?: string;
   serviceName?: string;
   serviceCode?: string;
@@ -815,7 +820,12 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
 
   return {
     id: formId,
+    key: dto.key,
     serviceId: dto.serviceId,
+    serviceVariantId: dto.serviceVariantId,
+    serviceVariantName: dto.serviceVariantName,
+    baseFormId: dto.baseFormId,
+    baseFormKey: dto.baseFormKey,
     serviceName: dto.serviceName,
     serviceCode: dto.serviceCode,
     name: dto.name ?? (dto.serviceName ? `${dto.serviceName} Form` : `Service Form (v${dto.version ?? '1.0'})`),
@@ -830,6 +840,19 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
     linkedServices: localMatch?.linkedServices,
     linkedVariants: localMatch?.linkedVariants,
   };
+}
+
+/**
+ * Clones form fields giving each field (and section header) a new unique GUID.
+ * This guarantees that when a variant form is created or reset from a base form,
+ * saving the variant form creates distinct Field and Section rows in the database,
+ * completely isolating it from the master base form or other service variants.
+ */
+export function cloneFormFieldsWithFreshIds(fields: FormField[]): FormField[] {
+  return fields.map((f) => ({
+    ...f,
+    id: generateId(),
+  }));
 }
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

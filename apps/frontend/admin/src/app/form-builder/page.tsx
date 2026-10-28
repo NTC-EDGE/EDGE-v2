@@ -20,7 +20,7 @@ import {
   PanelRightOpen,
   Radio,
 } from "lucide-react";
-import { FormSchema, FormField, FieldType } from "@/components/form-builder/types";
+import { FormSchema, FormField, FieldType, ServiceVariantToolbarItem } from "@/components/form-builder/types";
 import {
   useLocalForms,
   saveFormSchema,
@@ -33,9 +33,7 @@ import {
   duplicateFieldWithSection,
   deleteFieldWithSection,
   BackendFormDtoLike,
-  isFieldApplicableForVariant,
-  isExclusiveToVariant,
-  excludeVariantFromField,
+  cloneFormFieldsWithFreshIds,
 } from "@/components/form-builder/utils";
 import { collectAllFormVariants } from "@/components/form-builder/canonicalFormServices";
 import { useFormBuilderService } from "@/services/formBuilderService";
@@ -94,7 +92,7 @@ function FormBuilderContent() {
     selectedServiceId || undefined
   );
 
-  const { useServiceCategories, useServices } = useCatalogService();
+  const { useServiceCategories, useServices, useServiceVariants } = useCatalogService();
   const { data: categoriesResponse } = useServiceCategories();
   const { data: servicesResponse } = useServices(undefined, 1, 200);
 
@@ -118,99 +116,6 @@ function FormBuilderContent() {
 
   const [view, setView] = useState<View>("list");
   const localForms = useLocalForms();
-  const [activeForm, setActiveForm] = useState<FormSchema | null>(null);
-  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
-  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
-  const [previewForm, setPreviewForm] = useState<FormSchema | null>(null);
-  const [deleteTarget, setDeleteTarget] = useState<FormSchema | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [toast, setToast] = useState<ToastMessage | null>(null);
-  const [isDirty, setIsDirty] = useState(false);
-  const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
-  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
-  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
-  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
-  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
-  const [isVariantEditMode, setIsVariantEditMode] = useState<boolean>(false);
-  const originalFormRef = useRef<string | null>(null);
-
-  const isReadOnly = selectedVariant !== "ALL" && !isVariantEditMode;
-
-  const currentFormVariants = React.useMemo(() => {
-    if (!activeForm) return [];
-    return collectAllFormVariants(activeForm, services);
-  }, [activeForm, services]);
-
-  const handleSelectVariant = useCallback(
-    (variantName: string) => {
-      setSelectedVariant(variantName);
-      setIsVariantEditMode(false);
-      if (selectedFieldId !== null && variantName !== "ALL" && activeForm) {
-        const field = activeForm.fields.find((f) => f.id === selectedFieldId);
-        if (field && !isFieldApplicableForVariant(field, variantName)) {
-          setSelectedFieldId(null);
-        }
-      }
-    },
-    [selectedFieldId, activeForm]
-  );
-
-  const handleRevertVariantToBase = useCallback(
-    (variantName: string) => {
-      if (!activeForm || variantName === "ALL") return;
-      const normTarget = variantName.toLowerCase().trim();
-
-      const fields: FormField[] = activeForm.fields
-        .filter((f) => !isExclusiveToVariant(f, variantName))
-        .map((f) => {
-          const cond = f.condition;
-          if (!cond || !cond.variants || cond.variants.length === 0) return f;
-          const hasVariant = cond.variants.some((v) => v.toLowerCase().trim() === normTarget);
-          if (!hasVariant) {
-            const updatedVariants = [...cond.variants, variantName];
-            const updatedAppTypes = cond.applicationTypes ? [...cond.applicationTypes, variantName] : [variantName];
-            const updatedCond = {
-              ...cond,
-              variants: updatedVariants,
-              applicationTypes: updatedAppTypes,
-            };
-            return {
-              ...f,
-              condition: updatedCond,
-              visibilityCondition: JSON.stringify(updatedCond),
-            };
-          }
-          return f;
-        });
-
-      const updated: FormSchema = {
-        ...activeForm,
-        fields,
-        updatedAt: new Date().toISOString(),
-      };
-      setActiveForm(updated);
-      setSelectedFieldId(null);
-      setIsVariantEditMode(false);
-      setIsDirty(true);
-      setToast({
-        message: `Reverted customizations for "${variantName}" back to base form.`,
-        type: "info",
-      });
-    },
-    [activeForm]
-  );
-
-  // Warn on browser tab / window navigation if unsaved changes exist
-  React.useEffect(() => {
-    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (view === "builder" && isDirty) {
-        e.preventDefault();
-        e.returnValue = "";
-      }
-    };
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [view, isDirty]);
 
   // Parse backend and seeded forms
   const backendForms: FormSchema[] = React.useMemo(() => {
@@ -232,6 +137,221 @@ function FormBuilderContent() {
     return localForms;
   }, [apiResponse, backendForms, localForms]);
 
+  const [activeForm, setActiveForm] = useState<FormSchema | null>(null);
+  const [selectedFieldId, setSelectedFieldId] = useState<string | null>(null);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [previewForm, setPreviewForm] = useState<FormSchema | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FormSchema | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [toast, setToast] = useState<ToastMessage | null>(null);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isUnsavedDialogOpen, setIsUnsavedDialogOpen] = useState(false);
+  const [isSaveConfirmOpen, setIsSaveConfirmOpen] = useState(false);
+  const [isLeftPanelOpen, setIsLeftPanelOpen] = useState(true);
+  const [isRightPanelOpen, setIsRightPanelOpen] = useState(true);
+  const [masterBaseForm, setMasterBaseForm] = useState<FormSchema | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<string>("ALL");
+  const [isVariantEditMode, setIsVariantEditMode] = useState<boolean>(false);
+  const originalFormRef = useRef<string | null>(null);
+
+
+  const { data: serviceVariantsResponse } = useServiceVariants(activeForm?.serviceId);
+
+  const backendServiceVariants: ServiceVariantToolbarItem[] = React.useMemo(() => {
+    if (!serviceVariantsResponse?.data) return [];
+    return serviceVariantsResponse.data.map((v) => ({
+      id: v.id,
+      name: v.description && v.description.trim().length > 0 ? `${v.description} (${v.type})` : `${v.type}`,
+      serviceId: v.serviceId,
+      serviceName: v.serviceName,
+      source: "service" as const,
+    }));
+  }, [serviceVariantsResponse]);
+
+  const currentFormVariants = React.useMemo(() => {
+    if (!activeForm) return [];
+    return collectAllFormVariants(activeForm, services, backendServiceVariants);
+  }, [activeForm, services, backendServiceVariants]);
+
+  const customizedVariantNames = React.useMemo(() => {
+    if (!activeForm?.serviceId) return [];
+    const names = new Set<string>();
+    for (const f of backendForms) {
+      if (f.serviceId === activeForm.serviceId && f.serviceVariantName) {
+        names.add(f.serviceVariantName);
+      }
+    }
+    return Array.from(names);
+  }, [backendForms, activeForm?.serviceId]);
+
+  const handleSelectVariant = useCallback(
+    (variantName: string) => {
+      if (variantName === "ALL") {
+        setSelectedVariant("ALL");
+        setIsVariantEditMode(false);
+        setSelectedFieldId(null);
+        if (masterBaseForm) {
+          setActiveForm(masterBaseForm);
+          originalFormRef.current = JSON.stringify(masterBaseForm);
+        }
+        setIsDirty(false);
+        return;
+      }
+
+      setSelectedVariant(variantName);
+      setSelectedFieldId(null);
+
+      const matchingVariant = currentFormVariants.find(
+        (v) => v.name.toLowerCase() === variantName.toLowerCase()
+      );
+      const baseFormToUse = masterBaseForm || activeForm;
+      const baseKey = baseFormToUse?.key || baseFormToUse?.serviceCode || "FORM";
+      const variantSlug = variantName.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      const expectedVariantKey = `${baseKey}_${variantSlug}`;
+
+      // Check if an existing isolated form for this variant already exists in backend
+      const existingVariantForm = backendForms.find(
+        (f) =>
+          (matchingVariant?.id && f.serviceVariantId === matchingVariant.id) ||
+          (f.key && f.key.toUpperCase() === expectedVariantKey.toUpperCase()) ||
+          (f.serviceVariantName && f.serviceVariantName.toLowerCase() === variantName.toLowerCase() && f.serviceId === baseFormToUse?.serviceId)
+      );
+
+      if (existingVariantForm) {
+        setActiveForm(existingVariantForm);
+        originalFormRef.current = JSON.stringify(existingVariantForm);
+        setIsVariantEditMode(true);
+        setIsDirty(false);
+      } else if (baseFormToUse) {
+        // Immediately initialize an isolated variant form cloned from base blueprint with fresh IDs
+        const freshFields = cloneFormFieldsWithFreshIds(baseFormToUse.fields);
+        const newVariantForm: FormSchema = {
+          id: generateId(),
+          key: expectedVariantKey,
+          serviceId: baseFormToUse.serviceId,
+          serviceVariantId:
+            matchingVariant && matchingVariant.id && !matchingVariant.id.startsWith("var-")
+              ? matchingVariant.id
+              : undefined,
+          serviceVariantName: variantName,
+          baseFormId: baseFormToUse.id,
+          baseFormKey: baseFormToUse.key,
+          name: `${baseFormToUse.name} - ${variantName}`,
+          description: `Form layout for ${variantName} based on ${baseFormToUse.name}`,
+          version: "1.0",
+          fields: freshFields,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          isPublished: true,
+          isActive: true,
+        };
+        setActiveForm(newVariantForm);
+        originalFormRef.current = JSON.stringify(newVariantForm);
+        setIsVariantEditMode(true);
+        setIsDirty(false);
+      }
+    },
+    [masterBaseForm, activeForm, currentFormVariants, backendForms]
+  );
+
+  const handleCustomizeVariant = useCallback(
+    (variantName: string) => {
+      if (!activeForm || variantName === "ALL") return;
+      const baseFormToUse = masterBaseForm || activeForm;
+      const matchingVariant = currentFormVariants.find(
+        (v) => v.name.toLowerCase() === variantName.toLowerCase()
+      );
+      const baseKey = baseFormToUse.key || baseFormToUse.serviceCode || "FORM";
+      const variantSlug = variantName.toUpperCase().replace(/[^A-Z0-9]+/g, "_");
+      const expectedVariantKey = `${baseKey}_${variantSlug}`;
+
+      // Clone fields with brand new IDs to ensure 100% database isolation from base form
+      const freshFields = cloneFormFieldsWithFreshIds(baseFormToUse.fields);
+
+      const newVariantForm: FormSchema = {
+        id: generateId(),
+        key: expectedVariantKey,
+        serviceId: baseFormToUse.serviceId,
+        serviceVariantId:
+          matchingVariant && matchingVariant.id && !matchingVariant.id.startsWith("var-")
+            ? matchingVariant.id
+            : undefined,
+        serviceVariantName: variantName,
+        baseFormId: baseFormToUse.id,
+        baseFormKey: baseFormToUse.key,
+        name: `${baseFormToUse.name} - ${variantName}`,
+        description: `Independent form layout for ${variantName} based on ${baseFormToUse.name}`,
+        version: "1.0",
+        fields: freshFields,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        isPublished: true,
+        isActive: true,
+      };
+
+      setActiveForm(newVariantForm);
+      setIsVariantEditMode(true);
+      setIsDirty(true);
+      setSelectedFieldId(null);
+      setToast({
+        message: `Separated form for "${variantName}". You can now delete or arrange sections, and it will only affect "${variantName}".`,
+        type: "info",
+      });
+    },
+    [activeForm, masterBaseForm, currentFormVariants]
+  );
+
+  const handleResetFromBaseForm = useCallback(() => {
+    if (!activeForm || selectedVariant === "ALL") return;
+    const baseFormToUse = masterBaseForm || activeForm;
+    if (!baseFormToUse) return;
+
+    // Clone all fields from base form blueprint with fresh IDs
+    const freshFields = cloneFormFieldsWithFreshIds(baseFormToUse.fields);
+    const updated: FormSchema = {
+      ...activeForm,
+      fields: freshFields,
+      updatedAt: new Date().toISOString(),
+    };
+
+    setActiveForm(updated);
+    setIsDirty(true);
+    setSelectedFieldId(null);
+    setToast({
+      message: `Reset sections and fields from base blueprint "${baseFormToUse.name}". Modify/arrange sections and click Save Changes to persist to "${selectedVariant}" only.`,
+      type: "info",
+    });
+  }, [activeForm, selectedVariant, masterBaseForm]);
+
+  const handleRevertVariantToBase = useCallback(
+    (variantName: string) => {
+      if (!activeForm || variantName === "ALL") return;
+      if (masterBaseForm) {
+        setActiveForm(masterBaseForm);
+        originalFormRef.current = JSON.stringify(masterBaseForm);
+      }
+      setIsVariantEditMode(false);
+      setIsDirty(false);
+      setToast({
+        message: `Reverted preview for "${variantName}" back to base form blueprint.`,
+        type: "info",
+      });
+    },
+    [activeForm, masterBaseForm]
+  );
+
+  // Warn on browser tab / window navigation if unsaved changes exist
+  React.useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (view === "builder" && isDirty) {
+        e.preventDefault();
+        e.returnValue = "";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [view, isDirty]);
+
   // Backend persistence called ONLY on explicit Save
   const persistFormToBackend = useCallback(
     async (
@@ -247,11 +367,15 @@ function FormBuilderContent() {
         // If form has a serviceId, synchronize to backend API
         if (formToSave.serviceId) {
           const sections = convertSchemaToBackendSections(formToSave.fields);
+          const resolvedKey = formToSave.key || (formToSave.serviceCode ? formToSave.serviceCode : undefined);
 
           try {
             const updateRes = await updateForm(formToSave.id, {
               id: formToSave.id,
               serviceId: formToSave.serviceId,
+              key: resolvedKey,
+              serviceVariantId: formToSave.serviceVariantId,
+              baseFormId: formToSave.baseFormId,
               name: formToSave.name,
               version: formToSave.version || "1.0",
               isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
@@ -261,6 +385,9 @@ function FormBuilderContent() {
 
             if (updateRes && updateRes.succeeded) {
               await mutate();
+              if (!formToSave.serviceVariantId) {
+                setMasterBaseForm(current);
+              }
               return {
                 success: true,
                 message: updateRes.message || "Form template updated successfully.",
@@ -280,6 +407,9 @@ function FormBuilderContent() {
               try {
                 const createRes = await createForm({
                   serviceId: formToSave.serviceId,
+                  key: resolvedKey,
+                  serviceVariantId: formToSave.serviceVariantId,
+                  baseFormId: formToSave.baseFormId,
                   name: formToSave.name,
                   version: formToSave.version || "1.0",
                   isActive: formToSave.isPublished ?? formToSave.isActive ?? false,
@@ -296,6 +426,9 @@ function FormBuilderContent() {
                   setActiveForm(updatedWithNewId);
                   current = updatedWithNewId;
                   await mutate();
+                  if (!formToSave.serviceVariantId) {
+                    setMasterBaseForm(current);
+                  }
                   return {
                     success: true,
                     message: "Form template created and saved successfully.",
@@ -362,17 +495,6 @@ function FormBuilderContent() {
     (type: FieldType, atIndex?: number) => {
       if (!activeForm) return;
       const newField = createDefaultField(type);
-
-      // If in variant edit mode, isolate this new field strictly to this variant
-      if (selectedVariant !== "ALL" && isVariantEditMode) {
-        const cond = {
-          variants: [selectedVariant],
-          applicationTypes: [selectedVariant],
-        };
-        newField.condition = cond;
-        newField.visibilityCondition = JSON.stringify(cond);
-      }
-
       const fields = [...activeForm.fields];
       if (atIndex !== undefined) {
         fields.splice(atIndex, 0, newField);
@@ -388,7 +510,7 @@ function FormBuilderContent() {
       setSelectedFieldId(newField.id);
       setIsDirty(true);
     },
-    [activeForm, selectedVariant, isVariantEditMode]
+    [activeForm]
   );
 
   const handleReorderFields = useCallback(
@@ -410,21 +532,6 @@ function FormBuilderContent() {
     (id: string) => {
       if (!activeForm) return;
       const fields = duplicateFieldWithSection(activeForm.fields, id);
-      if (selectedVariant !== "ALL" && isVariantEditMode) {
-        const originalIndex = activeForm.fields.findIndex((f) => f.id === id);
-        if (originalIndex >= 0 && originalIndex + 1 < fields.length) {
-          const dupField = fields[originalIndex + 1];
-          const cond = {
-            variants: [selectedVariant],
-            applicationTypes: [selectedVariant],
-          };
-          fields[originalIndex + 1] = {
-            ...dupField,
-            condition: cond,
-            visibilityCondition: JSON.stringify(cond),
-          };
-        }
-      }
       const updated: FormSchema = {
         ...activeForm,
         fields,
@@ -433,44 +540,14 @@ function FormBuilderContent() {
       setActiveForm(updated);
       setIsDirty(true);
     },
-    [activeForm, selectedVariant, isVariantEditMode]
+    [activeForm]
   );
 
   const handleDeleteField = useCallback(
     (id: string) => {
       if (!activeForm) return;
-
-      if (selectedVariant === "ALL" || !isVariantEditMode) {
-        const fields = deleteFieldWithSection(activeForm.fields, id);
-        if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
-          setSelectedFieldId(null);
-        }
-        const updated: FormSchema = {
-          ...activeForm,
-          fields,
-          updatedAt: new Date().toISOString(),
-        };
-        setActiveForm(updated);
-        setIsDirty(true);
-        return;
-      }
-
-      // In Variant Edit Mode:
-      const targetField = activeForm.fields.find((f) => f.id === id);
-      if (!targetField) return;
-
-      let fields: FormField[];
-      if (isExclusiveToVariant(targetField, selectedVariant)) {
-        // Exclusively belongs to this variant -> delete it
-        fields = deleteFieldWithSection(activeForm.fields, id);
-      } else {
-        // Shared or base field -> exclude this variant from it so other variants keep it
-        const allVariantNames = currentFormVariants.map((v) => v.name);
-        const modifiedField = excludeVariantFromField(targetField, selectedVariant, allVariantNames);
-        fields = activeForm.fields.map((f) => (f.id === id ? modifiedField : f));
-      }
-
-      if (selectedFieldId !== null && (!fields.some((f) => f.id === selectedFieldId) || !isFieldApplicableForVariant(targetField, selectedVariant))) {
+      const fields = deleteFieldWithSection(activeForm.fields, id);
+      if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) {
         setSelectedFieldId(null);
       }
       const updated: FormSchema = {
@@ -481,84 +558,24 @@ function FormBuilderContent() {
       setActiveForm(updated);
       setIsDirty(true);
     },
-    [activeForm, selectedFieldId, selectedVariant, isVariantEditMode, currentFormVariants]
+    [activeForm, selectedFieldId]
   );
 
   const handleUpdateField = useCallback(
     (fieldUpdates: Partial<FormField>) => {
       if (!activeForm || !selectedFieldId) return;
-
-      if (selectedVariant === "ALL" || !isVariantEditMode) {
-        const fields = activeForm.fields.map((f) =>
-          f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
-        );
-        const updated: FormSchema = {
-          ...activeForm,
-          fields,
-          updatedAt: new Date().toISOString(),
-        };
-        setActiveForm(updated);
-        setIsDirty(true);
-        return;
-      }
-
-      // In Variant Edit Mode:
-      const targetField = activeForm.fields.find((f) => f.id === selectedFieldId);
-      if (!targetField) return;
-
-      if (isExclusiveToVariant(targetField, selectedVariant)) {
-        // Already an isolated variant field -> update directly
-        const fields = activeForm.fields.map((f) =>
-          f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
-        );
-        const updated: FormSchema = {
-          ...activeForm,
-          fields,
-          updatedAt: new Date().toISOString(),
-        };
-        setActiveForm(updated);
-        setIsDirty(true);
-      } else {
-        // Shared field being customized for this variant:
-        // 1. Fork targetField exclusively for selectedVariant
-        // 2. Exclude selectedVariant from the original field so other variants keep original
-        const forkedId = generateId();
-        const variantCond = {
-          variants: [selectedVariant],
-          applicationTypes: [selectedVariant],
-        };
-        const forkedField: FormField = {
-          ...targetField,
-          ...fieldUpdates,
-          id: forkedId,
-          condition: variantCond,
-          visibilityCondition: JSON.stringify(variantCond),
-        };
-
-        const allVariantNames = currentFormVariants.map((v) => v.name);
-        const updatedOriginal = excludeVariantFromField(targetField, selectedVariant, allVariantNames);
-
-        const fields: FormField[] = [];
-        for (const f of activeForm.fields) {
-          if (f.id === selectedFieldId) {
-            fields.push(updatedOriginal);
-            fields.push(forkedField);
-          } else {
-            fields.push(f);
-          }
-        }
-
-        const updated: FormSchema = {
-          ...activeForm,
-          fields,
-          updatedAt: new Date().toISOString(),
-        };
-        setActiveForm(updated);
-        setSelectedFieldId(forkedId);
-        setIsDirty(true);
-      }
+      const fields = activeForm.fields.map((f) =>
+        f.id === selectedFieldId ? { ...f, ...fieldUpdates } : f
+      );
+      const updated: FormSchema = {
+        ...activeForm,
+        fields,
+        updatedAt: new Date().toISOString(),
+      };
+      setActiveForm(updated);
+      setIsDirty(true);
     },
-    [activeForm, selectedFieldId, selectedVariant, isVariantEditMode, currentFormVariants]
+    [activeForm, selectedFieldId]
   );
 
   const handleManualSave = async () => {
@@ -642,10 +659,20 @@ function FormBuilderContent() {
   // --- List actions ---
 
   const handleOpenEditor = async (form: FormSchema) => {
+    const isVariant = Boolean(form.serviceVariantId);
+    if (!isVariant) {
+      setMasterBaseForm(form);
+      setSelectedVariant("ALL");
+    } else {
+      const foundBase = backendForms.find(
+        (b) => (!b.serviceVariantId && b.serviceId === form.serviceId) || (form.baseFormId && b.id === form.baseFormId)
+      );
+      setMasterBaseForm(foundBase || form);
+      setSelectedVariant(form.serviceVariantName || "Variant");
+    }
     setActiveForm(form);
     setSelectedFieldId(null);
-    setSelectedVariant("ALL");
-    setIsVariantEditMode(false);
+    setIsVariantEditMode(isVariant);
     setIsDirty(false);
     originalFormRef.current = JSON.stringify(form);
     setView("builder");
@@ -663,6 +690,9 @@ function FormBuilderContent() {
             serviceCode: form.serviceCode || freshSchema.serviceCode,
           };
           setActiveForm((prev) => (prev && prev.id === form.id ? combined : prev));
+          if (!isVariant) {
+            setMasterBaseForm(combined);
+          }
           originalFormRef.current = JSON.stringify(combined);
           setIsDirty(false);
         }
@@ -1031,12 +1061,7 @@ function FormBuilderContent() {
             <div className="w-64 xl:w-72 2xl:w-80 flex-shrink-0 overflow-hidden transition-all duration-200">
               <FieldPalette
                 onAddField={handleAddField}
-                disabled={isReadOnly}
-                disabledReason={
-                  isReadOnly
-                    ? `Editing locked in view-only mode for "${selectedVariant}". Click "Edit Form for this Variant" to add components.`
-                    : undefined
-                }
+                disabled={false}
               />
             </div>
           )}
@@ -1045,6 +1070,7 @@ function FormBuilderContent() {
           <div className="flex-1 min-w-0 overflow-hidden">
             <FormCanvas
               form={activeForm}
+              baseForm={masterBaseForm}
               catalogServices={services}
               catalogCategories={categories}
               selectedFieldId={selectedFieldId}
@@ -1067,7 +1093,10 @@ function FormBuilderContent() {
               onSelectVariant={handleSelectVariant}
               isVariantEditMode={isVariantEditMode}
               onSetVariantEditMode={setIsVariantEditMode}
+              onCustomizeVariant={handleCustomizeVariant}
+              onResetFromBaseForm={handleResetFromBaseForm}
               onRevertVariantToBase={handleRevertVariantToBase}
+              customizedVariantNames={customizedVariantNames}
             />
           </div>
 
@@ -1081,8 +1110,6 @@ function FormBuilderContent() {
                 onUpdateForm={handleUpdateForm}
                 onSelectField={setSelectedFieldId}
                 selectedVariant={selectedVariant}
-                isVariantEditMode={isVariantEditMode}
-                isReadOnly={isReadOnly}
               />
             </div>
           )}

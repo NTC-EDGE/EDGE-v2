@@ -11,5 +11,8 @@ public record CreateFormCommand(
     bool CategorySelectionRequired,
     List<FormSectionDto>? Sections,
     string? Name = null,
-    bool? IsActive = null
+    bool? IsActive = null,
+    string? Key = null,
+    Guid? ServiceVariantId = null,
+    Guid? BaseFormId = null
 ) : IRequest<FormDto>;

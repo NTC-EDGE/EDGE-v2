@@ -218,9 +218,9 @@ public static class ServiceEndpoints
     }
 
     [HasPermission(Permissions.ReadServices)]
-    public static async Task<IResult> GetServiceFormLayout(Guid id, IMediator mediator)
+    public static async Task<IResult> GetServiceFormLayout(Guid id, IMediator mediator, Guid? variantId = null, string? formKey = null)
     {
-        var result = await mediator.Send(new GetFormByServiceIdQuery(id));
+        var result = await mediator.Send(new GetFormByServiceIdQuery(id, variantId, formKey));
         return result.Succeeded ? Results.Ok(result) : Results.NotFound(result);
     }
 }

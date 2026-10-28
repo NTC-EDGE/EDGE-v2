@@ -146,18 +146,7 @@ export function FieldEditor({
           </div>
         </div>
 
-        {isReadOnly && (
-          <div className="p-3 mx-4 mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2.5">
-            <Eye className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div>
-              <p className="font-bold">Viewing Properties (Read-Only)</p>
-              <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
-                Viewing mode active for &quot;{selectedVariant}&quot;. Click &apos;Edit Form for this Variant&apos; to unlock editing.
-              </p>
-            </div>
-          </div>
-        )}
-        <div className={`flex-1 p-4 space-y-4 overflow-y-auto ${isReadOnly ? "pointer-events-none opacity-60 select-none" : ""}`}>
+        <div className="flex-1 p-4 space-y-4 overflow-y-auto">
           {/* Associated Service Card */}
           <div className="p-3 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
             <div className="flex items-center gap-1.5 mb-1.5">
@@ -505,19 +494,7 @@ export function FieldEditor({
         )}
       </div>
 
-      {isReadOnly && (
-        <div className="p-3 mx-4 mt-3 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-amber-900 dark:text-amber-200 text-xs flex items-center gap-2.5">
-          <Eye className="w-4 h-4 shrink-0 text-amber-600 dark:text-amber-400" />
-          <div>
-            <p className="font-bold">Viewing Properties (Read-Only)</p>
-            <p className="text-[11px] text-amber-700 dark:text-amber-300 mt-0.5">
-              Viewing mode active for &quot;{selectedVariant}&quot;. Click &apos;Edit Form for this Variant&apos; to modify properties.
-            </p>
-          </div>
-        </div>
-      )}
-
-      {isVariantEditMode && selectedVariant !== "ALL" && (
+      {selectedVariant && selectedVariant !== "ALL" && (
         <div className="p-2.5 mx-4 mt-3 rounded-xl bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-900 dark:text-indigo-200 text-xs flex items-center gap-2">
           <Sparkles className="w-4 h-4 shrink-0 text-indigo-600 dark:text-indigo-400" />
           <div>
@@ -529,7 +506,7 @@ export function FieldEditor({
         </div>
       )}
 
-      <div className={`flex-1 p-4 space-y-5 overflow-y-auto ${isReadOnly ? "pointer-events-none opacity-60 select-none" : ""}`}>
+      <div className="flex-1 p-4 space-y-5 overflow-y-auto">
         {/* Label */}
         <LabeledSection
           title="Field Label"

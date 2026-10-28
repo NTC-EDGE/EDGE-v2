@@ -23,6 +23,7 @@ interface ServiceVariantToolbarProps {
   totalFieldsCount: number;
   applicableFieldsCount: number;
   linkedServicesCount?: number;
+  customizedVariantNames?: string[];
 }
 
 export function ServiceVariantToolbar({
@@ -33,6 +34,7 @@ export function ServiceVariantToolbar({
   totalFieldsCount,
   applicableFieldsCount,
   linkedServicesCount = 0,
+  customizedVariantNames = [],
 }: ServiceVariantToolbarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedServiceFilter, setSelectedServiceFilter] = useState("ALL");
@@ -225,6 +227,9 @@ export function ServiceVariantToolbar({
               >
                 {isSelected && (
                   <CheckCircle2 className="w-3.5 h-3.5 text-white shrink-0" />
+                )}
+                {customizedVariantNames.includes(v.name) && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" title="Independent custom form configured" />
                 )}
                 <span className="truncate">{v.name}</span>
                 {v.serviceCode && (

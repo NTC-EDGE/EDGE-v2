@@ -9,5 +9,7 @@ public record GetFormsQuery(
     int? PageNumber = 1,
     int? PageSize = 50,
     string? SearchTerm = null,
-    Guid? ServiceId = null
+    Guid? ServiceId = null,
+    Guid? ServiceVariantId = null,
+    string? FormKey = null
 ) : IRequest<PaginatedApiResponse<FormDto>>;

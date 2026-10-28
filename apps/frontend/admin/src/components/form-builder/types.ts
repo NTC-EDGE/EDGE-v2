@@ -72,6 +72,8 @@ export interface FormField {
 
 export interface FormVersionSummary {
   formId: string;
+  key?: string;
+  serviceVariantId?: string;
   version: string;
   name?: string;
   isActive: boolean;
@@ -100,9 +102,14 @@ export interface ServiceVariantToolbarItem {
 
 export interface FormSchema {
   id: string;
+  key?: string;
   serviceId?: string;
   serviceName?: string;
   serviceCode?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
+  baseFormId?: string;
+  baseFormKey?: string;
   name: string;
   description: string;
   version?: string;

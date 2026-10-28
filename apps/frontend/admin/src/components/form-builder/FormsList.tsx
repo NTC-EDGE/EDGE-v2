@@ -362,6 +362,11 @@ export function FormsList({
                                   {formatFormBadge(form.serviceCode)}
                                 </span>
                               )}
+                              {form.serviceVariantName && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/60 dark:border-violet-800/60">
+                                  Variant: {form.serviceVariantName}
+                                </span>
+                              )}
                             </div>
                             <span className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5 block">
                               {form.serviceName && form.name !== form.serviceName
