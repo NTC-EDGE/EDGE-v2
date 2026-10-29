@@ -5,12 +5,7 @@ import { FileText, Layout, EyeOff, Sparkles } from "lucide-react";
 import { FormField, FormSchema } from "./types";
 import { ConditionBuilder } from "./ConditionBuilder";
 import { getFieldLabel, getFieldIcon } from "./utils";
-import {
-  LabeledSection,
-  inputClass,
-  FIELDS_WITH_PLACEHOLDER,
-  FIELDS_WITH_OPTIONS,
-} from "./field-editor/FieldEditorPrimitives";
+import { LabeledSection, inputClass, FIELDS_WITH_PLACEHOLDER, FIELDS_WITH_OPTIONS } from "./field-editor/FieldEditorPrimitives";
 import { FormOverviewPanel } from "./field-editor/FormOverviewPanel";
 import { FieldConstraintsEditor } from "./field-editor/FieldConstraintsEditor";
 import { RepeaterColumnsEditor } from "./field-editor/RepeaterColumnsEditor";
@@ -186,11 +181,9 @@ export function FieldEditor({
                 : "Conditional Visibility & Logic"
             }
             icon={EyeOff}
-            description={
-              field.type === "section-header"
-                ? "Control when this entire section appears based on Service, Variant, Element, Applicant Type, or parent field dependency."
-                : "Control when this field appears based on Service, Variant, Element, Applicant Type, or field dependency."
-            }
+            description={field.type === "section-header"
+              ? "Control when this section appears based on Service, Variant, Element, Applicant Type, or parent dependency."
+              : "Control when this field appears based on Service, Variant, Element, Applicant Type, or field dependency."}
           >
             <ConditionBuilder field={field} form={form} onUpdateField={onUpdateField} />
           </LabeledSection>

@@ -187,9 +187,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
     serviceName: dto.serviceName,
     serviceCode: dto.serviceCode,
     name: dto.name ?? (dto.serviceName ? `${dto.serviceName} Form` : `Service Form (v${dto.version ?? "1.0"})`),
-    description: dto.serviceName
-      ? `Form template for ${dto.serviceName} (v${dto.version ?? "1.0"})`
-      : `Dynamic form schema version ${dto.version ?? "1.0"}`,
+    description: dto.serviceName ? `Form template for ${dto.serviceName} (v${dto.version ?? "1.0"})` : `Dynamic form schema version ${dto.version ?? "1.0"}`,
     version: dto.version ?? "1.0",
     fields,
     createdAt: dto.createdAt ?? new Date().toISOString(),

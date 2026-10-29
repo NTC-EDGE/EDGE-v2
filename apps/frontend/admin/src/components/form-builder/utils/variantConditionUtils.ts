@@ -13,6 +13,10 @@ export function variantNamesMatch(item: string, targetVariant: string): boolean 
   if (parenMatch && normalize(parenMatch[1]) === normItem) return true;
   const itemParenMatch = item.match(/\(([^)]+)\)/);
   if (itemParenMatch && normalize(itemParenMatch[1]) === normTarget) return true;
+  const baseTarget = normalize(targetVariant.replace(/\([^)]*\)/g, ""));
+  if (baseTarget && baseTarget === normItem) return true;
+  const baseItem = normalize(item.replace(/\([^)]*\)/g, ""));
+  if (baseItem && baseItem === normTarget) return true;
   return false;
 }
 
