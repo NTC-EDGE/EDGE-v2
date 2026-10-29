@@ -583,7 +583,7 @@ export function FormPreviewModal({ open, onOpenChange, form }: FormPreviewModalP
                 </div>
               )}
               {visibleFields.map((field, idx) => {
-                const nextField = form.fields[idx + 1];
+                const nextField = visibleFields[idx + 1];
                 const isEmptySection =
                   field.type === "section-header" &&
                   (!nextField || nextField.type === "section-header");

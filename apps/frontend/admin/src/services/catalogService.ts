@@ -19,6 +19,15 @@ export interface ServiceItem {
   tenantId?: string;
 }
 
+export interface ServiceVariantItem {
+  id: string;
+  serviceId: string;
+  serviceName?: string;
+  type: string;
+  description?: string;
+  isIndividual?: boolean;
+}
+
 export interface ApiResponse<T> {
   succeeded: boolean;
   message?: string;
@@ -139,6 +148,12 @@ export function useCatalogService() {
     return del<ApiResponse<string>>(`/api/v2/services/${id}`);
   };
 
+  const useServiceVariants = (serviceId?: string) => {
+    return useQuery<PaginatedApiResponse<ServiceVariantItem>>(
+      serviceId ? `/api/v2/services/${serviceId}/variants?pageSize=100` : null
+    );
+  };
+
   return {
     useServiceCategories,
     createServiceCategory,
@@ -146,6 +161,7 @@ export function useCatalogService() {
     deleteServiceCategory,
     useServices,
     useTenantServices,
+    useServiceVariants,
     createService,
     updateService,
     deleteService,

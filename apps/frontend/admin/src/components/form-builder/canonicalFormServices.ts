@@ -449,7 +449,8 @@ export function collectAllFormVariants(
     serviceId?: string,
     serviceName?: string,
     serviceCode?: string,
-    source: ServiceVariantToolbarItem["source"] = "service"
+    source: ServiceVariantToolbarItem["source"] = "service",
+    id?: string
   ) => {
     const trimmed = name.trim();
     if (!trimmed) return;
@@ -458,7 +459,7 @@ export function collectAllFormVariants(
     seenNames.add(key);
 
     result.push({
-      id: `var-${result.length + 1}-${key.replace(/[^a-z0-9]/g, "-").slice(0, 20)}`,
+      id: id || `var-${result.length + 1}-${key.replace(/[^a-z0-9]/g, "-").slice(0, 20)}`,
       name: trimmed,
       serviceId,
       serviceName,
@@ -467,57 +468,50 @@ export function collectAllFormVariants(
     });
   };
 
-  // 1. API variants provided from parent (if any)
-  for (const v of apiVariants) {
-    addVariant(v.name, v.serviceId, v.serviceName, v.serviceCode, "service");
+  // 1. Authoritative database ServiceVariants provided from backend API
+  const apiServiceCodes = new Set(
+    apiVariants.map((v) => (v.serviceCode ?? "").toUpperCase().trim()).filter(Boolean)
+  );
+  if (form.serviceCode && apiVariants.length > 0) {
+    apiServiceCodes.add(form.serviceCode.toUpperCase().trim());
   }
 
-  // 2. Canonical default variants if this is a known canonical form
+  for (const v of apiVariants) {
+    addVariant(v.name, v.serviceId, v.serviceName, v.serviceCode, "service", v.id);
+  }
+
+  // 2. Canonical default variants for linked services not already covered by apiVariants
   const canonicalCode = detectCanonicalFormCode(form);
   const def = canonicalCode ? CANONICAL_FORM_DEFS[canonicalCode] : null;
   if (def) {
     for (const v of def.defaultVariants) {
-      addVariant(v.name, undefined, v.serviceName, v.serviceCode, "catalog");
-    }
-  }
-
-  // 3. Variants from effective linked services in catalog
-  const effectiveServices = getEffectiveLinkedServices(form, catalogServices);
-  for (const svc of effectiveServices) {
-    const svcNameUpper = (svc.name ?? "").toUpperCase().trim();
-    const catItem = NTC_CATALOG[svc.name] ?? NTC_CATALOG[svcNameUpper];
-    if (catItem) {
-      if (Array.isArray(catItem.applicationTypes)) {
-        for (const appType of catItem.applicationTypes) {
-          addVariant(appType, svc.id, svc.name, svc.code, "catalog");
-        }
-      }
-      if (Array.isArray(catItem.variants)) {
-        for (const variantName of catItem.variants) {
-          addVariant(variantName, svc.id, svc.name, svc.code, "catalog");
-        }
+      const vCode = (v.serviceCode ?? "").toUpperCase().trim();
+      if (apiVariants.length === 0 || (vCode && !apiServiceCodes.has(vCode))) {
+        addVariant(v.name, undefined, v.serviceName, v.serviceCode, "catalog");
       }
     }
-  }
-
-  // 4. Variants declared in form fields' condition rules (variants and applicationTypes)
-  for (const field of form.fields) {
-    const cond = field.condition ?? (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
-    if (cond) {
-      if (Array.isArray(cond.variants)) {
-        for (const v of cond.variants) {
-          addVariant(v, undefined, form.serviceName, form.serviceCode, "field-condition");
+  } else if (apiVariants.length === 0) {
+    // 3. Fallback for non-canonical custom forms: variants from effective linked services in catalog
+    const effectiveServices = getEffectiveLinkedServices(form, catalogServices);
+    for (const svc of effectiveServices) {
+      const svcNameUpper = (svc.name ?? "").toUpperCase().trim();
+      const catItem = NTC_CATALOG[svc.name] ?? NTC_CATALOG[svcNameUpper];
+      if (catItem) {
+        if (Array.isArray(catItem.applicationTypes)) {
+          for (const appType of catItem.applicationTypes) {
+            addVariant(appType, svc.id, svc.name, svc.code, "catalog");
+          }
         }
-      }
-      if (Array.isArray(cond.applicationTypes)) {
-        for (const appType of cond.applicationTypes) {
-          addVariant(appType, undefined, form.serviceName, form.serviceCode, "field-condition");
+        if (Array.isArray(catItem.variants)) {
+          for (const variantName of catItem.variants) {
+            addVariant(variantName, svc.id, svc.name, svc.code, "catalog");
+          }
         }
       }
     }
   }
 
-  // 5. Custom variants manually linked to this form schema
+  // 4. Custom variants manually linked to this form schema
   if (Array.isArray(form.linkedVariants)) {
     for (const customVar of form.linkedVariants) {
       addVariant(customVar, undefined, form.serviceName, form.serviceCode, "custom");

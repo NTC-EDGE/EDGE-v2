@@ -9,6 +9,10 @@ let lastForbiddenTime = 0;
 const ALERT_COOLDOWN = 15000; // 15 seconds
 const FORBIDDEN_COOLDOWN = 3000; // 3 seconds — allow per-page toasts but avoid spam
 
+export function getIsBackendUnavailable(): boolean {
+  return isBackendUnavailable;
+}
+
 function isRecord(val: unknown): val is Record<string, unknown> {
   return typeof val === 'object' && val !== null;
 }
@@ -114,14 +118,24 @@ export function useApi() {
     key: string | null,
     config?: SWRConfiguration<Data, Error>
   ): SWRResponse<Data, Error> {
-    return useAuthenticatedSWR<Data, Error>(key, getToken, {
+    const swr = useAuthenticatedSWR<Data, Error>(key, getToken, {
       revalidateOnFocus: true,
       revalidateOnReconnect: true,
       revalidateIfStale: true,
+      keepPreviousData: false,
       dedupingInterval: 2000,
       focusThrottleInterval: 5000,
       ...config,
     });
+
+    if (swr.error || isBackendUnavailable) {
+      return {
+        ...swr,
+        data: undefined,
+      };
+    }
+
+    return swr;
   }
 
   return { get, post, put, patch, del, useQuery };

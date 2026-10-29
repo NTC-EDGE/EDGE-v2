@@ -13,7 +13,37 @@ const getApiUrl = (): string => {
 export const apiClient = axios.create({
   baseURL: getApiUrl(),
   timeout: 10000,
+  headers: {
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    Pragma: 'no-cache',
+    Expires: '0',
+  },
 });
+
+function isRecord(val: unknown): val is Record<string, unknown> {
+  return typeof val === 'object' && val !== null;
+}
+
+function getErrorInfo(err: unknown): {
+  status?: number;
+  code?: string;
+  hasResponse: boolean;
+  message?: string;
+} {
+  if (!isRecord(err)) {
+    return { hasResponse: false };
+  }
+  const response = isRecord(err['response']) ? err['response'] : undefined;
+  const status = typeof response?.['status'] === 'number' ? response['status'] : undefined;
+  const code = typeof err['code'] === 'string' ? err['code'] : undefined;
+  const message = typeof err['message'] === 'string' ? err['message'] : undefined;
+  return {
+    status,
+    code,
+    hasResponse: response !== undefined,
+    message,
+  };
+}
 
 // Server Unreachable State Management (Circuit Breaker)
 let isServerUnreachable = false;
@@ -89,7 +119,11 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
     } catch {
       token = null;
     }
-    const headers: Record<string, string> = {};
+    const headers: Record<string, string> = {
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    };
     if (token !== null && token.length > 0) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -100,17 +134,18 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
   const defaultConfig: SWRConfiguration<Data, Error> = {
     revalidateOnFocus: false,
     revalidateIfStale: true,
-    keepPreviousData: true,
-    dedupingInterval: 10000,
+    keepPreviousData: false,
+    dedupingInterval: 2000,
     shouldRetryOnError: true,
     onErrorRetry: (error, _key, _config, revalidate, opts) => {
-      const status = (error as any)?.response?.status;
+      const info = getErrorInfo(error);
+      const status = info.status;
       const isNetworkErr =
-        (error as any)?.code === 'ERR_NETWORK' ||
-        (error as any)?.code === 'ECONNREFUSED' ||
-        !(error as any)?.response ||
+        info.code === 'ERR_NETWORK' ||
+        info.code === 'ECONNREFUSED' ||
+        !info.hasResponse ||
         (typeof status === 'number' && status >= 502 && status <= 504) ||
-        (error as any)?.message?.includes('Server currently unreachable');
+        Boolean(info.message?.includes('Server currently unreachable'));
 
       // Circuit Breaker: Suppress rapid repeated retries when backend server is detected offline
       if (isNetworkErr) {
@@ -130,5 +165,15 @@ export function useAuthenticatedSWR<Data = unknown, Error = unknown>(
     ...config,
   };
 
-  return useSWR<Data, Error>(key, customFetcher, defaultConfig);
+  const swrResponse = useSWR<Data, Error>(key, customFetcher, defaultConfig);
+
+  // Never expose stale in-memory cached data when a request fails or the server is unreachable
+  if (swrResponse.error || isServerUnreachable) {
+    return {
+      ...swrResponse,
+      data: undefined,
+    };
+  }
+
+  return swrResponse;
 }

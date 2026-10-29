@@ -239,6 +239,7 @@ public static class FastTrackFormSeeder
             {
                 Id = formId,
                 ServiceId = service.Id,
+                Key = serviceKey,
                 Name = resolvedFormName,
                 Version = "1.0",
                 IsActive = true,
@@ -253,6 +254,7 @@ public static class FastTrackFormSeeder
             targetForm.IsDeletedBy = string.Empty;
             targetForm.ServiceId = service.Id;
             targetForm.Name = resolvedFormName;
+            if (string.IsNullOrWhiteSpace(targetForm.Key)) targetForm.Key = serviceKey;
             targetForm.IsActive = true;
 
             var redundantForms = existingForms.Where(f => f.Id != targetForm.Id).ToList();

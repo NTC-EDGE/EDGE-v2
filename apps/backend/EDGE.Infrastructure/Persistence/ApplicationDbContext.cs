@@ -329,11 +329,23 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
         modelBuilder.Entity<Form>(entity =>
         {
             entity.Property(e => e.Name).HasMaxLength(250);
+            entity.Property(e => e.Key).HasMaxLength(100).IsRequired().HasDefaultValue(string.Empty);
             entity.Property(e => e.IsActive).HasDefaultValue(true);
+            entity.HasIndex(e => e.Key);
+            entity.HasIndex(e => e.ServiceVariantId);
+            entity.HasIndex(e => e.BaseFormId);
             entity.HasOne(e => e.Service)
                   .WithMany()
                   .HasForeignKey(e => e.ServiceId)
                   .OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(e => e.ServiceVariant)
+                  .WithMany()
+                  .HasForeignKey(e => e.ServiceVariantId)
+                  .OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(e => e.BaseForm)
+                  .WithMany()
+                  .HasForeignKey(e => e.BaseFormId)
+                  .OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<FormSection>(entity =>
@@ -441,6 +453,11 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.HasIndex(e => e.ScheduleId);
             entity.HasIndex(e => e.Status);
             entity.HasIndex(e => e.ReferenceNumber);
+            entity.HasIndex(e => e.RenewedFromApplicationId);
+            entity.HasOne(e => e.RenewedFromApplication)
+                  .WithMany(a => a.Renewals)
+                  .HasForeignKey(e => e.RenewedFromApplicationId)
+                  .OnDelete(DeleteBehavior.SetNull);
             entity.HasIndex(e => new { e.TenantId, e.CreatedAt });
             entity.HasIndex(e => new { e.TenantId, e.Status });
             entity.HasOne(e => e.Tenant)

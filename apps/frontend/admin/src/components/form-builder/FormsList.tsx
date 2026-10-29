@@ -23,6 +23,9 @@ import {
   ArrowRight,
   LayoutGrid,
   Calendar,
+  Loader2,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { FormSchema, FormVersionSummary } from "./types";
 import { Pagination } from "@/components/ui/pagination";
@@ -42,6 +45,8 @@ interface FormsListProps {
   onCategoryChange?: (categoryId: string) => void;
   selectedServiceId?: string;
   onServiceChange?: (serviceId: string) => void;
+  statusFilter?: "all" | "active" | "draft";
+  onStatusFilterChange?: (status: "all" | "active" | "draft") => void;
   categories?: ServiceCategory[];
   services?: ServiceItem[];
   currentPage?: number;
@@ -49,6 +54,9 @@ interface FormsListProps {
   totalItems?: number;
   onPageChange?: (page: number) => void;
   onPageSizeChange?: (pageSize: number) => void;
+  loading?: boolean;
+  isError?: boolean;
+  onRetry?: () => void;
 }
 
 function formatFormBadge(code?: string): string {
@@ -70,6 +78,8 @@ export function FormsList({
   onCategoryChange,
   selectedServiceId = "",
   onServiceChange,
+  statusFilter: controlledStatusFilter,
+  onStatusFilterChange,
   categories = [],
   services = [],
   currentPage = 1,
@@ -77,8 +87,18 @@ export function FormsList({
   totalItems,
   onPageChange,
   onPageSizeChange,
+  loading = false,
+  isError = false,
+  onRetry,
 }: FormsListProps) {
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft">("all");
+  const [internalStatusFilter, setInternalStatusFilter] = useState<"all" | "active" | "draft">("all");
+  const statusFilter = controlledStatusFilter ?? internalStatusFilter;
+  const handleStatusFilterChange = (nextStatus: "all" | "active" | "draft") => {
+    setInternalStatusFilter(nextStatus);
+    if (onStatusFilterChange) {
+      onStatusFilterChange(nextStatus);
+    }
+  };
 
   const getVersionsList = (form: FormSchema): FormVersionSummary[] => {
     if (form.availableVersions && form.availableVersions.length > 0) {
@@ -148,7 +168,9 @@ export function FormsList({
     onPageChange,
   ]);
 
-  const effectiveTotalItems = totalItems ?? filtered.length;
+  const hasClientReducedList =
+    (statusFilter !== "all" || Boolean(selectedCategoryId)) && filtered.length < forms.length;
+  const effectiveTotalItems = hasClientReducedList ? filtered.length : (totalItems ?? filtered.length);
   const paginatedForms = onPageChange
     ? filtered
     : filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -161,7 +183,7 @@ export function FormsList({
 
   const handleClearFilters = () => {
     onSearchChange("");
-    setStatusFilter("all");
+    handleStatusFilterChange("all");
     if (onCategoryChange) onCategoryChange("");
     if (onServiceChange) onServiceChange("");
   };
@@ -193,18 +215,18 @@ export function FormsList({
           <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 p-1 rounded-xl text-xs font-medium self-start lg:self-auto">
             <button
               type="button"
-              onClick={() => setStatusFilter("all")}
+              onClick={() => handleStatusFilterChange("all")}
               className={`px-3 py-1 rounded-lg transition-all ${
                 statusFilter === "all"
                   ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-2xs font-semibold"
                   : "text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white"
               }`}
             >
-              All ({forms.length})
+              All ({statusFilter === "all" ? effectiveTotalItems : (totalItems ?? forms.length)})
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter("active")}
+              onClick={() => handleStatusFilterChange("active")}
               className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
                 statusFilter === "active"
                   ? "bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-2xs font-semibold"
@@ -212,11 +234,11 @@ export function FormsList({
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-              Active ({totalActiveCount})
+              Active ({statusFilter === "active" ? effectiveTotalItems : totalActiveCount})
             </button>
             <button
               type="button"
-              onClick={() => setStatusFilter("draft")}
+              onClick={() => handleStatusFilterChange("draft")}
               className={`px-3 py-1 rounded-lg transition-all flex items-center gap-1.5 ${
                 statusFilter === "draft"
                   ? "bg-white dark:bg-slate-900 text-amber-600 dark:text-amber-400 shadow-2xs font-semibold"
@@ -224,7 +246,7 @@ export function FormsList({
               }`}
             >
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-              Drafts ({totalDraftCount})
+              Drafts ({statusFilter === "draft" ? effectiveTotalItems : totalDraftCount})
             </button>
           </div>
         </div>
@@ -282,7 +304,36 @@ export function FormsList({
       </div>
 
       {/* Main List of Forms by Service — Clicking View Details directly opens the Form Builder Editor */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
+          <Loader2 className="w-8 h-8 text-indigo-500 animate-spin mb-3" />
+          <p className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+            Loading form templates from server...
+          </p>
+        </div>
+      ) : isError ? (
+        <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-rose-200 dark:border-rose-900/50 rounded-2xl">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/40 flex items-center justify-center mb-4">
+            <AlertCircle className="w-7 h-7 text-rose-500" />
+          </div>
+          <p className="text-sm font-semibold text-slate-800 dark:text-slate-200">
+            Unable to connect to the backend server
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 mb-4 max-w-md text-center">
+            Form templates could not be retrieved because the backend API is currently offline or unreachable.
+          </p>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 text-white font-semibold px-4 py-2 rounded-xl text-xs transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Retry Connection
+            </button>
+          )}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl">
           <div className="w-14 h-14 rounded-2xl bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center mb-4">
             <ClipboardList className="w-7 h-7 text-indigo-400 dark:text-indigo-500" />
@@ -360,6 +411,11 @@ export function FormsList({
                               {form.serviceCode && (
                                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950/60 text-indigo-700 dark:text-indigo-300 border border-indigo-200/60 dark:border-indigo-800/60">
                                   {formatFormBadge(form.serviceCode)}
+                                </span>
+                              )}
+                              {form.serviceVariantName && (
+                                <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/60 text-violet-700 dark:text-violet-300 border border-violet-200/60 dark:border-violet-800/60">
+                                  Variant: {form.serviceVariantName}
                                 </span>
                               )}
                             </div>

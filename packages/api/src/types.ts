@@ -1152,6 +1152,10 @@ export interface ApplicationDto {
   cashierOfficer?: string;
   assignedOfficerName?: string;
   assignedOfficerRole?: string;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 export interface IssuedDocumentDetailDto {
@@ -1199,6 +1203,10 @@ export interface GeneratedDocumentNumbersDto {
   officialReceiptNumber?: string;
   originalEvaluatorName?: string;
   isPaid: boolean;
+  isRenewal?: boolean;
+  previousExpiryDate?: string;
+  recommendedExpiryDate?: string;
+  previousLicenseNumber?: string;
 }
 
 export interface ApplicantSummaryDto {
@@ -1262,6 +1270,10 @@ export interface ApplicationSummaryDto {
   cashierOfficer?: string;
   assignedOfficerName?: string;
   assignedOfficerRole?: string;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 // ─── Paged Applications & Statistics ────────────────────

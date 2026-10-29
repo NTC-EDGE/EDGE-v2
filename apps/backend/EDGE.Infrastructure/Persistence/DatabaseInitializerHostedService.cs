@@ -202,6 +202,18 @@ public class DatabaseInitializerHostedService : IHostedService
             throw;
         }
 
+        // 10. Seed System Configuration entries
+        try
+        {
+            _logger.LogInformation("Seeding System Configuration entries...");
+            await SystemConfigDataSeeder.SeedAsync(context);
+            _logger.LogInformation("System Configuration entries seeded successfully.");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "System Configuration seed data encountered an issue.");
+        }
+
         // 9. Seed Service Information entries
         try
         {

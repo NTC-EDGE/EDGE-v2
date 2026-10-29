@@ -9,6 +9,8 @@ namespace EDGE.Application.Forms.Dtos;
 public class FormVersionSummaryDto
 {
     public Guid FormId { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public Guid? ServiceVariantId { get; set; }
     public string Version { get; set; } = string.Empty;
     public string? Name { get; set; }
     public bool IsActive { get; set; }
@@ -24,9 +26,14 @@ public class FormVersionSummaryDto
 public class FormDto
 {
     public Guid FormId { get; set; }
+    public string Key { get; set; } = string.Empty;
     public Guid ServiceId { get; set; }
     public string? ServiceName { get; set; }
     public string? ServiceCode { get; set; }
+    public Guid? ServiceVariantId { get; set; }
+    public string? ServiceVariantName { get; set; }
+    public Guid? BaseFormId { get; set; }
+    public string? BaseFormKey { get; set; }
     public string? Name { get; set; }
     public string Version { get; set; } = string.Empty;
     public bool IsActive { get; set; } = true;

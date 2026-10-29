@@ -30,14 +30,22 @@ public class CreateFormCommandHandler : IRequestHandler<CreateFormCommand, FormD
             request.Sections ?? new List<FormSectionDto>(),
             request.Name,
             request.IsActive,
+            request.Key,
+            request.ServiceVariantId,
+            request.BaseFormId,
             cancellationToken);
 
         return new FormDto
         {
             FormId = form.Id,
+            Key = form.Key,
             ServiceId = form.ServiceId,
             ServiceName = form.Service?.Name,
             ServiceCode = form.Service?.Code,
+            ServiceVariantId = form.ServiceVariantId,
+            ServiceVariantName = form.ServiceVariant?.Description,
+            BaseFormId = form.BaseFormId,
+            BaseFormKey = form.BaseForm?.Key,
             Name = form.Name,
             Version = form.Version,
             IsActive = form.IsActive,

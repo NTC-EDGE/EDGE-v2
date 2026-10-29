@@ -8,6 +8,11 @@ public class Form : AuditableEntity
 {
     public Guid ServiceId { get; set; }
     public Service? Service { get; set; }
+    public string Key { get; set; } = string.Empty;
+    public Guid? ServiceVariantId { get; set; }
+    public ServiceVariant? ServiceVariant { get; set; }
+    public Guid? BaseFormId { get; set; }
+    public Form? BaseForm { get; set; }
     public string? Name { get; set; }
     public string Version { get; set; } = "1.0";
     public bool IsActive { get; set; } = true;

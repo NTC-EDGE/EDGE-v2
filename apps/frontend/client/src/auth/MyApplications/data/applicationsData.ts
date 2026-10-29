@@ -193,6 +193,25 @@ export interface SingleApplication {
     accountType?: string;
     company?: { name?: string; address?: string };
   } | null;
+  issuedDocumentDetails?: Array<{
+    id: string;
+    applicationId: string;
+    applicantId?: string;
+    documentType: string;
+    formNumber: string;
+    licenseNumber?: string;
+    callSign?: string;
+    stationClass?: string;
+    frequencyBand?: string;
+    issueDate: string;
+    expiryDate?: string;
+    officialReceiptNumber?: string;
+    remarks?: string;
+  }>;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 export interface BulkApplicant {
@@ -378,6 +397,25 @@ export interface BulkApplication {
   email?: string;
   examineeType?: ExamineeType;
   schedule?: Schedule;
+  issuedDocumentDetails?: Array<{
+    id: string;
+    applicationId: string;
+    applicantId?: string;
+    documentType: string;
+    formNumber: string;
+    licenseNumber?: string;
+    callSign?: string;
+    stationClass?: string;
+    frequencyBand?: string;
+    issueDate: string;
+    expiryDate?: string;
+    officialReceiptNumber?: string;
+    remarks?: string;
+  }>;
+  renewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
 }
 
 export type Application = SingleApplication | BulkApplication;
@@ -942,6 +980,16 @@ export interface ApiApplicationDto {
     paidAt?: string;
     remarks?: string;
   }>;
+  issuedDocumentDetails?: any[];
+  IssuedDocumentDetails?: any[];
+  renewedFromApplicationId?: string;
+  RenewedFromApplicationId?: string;
+  hasActiveRenewal?: boolean;
+  HasActiveRenewal?: boolean;
+  activeRenewalApplicationId?: string;
+  ActiveRenewalApplicationId?: string;
+  activeRenewalReferenceNumber?: string;
+  ActiveRenewalReferenceNumber?: string;
 }
 
 export function mapApiApplicationToApplication(dto: ApiApplicationDto): Application {
@@ -1406,6 +1454,11 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
 
   if (isBulk) {
     const bulkApp: BulkApplication = {
+    issuedDocumentDetails: dto.issuedDocumentDetails || (dto as any).IssuedDocumentDetails || [],
+    renewedFromApplicationId: dto.renewedFromApplicationId || (dto as any).RenewedFromApplicationId,
+    hasActiveRenewal: Boolean(dto.hasActiveRenewal ?? (dto as any).HasActiveRenewal),
+    activeRenewalApplicationId: dto.activeRenewalApplicationId || (dto as any).ActiveRenewalApplicationId,
+    activeRenewalReferenceNumber: dto.activeRenewalReferenceNumber || (dto as any).ActiveRenewalReferenceNumber,
       id: dto.id || '',
       referenceNumber: refNumber,
       mode: 'BULK',
@@ -1453,6 +1506,11 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   }
 
   const singleApp: SingleApplication = {
+    issuedDocumentDetails: dto.issuedDocumentDetails || (dto as any).IssuedDocumentDetails || [],
+    renewedFromApplicationId: dto.renewedFromApplicationId || (dto as any).RenewedFromApplicationId,
+    hasActiveRenewal: Boolean(dto.hasActiveRenewal ?? (dto as any).HasActiveRenewal),
+    activeRenewalApplicationId: dto.activeRenewalApplicationId || (dto as any).ActiveRenewalApplicationId,
+    activeRenewalReferenceNumber: dto.activeRenewalReferenceNumber || (dto as any).ActiveRenewalReferenceNumber,
     id: dto.id || '',
     referenceNumber: refNumber,
     mode: 'SINGLE',
@@ -1563,3 +1621,26 @@ export function getApplicantDocuments(applicant: BulkApplicant): ApplicationDocu
   return docs;
 }
 
+
+
+export function isEligibleForRenewal(app: Application): boolean {
+  if (app.hasActiveRenewal) return false;
+  const docs = app.issuedDocumentDetails;
+  if (!Array.isArray(docs) || docs.length === 0) return false;
+  const docWithExpiry = docs.find((d) => d.expiryDate && d.expiryDate.trim().length > 0);
+  if (!docWithExpiry || !docWithExpiry.expiryDate) return false;
+  const expiry = new Date(docWithExpiry.expiryDate);
+  const now = new Date();
+  const daysRemaining = Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+  return daysRemaining <= 60;
+}
+
+export function getRenewalDaysRemaining(app: Application): number | null {
+  const docs = app.issuedDocumentDetails;
+  if (!Array.isArray(docs) || docs.length === 0) return null;
+  const docWithExpiry = docs.find((d) => d.expiryDate && d.expiryDate.trim().length > 0);
+  if (!docWithExpiry || !docWithExpiry.expiryDate) return null;
+  const expiry = new Date(docWithExpiry.expiryDate);
+  const now = new Date();
+  return Math.ceil((expiry.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+}

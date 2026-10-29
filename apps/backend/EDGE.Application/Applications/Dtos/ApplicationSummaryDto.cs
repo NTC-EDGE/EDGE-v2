@@ -7,6 +7,7 @@ namespace EDGE.Application.Applications.Dtos;
 public class ApplicationSummaryDto
 {
     public Guid Id { get; set; }
+    public Guid TenantId { get; set; }
     public string? ApplicationNumber { get; set; }
     public string? ReferenceNumber { get; set; }
     public string Status { get; set; } = string.Empty;
@@ -60,6 +61,15 @@ public class ApplicationSummaryDto
     public FilingUserSummaryDto? FilingUser { get; set; }
     public List<ServiceSummaryDto> Services { get; set; } = new();
     public List<ApplicantSummaryDto> Applicants { get; set; } = new();
+
+    // Renewal link and status
+    public Guid? RenewedFromApplicationId { get; set; }
+    public bool HasActiveRenewal { get; set; }
+    public Guid? ActiveRenewalApplicationId { get; set; }
+    public string? ActiveRenewalReferenceNumber { get; set; }
+
+    // Issued document details
+    public List<IssuedDocumentDetailSummaryDto> IssuedDocumentDetails { get; set; } = new();
 }
 
 public class FilingUserSummaryDto
@@ -94,4 +104,28 @@ public class ApplicantSummaryDto
     public string Status { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
     public CompanyDetailDto? Company { get; set; }
+}
+
+public class IssuedDocumentDetailSummaryDto
+{
+    public Guid Id { get; set; }
+    public Guid ApplicationId { get; set; }
+    public Guid? ApplicantId { get; set; }
+    public string DocumentType { get; set; } = string.Empty;
+    public string FormNumber { get; set; } = string.Empty;
+    public string? LicenseNumber { get; set; }
+    public string? CallSign { get; set; }
+    public string? StationClass { get; set; }
+    public string? FrequencyBand { get; set; }
+    public DateTime IssueDate { get; set; }
+    public DateTime? ExpiryDate { get; set; }
+    public Guid? OriginalEvaluatorUserId { get; set; }
+    public string? OriginalEvaluatorName { get; set; }
+    public Guid? IssuedByUserId { get; set; }
+    public string IssuedByStaffName { get; set; } = string.Empty;
+    public bool IsAlternateIssuer { get; set; } = false;
+    public string? OfficialReceiptNumber { get; set; }
+    public string? QrVerificationCode { get; set; }
+    public string? DocumentFileUrl { get; set; }
+    public string? Remarks { get; set; }
 }

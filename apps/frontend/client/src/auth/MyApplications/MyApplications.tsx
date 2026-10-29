@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Platform,
   useWindowDimensions,
+  Modal,
 } from "react-native";
 import { Icon } from "@edge/ui";
 import { useApi } from "../../shared/hooks/useApi";
@@ -87,6 +88,10 @@ export function MyApplications() {
 
   // Toast feedback state
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Renewal state
+  const [renewalTargetApp, setRenewalTargetApp] = useState<Application | null>(null);
+  const [isRenewing, setIsRenewing] = useState(false);
 
   // Search focus state
   const [isSearchFocused, setIsSearchFocused] = useState(false);
@@ -260,6 +265,75 @@ export function MyApplications() {
     fetchApplications(false);
   }, [fetchApplications]);
 
+  const handleOpenRenewal = useCallback((app: Application) => {
+    setRenewalTargetApp(app);
+  }, []);
+
+  const handleConfirmRenewal = useCallback(async () => {
+    if (!renewalTargetApp) return;
+    setIsRenewing(true);
+    try {
+      const doc = Array.isArray(renewalTargetApp.issuedDocumentDetails) && renewalTargetApp.issuedDocumentDetails.length > 0
+        ? renewalTargetApp.issuedDocumentDetails[0]
+        : undefined;
+
+      const applicantObj = Array.isArray(renewalTargetApp.applicants) && renewalTargetApp.applicants.length > 0
+        ? renewalTargetApp.applicants[0]
+        : null;
+
+      const fallbackFirstName = applicantObj?.name ? applicantObj.name.split(' ')[0] : '';
+      const fallbackLastName = applicantObj?.name ? applicantObj.name.split(' ').slice(1).join(' ') : '';
+
+      const detailsObj = applicantObj?.details ? applicantObj.details : {
+        firstName: fallbackFirstName,
+        lastName: fallbackLastName,
+        mobileNumber: applicantObj?.mobileNumber,
+        email: applicantObj?.email,
+        address: applicantObj?.streetAddress,
+        cityMunicipality: applicantObj?.cityMunicipality,
+        province: applicantObj?.province,
+        region: applicantObj?.region,
+      };
+
+      const payload = {
+        tenantId: renewalTargetApp.tenantId,
+        serviceId: renewalTargetApp.serviceId,
+        serviceVariantId: renewalTargetApp.serviceVariantId,
+        submissionMode: renewalTargetApp.mode === 'BULK' ? 'Bulk' : 'Single',
+        isDraft: true,
+        renewedFromApplicationId: renewalTargetApp.id,
+        applicants: applicantObj ? [
+          {
+            applicantType: applicantObj.applicationType || 'Individual',
+            name: applicantObj.name,
+            details: detailsObj,
+            formFieldValues: [
+              ...(applicantObj.formFieldValues || []),
+              ...(doc?.licenseNumber ? [{ fieldId: 'previous-license-number', fieldLabel: 'Previous License Number', value: doc.licenseNumber }] : []),
+              ...(doc?.expiryDate ? [{ fieldId: 'previous-expiry-date', fieldLabel: 'Previous Expiration Date', value: doc.expiryDate }] : []),
+            ]
+          }
+        ] : []
+      };
+
+      const endpoint = renewalTargetApp.tenantId
+        ? `/api/v2/tenants/${renewalTargetApp.tenantId}/applications`
+        : `/api/v2/applications`;
+
+      await api.post(endpoint, payload);
+      setToastMessage(`Renewal draft created for ${renewalTargetApp.serviceName || 'license'}.`);
+      setTimeout(() => setToastMessage(null), 4000);
+      setRenewalTargetApp(null);
+      await fetchApplications(true);
+    } catch (err: unknown) {
+      console.error('Failed to initiate renewal:', err);
+      setToastMessage('Could not initiate renewal draft. Please try again.');
+      setTimeout(() => setToastMessage(null), 4000);
+    } finally {
+      setIsRenewing(false);
+    }
+  }, [renewalTargetApp, api, fetchApplications]);
+
   useEffect(() => {
     let isMounted = true;
     fetchApplications(false);
@@ -353,6 +427,7 @@ export function MyApplications() {
               setSelectedApp(null);
               fetchApplications(true);
             }}
+            onRenew={handleOpenRenewal}
             onDownloadDoc={handleDownloadDoc}
           />
         ) : (
@@ -767,6 +842,7 @@ export function MyApplications() {
                     key={app.id}
                     app={app}
                     onPress={() => setSelectedApp(app)}
+                    onRenew={handleOpenRenewal}
                   />
                 ))
               )}
@@ -848,6 +924,144 @@ export function MyApplications() {
           </ScrollView>
         )}
       </View>
+
+      {/* ── Renewal Confirmation Modal ── */}
+      <Modal
+        visible={renewalTargetApp !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => !isRenewing && setRenewalTargetApp(null)}
+      >
+        <View
+          style={{
+            flex: 1,
+            backgroundColor: "rgba(15, 23, 42, 0.6)",
+            justifyContent: "center",
+            alignItems: "center",
+            padding: 16,
+          }}
+        >
+          <View
+            style={{
+              backgroundColor: "#FFFFFF",
+              borderRadius: 16,
+              maxWidth: 480,
+              width: "100%",
+              padding: 24,
+              shadowColor: "#000",
+              shadowOffset: { width: 0, height: 4 },
+              shadowOpacity: 0.15,
+              shadowRadius: 12,
+              elevation: 5,
+            }}
+          >
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 12, marginBottom: 16 }}>
+              <View
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 12,
+                  backgroundColor: "#FEF3C7",
+                  alignItems: "center",
+                  justifyContent: "center",
+                }}
+              >
+                <Icon name="refresh-cw" size={22} color="#D97706" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ fontSize: 18, fontWeight: "700", color: "#0F172A" }}>
+                  Renew Permit / License
+                </Text>
+                <Text style={{ fontSize: 13, color: "#64748B" }}>
+                  Ref #{renewalTargetApp?.referenceNumber}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 14, color: "#334155", lineHeight: 20, marginBottom: 16 }}>
+              You are initiating a renewal application for{" "}
+              <Text style={{ fontWeight: "700" }}>{renewalTargetApp?.serviceName}</Text>.
+            </Text>
+
+            <View
+              style={{
+                backgroundColor: "#F8FAFC",
+                borderColor: "#E2E8F0",
+                borderWidth: 1,
+                borderRadius: 12,
+                padding: 14,
+                marginBottom: 20,
+                gap: 8,
+              }}
+            >
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12, color: "#64748B" }}>Issued Document:</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#0F172A" }}>
+                  {renewalTargetApp?.issuedDocumentDetails?.[0]?.documentType || "Statutory Document"}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12, color: "#64748B" }}>License Number:</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#0F172A", fontFamily: "monospace" }}>
+                  {renewalTargetApp?.issuedDocumentDetails?.[0]?.licenseNumber || renewalTargetApp?.issuedDocumentDetails?.[0]?.formNumber || "N/A"}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12, color: "#64748B" }}>Current Expiry Date:</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#D97706" }}>
+                  {renewalTargetApp?.issuedDocumentDetails?.[0]?.expiryDate ? new Date(renewalTargetApp.issuedDocumentDetails[0].expiryDate).toLocaleDateString() : "N/A"}
+                </Text>
+              </View>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ fontSize: 12, color: "#64748B" }}>Renewal Extension:</Text>
+                <Text style={{ fontSize: 12, fontWeight: "600", color: "#059669" }}>
+                  +1 Year to original expiration
+                </Text>
+              </View>
+            </View>
+
+            <Text style={{ fontSize: 12, color: "#64748B", marginBottom: 20, lineHeight: 18 }}>
+              • A linked renewal application draft will be prepared with your credentials.{"\n"}
+              • You will be able to review, update any required attachments, and submit.
+            </Text>
+
+            <View style={{ flexDirection: "row", justifyContent: "flex-end", gap: 12 }}>
+              <TouchableOpacity
+                disabled={isRenewing}
+                onPress={() => setRenewalTargetApp(null)}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 16,
+                  borderRadius: 10,
+                  backgroundColor: "#F1F5F9",
+                }}
+              >
+                <Text style={{ color: "#475569", fontWeight: "600", fontSize: 14 }}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                disabled={isRenewing}
+                onPress={handleConfirmRenewal}
+                style={{
+                  paddingVertical: 10,
+                  paddingHorizontal: 20,
+                  borderRadius: 10,
+                  backgroundColor: "#D97706",
+                  flexDirection: "row",
+                  alignItems: "center",
+                  gap: 8,
+                }}
+              >
+                {isRenewing && <ActivityIndicator size="small" color="#FFFFFF" />}
+                <Text style={{ color: "#FFFFFF", fontWeight: "700", fontSize: 14 }}>
+                  {isRenewing ? "Creating Draft..." : "Confirm Renewal"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
 
       {/* ── Toast Feedback Notification ─────────────────────────────────── */}
       {toastMessage !== null && (

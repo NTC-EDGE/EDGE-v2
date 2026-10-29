@@ -359,6 +359,9 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<string>("Remarks")
                         .HasColumnType("text");
 
+                    b.Property<Guid?>("RenewedFromApplicationId")
+                        .HasColumnType("uuid");
+
                     b.Property<Guid?>("ScheduleId")
                         .HasColumnType("uuid");
 
@@ -381,6 +384,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.HasIndex("ReferenceNumber");
 
                     b.HasIndex("RegionId");
+
+                    b.HasIndex("RenewedFromApplicationId");
 
                     b.HasIndex("ScheduleId");
 
@@ -1424,6 +1429,9 @@ namespace EDGE.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("BaseFormId")
+                        .HasColumnType("uuid");
+
                     b.Property<bool>("CategorySelectionRequired")
                         .HasColumnType("boolean");
 
@@ -1445,6 +1453,13 @@ namespace EDGE.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("Key")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)")
+                        .HasDefaultValue("");
+
                     b.Property<DateTime?>("LastModifiedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1458,13 +1473,22 @@ namespace EDGE.Infrastructure.Migrations
                     b.Property<Guid>("ServiceId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("ServiceVariantId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("Version")
                         .IsRequired()
                         .HasColumnType("text");
 
                     b.HasKey("Id");
 
+                    b.HasIndex("BaseFormId");
+
+                    b.HasIndex("Key");
+
                     b.HasIndex("ServiceId");
+
+                    b.HasIndex("ServiceVariantId");
 
                     b.ToTable("Forms", "public");
                 });
@@ -4321,6 +4345,11 @@ namespace EDGE.Infrastructure.Migrations
                         .HasForeignKey("RegionId")
                         .OnDelete(DeleteBehavior.Restrict);
 
+                    b.HasOne("EDGE.Domain.Entities.Application", "RenewedFromApplication")
+                        .WithMany("Renewals")
+                        .HasForeignKey("RenewedFromApplicationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Schedule", "Schedule")
                         .WithMany()
                         .HasForeignKey("ScheduleId")
@@ -4338,6 +4367,8 @@ namespace EDGE.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Region");
+
+                    b.Navigation("RenewedFromApplication");
 
                     b.Navigation("Schedule");
 
@@ -4623,13 +4654,27 @@ namespace EDGE.Infrastructure.Migrations
 
             modelBuilder.Entity("EDGE.Domain.Entities.Form", b =>
                 {
+                    b.HasOne("EDGE.Domain.Entities.Form", "BaseForm")
+                        .WithMany()
+                        .HasForeignKey("BaseFormId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("EDGE.Domain.Entities.Service", "Service")
                         .WithMany()
                         .HasForeignKey("ServiceId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("EDGE.Domain.Entities.ServiceVariant", "ServiceVariant")
+                        .WithMany()
+                        .HasForeignKey("ServiceVariantId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("BaseForm");
+
                     b.Navigation("Service");
+
+                    b.Navigation("ServiceVariant");
                 });
 
             modelBuilder.Entity("EDGE.Domain.Entities.FormFieldValue", b =>
@@ -5433,6 +5478,8 @@ namespace EDGE.Infrastructure.Migrations
                     b.Navigation("IssuedDocumentDetails");
 
                     b.Navigation("OrdersOfPayment");
+
+                    b.Navigation("Renewals");
 
                     b.Navigation("StatementsOfAccount");
                 });

@@ -41,7 +41,7 @@ export function GeneralFilingDetailsStep({
   variants = [],
   variantElements = [],
 }: GeneralFilingDetailsStepProps) {
-  const { form, loading } = useServiceForm(service.id);
+  const { form, loading } = useServiceForm(service.id, activeApplicant.selectedVariantId);
 
   const isExamService =
     (service.category || "").toLowerCase().includes("exam") ||

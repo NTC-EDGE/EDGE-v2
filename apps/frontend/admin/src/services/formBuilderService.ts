@@ -20,6 +20,8 @@ export interface FormSectionApiDto {
 
 export interface FormVersionSummaryApiDto {
   formId: string;
+  key?: string;
+  serviceVariantId?: string;
   version: string;
   name?: string;
   isActive: boolean;
@@ -31,9 +33,14 @@ export interface FormVersionSummaryApiDto {
 
 export interface FormApiDto {
   formId: string;
+  key?: string;
   serviceId: string;
   serviceName?: string;
   serviceCode?: string;
+  serviceVariantId?: string;
+  serviceVariantName?: string;
+  baseFormId?: string;
+  baseFormKey?: string;
   name?: string;
   version: string;
   isActive?: boolean;
@@ -46,6 +53,9 @@ export interface FormApiDto {
 
 export interface CreateFormRequest {
   serviceId: string;
+  key?: string;
+  serviceVariantId?: string;
+  baseFormId?: string;
   name?: string;
   version: string;
   isActive?: boolean;
@@ -56,6 +66,9 @@ export interface CreateFormRequest {
 export interface UpdateFormRequest {
   id: string;
   serviceId: string;
+  key?: string;
+  serviceVariantId?: string;
+  baseFormId?: string;
   name?: string;
   version: string;
   isActive?: boolean;
@@ -87,7 +100,16 @@ export interface PaginatedFormApiResponse<T> {
 export function useFormBuilderService() {
   const { useQuery, get, post, put, del } = useApi();
 
-  const useForms = (pageNumber = 1, pageSize = 50, searchTerm?: string, serviceId?: string) => {
+  const useForms = (
+    pageNumber = 1,
+    pageSize = 50,
+    searchTerm?: string,
+    serviceId?: string,
+    serviceVariantId?: string,
+    formKey?: string,
+    serviceCategoryId?: string,
+    isActive?: boolean
+  ) => {
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
     params.append('pageSize', pageSize.toString());
@@ -97,6 +119,18 @@ export function useFormBuilderService() {
     if (serviceId !== undefined && serviceId !== null && serviceId.trim().length > 0) {
       params.append('serviceId', serviceId.trim());
     }
+    if (serviceVariantId !== undefined && serviceVariantId !== null && serviceVariantId.trim().length > 0) {
+      params.append('serviceVariantId', serviceVariantId.trim());
+    }
+    if (formKey !== undefined && formKey !== null && formKey.trim().length > 0) {
+      params.append('formKey', formKey.trim());
+    }
+    if (serviceCategoryId !== undefined && serviceCategoryId !== null && serviceCategoryId.trim().length > 0) {
+      params.append('serviceCategoryId', serviceCategoryId.trim());
+    }
+    if (isActive !== undefined && isActive !== null) {
+      params.append('isActive', String(isActive));
+    }
     return useQuery<PaginatedFormApiResponse<FormApiDto>>(`/api/v2/forms?${params.toString()}`);
   };
 
@@ -104,16 +138,30 @@ export function useFormBuilderService() {
     return useQuery<FormApiResponse<FormApiDto>>(id ? `/api/v2/forms/${id}` : null);
   };
 
-  const useFormByServiceId = (serviceId?: string) => {
-    return useQuery<FormApiResponse<FormApiDto>>(serviceId ? `/api/v2/services/${serviceId}/form` : null);
+  const useFormByServiceId = (serviceId?: string, variantId?: string, formKey?: string) => {
+    const params = new URLSearchParams();
+    if (variantId) params.append('variantId', variantId);
+    if (formKey) params.append('formKey', formKey);
+    const qs = params.toString();
+    return useQuery<FormApiResponse<FormApiDto>>(
+      serviceId ? `/api/v2/services/${serviceId}/form${qs ? `?${qs}` : ''}` : null
+    );
   };
 
   const getFormById = async (id: string): Promise<FormApiResponse<FormApiDto>> => {
     return get<FormApiResponse<FormApiDto>>(`/api/v2/forms/${id}`);
   };
 
-  const getFormByServiceId = async (serviceId: string): Promise<FormApiResponse<FormApiDto>> => {
-    return get<FormApiResponse<FormApiDto>>(`/api/v2/services/${serviceId}/form`);
+  const getFormByServiceId = async (
+    serviceId: string,
+    variantId?: string,
+    formKey?: string
+  ): Promise<FormApiResponse<FormApiDto>> => {
+    const params = new URLSearchParams();
+    if (variantId) params.append('variantId', variantId);
+    if (formKey) params.append('formKey', formKey);
+    const qs = params.toString();
+    return get<FormApiResponse<FormApiDto>>(`/api/v2/services/${serviceId}/form${qs ? `?${qs}` : ''}`);
   };
 
   const createForm = async (request: CreateFormRequest): Promise<FormApiDto> => {

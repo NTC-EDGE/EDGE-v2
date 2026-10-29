@@ -8,6 +8,7 @@ using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
+using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Applications.Queries.GetApplicationById;
 
@@ -340,6 +341,33 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 StaffRole = h.StaffRole,
                 Remarks = h.Remarks,
                 Timestamp = h.Timestamp
+            }).ToList(),
+            RenewedFromApplicationId = app.RenewedFromApplicationId,
+            HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
+            ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
+            ActiveRenewalReferenceNumber = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => r.ReferenceNumber).FirstOrDefault(),
+            IssuedDocumentDetails = app.IssuedDocumentDetails.Select(d => new IssuedDocumentDetailSummaryDto
+            {
+                Id = d.Id,
+                ApplicationId = d.ApplicationId,
+                ApplicantId = d.ApplicantId,
+                DocumentType = d.DocumentType,
+                FormNumber = d.FormNumber,
+                LicenseNumber = d.LicenseNumber,
+                CallSign = d.CallSign,
+                StationClass = d.StationClass,
+                FrequencyBand = d.FrequencyBand,
+                IssueDate = d.IssueDate,
+                ExpiryDate = d.ExpiryDate,
+                OriginalEvaluatorUserId = d.OriginalEvaluatorUserId,
+                OriginalEvaluatorName = d.OriginalEvaluatorName,
+                IssuedByUserId = d.IssuedByUserId,
+                IssuedByStaffName = d.IssuedByStaffName,
+                IsAlternateIssuer = d.IsAlternateIssuer,
+                OfficialReceiptNumber = d.OfficialReceiptNumber,
+                QrVerificationCode = d.QrVerificationCode,
+                DocumentFileUrl = d.DocumentFileUrl,
+                Remarks = d.Remarks
             }).ToList(),
             CorrectionAuditTrails = app.CorrectionAuditTrails.Select(c => new CorrectionAuditTrailDto
             {
