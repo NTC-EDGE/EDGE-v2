@@ -77,24 +77,8 @@ export function useCanvasSections(
       headerField: FormField | null,
       childFields: Array<{ field: FormField; originalIndex: number }>
     ): boolean => {
-      if (selectedVariant === "ALL") return true;
-
-      if (headerField) {
-        const cond =
-          headerField.condition ??
-          (headerField.visibilityCondition
-            ? parseFieldCondition(headerField.visibilityCondition)
-            : undefined);
-
-        if (
-          cond &&
-          ((cond.variants && cond.variants.length > 0) ||
-            (cond.applicationTypes && cond.applicationTypes.length > 0))
-        ) {
-          if (!isFieldApplicableForVariant(headerField, selectedVariant)) {
-            return false;
-          }
-        }
+      if (headerField && !isFieldApplicableForVariant(headerField, selectedVariant)) {
+        return false;
       }
 
       const applicableChildCount = childFields.filter((cf) =>
@@ -102,12 +86,8 @@ export function useCanvasSections(
       ).length;
       if (applicableChildCount > 0) return true;
 
-      if (
-        childFields.length === 0 &&
-        headerField &&
-        isFieldApplicableForVariant(headerField, selectedVariant)
-      ) {
-        return true;
+      if (childFields.length === 0 && headerField) {
+        return isFieldApplicableForVariant(headerField, selectedVariant);
       }
 
       return false;
@@ -116,7 +96,6 @@ export function useCanvasSections(
   );
 
   const displayedSectionGroups = useMemo(() => {
-    if (selectedVariant === "ALL") return sectionGroups;
     return sectionGroups
       .filter((group) => isSectionApplicable(group.headerField, group.childFields))
       .map((group) => ({
@@ -128,12 +107,11 @@ export function useCanvasSections(
   }, [sectionGroups, selectedVariant, isSectionApplicable]);
 
   const applicableFieldsCount = useMemo(() => {
-    if (selectedVariant === "ALL") return form.fields.length;
     return displayedSectionGroups.reduce(
       (sum, g) => sum + (g.headerField ? 1 : 0) + g.childFields.length,
       0
     );
-  }, [form.fields.length, selectedVariant, displayedSectionGroups]);
+  }, [displayedSectionGroups]);
 
   useEffect(() => {
     if (selectedFieldId !== null && selectedVariant !== "ALL") {

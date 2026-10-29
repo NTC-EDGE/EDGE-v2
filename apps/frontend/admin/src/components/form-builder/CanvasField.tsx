@@ -254,6 +254,15 @@ export function CanvasField({
       });
     }
 
+    const excluded = condition.excludedVariants ?? [];
+    if (excluded.length > 0) {
+      badges.push({
+        label: excluded.length <= 2 ? `🚫 Excluded: ${excluded.join(", ")}` : `🚫 ${excluded.length} Excluded`,
+        tooltip: `Hidden for variants: ${excluded.join(", ")}`,
+        type: "variant",
+      });
+    }
+
     const services = condition.services ?? [];
     if (services.length > 0) {
       badges.push({

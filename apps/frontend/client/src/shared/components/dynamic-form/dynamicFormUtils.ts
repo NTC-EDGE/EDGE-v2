@@ -659,13 +659,34 @@ export function evaluateVisibilityCondition(
       // Negative Variant Match (Excluded)
       const excludedVariants = toStringArray(rule.excludedVariants);
       if (excludedVariants.length > 0) {
+        const normalizeAlphaNum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
         const vType = (context.variantType || "").toUpperCase().trim();
         const vId = (context.variantId || "").trim();
-        const matches = excludedVariants.some((v) => {
+        const vDesc = (context.variantDescription || "").toUpperCase().trim();
+        const vName = (context.variantName || "").toUpperCase().trim();
+        const vCombined = vDesc && vType ? `${vDesc} (${vType})` : vDesc || vType;
+        const normCombined = normalizeAlphaNum(vCombined);
+        const normType = normalizeAlphaNum(vType);
+        const normDesc = normalizeAlphaNum(vDesc);
+        const normName = normalizeAlphaNum(vName);
+
+        const isExcluded = excludedVariants.some((v) => {
           const vUpper = v.toUpperCase().trim();
-          return vUpper === vType || v === vId;
+          const normV = normalizeAlphaNum(v);
+          if (!normV) return false;
+          if (v.includes("(")) {
+            return normV === normCombined || (normName.length > 0 && normV === normName);
+          }
+          return (
+            vUpper === vType ||
+            normV === normType ||
+            v === vId ||
+            (normDesc.length > 0 && normDesc.includes(normV)) ||
+            (normName.length > 0 && normName.includes(normV)) ||
+            (normCombined.length > 0 && normCombined.includes(normV))
+          );
         });
-        if (matches) return false;
+        if (isExcluded) return false;
       }
 
       // Element Codes & Names Match

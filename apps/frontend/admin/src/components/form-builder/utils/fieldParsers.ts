@@ -123,6 +123,7 @@ export function parseFieldCondition(val: unknown): FieldCondition | undefined {
     : undefined;
   const appTypesList = collectDistinctStrings(valRecord, ["applicationTypes", "variantDescription"]);
   const variantsList = collectDistinctStrings(valRecord, ["variants", "variantType"]);
+  const excludedVariantsList = collectDistinctStrings(valRecord, ["excludedVariants"]);
   const elements = Array.isArray(valRecord["elements"])
     ? valRecord["elements"].filter((s): s is string => typeof s === "string")
     : undefined;
@@ -160,6 +161,7 @@ export function parseFieldCondition(val: unknown): FieldCondition | undefined {
     services: services && services.length > 0 ? services : undefined,
     applicationTypes: appTypesList.length > 0 ? appTypesList : undefined,
     variants: variantsList.length > 0 ? variantsList : undefined,
+    excludedVariants: excludedVariantsList.length > 0 ? excludedVariantsList : undefined,
     elements: elements && elements.length > 0 ? elements : undefined,
     applicantTypes,
     fieldDependencies,

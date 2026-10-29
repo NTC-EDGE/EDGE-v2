@@ -35,6 +35,7 @@ export interface FieldCondition {
   services?: string[];
   applicationTypes?: string[];
   variants?: string[];
+  excludedVariants?: string[];
   elements?: string[];
   applicantTypes?: ('individual' | 'company')[];
   fieldDependencies?: Array<{

@@ -4,6 +4,18 @@ import { deleteFieldWithSection } from "./fieldOperations";
 
 const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
 
+export function variantNamesMatch(item: string, targetVariant: string): boolean {
+  const normItem = normalize(item);
+  const normTarget = normalize(targetVariant);
+  if (!normItem || !normTarget || normItem === "none" || normItem === "all") return false;
+  if (normItem === normTarget) return true;
+  const parenMatch = targetVariant.match(/\(([^)]+)\)/);
+  if (parenMatch && normalize(parenMatch[1]) === normItem) return true;
+  const itemParenMatch = item.match(/\(([^)]+)\)/);
+  if (itemParenMatch && normalize(itemParenMatch[1]) === normTarget) return true;
+  return false;
+}
+
 export function getVariantEquivalentKey(variantName: string): string {
   if (!variantName || variantName === "ALL") return "all";
   return variantName
@@ -14,33 +26,40 @@ export function getVariantEquivalentKey(variantName: string): string {
 }
 
 export function isFieldApplicableForVariant(field: FormField, selectedVariant: string): boolean {
-  if (!selectedVariant || selectedVariant === "ALL") return true;
   if (field.type === "divider") return true;
 
   const cond =
     field.condition ??
     (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
+
+  if (!selectedVariant || selectedVariant === "ALL") {
+    if (cond?.variants && cond.variants.length > 0 && !cond.variants.includes("ALL")) {
+      return false;
+    }
+    return true;
+  }
+
   if (!cond) return true;
+
+  if (cond.excludedVariants && cond.excludedVariants.length > 0) {
+    if (cond.excludedVariants.some((v) => variantNamesMatch(v, selectedVariant))) {
+      return false;
+    }
+  }
 
   const hasVariants = Boolean(cond.variants && cond.variants.length > 0);
   const hasAppTypes = Boolean(cond.applicationTypes && cond.applicationTypes.length > 0);
   if (!hasVariants && !hasAppTypes) return true;
 
-  const target = normalize(selectedVariant);
-  const targetHasParen = selectedVariant.includes("(");
+  const matchesVariants = hasVariants
+    ? Boolean(cond.variants && cond.variants.some((v) => variantNamesMatch(v, selectedVariant)))
+    : true;
+  const matchesAppTypes = hasAppTypes
+    ? Boolean(cond.applicationTypes && cond.applicationTypes.some((a) => variantNamesMatch(a, selectedVariant)))
+    : true;
 
-  const matches = (list?: string[]) => {
-    if (!list || list.length === 0) return false;
-    return list.some((item) => {
-      const norm = normalize(item);
-      if (!norm) return false;
-      if (item.includes("(") && targetHasParen) return norm === target;
-      return norm === target || norm.includes(target) || target.includes(norm);
-    });
-  };
-
-  if (hasVariants && hasAppTypes) return matches(cond.variants) && matches(cond.applicationTypes);
-  return hasVariants ? matches(cond.variants) : matches(cond.applicationTypes);
+  if (hasVariants && hasAppTypes) return matchesVariants && matchesAppTypes;
+  return hasVariants ? matchesVariants : matchesAppTypes;
 }
 
 export function isExclusiveToVariant(field: FormField, variantName: string): boolean {
@@ -48,32 +67,34 @@ export function isExclusiveToVariant(field: FormField, variantName: string): boo
   const cond =
     field.condition ??
     (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
-  if (!cond || !cond.variants || cond.variants.length === 0) return false;
-  const normTarget = normalize(variantName);
-  return cond.variants.every((v) => normalize(v) === normTarget);
+  if (!cond?.variants || cond.variants.length === 0) return false;
+  return cond.variants.every((v) => variantNamesMatch(v, variantName));
 }
 
 export function excludeVariantFromField(
   field: FormField,
   variantName: string,
-  allVariantNames: string[]
+  _allVariantNames: string[]
 ): FormField {
-  const normTarget = normalize(variantName);
   const cond =
     field.condition ??
     (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
 
-  const remainingVariants = allVariantNames.filter(
-    (v) => normalize(v) !== normTarget && isFieldApplicableForVariant(field, v)
-  );
-  const fallbackVariants =
-    remainingVariants.length > 0
-      ? remainingVariants
-      : (cond?.variants ?? []).filter((v) => normalize(v) !== normTarget);
+  const prevExcluded = cond?.excludedVariants ?? [];
+  const nextExcluded = prevExcluded.some((v) => variantNamesMatch(v, variantName))
+    ? prevExcluded
+    : [...prevExcluded, variantName];
+
+  let nextVariants = cond?.variants;
+  if (nextVariants && nextVariants.length > 0) {
+    nextVariants = nextVariants.filter((v) => !variantNamesMatch(v, variantName));
+    if (nextVariants.length === 0) nextVariants = ["__NONE__"];
+  }
 
   const updatedCond: FieldCondition = {
     ...cond,
-    variants: fallbackVariants.length > 0 ? fallbackVariants : ["__NONE__"],
+    variants: nextVariants,
+    excludedVariants: nextExcluded,
     applicationTypes: undefined,
   };
   return { ...field, condition: updatedCond, visibilityCondition: JSON.stringify(updatedCond) };
@@ -130,43 +151,34 @@ export function deleteFieldOrSectionForVariant(
 export function resetVariantToBaseFields(
   fields: FormField[],
   selectedVariant: string,
-  allVariantNames: string[]
+  _allVariantNames: string[]
 ): FormField[] {
   if (!selectedVariant || selectedVariant === "ALL") return fields;
-  const normTarget = normalize(selectedVariant);
 
   return fields
     .filter((f) => !isExclusiveToVariant(f, selectedVariant))
     .map((f) => {
-      if (isFieldApplicableForVariant(f, selectedVariant)) return f;
       const cond =
         f.condition ??
-        (f.visibilityCondition ? parseFieldCondition(fieldVisibility(f)) : undefined);
+        (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
       if (!cond) return f;
 
-      const hasToolbarRestriction = Boolean(
-        cond.variants?.some(
-          (v) => v === "__NONE__" || allVariantNames.some((av) => normalize(av) === normalize(v))
-        )
+      const nextExcluded = (cond.excludedVariants ?? []).filter(
+        (v) => !variantNamesMatch(v, selectedVariant)
       );
-      if (!hasToolbarRestriction) return f;
-
-      const activeVariants = (cond.variants ?? []).filter((v) => v !== "__NONE__");
-      const nextVariants = activeVariants.some((v) => normalize(v) === normTarget)
-        ? activeVariants
-        : [...activeVariants, selectedVariant];
-
-      const coversAll =
-        allVariantNames.length > 0 &&
-        allVariantNames.every((av) => nextVariants.some((nv) => normalize(nv) === normalize(av)));
+      const activeVariants = (cond.variants ?? []).filter(
+        (v) => v !== "__NONE__" && !variantNamesMatch(v, selectedVariant)
+      );
 
       const nextCond: FieldCondition = {
         ...cond,
-        variants: coversAll ? undefined : nextVariants,
-        applicationTypes: coversAll ? undefined : cond.applicationTypes,
+        variants: activeVariants.length > 0 ? activeVariants : undefined,
+        excludedVariants: nextExcluded.length > 0 ? nextExcluded : undefined,
       };
+
       const hasAnyRule = Boolean(
         nextCond.variants?.length ||
+          nextCond.excludedVariants?.length ||
           nextCond.applicationTypes?.length ||
           nextCond.serviceCodes?.length ||
           nextCond.services?.length ||
@@ -180,8 +192,4 @@ export function resetVariantToBaseFields(
         visibilityCondition: hasAnyRule ? JSON.stringify(nextCond) : undefined,
       };
     });
-}
-
-function fieldVisibility(f: FormField): string | undefined {
-  return f.visibilityCondition;
 }

@@ -157,7 +157,7 @@ export function useBuilderFieldActions(params: {
       const isConditionUpdate = "condition" in fieldUpdates || "visibilityCondition" in fieldUpdates;
       if (selectedVariant !== "ALL" && !isConditionUpdate && targetField.type !== "section-header" && !isExclusiveToVariant(targetField, selectedVariant)) {
         const excludedOriginal = excludeVariantFromField(targetField, selectedVariant, allVariantNames);
-        const variantCond = { ...targetField.condition, variants: [selectedVariant], applicationTypes: undefined };
+        const variantCond = { ...targetField.condition, variants: [selectedVariant], excludedVariants: undefined, applicationTypes: undefined };
         const forkedField: FormField = {
           ...targetField, ...fieldUpdates, id: generateId(), condition: variantCond, visibilityCondition: JSON.stringify(variantCond),
         };
