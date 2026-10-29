@@ -463,6 +463,7 @@ export function useGeneralServiceWizard(
     let active = true;
     async function loadUserProfileForPrefill() {
       if (!clerkUser || hasPrefilledProfileRef.current) return;
+      hasPrefilledProfileRef.current = true;
 
       // 1. Initial prefill from local storage / Clerk metadata
       const initialProfile = extractUserProfile(clerkUser, null);
@@ -536,6 +537,7 @@ export function useGeneralServiceWizard(
             const repName = app.representativeName || enriched.representativeName || [repFirst, repMiddle, repLast, repSuffix].filter(Boolean).join(" ") || enriched.fullName;
             const repPos = app.representativePosition || enriched.designation || enriched.position || "";
             const enrichedStreet = [enriched.unit, enriched.street].filter(Boolean).join(", ");
+            const userEditedAddress = Boolean(app.street || app.address || app.barangay || app.city);
             return {
               ...app,
               firstName: app.firstName || enriched.firstName,
@@ -547,13 +549,13 @@ export function useGeneralServiceWizard(
               sex: app.sex || enriched.sex,
               civilStatus: app.civilStatus || enriched.civilStatus,
               nationality: app.nationality || enriched.nationality,
-              zipCode: app.zipCode || enriched.zipCode,
-              street: app.street || enrichedStreet,
-              address: app.address || enrichedStreet,
-              region: app.region || enriched.region,
-              province: app.province || enriched.province,
-              city: app.city || enriched.city,
-              barangay: app.barangay || enriched.barangay,
+              zipCode: userEditedAddress && app.zipCode ? app.zipCode : (app.zipCode || enriched.zipCode),
+              street: userEditedAddress ? (app.street || app.address) : (app.street || enrichedStreet),
+              address: userEditedAddress ? (app.address || app.street || "") : (app.address || enrichedStreet || ""),
+              region: userEditedAddress && app.region ? app.region : (app.region || enriched.region),
+              province: userEditedAddress && app.province ? app.province : (app.province || enriched.province),
+              city: userEditedAddress && app.city ? app.city : (app.city || enriched.city),
+              barangay: userEditedAddress && app.barangay ? app.barangay : (app.barangay || enriched.barangay),
               schoolName: isExamService ? (app.schoolName || enriched.schoolAttended) : app.schoolName,
               courseDegree: isExamService ? (app.courseDegree || enriched.courseTaken) : app.courseDegree,
               yearGraduated: isExamService ? (app.yearGraduated || enriched.yearGraduated) : app.yearGraduated,

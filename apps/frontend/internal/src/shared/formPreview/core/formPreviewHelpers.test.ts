@@ -119,9 +119,17 @@ describe('Address formatting helpers', () => {
       expect(resultWithBarangay).toBe('Barangay 1, Caloocan');
     });
 
-    it('deduplicates when raw address string already includes the street name', () => {
+    it('uses street when provided and does not concatenate conflicting address fallback', () => {
       const result = formatCompositeAddress({
-        street: 'Mabini Street',
+        street: '123 Mabini Street',
+        address: '456 Agham Road, Quezon City',
+        city: 'Manila',
+      });
+      expect(result).toBe('123 Mabini Street, Manila');
+    });
+
+    it('falls back to address when street is not provided', () => {
+      const result = formatCompositeAddress({
         address: '123 Mabini Street, Malate',
         city: 'Manila',
       });

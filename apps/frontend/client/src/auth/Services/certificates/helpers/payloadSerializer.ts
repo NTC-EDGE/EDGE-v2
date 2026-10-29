@@ -186,7 +186,10 @@ export function serializeCertificateApplicant(
   const emailVal = app.email?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
   const contactVal = app.contactNo?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('contact') || (fv.fieldLabel || '').toLowerCase().includes('mobile'))?.value?.trim() || "";
 
-  const compositeAddress = formatCompositeAddress(app);
+  const compositeAddress = formatCompositeAddress({
+    ...app,
+    address: app.street ? undefined : app.address,
+  });
 
   const addressVal = compositeAddress || app.address?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
 

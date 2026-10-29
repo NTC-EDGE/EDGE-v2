@@ -105,28 +105,33 @@ export function resolveApplicantParticulars(
 
   const resolvedAddress =
     formatCompositeAddress({
-      street: activeApplicant.street,
-      address: activeApplicant.address,
+      street: activeApplicant.street || activeApplicant.address,
       barangay: activeApplicant.barangay,
       city: activeApplicant.city,
       province: activeApplicant.province,
       region: activeApplicant.region,
       zipCode: activeApplicant.zipCode,
-    }) || formFieldValues.find(
-          (fv: { fieldId: string; fieldLabel: string; value: string }) =>
-            (fv.fieldId === 'address' ||
-              fv.fieldId === FIELD_ID_ADDRESS ||
-              fv.fieldId === FIELD_ID_STREET ||
-              fv.fieldLabel.toLowerCase().includes('address') ||
-              fv.fieldLabel.toLowerCase().includes('street')) &&
-            !fv.fieldLabel.toLowerCase().includes('email') &&
-            !fv.fieldLabel.toLowerCase().includes('exam') &&
-            !fv.fieldLabel.toLowerCase().includes('seminar') &&
-            !fv.fieldLabel.toLowerCase().includes('station') &&
-            !fv.fieldLabel.toLowerCase().includes('installation') &&
-            !fv.fieldLabel.toLowerCase().includes('seller') &&
-            !fv.fieldLabel.toLowerCase().includes('dealer')
-        )?.value || null;
+    }) ||
+    formFieldValues.find(
+      (fv: { fieldId: string; fieldLabel: string; value: string }) =>
+        (fv.fieldId === 'address' ||
+          fv.fieldId === FIELD_ID_ADDRESS ||
+          fv.fieldId === FIELD_ID_STREET ||
+          fv.fieldLabel.toLowerCase().includes('address') ||
+          fv.fieldLabel.toLowerCase().includes('street')) &&
+        !fv.fieldLabel.toLowerCase().includes('email') &&
+        !fv.fieldLabel.toLowerCase().includes('exam') &&
+        !fv.fieldLabel.toLowerCase().includes('seminar') &&
+        !fv.fieldLabel.toLowerCase().includes('station') &&
+        !fv.fieldLabel.toLowerCase().includes('installation') &&
+        !fv.fieldLabel.toLowerCase().includes('seller') &&
+        !fv.fieldLabel.toLowerCase().includes('dealer') &&
+        !fv.fieldLabel.toLowerCase().includes('company') &&
+        !fv.fieldLabel.toLowerCase().includes('provider') &&
+        !fv.fieldLabel.toLowerCase().includes('office') &&
+        !fv.fieldLabel.toLowerCase().includes('representative')
+    )?.value ||
+    null;
 
   const resolvedBirthDate =
     activeApplicant.birthMonth && activeApplicant.birthDay && activeApplicant.birthYear

@@ -1106,10 +1106,9 @@ export function GeneralFilingModeStep({
                         placeholder="e.g., 123 Ayala Avenue, Tower One"
                         value={activeApplicant?.street || activeApplicant?.address || ""}
                         onChangeText={(val) => {
-                          const fullAddr = [val, activeApplicant?.barangay, activeApplicant?.city, activeApplicant?.province, activeApplicant?.region, activeApplicant?.zipCode].filter(Boolean).join(", ");
                           updateActiveApplicant?.({
                             street: val,
-                            address: fullAddr,
+                            address: val,
                           });
                         }}
                       />

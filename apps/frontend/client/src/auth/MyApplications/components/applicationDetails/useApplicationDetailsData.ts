@@ -174,7 +174,7 @@ export function useApplicationDetailsData(initialApp: Application) {
       (details?.streetAddress && details.streetAddress !== 'N/A' ? details.streetAddress : null) ||
       (details?.address && details.address !== 'N/A' ? details.address : null) ||
       (app.streetAddress && app.streetAddress !== 'N/A' ? app.streetAddress : null) ||
-      findField((l) => l.includes('street') || l === 'address') ||
+      findField((l) => (l.includes('street') || l === 'address') && !l.includes('seller') && !l.includes('dealer') && !l.includes('station') && !l.includes('installation') && !l.includes('provider')) ||
       '';
 
     const resolvedBarangay =
