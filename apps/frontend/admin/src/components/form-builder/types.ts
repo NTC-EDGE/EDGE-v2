@@ -69,6 +69,7 @@ export interface FormField {
   addButtonLabel?: string;
   visibilityCondition?: string;
   condition?: FieldCondition;
+  variantTitles?: Record<string, string>;
 }
 
 export interface FormVersionSummary {

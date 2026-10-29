@@ -94,10 +94,20 @@ export function FieldEditor({
             >
               <input
                 type="text"
-                value={field.sectionTitle ?? field.label ?? ""}
-                onChange={(e) =>
-                  onUpdateField({ label: e.target.value, sectionTitle: e.target.value })
+                value={
+                  (selectedVariant !== "ALL" && field.variantTitles?.[selectedVariant]) ||
+                  field.sectionTitle ||
+                  field.label ||
+                  ""
                 }
+                onChange={(e) => {
+                  const val = e.target.value;
+                  if (selectedVariant !== "ALL") {
+                    onUpdateField({ variantTitles: { ...(field.variantTitles ?? {}), [selectedVariant]: val } });
+                  } else {
+                    onUpdateField({ label: val, sectionTitle: val });
+                  }
+                }}
                 className={inputClass}
                 placeholder="e.g. Part I: Applicant Information"
               />

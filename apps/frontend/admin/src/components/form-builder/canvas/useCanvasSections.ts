@@ -54,11 +54,17 @@ export function useCanvasSections(
         if (currentGroup.headerField !== null || currentGroup.childFields.length > 0) {
           groups.push(currentGroup);
         }
+        const resolvedTitle =
+          (selectedVariant !== "ALL" && field.variantTitles?.[selectedVariant]) ||
+          field.sectionTitle ||
+          field.label ||
+          "Untitled Section";
+
         currentGroup = {
           id: field.id,
           headerField: field,
           headerIndex: index,
-          title: field.sectionTitle || field.label || "Untitled Section",
+          title: resolvedTitle,
           childFields: [],
         };
       } else {
@@ -70,7 +76,7 @@ export function useCanvasSections(
       groups.push(currentGroup);
     }
     return groups;
-  }, [form.fields]);
+  }, [form.fields, selectedVariant]);
 
   const isSectionApplicable = useCallback(
     (

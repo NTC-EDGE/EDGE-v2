@@ -48,6 +48,7 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
   let fieldIndex = 0;
   const seenFieldIds = new Set<string>();
   let hasEncounteredExplicitSection = false;
+  let currentSectionVariantTitles: Record<string, string> | undefined = undefined;
 
   for (const field of fields) {
     if (field.type === "section-header") {
@@ -56,6 +57,7 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
         sectionIndex++;
       }
       hasEncounteredExplicitSection = true;
+      currentSectionVariantTitles = field.variantTitles;
       const title = field.sectionTitle || field.label || `Section ${sectionIndex + 1}`;
       const baseKey =
         field.sectionKey && field.sectionKey.trim().length > 0
@@ -114,6 +116,7 @@ export function convertSchemaToBackendSections(fields: FormField[]) {
         addButtonLabel: field.addButtonLabel,
         condition: field.condition,
         sectionVisibilityCondition: currentSection.visibilityCondition,
+        sectionVariantTitles: currentSectionVariantTitles,
       }),
     };
 

@@ -6,6 +6,7 @@ import { ServiceVariantToolbar } from "./ServiceVariantToolbar";
 import { collectAllFormVariants, getEffectiveLinkedServices } from "./canonicalFormServices";
 import { ServiceItem, ServiceCategory } from "@/services/catalogService";
 import { useCanvasSections } from "./canvas/useCanvasSections";
+import { isFieldApplicableForVariant } from "./utils";
 import { CanvasVersionBar, CanvasSectionsControlBar } from "./canvas/CanvasVersionAndControlsBar";
 import { CanvasEmptyFormState, CanvasEmptyVariantState } from "./canvas/CanvasEmptyStates";
 import { CanvasSectionCard } from "./canvas/CanvasSectionCard";
@@ -38,13 +39,11 @@ interface FormCanvasProps {
   customizedVariantNames?: string[];
 }
 
+const VALID_FIELD_TYPES = new Set<string>([
+  "text", "textarea", "number", "email", "phone", "date", "time", "select", "radio", "checkbox", "file", "repeater", "section-header", "divider"
+]);
 function isFieldType(val: string): val is FieldType {
-  return (
-    val === "text" || val === "textarea" || val === "number" || val === "email" ||
-    val === "phone" || val === "date" || val === "time" || val === "select" ||
-    val === "radio" || val === "checkbox" || val === "file" || val === "repeater" ||
-    val === "section-header" || val === "divider"
-  );
+  return VALID_FIELD_TYPES.has(val);
 }
 
 export function FormCanvas({
@@ -98,6 +97,11 @@ export function FormCanvas({
     sectionCount,
   } = useCanvasSections(form, selectedVariant, selectedFieldId, onSelectField);
 
+  const baseFieldsCount = useMemo(
+    () => form.fields.filter((f) => isFieldApplicableForVariant(f, "ALL")).length,
+    [form.fields]
+  );
+
   const handleCanvasDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = "copy";
@@ -133,8 +137,8 @@ export function FormCanvas({
       <div className="flex-1 overflow-y-auto">
         <div className="w-full max-w-[1600px] mx-auto py-6 px-6 lg:px-10 min-h-full">
           <CanvasVersionBar form={form} onSwitchVersion={onSwitchVersion} onSetActive={onSetActive} onCreateNewVersion={onCreateNewVersion} onDeleteVersion={onDeleteVersion} />
-          <ServiceVariantToolbar variants={formVariants} selectedVariant={selectedVariant} onSelectVariant={onSelectVariant} onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)} totalFieldsCount={form.fields.length} applicableFieldsCount={applicableFieldsCount} linkedServicesCount={effectiveLinkedServices.length} customizedVariantNames={customizedVariantNames} />
-          <CanvasSectionsControlBar sectionCount={sectionCount} totalFieldsCount={form.fields.length} applicableFieldsCount={applicableFieldsCount} selectedVariant={selectedVariant} hasSections={sectionGroups.length > 0} onCollapseAll={collapseAllSections} onExpandAll={expandAllSections} onOpenResetConfirm={() => setIsResetConfirmOpen(true)} onAddField={onAddField} canResetVariant={Boolean(onResetFromBaseForm)} />
+          <ServiceVariantToolbar variants={formVariants} selectedVariant={selectedVariant} onSelectVariant={onSelectVariant} onOpenLinkServiceModal={() => setIsLinkServiceModalOpen(true)} totalFieldsCount={baseFieldsCount} applicableFieldsCount={applicableFieldsCount} linkedServicesCount={effectiveLinkedServices.length} customizedVariantNames={customizedVariantNames} />
+          <CanvasSectionsControlBar sectionCount={sectionCount} totalFieldsCount={baseFieldsCount} applicableFieldsCount={applicableFieldsCount} selectedVariant={selectedVariant} hasSections={sectionGroups.length > 0} onCollapseAll={collapseAllSections} onExpandAll={expandAllSections} onOpenResetConfirm={() => setIsResetConfirmOpen(true)} onAddField={onAddField} canResetVariant={Boolean(onResetFromBaseForm)} />
           {form.fields.length === 0 ? (
             <CanvasEmptyFormState isDragOverCanvas={isDragOverCanvas} onDragOver={handleCanvasDragOver} onDragLeave={() => setIsDragOverCanvas(false)} onDrop={handleCanvasDrop} />
           ) : displayedSectionGroups.length === 0 ? (

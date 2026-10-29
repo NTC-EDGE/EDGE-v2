@@ -33,9 +33,6 @@ export function isFieldApplicableForVariant(field: FormField, selectedVariant: s
     (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
 
   if (!selectedVariant || selectedVariant === "ALL") {
-    if (cond?.excludedVariants && cond.excludedVariants.length > 0) {
-      return true;
-    }
     if (cond?.variants && cond.variants.length > 0 && !cond.variants.includes("ALL")) {
       return false;
     }
@@ -61,8 +58,7 @@ export function isFieldApplicableForVariant(field: FormField, selectedVariant: s
     ? Boolean(cond.applicationTypes && cond.applicationTypes.some((a) => variantNamesMatch(a, selectedVariant)))
     : true;
 
-  if (hasVariants && hasAppTypes) return matchesVariants && matchesAppTypes;
-  return hasVariants ? matchesVariants : matchesAppTypes;
+  return hasVariants && hasAppTypes ? matchesVariants || matchesAppTypes : hasVariants ? matchesVariants : matchesAppTypes;
 }
 
 export function isExclusiveToVariant(field: FormField, variantName: string): boolean {
@@ -155,10 +151,15 @@ export function resetVariantToBaseFields(
   return fields
     .filter((f) => !isExclusiveToVariant(f, selectedVariant))
     .map((f) => {
+      let cur = f;
+      if (f.variantTitles && selectedVariant in f.variantTitles) {
+        const { [selectedVariant]: _, ...rest } = f.variantTitles;
+        cur = { ...cur, variantTitles: Object.keys(rest).length > 0 ? rest : undefined };
+      }
       const cond =
-        f.condition ??
-        (f.visibilityCondition ? parseFieldCondition(f.visibilityCondition) : undefined);
-      if (!cond) return f;
+        cur.condition ??
+        (cur.visibilityCondition ? parseFieldCondition(cur.visibilityCondition) : undefined);
+      if (!cond) return cur;
 
       const nextExcluded = (cond.excludedVariants ?? []).filter(
         (v) => !variantNamesMatch(v, selectedVariant)
@@ -184,7 +185,7 @@ export function resetVariantToBaseFields(
           nextCond.fieldDependencies?.length
       );
       return {
-        ...f,
+        ...cur,
         condition: hasAnyRule ? nextCond : undefined,
         visibilityCondition: hasAnyRule ? JSON.stringify(nextCond) : undefined,
       };

@@ -25,31 +25,22 @@ export function useBuilderFieldActions(params: {
     setSelectedVariant, setIsVariantEditMode, setIsDirty, setToast, allVariantNames, originalFormRef,
   } = params;
 
-  const executeSelectVariant = useCallback(
-    (variantName: string) => {
-      setSelectedVariant(variantName);
-      setIsVariantEditMode(variantName !== "ALL");
-      setSelectedFieldId(null);
-    },
-    [setSelectedVariant, setIsVariantEditMode, setSelectedFieldId]
-  );
+  const executeSelectVariant = useCallback((variantName: string) => {
+    setSelectedVariant(variantName);
+    setIsVariantEditMode(variantName !== "ALL");
+    setSelectedFieldId(null);
+  }, [setSelectedVariant, setIsVariantEditMode, setSelectedFieldId]);
 
-  const handleSelectVariant = useCallback(
-    (variantName: string) => {
-      if (variantName !== selectedVariant) executeSelectVariant(variantName);
-    },
-    [selectedVariant, executeSelectVariant]
-  );
+  const handleSelectVariant = useCallback((v: string) => {
+    if (v !== selectedVariant) executeSelectVariant(v);
+  }, [selectedVariant, executeSelectVariant]);
 
-  const handleCustomizeVariant = useCallback(
-    (variantName: string) => {
-      if (!activeForm || variantName === "ALL") return;
-      setSelectedVariant(variantName);
-      setIsVariantEditMode(true);
-      setSelectedFieldId(null);
-    },
-    [activeForm, setSelectedVariant, setIsVariantEditMode, setSelectedFieldId]
-  );
+  const handleCustomizeVariant = useCallback((v: string) => {
+    if (!activeForm || v === "ALL") return;
+    setSelectedVariant(v);
+    setIsVariantEditMode(true);
+    setSelectedFieldId(null);
+  }, [activeForm, setSelectedVariant, setIsVariantEditMode, setSelectedFieldId]);
 
   const handleResetFromBaseForm = useCallback(() => {
     if (!activeForm || selectedVariant === "ALL") return;
@@ -63,14 +54,11 @@ export function useBuilderFieldActions(params: {
     });
   }, [activeForm, selectedVariant, allVariantNames, setActiveForm, setIsDirty, setSelectedFieldId, setToast]);
 
-  const handleRevertVariantToBase = useCallback(
-    (variantName: string) => {
-      if (!activeForm || variantName === "ALL") return;
-      setSelectedVariant("ALL");
-      setIsVariantEditMode(false);
-    },
-    [activeForm, setSelectedVariant, setIsVariantEditMode]
-  );
+  const handleRevertVariantToBase = useCallback((v: string) => {
+    if (!activeForm || v === "ALL") return;
+    setSelectedVariant("ALL");
+    setIsVariantEditMode(false);
+  }, [activeForm, setSelectedVariant, setIsVariantEditMode]);
 
   const handleUpdateForm = useCallback(
     (updates: Partial<FormSchema>) => {
@@ -116,36 +104,25 @@ export function useBuilderFieldActions(params: {
     [activeForm, selectedFieldId, selectedVariant, setActiveForm, setSelectedFieldId, setIsDirty]
   );
 
-  const handleReorderFields = useCallback(
-    (fromIndex: number, toIndex: number) => {
-      if (!activeForm) return;
-      const fields = reorderFieldsWithSections(activeForm.fields, fromIndex, toIndex);
-      setActiveForm({ ...activeForm, fields, updatedAt: new Date().toISOString() });
-      setIsDirty(true);
-    },
-    [activeForm, setActiveForm, setIsDirty]
-  );
+  const handleReorderFields = useCallback((fromIndex: number, toIndex: number) => {
+    if (!activeForm) return;
+    setActiveForm({ ...activeForm, fields: reorderFieldsWithSections(activeForm.fields, fromIndex, toIndex), updatedAt: new Date().toISOString() });
+    setIsDirty(true);
+  }, [activeForm, setActiveForm, setIsDirty]);
 
-  const handleDuplicateField = useCallback(
-    (id: string) => {
-      if (!activeForm) return;
-      const fields = duplicateFieldWithSection(activeForm.fields, id, selectedVariant);
-      setActiveForm({ ...activeForm, fields, updatedAt: new Date().toISOString() });
-      setIsDirty(true);
-    },
-    [activeForm, selectedVariant, setActiveForm, setIsDirty]
-  );
+  const handleDuplicateField = useCallback((id: string) => {
+    if (!activeForm) return;
+    setActiveForm({ ...activeForm, fields: duplicateFieldWithSection(activeForm.fields, id, selectedVariant), updatedAt: new Date().toISOString() });
+    setIsDirty(true);
+  }, [activeForm, selectedVariant, setActiveForm, setIsDirty]);
 
-  const handleDeleteField = useCallback(
-    (id: string) => {
-      if (!activeForm) return;
-      const fields = deleteFieldOrSectionForVariant(activeForm.fields, id, selectedVariant, allVariantNames);
-      if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) setSelectedFieldId(null);
-      setActiveForm({ ...activeForm, fields, updatedAt: new Date().toISOString() });
-      setIsDirty(true);
-    },
-    [activeForm, selectedFieldId, selectedVariant, allVariantNames, setActiveForm, setSelectedFieldId, setIsDirty]
-  );
+  const handleDeleteField = useCallback((id: string) => {
+    if (!activeForm) return;
+    const fields = deleteFieldOrSectionForVariant(activeForm.fields, id, selectedVariant, allVariantNames);
+    if (selectedFieldId !== null && !fields.some((f) => f.id === selectedFieldId)) setSelectedFieldId(null);
+    setActiveForm({ ...activeForm, fields, updatedAt: new Date().toISOString() });
+    setIsDirty(true);
+  }, [activeForm, selectedFieldId, selectedVariant, allVariantNames, setActiveForm, setSelectedFieldId, setIsDirty]);
 
   const handleUpdateField = useCallback(
     (fieldUpdates: Partial<FormField>) => {
@@ -153,6 +130,27 @@ export function useBuilderFieldActions(params: {
       const targetIndex = activeForm.fields.findIndex((f) => f.id === selectedFieldId);
       const targetField = targetIndex >= 0 ? activeForm.fields[targetIndex] : undefined;
       if (!targetField) return;
+
+      if (selectedVariant !== "ALL" && targetField.type === "section-header") {
+        if ("sectionTitle" in fieldUpdates || "label" in fieldUpdates || "variantTitles" in fieldUpdates) {
+          const nextTitle =
+            fieldUpdates.variantTitles?.[selectedVariant] ??
+            fieldUpdates.sectionTitle ??
+            fieldUpdates.label ??
+            targetField.variantTitles?.[selectedVariant] ??
+            targetField.sectionTitle ??
+            targetField.label ?? "";
+          const nextVariantTitles: Record<string, string> = {
+            ...(targetField.variantTitles ?? {}),
+            [selectedVariant]: nextTitle,
+          };
+          const updatedField: FormField = { ...targetField, variantTitles: nextVariantTitles };
+          const fields = activeForm.fields.map((f) => (f.id === selectedFieldId ? updatedField : f));
+          setActiveForm({ ...activeForm, fields, updatedAt: new Date().toISOString() });
+          setIsDirty(true);
+          return;
+        }
+      }
 
       const isConditionUpdate = "condition" in fieldUpdates || "visibilityCondition" in fieldUpdates;
       if (selectedVariant !== "ALL" && !isConditionUpdate && targetField.type !== "section-header" && !isExclusiveToVariant(targetField, selectedVariant)) {

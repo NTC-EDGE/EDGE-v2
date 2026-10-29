@@ -47,13 +47,24 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
   if (Array.isArray(dto.sections)) {
     for (const section of dto.sections) {
       let inferredSecVis: string | undefined = section.visibilityCondition || undefined;
-      if (!inferredSecVis && Array.isArray(section.fields) && section.fields.length > 0) {
+      let inferredVariantTitles: Record<string, string> | undefined = undefined;
+      if (Array.isArray(section.fields) && section.fields.length > 0) {
         const firstRules = section.fields[0]?.validationRules;
         if (typeof firstRules === "string" && firstRules.trim().startsWith("{")) {
           try {
             const parsedFirst: unknown = JSON.parse(firstRules);
-            if (isRecord(parsedFirst) && typeof parsedFirst["sectionVisibilityCondition"] === "string") {
-              inferredSecVis = parsedFirst["sectionVisibilityCondition"];
+            if (isRecord(parsedFirst)) {
+              if (typeof parsedFirst["sectionVisibilityCondition"] === "string") {
+                inferredSecVis = parsedFirst["sectionVisibilityCondition"];
+              }
+              const rawTitles = parsedFirst["sectionVariantTitles"];
+              if (isRecord(rawTitles)) {
+                const map: Record<string, string> = {};
+                for (const [k, v] of Object.entries(rawTitles)) {
+                  if (typeof v === "string") map[k] = v;
+                }
+                if (Object.keys(map).length > 0) inferredVariantTitles = map;
+              }
             }
           } catch {
             // ignore
@@ -78,6 +89,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
           cols: 2,
           visibilityCondition: inferredSecVis,
           condition: parseFieldCondition(inferredSecVis),
+          variantTitles: inferredVariantTitles,
         });
       }
 
@@ -155,10 +167,7 @@ export function convertBackendFormToSchema(dto: BackendFormDtoLike): FormSchema 
             repeaterColumns: resolvedRepeaterColumns,
             minRows: typeof parsedRules["minRows"] === "number" ? parsedRules["minRows"] : undefined,
             maxRows: typeof parsedRules["maxRows"] === "number" ? parsedRules["maxRows"] : undefined,
-            addButtonLabel:
-              typeof parsedRules["addButtonLabel"] === "string"
-                ? parsedRules["addButtonLabel"]
-                : "Add Equipment",
+            addButtonLabel: typeof parsedRules["addButtonLabel"] === "string" ? parsedRules["addButtonLabel"] : "Add Equipment",
             visibilityCondition: isInheritedOnly ? undefined : f.visibilityCondition || undefined,
             condition: fieldCondition,
           });
