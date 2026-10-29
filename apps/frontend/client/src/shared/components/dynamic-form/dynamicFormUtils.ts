@@ -623,17 +623,34 @@ export function evaluateVisibilityCondition(
         ...toStringArray(rule.variantType),
       ];
       if (variants.length > 0) {
+        const normalizeAlphaNum = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
         const vType = (context.variantType || "").toUpperCase().trim();
         const vId = (context.variantId || "").trim();
         const vDesc = (context.variantDescription || "").toUpperCase().trim();
         const vName = (context.variantName || "").toUpperCase().trim();
+        const vCombined = vDesc && vType ? `${vDesc} (${vType})` : vDesc || vType;
+        const normCombined = normalizeAlphaNum(vCombined);
+        const normType = normalizeAlphaNum(vType);
+        const normDesc = normalizeAlphaNum(vDesc);
+        const normName = normalizeAlphaNum(vName);
+
         const matches = variants.some((v) => {
           const vUpper = v.toUpperCase().trim();
+          const normV = normalizeAlphaNum(v);
+          if (!normV || vUpper === "__NONE__") return false;
+          if (v.includes("(")) {
+            return (
+              normV === normCombined ||
+              (normName.length > 0 && normV === normName)
+            );
+          }
           return (
             vUpper === vType ||
+            normV === normType ||
             v === vId ||
-            (vDesc.length > 0 && vDesc.includes(vUpper)) ||
-            (vName.length > 0 && vName.includes(vUpper))
+            (normDesc.length > 0 && normDesc.includes(normV)) ||
+            (normName.length > 0 && normName.includes(normV)) ||
+            (normCombined.length > 0 && normCombined.includes(normV))
           );
         });
         if (!matches) return false;

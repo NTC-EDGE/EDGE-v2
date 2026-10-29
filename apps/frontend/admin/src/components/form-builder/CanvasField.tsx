@@ -432,7 +432,13 @@ export function CanvasField({
 
         {/* Action Toolbar */}
         {!isReadOnly && (
-          <div className="flex-shrink-0 flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <div
+            className={`flex-shrink-0 flex items-center gap-1 transition-opacity ${
+              isSelected
+                ? "opacity-100"
+                : "opacity-0 group-hover:opacity-100 group-focus-within:opacity-100"
+            }`}
+          >
           <button
             type="button"
             onClick={(e) => {

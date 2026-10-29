@@ -11,5 +11,7 @@ public record GetFormsQuery(
     string? SearchTerm = null,
     Guid? ServiceId = null,
     Guid? ServiceVariantId = null,
-    string? FormKey = null
+    string? FormKey = null,
+    Guid? ServiceCategoryId = null,
+    bool? IsActive = null
 ) : IRequest<PaginatedApiResponse<FormDto>>;

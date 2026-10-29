@@ -112,7 +112,7 @@ public class FormRepository : IFormRepository
             if (matchByVariant != null) return matchByVariant;
         }
 
-        // 3. Fallback to base form (ServiceVariantId == null)
+        // 3. Fallback to base form (ServiceVariantId == null && BaseFormId == null)
         var baseForm = await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
@@ -123,6 +123,7 @@ public class FormRepository : IFormRepository
                     .ThenInclude(sf => sf.Field)
             .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId)
                 && f.ServiceVariantId == null
+                && f.BaseFormId == null
                 && !f.IsDeleted)
             .OrderByDescending(f => f.ServiceId == serviceId)
             .ThenByDescending(f => f.IsActive)
@@ -131,7 +132,7 @@ public class FormRepository : IFormRepository
 
         if (baseForm != null) return baseForm;
 
-        // 4. Fallback to any active form for this service
+        // 4. Fallback to any active base form for this service
         return await _context.Forms
             .IgnoreQueryFilters()
             .Include(f => f.Service)
@@ -140,7 +141,7 @@ public class FormRepository : IFormRepository
             .Include(f => f.Sections.Where(fs => !fs.IsDeleted).OrderBy(fs => fs.OrderIndex))
                 .ThenInclude(fs => fs.SectionFields.OrderBy(sf => sf.OrderIndex))
                     .ThenInclude(sf => sf.Field)
-            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && !f.IsDeleted)
+            .Where(f => (f.ServiceId == serviceId || f.ServiceId == targetServiceId) && f.BaseFormId == null && !f.IsDeleted)
             .OrderByDescending(f => f.ServiceId == serviceId)
             .ThenByDescending(f => f.IsActive)
             .ThenByDescending(f => f.CreatedAt)
@@ -284,16 +285,32 @@ public class FormRepository : IFormRepository
             await _context.SaveChangesAsync(cancellationToken);
         }
 
-        // If this form is active, deactivate other versions strictly for the SAME service and SAME variant
+        // If this form is active, deactivate other versions strictly for the SAME scope
         if (form.IsActive)
         {
-            var otherActiveForms = await _context.Forms
+            var otherActiveFormsQuery = _context.Forms
                 .Where(f => f.ServiceId == serviceId &&
-                            f.ServiceVariantId == form.ServiceVariantId &&
                             f.Id != form.Id &&
                             !f.IsDeleted &&
-                            f.IsActive)
-                .ToListAsync(cancellationToken);
+                            f.IsActive);
+
+            if (form.ServiceVariantId.HasValue && form.ServiceVariantId.Value != Guid.Empty)
+            {
+                // Variant form with ServiceVariantId: only deactivate other forms for the SAME variant!
+                otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.ServiceVariantId == form.ServiceVariantId.Value);
+            }
+            else if (form.BaseFormId.HasValue && form.BaseFormId.Value != Guid.Empty)
+            {
+                // Variant form with BaseFormId (keyed variant): only deactivate other forms with the SAME Key!
+                otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.BaseFormId == form.BaseFormId.Value && f.Key == form.Key);
+            }
+            else
+            {
+                // Master Base Form: ONLY deactivate other base forms (never deactivate variant forms!)
+                otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.ServiceVariantId == null && f.BaseFormId == null);
+            }
+
+            var otherActiveForms = await otherActiveFormsQuery.ToListAsync(cancellationToken);
 
             if (otherActiveForms.Count > 0)
             {
@@ -499,13 +516,26 @@ public class FormRepository : IFormRepository
         form.IsActive = true;
         form.LastModifiedAt = DateTime.UtcNow;
 
-        var otherActiveForms = await _context.Forms
+        var otherActiveFormsQuery = _context.Forms
             .Where(f => f.ServiceId == form.ServiceId &&
-                        f.ServiceVariantId == form.ServiceVariantId &&
                         f.Id != form.Id &&
                         !f.IsDeleted &&
-                        f.IsActive)
-            .ToListAsync(cancellationToken);
+                        f.IsActive);
+
+        if (form.ServiceVariantId.HasValue && form.ServiceVariantId.Value != Guid.Empty)
+        {
+            otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.ServiceVariantId == form.ServiceVariantId.Value);
+        }
+        else if (form.BaseFormId.HasValue && form.BaseFormId.Value != Guid.Empty)
+        {
+            otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.BaseFormId == form.BaseFormId.Value && f.Key == form.Key);
+        }
+        else
+        {
+            otherActiveFormsQuery = otherActiveFormsQuery.Where(f => f.ServiceVariantId == null && f.BaseFormId == null);
+        }
+
+        var otherActiveForms = await otherActiveFormsQuery.ToListAsync(cancellationToken);
 
         foreach (var other in otherActiveForms)
         {

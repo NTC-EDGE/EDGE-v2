@@ -106,7 +106,9 @@ export function useFormBuilderService() {
     searchTerm?: string,
     serviceId?: string,
     serviceVariantId?: string,
-    formKey?: string
+    formKey?: string,
+    serviceCategoryId?: string,
+    isActive?: boolean
   ) => {
     const params = new URLSearchParams();
     params.append('pageNumber', pageNumber.toString());
@@ -122,6 +124,12 @@ export function useFormBuilderService() {
     }
     if (formKey !== undefined && formKey !== null && formKey.trim().length > 0) {
       params.append('formKey', formKey.trim());
+    }
+    if (serviceCategoryId !== undefined && serviceCategoryId !== null && serviceCategoryId.trim().length > 0) {
+      params.append('serviceCategoryId', serviceCategoryId.trim());
+    }
+    if (isActive !== undefined && isActive !== null) {
+      params.append('isActive', String(isActive));
     }
     return useQuery<PaginatedFormApiResponse<FormApiDto>>(`/api/v2/forms?${params.toString()}`);
   };

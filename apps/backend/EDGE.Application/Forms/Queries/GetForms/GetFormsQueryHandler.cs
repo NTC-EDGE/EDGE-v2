@@ -29,9 +29,20 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             forms = forms.Where(f => f.ServiceId == request.ServiceId.Value).ToList();
         }
 
+        if (request.ServiceCategoryId.HasValue && request.ServiceCategoryId.Value != Guid.Empty)
+        {
+            forms = forms.Where(f => f.Service != null && f.Service.ServiceCategoryId == request.ServiceCategoryId.Value).ToList();
+        }
+
         if (request.ServiceVariantId.HasValue && request.ServiceVariantId.Value != Guid.Empty)
         {
             forms = forms.Where(f => f.ServiceVariantId == request.ServiceVariantId.Value).ToList();
+        }
+        else
+        {
+            // Canonical forms are shared base forms; exclude any stray isolated variant rows
+            forms = forms.Where(f => (!f.ServiceVariantId.HasValue || f.ServiceVariantId.Value == Guid.Empty)
+                                  && (!f.BaseFormId.HasValue || f.BaseFormId.Value == Guid.Empty)).ToList();
         }
 
         if (!string.IsNullOrWhiteSpace(request.FormKey))
@@ -59,11 +70,9 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             ).ToList();
         }
 
-        // Group by application type + variant. Standalone forms without a service are grouped individually.
+        // Group by canonical ServiceId (or standalone Form Id if not linked to a service).
         var grouped = forms
-            .GroupBy(f => f.ServiceVariantId.HasValue
-                ? $"{f.ServiceId}:{f.ServiceVariantId.Value}"
-                : (f.ServiceId != Guid.Empty ? $"{f.ServiceId}:base" : f.Id.ToString()))
+            .GroupBy(f => f.ServiceId != Guid.Empty ? $"{f.ServiceId}:base" : f.Id.ToString())
             .Select(g =>
             {
                 var allInGroup = g.OrderByDescending(f => f.IsActive).ThenByDescending(f => f.CreatedAt).ToList();
@@ -128,9 +137,16 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
             .OrderByDescending(f => f.UpdatedAt ?? f.CreatedAt)
             .ToList();
 
+        if (request.IsActive.HasValue)
+        {
+            grouped = grouped.Where(f => f.IsActive == request.IsActive.Value).ToList();
+        }
+
         int totalCount = grouped.Count;
         int pageNumber = request.PageNumber ?? 1;
         int pageSize = request.PageSize ?? 50;
+        if (pageNumber <= 0) pageNumber = 1;
+        if (pageSize <= 0) pageSize = 50;
 
         var paginated = grouped
             .Skip((pageNumber - 1) * pageSize)
@@ -139,9 +155,9 @@ public class GetFormsQueryHandler : IRequestHandler<GetFormsQuery, PaginatedApiR
 
         return new PaginatedApiResponse<FormDto>(
             paginated,
-            totalCount,
             pageNumber,
             pageSize,
+            totalCount,
             "Forms retrieved successfully.");
     }
 }
