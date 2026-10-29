@@ -133,10 +133,13 @@ export function GeneralWizardSteps({
           onSelectVariant={onSelectVariant}
           selectedElementId={activeApplicant.selectedElementId}
           onSelectElement={(elemId, elemTitle) => {
-            updateActiveApplicant({
-              selectedElementId: elemId,
-              selectedElementTitle: elemTitle,
-            });
+            setApplicants((prev) =>
+              prev.map((app) => ({
+                ...app,
+                selectedElementId: elemId,
+                selectedElementTitle: elemTitle,
+              }))
+            );
           }}
           applicantType={activeApplicant.applicantType || "individual"}
           onApplicantTypeChange={(type) => {
@@ -223,7 +226,27 @@ export function GeneralWizardSteps({
           uploadedFileName={uploadedFileName}
           setUploadedFileName={setUploadedFileName}
           onApplicantsImported={(newApps) => {
-            setApplicants(newApps);
+            const enriched = newApps.map((app) => ({
+              ...app,
+              selectedVariantId: activeApplicant.selectedVariantId || app.selectedVariantId,
+              selectedVariantName: activeApplicant.selectedVariantName || app.selectedVariantName,
+              selectedElementId: activeApplicant.selectedElementId || app.selectedElementId,
+              selectedElementTitle: activeApplicant.selectedElementTitle || app.selectedElementTitle,
+              applicantType: activeApplicant.applicantType || app.applicantType || "individual",
+              ...(activeApplicant.applicantType === "company"
+                ? {
+                    companyName: activeApplicant.companyName || app.companyName,
+                    representativeName: activeApplicant.representativeName || app.representativeName,
+                    representativePosition: activeApplicant.representativePosition || app.representativePosition,
+                    representativeFirstName: activeApplicant.representativeFirstName || app.representativeFirstName,
+                    representativeMiddleName: activeApplicant.representativeMiddleName || app.representativeMiddleName,
+                    representativeLastName: activeApplicant.representativeLastName || app.representativeLastName,
+                    representativeSuffix: activeApplicant.representativeSuffix || app.representativeSuffix,
+                    dtiSecRegistration: activeApplicant.dtiSecRegistration || app.dtiSecRegistration,
+                  }
+                : {}),
+            }));
+            setApplicants(enriched);
             setCurrentApplicantIndex(0);
           }}
           errors={errors}

@@ -777,10 +777,40 @@ export function useServices() {
 
   const handleAddGeneralApplicant = () => {
     const nextId = generalApplicants.length + 1;
-    const newApp = initialGeneralApplicant(nextId);
+    const baseApp = generalApplicants[0];
+    const newApp: GeneralApplicantData = {
+      ...initialGeneralApplicant(nextId),
+      selectedVariantId: baseApp?.selectedVariantId,
+      selectedVariantName: baseApp?.selectedVariantName,
+      selectedElementId: baseApp?.selectedElementId,
+      selectedElementTitle: baseApp?.selectedElementTitle,
+      applicantType: baseApp?.applicantType || "individual",
+      ...(baseApp?.applicantType === "company"
+        ? {
+            companyName: baseApp.companyName,
+            representativeName: baseApp.representativeName,
+            representativePosition: baseApp.representativePosition,
+            representativeFirstName: baseApp.representativeFirstName,
+            representativeMiddleName: baseApp.representativeMiddleName,
+            representativeLastName: baseApp.representativeLastName,
+            representativeSuffix: baseApp.representativeSuffix,
+            dtiSecRegistration: baseApp.dtiSecRegistration,
+            contactNo: baseApp.contactNo,
+            email: baseApp.email,
+            region: baseApp.region,
+            province: baseApp.province,
+            city: baseApp.city,
+            barangay: baseApp.barangay,
+            street: baseApp.street,
+            address: baseApp.address,
+            zipCode: baseApp.zipCode,
+          }
+        : {}),
+    };
     setGeneralApplicants((prev) => [...prev, newApp]);
     setCurrentGeneralApplicantIndex(generalApplicants.length);
-    setWizardStep(4);
+    setWizardStep(3);
+    setTriggerOpenApplicant((prev: number) => prev + 1);
   };
 
   const handleRemoveGeneralApplicant = (idx: number) => {

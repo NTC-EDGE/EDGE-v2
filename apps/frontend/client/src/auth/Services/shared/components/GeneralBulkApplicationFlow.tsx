@@ -19,6 +19,8 @@ import {
 } from "../hooks/useGeneralServiceWizard";
 import { GeneralFilingDetailsStep } from "./GeneralFilingDetailsStep";
 import { GeneralDocumentUploadStep } from "./GeneralDocumentUploadStep";
+import { GeneralReviewSubmitStep } from "./GeneralReviewSubmitStep";
+import { TenantInfo, OfficeInfo, ExamScheduleItem } from "../types/generalApplicantTypes";
 import { isGeneralApplicantComplete } from "../GeneralBulkApplicantsPanel";
 import { validateContactNumber, validateEmailAddress } from "../../../../shared/helpers/fieldValidators";
 import {
@@ -36,7 +38,7 @@ import {
 } from "../../../../shared/constants/fieldIds";
 
 // ─── Types ─────────────────────────────────────────────────────────────────
-type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD";
+type BulkSubView = "FILING_DETAILS" | "DOCUMENT_UPLOAD" | "REVIEW";
 
 interface GeneralBulkApplicationFlowProps {
   service: NTCService;
@@ -56,6 +58,15 @@ interface GeneralBulkApplicationFlowProps {
   variantElements?: ServiceVariantElementInfo[];
   onSaveDraft?: () => void;
   isSavingDraft?: boolean;
+  tenants?: TenantInfo[];
+  offices?: OfficeInfo[];
+  selectedRegionId?: string;
+  selectedOfficeId?: string;
+  schedules?: ExamScheduleItem[];
+  selectedScheduleId?: string | null;
+  filingIntent?: "Regular" | "AssessmentOnly";
+  onFilingIntentChange?: (intent: "Regular" | "AssessmentOnly") => void;
+  triggerBulkSubmit?: number;
 }
 
 import { getApplicantDisplayName } from "../helpers/applicantDisplayHelper";
@@ -78,6 +89,15 @@ export function GeneralBulkApplicationFlow({
   variantElements = [],
   onSaveDraft,
   isSavingDraft = false,
+  tenants = [],
+  offices = [],
+  selectedRegionId = "",
+  selectedOfficeId = "",
+  schedules = [],
+  selectedScheduleId = null,
+  filingIntent = "Regular",
+  onFilingIntentChange,
+  triggerBulkSubmit = 0,
 }: GeneralBulkApplicationFlowProps) {
   const [subView, setSubView] = useState<BulkSubView>("FILING_DETAILS");
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
@@ -550,19 +570,35 @@ export function GeneralBulkApplicationFlow({
       setCurrentApplicantIndex(currentApplicantIndex + 1);
       setSubView("FILING_DETAILS");
     } else {
-      onSubmitAll();
+      setSubView("REVIEW");
     }
   };
 
   const handleBottomBack = () => {
-    if (subView === "DOCUMENT_UPLOAD") {
+    if (subView === "REVIEW") {
+      setSubView("DOCUMENT_UPLOAD");
+    } else if (subView === "DOCUMENT_UPLOAD") {
       setSubView("FILING_DETAILS");
     } else if (currentApplicantIndex > 0) {
       setCurrentApplicantIndex(currentApplicantIndex - 1);
-      setSubView("FILING_DETAILS");
+      setSubView("DOCUMENT_UPLOAD");
     } else {
       onBack?.();
     }
+  };
+
+  const handleCohortReviewSubmit = () => {
+    const incompleteCount = applicants.filter(
+      (app) => !isGeneralApplicantComplete(app, service, variantRequirements)
+    ).length;
+    if (incompleteCount > 0) {
+      Alert.alert(
+        "Incomplete Applicants",
+        `Cannot submit: ${incompleteCount} of ${applicants.length} applicant(s) are incomplete. Please complete all required personal details and document uploads before submitting.`
+      );
+      return;
+    }
+    onSubmitAll();
   };
 
   const name = getApplicantDisplayName(activeApplicant, currentApplicantIndex);
@@ -581,7 +617,7 @@ export function GeneralBulkApplicationFlow({
               {service.title}
             </Text>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: "#64748B" }}>
-              Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : "Mandatory Document Attachments"}
+              Bulk / Corporate Filing — {subView === "FILING_DETAILS" ? "Applicant Information & Parameters" : subView === "DOCUMENT_UPLOAD" ? "Mandatory Document Attachments" : "Cohort Summary Review & Statutory Fees"}
             </Text>
           </View>
           {onSaveDraft && (
@@ -653,7 +689,7 @@ export function GeneralBulkApplicationFlow({
             variants={variants}
             variantElements={variantElements}
           />
-        ) : (
+        ) : subView === "DOCUMENT_UPLOAD" ? (
           <GeneralDocumentUploadStep
             service={service}
             activeApplicant={activeApplicant}
@@ -673,6 +709,25 @@ export function GeneralBulkApplicationFlow({
               });
             }}
             errors={formErrors}
+          />
+        ) : (
+          <GeneralReviewSubmitStep
+            service={service}
+            tenants={tenants}
+            offices={offices}
+            selectedRegionId={selectedRegionId || null}
+            selectedOfficeId={selectedOfficeId || null}
+            activeApplicant={activeApplicant}
+            applicants={applicants}
+            currentApplicantIndex={currentApplicantIndex}
+            appMode="BULK"
+            variants={variants}
+            variantRequirements={variantRequirements}
+            schedules={schedules}
+            selectedScheduleId={selectedScheduleId}
+            filingIntent={filingIntent}
+            onFilingIntentChange={onFilingIntentChange}
+            onSelectApplicant={setCurrentApplicantIndex}
           />
         )}
       </ScrollView>
@@ -718,14 +773,14 @@ export function GeneralBulkApplicationFlow({
               }}
             >
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: "700", color: "#475569" }}>
-                APPLICANT {currentApplicantIndex + 1}/{applicants.length} · {subView === "FILING_DETAILS" ? "DETAILS" : "DOCS"}
+                APPLICANT {currentApplicantIndex + 1}/{applicants.length} · {subView === "FILING_DETAILS" ? "DETAILS" : subView === "DOCUMENT_UPLOAD" ? "DOCS" : "REVIEW"}
               </Text>
             </View>
           </View>
 
           {/* Action Buttons */}
           <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
-            {(subView === "DOCUMENT_UPLOAD" || currentApplicantIndex > 0) && (
+            {(subView === "REVIEW" || subView === "DOCUMENT_UPLOAD" || currentApplicantIndex > 0) && (
               <TouchableOpacity
                 onPress={handleBottomBack}
                 activeOpacity={0.7}
@@ -745,25 +800,31 @@ export function GeneralBulkApplicationFlow({
               >
                 <Icon name="arrow-left" size={15} color={COLORS.neutral[700]} />
                 <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: "700", color: COLORS.neutral[700] }}>
-                  {subView === "DOCUMENT_UPLOAD" ? "Back to Details" : "Prev Applicant"}
+                  {subView === "REVIEW" ? "Back to Documents" : subView === "DOCUMENT_UPLOAD" ? "Back to Details" : "Prev Applicant"}
                 </Text>
               </TouchableOpacity>
             )}
 
             <TouchableOpacity
-              onPress={subView === "FILING_DETAILS" ? handleFilingDetailsNext : handleDocumentUploadNext}
+              onPress={
+                subView === "FILING_DETAILS"
+                  ? handleFilingDetailsNext
+                  : subView === "DOCUMENT_UPLOAD"
+                  ? handleDocumentUploadNext
+                  : handleCohortReviewSubmit
+              }
               activeOpacity={0.8}
               style={{
                 flexDirection: "row",
                 alignItems: "center",
                 justifyContent: "center",
                 gap: 8,
-                backgroundColor: subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "#16A34A" : "#0F2C59",
+                backgroundColor: subView === "REVIEW" ? "#16A34A" : "#0F2C59",
                 borderRadius: 10,
                 paddingVertical: 10,
                 paddingHorizontal: 24,
                 minWidth: 140,
-                shadowColor: "#0F2C59",
+                shadowColor: subView === "REVIEW" ? "#16A34A" : "#0F2C59",
                 shadowOffset: { width: 0, height: 2 },
                 shadowOpacity: 0.15,
                 shadowRadius: 4,
@@ -773,12 +834,12 @@ export function GeneralBulkApplicationFlow({
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13.5, fontWeight: "700", color: "#FFFFFF" }}>
                 {subView === "FILING_DETAILS"
                   ? "Proceed to Documents"
-                  : currentApplicantIndex < applicants.length - 1
-                  ? "Next Applicant"
-                  : "Review & Submit Bulk Cohort"}
+                  : subView === "DOCUMENT_UPLOAD"
+                  ? (currentApplicantIndex < applicants.length - 1 ? "Next Applicant" : "Proceed to Cohort Review")
+                  : `Confirm & Submit Cohort (${applicants.length})`}
               </Text>
               <Icon
-                name={subView === "DOCUMENT_UPLOAD" && currentApplicantIndex === applicants.length - 1 ? "check-circle" : "arrow-right"}
+                name={subView === "REVIEW" ? "check-circle" : "arrow-right"}
                 size={15}
                 color="#FFFFFF"
               />

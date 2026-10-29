@@ -122,7 +122,28 @@ export function ContentColumn({ servicesState }: ContentColumnProps) {
           onRemoveApplicants={handleRemoveMultipleGeneralApplicants}
           onAddApplicant={handleAddGeneralApplicant}
           onApplicantsImported={(imported) => {
-            servicesState.setGeneralApplicants(imported);
+            const baseApp = generalApplicants[0];
+            const enriched = imported.map((app) => ({
+              ...app,
+              selectedVariantId: baseApp?.selectedVariantId || app.selectedVariantId,
+              selectedVariantName: baseApp?.selectedVariantName || app.selectedVariantName,
+              selectedElementId: baseApp?.selectedElementId || app.selectedElementId,
+              selectedElementTitle: baseApp?.selectedElementTitle || app.selectedElementTitle,
+              applicantType: baseApp?.applicantType || app.applicantType || "individual",
+              ...(baseApp?.applicantType === "company"
+                ? {
+                    companyName: baseApp.companyName || app.companyName,
+                    representativeName: baseApp.representativeName || app.representativeName,
+                    representativePosition: baseApp.representativePosition || app.representativePosition,
+                    representativeFirstName: baseApp.representativeFirstName || app.representativeFirstName,
+                    representativeMiddleName: baseApp.representativeMiddleName || app.representativeMiddleName,
+                    representativeLastName: baseApp.representativeLastName || app.representativeLastName,
+                    representativeSuffix: baseApp.representativeSuffix || app.representativeSuffix,
+                    dtiSecRegistration: baseApp.dtiSecRegistration || app.dtiSecRegistration,
+                  }
+                : {}),
+            }));
+            servicesState.setGeneralApplicants(enriched);
             setCurrentGeneralApplicantIndex(0);
           }}
           service={selectedService}

@@ -284,19 +284,24 @@ export function GeneralServiceWizard({
       ];
     }
 
-    updateActiveApplicant({
-      selectedVariantId: variantId,
-      selectedVariantName: variantName,
-      selectedElementId: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementId : undefined,
-      selectedElementTitle: activeApplicant.selectedVariantId === variantId ? activeApplicant.selectedElementTitle : undefined,
-      formFieldValues: updatedFieldValues,
-      amateurLicenseData: currentAmateur
-        ? { ...currentAmateur, appType }
-        : undefined,
-      radioCertData: currentRadio
-        ? { ...currentRadio, appType }
-        : undefined,
-    });
+    setApplicants((prev) =>
+      prev.map((app, idx) => {
+        const isCurrent = idx === currentApplicantIndex;
+        const appFieldValues = isCurrent ? updatedFieldValues : app.formFieldValues;
+        const appAmateur = app.amateurLicenseData;
+        const appRadio = app.radioCertData;
+        return {
+          ...app,
+          selectedVariantId: variantId,
+          selectedVariantName: variantName,
+          selectedElementId: app.selectedVariantId === variantId ? app.selectedElementId : undefined,
+          selectedElementTitle: app.selectedVariantId === variantId ? app.selectedElementTitle : undefined,
+          formFieldValues: appFieldValues,
+          amateurLicenseData: appAmateur ? { ...appAmateur, appType } : undefined,
+          radioCertData: appRadio ? { ...appRadio, appType } : undefined,
+        };
+      })
+    );
   };
 
   // When BULK mode is confirmed and user has moved past step 2, hand off to the
@@ -321,6 +326,15 @@ export function GeneralServiceWizard({
           onSubmitAll={() => setIsConfirmModalOpen(true)}
           onSaveDraft={onSaveDraft}
           isSavingDraft={isSavingDraft}
+          tenants={tenants}
+          offices={offices}
+          selectedRegionId={selectedRegionId}
+          selectedOfficeId={selectedOfficeId}
+          schedules={schedules}
+          selectedScheduleId={selectedScheduleId}
+          filingIntent={filingIntent}
+          onFilingIntentChange={setFilingIntent}
+          triggerBulkSubmit={triggerBulkSubmit}
         />
         <GeneralWizardModals
           serviceTitle={service.title}
