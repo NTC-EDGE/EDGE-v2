@@ -245,24 +245,6 @@ export function CanvasField({
       });
     }
 
-    const variants = condition.variants ?? condition.applicationTypes ?? [];
-    if (variants.length > 0) {
-      badges.push({
-        label: variants.length <= 2 ? `⚡ Variant: ${variants.join(", ")}` : `⚡ ${variants.length} Variants`,
-        tooltip: `Active for variants: ${variants.join(", ")}`,
-        type: "variant",
-      });
-    }
-
-    const excluded = condition.excludedVariants ?? [];
-    if (excluded.length > 0) {
-      badges.push({
-        label: excluded.length <= 2 ? `🚫 Excluded: ${excluded.join(", ")}` : `🚫 ${excluded.length} Excluded`,
-        tooltip: `Hidden for variants: ${excluded.join(", ")}`,
-        type: "variant",
-      });
-    }
-
     const services = condition.services ?? [];
     if (services.length > 0) {
       badges.push({

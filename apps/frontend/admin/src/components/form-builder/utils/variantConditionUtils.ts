@@ -33,6 +33,9 @@ export function isFieldApplicableForVariant(field: FormField, selectedVariant: s
     (field.visibilityCondition ? parseFieldCondition(field.visibilityCondition) : undefined);
 
   if (!selectedVariant || selectedVariant === "ALL") {
+    if (cond?.excludedVariants && cond.excludedVariants.length > 0) {
+      return true;
+    }
     if (cond?.variants && cond.variants.length > 0 && !cond.variants.includes("ALL")) {
       return false;
     }
@@ -85,15 +88,9 @@ export function excludeVariantFromField(
     ? prevExcluded
     : [...prevExcluded, variantName];
 
-  let nextVariants = cond?.variants;
-  if (nextVariants && nextVariants.length > 0) {
-    nextVariants = nextVariants.filter((v) => !variantNamesMatch(v, variantName));
-    if (nextVariants.length === 0) nextVariants = ["__NONE__"];
-  }
-
   const updatedCond: FieldCondition = {
     ...cond,
-    variants: nextVariants,
+    variants: undefined,
     excludedVariants: nextExcluded,
     applicationTypes: undefined,
   };
