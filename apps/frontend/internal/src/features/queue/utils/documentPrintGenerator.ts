@@ -73,14 +73,24 @@ export function getEligibleTemplatesForApplication(
   const service = (app.serviceName || app.permitTitle || '').toLowerCase();
   const serviceVariant = (app.serviceVariantName || '').toLowerCase();
 
+  // Radio Operator Examination Admission Slip (Form 1-01)
+  if (
+    category.includes('exam') ||
+    service.includes('admission') ||
+    service.includes('examination') ||
+    serviceVariant.includes('exam')
+  ) {
+    const admissionTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-ADMISSION');
+    if (admissionTemplates.length > 0) return admissionTemplates;
+  }
+
   // Radio Operator Certificate (ROC) / Amateur Operator
   if (
     category.includes('operator') ||
     service.includes('operator') ||
     service.includes('roc') ||
     serviceVariant.includes('roc') ||
-    service.includes('amateur') ||
-    service.includes('examination')
+    service.includes('amateur')
   ) {
     const operatorTemplates = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => t.id === 'NTC-FORM-102');
     if (operatorTemplates.length > 0) return operatorTemplates;
@@ -114,6 +124,7 @@ export function getEligibleTemplatesForApplication(
   // Fallback: match by closest non-financial category
   const matchedByCategory = ACCOUNTABLE_FORM_TEMPLATES.filter((t) => {
     if (t.id === 'NTC-FORM-SOA' || t.id === 'AF-51') return false;
+    if (category.includes('exam') && t.category === 'Exams') return true;
     if (category.includes('license') && t.category === 'Licenses') return true;
     if (category.includes('cert') && t.category === 'Certificates') return true;
     if (category.includes('permit') && t.category === 'Permits') return true;
@@ -533,6 +544,11 @@ export function generateAccountableFormOverlayHtml(
   const remarks = safeStr(options.remarks || app.note, 'None');
   const totalAmount = app.totalAmountDue ? `PHP ${app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}` : 'N/A';
 
+  const examFor = safeStr(options.issuedDocumentType || app.serviceVariantName || app.serviceName, 'Commercial Radio Operator Examination');
+  const examVenue = safeStr(app.office, 'NTC Central Office / Regional Examination Center');
+  const examDate = formatDate(options.issueDate || app.createdAt);
+  const examTime = safeStr(options.remarks && options.remarks.includes(':') ? options.remarks : '08:00 AM');
+
   const valuesMap: Record<string, string> = {
     formNumber: formNum,
     licenseNumber: licNum,
@@ -542,6 +558,11 @@ export function generateAccountableFormOverlayHtml(
     stationClass: stationClass,
     serviceCategory: serviceCategory,
     serviceName: serviceName,
+    examFor: examFor,
+    examVenue: examVenue,
+    examDate: examDate,
+    examTime: examTime,
+    applicantPhoto: safeStr(options.applicantPhotoUrl, ''),
     frequencyBand: freqBand,
     equipmentDetails: `Make: Standard / Transceiver Power: Compliant`,
     issueDate: issueDateStr,
@@ -568,18 +589,60 @@ export function generateAccountableFormOverlayHtml(
     const alignStyle = f.textAlign ? `text-align: ${f.textAlign};` : 'text-align: left;';
     const fontFam = f.isMonospace ? 'font-family: "Courier New", Courier, monospace;' : 'font-family: Arial, Helvetica, sans-serif;';
 
-    if (f.id === 'qrCode') {
+    if (f.id === 'applicantPhoto' || f.id === 'photo') {
+      const photoSrc = options.applicantPhotoUrl || valuesMap.applicantPhoto || '';
+      if (photoSrc && photoSrc.trim().length > 0) {
+        return `
+          <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} overflow: hidden; border: 1pt solid #cbd5e1; background: #ffffff; display: flex; align-items: center; justify-content: center; box-sizing: border-box;">
+            <img src="${photoSrc}" alt="1x1 ID Picture" style="width: 100%; height: 100%; object-fit: cover; display: block;" />
+          </div>
+        `;
+      }
       return `
-        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle}">
-          <svg width="100%" height="100%" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.5">
-            <rect x="2" y="2" width="8" height="8" rx="1"/>
-            <rect x="14" y="2" width="8" height="8" rx="1"/>
-            <rect x="2" y="14" width="8" height="8" rx="1"/>
-            <rect x="5" y="5" width="2" height="2" fill="#000"/>
-            <rect x="17" y="5" width="2" height="2" fill="#000"/>
-            <rect x="5" y="17" width="2" height="2" fill="#000"/>
-            <path d="M14 14h2v2h-2zM18 14h4v2h-4zM14 18h4v4h-4zM20 18h2v4h-2z"/>
+        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} border: 1.5pt dashed #94a3b8; background: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; padding: 2mm;">
+          <div style="font-family: Arial, sans-serif; font-size: 7.5pt; font-weight: bold; color: #475569;">1" × 1"</div>
+          <div style="font-family: Arial, sans-serif; font-size: 6pt; color: #94a3b8; margin-top: 1mm;">PHOTO</div>
+        </div>
+      `;
+    }
+
+    if (f.id === 'qrCode') {
+      const qrCodeVal = options.qrCodeValue || safeStr(app.referenceNumber || app.applicationNumber || app.id, 'NTC-VERIFY');
+      return `
+        <div class="overlay-field" style="top: ${topPos}mm; left: ${leftPos}mm; ${widthStyle} ${heightStyle} display: flex; flex-direction: column; align-items: center; justify-content: center; box-sizing: border-box;">
+          <svg width="100%" height="100%" viewBox="0 0 100 100" fill="none" style="display: block;">
+            <rect width="100" height="100" fill="#ffffff" />
+            <rect x="5" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+            <rect x="11" y="11" width="16" height="16" fill="#000000" />
+            <rect x="67" y="5" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+            <rect x="73" y="11" width="16" height="16" fill="#000000" />
+            <rect x="5" y="67" width="28" height="28" rx="2" stroke="#000000" stroke-width="3.5" fill="none" />
+            <rect x="11" y="73" width="16" height="16" fill="#000000" />
+            <rect x="40" y="8" width="6" height="6" fill="#000" />
+            <rect x="52" y="8" width="6" height="6" fill="#000" />
+            <rect x="40" y="20" width="6" height="12" fill="#000" />
+            <rect x="52" y="24" width="6" height="6" fill="#000" />
+            <rect x="8" y="40" width="12" height="6" fill="#000" />
+            <rect x="24" y="40" width="6" height="14" fill="#000" />
+            <rect x="36" y="40" width="10" height="10" fill="#000" />
+            <rect x="52" y="38" width="8" height="8" fill="#000" />
+            <rect x="68" y="40" width="8" height="6" fill="#000" />
+            <rect x="82" y="40" width="10" height="6" fill="#000" />
+            <rect x="40" y="56" width="6" height="12" fill="#000" />
+            <rect x="52" y="52" width="10" height="6" fill="#000" />
+            <rect x="68" y="54" width="6" height="10" fill="#000" />
+            <rect x="80" y="54" width="12" height="6" fill="#000" />
+            <rect x="40" y="74" width="12" height="6" fill="#000" />
+            <rect x="58" y="70" width="6" height="12" fill="#000" />
+            <rect x="70" y="68" width="6" height="16" fill="#000" />
+            <rect x="84" y="68" width="8" height="8" fill="#000" />
+            <rect x="52" y="86" width="14" height="6" fill="#000" />
+            <rect x="72" y="86" width="8" height="6" fill="#000" />
+            <rect x="86" y="80" width="6" height="14" fill="#000" />
           </svg>
+          <div style="font-family: 'Courier New', monospace; font-size: 5pt; font-weight: bold; color: #000000; text-align: center; margin-top: 0.5mm; letter-spacing: 0.2px;">
+            ${qrCodeVal}
+          </div>
         </div>
       `;
     }

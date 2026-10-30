@@ -72,6 +72,8 @@ export interface DocumentPrintOptions {
   signatoryName?: string;
   signatoryTitle?: string;
   remarks?: string;
+  applicantPhotoUrl?: string;
+  qrCodeValue?: string;
 }
 
 export interface AccountableFormFieldCoordinate {
@@ -92,7 +94,7 @@ export interface AccountableFormTemplate {
   id: string;
   code: string;
   title: string;
-  category: 'Licenses' | 'Permits' | 'Certificates' | 'Receipts' | 'General';
+  category: 'Licenses' | 'Permits' | 'Certificates' | 'Receipts' | 'General' | 'Exams';
   defaultPaperSize: PaperSize;
   defaultOrientation: PageOrientation;
   dimensions: {
@@ -103,6 +105,29 @@ export interface AccountableFormTemplate {
 }
 
 export const ACCOUNTABLE_FORM_TEMPLATES: AccountableFormTemplate[] = [
+  {
+    id: 'NTC-FORM-ADMISSION',
+    code: 'NTC Form No. 1-01',
+    title: 'Admission Slip for Radio Operator Examination',
+    category: 'Exams',
+    defaultPaperSize: 'letter',
+    defaultOrientation: 'portrait',
+    dimensions: { widthMm: 215.9, heightMm: 279.4 },
+    fields: [
+      { id: 'formNumber', label: 'Admission Slip No.', topMm: 36, leftMm: 140, widthMm: 55, fontSizePt: 11, fontWeight: 'bold', textAlign: 'right', isMonospace: true },
+      { id: 'applicantName', label: 'Examinee Name', topMm: 58, leftMm: 28, widthMm: 120, fontSizePt: 12, fontWeight: 'bold', uppercase: true },
+      { id: 'address', label: 'Mailing Address', topMm: 68, leftMm: 28, widthMm: 120, fontSizePt: 9.5 },
+      { id: 'examFor', label: 'Examination For', topMm: 86, leftMm: 28, widthMm: 120, fontSizePt: 10.5, fontWeight: '600' },
+      { id: 'examVenue', label: 'Place of Examination', topMm: 104, leftMm: 28, widthMm: 120, fontSizePt: 9.5 },
+      { id: 'examDate', label: 'Date of Examination', topMm: 118, leftMm: 28, widthMm: 45, fontSizePt: 9.5, fontWeight: 'bold' },
+      { id: 'examTime', label: 'Time of Examination', topMm: 118, leftMm: 80, widthMm: 45, fontSizePt: 9.5 },
+      { id: 'orNumber', label: 'Official Receipt No.', topMm: 132, leftMm: 28, widthMm: 45, fontSizePt: 9.5, isMonospace: true },
+      { id: 'signatoryName', label: 'Authorized Officer', topMm: 155, leftMm: 28, widthMm: 70, fontSizePt: 10.5, fontWeight: 'bold', textAlign: 'center', uppercase: true },
+      { id: 'signatoryTitle', label: 'Designation', topMm: 161, leftMm: 28, widthMm: 70, fontSizePt: 8.5, textAlign: 'center' },
+      { id: 'applicantPhoto', label: '1x1 ID Picture', topMm: 54, leftMm: 160, widthMm: 28, heightMm: 28 },
+      { id: 'qrCode', label: 'Verification QR Code', topMm: 90, leftMm: 160, widthMm: 28, heightMm: 28 },
+    ],
+  },
   {
     id: 'NTC-FORM-101',
     code: 'NTC Form No. 101',
@@ -226,6 +251,16 @@ export interface ReportPrintProfile {
 }
 
 export const REPORT_PRINT_PROFILES: ReportPrintProfile[] = [
+  {
+    id: 'NTC-FORM-ADMISSION',
+    name: 'Radio Operator Examination Admission Slip (Form 1-01)',
+    category: 'General',
+    description: 'Radio Operator Examination Admission Slip with 1x1 Photo & QR Verification',
+    defaultPaperSize: 'letter',
+    defaultOutputMode: 'accountable_form',
+    defaultOrientation: 'portrait',
+    associatedTemplateId: 'NTC-FORM-ADMISSION',
+  },
   {
     id: 'AF-51',
     name: 'Official Receipt (Accountable Form 51)',

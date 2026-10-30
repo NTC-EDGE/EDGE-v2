@@ -100,4 +100,8 @@ public class IssuedDocumentModel
     public string? ProcessByEvaluation { get; set; }
     public bool IsAlternateIssuer { get; set; }
     public string? OriginalEvaluatorName { get; set; }
+
+    // Applicant ID Photo (1" x 1")
+    public string? ApplicantPhotoUrl { get; set; }
+    public byte[]? ApplicantPhotoBytes { get; set; }
 }

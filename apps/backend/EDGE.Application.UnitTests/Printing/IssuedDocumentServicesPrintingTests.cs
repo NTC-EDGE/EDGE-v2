@@ -80,6 +80,54 @@ public class IssuedDocumentServicesPrintingTests
     }
 
     [Fact]
+    public async Task ExamAdmissionSlip_WithApplicantPhotoAndQr_FillsSuccessfully()
+    {
+        var provider = new CloudflareR2PdfTemplateProvider(
+            Microsoft.Extensions.Options.Options.Create(new EDGE.Infrastructure.Options.CloudflareR2Options()),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<CloudflareR2PdfTemplateProvider>.Instance,
+            null);
+
+        var templateResource = await provider.GetTemplateResourceAsync("Service-1-Admission-Slip.pdf");
+        Assert.NotNull(templateResource);
+
+        using var ms = new MemoryStream();
+        await templateResource.Stream.CopyToAsync(ms);
+        var templateBytes = ms.ToArray();
+
+        // 1x1 test image bytes
+        byte[] tinyPngBytes = Convert.FromBase64String("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==");
+
+        var model = new IssuedDocumentModel
+        {
+            TemplateName = "Service-1-Admission-Slip.pdf",
+            DocumentType = "Admission Slip",
+            DocumentTitle = "EXAMINATION ADMISSION SLIP",
+            LicenseeName = "MARIA CLARA DE LOS SANTOS",
+            Address = "Unit 401 Sunset Blvd, Cebu City",
+            RegionalOffice = "Region VII",
+            Exam = "RESTRICTED RADIOTELEPHONE OPERATOR CERTIFICATE (RROC)",
+            ExamVenue = "NTC Regional Office VII Mandaue",
+            ExamDate = "12/01/2026",
+            ExamTime = "09:00 AM",
+            AmountPaid = 250.00m,
+            OfficialReceiptNumber = "OR-998877",
+            SignatoryName = "DIR. ENGR. JUANITA SANTOS",
+            QrVerificationCode = "NTC-VERIFY-EXAM-998877",
+            ApplicantPhotoBytes = tinyPngBytes,
+            ApplicantPhotoUrl = "https://cdn.edge.ntc.gov.ph/photos/maria.png"
+        };
+
+        var filledBytes = IssuedDocumentAcroFormFiller.Fill(templateBytes, model);
+
+        Assert.NotNull(filledBytes);
+        Assert.True(filledBytes.Length > 5000);
+
+        using var checkReader = new PdfReader(new MemoryStream(filledBytes));
+        using var checkDoc = new PdfDocument(checkReader);
+        Assert.Equal(1, checkDoc.GetNumberOfPages());
+    }
+
+    [Fact]
     public async Task Accreditation_SupplierAndDealerPermits_FillsAndProducesValidPdf()
     {
         var provider = new CloudflareR2PdfTemplateProvider(

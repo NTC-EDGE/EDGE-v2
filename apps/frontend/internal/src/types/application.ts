@@ -24,6 +24,7 @@ export interface RequirementDocument {
   note?: string;
   filename: string;
   thumbnailUri?: string;
+  url?: string;
 }
 
 export interface ApplicationFormAttachment {
