@@ -18,6 +18,7 @@ export interface GeneralReviewSubmitStepProps {
   selectedScheduleId?: string | null;
   filingIntent?: 'Regular' | 'AssessmentOnly';
   onFilingIntentChange?: (intent: 'Regular' | 'AssessmentOnly') => void;
+  onSelectApplicant?: (idx: number) => void;
 }
 
 export interface PreviewFileObject {

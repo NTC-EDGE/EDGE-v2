@@ -101,6 +101,7 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               appMode={appMode}
               applicants={applicants}
               currentApplicantIndex={currentApplicantIndex}
+              onSelectApplicant={props.onSelectApplicant}
             />
           </>
         }

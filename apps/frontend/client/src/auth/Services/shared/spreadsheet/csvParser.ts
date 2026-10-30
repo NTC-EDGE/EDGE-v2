@@ -253,7 +253,7 @@ export function parseSpreadsheetContent(
       const serialsStr = getVal("equipmentserialnumbers", "serialnumbers", "serials");
       if (serialsStr) {
         const serialsList = serialsStr.split(/[;,]/).map((s) => s.trim()).filter((s) => s.length > 0);
-        if (serialsList.length > 0 && appObj.deviceRegData.particulars[0]) {
+        if (serialsList.length > 0 && appObj.deviceRegData?.particulars?.[0]) {
           appObj.deviceRegData.particulars[0].equipmentSerials = serialsList.map((sn, sIdx) => ({
             id: `s-${i}-${sIdx}`,
             serialNumber: sn,

@@ -92,9 +92,9 @@ export function CPEStep4BulkMethod({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, mockService);
-        if (parseResult.applicants.length > 0 && setApplicants) {
+        if ((parseResult?.applicants?.length ?? 0) > 0 && setApplicants) {
           // Map to CPE Applicant structure
-          const mappedCPE = parseResult.applicants.map((app, idx) => ({
+          const mappedCPE = (parseResult.applicants ?? []).map((app, idx) => ({
             id: idx + 1,
             businessName: app.firstName || `CPE Supplier ${idx + 1}`,
             businessType: "Corporation",

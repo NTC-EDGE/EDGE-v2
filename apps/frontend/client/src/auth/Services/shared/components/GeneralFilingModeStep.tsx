@@ -406,7 +406,7 @@ export function GeneralFilingModeStep({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service);
-        if (parseResult.applicants.length > 0 && onApplicantsImported) {
+        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
         if (setIsFileUploaded) {
@@ -1106,10 +1106,9 @@ export function GeneralFilingModeStep({
                         placeholder="e.g., 123 Ayala Avenue, Tower One"
                         value={activeApplicant?.street || activeApplicant?.address || ""}
                         onChangeText={(val) => {
-                          const fullAddr = [val, activeApplicant?.barangay, activeApplicant?.city, activeApplicant?.province, activeApplicant?.region, activeApplicant?.zipCode].filter(Boolean).join(", ");
                           updateActiveApplicant?.({
                             street: val,
-                            address: fullAddr,
+                            address: val,
                           });
                         }}
                       />

@@ -123,7 +123,7 @@ export function GeneralBulkApplicantsPanel({
           return;
         }
 
-        if (parseResult.applicants.length > 0 && onApplicantsImported) {
+        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
 

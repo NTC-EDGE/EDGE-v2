@@ -678,7 +678,14 @@ export function synthesizeAllApplicantFieldValues(
   if (applicant.region) addField(undefined, 'Region', applicant.region);
   if (applicant.zipCode) addField(undefined, 'Zip / Postal Code', applicant.zipCode);
 
-  const compositeAddress = formatCompositeAddress(applicant);
+  const compositeAddress = formatCompositeAddress({
+    street: applicant.street || applicant.address,
+    barangay: applicant.barangay,
+    city: applicant.city,
+    province: applicant.province,
+    region: applicant.region,
+    zipCode: applicant.zipCode,
+  });
   if (compositeAddress) addField(undefined, 'Complete Address', compositeAddress);
 
   const schoolVal = applicant.schoolName || applicant.schoolAttended;
@@ -736,11 +743,27 @@ export function synthesizeAllApplicantFieldValues(
       fallbackVal = applicant.city || null;
     } else if (lowerLabel.includes('barangay')) {
       fallbackVal = applicant.barangay || null;
-    } else if (lowerLabel.includes('street')) {
+    } else if (
+      lowerLabel.includes('street') &&
+      !lowerLabel.includes('station') &&
+      !lowerLabel.includes('seller') &&
+      !lowerLabel.includes('dealer')
+    ) {
       fallbackVal = applicant.street || null;
     } else if (lowerLabel.includes('zip') || lowerLabel.includes('postal')) {
       fallbackVal = applicant.zipCode || null;
-    } else if (lowerLabel.includes('address')) {
+    } else if (
+      lowerLabel.includes('address') &&
+      !lowerLabel.includes('station') &&
+      !lowerLabel.includes('installation') &&
+      !lowerLabel.includes('seller') &&
+      !lowerLabel.includes('dealer') &&
+      !lowerLabel.includes('exam') &&
+      !lowerLabel.includes('seminar') &&
+      !lowerLabel.includes('provider') &&
+      !lowerLabel.includes('vessel') &&
+      !lowerLabel.includes('aircraft')
+    ) {
       fallbackVal = compositeAddress || null;
     } else if (lowerLabel.includes('company')) {
       fallbackVal = applicant.companyName || null;

@@ -240,16 +240,15 @@ export function formatCompositeAddress(components?: AddressComponentsInput | nul
   const cleanStreet = stripDuplicateLocationSegments(street);
   const cleanRawAddress = stripDuplicateLocationSegments(rawAddress);
 
-  // Determine base street/building segment without duplicate repetition
+  // Determine base street/building segment:
+  // Strictly prioritize cleanStreet (what the user entered in the form).
+  // Only fall back to cleanRawAddress if cleanStreet was not provided.
+  // Never concatenate two distinct street address strings together.
   let primaryStreet: string | null = null;
-  if (cleanStreet && cleanRawAddress && cleanStreet !== cleanRawAddress) {
-    primaryStreet = cleanRawAddress.toLowerCase().includes(cleanStreet.toLowerCase())
-      ? cleanRawAddress
-      : cleanStreet.toLowerCase().includes(cleanRawAddress.toLowerCase())
-      ? cleanStreet
-      : `${cleanStreet}, ${cleanRawAddress}`;
-  } else {
-    primaryStreet = cleanStreet || cleanRawAddress;
+  if (cleanStreet) {
+    primaryStreet = cleanStreet;
+  } else if (cleanRawAddress) {
+    primaryStreet = cleanRawAddress;
   }
 
   const parts: string[] = [];

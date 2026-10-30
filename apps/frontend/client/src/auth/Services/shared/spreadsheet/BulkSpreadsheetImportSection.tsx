@@ -119,7 +119,7 @@ export function BulkSpreadsheetImportSection({
   };
 
   const handleApplyApplicants = () => {
-    if (!parseResult || parseResult.applicants.length === 0) {
+    if (!parseResult || (parseResult.applicants?.length ?? 0) === 0) {
       toast.error("Cannot Import", "There are no valid applicant entries to import into the filing cohort.");
       return;
     }
@@ -289,7 +289,7 @@ export function BulkSpreadsheetImportSection({
             <ScrollView horizontal showsHorizontalScrollIndicator={true} style={{ marginTop: 10 }}>
               <View style={styles.table}>
                 <View style={styles.tableHeaderRow}>
-                  {templateConfig.headers.slice(0, 8).map((h, i) => (
+                  {templateConfig.headers?.slice(0, 8)?.map((h, i) => (
                     <Text key={i} style={styles.tableCellHeader}>
                       {h}
                     </Text>
@@ -300,9 +300,9 @@ export function BulkSpreadsheetImportSection({
                     </Text>
                   )}
                 </View>
-                {templateConfig.sampleRows.slice(0, 2).map((row, rIdx) => (
+                {templateConfig.sampleRows?.slice(0, 2)?.map((row, rIdx) => (
                   <View key={rIdx} style={styles.tableRow}>
-                    {row.slice(0, 8).map((cell, cIdx) => (
+                    {row?.slice(0, 8)?.map((cell, cIdx) => (
                       <Text key={cIdx} style={styles.tableCell} numberOfLines={1}>
                         {cell || "—"}
                       </Text>
@@ -348,7 +348,7 @@ export function BulkSpreadsheetImportSection({
 
             {/* Rows Table */}
             <ScrollView style={{ maxHeight: 380, marginVertical: 12 }}>
-              {parseResult?.results.map((r) => (
+              {parseResult?.results?.map((r) => (
                 <View key={r.rowNumber} style={styles.previewRowCard}>
                   <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
                     <Text style={styles.rowName}>
@@ -371,9 +371,9 @@ export function BulkSpreadsheetImportSection({
                     </View>
                   </View>
                   <Text style={styles.rowEmail}>{r.email}</Text>
-                  {r.remarks.length > 0 && (
+                  {(r.remarks?.length ?? 0) > 0 && (
                     <View style={{ marginTop: 6 }}>
-                      {r.remarks.map((rem, remIdx) => (
+                      {r.remarks?.map((rem, remIdx) => (
                         <Text key={remIdx} style={styles.errorRemark}>
                           • {rem}
                         </Text>
@@ -392,7 +392,7 @@ export function BulkSpreadsheetImportSection({
               <TouchableOpacity onPress={handleApplyApplicants} style={styles.modalApplyBtn}>
                 <Icon name="check" size={16} color="#ffffff" style={{ marginRight: 6 }} />
                 <Text style={styles.modalApplyText}>
-                  Populate {parseResult?.applicants.length || 0} Entries to Filing Cohort
+                  Populate {parseResult?.applicants?.length || 0} Entries to Filing Cohort
                 </Text>
               </TouchableOpacity>
             </View>
