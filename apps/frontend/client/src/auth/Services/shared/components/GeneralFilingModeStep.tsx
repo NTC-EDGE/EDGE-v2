@@ -406,7 +406,7 @@ export function GeneralFilingModeStep({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, service);
-        if (parseResult.applicants.length > 0 && onApplicantsImported) {
+        if ((parseResult?.applicants?.length ?? 0) > 0 && onApplicantsImported) {
           onApplicantsImported(parseResult.applicants);
         }
         if (setIsFileUploaded) {

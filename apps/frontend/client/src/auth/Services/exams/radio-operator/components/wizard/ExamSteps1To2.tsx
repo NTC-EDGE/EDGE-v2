@@ -126,8 +126,8 @@ export function ExamSteps1To2({
 
       if (fileText && fileText.trim().length > 0) {
         const parseResult = parseSpreadsheetContent(fileText, examService);
-        if (parseResult.applicants.length > 0 && setExamApplicants) {
-          const mappedExams = parseResult.applicants.map((app, idx) => ({
+        if ((parseResult?.applicants?.length ?? 0) > 0 && setExamApplicants) {
+          const mappedExams = (parseResult.applicants ?? []).map((app, idx) => ({
             id: idx + 1,
             firstName: app.firstName || `Examinee ${idx + 1}`,
             middleName: app.middleName || "",
