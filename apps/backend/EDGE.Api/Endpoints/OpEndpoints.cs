@@ -74,6 +74,7 @@ public static class OpEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IRegionalConfigurationService? configService = null,
+        IAgencyBankAccountRepository? bankAccountRepository = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -110,7 +111,10 @@ public static class OpEndpoints
         }
 
         var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app.TenantId, cancellationToken) : null;
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
+        var bankAccounts = bankAccountRepository != null
+            ? await bankAccountRepository.GetByTenantAsync(app.TenantId, activeOnly: true, cancellationToken)
+            : null;
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster, bankAccounts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
 
@@ -129,6 +133,7 @@ public static class OpEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IRegionalConfigurationService? configService = null,
+        IAgencyBankAccountRepository? bankAccountRepository = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -141,8 +146,14 @@ public static class OpEndpoints
         var app = op.Application ?? await repository.GetByIdWithDetailsAsync(op.ApplicationId, true, cancellationToken);
         var soa = op.StatementOfAccount ?? app?.StatementsOfAccount.FirstOrDefault(s => s.Id == op.StatementOfAccountId);
 
-        var regionalConfig = configService != null ? await configService.GetConfigurationAsync(app?.TenantId ?? Guid.Empty, cancellationToken) : null;
-        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster);
+        var tenantId = app?.TenantId ?? Guid.Empty;
+        var regionalConfig = configService != null && tenantId != Guid.Empty
+            ? await configService.GetConfigurationAsync(tenantId, cancellationToken)
+            : null;
+        var bankAccounts = bankAccountRepository != null && tenantId != Guid.Empty
+            ? await bankAccountRepository.GetByTenantAsync(tenantId, activeOnly: true, cancellationToken)
+            : null;
+        var printModel = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app, regionalConfig?.FundCluster, bankAccounts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
 

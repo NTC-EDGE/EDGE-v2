@@ -18,7 +18,7 @@ public class OrderOfPaymentBankAccount
 public class OrderOfPaymentModel
 {
     public string AgencyName { get; set; } = "NATIONAL TELECOMMUNICATIONS COMMISSION";
-    public string RegionalOffice { get; set; } = "Regional Office No. VII";
+    public string? RegionalOffice { get; set; }
     public string Fund { get; set; } = "General Fund";
     public string Title { get; set; } = "ORDER OF PAYMENT";
 

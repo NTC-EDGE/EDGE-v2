@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
@@ -16,12 +17,13 @@ public static class OrderOfPaymentPrintMapper
         OrderOfPayment op,
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
-        string? fundCluster = null)
+        string? fundCluster = null,
+        IEnumerable<AgencyBankAccount>? agencyBankAccounts = null)
     {
         var model = new OrderOfPaymentModel();
 
         model.AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
-        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "Regional Office No. VII";
+        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : null;
         model.Fund = !string.IsNullOrWhiteSpace(fundCluster)
             ? (fundCluster.StartsWith("Fund", StringComparison.OrdinalIgnoreCase) ? fundCluster : $"Fund Cluster {fundCluster}")
             : "General Fund";
@@ -106,15 +108,23 @@ public static class OrderOfPaymentPrintMapper
             ? activeSoa?.CreatedAt.ToString("dd/MM/yyyy")
             : op.CreatedAt.ToString("dd/MM/yyyy");
 
-        // Bank Account entries default
-        model.BankAccounts = new List<OrderOfPaymentBankAccount>
+        // Bank Account entries - populated only from configured depository accounts; otherwise blank
+        model.BankAccounts = new List<OrderOfPaymentBankAccount>();
+        if (agencyBankAccounts != null)
         {
-            new OrderOfPaymentBankAccount
+            var activeAccounts = agencyBankAccounts.Where(b => b.IsActive).ToList();
+            if (activeAccounts.Count > 0)
             {
-                BankName = "Land Bank of the Philippines",
-                Amount = op.AmountDue
+                model.BankAccounts = activeAccounts.Select((b, idx) => new OrderOfPaymentBankAccount
+                {
+                    No = b.AccountNumber,
+                    BankName = b.BankName,
+                    Amount = idx == 0 ? op.AmountDue : null
+                }).ToList();
             }
-        };
+        }
+
+        model.TotalAmount = model.BankAccounts.Count > 0 ? op.AmountDue : null;
 
         // O.R. Stamp Box if paid
         if (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))

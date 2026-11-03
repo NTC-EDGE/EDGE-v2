@@ -130,8 +130,57 @@ public class OrderOfPaymentReportTests
         Assert.Equal("SOA-2026-00991", model.StatementOfAccountNo);
         Assert.Equal(240.00m, model.Amount);
         Assert.Equal("TWO HUNDRED FORTY PESOS ONLY", model.AmountInWords);
+        Assert.Equal("Regional Office VII", model.RegionalOffice);
+        Assert.Empty(model.BankAccounts);
+        Assert.Null(model.TotalAmount);
         Assert.NotNull(pdfBytes);
         Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void OrderOfPaymentPrintMapper_WithConfiguredDepositoryAccounts_PopulatesBankAccounts()
+    {
+        // Arrange
+        var appId = Guid.NewGuid();
+        var tenantId = Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            TenantId = tenantId,
+            ReferenceNumber = "REF-2026-NTC-002"
+            // Office left null to verify it doesn't fallback to hardcoded string
+        };
+
+        var op = new Domain.Entities.OrderOfPayment
+        {
+            Id = Guid.NewGuid(),
+            ApplicationId = appId,
+            OpNumber = "61-2026-07-1953",
+            AmountDue = 500.00m
+        };
+
+        var bankAccounts = new System.Collections.Generic.List<Domain.Entities.AgencyBankAccount>
+        {
+            new Domain.Entities.AgencyBankAccount
+            {
+                Id = Guid.NewGuid(),
+                TenantId = tenantId,
+                BankName = "Development Bank of the Philippines",
+                AccountNumber = "0405-123456-001",
+                IsActive = true
+            }
+        };
+
+        // Act
+        var model = OrderOfPaymentPrintMapper.MapToPrintModel(op, null, app, null, bankAccounts);
+
+        // Assert
+        Assert.Null(model.RegionalOffice);
+        Assert.Single(model.BankAccounts);
+        Assert.Equal("Development Bank of the Philippines", model.BankAccounts[0].BankName);
+        Assert.Equal("0405-123456-001", model.BankAccounts[0].No);
+        Assert.Equal(500.00m, model.BankAccounts[0].Amount);
+        Assert.Equal(500.00m, model.TotalAmount);
     }
 
     [Fact]

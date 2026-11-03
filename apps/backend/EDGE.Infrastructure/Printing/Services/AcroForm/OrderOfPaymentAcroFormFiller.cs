@@ -37,7 +37,15 @@ public static class OrderOfPaymentAcroFormFiller
                 // Top Copy (AcroForm fields)
                 SetField(form, "SerialNo", model.SerialNo);
                 SetField(form, "Date", model.Date);
-                SetField(form, "Region", model.RegionalOffice);
+                // Regional Office - normalize so "Regional Office No. VII" or "VII" formats cleanly, or stays blank
+                var regionFieldVal = string.IsNullOrWhiteSpace(model.RegionalOffice)
+                    ? null
+                    : (model.RegionalOffice.StartsWith("Regional Office", StringComparison.OrdinalIgnoreCase)
+                        ? model.RegionalOffice.Replace("Regional Office No.", "", StringComparison.OrdinalIgnoreCase)
+                                              .Replace("Regional Office", "", StringComparison.OrdinalIgnoreCase)
+                                              .Trim()
+                        : model.RegionalOffice.Trim());
+                SetField(form, "Region", regionFieldVal);
                 SetField(form, "ApplicantName", model.PayorName);
                 SetField(form, "ApplicantAddress", model.PayorAddress);
                 SetField(form, "SOANumber", model.StatementOfAccountNo);
@@ -49,17 +57,24 @@ public static class OrderOfPaymentAcroFormFiller
                     ? model.Amount.Value.ToString("N2")
                     : (model.TotalAmount.HasValue && model.TotalAmount.Value > 0 ? model.TotalAmount.Value.ToString("N2") : string.Empty);
                 SetField(form, "Amount", amountStr);
-                SetField(form, "TotalAmount", amountStr);
 
-                // Bank details
-                var primaryBank = model.BankAccounts?.FirstOrDefault();
-                string bankName = primaryBank?.BankName ?? "Land Bank of the Philippines";
-                string bankNum = primaryBank?.No ?? "LBP-General";
-                string bankAmt = primaryBank?.Amount.HasValue == true && primaryBank.Amount.Value > 0 ? primaryBank.Amount.Value.ToString("N2") : amountStr;
+                // Bank details - populate only if bank accounts are provided; otherwise remain blank
+                var primaryBank = model.BankAccounts?.FirstOrDefault(b => !string.IsNullOrWhiteSpace(b.BankName));
+                if (primaryBank != null)
+                {
+                    string bankAmt = primaryBank.Amount.HasValue && primaryBank.Amount.Value > 0
+                        ? primaryBank.Amount.Value.ToString("N2")
+                        : amountStr;
 
-                SetField(form, "Bank", bankName);
-                SetField(form, "BankNumber", bankNum);
-                SetField(form, "AmountBank", bankAmt);
+                    SetField(form, "Bank", primaryBank.BankName);
+                    SetField(form, "BankNumber", primaryBank.No);
+                    SetField(form, "AmountBank", bankAmt);
+                }
+
+                if (model.TotalAmount.HasValue && model.TotalAmount.Value > 0)
+                {
+                    SetField(form, "TotalAmount", model.TotalAmount.Value.ToString("N2"));
+                }
 
                 // Official Receipt stamp section if paid
                 if (!string.IsNullOrWhiteSpace(model.OrNo))
