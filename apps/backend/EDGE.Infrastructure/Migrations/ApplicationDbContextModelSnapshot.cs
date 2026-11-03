@@ -3638,7 +3638,11 @@ namespace EDGE.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("Code");
+
                     b.HasIndex("TenantId");
+
+                    b.HasIndex("TenantId", "Code");
 
                     b.ToTable("SoaNotes", "public");
                 });
