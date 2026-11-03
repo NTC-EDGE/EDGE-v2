@@ -132,6 +132,13 @@ public static class OrderOfPaymentPrintMapper
         // O.R. Stamp Box if paid - supports single or multiple Official Receipts
         var allReceiptNumbers = new List<string>();
 
+        // Identify any explicitly cancelled receipts to avoid exposing stale or voided receipt numbers
+        var cancelledReceiptNumbers = (receipts ?? Enumerable.Empty<OfficialReceipt>())
+            .Concat(receipt != null ? new[] { receipt } : Enumerable.Empty<OfficialReceipt>())
+            .Where(r => r != null && (r.Status == ReceiptStatus.Cancelled || r.CancelledAt != null) && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+            .Select(r => r.OfficialReceiptNumber.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
         if (!string.IsNullOrWhiteSpace(overrideOrNumber))
         {
             allReceiptNumbers.Add(overrideOrNumber.Trim());
@@ -141,16 +148,16 @@ public static class OrderOfPaymentPrintMapper
             if (receipts != null)
             {
                 allReceiptNumbers.AddRange(receipts
-                    .Where(r => r != null && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+                    .Where(r => r != null && r.Status != ReceiptStatus.Cancelled && r.CancelledAt == null && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
                     .Select(r => r.OfficialReceiptNumber.Trim()));
             }
 
-            if (receipt != null && !string.IsNullOrWhiteSpace(receipt.OfficialReceiptNumber))
+            if (receipt != null && receipt.Status != ReceiptStatus.Cancelled && receipt.CancelledAt == null && !string.IsNullOrWhiteSpace(receipt.OfficialReceiptNumber))
             {
                 allReceiptNumbers.Add(receipt.OfficialReceiptNumber.Trim());
             }
 
-            if (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
+            if (op.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
             {
                 allReceiptNumbers.AddRange(op.OfficialReceiptNumber
                     .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -161,7 +168,7 @@ public static class OrderOfPaymentPrintMapper
             {
                 foreach (var otherOp in app.OrdersOfPayment)
                 {
-                    if (!string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
+                    if (otherOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
                     {
                         allReceiptNumbers.AddRange(otherOp.OfficialReceiptNumber
                             .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -187,7 +194,8 @@ public static class OrderOfPaymentPrintMapper
             {
                 foreach (var h in op.Histories)
                 {
-                    if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber))
+                    if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber) &&
+                        (h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase))))
                     {
                         allReceiptNumbers.AddRange(h.OfficialReceiptNumber
                             .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
@@ -198,7 +206,7 @@ public static class OrderOfPaymentPrintMapper
         }
 
         var distinctOrNumbers = allReceiptNumbers
-            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Where(n => !string.IsNullOrWhiteSpace(n) && !cancelledReceiptNumbers.Contains(n.Trim()))
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .ToList();
 

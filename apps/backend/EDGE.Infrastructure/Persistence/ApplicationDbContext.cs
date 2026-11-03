@@ -745,6 +745,7 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Status).HasConversion<string>();
             entity.Property(e => e.IssuedToType).HasConversion<string>();
             entity.HasIndex(e => new { e.ApplicationId, e.CreatedAt });
+            entity.HasIndex(e => e.SoaNoteId);
 
             entity.HasOne(e => e.SoaNote)
                   .WithMany(n => n.StatementsOfAccount)
@@ -764,6 +765,8 @@ public class ApplicationDbContext : DbContext, IUnitOfWork
             entity.Property(e => e.Title).HasMaxLength(200);
             entity.Property(e => e.Code).HasMaxLength(50);
             entity.HasIndex(e => e.TenantId);
+            entity.HasIndex(e => e.Code);
+            entity.HasIndex(e => new { e.TenantId, e.Code });
             entity.HasOne(e => e.Tenant)
                   .WithMany()
                   .HasForeignKey(e => e.TenantId)

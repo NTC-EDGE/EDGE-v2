@@ -605,4 +605,40 @@ public class StatementOfAccountReportTests
         Assert.Equal("Payment via Landbank Account # 1234-5678. Official Region VII terms v1.", model.Remarks);
         Assert.DoesNotContain("DBP Account", model.Remarks);
     }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenReceiptIsCancelled_ExcludesCancelledReceiptNumber()
+    {
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-TEST-OR",
+            TotalAmount = 2500m
+        };
+
+        var activeReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-VALID-02",
+            Amount = 2500m,
+            Status = ReceiptStatus.Issued,
+            IssuedAt = DateTime.UtcNow
+        };
+
+        var cancelledReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-CANCELLED-02",
+            Amount = 2500m,
+            Status = ReceiptStatus.Cancelled,
+            CancelledAt = DateTime.UtcNow
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            receipts: new List<OfficialReceipt> { activeReceipt, cancelledReceipt });
+
+        Assert.Contains("OR-VALID-02", model.OrNumbers);
+        Assert.DoesNotContain("OR-CANCELLED-02", model.OrNumbers);
+        Assert.Single(model.OrNumbers);
+        Assert.Equal("P2,500.00", model.OrAmount);
+    }
 }

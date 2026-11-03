@@ -42,10 +42,13 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var regionalSignatories = await _repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
 
         var allOrNumbers = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+            .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
             .Select(o => o.OfficialReceiptNumber)
             .Concat((app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>()).Select(d => d.OfficialReceiptNumber))
             .Concat((app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+                .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
                 .SelectMany(o => o.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())
+                .Where(h => h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase)))
                 .Select(h => h.OfficialReceiptNumber))
             .Where(n => !string.IsNullOrWhiteSpace(n))
             .SelectMany(n => n!.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))

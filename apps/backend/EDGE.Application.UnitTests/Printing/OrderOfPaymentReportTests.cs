@@ -385,4 +385,42 @@ public class OrderOfPaymentReportTests
         Assert.Equal(2, model.OrNumbers.Count);
         Assert.Equal("P2,000.00", model.OrAmount);
     }
+
+    [Fact]
+    public void OrderOfPaymentPrintMapper_WhenReceiptIsCancelled_ExcludesCancelledReceiptNumber()
+    {
+        var op = new OrderOfPayment
+        {
+            Id = Guid.NewGuid(),
+            OpNumber = "OP-2026-0002",
+            AmountDue = 1500m,
+            AmountReceived = 1500m,
+            Status = OpStatus.Paid
+        };
+
+        var activeReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-VALID-01",
+            Amount = 1500m,
+            Status = ReceiptStatus.Issued,
+            IssuedAt = DateTime.UtcNow
+        };
+
+        var cancelledReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-CANCELLED-01",
+            Amount = 1500m,
+            Status = ReceiptStatus.Cancelled,
+            CancelledAt = DateTime.UtcNow
+        };
+
+        var model = OrderOfPaymentPrintMapper.MapToPrintModel(
+            op: op,
+            receipts: new List<OfficialReceipt> { activeReceipt, cancelledReceipt });
+
+        Assert.Contains("OR-VALID-01", model.OrNumbers);
+        Assert.DoesNotContain("OR-CANCELLED-01", model.OrNumbers);
+        Assert.Single(model.OrNumbers);
+        Assert.Equal("P1,500.00", model.OrAmount);
+    }
 }
