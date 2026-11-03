@@ -235,7 +235,7 @@ export function generateSoaPrintableHtml(
     .join('');
 
   const tenantName = isOptionsObj ? optionsOrTenantName.tenantName : (typeof optionsOrTenantName === 'string' ? optionsOrTenantName : undefined);
-  const officeName = safeString(app.office || app.assignedTo || tenantName, 'Regional Office No. VII');
+  const officeName = safeString(app.office || app.assignedTo || tenantName, 'National Telecommunications Commission');
   const payorName = safeString(app.applicant, 'Applicant');
   const payorAddress = formatAddress(app);
   const refNum = safeString(app.referenceNumber, app.id ? app.id.slice(0, 8).toUpperCase() : 'NTC-SOA');
@@ -859,7 +859,7 @@ export function generateOpPrintableHtml(
     (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
       ? app.soaIssuedToAddress.trim()
       : formatAddress(app),
-    'Cebu City, Philippines'
+    'N/A'
   );
 
   const paymentStatusText = orNumber
@@ -873,7 +873,7 @@ export function generateOpPrintableHtml(
           <td style="width: 65%; vertical-align: top;">
             <div class="rep-title">Republic of the Philippines</div>
             <div class="ntc-title">NATIONAL TELECOMMUNICATIONS COMMISSION</div>
-            <div class="ro-title">Regional Office No. VII</div>
+            ${officeName && officeName !== 'National Telecommunications Commission' ? `<div class="ro-title">${officeName}</div>` : ''}
             <div class="fund-title">General Fund</div>
           </td>
           <td style="width: 35%; vertical-align: top; text-align: right;">
@@ -937,13 +937,13 @@ export function generateOpPrintableHtml(
         </thead>
         <tbody>
           <tr>
-            <td style="text-align: center;">1</td>
-            <td>Land Bank of the Philippines</td>
-            <td style="text-align: right; font-weight: bold;">PHP ${formatCurrency(app.totalAmountDue)}</td>
+            <td style="text-align: center;">&nbsp;</td>
+            <td>________________________________________</td>
+            <td style="text-align: right; font-weight: bold;">PHP ________________</td>
           </tr>
           <tr class="total-row">
             <td colspan="2" style="text-align: right; font-weight: bold;">TOTAL PHP</td>
-            <td style="text-align: right; font-weight: bold;">${formatCurrency(app.totalAmountDue)}</td>
+            <td style="text-align: right; font-weight: bold;">________________</td>
           </tr>
         </tbody>
       </table>

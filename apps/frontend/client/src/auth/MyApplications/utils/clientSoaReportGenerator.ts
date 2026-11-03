@@ -384,7 +384,7 @@ export function generateSoaPrintableHtml(
   <div class="guidelines">
     <div style="font-weight: 700; margin-bottom: 2px;">PAYMENT ADVISORY &amp; GUIDELINES:</div>
     <div>1. Please settle the assessed amount on or before the indicated due date to avoid surcharges or application forfeiture.</div>
-    <div>2. Payments may be made via Land Bank of the Philippines, NTC Regional Cashier, or authorized online payment gateways.</div>
+    <div>2. Payments may be made via Authorized Government Depository Banks (AGDB), NTC Regional Cashier, or authorized online payment gateways.</div>
     <div>3. Always present this Statement of Account Reference Number (<strong>${soaNumber}</strong>) upon payment.</div>
   </div>
 
