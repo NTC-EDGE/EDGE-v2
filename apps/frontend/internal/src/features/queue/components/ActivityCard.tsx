@@ -66,7 +66,7 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";
   if (s === "returned") return "RETURNED";
-  if (s === "completed" || s === "approved") return "APPROVED";
+  if (s === "completed" || s === "approved") return "COMPLETE";
   return application.status.toUpperCase();
 }
 

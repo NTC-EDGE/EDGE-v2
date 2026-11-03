@@ -157,7 +157,7 @@ export function BulkPreview({ app, onClose, onDownloadDocument }: BulkPreviewPro
                 </View>
 
                 <View style={styles.metricCard}>
-                  <Text style={styles.metricLabel}>APPROVED</Text>
+                  <Text style={styles.metricLabel}>COMPLETE</Text>
                   <Text style={[styles.metricValue, { color: '#16A34A' }]}>{approvedCount}</Text>
                   <Text style={styles.metricSub}>Clearance granted</Text>
                 </View>

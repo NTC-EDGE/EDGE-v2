@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { View, Text } from 'react-native';
 import { Icon } from '@edge/ui';
 import { styles } from './applicationDetailsStyles';
@@ -29,7 +29,7 @@ export function BulkMetricsGrid({
 
       <View style={styles.metricCard}>
         <View style={styles.metricHeader}>
-          <Text style={styles.metricLabel}>APPROVED</Text>
+          <Text style={styles.metricLabel}>COMPLETE</Text>
           <Icon name="check-circle" size={16} color="#16A34A" />
         </View>
         <Text style={[styles.metricValue, { color: '#16A34A' }]}>{approvedCount}</Text>
