@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.Models;
@@ -141,7 +142,7 @@ public static class OrderOfPaymentPrintMapper
 
         if (!string.IsNullOrWhiteSpace(overrideOrNumber))
         {
-            allReceiptNumbers.Add(overrideOrNumber.Trim());
+            allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(overrideOrNumber));
         }
         else
         {
@@ -159,9 +160,7 @@ public static class OrderOfPaymentPrintMapper
 
             if (op.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
             {
-                allReceiptNumbers.AddRange(op.OfficialReceiptNumber
-                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()));
+                allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(op.OfficialReceiptNumber));
             }
 
             if (app?.OrdersOfPayment != null)
@@ -170,9 +169,7 @@ public static class OrderOfPaymentPrintMapper
                 {
                     if (otherOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
                     {
-                        allReceiptNumbers.AddRange(otherOp.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(otherOp.OfficialReceiptNumber));
                     }
                 }
             }
@@ -183,9 +180,7 @@ public static class OrderOfPaymentPrintMapper
                 {
                     if (!string.IsNullOrWhiteSpace(doc.OfficialReceiptNumber))
                     {
-                        allReceiptNumbers.AddRange(doc.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(doc.OfficialReceiptNumber));
                     }
                 }
             }
@@ -197,22 +192,17 @@ public static class OrderOfPaymentPrintMapper
                     if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber) &&
                         (h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase))))
                     {
-                        allReceiptNumbers.AddRange(h.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(h.OfficialReceiptNumber));
                     }
                 }
             }
         }
 
-        var distinctOrNumbers = allReceiptNumbers
-            .Where(n => !string.IsNullOrWhiteSpace(n) && !cancelledReceiptNumbers.Contains(n.Trim()))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var distinctOrNumbers = DelimitedStringHelper.ParseDistinctTokens(
+            allReceiptNumbers.Where(n => !cancelledReceiptNumbers.Contains(n.Trim())),
+            comparer: StringComparer.OrdinalIgnoreCase);
 
-        var effectiveOrNumber = distinctOrNumbers.Count > 0
-            ? string.Join(", ", distinctOrNumbers)
-            : null;
+        var effectiveOrNumber = DelimitedStringHelper.FormatOrDisplay(distinctOrNumbers);
 
         model.OrNumbers = distinctOrNumbers;
 

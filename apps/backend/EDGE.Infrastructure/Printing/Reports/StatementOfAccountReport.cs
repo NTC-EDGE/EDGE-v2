@@ -278,10 +278,10 @@ public class StatementOfAccountReport : IDocument
             // Left column: Notes & OR Stamp box
             row.RelativeItem(0.55f).Column(c =>
             {
-                if (!isOverlay)
+                if (!isOverlay && !string.IsNullOrWhiteSpace(_model.Remarks))
                 {
                     c.Item().Text("NOTES / REMARKS:").Bold().FontSize(7f);
-                    c.Item().Text(_model.Remarks).FontSize(6.5f).FontColor(Colors.Grey.Darken2);
+                    c.Item().Text(_model.Remarks.Trim()).FontSize(6.5f).FontColor(Colors.Grey.Darken2);
                 }
 
                 // Official Receipt Stamp Box

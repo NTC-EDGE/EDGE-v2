@@ -6,6 +6,7 @@ using MediatR;
 using EDGE.Application.Applicants.Dtos;
 using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Applications.Helpers;
+using EDGE.Application.Common.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Enums;
@@ -41,7 +42,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
         var regionalSignatories = await _repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
 
-        var allOrNumbers = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+        var rawOrSources = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
             .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
             .Select(o => o.OfficialReceiptNumber)
             .Concat((app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>()).Select(d => d.OfficialReceiptNumber))
@@ -49,12 +50,9 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
                 .SelectMany(o => o.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())
                 .Where(h => h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase)))
-                .Select(h => h.OfficialReceiptNumber))
-            .Where(n => !string.IsNullOrWhiteSpace(n))
-            .SelectMany(n => n!.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
-            .Select(s => s.Trim())
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+                .Select(h => h.OfficialReceiptNumber));
+
+        var allOrNumbers = DelimitedStringHelper.ParseDistinctTokens(rawOrSources, comparer: StringComparer.OrdinalIgnoreCase);
 
         var resolvedOrNumber = allOrNumbers.Count > 0
             ? string.Join(", ", allOrNumbers)

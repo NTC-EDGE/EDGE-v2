@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable } from "react-native";
 import { useTheme, COLORS, SPACING, RADIUS, TYPOGRAPHY, Icon as Lucide } from "@edge/ui";
 import { ApplicationData } from "../../../../../types/application";
-import { parsePaymentBreakdown } from "@edge/api";
+import { parsePaymentBreakdown, extractOrNumbers } from "@edge/api";
 import { formatDisplayDateTime } from "../reviewFormatters";
 import { reviewStyles as styles } from "../reviewStyles";
 
@@ -107,9 +107,7 @@ export function SoaPaymentSummary({
             ) : (
               <View style={styles.orValueRow}>
                 {(() => {
-                  const list = (app.payment.orNumbers && app.payment.orNumbers.length > 0)
-                    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-                    : app.payment.orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+                  const list = extractOrNumbers(app.payment.orNumbers, app.orNumbers, app.payment.orNumber);
                   const display = list.join(', ');
                   const single = list[0] ?? '';
                   const formatted = list.length > 1

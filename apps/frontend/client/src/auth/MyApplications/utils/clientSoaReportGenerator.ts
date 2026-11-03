@@ -1,4 +1,5 @@
 import { Application, SoaLineItem } from '../data/applicationsData';
+import { extractOrNumbers, formatOrDisplay } from '@edge/api';
 
 function safeString(val: unknown, fallback = 'N/A'): string {
   if (val === null || val === undefined) return fallback;
@@ -202,12 +203,14 @@ export function generateSoaPrintableHtml(
     orNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
     ''
   );
-  const orList = effectiveOr.length > 0
-    ? effectiveOr.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(
+    orNumber,
+    app.officialReceiptNumber,
+    app.op?.officialReceiptNumber
+  );
   const orDisplay = orList.length > 1
     ? orList.map(formatOrDisplayNumber).join(', ')
-    : formatOrDisplayNumber(effectiveOr || 'RECORDED');
+    : (orList[0] ? formatOrDisplayNumber(orList[0]) : formatOrDisplayNumber('RECORDED'));
 
   const isPaid = effectiveOr.length > 0 ||
     Boolean(app.paidAt || app.op?.paidAt || app.status === 'APPROVED');
@@ -403,12 +406,16 @@ export function generateSoaPrintableHtml(
     <div>3. Always present this Statement of Account Reference Number (<strong>${soaNumber}</strong>) upon payment.</div>
   </div>
 
-  ${(app.soa?.remarks || app.soa?.soaNoteText || app.remarks) ? `
+  ${(() => {
+    const remarksText = (app.soa?.remarks || app.soa?.soaNoteText || app.remarks || '').trim();
+    if (!remarksText) return '';
+    return `
   <div style="margin-top: 14px; margin-bottom: 14px; border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px 14px; background-color: #f8fafc;">
     <div style="font-size: 10px; font-weight: 700; color: #475569; text-transform: uppercase; margin-bottom: 4px; letter-spacing: 0.5px;">NOTES / REMARKS:</div>
-    <div style="font-size: 11px; color: #1e293b; white-space: pre-line; line-height: 1.4;">${safeString(app.soa?.remarks || app.soa?.soaNoteText || app.remarks, '')}</div>
+    <div style="font-size: 11px; color: #1e293b; white-space: pre-line; line-height: 1.4;">${safeString(remarksText, '')}</div>
   </div>
-  ` : ''}
+  `;
+  })()}
 
   ${isPaid ? `
   <div style="margin-bottom: 20px; border: 1.5px solid #059669; border-radius: 6px; padding: 12px 16px; background-color: #f0fdf4;">
@@ -482,12 +489,14 @@ export function generateOpPrintableHtml(
     overrideOrNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
     ''
   );
-  const orList = effectiveOr.length > 0
-    ? effectiveOr.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(
+    overrideOrNumber,
+    app.officialReceiptNumber,
+    app.op?.officialReceiptNumber
+  );
   const orDisplay = orList.length > 1
     ? orList.map(formatOrDisplayNumber).join(', ')
-    : (effectiveOr ? formatOrDisplayNumber(effectiveOr) : '');
+    : (orList[0] ? formatOrDisplayNumber(orList[0]) : (effectiveOr ? formatOrDisplayNumber(effectiveOr) : ''));
   const paymentStatusText = orList.length > 1
     ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
     : (effectiveOr ? `Paid via ${orDisplay}` : 'Pending Cashier Collection');

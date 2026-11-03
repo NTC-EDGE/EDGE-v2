@@ -1,5 +1,5 @@
 import { Platform, Linking } from 'react-native';
-import { applicationService } from '@edge/api';
+import { applicationService, extractOrNumbers } from '@edge/api';
 import { Application } from '../../../data/applicationsData';
 import {
   generateSoaPrintableHtml,
@@ -20,9 +20,7 @@ export function getPreviewApplicationMetadata(app: Application) {
   const opNum = app.opNumber || `OP-${refNum}`;
   const orNum = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
   const isPaid = Boolean(orNum && orNum.trim().length > 0);
-  const orList = orNum !== null
-    ? orNum.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(orNum);
 
   const applicantName = getEffectiveApplicantName(app);
   const applicantType = app.mode === 'BULK' ? 'Corporate / Bulk Entity' : 'Individual';

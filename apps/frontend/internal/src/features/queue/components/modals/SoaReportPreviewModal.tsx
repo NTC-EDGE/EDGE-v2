@@ -19,7 +19,7 @@ import {
   SHADOWS,
   TYPOGRAPHY,
 } from '@edge/ui';
-import { applicationService } from '@edge/api';
+import { applicationService, extractOrNumbers } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import {
   generateSoaPrintableHtml,
@@ -118,14 +118,7 @@ export function SoaReportPreviewModal({
   const [showActionMenu, setShowActionMenu] = useState<boolean>(false);
   const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
 
-  const orRaw = app.payment?.orNumber ?? null;
-  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
-    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-    : (app.orNumbers && app.orNumbers.length > 0)
-      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-      : (orRaw
-          ? orRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-          : []);
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
   const [selectedOrNumber, setSelectedOrNumber] = useState<string | null>(null);
   const effectiveSelectedOr = selectedOrNumber && orList.includes(selectedOrNumber)
     ? selectedOrNumber

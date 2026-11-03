@@ -290,6 +290,17 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('Payment via Landbank on or before October 30, 2026. Official Region VII terms apply.');
     });
 
+    it('should not render empty REMARKS block when remarks are empty or whitespace-only', () => {
+      const appWithoutRemarks: ApplicationData = {
+        ...mockApplication,
+        soaRemarks: '   ',
+        soaNoteText: undefined,
+        remarks: undefined,
+      };
+      const html = generateSoaPrintableHtml(appWithoutRemarks);
+      expect(html).not.toContain('REMARKS:');
+    });
+
     it('should resolve particular number from license, permit, or certificate number in formFieldValues', () => {
       const appWithLicense: ApplicationData = {
         ...mockApplication,
@@ -343,7 +354,7 @@ describe('SOA and OP Report Generator', () => {
       expect(html).toContain('OP-REF-2026-001');
       expect(html).toContain('Juan Dela Cruz Communications Inc.');
       expect(html).toContain('PHP 2,500.00');
-      expect(html).toContain('OR #OR-998822-2026');
+      expect(html).toContain('OR-998822-2026');
       expect(html).toContain('Teresa Gomez');
     });
 

@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.Models;
@@ -207,7 +208,7 @@ public static class StatementOfAccountPrintMapper
 
         if (!string.IsNullOrWhiteSpace(overrideOrNumber))
         {
-            allReceiptNumbers.Add(overrideOrNumber.Trim());
+            allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(overrideOrNumber));
         }
         else
         {
@@ -225,9 +226,7 @@ public static class StatementOfAccountPrintMapper
 
             if (activeOp != null && activeOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(activeOp.OfficialReceiptNumber))
             {
-                allReceiptNumbers.AddRange(activeOp.OfficialReceiptNumber
-                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                    .Select(s => s.Trim()));
+                allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(activeOp.OfficialReceiptNumber));
             }
 
             if (app?.OrdersOfPayment != null)
@@ -236,9 +235,7 @@ public static class StatementOfAccountPrintMapper
                 {
                     if (otherOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
                     {
-                        allReceiptNumbers.AddRange(otherOp.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(otherOp.OfficialReceiptNumber));
                     }
                 }
             }
@@ -249,9 +246,7 @@ public static class StatementOfAccountPrintMapper
                 {
                     if (!string.IsNullOrWhiteSpace(doc.OfficialReceiptNumber))
                     {
-                        allReceiptNumbers.AddRange(doc.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(doc.OfficialReceiptNumber));
                     }
                 }
             }
@@ -263,22 +258,17 @@ public static class StatementOfAccountPrintMapper
                     if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber) &&
                         (h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase))))
                     {
-                        allReceiptNumbers.AddRange(h.OfficialReceiptNumber
-                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
-                            .Select(s => s.Trim()));
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(h.OfficialReceiptNumber));
                     }
                 }
             }
         }
 
-        var distinctOrNumbers = allReceiptNumbers
-            .Where(n => !string.IsNullOrWhiteSpace(n) && !cancelledReceiptNumbers.Contains(n.Trim()))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
+        var distinctOrNumbers = DelimitedStringHelper.ParseDistinctTokens(
+            allReceiptNumbers.Where(n => !cancelledReceiptNumbers.Contains(n.Trim())),
+            comparer: StringComparer.OrdinalIgnoreCase);
 
-        var effectiveOrNumber = distinctOrNumbers.Count > 0
-            ? string.Join(", ", distinctOrNumbers)
-            : null;
+        var effectiveOrNumber = DelimitedStringHelper.FormatOrDisplay(distinctOrNumbers);
 
         model.OrNumbers = distinctOrNumbers;
 
@@ -427,6 +417,22 @@ public static class StatementOfAccountPrintMapper
             {
                 model.Remarks = noteText;
             }
+            else if (!string.IsNullOrWhiteSpace(app?.Remarks) && !app.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+            {
+                model.Remarks = app.Remarks.Trim();
+            }
+            else
+            {
+                // SOA Note is not hardcoded and comes purely from backend.
+                // If nothing is saved in SOA note and no tenant SOA note can be pulled from backend,
+                // keep Remarks empty.
+                model.Remarks = string.Empty;
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(model.Remarks))
+        {
+            model.Remarks = string.Empty;
         }
 
         return model;

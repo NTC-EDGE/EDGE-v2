@@ -641,4 +641,63 @@ public class StatementOfAccountReportTests
         Assert.Single(model.OrNumbers);
         Assert.Equal("P2,500.00", model.OrAmount);
     }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenNoRemarksOrTenantNote_RemarksIsEmptyWithoutHardcoding()
+    {
+        // Legacy SOA with null remarks and null SoaNoteId, and no tenant note
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-LEGACY-001",
+            Remarks = null,
+            SoaNoteId = null,
+            SoaNote = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.NotNull(model.Remarks);
+        Assert.Equal(string.Empty, model.Remarks);
+
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenTenantNoteProvided_PopulatesFromTenantSoaNote()
+    {
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-TENANT-NOTE-001",
+            Remarks = null
+        };
+
+        var tenantNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Region Default",
+            Notes = "Landbank Account: 0011-2233-44. Please pay within 15 calendar days."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa, tenantSoaNote: tenantNote);
+
+        Assert.Equal("Landbank Account: 0011-2233-44. Please pay within 15 calendar days.", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountReport_WhenRemarksIsEmptyOrWhitespace_GeneratesPdfWithoutEmptyInstructionBlock()
+    {
+        var model = MockDataFactory.GetStatementOfAccountModel();
+        model.Remarks = "   "; // Whitespace-only edge case
+
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
 }

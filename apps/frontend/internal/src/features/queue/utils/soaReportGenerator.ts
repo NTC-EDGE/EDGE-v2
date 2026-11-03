@@ -1,4 +1,5 @@
 import { ApplicationData } from '../../../types/application';
+import { extractOrNumbers, formatOrDisplay } from '@edge/api';
 
 function safeString(val: unknown, fallback = 'N/A'): string {
   if (val === null || val === undefined) return fallback;
@@ -264,15 +265,8 @@ export function generateSoaPrintableHtml(
   const isOfficialApplication = !isForAssessmentOnly;
   const isEndorsedForPayment = isOfficialApplication;
 
-  const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
-    ? app.payment.orNumber
-    : (app.officialReceiptNumber ?? '');
-  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
-    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-    : (app.orNumbers && app.orNumbers.length > 0)
-      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-      : (orNumber ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0) : []);
-  const orDisplay = orList.join(', ');
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber, app.officialReceiptNumber);
+  const orDisplay = formatOrDisplay(orList);
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
     ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
@@ -783,11 +777,15 @@ export function generateSoaPrintableHtml(
     </div>
 
     <!-- Official SOA Remarks Box -->
-    ${(app.soaRemarks || app.soaNoteText || app.remarks) ? `
+    ${(() => {
+      const remarksText = (app.soaRemarks || app.soaNoteText || app.remarks || '').trim();
+      if (!remarksText) return '';
+      return `
     <div style="border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'}; border-top: none; padding: 3px 8px; font-size: 8.5px; font-family: Arial, sans-serif; background: ${isOverlay ? 'transparent' : '#ffffff'};">
-      <span style="font-weight: bold;">REMARKS: </span><span style="white-space: pre-line;">${safeString(app.soaRemarks || app.soaNoteText || app.remarks, '')}</span>
+      <span style="font-weight: bold;">REMARKS: </span><span style="white-space: pre-line;">${safeString(remarksText, '')}</span>
     </div>
-    ` : ''}
+    `;
+    })()}
 
     <!-- Bottom Section: Assessment Stamp, O.R. Box, & Signatures -->
     <table class="bottom-grid">
@@ -866,15 +864,8 @@ export function generateOpPrintableHtml(
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.category, 'General');
   const filingMode = safeString(app.mode, 'Single');
-  const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
-    ? app.payment.orNumber
-    : (app.officialReceiptNumber ?? '');
-  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
-    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-    : (app.orNumbers && app.orNumbers.length > 0)
-      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-      : (orNumber ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0) : []);
-  const orDisplay = orList.join(', ');
+  const orList = extractOrNumbers(app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber, app.officialReceiptNumber);
+  const orDisplay = formatOrDisplay(orList);
   const singleOr = orList[0] ?? '';
   const formattedSingleOr = singleOr.toUpperCase().startsWith('OR') ? singleOr : `OR #${singleOr}`;
 
@@ -981,11 +972,11 @@ export function generateOpPrintableHtml(
               </tr>
               <tr>
                 <td style="font-weight: bold;">AMOUNT:</td>
-                <td style="font-weight: bold;">${app.payment?.amountReceived ? `PHP ${formatCurrency(app.payment.amountReceived)}` : (orNumber ? `PHP ${formatCurrency(app.totalAmountDue)}` : '________________')}</td>
+                <td style="font-weight: bold;">${app.payment?.amountReceived ? `PHP ${formatCurrency(app.payment.amountReceived)}` : (orDisplay ? `PHP ${formatCurrency(app.totalAmountDue)}` : '________________')}</td>
               </tr>
               <tr>
                 <td>Date:</td>
-                <td>${orNumber ? currentDate : '________________'}</td>
+                <td>${orDisplay ? currentDate : '________________'}</td>
               </tr>
               <tr>
                 <td>By:</td>

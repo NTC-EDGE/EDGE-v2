@@ -23,7 +23,7 @@ import {
   toast,
   DatePickerInput,
 } from '@edge/ui';
-import { applicationService, IssueApplicationRequest } from '@edge/api';
+import { applicationService, IssueApplicationRequest, formatOrDisplay } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import { IssuedDocumentPrintModal } from './IssuedDocumentPrintModal';
 import { DocumentPrintOptions } from '../../types/documentPrintTypes';
@@ -115,7 +115,7 @@ export function IssueDocumentModal({
       const rawDefaultOr = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
         ? app.payment.orNumbers.join(', ')
         : (app.payment?.orNumber ?? '');
-      const cleanOr = (val: string) => val.split(',').map((s) => s.trim()).filter((s) => s.length > 0).join(', ');
+      const cleanOr = (val: string) => formatOrDisplay(val);
 
       if (err === null && res?.data) {
         const d = res.data;

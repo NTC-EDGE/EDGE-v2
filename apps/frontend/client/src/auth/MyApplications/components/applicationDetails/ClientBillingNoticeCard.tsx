@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Icon, SPACING, TYPOGRAPHY } from '@edge/ui';
+import { extractOrNumbers } from '@edge/api';
 import { Application, isApplicationPaymentSubmitted } from '../../data/applicationsData';
 import {
   formatCurrency,
@@ -36,12 +37,7 @@ export function ClientBillingNoticeCard({
 
   const orNumber = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
   const hasOr = Boolean(orNumber && orNumber.trim().length > 0);
-  const orList = orNumber
-    ? orNumber
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(orNumber);
 
   const handleOpenReports = (tab?: 'soa' | 'op' | 'or') => {
     const defaultTab: 'soa' | 'op' | 'or' = hasOr ? 'or' : (!app.isAssessmentOnly && app.intent !== 'AssessmentOnly' ? 'op' : 'soa');

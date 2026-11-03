@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { View, Text, Pressable, Platform } from "react-native";
 import { useTheme, COLORS, RADIUS, TYPOGRAPHY, Icon as Lucide, DatePickerInput } from "@edge/ui";
+import { extractOrNumbers } from "@edge/api";
 import { ApplicationData, SoaItem } from "../../../../../types/application";
 import { formatAmount, amountToWords, formatDisplayDueDate, formatDisplayDateTime } from "../reviewFormatters";
 import { resolveParticularNumber } from "../../../utils/soaReportGenerator";
@@ -188,9 +189,7 @@ export function SoaParticularsTable({
                   }}
                 >
                   {(() => {
-                    const list = (app.payment.orNumbers && app.payment.orNumbers.length > 0)
-                      ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
-                      : app.payment.orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+                    const list = extractOrNumbers(app.payment.orNumbers, app.orNumbers, app.payment.orNumber);
                     if (list.length === 0) return '';
                     if (list.length > 1) return list.join(', ');
                     const single = list[0] ?? '';
@@ -390,16 +389,30 @@ export function SoaParticularsTable({
             </View>
 
             <View style={{ marginTop: 6, paddingHorizontal: 2 }}>
-              <Text
-                style={{
-                  fontSize: 12,
-                  lineHeight: 18,
-                  color: isDark ? colors.neutral[200] : colors.neutral[800],
-                  fontFamily: TYPOGRAPHY.fonts.primary,
-                }}
-              >
-                {app.soaRemarks || app.soaNoteText || app.remarks || 'Please settle this Statement of Account on or before the due date.'}
-              </Text>
+              {(app.soaRemarks || app.soaNoteText || app.remarks) ? (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 18,
+                    color: isDark ? colors.neutral[200] : colors.neutral[800],
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                  }}
+                >
+                  {app.soaRemarks || app.soaNoteText || app.remarks}
+                </Text>
+              ) : (
+                <Text
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 18,
+                    fontStyle: 'italic',
+                    color: isDark ? colors.neutral[500] : colors.neutral[400],
+                    fontFamily: TYPOGRAPHY.fonts.primary,
+                  }}
+                >
+                  No remarks recorded
+                </Text>
+              )}
             </View>
           </View>
         </View>

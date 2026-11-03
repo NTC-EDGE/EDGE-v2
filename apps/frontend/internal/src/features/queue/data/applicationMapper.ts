@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   ApplicationData,
   ApplicationCategory,
@@ -460,29 +460,17 @@ export function mapApplicationDtoToUI(
     ? dto.officialReceiptNumber
     : '';
 
-  const rawDtoOrNumbers: string[] = ('orNumbers' in dto && Array.isArray(dto.orNumbers))
-    ? dto.orNumbers.filter((n): n is string => typeof n === 'string' && n.trim().length > 0).map((s) => s.trim())
-    : [];
-
   const rawOpOrNumber = (activeOp?.officialReceiptNumber && typeof activeOp.officialReceiptNumber === 'string')
     ? activeOp.officialReceiptNumber.trim()
     : '';
 
-  const extractedOrSegments = (
-    rawDtoOrNumbers.length > 0
-      ? rawDtoOrNumbers
-      : (directOrNumber.length > 0
-          ? directOrNumber.split(',')
-          : rawOpOrNumber.split(','))
-  )
-    .map((s) => s.trim())
-    .filter((s) => s.length > 0)
-    .filter((val, idx, arr) => arr.indexOf(val) === idx);
+  const resolvedOrNumbers: string[] = extractOrNumbers(
+    'orNumbers' in dto && Array.isArray(dto.orNumbers) ? dto.orNumbers : undefined,
+    directOrNumber,
+    rawOpOrNumber
+  );
 
-  const resolvedOrNumbers: string[] = extractedOrSegments;
-  const resolvedOrNumber = resolvedOrNumbers.length > 0
-    ? resolvedOrNumbers.join(', ')
-    : '';
+  const resolvedOrNumber = formatOrDisplay(resolvedOrNumbers);
 
   return {
     id: dto.id,
