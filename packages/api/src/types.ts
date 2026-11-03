@@ -943,6 +943,7 @@ export interface StatementOfAccountDto {
   remarks?: string;
   soaNoteId?: string;
   soaNoteText?: string;
+  orNumbers?: string[];
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;
@@ -973,6 +974,7 @@ export interface OrderOfPaymentDto {
   amountReceived: number;
   paymentMethod?: PaymentMethodDto;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   checkNumber?: string;
   checkName?: string;
   checkBank?: string;
@@ -1134,6 +1136,7 @@ export interface ApplicationDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
   amountPaid?: number;
@@ -1252,6 +1255,7 @@ export interface ApplicationSummaryDto {
   serviceVariantId?: string;
   serviceVariantName?: string;
   officialReceiptNumber?: string;
+  orNumbers?: string[];
   soaNumber?: string;
   opNumber?: string;
   amountPaid?: number;

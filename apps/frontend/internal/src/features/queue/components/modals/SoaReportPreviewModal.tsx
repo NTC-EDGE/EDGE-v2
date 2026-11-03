@@ -684,7 +684,13 @@ export function SoaReportPreviewModal({
                   color: isPaid ? (isDark ? '#34d399' : '#047857') : (isDark ? '#f59e0b' : '#d97706'),
                 }}
               >
-                {isPaid ? `PAID (OR #${app.payment.orNumber})` : 'PENDING CASHIER COLLECTION'}
+                {isPaid
+                  ? (app.payment.orNumber.includes(',')
+                      ? `PAID (OR: ${app.payment.orNumber})`
+                      : (app.payment.orNumber.toUpperCase().startsWith('OR')
+                          ? `PAID (${app.payment.orNumber})`
+                          : `PAID (OR #${app.payment.orNumber})`))
+                  : 'PENDING CASHIER COLLECTION'}
               </Text>
             </View>
           </View>
@@ -899,7 +905,7 @@ export function SoaReportPreviewModal({
                             Official Receipt (OR)
                           </Text>
                           <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                            Accountable Form 51 • #{app.payment?.orNumber || 'Official'}
+                            Accountable Form 51 • {app.payment?.orNumber ? (app.payment.orNumber.includes(',') ? app.payment.orNumber : `#${app.payment.orNumber.replace(/^#+/, '')}`) : 'Official'}
                           </Text>
                         </View>
                         <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />

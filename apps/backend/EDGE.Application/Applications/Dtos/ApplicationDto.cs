@@ -40,6 +40,7 @@ public class ApplicationDto
     public string? ServiceVariantName { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? EvaluatingOfficer { get; set; }

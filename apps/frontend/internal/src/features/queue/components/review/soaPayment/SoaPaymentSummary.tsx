@@ -121,7 +121,11 @@ export function SoaPaymentSummary({
                   >
                     <Lucide name="check-circle" size={12} color={isDark ? '#34D399' : '#047857'} />
                     <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
-                      SETTLED • OR #{app.payment.orNumber}
+                      SETTLED • {app.payment.orNumber.includes(',')
+                        ? app.payment.orNumber
+                        : (app.payment.orNumber.toUpperCase().startsWith('OR')
+                            ? app.payment.orNumber
+                            : `OR #${app.payment.orNumber}`)}
                     </Text>
                   </View>
                 )}

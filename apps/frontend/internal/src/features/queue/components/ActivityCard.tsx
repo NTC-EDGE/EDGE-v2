@@ -445,7 +445,13 @@ export function ActivityCard({
                       ]}
                       numberOfLines={1}
                     >
-                      OR #{application.payment?.orNumber}
+                      {application.payment?.orNumber ? (
+                        application.payment.orNumber.includes(',')
+                          ? application.payment.orNumber
+                          : (application.payment.orNumber.toUpperCase().startsWith('OR')
+                              ? application.payment.orNumber
+                              : `OR #${application.payment.orNumber}`)
+                      ) : ''}
                     </Text>
                   </View>
                 </>

@@ -187,7 +187,11 @@ export function SoaParticularsTable({
                     color: isDark ? '#34d399' : '#059669',
                   }}
                 >
-                  OR #{app.payment.orNumber}
+                  {app.payment.orNumber.includes(',')
+                    ? app.payment.orNumber
+                    : (app.payment.orNumber.toUpperCase().startsWith('OR')
+                        ? app.payment.orNumber
+                        : `OR #${app.payment.orNumber}`)}
                 </Text>
               </View>
             )}
@@ -390,7 +394,7 @@ export function SoaParticularsTable({
                   fontFamily: TYPOGRAPHY.fonts.primary,
                 }}
               >
-                {app.soaRemarks || app.remarks || 'Please settle this Statement of Account on or before the due date.'}
+                {app.soaRemarks || app.soaNoteText || app.remarks || 'Please settle this Statement of Account on or before the due date.'}
               </Text>
             </View>
           </View>

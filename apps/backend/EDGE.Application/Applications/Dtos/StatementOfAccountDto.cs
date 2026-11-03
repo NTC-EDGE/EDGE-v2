@@ -22,6 +22,7 @@ public class StatementOfAccountDto
     public string? Remarks { get; set; }
     public Guid? SoaNoteId { get; set; }
     public string? SoaNoteText { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public string? PreparedByName { get; set; }
     public string? PreparedByTitle { get; set; }
     public string? ApprovedByName { get; set; }
