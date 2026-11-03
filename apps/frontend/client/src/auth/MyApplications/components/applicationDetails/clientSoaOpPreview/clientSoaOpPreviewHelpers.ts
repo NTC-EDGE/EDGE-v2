@@ -89,7 +89,7 @@ export async function handlePrintDocument(
       const [pdfBlob, err] = activeTab === 'soa'
         ? await applicationService.previewSoaPdf(app.id)
         : activeTab === 'op'
-          ? await applicationService.previewOpPdf(app.id)
+          ? await applicationService.previewOpPdf(app.id, selectedOrParam)
           : await applicationService.previewOrPdf(app.id, selectedOrParam, orTemplate);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -108,7 +108,7 @@ export async function handlePrintDocument(
     const url = activeTab === 'soa'
       ? applicationService.getSoaPrintUrl(app.id)
       : activeTab === 'op'
-        ? applicationService.getOpPrintUrl(app.id)
+        ? applicationService.getOpPrintUrl(app.id, selectedOrParam)
         : applicationService.getOrPrintUrl(app.id, selectedOrParam, orTemplate);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {

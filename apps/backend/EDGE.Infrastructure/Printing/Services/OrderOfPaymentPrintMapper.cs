@@ -18,7 +18,9 @@ public static class OrderOfPaymentPrintMapper
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
         string? fundCluster = null,
-        IEnumerable<AgencyBankAccount>? agencyBankAccounts = null)
+        IEnumerable<AgencyBankAccount>? agencyBankAccounts = null,
+        OfficialReceipt? receipt = null,
+        string? overrideOrNumber = null)
     {
         var model = new OrderOfPaymentModel();
 
@@ -127,12 +129,45 @@ public static class OrderOfPaymentPrintMapper
         model.TotalAmount = model.BankAccounts.Count > 0 ? op.AmountDue : null;
 
         // O.R. Stamp Box if paid
-        if (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
+        var effectiveOrNumber = !string.IsNullOrWhiteSpace(overrideOrNumber)
+            ? overrideOrNumber
+            : (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber)
+                ? op.OfficialReceiptNumber
+                : (!string.IsNullOrWhiteSpace(receipt?.OfficialReceiptNumber)
+                    ? receipt.OfficialReceiptNumber
+                    : (app?.OrdersOfPayment?.OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.OfficialReceiptNumber)
+                        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                      ?? app?.IssuedDocumentDetails?.Select(d => d.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                      ?? op.Histories?.OrderByDescending(h => h.Timestamp).Select(h => h.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)))));
+
+        bool isPaid = !string.IsNullOrWhiteSpace(effectiveOrNumber)
+            || op.Status == OpStatus.Paid
+            || receipt != null
+            || (app != null && (app.Status == ApplicationStatus.ForIssuance || app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved));
+
+        if (isPaid)
         {
-            model.OrNo = op.OfficialReceiptNumber;
-            model.OrAmount = op.AmountReceived > 0 ? $"P{op.AmountReceived:N2}" : $"P{op.AmountDue:N2}";
-            model.OrDate = op.PaidAt?.ToString("MMM dd yyyy") ?? op.CreatedAt.ToString("MMM dd yyyy");
-            model.OrBy = op.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
+            var effectiveAmount = op.AmountReceived > 0
+                ? op.AmountReceived
+                : (receipt != null && receipt.Amount > 0
+                    ? receipt.Amount
+                    : op.AmountDue);
+
+            var effectiveDate = op.PaidAt
+                ?? receipt?.IssuedAt
+                ?? op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
+                ?? (op.CreatedAt != default ? op.CreatedAt : DateTime.UtcNow);
+
+            var cashierStaff = op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+                ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
+                ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
+                ?? "Cashier";
+
+            model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";
+            model.OrAmount = $"P{effectiveAmount:N2}";
+            model.OrDate = effectiveDate.ToString("MMM dd yyyy");
+            model.OrBy = cashierStaff;
         }
 
         model.CollectingOfficer = "Special Collecting Officer";

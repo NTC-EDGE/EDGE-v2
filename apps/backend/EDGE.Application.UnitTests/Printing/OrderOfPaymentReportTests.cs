@@ -145,6 +145,78 @@ public class OrderOfPaymentReportTests
     }
 
     [Fact]
+    public void OrderOfPaymentAcroFormFiller_WithOrDetails_FillsOrFields()
+    {
+        var templatePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", "..", "..", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        if (!File.Exists(templatePath))
+        {
+            templatePath = Path.Combine(Directory.GetCurrentDirectory(), "apps", "backend", "EDGE.Infrastructure", "Printing", "Templates", "order-of-payment-template.pdf");
+        }
+
+        var bytes = File.ReadAllBytes(templatePath);
+        var model = MockDataFactory.GetOrderOfPaymentModel();
+        model.OrNo = "OR-2026-999888";
+        model.OrAmount = "P240.00";
+        model.OrDate = "Jul 23 2026";
+        model.OrBy = "Cashier Name";
+
+        var filledBytes = EDGE.Infrastructure.Printing.Services.AcroForm.OrderOfPaymentAcroFormFiller.Fill(bytes, model);
+        Assert.NotNull(filledBytes);
+
+        using var inStream = new MemoryStream(filledBytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var page = pdfDoc.GetPage(1);
+        var text = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page);
+
+        Assert.Contains("OR-2026-999888", text);
+    }
+
+    [Fact]
+    public void OrderOfPaymentPrintMapper_WhenPaid_PopulatesOrBoxAndRendersInPdf()
+    {
+        // Arrange
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ReferenceNumber = "REF-2026-NTC-003",
+            Status = Domain.Enums.ApplicationStatus.ForIssuance
+        };
+
+        var op = new Domain.Entities.OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "61-2026-07-2000",
+            AmountDue = 350.00m,
+            Status = Domain.Enums.OpStatus.Paid,
+            OfficialReceiptNumber = "OR-2026-777888",
+            AmountReceived = 350.00m,
+            PaidAt = new DateTime(2026, 7, 24)
+        };
+
+        // Act
+        var model = OrderOfPaymentPrintMapper.MapToPrintModel(op, null, app);
+        var service = new FormPrintingService();
+        byte[] pdfBytes = service.PrintOrderOfPayment(model);
+
+        // Assert
+        Assert.Equal("OR-2026-777888", model.OrNo);
+        Assert.Equal("P350.00", model.OrAmount);
+        Assert.Contains("Jul 24 2026", model.OrDate);
+        Assert.NotNull(pdfBytes);
+
+        using var inStream = new MemoryStream(pdfBytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var page = pdfDoc.GetPage(1);
+        var text = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page);
+        Assert.Contains("OR-2026-777888", text);
+    }
+
+    [Fact]
     public void OrderOfPaymentPrintMapper_WithConfiguredDepositoryAccounts_PopulatesBankAccounts()
     {
         // Arrange

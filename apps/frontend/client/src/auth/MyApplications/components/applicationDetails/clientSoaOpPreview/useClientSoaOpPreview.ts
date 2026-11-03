@@ -70,7 +70,7 @@ export function useClientSoaOpPreview(
           const [blob, err] = activeTab === 'soa'
             ? await applicationService.previewSoaPdf(app.id)
             : activeTab === 'op'
-              ? await applicationService.previewOpPdf(app.id)
+              ? await applicationService.previewOpPdf(app.id, selectedOr)
               : await applicationService.previewOrPdf(app.id, selectedOr, orTemplate);
 
           if (!active) return;

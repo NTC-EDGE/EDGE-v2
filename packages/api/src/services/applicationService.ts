@@ -321,14 +321,20 @@ export const applicationService = {
     return `${base}/api/v2/applications/${applicationId}/soa/print?download=true`;
   },
 
-  getOpPrintUrl(applicationId: string): string {
+  getOpPrintUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print${query}`;
   },
 
-  getOpDownloadUrl(applicationId: string): string {
+  getOpDownloadUrl(applicationId: string, orNumber?: string): string {
     const base = typeof apiClient.defaults.baseURL === 'string' ? apiClient.defaults.baseURL : '';
-    return `${base}/api/v2/applications/${applicationId}/op/print?download=true`;
+    const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+      ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+      : '';
+    return `${base}/api/v2/applications/${applicationId}/op/print?download=true${query}`;
   },
 
   async previewSoaPdf(applicationId: string) {
@@ -351,20 +357,26 @@ export const applicationService = {
     });
   },
 
-  async previewOpPdf(applicationId: string) {
+  async previewOpPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `?orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print`,
+        `/api/v2/applications/${applicationId}/op/print${query}`,
         { responseType: 'blob' }
       );
       return response.data;
     });
   },
 
-  async downloadOpPdf(applicationId: string) {
+  async downloadOpPdf(applicationId: string, orNumber?: string) {
     return safeAsync(async () => {
+      const query = typeof orNumber === 'string' && orNumber.trim().length > 0
+        ? `&orNumber=${encodeURIComponent(orNumber.trim())}`
+        : '';
       const response = await apiClient.get<Blob>(
-        `/api/v2/applications/${applicationId}/op/print?download=true`,
+        `/api/v2/applications/${applicationId}/op/print?download=true${query}`,
         { responseType: 'blob' }
       );
       return response.data;
