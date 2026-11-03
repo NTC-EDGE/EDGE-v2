@@ -24,6 +24,7 @@ import {
   FIELD_ID_PERMIT_TYPE,
   FIELD_ID_APP_TYPE,
 } from '../../../shared/constants/fieldIds';
+import { formatOrDisplayNumber } from '../utils/clientSoaReportGenerator';
 
 interface ApplicationCardProps {
   app: Application;
@@ -195,7 +196,7 @@ export function ApplicationCard({
                   color: '#059669',
                 }}
               >
-                OR #{orNumber}
+                {formatOrDisplayNumber(orNumber)}
               </Text>
             </View>
           )}

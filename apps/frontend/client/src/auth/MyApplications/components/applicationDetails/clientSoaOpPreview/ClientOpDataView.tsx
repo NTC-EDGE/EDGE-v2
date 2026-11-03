@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, Platform } from 'react-native';
-import { formatCurrency } from '../../../utils/clientSoaReportGenerator';
+import { formatCurrency, formatOrDisplayNumber } from '../../../utils/clientSoaReportGenerator';
 import { ClientOpDataViewProps } from './clientSoaOpPreviewTypes';
 import { dataViewStyles } from './styles/clientSoaOpDataViewStyles';
 import { tableStyles } from './styles/clientSoaOpTableStyles';
@@ -21,8 +21,8 @@ export function ClientOpDataView({
 }: ClientOpDataViewProps) {
   const paymentStatusText = orNum !== null && orNum.trim().length > 0
     ? (orList.length > 1
-        ? `Paid via ${orList.length} Official Receipts (${orList.join(', ')})`
-        : `Paid via OR #${orList.length > 0 ? orList[0] : orNum}`)
+        ? `Paid via ${orList.length} Official Receipts (${orList.map(formatOrDisplayNumber).join(', ')})`
+        : `Paid via ${formatOrDisplayNumber(orList.length > 0 ? orList[0] : orNum)}`)
     : 'Pending Cashier Verification / Collection';
 
   return (

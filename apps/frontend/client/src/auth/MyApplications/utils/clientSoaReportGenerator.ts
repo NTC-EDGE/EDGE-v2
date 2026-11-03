@@ -18,6 +18,18 @@ export function formatAddress(app: Application): string {
   return parts.length > 0 ? parts.join(', ') : 'N/A';
 }
 
+export function formatOrDisplayNumber(raw?: string | null): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const unhashed = trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
+  if (/^OR[-\s]?/i.test(unhashed)) {
+    const withoutPrefix = unhashed.replace(/^OR[-\s]*/i, '').trim();
+    return `OR-${withoutPrefix}`;
+  }
+  return `OR-${unhashed}`;
+}
+
 export function formatCurrency(amount?: number | null): string {
   const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
   return `PHP ${safeAmount.toLocaleString('en-US', {
@@ -556,7 +568,7 @@ export function generateOpPrintableHtml(
     <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">AMOUNT IN WORDS:</div>
     <div style="font-size: 11px; font-weight: 600; color: #047857;">${totalWords}</div>
     <div style="margin-top: 8px; font-size: 10.5px; color: #065f46;">
-      <strong>Payment Status:</strong> ${orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection'}
+      <strong>Payment Status:</strong> ${orNumber ? `Paid via ${formatOrDisplayNumber(orNumber)}` : 'Pending Cashier Collection'}
     </div>
   </div>
 

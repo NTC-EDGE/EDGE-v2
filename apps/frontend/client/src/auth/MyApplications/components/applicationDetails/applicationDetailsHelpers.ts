@@ -62,6 +62,18 @@ function isValidName(val: unknown): val is string {
   return !isGenericNameString(trimmed);
 }
 
+export function formatOrDisplayNumber(raw?: string | null): string {
+  if (!raw || typeof raw !== 'string') return '';
+  const trimmed = raw.trim();
+  if (!trimmed) return '';
+  const unhashed = trimmed.startsWith('#') ? trimmed.slice(1).trim() : trimmed;
+  if (/^OR[-\s]?/i.test(unhashed)) {
+    const withoutPrefix = unhashed.replace(/^OR[-\s]*/i, '').trim();
+    return `OR-${withoutPrefix}`;
+  }
+  return `OR-${unhashed}`;
+}
+
 export function formatProperName(name?: string | null): string {
   if (!name || typeof name !== 'string') return '';
   const trimmed = name.trim();
