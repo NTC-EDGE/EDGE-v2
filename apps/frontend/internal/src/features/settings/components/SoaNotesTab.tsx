@@ -473,6 +473,8 @@ const styles = StyleSheet.create({
   container: {
     padding: 16,
     width: '100%',
+    maxWidth: 1200,
+    alignSelf: 'center',
   },
   advisoryCard: {
     borderWidth: 1,
