@@ -121,8 +121,8 @@ public class OrderOfPaymentReportTests
 
         // Act
         var model = OrderOfPaymentPrintMapper.MapToPrintModel(op, soa, app);
-        var report = new OrderOfPaymentReport(model);
-        byte[] pdfBytes = report.GeneratePdf();
+        var service = new FormPrintingService();
+        byte[] pdfBytes = service.PrintOrderOfPayment(model);
 
         // Assert
         Assert.Equal("Florito Avenido Amistad", model.PayorName);
@@ -135,6 +135,13 @@ public class OrderOfPaymentReportTests
         Assert.Null(model.TotalAmount);
         Assert.NotNull(pdfBytes);
         Assert.True(pdfBytes.Length > 1000);
+
+        using var inStream = new MemoryStream(pdfBytes);
+        using var reader = new iText.Kernel.Pdf.PdfReader(inStream);
+        using var pdfDoc = new iText.Kernel.Pdf.PdfDocument(reader);
+        var page = pdfDoc.GetPage(1);
+        var text = iText.Kernel.Pdf.Canvas.Parser.PdfTextExtractor.GetTextFromPage(page);
+        Assert.DoesNotContain("Land Bank", text);
     }
 
     [Fact]
