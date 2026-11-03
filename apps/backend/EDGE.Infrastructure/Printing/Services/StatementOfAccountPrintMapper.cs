@@ -19,7 +19,8 @@ public static class StatementOfAccountPrintMapper
         EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null,
         OfficialReceipt? receipt = null,
         string? overrideOrNumber = null,
-        IEnumerable<OfficialReceipt>? receipts = null)
+        IEnumerable<OfficialReceipt>? receipts = null,
+        SoaNote? tenantSoaNote = null)
     {
         var model = new StatementOfAccountModel();
 
@@ -393,16 +394,27 @@ public static class StatementOfAccountPrintMapper
             model.ApprovedByTitle = $"Chief, Enforcement & Operations Division, {fallbackRegionLabel}";
         }
 
-        // 9. Remarks
+        // 9. Remarks & Notes
         // Statement of Account (SOA) is an assessment billing document, NOT a payment receipt.
-        // It must only contain assessment remarks from the evaluator/accountant, never payment submission notes or payment breakdowns.
-        if (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+        // It stores the immutable string snapshot of the regional SOA note / evaluator instructions saved on the record.
+        // If Remarks is present, it is used directly as the primary source of truth, ensuring historic client billing
+        // records remain unchanged even if the regional SOA note is subsequently updated in tenant settings.
+        var cleanRemarks = (!string.IsNullOrWhiteSpace(soa?.Remarks) && !soa.Remarks.Contains("[PAYMENT_BREAKDOWN"))
+            ? soa.Remarks.Trim()
+            : null;
+
+        if (!string.IsNullOrWhiteSpace(cleanRemarks))
         {
-            model.Remarks = $"{soa.Remarks}\n\n{model.Remarks}";
+            model.Remarks = cleanRemarks;
         }
-        else if (soa?.SoaNote != null && !string.IsNullOrWhiteSpace(soa.SoaNote.Notes))
+        else
         {
-            model.Remarks = $"{soa.SoaNote.Notes}\n\n{model.Remarks}";
+            var effectiveNote = soa?.SoaNote ?? tenantSoaNote;
+            var noteText = !string.IsNullOrWhiteSpace(effectiveNote?.Notes) ? effectiveNote.Notes.Trim() : null;
+            if (!string.IsNullOrWhiteSpace(noteText))
+            {
+                model.Remarks = noteText;
+            }
         }
 
         return model;

@@ -141,6 +141,7 @@ public static class SoaEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IOfficialReceiptRepository? receiptRepository = null,
+        ISoaNoteRepository? soaNoteRepository = null,
         string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
@@ -208,6 +209,19 @@ public static class SoaEndpoints
             }
         }
 
+        SoaNote? tenantSoaNote = soa?.SoaNote;
+        if (tenantSoaNote == null && soa?.SoaNoteId.HasValue == true && soaNoteRepository != null)
+        {
+            tenantSoaNote = await soaNoteRepository.GetByIdAsync(soa.SoaNoteId.Value, cancellationToken);
+        }
+
+        if (tenantSoaNote == null && soaNoteRepository != null && app.TenantId != Guid.Empty)
+        {
+            var tenantNotes = await soaNoteRepository.GetAllAsync(app.TenantId, cancellationToken);
+            tenantSoaNote = tenantNotes.FirstOrDefault(n => n.Code == "DEFAULT" || (n.Title != null && n.Title.Contains("Default", StringComparison.OrdinalIgnoreCase)))
+                            ?? tenantNotes.FirstOrDefault();
+        }
+
         var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
         var printModel = StatementOfAccountPrintMapper.MapToPrintModel(
             soa: soa,
@@ -216,7 +230,8 @@ public static class SoaEndpoints
             regionalSignatories: regionalSignatories,
             receipt: receipt,
             overrideOrNumber: orNumber,
-            receipts: matchingReceipts);
+            receipts: matchingReceipts,
+            tenantSoaNote: tenantSoaNote);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
 
@@ -235,6 +250,7 @@ public static class SoaEndpoints
         IFormPrintingService printingService,
         HttpContext httpContext,
         IOfficialReceiptRepository? receiptRepository = null,
+        ISoaNoteRepository? soaNoteRepository = null,
         string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
@@ -295,6 +311,19 @@ public static class SoaEndpoints
             }
         }
 
+        SoaNote? tenantSoaNote = soa.SoaNote;
+        if (tenantSoaNote == null && soa.SoaNoteId.HasValue && soaNoteRepository != null)
+        {
+            tenantSoaNote = await soaNoteRepository.GetByIdAsync(soa.SoaNoteId.Value, cancellationToken);
+        }
+
+        if (tenantSoaNote == null && soaNoteRepository != null && tenantId != Guid.Empty)
+        {
+            var tenantNotes = await soaNoteRepository.GetAllAsync(tenantId, cancellationToken);
+            tenantSoaNote = tenantNotes.FirstOrDefault(n => n.Code == "DEFAULT" || (n.Title != null && n.Title.Contains("Default", StringComparison.OrdinalIgnoreCase)))
+                            ?? tenantNotes.FirstOrDefault();
+        }
+
         var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app?.TenantId, app?.RegionId, cancellationToken);
         var printModel = StatementOfAccountPrintMapper.MapToPrintModel(
             soa: soa,
@@ -303,7 +332,8 @@ public static class SoaEndpoints
             regionalSignatories: regionalSignatories,
             receipt: receipt,
             overrideOrNumber: orNumber,
-            receipts: matchingReceipts);
+            receipts: matchingReceipts,
+            tenantSoaNote: tenantSoaNote);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf";
 

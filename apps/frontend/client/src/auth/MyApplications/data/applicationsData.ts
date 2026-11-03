@@ -73,6 +73,8 @@ export interface SoaData {
   totalAmount: number;
   dueDate?: string;
   remarks?: string;
+  soaNoteId?: string;
+  soaNoteText?: string;
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;

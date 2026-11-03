@@ -159,6 +159,13 @@ export function ClientSoaDataView({
         <Text style={dataViewStyles.wordsText}>{wordsTotal}</Text>
       </View>
 
+      {(app.soa?.remarks || app.soa?.soaNoteText || app.remarks) && (
+        <View style={{ marginTop: 12, padding: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 }}>NOTES / REMARKS:</Text>
+          <Text style={{ fontSize: 11, color: '#1E293B', lineHeight: 16 }}>{app.soa?.remarks || app.soa?.soaNoteText || app.remarks}</Text>
+        </View>
+      )}
+
       <View style={{ flexDirection: isDesktop ? 'row' : 'column', justifyContent: 'space-between', alignItems: isDesktop ? 'flex-end' : 'stretch', marginTop: 20, gap: 16 }}>
         {/* Official O.R. Stamp Box matching official physical Statement of Account */}
         {hasOr ? (

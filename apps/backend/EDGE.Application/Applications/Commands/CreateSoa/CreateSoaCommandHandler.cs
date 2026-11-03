@@ -23,6 +23,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
     private readonly IServiceVariantElementFeeRepository? _elementFeeRepository;
     private readonly IServiceVariantFormulaRepository? _formulaRepository;
     private readonly INumberingSeriesService? _numberingSeriesService;
+    private readonly ISoaNoteRepository? _soaNoteRepository;
 
     public CreateSoaCommandHandler(
         IApplicationFullRepository repository,
@@ -47,6 +48,7 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         _elementFeeRepository = elementFeeRepository;
         _formulaRepository = formulaRepository;
         _numberingSeriesService = numberingSeriesService;
+        _soaNoteRepository = soaNoteRepository;
     }
 
     public async Task<ApiResponse<Guid>> Handle(CreateSoaCommand request, CancellationToken cancellationToken)
@@ -142,6 +144,31 @@ public class CreateSoaCommandHandler : IRequestHandler<CreateSoaCommand, ApiResp
         soa.DueDate = resolvedDueDate;
         soa.Remarks = request.Remarks;
         soa.SoaNoteId = request.SoaNoteId;
+
+        if (_soaNoteRepository != null)
+        {
+            SoaNote? note = null;
+            if (soa.SoaNoteId.HasValue && soa.SoaNoteId.Value != Guid.Empty)
+            {
+                note = await _soaNoteRepository.GetByIdAsync(soa.SoaNoteId.Value, cancellationToken);
+            }
+            else
+            {
+                var tenantNotes = await _soaNoteRepository.GetAllAsync(app.TenantId, cancellationToken);
+                note = tenantNotes.FirstOrDefault(n => n.Code == "DEFAULT" || (n.Title != null && n.Title.Contains("Default", StringComparison.OrdinalIgnoreCase)))
+                       ?? tenantNotes.FirstOrDefault();
+                if (note != null)
+                {
+                    soa.SoaNoteId = note.Id;
+                }
+            }
+
+            if (note != null && string.IsNullOrWhiteSpace(soa.Remarks))
+            {
+                soa.Remarks = note.Notes;
+            }
+        }
+
         soa.LineItems.Clear();
 
         if (request.LineItems != null && request.LineItems.Count > 0)

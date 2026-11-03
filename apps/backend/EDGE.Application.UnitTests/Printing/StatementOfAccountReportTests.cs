@@ -500,4 +500,109 @@ public class StatementOfAccountReportTests
         Assert.Equal(2, model.OrNumbers.Count);
         Assert.Equal("P1,500.00", model.OrAmount);
     }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WithSoaNote_AppliesTenantSoaNoteToRemarks()
+    {
+        var tenantId = Guid.NewGuid();
+        var soaNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Code = "DEFAULT",
+            Title = "Official Regional Notes",
+            Notes = "Payment should be made within 30 days. Payable to NTC Regional Office VII."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-TEST",
+            SoaNoteId = soaNote.Id,
+            SoaNote = soaNote,
+            Remarks = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.Equal(soaNote.Notes, model.Remarks);
+        Assert.DoesNotContain("NTC 10", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WithExplicitTenantSoaNoteFallback_AppliesTenantSoaNote()
+    {
+        var tenantNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Default Note",
+            Notes = "Custom Tenant Assessment Note for Radio Licenses."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-FALLBACK",
+            Remarks = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            tenantSoaNote: tenantNote);
+
+        Assert.Equal(tenantNote.Notes, model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_EvaluatorRemarksSnapshot_PreservesCustomRemarks()
+    {
+        var soaNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Notes = "Standard regional payment terms."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-CUSTOM",
+            SoaNote = soaNote,
+            Remarks = "Expedited assessment approved per memo 2026-04."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.Equal("Expedited assessment approved per memo 2026-04.", model.Remarks);
+        Assert.DoesNotContain("NTC 10", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_HistoricSoaWithNote1_PreservesNote1WhenTenantUpdatesToNote2()
+    {
+        // Arrange: SOA was issued to client when Region VII had SOA Note 1 configured
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-HISTORIC-100",
+            Remarks = "Payment via Landbank Account # 1234-5678. Official Region VII terms v1."
+        };
+
+        // Act: Regional tenant subsequently updates their active SOA Note template in tenant settings to Note 2
+        var updatedTenantNote2 = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Updated Region VII Terms v2",
+            Notes = "NEW Payment Guidelines: Payment via DBP Account # 9999-0000. Region VII terms v2."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            tenantSoaNote: updatedTenantNote2);
+
+        // Assert: The historic SOA retains its original Note 1 snapshot string and is NOT altered by Note 2
+        Assert.Equal("Payment via Landbank Account # 1234-5678. Official Region VII terms v1.", model.Remarks);
+        Assert.DoesNotContain("DBP Account", model.Remarks);
+    }
 }

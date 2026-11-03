@@ -96,6 +96,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 .ThenInclude(s => s.LineItems)
             .Include(a => a.StatementsOfAccount)
                 .ThenInclude(s => s.Histories)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.SoaNote)
             .Include(a => a.OrdersOfPayment)
                 .ThenInclude(o => o.Histories)
             .Include(a => a.IssuedDocumentDetails)
@@ -184,6 +186,8 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     .ThenInclude(fv => fv.Field)
             .Include(a => a.StatementsOfAccount)
                 .ThenInclude(s => s.LineItems)
+            .Include(a => a.StatementsOfAccount)
+                .ThenInclude(s => s.SoaNote)
             .Include(a => a.OrdersOfPayment)
             .Include(a => a.Histories)
             .Include(a => a.CorrectionAuditTrails)
@@ -1073,6 +1077,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ApprovedByUserId = s.ApprovedByUserId,
                     Remarks = s.Remarks,
                     SoaNoteId = s.SoaNoteId,
+                    SoaNoteText = s.SoaNote != null ? s.SoaNote.Notes : null,
                     PreparedByName = s.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
                                      ?? app.Histories.Where(h => h.StaffRole != null && h.StaffRole.Contains("Evaluator")).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault() ?? "EVALUATOR",
                     ApprovedByName = s.Histories.Where(h => h.StaffRole != null && (h.StaffRole.Contains("Chief") || h.StaffRole.Contains("Director"))).OrderByDescending(h => h.Timestamp).Select(h => h.StaffName).FirstOrDefault()
@@ -1243,6 +1248,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Include(s => s.Application)
             .Include(s => s.LineItems)
             .Include(s => s.Histories)
+            .Include(s => s.SoaNote)
             .FirstOrDefaultAsync(s => s.Id == soaId, cancellationToken);
     }
 

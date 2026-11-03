@@ -182,7 +182,7 @@ public static class Permissions
         // Tenants & Members
         new(ReadTenants, "Tenants Management", "Read Tenants", PermissionScope.Internal, "Allows viewing organization tenants"),
         new(CreateTenants, "Tenants Management", "Create Tenants", PermissionScope.SystemAdmin, "Allows provisioning new tenants"),
-        new(UpdateTenants, "Tenants Management", "Update Tenants", PermissionScope.SystemAdmin, "Allows updating tenant settings"),
+        new(UpdateTenants, "Tenants Management", "Update Tenants", PermissionScope.Internal, "Allows updating tenant settings"),
         new(DeleteTenants, "Tenants Management", "Delete Tenants", PermissionScope.SystemAdmin, "Allows removing organization tenants"),
         new(ManageTenantMembers, "Tenants Management", "Manage Members", PermissionScope.SystemAdmin, "Allows managing tenant membership"),
 

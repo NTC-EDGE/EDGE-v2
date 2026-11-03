@@ -173,7 +173,9 @@ export function useRoleManagement() {
     !selectedRole.isSystemRole
   );
 
-  const isCurrentRoleReadOnly = Boolean(!isOwnCustomRole || !canAssignPermissions);
+  const isCurrentRoleReadOnly = isSuperAdmin
+    ? !canAssignPermissions
+    : Boolean(!isOwnCustomRole || !canAssignPermissions);
 
   // ── Handlers ────────────────────────────────────────────────────────────────
   const handleSelectRole = (role: UIFormatRole) => {

@@ -942,6 +942,7 @@ export interface StatementOfAccountDto {
   approvedAt?: string;
   remarks?: string;
   soaNoteId?: string;
+  soaNoteText?: string;
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;

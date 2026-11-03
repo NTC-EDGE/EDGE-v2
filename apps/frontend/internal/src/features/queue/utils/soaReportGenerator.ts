@@ -778,9 +778,9 @@ export function generateSoaPrintableHtml(
     </div>
 
     <!-- Official SOA Remarks Box -->
-    ${(app.soaRemarks || app.remarks) ? `
+    ${(app.soaRemarks || app.soaNoteText || app.remarks) ? `
     <div style="border: ${isOverlay ? '1px solid transparent' : '1px solid #000000'}; border-top: none; padding: 3px 8px; font-size: 8.5px; font-family: Arial, sans-serif; background: ${isOverlay ? 'transparent' : '#ffffff'};">
-      <span style="font-weight: bold;">REMARKS: </span><span>${safeString(app.soaRemarks || app.remarks, '')}</span>
+      <span style="font-weight: bold;">REMARKS: </span><span style="white-space: pre-line;">${safeString(app.soaRemarks || app.soaNoteText || app.remarks, '')}</span>
     </div>
     ` : ''}
 

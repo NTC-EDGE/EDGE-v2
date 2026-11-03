@@ -291,6 +291,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 ApprovedAt = s.ApprovedAt,
                 Remarks = s.Remarks,
                 SoaNoteId = s.SoaNoteId,
+                SoaNoteText = s.SoaNote != null ? s.SoaNote.Notes : null,
                 PreparedByName = resolvedEvaluatorName ?? "EVALUATOR",
                 PreparedByTitle = resolvedEvaluatorTitle,
                 ApprovedByName = resolvedApproverName,

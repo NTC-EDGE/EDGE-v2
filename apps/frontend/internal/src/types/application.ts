@@ -264,4 +264,5 @@ export interface ApplicationData {
   note: string;
   remarks?: string;
   soaRemarks?: string;
+  soaNoteText?: string;
 }
