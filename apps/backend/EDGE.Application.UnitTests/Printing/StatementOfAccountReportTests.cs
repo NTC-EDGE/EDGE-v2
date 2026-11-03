@@ -452,4 +452,52 @@ public class StatementOfAccountReportTests
 
         Assert.Equal("OR-CUSTOM-111", modelWithOverride.OrNo);
     }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_MultipleOfficialReceipts_AggregatesAllOrNumbersAndAmounts()
+    {
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var op = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "OP-2026-0001",
+            AmountDue = 1500m,
+            AmountReceived = 1500m,
+            Status = OpStatus.Paid
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationNumber = "APP-2026-0001",
+            Status = ApplicationStatus.ForIssuance,
+            OrdersOfPayment = new List<OrderOfPayment> { op }
+        };
+
+        var receipt1 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-1001",
+            Amount = 1000m,
+            IssuedAt = new DateTime(2026, 3, 10, 8, 0, 0, DateTimeKind.Utc)
+        };
+        var receipt2 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-1002",
+            Amount = 500m,
+            IssuedAt = new DateTime(2026, 3, 11, 9, 0, 0, DateTimeKind.Utc)
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: op,
+            receipts: new List<OfficialReceipt> { receipt1, receipt2 });
+
+        Assert.Contains("OR-1001", model.OrNo);
+        Assert.Contains("OR-1002", model.OrNo);
+        Assert.Equal(2, model.OrNumbers.Count);
+        Assert.Equal("P1,500.00", model.OrAmount);
+    }
 }

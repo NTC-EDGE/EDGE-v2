@@ -165,10 +165,17 @@ export function ClientSoaDataView({
           <View style={{ width: isDesktop ? 240 : '100%', borderWidth: 1.5, borderColor: '#059669', borderRadius: 4, padding: 8, backgroundColor: '#F0FDF4' }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#BBF7D0', paddingBottom: 4 }}>
               <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46', width: 45 }}>O.R.</Text>
-              <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857', fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }) }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857', flex: 1, fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }) }}>
                 {safeOrList.length > 1 ? safeOrList.map(formatOrDisplayNumber).join(', ') : formatOrDisplayNumber(orNum || 'RECORDED')}
               </Text>
             </View>
+            {safeOrList.length > 1 && (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#065F46' }}>
+                  ({safeOrList.length} Official Receipts Issued)
+                </Text>
+              </View>
+            )}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
               <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#065F46' }}>AMOUNT:</Text>
               <Text style={{ fontSize: 10, fontWeight: '800', color: '#047857' }}>{formatCurrency(totalAmount)}</Text>

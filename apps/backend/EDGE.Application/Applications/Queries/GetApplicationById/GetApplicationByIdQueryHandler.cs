@@ -37,6 +37,26 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
         var regionalSignatories = await _repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
 
+        var allOrNumbers = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+            .Select(o => o.OfficialReceiptNumber)
+            .Concat((app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>()).Select(d => d.OfficialReceiptNumber))
+            .Concat((app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+                .SelectMany(o => o.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())
+                .Select(h => h.OfficialReceiptNumber))
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .SelectMany(n => n!.Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries))
+            .Select(s => s.Trim())
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var resolvedOrNumber = allOrNumbers.Count > 0
+            ? string.Join(", ", allOrNumbers)
+            : paidOp?.OfficialReceiptNumber;
+
+        var resolvedAmountPaid = (paidOp?.AmountReceived > 0)
+            ? paidOp.AmountReceived
+            : (app.OrdersOfPayment?.Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber)).Sum(o => o.AmountReceived > 0 ? o.AmountReceived : o.AmountDue));
+
         var allHistories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
             .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
             .Concat(app.StatementsOfAccount.SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
@@ -101,8 +121,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
             ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
-            OfficialReceiptNumber = paidOp?.OfficialReceiptNumber,
-            AmountPaid = paidOp?.AmountReceived,
+            OfficialReceiptNumber = resolvedOrNumber,
+            AmountPaid = resolvedAmountPaid,
             PaidAt = paidOp?.PaidAt,
             Services = app.ApplicationApplicants
                 .Where(aa => aa.Applicant?.Service != null)

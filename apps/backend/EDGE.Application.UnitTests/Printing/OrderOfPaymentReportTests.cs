@@ -1,5 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.MockData;
 using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Reports;
@@ -333,5 +337,52 @@ public class OrderOfPaymentReportTests
         {
             File.WriteAllBytes(Path.Combine(tempDir, filename), bytes);
         }
+    }
+
+    [Fact]
+    public void OrderOfPaymentPrintMapper_MultipleOfficialReceipts_AggregatesAllOrNumbersAndAmounts()
+    {
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var op = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "OP-2026-0001",
+            AmountDue = 2000m,
+            AmountReceived = 2000m,
+            Status = OpStatus.Paid
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationNumber = "APP-2026-0001",
+            Status = ApplicationStatus.ForIssuance,
+            OrdersOfPayment = new List<OrderOfPayment> { op }
+        };
+
+        var receipt1 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-PART-1",
+            Amount = 1200m,
+            IssuedAt = new DateTime(2026, 4, 1, 8, 0, 0, DateTimeKind.Utc)
+        };
+        var receipt2 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-PART-2",
+            Amount = 800m,
+            IssuedAt = new DateTime(2026, 4, 2, 9, 0, 0, DateTimeKind.Utc)
+        };
+
+        var model = OrderOfPaymentPrintMapper.MapToPrintModel(
+            op: op,
+            app: app,
+            receipts: new List<OfficialReceipt> { receipt1, receipt2 });
+
+        Assert.Contains("OR-PART-1", model.OrNo);
+        Assert.Contains("OR-PART-2", model.OrNo);
+        Assert.Equal(2, model.OrNumbers.Count);
+        Assert.Equal("P2,000.00", model.OrAmount);
     }
 }

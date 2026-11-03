@@ -267,6 +267,12 @@ export function generateSoaPrintableHtml(
   const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
     ? app.payment.orNumber
     : (app.officialReceiptNumber ?? '');
+  const orList = orNumber
+    ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+    : [];
+  const orDisplay = orList.length > 1
+    ? orList.join(', ')
+    : orNumber;
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
     ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
@@ -791,7 +797,7 @@ export function generateSoaPrintableHtml(
           <table class="or-stamp-table">
             <tr>
               <td rowspan="4" class="or-header-cell">O.R.</td>
-              <td><span style="font-weight: bold;">No.</span> ${orNumber}</td>
+              <td><span style="font-weight: bold;">No.</span> ${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
             </tr>
             <tr>
               <td><span style="font-weight: bold;">AMOUNT:</span> <strong style="font-size: 11px; color: #15803d;">${orAmount}</strong></td>
@@ -858,6 +864,12 @@ export function generateOpPrintableHtml(
   const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
     ? app.payment.orNumber
     : (app.officialReceiptNumber ?? '');
+  const orList = orNumber
+    ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+    : [];
+  const orDisplay = orList.length > 1
+    ? orList.join(', ')
+    : orNumber;
 
   const applicantAddress = safeString(
     (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
@@ -866,9 +878,9 @@ export function generateOpPrintableHtml(
     'N/A'
   );
 
-  const paymentStatusText = orNumber
-    ? `Paid via OR #${orNumber}`
-    : 'Pending Cashier Collection';
+  const paymentStatusText = orList.length > 1
+    ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
+    : (orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection');
 
   const renderSingleVoucher = (copyTitle: string) => `
     <div class="voucher-wrapper">
@@ -958,7 +970,7 @@ export function generateOpPrintableHtml(
             <table class="or-stamp-box">
               <tr>
                 <td style="width: 55px; font-weight: bold;">O.R. No.</td>
-                <td style="font-weight: bold; font-family: monospace;">${orNumber || '________________'}</td>
+                <td style="font-weight: bold; font-family: monospace;">${orDisplay || '________________'}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
               </tr>
               <tr>
                 <td style="font-weight: bold;">AMOUNT:</td>

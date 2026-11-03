@@ -45,6 +45,7 @@ public class OrderOfPaymentModel
 
     // Bottom-left O.R. Box / Stamp fields
     public string? OrNo { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public string? OrAmount { get; set; }
     public string? OrDate { get; set; }
     public string? OrBy { get; set; }

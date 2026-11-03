@@ -202,6 +202,13 @@ export function generateSoaPrintableHtml(
     orNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
     ''
   );
+  const orList = effectiveOr.length > 0
+    ? effectiveOr.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+    : [];
+  const orDisplay = orList.length > 1
+    ? orList.map(formatOrDisplayNumber).join(', ')
+    : formatOrDisplayNumber(effectiveOr || 'RECORDED');
+
   const isPaid = effectiveOr.length > 0 ||
     Boolean(app.paidAt || app.op?.paidAt || app.status === 'APPROVED');
 
@@ -403,10 +410,10 @@ export function generateSoaPrintableHtml(
     </div>
     <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
       <tr>
-        <td style="color: #065f46; font-weight: 700; width: 15%;">O.R. NO.:</td>
-        <td style="font-family: monospace; font-weight: 800; color: #047857; width: 35%;">${formatOrDisplayNumber(effectiveOr || 'RECORDED')}</td>
-        <td style="color: #065f46; font-weight: 700; width: 15%;">AMOUNT:</td>
-        <td style="font-weight: 800; color: #047857; width: 35%;">${formatCurrency(totalAmount)}</td>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">O.R. NO.:</td>
+        <td style="font-family: monospace; font-weight: 800; color: #047857; width: 32%;">${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">AMOUNT:</td>
+        <td style="font-weight: 800; color: #047857; width: 32%;">${formatCurrency(totalAmount)}</td>
       </tr>
       <tr>
         <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
@@ -446,7 +453,8 @@ export function generateSoaPrintableHtml(
 export function generateOpPrintableHtml(
   app: Application,
   tenantName?: string,
-  cashierName?: string
+  cashierName?: string,
+  overrideOrNumber?: string
 ): string {
   const currentDate = new Date().toLocaleDateString('en-US', {
     month: 'long',
@@ -463,7 +471,19 @@ export function generateOpPrintableHtml(
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.serviceCategory, 'General');
   const filingMode = safeString(app.mode, 'Single');
-  const orNumber = app.op?.officialReceiptNumber;
+  const effectiveOr = safeString(
+    overrideOrNumber || app.officialReceiptNumber || app.op?.officialReceiptNumber,
+    ''
+  );
+  const orList = effectiveOr.length > 0
+    ? effectiveOr.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+    : [];
+  const orDisplay = orList.length > 1
+    ? orList.map(formatOrDisplayNumber).join(', ')
+    : (effectiveOr ? formatOrDisplayNumber(effectiveOr) : '');
+  const paymentStatusText = orList.length > 1
+    ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
+    : (effectiveOr ? `Paid via ${orDisplay}` : 'Pending Cashier Collection');
 
   const soaItemsList = getEffectiveLineItems(app);
   const lineItemsHtml = soaItemsList
@@ -603,9 +623,31 @@ export function generateOpPrintableHtml(
     <div style="font-weight: 700; color: #065f46; margin-bottom: 4px;">AMOUNT IN WORDS:</div>
     <div style="font-size: 11px; font-weight: 600; color: #047857;">${totalWords}</div>
     <div style="margin-top: 8px; font-size: 10.5px; color: #065f46;">
-      <strong>Payment Status:</strong> ${orNumber ? `Paid via ${formatOrDisplayNumber(orNumber)}` : 'Pending Cashier Collection'}
+      <strong>Payment Status:</strong> ${paymentStatusText}
     </div>
   </div>
+
+  ${effectiveOr ? `
+  <div style="margin-bottom: 20px; border: 1.5px solid #059669; border-radius: 6px; padding: 12px 16px; background-color: #f0fdf4;">
+    <div style="font-size: 11px; font-weight: 800; color: #065f46; border-bottom: 1px solid #bbf7d0; padding-bottom: 4px; margin-bottom: 6px; letter-spacing: 0.5px;">
+      OFFICIAL RECEIPT (O.R.) STAMP BOX
+    </div>
+    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+      <tr>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">O.R. NO.:</td>
+        <td style="font-family: monospace; font-weight: 800; color: #047857; width: 32%;">${orDisplay}${orList.length > 1 ? ` (${orList.length} Receipts)` : ''}</td>
+        <td style="color: #065f46; font-weight: 700; width: 18%;">AMOUNT:</td>
+        <td style="font-weight: 800; color: #047857; width: 32%;">${formatCurrency(totalAmount)}</td>
+      </tr>
+      <tr>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
+        <td style="color: #047857; padding-top: 4px;">${currentDate}</td>
+        <td style="color: #065f46; font-weight: 700; padding-top: 4px;">BY:</td>
+        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${safeString(cashierName, 'Special Collecting Officer')}</td>
+      </tr>
+    </table>
+  </div>
+  ` : ''}
 
   <div class="signatories">
     <div class="sig-block">

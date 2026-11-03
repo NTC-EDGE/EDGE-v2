@@ -18,7 +18,8 @@ public static class StatementOfAccountPrintMapper
         OrderOfPayment? op = null,
         EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null,
         OfficialReceipt? receipt = null,
-        string? overrideOrNumber = null)
+        string? overrideOrNumber = null,
+        IEnumerable<OfficialReceipt>? receipts = null)
     {
         var model = new StatementOfAccountModel();
 
@@ -193,42 +194,127 @@ public static class StatementOfAccountPrintMapper
             }
         }
 
-        // 7. Linked Order of Payment & OR Stamp Box if paid
-        var effectiveOrNumber = !string.IsNullOrWhiteSpace(overrideOrNumber)
-            ? overrideOrNumber
-            : (!string.IsNullOrWhiteSpace(activeOp?.OfficialReceiptNumber)
-                ? activeOp.OfficialReceiptNumber
-                : (!string.IsNullOrWhiteSpace(receipt?.OfficialReceiptNumber)
-                    ? receipt.OfficialReceiptNumber
-                    : (app?.OrdersOfPayment?.OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
-                        .Select(o => o.OfficialReceiptNumber)
-                        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
-                      ?? app?.IssuedDocumentDetails?.Select(d => d.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
-                      ?? activeOp?.Histories?.OrderByDescending(h => h.Timestamp).Select(h => h.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)))));
+        // 7. Linked Order of Payment & OR Stamp Box if paid - supports single or multiple Official Receipts
+        var allReceiptNumbers = new List<string>();
 
-        bool isPaid = !string.IsNullOrWhiteSpace(effectiveOrNumber)
+        if (!string.IsNullOrWhiteSpace(overrideOrNumber))
+        {
+            allReceiptNumbers.Add(overrideOrNumber.Trim());
+        }
+        else
+        {
+            if (receipts != null)
+            {
+                allReceiptNumbers.AddRange(receipts
+                    .Where(r => r != null && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+                    .Select(r => r.OfficialReceiptNumber.Trim()));
+            }
+
+            if (receipt != null && !string.IsNullOrWhiteSpace(receipt.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.Add(receipt.OfficialReceiptNumber.Trim());
+            }
+
+            if (!string.IsNullOrWhiteSpace(activeOp?.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.AddRange(activeOp.OfficialReceiptNumber
+                    .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                    .Select(s => s.Trim()));
+            }
+
+            if (app?.OrdersOfPayment != null)
+            {
+                foreach (var otherOp in app.OrdersOfPayment)
+                {
+                    if (!string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(otherOp.OfficialReceiptNumber
+                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim()));
+                    }
+                }
+            }
+
+            if (app?.IssuedDocumentDetails != null)
+            {
+                foreach (var doc in app.IssuedDocumentDetails)
+                {
+                    if (!string.IsNullOrWhiteSpace(doc.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(doc.OfficialReceiptNumber
+                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim()));
+                    }
+                }
+            }
+
+            if (activeOp?.Histories != null)
+            {
+                foreach (var h in activeOp.Histories)
+                {
+                    if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(h.OfficialReceiptNumber
+                            .Split(new[] { ',', ';' }, StringSplitOptions.RemoveEmptyEntries)
+                            .Select(s => s.Trim()));
+                    }
+                }
+            }
+        }
+
+        var distinctOrNumbers = allReceiptNumbers
+            .Where(n => !string.IsNullOrWhiteSpace(n))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        var effectiveOrNumber = distinctOrNumbers.Count > 0
+            ? string.Join(", ", distinctOrNumbers)
+            : null;
+
+        model.OrNumbers = distinctOrNumbers;
+
+        bool isPaid = distinctOrNumbers.Count > 0
             || (activeOp != null && activeOp.Status == EDGE.Domain.Enums.OpStatus.Paid)
             || receipt != null
+            || (receipts != null && receipts.Any())
             || (app != null && (app.Status == EDGE.Domain.Enums.ApplicationStatus.ForIssuance
                              || app.Status == EDGE.Domain.Enums.ApplicationStatus.Completed
                              || app.Status == EDGE.Domain.Enums.ApplicationStatus.Approved));
 
         if (isPaid)
         {
-            var effectiveAmount = activeOp?.AmountReceived > 0
-                ? activeOp.AmountReceived
-                : (receipt != null && receipt.Amount > 0
-                    ? receipt.Amount
-                    : (activeOp?.AmountDue ?? model.TotalAmount ?? 0));
+            decimal effectiveAmount;
+            if (!string.IsNullOrWhiteSpace(overrideOrNumber))
+            {
+                var matchingReceipt = receipts?.FirstOrDefault(r => string.Equals(r.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? (string.Equals(receipt?.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase) ? receipt : null);
+
+                effectiveAmount = matchingReceipt?.Amount > 0
+                    ? matchingReceipt.Amount
+                    : (activeOp?.AmountReceived > 0 ? activeOp.AmountReceived : (activeOp?.AmountDue ?? model.TotalAmount ?? 0));
+            }
+            else
+            {
+                var receiptsSum = receipts?.Where(r => r.Status != ReceiptStatus.Cancelled).Sum(r => r.Amount) ?? 0;
+                effectiveAmount = activeOp?.AmountReceived > 0
+                    ? activeOp.AmountReceived
+                    : (receiptsSum > 0
+                        ? receiptsSum
+                        : (receipt != null && receipt.Amount > 0
+                            ? receipt.Amount
+                            : (activeOp?.AmountDue ?? model.TotalAmount ?? 0)));
+            }
 
             var effectiveDate = activeOp?.PaidAt
                 ?? receipt?.IssuedAt
+                ?? receipts?.OrderByDescending(r => r.IssuedAt).Select(r => (DateTime?)r.IssuedAt).FirstOrDefault()
                 ?? activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
                 ?? (activeOp?.CreatedAt != default ? activeOp?.CreatedAt : (app?.CreatedAt != default ? app?.CreatedAt : DateTime.UtcNow));
 
             var cashierStaff = activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
                 ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
                 ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
+                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser != null ? $"{receipts.First(r => r.IssuedByUser != null).IssuedByUser!.FirstName} {receipts.First(r => r.IssuedByUser != null).IssuedByUser!.LastName}".Trim() : null)
                 ?? "Cashier";
 
             model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";

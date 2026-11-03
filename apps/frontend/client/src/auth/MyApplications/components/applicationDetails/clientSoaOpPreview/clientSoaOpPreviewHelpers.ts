@@ -130,7 +130,12 @@ export async function handlePrintDocument(
     );
     openPrintableDocumentWindow(html);
   } else if (activeTab === 'op') {
-    const html = generateOpPrintableHtml(app);
+    const html = generateOpPrintableHtml(
+      app,
+      app.office,
+      undefined,
+      effectiveSelectedOr !== null ? effectiveSelectedOr : undefined
+    );
     openPrintableDocumentWindow(html);
   } else {
     const html = generateOrPrintableHtml(app);

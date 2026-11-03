@@ -108,6 +108,7 @@ public class StatementOfAccountModel
     public bool IsEndorsedForPayment { get; set; }
 
     public string? OrNo { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public string? OrAmount { get; set; }
     public string? OrDate { get; set; }
     public string? OrBy { get; set; }

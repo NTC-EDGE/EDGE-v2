@@ -172,6 +172,7 @@ public static class SoaEndpoints
             return Results.NotFound(new { message = $"No Statement of Account or Order of Payment found for Application '{id}'." });
         }
 
+        List<OfficialReceipt> matchingReceipts = new();
         OfficialReceipt? receipt = null;
         if (receiptRepository != null)
         {
@@ -180,19 +181,30 @@ public static class SoaEndpoints
                 var cleanOr = orNumber.TrimStart('#').Trim();
                 receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
                           ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
             }
 
-            if (receipt == null && op != null)
+            if (op != null)
             {
                 var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
             }
 
-            if (receipt == null)
+            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+            var appReceipts = receipts
+                .Where(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id))
+                .ToList();
+            if (appReceipts.Count > 0)
             {
-                var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
-                receipt = receipts.OrderByDescending(r => r.IssuedAt)
-                    .FirstOrDefault(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id));
+                matchingReceipts.AddRange(appReceipts);
+                receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
             }
         }
 
@@ -203,7 +215,8 @@ public static class SoaEndpoints
             op: op,
             regionalSignatories: regionalSignatories,
             receipt: receipt,
-            overrideOrNumber: orNumber);
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
 
@@ -243,6 +256,7 @@ public static class SoaEndpoints
             ?? app?.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
             ?? app?.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
+        List<OfficialReceipt> matchingReceipts = new();
         OfficialReceipt? receipt = null;
         if (receiptRepository != null && tenantId != Guid.Empty)
         {
@@ -251,19 +265,33 @@ public static class SoaEndpoints
                 var cleanOr = orNumber.TrimStart('#').Trim();
                 receipt = await receiptRepository.GetByOrNumberAsync(tenantId, cleanOr, cancellationToken)
                           ?? await receiptRepository.GetByOrNumberAsync(tenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
             }
 
-            if (receipt == null && op != null)
+            if (op != null)
             {
                 var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
             }
 
-            if (receipt == null && app != null)
+            if (app != null)
             {
                 var receipts = await receiptRepository.GetByTenantAsync(tenantId, cancellationToken: cancellationToken);
-                receipt = receipts.OrderByDescending(r => r.IssuedAt)
-                    .FirstOrDefault(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id));
+                var appReceipts = receipts
+                    .Where(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id))
+                    .ToList();
+                if (appReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(appReceipts);
+                    receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
             }
         }
 
@@ -274,7 +302,8 @@ public static class SoaEndpoints
             op: op,
             regionalSignatories: regionalSignatories,
             receipt: receipt,
-            overrideOrNumber: orNumber);
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf";
 

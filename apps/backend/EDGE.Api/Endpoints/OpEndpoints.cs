@@ -117,6 +117,7 @@ public static class OpEndpoints
             }
         }
 
+        List<OfficialReceipt> matchingReceipts = new();
         OfficialReceipt? receipt = null;
         if (receiptRepository != null)
         {
@@ -125,19 +126,30 @@ public static class OpEndpoints
                 var cleanOr = orNumber.TrimStart('#').Trim();
                 receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
                           ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
             }
 
-            if (receipt == null && op != null)
+            if (op != null)
             {
                 var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
             }
 
-            if (receipt == null)
+            var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+            var appReceipts = receipts
+                .Where(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id))
+                .ToList();
+            if (appReceipts.Count > 0)
             {
-                var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
-                receipt = receipts.OrderByDescending(r => r.IssuedAt)
-                    .FirstOrDefault(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id));
+                matchingReceipts.AddRange(appReceipts);
+                receipt ??= appReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
             }
         }
 
@@ -152,7 +164,8 @@ public static class OpEndpoints
             fundCluster: regionalConfig?.FundCluster,
             agencyBankAccounts: bankAccounts,
             receipt: receipt,
-            overrideOrNumber: orNumber);
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? app.ReferenceNumber ?? id.ToString()}.pdf";
 
@@ -194,6 +207,7 @@ public static class OpEndpoints
             ? await bankAccountRepository.GetByTenantAsync(tenantId, activeOnly: true, cancellationToken)
             : null;
 
+        List<OfficialReceipt> matchingReceipts = new();
         OfficialReceipt? receipt = null;
         if (receiptRepository != null && tenantId != Guid.Empty)
         {
@@ -202,19 +216,34 @@ public static class OpEndpoints
                 var cleanOr = orNumber.TrimStart('#').Trim();
                 receipt = await receiptRepository.GetByOrNumberAsync(tenantId, cleanOr, cancellationToken)
                           ?? await receiptRepository.GetByOrNumberAsync(tenantId, orNumber.Trim(), cancellationToken);
+                if (receipt != null)
+                {
+                    matchingReceipts.Add(receipt);
+                }
             }
 
-            if (receipt == null)
+            if (op != null)
             {
                 var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
-                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                if (opReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(opReceipts);
+                    receipt ??= opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+                }
             }
 
-            if (receipt == null && app != null)
+            if (app != null)
             {
                 var receipts = await receiptRepository.GetByTenantAsync(tenantId, cancellationToken: cancellationToken);
-                receipt = receipts.OrderByDescending(r => r.IssuedAt)
-                    .FirstOrDefault(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id);
+                var appReceipts = receipts
+                    .Where(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id)
+                    .ToList();
+                if (appReceipts.Count > 0)
+                {
+                    matchingReceipts.AddRange(appReceipts);
+                    receipt ??= receipts.OrderByDescending(r => r.IssuedAt)
+                        .FirstOrDefault(r => r.ApplicationId == app.Id || r.OrderOfPaymentId == op.Id);
+                }
             }
         }
 
@@ -225,7 +254,8 @@ public static class OpEndpoints
             fundCluster: regionalConfig?.FundCluster,
             agencyBankAccounts: bankAccounts,
             receipt: receipt,
-            overrideOrNumber: orNumber);
+            overrideOrNumber: orNumber,
+            receipts: matchingReceipts);
         var pdfBytes = printingService.PrintOrderOfPayment(printModel);
         var fileName = $"OP_{op.OpNumber ?? opId.ToString()}.pdf";
 
