@@ -87,7 +87,7 @@ export async function handlePrintDocument(
     try {
       const selectedOrParam = effectiveSelectedOr !== null ? effectiveSelectedOr : undefined;
       const [pdfBlob, err] = activeTab === 'soa'
-        ? await applicationService.previewSoaPdf(app.id)
+        ? await applicationService.previewSoaPdf(app.id, selectedOrParam)
         : activeTab === 'op'
           ? await applicationService.previewOpPdf(app.id, selectedOrParam)
           : await applicationService.previewOrPdf(app.id, selectedOrParam, orTemplate);
@@ -106,7 +106,7 @@ export async function handlePrintDocument(
 
     const selectedOrParam = effectiveSelectedOr !== null ? effectiveSelectedOr : undefined;
     const url = activeTab === 'soa'
-      ? applicationService.getSoaPrintUrl(app.id)
+      ? applicationService.getSoaPrintUrl(app.id, selectedOrParam)
       : activeTab === 'op'
         ? applicationService.getOpPrintUrl(app.id, selectedOrParam)
         : applicationService.getOrPrintUrl(app.id, selectedOrParam, orTemplate);
@@ -125,7 +125,8 @@ export async function handlePrintDocument(
       app,
       app.office,
       app.soa?.preparedByName || app.evaluatingOfficer,
-      app.soa?.approvedByName || app.issuingOfficer
+      app.soa?.approvedByName || app.issuingOfficer,
+      effectiveSelectedOr !== null ? effectiveSelectedOr : undefined
     );
     openPrintableDocumentWindow(html);
   } else if (activeTab === 'op') {
@@ -150,9 +151,9 @@ export function handleDownloadSpecificDocument(
     : (typeof effectiveSelectedOr === 'string' && effectiveSelectedOr.length > 0 ? effectiveSelectedOr : undefined);
 
   const url = targetDoc === 'soa'
-    ? applicationService.getSoaDownloadUrl(app.id)
+    ? applicationService.getSoaDownloadUrl(app.id, resolvedOr)
     : targetDoc === 'op'
-      ? applicationService.getOpDownloadUrl(app.id)
+      ? applicationService.getOpDownloadUrl(app.id, resolvedOr)
       : applicationService.getOrDownloadUrl(app.id, resolvedOr, orTemplate);
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

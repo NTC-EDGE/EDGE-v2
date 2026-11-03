@@ -1,4 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.MockData;
 using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Reports;
@@ -402,4 +407,49 @@ public class StatementOfAccountReportTests
         Assert.Equal("APP-2026-8888", model2.Particular1Header);
     }
 
+    [Fact]
+    public void StatementOfAccountPrintMapper_PopulatesOrDetails_WhenApplicationIsPaid()
+    {
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var paidOp = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "OP-2026-0001",
+            OfficialReceiptNumber = "OR-998877",
+            AmountDue = 1380m,
+            AmountReceived = 1380m,
+            Status = OpStatus.Paid,
+            PaidAt = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Utc)
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationNumber = "APP-2026-1234",
+            ReferenceNumber = "REF-2026-5678",
+            Status = ApplicationStatus.ForIssuance,
+            OrdersOfPayment = new List<OrderOfPayment> { paidOp }
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: paidOp);
+
+        Assert.Equal("OR-998877", model.OrNo);
+        Assert.Equal("P1,380.00", model.OrAmount);
+        Assert.Equal("March 15, 2026", model.OrDate);
+        Assert.Equal("Cashier", model.OrBy);
+
+        // Also test with override OR number
+        var modelWithOverride = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: paidOp,
+            overrideOrNumber: "OR-CUSTOM-111");
+
+        Assert.Equal("OR-CUSTOM-111", modelWithOverride.OrNo);
+    }
 }

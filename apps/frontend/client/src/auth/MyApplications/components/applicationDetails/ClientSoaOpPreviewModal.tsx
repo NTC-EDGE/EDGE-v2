@@ -109,6 +109,9 @@ export function ClientSoaOpPreviewModal({
                     totalAmount={p.totalAmount}
                     wordsTotal={p.wordsTotal}
                     isDesktop={isDesktop}
+                    orNum={p.orNum}
+                    orList={p.orList}
+                    isPaid={p.isPaid}
                   />
                 ) : p.activeTab === 'op' ? (
                   <ClientOpDataView

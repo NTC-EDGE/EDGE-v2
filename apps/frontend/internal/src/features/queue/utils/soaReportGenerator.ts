@@ -264,7 +264,9 @@ export function generateSoaPrintableHtml(
   const isOfficialApplication = !isForAssessmentOnly;
   const isEndorsedForPayment = isOfficialApplication;
 
-  const orNumber = app.payment?.orNumber ?? '';
+  const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
+    ? app.payment.orNumber
+    : (app.officialReceiptNumber ?? '');
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
     ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
@@ -853,7 +855,9 @@ export function generateOpPrintableHtml(
   const serviceName = safeString(app.serviceName, 'Application Services');
   const categoryName = safeString(app.category, 'General');
   const filingMode = safeString(app.mode, 'Single');
-  const orNumber = app.payment?.orNumber;
+  const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
+    ? app.payment.orNumber
+    : (app.officialReceiptNumber ?? '');
 
   const applicantAddress = safeString(
     (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)

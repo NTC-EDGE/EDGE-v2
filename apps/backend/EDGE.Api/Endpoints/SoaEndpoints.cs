@@ -11,6 +11,8 @@ using EDGE.Application.Applications.Commands.ApproveSoa;
 using EDGE.Application.Applications.Commands.ReturnSoa;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Domain.Authorization;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Authorization;
 using EDGE.Infrastructure.Printing.Services;
 using EDGE.Api.Endpoints.Soas.DTOs;
@@ -138,6 +140,8 @@ public static class SoaEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
+        IOfficialReceiptRepository? receiptRepository = null,
+        string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -148,7 +152,13 @@ public static class SoaEndpoints
         }
 
         var soa = app.StatementsOfAccount.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
-        var op = app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+
+        // Prioritize paid Order of Payment if one exists
+        var paidOp = app.OrdersOfPayment
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
+        var op = paidOp ?? app.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
         // If no direct SOA found on application, check if linked via Order of Payment
         if (soa == null && op != null && op.StatementOfAccountId != Guid.Empty)
@@ -162,8 +172,38 @@ public static class SoaEndpoints
             return Results.NotFound(new { message = $"No Statement of Account or Order of Payment found for Application '{id}'." });
         }
 
+        OfficialReceipt? receipt = null;
+        if (receiptRepository != null)
+        {
+            if (!string.IsNullOrWhiteSpace(orNumber))
+            {
+                var cleanOr = orNumber.TrimStart('#').Trim();
+                receipt = await receiptRepository.GetByOrNumberAsync(app.TenantId, cleanOr, cancellationToken)
+                          ?? await receiptRepository.GetByOrNumberAsync(app.TenantId, orNumber.Trim(), cancellationToken);
+            }
+
+            if (receipt == null && op != null)
+            {
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+            }
+
+            if (receipt == null)
+            {
+                var receipts = await receiptRepository.GetByTenantAsync(app.TenantId, cancellationToken: cancellationToken);
+                receipt = receipts.OrderByDescending(r => r.IssuedAt)
+                    .FirstOrDefault(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id));
+            }
+        }
+
         var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
-        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, op, regionalSignatories);
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            app: app,
+            op: op,
+            regionalSignatories: regionalSignatories,
+            receipt: receipt,
+            overrideOrNumber: orNumber);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? id.ToString()}.pdf";
 
@@ -181,6 +221,8 @@ public static class SoaEndpoints
         IApplicationFullRepository repository,
         IFormPrintingService printingService,
         HttpContext httpContext,
+        IOfficialReceiptRepository? receiptRepository = null,
+        string? orNumber = null,
         bool download = false,
         CancellationToken cancellationToken = default)
     {
@@ -191,8 +233,48 @@ public static class SoaEndpoints
         }
 
         var app = soa.Application ?? await repository.GetByIdWithDetailsAsync(soa.ApplicationId, true, cancellationToken);
+        var tenantId = app?.TenantId ?? Guid.Empty;
+
+        var paidOp = app?.OrdersOfPayment?
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
+        var op = paidOp
+            ?? app?.OrdersOfPayment.FirstOrDefault(o => o.StatementOfAccountId == soa.Id)
+            ?? app?.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
+
+        OfficialReceipt? receipt = null;
+        if (receiptRepository != null && tenantId != Guid.Empty)
+        {
+            if (!string.IsNullOrWhiteSpace(orNumber))
+            {
+                var cleanOr = orNumber.TrimStart('#').Trim();
+                receipt = await receiptRepository.GetByOrNumberAsync(tenantId, cleanOr, cancellationToken)
+                          ?? await receiptRepository.GetByOrNumberAsync(tenantId, orNumber.Trim(), cancellationToken);
+            }
+
+            if (receipt == null && op != null)
+            {
+                var opReceipts = await receiptRepository.GetByOrderOfPaymentIdAsync(op.Id, cancellationToken);
+                receipt = opReceipts.OrderByDescending(r => r.IssuedAt).FirstOrDefault();
+            }
+
+            if (receipt == null && app != null)
+            {
+                var receipts = await receiptRepository.GetByTenantAsync(tenantId, cancellationToken: cancellationToken);
+                receipt = receipts.OrderByDescending(r => r.IssuedAt)
+                    .FirstOrDefault(r => r.ApplicationId == app.Id || (op != null && r.OrderOfPaymentId == op.Id));
+            }
+        }
+
         var regionalSignatories = await repository.GetRegionalSignatoriesAsync(app?.TenantId, app?.RegionId, cancellationToken);
-        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(soa, app, regionalSignatories: regionalSignatories);
+        var printModel = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            app: app,
+            op: op,
+            regionalSignatories: regionalSignatories,
+            receipt: receipt,
+            overrideOrNumber: orNumber);
         var pdfBytes = printingService.PrintStatementOfAccount(printModel);
         var fileName = $"SOA_{printModel.AccountNo ?? soaId.ToString()}.pdf";
 

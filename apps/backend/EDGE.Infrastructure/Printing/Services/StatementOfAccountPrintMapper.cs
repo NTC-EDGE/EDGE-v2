@@ -16,12 +16,19 @@ public static class StatementOfAccountPrintMapper
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
         OrderOfPayment? op = null,
-        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null)
+        EDGE.Application.Applications.Dtos.RegionalSignatoriesDto? regionalSignatories = null,
+        OfficialReceipt? receipt = null,
+        string? overrideOrNumber = null)
     {
         var model = new StatementOfAccountModel();
 
         // 1. Resolve effective Order of Payment reference
+        var paidOp = app?.OrdersOfPayment?
+            .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+            .FirstOrDefault(o => o.Status == EDGE.Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
+
         var activeOp = op
+            ?? paidOp
             ?? app?.OrdersOfPayment.FirstOrDefault(o => soa != null && o.StatementOfAccountId == soa.Id)
             ?? app?.OrdersOfPayment.OrderByDescending(o => o.CreatedAt).FirstOrDefault();
 
@@ -187,12 +194,47 @@ public static class StatementOfAccountPrintMapper
         }
 
         // 7. Linked Order of Payment & OR Stamp Box if paid
-        if (activeOp != null && !string.IsNullOrWhiteSpace(activeOp.OfficialReceiptNumber))
+        var effectiveOrNumber = !string.IsNullOrWhiteSpace(overrideOrNumber)
+            ? overrideOrNumber
+            : (!string.IsNullOrWhiteSpace(activeOp?.OfficialReceiptNumber)
+                ? activeOp.OfficialReceiptNumber
+                : (!string.IsNullOrWhiteSpace(receipt?.OfficialReceiptNumber)
+                    ? receipt.OfficialReceiptNumber
+                    : (app?.OrdersOfPayment?.OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
+                        .Select(o => o.OfficialReceiptNumber)
+                        .FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                      ?? app?.IssuedDocumentDetails?.Select(d => d.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n))
+                      ?? activeOp?.Histories?.OrderByDescending(h => h.Timestamp).Select(h => h.OfficialReceiptNumber).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)))));
+
+        bool isPaid = !string.IsNullOrWhiteSpace(effectiveOrNumber)
+            || (activeOp != null && activeOp.Status == EDGE.Domain.Enums.OpStatus.Paid)
+            || receipt != null
+            || (app != null && (app.Status == EDGE.Domain.Enums.ApplicationStatus.ForIssuance
+                             || app.Status == EDGE.Domain.Enums.ApplicationStatus.Completed
+                             || app.Status == EDGE.Domain.Enums.ApplicationStatus.Approved));
+
+        if (isPaid)
         {
-            model.OrNo = activeOp.OfficialReceiptNumber;
-            model.OrAmount = activeOp.AmountReceived > 0 ? $"P{activeOp.AmountReceived:N2}" : $"P{activeOp.AmountDue:N2}";
-            model.OrDate = activeOp.PaidAt?.ToString("MMMM dd, yyyy") ?? activeOp.CreatedAt.ToString("MMMM dd, yyyy");
-            model.OrBy = activeOp.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
+            var effectiveAmount = activeOp?.AmountReceived > 0
+                ? activeOp.AmountReceived
+                : (receipt != null && receipt.Amount > 0
+                    ? receipt.Amount
+                    : (activeOp?.AmountDue ?? model.TotalAmount ?? 0));
+
+            var effectiveDate = activeOp?.PaidAt
+                ?? receipt?.IssuedAt
+                ?? activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
+                ?? (activeOp?.CreatedAt != default ? activeOp?.CreatedAt : (app?.CreatedAt != default ? app?.CreatedAt : DateTime.UtcNow));
+
+            var cashierStaff = activeOp?.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+                ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
+                ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
+                ?? "Cashier";
+
+            model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";
+            model.OrAmount = $"P{effectiveAmount:N2}";
+            model.OrDate = effectiveDate?.ToString("MMMM dd, yyyy") ?? DateTime.UtcNow.ToString("MMMM dd, yyyy");
+            model.OrBy = cashierStaff;
         }
 
         // 8. Signatures: Prepared By (Evaluator) & Approved By (Chief of EOD / Regional Director)
