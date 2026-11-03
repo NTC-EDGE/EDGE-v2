@@ -75,7 +75,7 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
     { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' || isPaymentDone },
     { label: 'Payment', sub: 'Fee assessment', done: isPaymentDone },
     { label: 'Issuance', sub: 'Document release', done: isIssuanceDone },
-    { label: 'Issued', sub: 'License ready', done: isCompletedDone },
+    { label: 'Complete', sub: 'License ready', done: isCompletedDone },
   ];
 
   return (

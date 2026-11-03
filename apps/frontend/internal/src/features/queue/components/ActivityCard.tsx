@@ -18,6 +18,7 @@ import {
   useTheme,
 } from "@edge/ui";
 import { ApplicationData } from "../../../types/application";
+import { extractOrNumbers } from "@edge/api";
 import { useAuthContext } from "../../auth/context/AuthContext";
 import {
   resolveUserIdentifiers,
@@ -66,7 +67,7 @@ function formatStatusDisplay(application: ApplicationData): string {
   if (s === "evaluating") return "EVALUATING";
   if (s === "forissuance") return "FOR ISSUANCE";
   if (s === "returned") return "RETURNED";
-  if (s === "completed" || s === "approved") return "APPROVED";
+  if (s === "completed" || s === "approved") return "COMPLETE";
   return application.status.toUpperCase();
 }
 
@@ -445,7 +446,13 @@ export function ActivityCard({
                       ]}
                       numberOfLines={1}
                     >
-                      OR #{application.payment?.orNumber}
+                      {(() => {
+                        const list = extractOrNumbers(application.payment?.orNumbers, application.orNumbers, application.payment?.orNumber);
+                        if (list.length === 0) return '';
+                        if (list.length > 1) return list.join(', ');
+                        const single = list[0] ?? '';
+                        return single.toUpperCase().startsWith('OR') ? single : `OR #${single}`;
+                      })()}
                     </Text>
                   </View>
                 </>

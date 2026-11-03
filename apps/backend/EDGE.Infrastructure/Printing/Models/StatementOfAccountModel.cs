@@ -108,19 +108,20 @@ public class StatementOfAccountModel
     public bool IsEndorsedForPayment { get; set; }
 
     public string? OrNo { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public string? OrAmount { get; set; }
     public string? OrDate { get; set; }
     public string? OrBy { get; set; }
 
     // Signatures
-    public string PreparedByTitle { get; set; } = "EVALUATOR, NTC XIV";
+    public string PreparedByTitle { get; set; } = "EVALUATOR";
     public string? PreparedByName { get; set; }
 
-    public string ApprovedByTitle { get; set; } = "CEOD, NTC XIV";
+    public string ApprovedByTitle { get; set; } = "CEOD";
     public string? ApprovedByName { get; set; }
 
     // Remarks
-    public string Remarks { get; set; } = "1) Use additional sheets, if necessary to show detailed computation\n2) Payment should be in cash or checks in the form of managers/cashiers check;\nDemand draft check or postal money order payable to NTC 10, FAO Bureau of Treasury.";
+    public string Remarks { get; set; } = string.Empty;
 
     public string MonthOf { get; set; } = string.Empty;
     public bool IsAccountableFormOverlay { get; set; }

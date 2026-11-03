@@ -14,6 +14,7 @@ public class OrderOfPaymentDto
     public decimal AmountReceived { get; set; }
     public string? PaymentMethod { get; set; }
     public string? OfficialReceiptNumber { get; set; }
+    public List<string> OrNumbers { get; set; } = new();
     public string? CheckNumber { get; set; }
     public string? CheckName { get; set; }
     public string? CheckBank { get; set; }

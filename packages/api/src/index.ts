@@ -57,3 +57,6 @@ export * from './hooks/useTenantConfig';
 export * from './hooks/useOperationalReportStatistics';
 export * from './utils/paymentBreakdown';
 export * from './utils/tenantUtils';
+export * from './services/soaNoteService';
+
+export * from './utils/orNumberUtils';

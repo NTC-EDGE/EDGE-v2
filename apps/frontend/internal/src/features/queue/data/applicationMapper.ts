@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   ApplicationData,
   ApplicationCategory,
@@ -456,6 +456,22 @@ export function mapApplicationDtoToUI(
       })[0]
     : undefined;
 
+  const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
+    ? dto.officialReceiptNumber
+    : '';
+
+  const rawOpOrNumber = (activeOp?.officialReceiptNumber && typeof activeOp.officialReceiptNumber === 'string')
+    ? activeOp.officialReceiptNumber.trim()
+    : '';
+
+  const resolvedOrNumbers: string[] = extractOrNumbers(
+    'orNumbers' in dto && Array.isArray(dto.orNumbers) ? dto.orNumbers : undefined,
+    directOrNumber,
+    rawOpOrNumber
+  );
+
+  const resolvedOrNumber = formatOrDisplay(resolvedOrNumbers);
+
   return {
     id: dto.id,
     tenantId: dto.tenantId,
@@ -521,9 +537,7 @@ export function mapApplicationDtoToUI(
     soaId: activeSoa?.id,
     statementOfAccountId: activeSoa?.id,
     soaNumber: activeSoa?.soaNumber ?? ('soaNumber' in dto && typeof dto.soaNumber === 'string' ? dto.soaNumber : undefined),
-    officialReceiptNumber: ('officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string' && dto.officialReceiptNumber.trim().length > 0)
-      ? dto.officialReceiptNumber
-      : (activeOp?.officialReceiptNumber ?? undefined),
+    officialReceiptNumber: resolvedOrNumber.length > 0 ? resolvedOrNumber : undefined,
     soaStatus: activeSoa?.status,
     soaIssuedToName: activeSoa?.issuedToName,
     soaIssuedToAddress: activeSoa?.issuedToAddress ?? undefined,
@@ -534,8 +548,11 @@ export function mapApplicationDtoToUI(
     soaPreparedByTitle: activeSoa?.preparedByTitle,
     soaApprovedByName: activeSoa?.approvedByName,
     soaApprovedByTitle: activeSoa?.approvedByTitle,
-    soaRemarks: activeSoa?.remarks ?? undefined,
+    soaRemarks: (activeSoa?.remarks && activeSoa.remarks.trim().length > 0)
+      ? activeSoa.remarks
+      : (activeSoa?.soaNoteText ?? undefined),
     soaNoteId: activeSoa?.soaNoteId ?? undefined,
+    soaNoteText: activeSoa?.soaNoteText ?? undefined,
     endorsedTo: endorsementState.endorsedTo,
     endorsedBy: endorsementState.endorsedBy,
     isBeingViewed: false,
@@ -595,9 +612,6 @@ export function mapApplicationDtoToUI(
       ? (activeSoa.dueDate.includes('T') ? (activeSoa.dueDate.split('T')[0] ?? '') : activeSoa.dueDate)
       : '',
     payment: (() => {
-      const directOrNumber = 'officialReceiptNumber' in dto && typeof dto.officialReceiptNumber === 'string'
-        ? dto.officialReceiptNumber
-        : '';
       const directAmountPaid = 'amountPaid' in dto && typeof dto.amountPaid === 'number'
         ? dto.amountPaid
         : 0;
@@ -614,10 +628,6 @@ export function mapApplicationDtoToUI(
       const directCheckDate = 'checkDate' in dto && typeof dto.checkDate === 'string' ? (dto.checkDate.split('T')[0] ?? '') : '';
       const directPayorName = 'payorName' in dto && typeof dto.payorName === 'string' ? dto.payorName : '';
       const directPaymentRemarks = 'paymentRemarks' in dto && typeof dto.paymentRemarks === 'string' ? dto.paymentRemarks : '';
-
-      const resolvedOrNumber = (activeOp?.officialReceiptNumber && activeOp.officialReceiptNumber.trim().length > 0)
-        ? activeOp.officialReceiptNumber
-        : directOrNumber;
 
       const resolvedAmount = (activeOp?.amountReceived && activeOp.amountReceived > 0)
         ? activeOp.amountReceived
@@ -636,6 +646,7 @@ export function mapApplicationDtoToUI(
         method: effectivePaymentMethod === 'Check' ? 'check' : 'cash',
         paymentMethod: effectivePaymentMethod,
         orNumber: resolvedOrNumber,
+        orNumbers: resolvedOrNumbers,
         checkNumber: activeOp?.checkNumber ?? directCheckNumber,
         checkName: activeOp?.checkName ?? directCheckName,
         checkBank: activeOp?.checkBank ?? directCheckBank,
@@ -645,6 +656,7 @@ export function mapApplicationDtoToUI(
         paidAt: resolvedPaidAt,
       };
     })(),
+    orNumbers: resolvedOrNumbers,
     correctionAuditTrail: dto.correctionAuditTrails?.map((c) => ({
       id: c.id,
       action: `${c.fieldName}: ${c.oldValue} → ${c.newValue}`,

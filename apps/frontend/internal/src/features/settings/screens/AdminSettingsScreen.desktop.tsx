@@ -38,6 +38,7 @@ import {
 import { RegionalConfigTab } from '../components/RegionalConfigTab';
 import { ServiceTreeConfigTab } from '../components/ServiceTreeConfigTab';
 import { PrintSettingsTab } from '../components/PrintSettingsTab';
+import { SoaNotesTab } from '../components/SoaNotesTab';
 import {
   AdminSettingsModal,
   ModalType,
@@ -45,7 +46,7 @@ import {
 } from '../components/AdminSettingsModal';
 import { DeleteAdminItemModal } from '../components/DeleteAdminItemModal';
 
-export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio' | 'print-settings';
+export type AdminTabType = 'regional-details' | 'branch-directory' | 'services-studio' | 'soa-notes' | 'print-settings';
 
 interface TabItem {
   id: AdminTabType;
@@ -72,6 +73,12 @@ const TABS: TabItem[] = [
     label: 'Services & Prerequisites Studio',
     subtitle: 'Catalog, variants & fees tree',
     icon: 'layers',
+  },
+  {
+    id: 'soa-notes',
+    label: 'SOA Notes & Billing Terms',
+    subtitle: 'Regional assessment & legal billing notes',
+    icon: 'file-text',
   },
   {
     id: 'print-settings',
@@ -370,6 +377,12 @@ export function AdminSettingsScreen(): React.ReactElement {
         {activeTab === 'services-studio' && (
           <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
             <ServiceTreeConfigTab />
+          </AnimatedCard>
+        )}
+
+        {activeTab === 'soa-notes' && (
+          <AnimatedCard delay={0} padding={0} style={styles.tabContentCard}>
+            <SoaNotesTab tenantId={activeTenant?.id} tenantName={activeTenant?.name} />
           </AnimatedCard>
         )}
 

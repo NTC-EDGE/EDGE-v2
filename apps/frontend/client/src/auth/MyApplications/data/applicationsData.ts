@@ -73,6 +73,8 @@ export interface SoaData {
   totalAmount: number;
   dueDate?: string;
   remarks?: string;
+  soaNoteId?: string;
+  soaNoteText?: string;
   preparedByName?: string;
   preparedByTitle?: string;
   approvedByName?: string;
@@ -428,7 +430,7 @@ export function getStatusLabel(status: ApplicationStatus): string {
   switch (status) {
     case 'FOR_APPROVAL':     return 'For Issuance';
     case 'FOR_EVALUATION':   return 'For Evaluation';
-    case 'APPROVED':         return 'Issued';
+    case 'APPROVED':         return 'Complete';
     case 'DECLINED':         return 'Returned';
     case 'EXPIRING_SOON':    return 'Expiring Soon';
     case 'READY_FOR_PAYMENT':return 'For Payment';

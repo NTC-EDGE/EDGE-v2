@@ -23,7 +23,7 @@ import {
   toast,
   DatePickerInput,
 } from '@edge/ui';
-import { applicationService, IssueApplicationRequest } from '@edge/api';
+import { applicationService, IssueApplicationRequest, formatOrDisplay } from '@edge/api';
 import { ApplicationData } from '../../../../types/application';
 import { IssuedDocumentPrintModal } from './IssuedDocumentPrintModal';
 import { DocumentPrintOptions } from '../../types/documentPrintTypes';
@@ -112,11 +112,16 @@ export function IssueDocumentModal({
       if (!isMounted) return;
       setIsLoadingDefaults(false);
 
+      const rawDefaultOr = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
+        ? app.payment.orNumbers.join(', ')
+        : (app.payment?.orNumber ?? '');
+      const cleanOr = (val: string) => formatOrDisplay(val);
+
       if (err === null && res?.data) {
         const d = res.data;
         setFormNumber(d.recommendedFormNumber ?? '');
         setLicenseNumber(d.recommendedLicenseNumber ?? '');
-        setOfficialReceiptNumber(d.officialReceiptNumber ?? app.payment?.orNumber ?? '');
+        setOfficialReceiptNumber(cleanOr(d.officialReceiptNumber ?? rawDefaultOr));
         setOriginalEvaluatorName(d.originalEvaluatorName ?? app.evaluatingOfficer ?? '');
         setDocumentType(applicationType);
 
@@ -146,7 +151,7 @@ export function IssueDocumentModal({
         if (isLicenseCategory) {
           setLicenseNumber(`NTC-${officeCode}-${year}-LIC-1001`);
         }
-        setOfficialReceiptNumber(app.payment?.orNumber ?? '');
+        setOfficialReceiptNumber(cleanOr(rawDefaultOr));
         setDocumentType(applicationType);
       }
     };

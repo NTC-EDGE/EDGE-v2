@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text } from 'react-native';
-import { formatCurrency } from '../../../utils/clientSoaReportGenerator';
+import { View, Text, Platform } from 'react-native';
+import { formatCurrency, formatOrDisplayNumber } from '../../../utils/clientSoaReportGenerator';
 import { ClientSoaDataViewProps } from './clientSoaOpPreviewTypes';
 import { dataViewStyles } from './styles/clientSoaOpDataViewStyles';
 import { tableStyles } from './styles/clientSoaOpTableStyles';
@@ -23,7 +23,12 @@ export function ClientSoaDataView({
   totalAmount,
   wordsTotal,
   isDesktop,
+  orNum,
+  orList = [],
+  isPaid,
 }: ClientSoaDataViewProps) {
+  const hasOr = (typeof orNum === 'string' && orNum.trim().length > 0) || Boolean(isPaid);
+  const safeOrList = Array.isArray(orList) ? orList : [];
   const soaStatus = app.soa?.status;
 
   const statusBgColor =
@@ -154,14 +159,59 @@ export function ClientSoaDataView({
         <Text style={dataViewStyles.wordsText}>{wordsTotal}</Text>
       </View>
 
-      <View style={[signatoryStyles.signatoriesRow, { flexDirection: isDesktop ? 'row' : 'column', gap: 20 }]}>
-        <View style={signatoryStyles.sigBlock}>
-          <Text style={signatoryStyles.sigName}>{app.soa?.preparedByName || app.evaluatingOfficer || 'EVALUATOR'}</Text>
-          <Text style={signatoryStyles.sigRole}>{app.soa?.preparedByTitle || 'Assessed & Prepared By'}</Text>
+      {Boolean((app.soa?.remarks || app.soa?.soaNoteText || app.remarks || '').trim()) && (
+        <View style={{ marginTop: 12, padding: 10, backgroundColor: '#F8FAFC', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 4 }}>
+          <Text style={{ fontSize: 10, fontWeight: '700', color: '#475569', textTransform: 'uppercase', marginBottom: 4, letterSpacing: 0.5 }}>NOTES / REMARKS:</Text>
+          <Text style={{ fontSize: 11, color: '#1E293B', lineHeight: 16 }}>{(app.soa?.remarks || app.soa?.soaNoteText || app.remarks || '').trim()}</Text>
         </View>
-        <View style={signatoryStyles.sigBlock}>
-          <Text style={signatoryStyles.sigName}>{app.soa?.approvedByName || app.issuingOfficer || 'CHIEF, EOD'}</Text>
-          <Text style={signatoryStyles.sigRole}>{app.soa?.approvedByTitle || 'Chief, Enforcement & Operations Div.'}</Text>
+      )}
+
+      <View style={{ flexDirection: isDesktop ? 'row' : 'column', justifyContent: 'space-between', alignItems: isDesktop ? 'flex-end' : 'stretch', marginTop: 20, gap: 16 }}>
+        {/* Official O.R. Stamp Box matching official physical Statement of Account */}
+        {hasOr ? (
+          <View style={{ width: isDesktop ? 240 : '100%', borderWidth: 1.5, borderColor: '#059669', borderRadius: 4, padding: 8, backgroundColor: '#F0FDF4' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4, borderBottomWidth: 1, borderBottomColor: '#BBF7D0', paddingBottom: 4 }}>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#065F46', width: 45 }}>O.R.</Text>
+              <Text style={{ fontSize: 11, fontWeight: '800', color: '#047857', flex: 1, fontFamily: Platform.select({ ios: 'Courier', default: 'monospace' }) }}>
+                {safeOrList.length > 1 ? safeOrList.map(formatOrDisplayNumber).join(', ') : formatOrDisplayNumber(orNum || 'RECORDED')}
+              </Text>
+            </View>
+            {safeOrList.length > 1 && (
+              <View style={{ marginBottom: 4 }}>
+                <Text style={{ fontSize: 9, fontWeight: '700', color: '#065F46' }}>
+                  ({safeOrList.length} Official Receipts Issued)
+                </Text>
+              </View>
+            )}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text style={{ fontSize: 9.5, fontWeight: '700', color: '#065F46' }}>AMOUNT:</Text>
+              <Text style={{ fontSize: 10, fontWeight: '800', color: '#047857' }}>{formatCurrency(totalAmount)}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 2 }}>
+              <Text style={{ fontSize: 9, color: '#047857' }}>Date:</Text>
+              <Text style={{ fontSize: 9, color: '#065F46' }}>{new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</Text>
+            </View>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
+              <Text style={{ fontSize: 9, color: '#047857' }}>By:</Text>
+              <Text style={{ fontSize: 9, fontWeight: '600', color: '#065F46' }}>{app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</Text>
+            </View>
+          </View>
+        ) : (
+          <View style={{ width: isDesktop ? 240 : '100%', borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 4, padding: 8, backgroundColor: '#F8FAFC' }}>
+            <Text style={{ fontSize: 10, fontWeight: '700', color: '#64748B', marginBottom: 2 }}>O.R. STAMP BOX</Text>
+            <Text style={{ fontSize: 9, color: '#94A3B8' }}>Official Receipt will be stamped upon cashier collection &amp; verification.</Text>
+          </View>
+        )}
+
+        <View style={[signatoryStyles.signatoriesRow, { flexDirection: 'row', gap: 16, marginTop: 0 }]}>
+          <View style={signatoryStyles.sigBlock}>
+            <Text style={signatoryStyles.sigName}>{app.soa?.preparedByName || app.evaluatingOfficer || (app.office ? `EVALUATOR, ${app.office}` : 'EVALUATOR')}</Text>
+            <Text style={signatoryStyles.sigRole}>{app.soa?.preparedByTitle || 'Assessed & Prepared By'}</Text>
+          </View>
+          <View style={signatoryStyles.sigBlock}>
+            <Text style={signatoryStyles.sigName}>{app.soa?.approvedByName || app.issuingOfficer || (app.office ? `CHIEF, EOD, ${app.office}` : 'CHIEF, EOD')}</Text>
+            <Text style={signatoryStyles.sigRole}>{app.soa?.approvedByTitle || 'Chief, Enforcement & Operations Div.'}</Text>
+          </View>
         </View>
       </View>
     </View>

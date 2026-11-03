@@ -1,5 +1,5 @@
 import { Platform, Linking } from 'react-native';
-import { applicationService } from '@edge/api';
+import { applicationService, extractOrNumbers } from '@edge/api';
 import { Application } from '../../../data/applicationsData';
 import {
   generateSoaPrintableHtml,
@@ -20,9 +20,7 @@ export function getPreviewApplicationMetadata(app: Application) {
   const opNum = app.opNumber || `OP-${refNum}`;
   const orNum = app.officialReceiptNumber || app.op?.officialReceiptNumber || null;
   const isPaid = Boolean(orNum && orNum.trim().length > 0);
-  const orList = orNum !== null
-    ? orNum.split(',').map((s: string) => s.trim()).filter((s: string) => s.length > 0)
-    : [];
+  const orList = extractOrNumbers(orNum);
 
   const applicantName = getEffectiveApplicantName(app);
   const applicantType = app.mode === 'BULK' ? 'Corporate / Bulk Entity' : 'Individual';
@@ -87,9 +85,9 @@ export async function handlePrintDocument(
     try {
       const selectedOrParam = effectiveSelectedOr !== null ? effectiveSelectedOr : undefined;
       const [pdfBlob, err] = activeTab === 'soa'
-        ? await applicationService.previewSoaPdf(app.id)
+        ? await applicationService.previewSoaPdf(app.id, selectedOrParam)
         : activeTab === 'op'
-          ? await applicationService.previewOpPdf(app.id)
+          ? await applicationService.previewOpPdf(app.id, selectedOrParam)
           : await applicationService.previewOrPdf(app.id, selectedOrParam, orTemplate);
 
       if (pdfBlob !== null && err === null && Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -106,9 +104,9 @@ export async function handlePrintDocument(
 
     const selectedOrParam = effectiveSelectedOr !== null ? effectiveSelectedOr : undefined;
     const url = activeTab === 'soa'
-      ? applicationService.getSoaPrintUrl(app.id)
+      ? applicationService.getSoaPrintUrl(app.id, selectedOrParam)
       : activeTab === 'op'
-        ? applicationService.getOpPrintUrl(app.id)
+        ? applicationService.getOpPrintUrl(app.id, selectedOrParam)
         : applicationService.getOrPrintUrl(app.id, selectedOrParam, orTemplate);
 
     if (Platform.OS === 'web' && typeof window !== 'undefined') {
@@ -125,11 +123,17 @@ export async function handlePrintDocument(
       app,
       app.office,
       app.soa?.preparedByName || app.evaluatingOfficer,
-      app.soa?.approvedByName || app.issuingOfficer
+      app.soa?.approvedByName || app.issuingOfficer,
+      effectiveSelectedOr !== null ? effectiveSelectedOr : undefined
     );
     openPrintableDocumentWindow(html);
   } else if (activeTab === 'op') {
-    const html = generateOpPrintableHtml(app);
+    const html = generateOpPrintableHtml(
+      app,
+      app.office,
+      undefined,
+      effectiveSelectedOr !== null ? effectiveSelectedOr : undefined
+    );
     openPrintableDocumentWindow(html);
   } else {
     const html = generateOrPrintableHtml(app);
@@ -150,9 +154,9 @@ export function handleDownloadSpecificDocument(
     : (typeof effectiveSelectedOr === 'string' && effectiveSelectedOr.length > 0 ? effectiveSelectedOr : undefined);
 
   const url = targetDoc === 'soa'
-    ? applicationService.getSoaDownloadUrl(app.id)
+    ? applicationService.getSoaDownloadUrl(app.id, resolvedOr)
     : targetDoc === 'op'
-      ? applicationService.getOpDownloadUrl(app.id)
+      ? applicationService.getOpDownloadUrl(app.id, resolvedOr)
       : applicationService.getOrDownloadUrl(app.id, resolvedOr, orTemplate);
 
   if (Platform.OS === 'web' && typeof window !== 'undefined') {

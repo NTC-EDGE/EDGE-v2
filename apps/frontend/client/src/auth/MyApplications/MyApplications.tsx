@@ -693,7 +693,7 @@ export function MyApplications() {
                           ["READY_FOR_PAYMENT", "For Payment"],
                           ["PAYMENT_SUBMITTED", "Verification in Progress"],
                           ["FOR_APPROVAL", "For Issuance"],
-                          ["APPROVED", "Issued"],
+                          ["APPROVED", "Complete"],
                           ["DECLINED", "Returned"],
                           ["EXPIRING_SOON", "Expiring Soon"],
                         ] as [StatusFilterOption, string][]

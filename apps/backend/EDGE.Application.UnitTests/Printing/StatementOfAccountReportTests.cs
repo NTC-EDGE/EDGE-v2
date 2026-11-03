@@ -1,4 +1,9 @@
+using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using EDGE.Domain.Entities;
+using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.MockData;
 using EDGE.Infrastructure.Printing.Models;
 using EDGE.Infrastructure.Printing.Reports;
@@ -402,4 +407,297 @@ public class StatementOfAccountReportTests
         Assert.Equal("APP-2026-8888", model2.Particular1Header);
     }
 
+    [Fact]
+    public void StatementOfAccountPrintMapper_PopulatesOrDetails_WhenApplicationIsPaid()
+    {
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var paidOp = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "OP-2026-0001",
+            OfficialReceiptNumber = "OR-998877",
+            AmountDue = 1380m,
+            AmountReceived = 1380m,
+            Status = OpStatus.Paid,
+            PaidAt = new DateTime(2026, 3, 15, 10, 30, 0, DateTimeKind.Utc)
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationNumber = "APP-2026-1234",
+            ReferenceNumber = "REF-2026-5678",
+            Status = ApplicationStatus.ForIssuance,
+            OrdersOfPayment = new List<OrderOfPayment> { paidOp }
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: paidOp);
+
+        Assert.Equal("OR-998877", model.OrNo);
+        Assert.Equal("P1,380.00", model.OrAmount);
+        Assert.Equal("March 15, 2026", model.OrDate);
+        Assert.Equal("Cashier", model.OrBy);
+
+        // Also test with override OR number
+        var modelWithOverride = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: paidOp,
+            overrideOrNumber: "OR-CUSTOM-111");
+
+        Assert.Equal("OR-CUSTOM-111", modelWithOverride.OrNo);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_MultipleOfficialReceipts_AggregatesAllOrNumbersAndAmounts()
+    {
+        var appId = Guid.NewGuid();
+        var opId = Guid.NewGuid();
+        var op = new OrderOfPayment
+        {
+            Id = opId,
+            ApplicationId = appId,
+            OpNumber = "OP-2026-0001",
+            AmountDue = 1500m,
+            AmountReceived = 1500m,
+            Status = OpStatus.Paid
+        };
+
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            ApplicationNumber = "APP-2026-0001",
+            Status = ApplicationStatus.ForIssuance,
+            OrdersOfPayment = new List<OrderOfPayment> { op }
+        };
+
+        var receipt1 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-1001",
+            Amount = 1000m,
+            IssuedAt = new DateTime(2026, 3, 10, 8, 0, 0, DateTimeKind.Utc)
+        };
+        var receipt2 = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-1002",
+            Amount = 500m,
+            IssuedAt = new DateTime(2026, 3, 11, 9, 0, 0, DateTimeKind.Utc)
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: null,
+            app: app,
+            op: op,
+            receipts: new List<OfficialReceipt> { receipt1, receipt2 });
+
+        Assert.Contains("OR-1001", model.OrNo);
+        Assert.Contains("OR-1002", model.OrNo);
+        Assert.Equal(2, model.OrNumbers.Count);
+        Assert.Equal("P1,500.00", model.OrAmount);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WithSoaNote_AppliesTenantSoaNoteToRemarks()
+    {
+        var tenantId = Guid.NewGuid();
+        var soaNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            TenantId = tenantId,
+            Code = "DEFAULT",
+            Title = "Official Regional Notes",
+            Notes = "Payment should be made within 30 days. Payable to NTC Regional Office VII."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-TEST",
+            SoaNoteId = soaNote.Id,
+            SoaNote = soaNote,
+            Remarks = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.Equal(soaNote.Notes, model.Remarks);
+        Assert.DoesNotContain("NTC 10", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WithExplicitTenantSoaNoteFallback_AppliesTenantSoaNote()
+    {
+        var tenantNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Default Note",
+            Notes = "Custom Tenant Assessment Note for Radio Licenses."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-FALLBACK",
+            Remarks = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            tenantSoaNote: tenantNote);
+
+        Assert.Equal(tenantNote.Notes, model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_EvaluatorRemarksSnapshot_PreservesCustomRemarks()
+    {
+        var soaNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Notes = "Standard regional payment terms."
+        };
+
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-CUSTOM",
+            SoaNote = soaNote,
+            Remarks = "Expedited assessment approved per memo 2026-04."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.Equal("Expedited assessment approved per memo 2026-04.", model.Remarks);
+        Assert.DoesNotContain("NTC 10", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_HistoricSoaWithNote1_PreservesNote1WhenTenantUpdatesToNote2()
+    {
+        // Arrange: SOA was issued to client when Region VII had SOA Note 1 configured
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-HISTORIC-100",
+            Remarks = "Payment via Landbank Account # 1234-5678. Official Region VII terms v1."
+        };
+
+        // Act: Regional tenant subsequently updates their active SOA Note template in tenant settings to Note 2
+        var updatedTenantNote2 = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Updated Region VII Terms v2",
+            Notes = "NEW Payment Guidelines: Payment via DBP Account # 9999-0000. Region VII terms v2."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            tenantSoaNote: updatedTenantNote2);
+
+        // Assert: The historic SOA retains its original Note 1 snapshot string and is NOT altered by Note 2
+        Assert.Equal("Payment via Landbank Account # 1234-5678. Official Region VII terms v1.", model.Remarks);
+        Assert.DoesNotContain("DBP Account", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenReceiptIsCancelled_ExcludesCancelledReceiptNumber()
+    {
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-2026-TEST-OR",
+            TotalAmount = 2500m
+        };
+
+        var activeReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-VALID-02",
+            Amount = 2500m,
+            Status = ReceiptStatus.Issued,
+            IssuedAt = DateTime.UtcNow
+        };
+
+        var cancelledReceipt = new OfficialReceipt
+        {
+            OfficialReceiptNumber = "OR-CANCELLED-02",
+            Amount = 2500m,
+            Status = ReceiptStatus.Cancelled,
+            CancelledAt = DateTime.UtcNow
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(
+            soa: soa,
+            receipts: new List<OfficialReceipt> { activeReceipt, cancelledReceipt });
+
+        Assert.Contains("OR-VALID-02", model.OrNumbers);
+        Assert.DoesNotContain("OR-CANCELLED-02", model.OrNumbers);
+        Assert.Single(model.OrNumbers);
+        Assert.Equal("P2,500.00", model.OrAmount);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenNoRemarksOrTenantNote_RemarksIsEmptyWithoutHardcoding()
+    {
+        // Legacy SOA with null remarks and null SoaNoteId, and no tenant note
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-LEGACY-001",
+            Remarks = null,
+            SoaNoteId = null,
+            SoaNote = null
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa);
+
+        Assert.NotNull(model.Remarks);
+        Assert.Equal(string.Empty, model.Remarks);
+
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
+
+    [Fact]
+    public void StatementOfAccountPrintMapper_WhenTenantNoteProvided_PopulatesFromTenantSoaNote()
+    {
+        var soa = new StatementOfAccount
+        {
+            Id = Guid.NewGuid(),
+            SoaNumber = "SOA-TENANT-NOTE-001",
+            Remarks = null
+        };
+
+        var tenantNote = new SoaNote
+        {
+            Id = Guid.NewGuid(),
+            Code = "DEFAULT",
+            Title = "Region Default",
+            Notes = "Landbank Account: 0011-2233-44. Please pay within 15 calendar days."
+        };
+
+        var model = StatementOfAccountPrintMapper.MapToPrintModel(soa: soa, tenantSoaNote: tenantNote);
+
+        Assert.Equal("Landbank Account: 0011-2233-44. Please pay within 15 calendar days.", model.Remarks);
+    }
+
+    [Fact]
+    public void StatementOfAccountReport_WhenRemarksIsEmptyOrWhitespace_GeneratesPdfWithoutEmptyInstructionBlock()
+    {
+        var model = MockDataFactory.GetStatementOfAccountModel();
+        model.Remarks = "   "; // Whitespace-only edge case
+
+        var report = new StatementOfAccountReport(model);
+        byte[] pdfBytes = report.GeneratePdf();
+        Assert.NotNull(pdfBytes);
+        Assert.True(pdfBytes.Length > 1000);
+    }
 }

@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using EDGE.Application.Common.Helpers;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Infrastructure.Printing.Models;
@@ -16,12 +18,16 @@ public static class OrderOfPaymentPrintMapper
         OrderOfPayment op,
         StatementOfAccount? soa = null,
         EDGE.Domain.Entities.Application? app = null,
-        string? fundCluster = null)
+        string? fundCluster = null,
+        IEnumerable<AgencyBankAccount>? agencyBankAccounts = null,
+        OfficialReceipt? receipt = null,
+        string? overrideOrNumber = null,
+        IEnumerable<OfficialReceipt>? receipts = null)
     {
         var model = new OrderOfPaymentModel();
 
         model.AgencyName = "NATIONAL TELECOMMUNICATIONS COMMISSION";
-        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "Regional Office No. VII";
+        model.RegionalOffice = !string.IsNullOrWhiteSpace(app?.Office) ? app.Office : null;
         model.Fund = !string.IsNullOrWhiteSpace(fundCluster)
             ? (fundCluster.StartsWith("Fund", StringComparison.OrdinalIgnoreCase) ? fundCluster : $"Fund Cluster {fundCluster}")
             : "General Fund";
@@ -106,26 +112,155 @@ public static class OrderOfPaymentPrintMapper
             ? activeSoa?.CreatedAt.ToString("dd/MM/yyyy")
             : op.CreatedAt.ToString("dd/MM/yyyy");
 
-        // Bank Account entries default
-        model.BankAccounts = new List<OrderOfPaymentBankAccount>
+        // Bank Account entries - populated only from configured depository accounts; otherwise blank
+        model.BankAccounts = new List<OrderOfPaymentBankAccount>();
+        if (agencyBankAccounts != null)
         {
-            new OrderOfPaymentBankAccount
+            var activeAccounts = agencyBankAccounts.Where(b => b.IsActive).ToList();
+            if (activeAccounts.Count > 0)
             {
-                BankName = "Land Bank of the Philippines",
-                Amount = op.AmountDue
+                model.BankAccounts = activeAccounts.Select((b, idx) => new OrderOfPaymentBankAccount
+                {
+                    No = b.AccountNumber,
+                    BankName = b.BankName,
+                    Amount = idx == 0 ? op.AmountDue : null
+                }).ToList();
             }
-        };
-
-        // O.R. Stamp Box if paid
-        if (!string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
-        {
-            model.OrNo = op.OfficialReceiptNumber;
-            model.OrAmount = op.AmountReceived > 0 ? $"P{op.AmountReceived:N2}" : $"P{op.AmountDue:N2}";
-            model.OrDate = op.PaidAt?.ToString("MMM dd yyyy") ?? op.CreatedAt.ToString("MMM dd yyyy");
-            model.OrBy = op.Histories.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName ?? "Cashier";
         }
 
-        model.CollectingOfficer = "Special Collecting Officer";
+        model.TotalAmount = model.BankAccounts.Count > 0 ? op.AmountDue : null;
+
+        // O.R. Stamp Box if paid - supports single or multiple Official Receipts
+        var allReceiptNumbers = new List<string>();
+
+        // Identify any explicitly cancelled receipts to avoid exposing stale or voided receipt numbers
+        var cancelledReceiptNumbers = (receipts ?? Enumerable.Empty<OfficialReceipt>())
+            .Concat(receipt != null ? new[] { receipt } : Enumerable.Empty<OfficialReceipt>())
+            .Where(r => r != null && (r.Status == ReceiptStatus.Cancelled || r.CancelledAt != null) && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+            .Select(r => r.OfficialReceiptNumber.Trim())
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        if (!string.IsNullOrWhiteSpace(overrideOrNumber))
+        {
+            allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(overrideOrNumber));
+        }
+        else
+        {
+            if (receipts != null)
+            {
+                allReceiptNumbers.AddRange(receipts
+                    .Where(r => r != null && r.Status != ReceiptStatus.Cancelled && r.CancelledAt == null && !string.IsNullOrWhiteSpace(r.OfficialReceiptNumber))
+                    .Select(r => r.OfficialReceiptNumber.Trim()));
+            }
+
+            if (receipt != null && receipt.Status != ReceiptStatus.Cancelled && receipt.CancelledAt == null && !string.IsNullOrWhiteSpace(receipt.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.Add(receipt.OfficialReceiptNumber.Trim());
+            }
+
+            if (op.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(op.OfficialReceiptNumber))
+            {
+                allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(op.OfficialReceiptNumber));
+            }
+
+            if (app?.OrdersOfPayment != null)
+            {
+                foreach (var otherOp in app.OrdersOfPayment)
+                {
+                    if (otherOp.Status != OpStatus.Returned && !string.IsNullOrWhiteSpace(otherOp.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(otherOp.OfficialReceiptNumber));
+                    }
+                }
+            }
+
+            if (app?.IssuedDocumentDetails != null)
+            {
+                foreach (var doc in app.IssuedDocumentDetails)
+                {
+                    if (!string.IsNullOrWhiteSpace(doc.OfficialReceiptNumber))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(doc.OfficialReceiptNumber));
+                    }
+                }
+            }
+
+            if (op.Histories != null)
+            {
+                foreach (var h in op.Histories)
+                {
+                    if (!string.IsNullOrWhiteSpace(h.OfficialReceiptNumber) &&
+                        (h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase))))
+                    {
+                        allReceiptNumbers.AddRange(DelimitedStringHelper.SplitDelimited(h.OfficialReceiptNumber));
+                    }
+                }
+            }
+        }
+
+        var distinctOrNumbers = DelimitedStringHelper.ParseDistinctTokens(
+            allReceiptNumbers.Where(n => !cancelledReceiptNumbers.Contains(n.Trim())),
+            comparer: StringComparer.OrdinalIgnoreCase);
+
+        var effectiveOrNumber = DelimitedStringHelper.FormatOrDisplay(distinctOrNumbers);
+
+        model.OrNumbers = distinctOrNumbers;
+
+        bool isPaid = distinctOrNumbers.Count > 0
+            || op.Status == OpStatus.Paid
+            || receipt != null
+            || (receipts != null && receipts.Any())
+            || (app != null && (app.Status == ApplicationStatus.ForIssuance || app.Status == ApplicationStatus.Completed || app.Status == ApplicationStatus.Approved));
+
+        if (isPaid)
+        {
+            decimal effectiveAmount;
+            if (!string.IsNullOrWhiteSpace(overrideOrNumber))
+            {
+                var matchingReceipt = receipts?.FirstOrDefault(r => string.Equals(r.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase))
+                    ?? (string.Equals(receipt?.OfficialReceiptNumber?.Trim(), overrideOrNumber.Trim(), StringComparison.OrdinalIgnoreCase) ? receipt : null);
+
+                effectiveAmount = matchingReceipt?.Amount > 0
+                    ? matchingReceipt.Amount
+                    : (op.AmountReceived > 0 ? op.AmountReceived : op.AmountDue);
+            }
+            else
+            {
+                var receiptsSum = receipts?.Where(r => r.Status != ReceiptStatus.Cancelled).Sum(r => r.Amount) ?? 0;
+                effectiveAmount = op.AmountReceived > 0
+                    ? op.AmountReceived
+                    : (receiptsSum > 0
+                        ? receiptsSum
+                        : (receipt != null && receipt.Amount > 0
+                            ? receipt.Amount
+                            : op.AmountDue));
+            }
+
+            var effectiveDate = op.PaidAt
+                ?? receipt?.IssuedAt
+                ?? receipts?.OrderByDescending(r => r.IssuedAt).Select(r => (DateTime?)r.IssuedAt).FirstOrDefault()
+                ?? op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.Timestamp
+                ?? (op.CreatedAt != default ? op.CreatedAt : DateTime.UtcNow);
+
+            var cashierStaff = op.Histories?.FirstOrDefault(h => h.Action.Contains("Verified") || h.Action.Contains("Paid"))?.StaffName
+                ?? app?.Histories?.FirstOrDefault(h => h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))?.StaffName
+                ?? (receipt?.IssuedByUser != null ? $"{receipt.IssuedByUser.FirstName} {receipt.IssuedByUser.LastName}".Trim() : null)
+                ?? (receipts?.FirstOrDefault(r => r.IssuedByUser != null)?.IssuedByUser != null ? $"{receipts.First(r => r.IssuedByUser != null).IssuedByUser!.FirstName} {receipts.First(r => r.IssuedByUser != null).IssuedByUser!.LastName}".Trim() : null)
+                ?? "Cashier";
+
+            model.OrNo = !string.IsNullOrWhiteSpace(effectiveOrNumber) ? effectiveOrNumber : "OR-RECORDED";
+            model.OrAmount = $"P{effectiveAmount:N2}";
+            model.OrDate = effectiveDate.ToString("MMM dd yyyy");
+            model.OrBy = cashierStaff;
+        }
+
+        var regionalOfficeLabel = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office
+            : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? $"NTC {app.Region.Name}" : null);
+
+        model.CollectingOfficer = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
+            ? $"Special Collecting Officer, {regionalOfficeLabel}"
+            : "Special Collecting Officer";
 
         return model;
     }

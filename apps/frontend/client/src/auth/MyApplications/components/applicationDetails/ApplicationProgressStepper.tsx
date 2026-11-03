@@ -60,7 +60,7 @@ export function ApplicationProgressStepper({
     { step: 2, label: 'Evaluation', subLabel: 'Technical review' },
     { step: 3, label: 'Payment', subLabel: paymentSubLabel },
     { step: 4, label: 'Issuance', subLabel: currentStepIndex > 4 ? `${docLabel} issued` : `${docLabel} processing` },
-    { step: 5, label: 'Issued', subLabel: `${docLabel} ready` },
+    { step: 5, label: 'Complete', subLabel: `${docLabel} ready` },
   ];
 
   const stepperNodes = (

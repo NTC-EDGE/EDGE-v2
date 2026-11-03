@@ -1,4 +1,5 @@
 import { ApplicationData } from '../../../types/application';
+import { extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   DocumentPrintOptions,
   PAPER_DIMENSIONS,
@@ -161,7 +162,8 @@ export function generateStatutoryDocumentHtml(
   const freqBand = safeStr(options.frequencyBand, '144.000 - 146.000 MHz (VHF)');
   const issueDateStr = formatDate(options.issueDate || new Date().toISOString());
   const expiryDateStr = formatDate(options.expiryDate || new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString());
-  const orNumber = safeStr(options.officialReceiptNumber || app.payment?.orNumber, 'N/A');
+  const orList = extractOrNumbers(options.officialReceiptNumber, app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
+  const orNumber = formatOrDisplay(orList) || 'N/A';
   const applicantName = safeStr(app.applicant, 'Applicant Name');
   const fullAddress = formatFullAddress(app);
   const signatoryName = safeStr(options.signatoryName || app.issuingOfficer || app.evaluatingOfficer, 'REGIONAL DIRECTOR');
@@ -534,7 +536,8 @@ export function generateAccountableFormOverlayHtml(
   const freqBand = safeStr(options.frequencyBand, '144.000 - 146.000 MHz');
   const issueDateStr = formatDate(options.issueDate || new Date().toISOString());
   const expiryDateStr = formatDate(options.expiryDate || new Date(Date.now() + 3 * 365 * 24 * 3600 * 1000).toISOString());
-  const orNumber = safeStr(options.officialReceiptNumber || app.payment?.orNumber, 'N/A');
+  const orList = extractOrNumbers(options.officialReceiptNumber, app.payment?.orNumbers, app.orNumbers, app.payment?.orNumber);
+  const orNumber = formatOrDisplay(orList) || 'N/A';
   const applicantName = safeStr(app.applicant, 'Applicant Name');
   const fullAddress = formatFullAddress(app);
   const signatoryName = safeStr(options.signatoryName || app.issuingOfficer || app.evaluatingOfficer, 'REGIONAL DIRECTOR');

@@ -77,6 +77,9 @@ export interface ClientSoaDataViewProps {
   totalAmount: number;
   wordsTotal: string;
   isDesktop: boolean;
+  orNum?: string | null;
+  orList?: string[];
+  isPaid?: boolean;
 }
 
 export interface ClientOpDataViewProps {

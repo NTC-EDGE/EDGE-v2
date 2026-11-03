@@ -6,6 +6,7 @@ using MediatR;
 using EDGE.Application.Applicants.Dtos;
 using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Applications.Helpers;
+using EDGE.Application.Common.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
 using EDGE.Domain.Enums;
@@ -29,17 +30,42 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             return ApiResponse<ApplicationDto>.Fail($"Application with ID {request.Id} was not found.");
         }
 
-        var primaryService = app.ApplicationApplicants.Select(aa => aa.Applicant?.Service).FirstOrDefault(s => s != null);
-        var primaryVariant = app.ApplicationApplicants.Select(aa => aa.Applicant?.ServiceVariant).FirstOrDefault(v => v != null);
-        var paidOp = app.OrdersOfPayment
+        var primaryService = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+            .Select(aa => aa.Applicant?.Service)
+            .FirstOrDefault(s => s != null);
+        var primaryVariant = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
+            .Select(aa => aa.Applicant?.ServiceVariant)
+            .FirstOrDefault(v => v != null);
+        var paidOp = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
             .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
             .FirstOrDefault(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber));
 
         var regionalSignatories = await _repository.GetRegionalSignatoriesAsync(app.TenantId, app.RegionId, cancellationToken);
 
+        var rawOrSources = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+            .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
+            .Select(o => o.OfficialReceiptNumber)
+            .Concat((app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>()).Select(d => d.OfficialReceiptNumber))
+            .Concat((app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>())
+                .Where(o => o.Status != Domain.Enums.OpStatus.Returned)
+                .SelectMany(o => o.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>())
+                .Where(h => h.Action == null || (!h.Action.Contains("Returned", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Cancel", StringComparison.OrdinalIgnoreCase)))
+                .Select(h => h.OfficialReceiptNumber));
+
+        var allOrNumbers = DelimitedStringHelper.ParseDistinctTokens(rawOrSources, comparer: StringComparer.OrdinalIgnoreCase);
+
+        var resolvedOrNumber = allOrNumbers.Count > 0
+            ? string.Join(", ", allOrNumbers)
+            : paidOp?.OfficialReceiptNumber;
+
+        var resolvedAmountPaid = (paidOp?.AmountReceived > 0)
+            ? paidOp.AmountReceived
+            : (app.OrdersOfPayment?.Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber)).Sum(o => o.AmountReceived > 0 ? o.AmountReceived : o.AmountDue));
+
         var allHistories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
             .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
-            .Concat(app.StatementsOfAccount.SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
+            .Concat((app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>())
+                .SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
                 .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
             .OrderByDescending(h => h.Timestamp)
             .ToList();
@@ -64,7 +90,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 h.Action.Contains("License issued", StringComparison.OrdinalIgnoreCase) ||
                 h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase))));
 
-        var resolvedIssuingOfficer = app.IssuedDocumentDetails?
+        var resolvedIssuingOfficer = (app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>())
             .OrderByDescending(d => d.IssueDate)
             .Select(d => d.IssuedByStaffName)
             .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name))
@@ -101,10 +127,11 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             ServiceCategoryName = primaryService?.ServiceCategory?.Name,
             ServiceCategoryCode = primaryService?.ServiceCategory?.Code,
             ServiceVariantName = primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
-            OfficialReceiptNumber = paidOp?.OfficialReceiptNumber,
-            AmountPaid = paidOp?.AmountReceived,
+            OfficialReceiptNumber = resolvedOrNumber,
+            OrNumbers = allOrNumbers,
+            AmountPaid = resolvedAmountPaid,
             PaidAt = paidOp?.PaidAt,
-            Services = app.ApplicationApplicants
+            Services = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>())
                 .Where(aa => aa.Applicant?.Service != null)
                 .Select(aa => new ApplicationServiceDto
                 {
@@ -138,14 +165,14 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EntityType = app.User.CompanyDetail.EntityType?.ToString()
                 } : null
             } : null,
-            FormSubmissions = app.FormSubmissions.Select(fs => new FormSubmissionSummaryDto
+            FormSubmissions = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).Select(fs => new FormSubmissionSummaryDto
             {
                 Id = fs.Id,
                 FormId = fs.FormId,
                 ApplicantId = fs.ApplicantId,
                 CreatedAt = fs.CreatedAt
             }).ToList(),
-            Requirements = app.ApplicationRequirements.Select(r => new ApplicationRequirementDto
+            Requirements = (app.ApplicationRequirements ?? Enumerable.Empty<Domain.Entities.ApplicationRequirement>()).Select(r => new ApplicationRequirementDto
             {
                 Id = r.Id,
                 ApplicantId = r.ApplicantId,
@@ -158,7 +185,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 Url = r.Url,
                 IsApproved = r.IsApproved
             }).ToList(),
-            Applicants = app.ApplicationApplicants.Select(aa =>
+            Applicants = (app.ApplicationApplicants ?? Enumerable.Empty<Domain.Entities.ApplicationApplicant>()).Select(aa =>
             {
                 var a = aa.Applicant;
                 var applicantDto = new ApplicantDto
@@ -172,7 +199,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EvaluationRemarks = a?.EvaluationRemarks,
                     ServiceId = a?.ServiceId,
                     ServiceVariantId = a?.ServiceVariantId,
-                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : app.FormSubmissions.FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
+                    SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
                 if (a?.ApplicantDetail != null)
@@ -231,17 +258,17 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
                 if (a != null)
                 {
-                    var formSubmissionsForApplicant = app.FormSubmissions
-                        .Where(fs => fs.ApplicantId == a.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id)))
+                    var formSubmissionsForApplicant = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>())
+                        .Where(fs => fs.ApplicantId == a.Id || ((app.ApplicationApplicants?.Count ?? 0) == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id)))
                         .ToList();
 
-                    if (formSubmissionsForApplicant.Count == 0 && app.ApplicationApplicants.Count == 1)
+                    if (formSubmissionsForApplicant.Count == 0 && (app.ApplicationApplicants?.Count ?? 0) == 1)
                     {
-                        formSubmissionsForApplicant = app.FormSubmissions.ToList();
+                        formSubmissionsForApplicant = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).ToList();
                     }
 
                     applicantDto.FormFieldValues = formSubmissionsForApplicant
-                        .SelectMany(fs => fs.FieldValues)
+                        .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<Domain.Entities.FormFieldValue>())
                         .Select(fv => new FormFieldValueDto
                         {
                             FieldId = fv.FieldId,
@@ -253,7 +280,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
 
                 return applicantDto;
             }).ToList(),
-            StatementsOfAccount = app.StatementsOfAccount.Select(s => new StatementOfAccountDto
+            StatementsOfAccount = (app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>()).Select(s => new StatementOfAccountDto
             {
                 Id = s.Id,
                 ApplicationId = s.ApplicationId,
@@ -271,11 +298,13 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 ApprovedAt = s.ApprovedAt,
                 Remarks = s.Remarks,
                 SoaNoteId = s.SoaNoteId,
-                PreparedByName = resolvedEvaluatorName ?? "EVALUATOR",
+                SoaNoteText = s.SoaNote != null ? s.SoaNote.Notes : null,
+                OrNumbers = allOrNumbers,
+                PreparedByName = regionalSignatories.GetResolvedEvaluatorName(resolvedEvaluatorName),
                 PreparedByTitle = resolvedEvaluatorTitle,
                 ApprovedByName = resolvedApproverName,
                 ApprovedByTitle = resolvedApproverTitle,
-                LineItems = s.LineItems.Select(li => new SoaLineItemDto
+                LineItems = (s.LineItems ?? Enumerable.Empty<Domain.Entities.SoaLineItem>()).Select(li => new SoaLineItemDto
                 {
                     Id = li.Id,
                     Particular = li.Particular,
@@ -288,7 +317,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     FeeRate = li.FeeRate,
                     Amount = li.Amount
                 }).ToList(),
-                Histories = s.Histories.Select(sh => new SoaHistoryDto
+                Histories = (s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>()).Select(sh => new SoaHistoryDto
                 {
                     Id = sh.Id,
                     Action = sh.Action,
@@ -300,7 +329,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     Timestamp = sh.Timestamp
                 }).ToList()
             }).ToList(),
-            OrdersOfPayment = app.OrdersOfPayment.Select(op => new OrderOfPaymentDto
+            OrdersOfPayment = (app.OrdersOfPayment ?? Enumerable.Empty<Domain.Entities.OrderOfPayment>()).Select(op => new OrderOfPaymentDto
             {
                 Id = op.Id,
                 ApplicationId = op.ApplicationId,
@@ -311,6 +340,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 AmountReceived = op.AmountReceived,
                 PaymentMethod = op.PaymentMethod?.ToString(),
                 OfficialReceiptNumber = op.OfficialReceiptNumber,
+                OrNumbers = allOrNumbers,
                 CheckNumber = op.CheckNumber,
                 CheckName = op.CheckName,
                 CheckBank = op.CheckBank,
@@ -318,7 +348,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 VerifiedByCashierId = op.VerifiedByCashierId,
                 PaidAt = op.PaidAt,
                 Remarks = op.Remarks,
-                Histories = op.Histories.Select(oh => new OpHistoryDto
+                Histories = (op.Histories ?? Enumerable.Empty<Domain.Entities.OpHistory>()).Select(oh => new OpHistoryDto
                 {
                     Id = oh.Id,
                     Action = oh.Action,
@@ -343,10 +373,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 Timestamp = h.Timestamp
             }).ToList(),
             RenewedFromApplicationId = app.RenewedFromApplicationId,
-            HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
-            ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
-            ActiveRenewalReferenceNumber = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => r.ReferenceNumber).FirstOrDefault(),
-            IssuedDocumentDetails = app.IssuedDocumentDetails.Select(d => new IssuedDocumentDetailSummaryDto
+            HasActiveRenewal = (app.Renewals ?? Enumerable.Empty<Domain.Entities.Application>()).Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
+            ActiveRenewalApplicationId = (app.Renewals ?? Enumerable.Empty<Domain.Entities.Application>()).Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
+            ActiveRenewalReferenceNumber = (app.Renewals ?? Enumerable.Empty<Domain.Entities.Application>()).Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => r.ReferenceNumber).FirstOrDefault(),
+            IssuedDocumentDetails = (app.IssuedDocumentDetails ?? Enumerable.Empty<Domain.Entities.IssuedDocumentDetail>()).Select(d => new IssuedDocumentDetailSummaryDto
             {
                 Id = d.Id,
                 ApplicationId = d.ApplicationId,

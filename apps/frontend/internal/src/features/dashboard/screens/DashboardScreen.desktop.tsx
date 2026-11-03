@@ -322,7 +322,7 @@ export function DashboardScreen(): React.ReactElement {
                   </Text>
                 ) : (
                   applications.slice(0, 3).map((app) => {
-                    const statusDot = app.status === 'Approved'
+                    const statusDot = app.status === 'Approved' || app.status === 'Completed'
                       ? colors.semantic.success
                       : app.status === 'Returned'
                       ? colors.semantic.error

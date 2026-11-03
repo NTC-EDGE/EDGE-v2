@@ -65,6 +65,8 @@ export function isGenericOfficer(name?: string | null, office?: string | null): 
     n === 'chief of eod' ||
     n === 'eod chief' ||
     n === 'regional director' ||
+    n === 'special collecting officer' ||
+    n === 'evaluator' ||
     n === (office ?? '').toLowerCase()
   );
 }

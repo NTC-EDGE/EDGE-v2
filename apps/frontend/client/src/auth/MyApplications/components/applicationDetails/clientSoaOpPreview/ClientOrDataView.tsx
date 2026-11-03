@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, Platform } from 'react-native';
 import { Icon } from '@edge/ui';
-import { formatCurrency } from '../../../utils/clientSoaReportGenerator';
+import { formatCurrency, formatOrDisplayNumber } from '../../../utils/clientSoaReportGenerator';
 import { ClientOrDataViewProps } from './clientSoaOpPreviewTypes';
 import { dataViewStyles } from './styles/clientSoaOpDataViewStyles';
 import { tableStyles } from './styles/clientSoaOpTableStyles';
@@ -23,12 +23,8 @@ export function ClientOrDataView({
   isDesktop,
 }: ClientOrDataViewProps) {
   const displayOrDocNum = effectiveSelectedOr !== null
-    ? (effectiveSelectedOr.startsWith('#') ? effectiveSelectedOr : `#${effectiveSelectedOr}`)
-    : (orNum !== null ? orNum : `OR-${refNum}`);
-
-  const acknowledgedOrNum = effectiveSelectedOr !== null
-    ? (effectiveSelectedOr.startsWith('#') ? effectiveSelectedOr : `#${effectiveSelectedOr}`)
-    : `#${orNum !== null ? orNum : refNum}`;
+    ? formatOrDisplayNumber(effectiveSelectedOr)
+    : formatOrDisplayNumber(orNum || `OR-${refNum}`);
 
   return (
     <View>
@@ -109,7 +105,7 @@ export function ClientOrDataView({
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <Icon name="check-circle" size={14} color="#059669" />
             <Text style={[dataViewStyles.opPaymentStatusText, { color: '#065F46', fontWeight: '700' }]}>
-              OFFICIALLY PAID &amp; ACKNOWLEDGED • OR {acknowledgedOrNum}
+              OFFICIALLY PAID &amp; ACKNOWLEDGED • {displayOrDocNum}
             </Text>
           </View>
         </View>

@@ -53,6 +53,7 @@ export interface PaymentDetails {
   method: 'cash' | 'check';
   paymentMethod?: string;
   orNumber: string;
+  orNumbers?: string[];
   checkNumber: string;
   checkName: string;
   checkBank?: string;
@@ -251,6 +252,7 @@ export interface ApplicationData {
   totalAmountDue: number;
   dueDate: string;
   payment: PaymentDetails;
+  orNumbers?: string[];
   correctionAuditTrail: AuditTrailEntry[];
   history: AuditTrailEntry[];
   companyDetails?: {
@@ -264,4 +266,5 @@ export interface ApplicationData {
   note: string;
   remarks?: string;
   soaRemarks?: string;
+  soaNoteText?: string;
 }
