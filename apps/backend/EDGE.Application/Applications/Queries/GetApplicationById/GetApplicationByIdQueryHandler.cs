@@ -299,7 +299,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 SoaNoteId = s.SoaNoteId,
                 SoaNoteText = s.SoaNote != null ? s.SoaNote.Notes : null,
                 OrNumbers = allOrNumbers,
-                PreparedByName = resolvedEvaluatorName ?? "EVALUATOR",
+                PreparedByName = regionalSignatories.GetResolvedEvaluatorName(resolvedEvaluatorName),
                 PreparedByTitle = resolvedEvaluatorTitle,
                 ApprovedByName = resolvedApproverName,
                 ApprovedByTitle = resolvedApproverTitle,

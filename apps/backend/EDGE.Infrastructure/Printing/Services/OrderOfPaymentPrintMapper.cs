@@ -256,7 +256,13 @@ public static class OrderOfPaymentPrintMapper
             model.OrBy = cashierStaff;
         }
 
-        model.CollectingOfficer = "Special Collecting Officer";
+        var regionalOfficeLabel = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office
+            : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? $"NTC {app.Region.Name}" : null);
+
+        model.CollectingOfficer = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
+            ? $"Special Collecting Officer, {regionalOfficeLabel}"
+            : "Special Collecting Officer";
 
         return model;
     }

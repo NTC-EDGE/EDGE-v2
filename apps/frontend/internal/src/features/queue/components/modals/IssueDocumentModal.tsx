@@ -112,11 +112,16 @@ export function IssueDocumentModal({
       if (!isMounted) return;
       setIsLoadingDefaults(false);
 
+      const rawDefaultOr = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
+        ? app.payment.orNumbers.join(', ')
+        : (app.payment?.orNumber ?? '');
+      const cleanOr = (val: string) => val.split(',').map((s) => s.trim()).filter((s) => s.length > 0).join(', ');
+
       if (err === null && res?.data) {
         const d = res.data;
         setFormNumber(d.recommendedFormNumber ?? '');
         setLicenseNumber(d.recommendedLicenseNumber ?? '');
-        setOfficialReceiptNumber(d.officialReceiptNumber ?? app.payment?.orNumber ?? '');
+        setOfficialReceiptNumber(cleanOr(d.officialReceiptNumber ?? rawDefaultOr));
         setOriginalEvaluatorName(d.originalEvaluatorName ?? app.evaluatingOfficer ?? '');
         setDocumentType(applicationType);
 
@@ -146,7 +151,7 @@ export function IssueDocumentModal({
         if (isLicenseCategory) {
           setLicenseNumber(`NTC-${officeCode}-${year}-LIC-1001`);
         }
-        setOfficialReceiptNumber(app.payment?.orNumber ?? '');
+        setOfficialReceiptNumber(cleanOr(rawDefaultOr));
         setDocumentType(applicationType);
       }
     };

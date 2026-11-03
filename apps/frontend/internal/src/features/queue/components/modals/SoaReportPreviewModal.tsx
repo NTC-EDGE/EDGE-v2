@@ -119,12 +119,13 @@ export function SoaReportPreviewModal({
   const [orTemplate, setOrTemplate] = useState<'portrait' | 'landscape'>('landscape');
 
   const orRaw = app.payment?.orNumber ?? null;
-  const orList = orRaw
-    ? orRaw
-        .split(',')
-        .map((s) => s.trim())
-        .filter((s) => s.length > 0)
-    : [];
+  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
+    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+    : (app.orNumbers && app.orNumbers.length > 0)
+      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+      : (orRaw
+          ? orRaw.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
+          : []);
   const [selectedOrNumber, setSelectedOrNumber] = useState<string | null>(null);
   const effectiveSelectedOr = selectedOrNumber && orList.includes(selectedOrNumber)
     ? selectedOrNumber
@@ -292,9 +293,12 @@ export function SoaReportPreviewModal({
         const blobUrl = window.URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        const ref = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
+        const rawRef = targetDoc === 'or' && (resolvedOr || app.payment?.orNumber)
           ? (resolvedOr || app.payment?.orNumber)
           : (app.referenceNumber ? app.referenceNumber : (app.id ? app.id.slice(0, 8).toUpperCase() : 'DOC'));
+        const ref = typeof rawRef === 'string'
+          ? rawRef.replace(/[,\s]+/g, '_').replace(/^_+|_+$/g, '')
+          : 'DOC';
         const suffix = targetDoc === 'or' ? `_${resolvedTemplate.toUpperCase()}` : '';
         link.download = `${targetDoc.toUpperCase()}_${ref}${suffix}.pdf`;
         document.body.appendChild(link);
@@ -343,7 +347,7 @@ export function SoaReportPreviewModal({
           : `PHP ${app.totalAmountDue.toLocaleString('en-US', { minimumFractionDigits: 2 })}`)
       : '________________';
     const orDateStr = isPaid ? formattedOpDate : '________________';
-    const officerName = app.cashierOfficer || 'Special Collecting Officer';
+    const officerName = app.cashierOfficer || (app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer');
 
     return (
       <View
@@ -666,7 +670,7 @@ export function SoaReportPreviewModal({
               {officerName}
             </Text>
             <Text style={{ fontSize: 8.5, fontStyle: 'italic', color: isDark ? colors.neutral[400] : '#64748b' }}>
-              Special Collecting Officer / Cashier
+              {app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier'}
             </Text>
             <View
               style={{
@@ -685,11 +689,11 @@ export function SoaReportPreviewModal({
                 }}
               >
                 {isPaid
-                  ? (app.payment.orNumber.includes(',')
-                      ? `PAID (OR: ${app.payment.orNumber})`
-                      : (app.payment.orNumber.toUpperCase().startsWith('OR')
-                          ? `PAID (${app.payment.orNumber})`
-                          : `PAID (OR #${app.payment.orNumber})`))
+                  ? (orList.length > 1
+                      ? `PAID (OR: ${orList.join(', ')})`
+                      : (orList[0]?.toUpperCase().startsWith('OR')
+                          ? `PAID (${orList[0]})`
+                          : `PAID (OR #${orList[0] || 'Official'})`))
                   : 'PENDING CASHIER COLLECTION'}
               </Text>
             </View>
@@ -905,7 +909,7 @@ export function SoaReportPreviewModal({
                             Official Receipt (OR)
                           </Text>
                           <Text style={[styles.dropdownMenuItemSubtext, { color: isDark ? colors.neutral[400] : colors.neutral[500] }]}>
-                            Accountable Form 51 • {app.payment?.orNumber ? (app.payment.orNumber.includes(',') ? app.payment.orNumber : `#${app.payment.orNumber.replace(/^#+/, '')}`) : 'Official'}
+                            Accountable Form 51 • {effectiveSelectedOr || (orList.length > 0 ? orList.join(', ') : 'Official')}
                           </Text>
                         </View>
                         <Lucide name="download" size={13} color={isDark ? colors.neutral[500] : colors.neutral[400]} />
@@ -1660,13 +1664,13 @@ export function SoaReportPreviewModal({
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Prepared By (Evaluator):</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
-                      {app.soaPreparedByName || app.evaluatingOfficer || 'AUTHORIZED EVALUATOR'}
+                      {app.soaPreparedByName || app.evaluatingOfficer || (app.office ? `AUTHORIZED EVALUATOR (${app.office})` : 'AUTHORIZED EVALUATOR')}
                     </Text>
                   </View>
                   <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
                     <Text style={{ fontSize: 12, color: isDark ? colors.neutral[400] : colors.neutral[600] }}>Approved By (Chief, EOD):</Text>
                     <Text style={{ fontSize: 12, fontWeight: '700', color: isDark ? colors.neutral[100] : colors.neutral[900] }}>
-                      {app.soaApprovedByName || app.issuingOfficer || app.endorsedTo || 'CHIEF, EOD'}
+                      {app.soaApprovedByName || app.issuingOfficer || app.endorsedTo || (app.office ? `CHIEF, EOD (${app.office})` : 'CHIEF, EOD')}
                     </Text>
                   </View>
                 </View>

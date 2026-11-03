@@ -445,13 +445,15 @@ export function ActivityCard({
                       ]}
                       numberOfLines={1}
                     >
-                      {application.payment?.orNumber ? (
-                        application.payment.orNumber.includes(',')
-                          ? application.payment.orNumber
-                          : (application.payment.orNumber.toUpperCase().startsWith('OR')
-                              ? application.payment.orNumber
-                              : `OR #${application.payment.orNumber}`)
-                      ) : ''}
+                      {(() => {
+                        const list = (application.payment?.orNumbers && application.payment.orNumbers.length > 0)
+                          ? application.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+                          : (application.payment?.orNumber ? application.payment.orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0) : []);
+                        if (list.length === 0) return '';
+                        if (list.length > 1) return list.join(', ');
+                        const single = list[0] ?? '';
+                        return single.toUpperCase().startsWith('OR') ? single : `OR #${single}`;
+                      })()}
                     </Text>
                   </View>
                 </>

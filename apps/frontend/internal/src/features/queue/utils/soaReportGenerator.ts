@@ -267,12 +267,12 @@ export function generateSoaPrintableHtml(
   const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
     ? app.payment.orNumber
     : (app.officialReceiptNumber ?? '');
-  const orList = orNumber
-    ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-    : [];
-  const orDisplay = orList.length > 1
-    ? orList.join(', ')
-    : orNumber;
+  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
+    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+    : (app.orNumbers && app.orNumbers.length > 0)
+      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+      : (orNumber ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0) : []);
+  const orDisplay = orList.join(', ');
   const orAmount = app.payment?.amountReceived && app.payment.amountReceived > 0
     ? `₱ ${app.payment.amountReceived.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
     : (formattedTotal ? `₱ ${formattedTotal}` : '');
@@ -283,10 +283,15 @@ export function generateSoaPrintableHtml(
     : '';
   const orBy = app.issuingOfficer ?? app.evaluatingOfficer ?? '';
 
-  const prepName = safeString(preparerName || app.soaPreparedByName || app.evaluatingOfficer, 'AUTHORIZED EVALUATOR');
-  const apprvName = safeString(approverName || app.soaApprovedByName || app.issuingOfficer || app.endorsedTo, 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION');
-  const prepTitle = safeString(app.soaPreparedByTitle, 'EVALUATOR, NTC');
-  const apprvTitle = safeString(app.soaApprovedByTitle, 'CHIEF, ENFORCEMENT & OPERATIONS DIV.');
+  const defaultEvaluatorTitle = app.office ? `EVALUATOR, ${app.office}` : 'EVALUATOR, NTC';
+  const defaultApproverTitle = app.office ? `CHIEF, ENFORCEMENT & OPERATIONS DIV., ${app.office}` : 'CHIEF, ENFORCEMENT & OPERATIONS DIV.';
+  const defaultEvaluatorName = app.office ? `AUTHORIZED EVALUATOR (${app.office})` : 'AUTHORIZED EVALUATOR';
+  const defaultApproverName = app.office ? `CHIEF, ENFORCEMENT & OPERATIONS DIVISION (${app.office})` : 'CHIEF, ENFORCEMENT & OPERATIONS DIVISION';
+
+  const prepName = safeString(preparerName || app.soaPreparedByName || app.evaluatingOfficer, defaultEvaluatorName);
+  const apprvName = safeString(approverName || app.soaApprovedByName || app.issuingOfficer || app.endorsedTo, defaultApproverName);
+  const prepTitle = safeString(app.soaPreparedByTitle, defaultEvaluatorTitle);
+  const apprvTitle = safeString(app.soaApprovedByTitle, defaultApproverTitle);
 
   return `<!DOCTYPE html>
 <html>
@@ -864,12 +869,14 @@ export function generateOpPrintableHtml(
   const orNumber = (app.payment?.orNumber && app.payment.orNumber.trim().length > 0)
     ? app.payment.orNumber
     : (app.officialReceiptNumber ?? '');
-  const orList = orNumber
-    ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0)
-    : [];
-  const orDisplay = orList.length > 1
-    ? orList.join(', ')
-    : orNumber;
+  const orList = (app.payment?.orNumbers && app.payment.orNumbers.length > 0)
+    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+    : (app.orNumbers && app.orNumbers.length > 0)
+      ? app.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+      : (orNumber ? orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0) : []);
+  const orDisplay = orList.join(', ');
+  const singleOr = orList[0] ?? '';
+  const formattedSingleOr = singleOr.toUpperCase().startsWith('OR') ? singleOr : `OR #${singleOr}`;
 
   const applicantAddress = safeString(
     (app.soaIssuedToAddress && app.soaIssuedToAddress.trim().length > 0)
@@ -880,7 +887,7 @@ export function generateOpPrintableHtml(
 
   const paymentStatusText = orList.length > 1
     ? `Paid via ${orList.length} Official Receipts (${orDisplay})`
-    : (orNumber ? `Paid via OR #${orNumber}` : 'Pending Cashier Collection');
+    : (orList.length === 1 ? `Paid via ${formattedSingleOr}` : 'Pending Cashier Collection');
 
   const renderSingleVoucher = (copyTitle: string) => `
     <div class="voucher-wrapper">
@@ -982,14 +989,14 @@ export function generateOpPrintableHtml(
               </tr>
               <tr>
                 <td>By:</td>
-                <td>${safeString(cashierName, 'Special Collecting Officer')}</td>
+                <td>${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</td>
               </tr>
             </table>
           </td>
           <td style="width: 52%; vertical-align: bottom; text-align: center; padding-left: 20px;">
             <div class="officer-sig-line"></div>
-            <div class="officer-name">${safeString(cashierName, 'Special Collecting Officer')}</div>
-            <div class="officer-title">Special Collecting Officer / Cashier</div>
+            <div class="officer-name">${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</div>
+            <div class="officer-title">${app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier'}</div>
             <div style="font-size: 8px; color: #64748b; margin-top: 2px;">${paymentStatusText}</div>
           </td>
         </tr>

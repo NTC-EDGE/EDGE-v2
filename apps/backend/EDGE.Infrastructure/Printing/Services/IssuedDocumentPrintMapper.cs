@@ -110,7 +110,13 @@ public static class IssuedDocumentPrintMapper
         model.AmountPaid = paidOp?.AmountDue;
         model.OrAmount = paidOp != null && paidOp.AmountDue > 0 ? paidOp.AmountDue.ToString("N2") : string.Empty;
         model.OrDate = paidOp?.PaidAt?.ToString("MM/dd/yyyy") ?? model.IssueDate.ToString("MM/dd/yyyy");
-        model.OrBy = "Special Collecting Officer";
+        var regionalOfficeLabel = !string.IsNullOrWhiteSpace(app?.Office)
+            ? app.Office
+            : (!string.IsNullOrWhiteSpace(app?.Region?.Name) ? $"NTC {app.Region.Name}" : null);
+
+        model.OrBy = !string.IsNullOrWhiteSpace(regionalOfficeLabel)
+            ? $"Special Collecting Officer, {regionalOfficeLabel}"
+            : "Special Collecting Officer";
 
         // 5. Regional & Signatories
         model.QrVerificationCode = doc.QrVerificationCode ?? $"NTC-VERIFY-{doc.Id.ToString("N")[..12].ToUpperInvariant()}";

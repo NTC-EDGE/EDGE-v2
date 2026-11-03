@@ -347,13 +347,17 @@ public static class StatementOfAccountPrintMapper
             ?? soa?.Histories.FirstOrDefault(h => h.Action == "Created" || h.StaffRole.Contains("Evaluator"))?.StaffName
             ?? activeOp?.Histories.FirstOrDefault(h => h.StaffRole.Contains("Evaluator"))?.StaffName;
 
-        model.PreparedByName = !string.IsNullOrWhiteSpace(evaluatorName) ? evaluatorName : "EVALUATOR";
-
         var fallbackRegionLabel = !string.IsNullOrWhiteSpace(app?.Region?.Code)
             ? $"NTC {app.Region.Code}"
             : (!string.IsNullOrWhiteSpace(app?.Region?.Name)
                 ? $"NTC {app.Region.Name}"
                 : (!string.IsNullOrWhiteSpace(app?.Office) ? app.Office : "NTC"));
+
+        model.PreparedByName = !string.IsNullOrWhiteSpace(evaluatorName)
+            ? evaluatorName
+            : (regionalSignatories != null
+                ? regionalSignatories.GetResolvedEvaluatorName()
+                : (!string.IsNullOrWhiteSpace(fallbackRegionLabel) && fallbackRegionLabel != "NTC" ? $"EVALUATOR, {fallbackRegionLabel}" : "EVALUATOR"));
 
         if (regionalSignatories != null)
         {

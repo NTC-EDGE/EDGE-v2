@@ -187,11 +187,15 @@ export function SoaParticularsTable({
                     color: isDark ? '#34d399' : '#059669',
                   }}
                 >
-                  {app.payment.orNumber.includes(',')
-                    ? app.payment.orNumber
-                    : (app.payment.orNumber.toUpperCase().startsWith('OR')
-                        ? app.payment.orNumber
-                        : `OR #${app.payment.orNumber}`)}
+                  {(() => {
+                    const list = (app.payment.orNumbers && app.payment.orNumbers.length > 0)
+                      ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+                      : app.payment.orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+                    if (list.length === 0) return '';
+                    if (list.length > 1) return list.join(', ');
+                    const single = list[0] ?? '';
+                    return single.toUpperCase().startsWith('OR') ? single : `OR #${single}`;
+                  })()}
                 </Text>
               </View>
             )}

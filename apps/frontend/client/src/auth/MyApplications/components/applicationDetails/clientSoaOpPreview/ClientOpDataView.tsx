@@ -7,6 +7,7 @@ import { tableStyles } from './styles/clientSoaOpTableStyles';
 import { signatoryStyles } from './styles/clientSoaOpSignatoryStyles';
 
 export function ClientOpDataView({
+  app,
   opNum,
   applicantName,
   formattedAddr,
@@ -131,7 +132,7 @@ export function ClientOpDataView({
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 9, color: '#047857' }}>By:</Text>
-              <Text style={{ fontSize: 9, fontWeight: '600', color: '#065F46' }}>Special Collecting Officer</Text>
+              <Text style={{ fontSize: 9, fontWeight: '600', color: '#065F46' }}>{app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</Text>
             </View>
           </View>
         ) : (

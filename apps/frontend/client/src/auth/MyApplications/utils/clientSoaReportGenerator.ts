@@ -426,7 +426,7 @@ export function generateSoaPrintableHtml(
         <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
         <td style="color: #047857; padding-top: 4px;">${currentDate}</td>
         <td style="color: #065f46; font-weight: 700; padding-top: 4px;">BY:</td>
-        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">Special Collecting Officer</td>
+        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</td>
       </tr>
     </table>
   </div>
@@ -650,7 +650,7 @@ export function generateOpPrintableHtml(
         <td style="color: #065f46; font-weight: 700; padding-top: 4px;">DATE:</td>
         <td style="color: #047857; padding-top: 4px;">${currentDate}</td>
         <td style="color: #065f46; font-weight: 700; padding-top: 4px;">BY:</td>
-        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${safeString(cashierName, 'Special Collecting Officer')}</td>
+        <td style="color: #065f46; font-weight: 600; padding-top: 4px;">${safeString(cashierName, app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer')}</td>
       </tr>
     </table>
   </div>
@@ -662,7 +662,7 @@ export function generateOpPrintableHtml(
       <div class="sig-role">Authorized Assessment Officer</div>
     </div>
     <div class="sig-block">
-      <div class="sig-name">${safeString(cashierName, 'Special Collecting Officer / Cashier')}</div>
+      <div class="sig-name">${safeString(cashierName, app.office ? `Special Collecting Officer / Cashier, ${app.office}` : 'Special Collecting Officer / Cashier')}</div>
       <div class="sig-role">Collecting Cashier</div>
     </div>
   </div>
@@ -923,7 +923,7 @@ export function generateOrPrintableHtml(app: Application): string {
       <div class="signature-section">
         <div class="signature-box">
           <div class="sign-line"></div>
-          <div class="sign-name">Special Collecting Officer</div>
+          <div class="sign-name">${app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</div>
           <div class="sign-role">Authorized Cashier Officer</div>
         </div>
       </div>

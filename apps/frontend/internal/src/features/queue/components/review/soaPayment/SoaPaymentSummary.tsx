@@ -106,29 +106,40 @@ export function SoaPaymentSummary({
               </View>
             ) : (
               <View style={styles.orValueRow}>
-                <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
-                  {app.payment.orNumber.length > 0 ? app.payment.orNumber : "—"}
-                </Text>
-                {app.payment.orNumber.length > 0 && (
-                  <View
-                    style={[
-                      styles.orEditBtn,
-                      {
-                        backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
-                        borderColor: isDark ? '#10B981' : '#6EE7B7',
-                      },
-                    ]}
-                  >
-                    <Lucide name="check-circle" size={12} color={isDark ? '#34D399' : '#047857'} />
-                    <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
-                      SETTLED • {app.payment.orNumber.includes(',')
-                        ? app.payment.orNumber
-                        : (app.payment.orNumber.toUpperCase().startsWith('OR')
-                            ? app.payment.orNumber
-                            : `OR #${app.payment.orNumber}`)}
-                    </Text>
-                  </View>
-                )}
+                {(() => {
+                  const list = (app.payment.orNumbers && app.payment.orNumbers.length > 0)
+                    ? app.payment.orNumbers.map((s) => s.trim()).filter((s) => s.length > 0)
+                    : app.payment.orNumber.split(',').map((s) => s.trim()).filter((s) => s.length > 0);
+                  const display = list.join(', ');
+                  const single = list[0] ?? '';
+                  const formatted = list.length > 1
+                    ? display
+                    : (single.toUpperCase().startsWith('OR') ? single : `OR #${single}`);
+
+                  return (
+                    <>
+                      <Text style={[styles.orValue, { color: isDark ? colors.neutral[200] : colors.neutral[700] }]}>
+                        {display.length > 0 ? display : "—"}
+                      </Text>
+                      {list.length > 0 && (
+                        <View
+                          style={[
+                            styles.orEditBtn,
+                            {
+                              backgroundColor: isDark ? 'rgba(16, 185, 129, 0.2)' : '#ECFDF5',
+                              borderColor: isDark ? '#10B981' : '#6EE7B7',
+                            },
+                          ]}
+                        >
+                          <Lucide name="check-circle" size={12} color={isDark ? '#34D399' : '#047857'} />
+                          <Text style={[styles.orEditText, { color: isDark ? '#34D399' : '#047857', fontWeight: '700' }]}>
+                            SETTLED • {formatted}
+                          </Text>
+                        </View>
+                      )}
+                    </>
+                  );
+                })()}
                 {isEditable && (
                   <Pressable
                     style={[styles.orEditBtn, { backgroundColor: isDark ? colors.neutral[800] : '#EFF6FF', borderColor: isDark ? colors.brand[500] : colors.brand[600] }]}

@@ -55,6 +55,18 @@ public class RegionalSignatoriesDto
     }
 
     /// <summary>
+    /// Resolves default Evaluator display name respecting regional qualification if available.
+    /// </summary>
+    public string GetResolvedEvaluatorName(string? staffName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(staffName))
+            return staffName;
+
+        var regionLabel = GetRegionLabel();
+        return regionLabel != "NTC" ? $"EVALUATOR, {regionLabel}" : "EVALUATOR";
+    }
+
+    /// <summary>
     /// Resolves the Evaluator's position/title with regional qualification.
     /// </summary>
     public string GetResolvedEvaluatorTitle(string? customPosition = null)
@@ -64,6 +76,30 @@ public class RegionalSignatoriesDto
 
         var regionLabel = GetRegionLabel();
         return $"Evaluator, {regionLabel}";
+    }
+
+    /// <summary>
+    /// Resolves default Collecting Officer display name respecting regional qualification if available.
+    /// </summary>
+    public string GetResolvedCollectingOfficerName(string? staffName = null)
+    {
+        if (!string.IsNullOrWhiteSpace(staffName))
+            return staffName;
+
+        var regionLabel = GetRegionLabel();
+        return regionLabel != "NTC" ? $"Special Collecting Officer, {regionLabel}" : "Special Collecting Officer";
+    }
+
+    /// <summary>
+    /// Resolves Collecting Officer position/title with regional qualification.
+    /// </summary>
+    public string GetResolvedCollectingOfficerTitle(string? customPosition = null)
+    {
+        if (!string.IsNullOrWhiteSpace(customPosition))
+            return customPosition;
+
+        var regionLabel = GetRegionLabel();
+        return regionLabel != "NTC" ? $"Special Collecting Officer, {regionLabel}" : "Special Collecting Officer";
     }
 
     private string GetRegionLabel()

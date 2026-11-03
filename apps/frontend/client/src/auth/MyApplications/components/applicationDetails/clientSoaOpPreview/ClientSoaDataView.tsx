@@ -193,7 +193,7 @@ export function ClientSoaDataView({
             </View>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <Text style={{ fontSize: 9, color: '#047857' }}>By:</Text>
-              <Text style={{ fontSize: 9, fontWeight: '600', color: '#065F46' }}>Special Collecting Officer</Text>
+              <Text style={{ fontSize: 9, fontWeight: '600', color: '#065F46' }}>{app.office ? `Special Collecting Officer, ${app.office}` : 'Special Collecting Officer'}</Text>
             </View>
           </View>
         ) : (
@@ -205,11 +205,11 @@ export function ClientSoaDataView({
 
         <View style={[signatoryStyles.signatoriesRow, { flexDirection: 'row', gap: 16, marginTop: 0 }]}>
           <View style={signatoryStyles.sigBlock}>
-            <Text style={signatoryStyles.sigName}>{app.soa?.preparedByName || app.evaluatingOfficer || 'EVALUATOR'}</Text>
+            <Text style={signatoryStyles.sigName}>{app.soa?.preparedByName || app.evaluatingOfficer || (app.office ? `EVALUATOR, ${app.office}` : 'EVALUATOR')}</Text>
             <Text style={signatoryStyles.sigRole}>{app.soa?.preparedByTitle || 'Assessed & Prepared By'}</Text>
           </View>
           <View style={signatoryStyles.sigBlock}>
-            <Text style={signatoryStyles.sigName}>{app.soa?.approvedByName || app.issuingOfficer || 'CHIEF, EOD'}</Text>
+            <Text style={signatoryStyles.sigName}>{app.soa?.approvedByName || app.issuingOfficer || (app.office ? `CHIEF, EOD, ${app.office}` : 'CHIEF, EOD')}</Text>
             <Text style={signatoryStyles.sigRole}>{app.soa?.approvedByTitle || 'Chief, Enforcement & Operations Div.'}</Text>
           </View>
         </View>
