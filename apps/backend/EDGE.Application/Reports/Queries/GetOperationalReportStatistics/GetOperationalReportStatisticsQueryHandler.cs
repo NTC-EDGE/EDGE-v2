@@ -145,11 +145,14 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
         var activeQuarter = request.Quarter ?? ((DateTime.UtcNow.Month - 1) / 3 + 1);
         var periodMode = (request.PeriodMode ?? "monthly").ToLowerInvariant();
 
-        // Filter applications by period criteria
-        var filteredApps = tenantApps.Where(a =>
+        bool IsMatchingPeriod(DateTime dt)
         {
-            var dt = a.CreatedAt;
-
+            if (periodMode == "custom" || (request.StartDate.HasValue && request.EndDate.HasValue))
+            {
+                var s = request.StartDate ?? DateTime.MinValue;
+                var e = request.EndDate?.Date.AddDays(1).AddTicks(-1) ?? DateTime.MaxValue;
+                return dt >= s && dt <= e;
+            }
             if (periodMode == "monthly")
             {
                 return dt.Year == activeYear && dt.Month - 1 == activeMonth;
@@ -163,50 +166,17 @@ public class GetOperationalReportStatisticsQueryHandler : IRequestHandler<GetOpe
             {
                 return dt.Year == activeYear;
             }
-            // Rolling / default: last 30 days
             return dt >= DateTime.UtcNow.AddDays(-30);
-        }).ToList();
+        }
+
+        // Filter applications by period criteria
+        var filteredApps = tenantApps.Where(a => IsMatchingPeriod(a.CreatedAt)).ToList();
 
         // Filter transactions by period criteria
-        var filteredTx = transactions.Where(t =>
-        {
-            var dt = t.Date;
-
-            if (periodMode == "monthly")
-            {
-                return dt.Year == activeYear && dt.Month - 1 == activeMonth;
-            }
-            if (periodMode == "quarterly")
-            {
-                var q = (dt.Month - 1) / 3 + 1;
-                return dt.Year == activeYear && q == activeQuarter;
-            }
-            if (periodMode == "yearly")
-            {
-                return dt.Year == activeYear;
-            }
-            return dt >= DateTime.UtcNow.AddDays(-30);
-        }).ToList();
+        var filteredTx = transactions.Where(t => IsMatchingPeriod(t.Date)).ToList();
 
         // Filter feedback by period criteria
-        var filteredFeedback = allFeedback.Where(f =>
-        {
-            var dt = f.CreatedAt;
-            if (periodMode == "monthly")
-            {
-                return dt.Year == activeYear && dt.Month - 1 == activeMonth;
-            }
-            if (periodMode == "quarterly")
-            {
-                var q = (dt.Month - 1) / 3 + 1;
-                return dt.Year == activeYear && q == activeQuarter;
-            }
-            if (periodMode == "yearly")
-            {
-                return dt.Year == activeYear;
-            }
-            return dt >= DateTime.UtcNow.AddDays(-30);
-        }).ToList();
+        var filteredFeedback = allFeedback.Where(f => IsMatchingPeriod(f.CreatedAt)).ToList();
 
         // 1. KPI Summary Calculation
         var totalApps = filteredApps.Count;

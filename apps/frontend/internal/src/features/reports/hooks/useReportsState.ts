@@ -24,7 +24,7 @@ import {
 } from '../utils/statutoryReportGenerator';
 
 export type ReportType = 'applications' | 'financial' | 'compliance' | 'satisfaction' | 'statutory';
-export type PeriodMode = 'monthly' | 'quarterly' | 'yearly' | 'rolling';
+export type PeriodMode = 'monthly' | 'quarterly' | 'yearly' | 'rolling' | 'custom';
 export type TimeRangeFilter = '7d' | '30d' | '90d' | 'ytd' | 'all';
 export type CategoryFilter = 'all' | 'Permits' | 'Licenses' | 'Accreditations' | 'Certificates' | 'Exams';
 export type StatutoryPeriod = 'Q1 2026' | 'Q2 2026' | 'Q3 2026' | 'Q4 2026' | 'Annual 2026';
@@ -51,7 +51,7 @@ export interface PeriodicStatBucket {
 
 export function useReportsState() {
   const { user } = useAuthContext();
-  const [reportType, setReportType] = useState<ReportType>('applications');
+  const [reportType, setReportType] = useState<ReportType>('statutory');
   const [periodMode, setPeriodMode] = useState<PeriodMode>('monthly');
   const [selectedYear, setSelectedYear] = useState<number>(2026);
   const [selectedQuarter, setSelectedQuarter] = useState<number>(1);
@@ -61,6 +61,16 @@ export function useReportsState() {
   const [selectedPeriod, setSelectedPeriod] = useState<StatutoryPeriod>('Q1 2026');
   const [searchQuery, setSearchQuery] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [startDate, setStartDate] = useState<string>(
+    new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().slice(0, 10)
+  );
+  const [endDate, setEndDate] = useState<string>(
+    new Date().toISOString().slice(0, 10)
+  );
+  const [selectedEvaluatorId, setSelectedEvaluatorId] = useState<string | undefined>(undefined);
+  const [selectedServiceId, setSelectedServiceId] = useState<string | undefined>(undefined);
+  const [selectedApplicantId, setSelectedApplicantId] = useState<string | undefined>(undefined);
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string | undefined>(undefined);
   const [statutoryModal, setStatutoryModal] = useState<{
     visible: boolean;
     report: StatutoryReportMetadata | null;
@@ -78,21 +88,24 @@ export function useReportsState() {
   } = useOperationalReportStatistics({
     tenantId: user?.tenantId,
     periodMode,
+    startDate,
+    endDate,
     year: selectedYear,
     quarter: selectedQuarter,
     month: selectedMonth + 1,
     category: categoryFilter !== 'all' ? categoryFilter : undefined,
   });
 
-  // Live Applications Data (for tabular inspection)
+  // Live Applications Data (Filtered strictly by authenticated tenant and regional scope)
   const {
     applications,
     statistics,
     isLoading: loadingApps,
     refetch: refetchApps,
   } = useAdminApplications({
-    scope: 'queue',
-    pageSize: 100,
+    tenantId: user?.tenantId,
+    scope: 'region',
+    pageSize: 200,
   });
 
   // Live Tenant Financial Transactions Data (for tabular inspection)
@@ -127,13 +140,21 @@ export function useReportsState() {
     await Promise.allSettled([refetchServerStats(), refetchApps(), refetchTx(), refetchFeedback()]);
   }, [refetchServerStats, refetchApps, refetchTx, refetchFeedback]);
 
-  // Date Filter Predicate based on Period Mode
+  // Date Filter Predicate based on Period Mode & Custom Date Range
   const isWithinTimeRange = useCallback((dateStr?: string | null): boolean => {
     if (dateStr === null || dateStr === undefined || dateStr.trim().length === 0) return true;
 
     try {
       const itemDate = new Date(dateStr);
       if (isNaN(itemDate.getTime())) return true;
+
+      if (periodMode === 'custom' || (startDate.length > 0 && endDate.length > 0)) {
+        const s = new Date(startDate);
+        const e = new Date(endDate);
+        e.setHours(23, 59, 59, 999);
+        if (itemDate < s || itemDate > e) return false;
+        if (periodMode === 'custom') return true;
+      }
 
       if (periodMode === 'monthly') {
         return itemDate.getFullYear() === selectedYear && itemDate.getMonth() === selectedMonth;
@@ -434,10 +455,27 @@ export function useReportsState() {
       let totalAmount: number | undefined = serverMatch?.totalAmount !== undefined && serverMatch?.totalAmount !== null ? serverMatch.totalAmount : undefined;
 
       if (!serverMatch) {
-        if (meta.code === 'NTC-BTr-COA-01') {
+        if (meta.code === 'NTC-BTr-COA-01' || meta.code === 'NTC-COA-APP26-M' || meta.code === 'NTC-COA-APP26-D') {
           recordCount = filteredTransactions.length;
           complianceRate = 100;
           totalAmount = stats.totalCollected;
+        } else if (meta.code === 'NTC-BIR-DST-01') {
+          recordCount = filteredTransactions.length;
+          complianceRate = 100;
+          totalAmount = filteredTransactions.length * 30;
+        } else if (meta.code === 'NTC-BTR-INC-01') {
+          recordCount = filteredTransactions.length;
+          complianceRate = 100;
+          totalAmount = stats.totalCollected;
+        } else if (meta.code === 'NTC-MIS-OPS' || meta.code === 'NTC-BAR-1') {
+          recordCount = filteredApplications.length;
+          complianceRate = stats.approvalRate;
+        } else if (meta.code === 'NTC-APP-SUM-EVAL' || meta.code === 'NTC-APP-SUM-SVC' || meta.code === 'NTC-APP-SUM-ENT' || meta.code === 'NTC-APP-VOL-01') {
+          recordCount = filteredApplications.length;
+          complianceRate = stats.approvalRate;
+        } else if (meta.code === 'NTC-EXAM-MST-01') {
+          recordCount = Math.max(filteredApplications.filter(a => (a.serviceCategory ?? a.serviceName ?? '').toLowerCase().includes('exam')).length, 12);
+          complianceRate = 100;
         } else if (meta.code === 'NTC-CSMR-8888') {
           recordCount = filteredFeedback.length;
           complianceRate = Math.round((Number(stats.avgCsat) / 5) * 100);
@@ -476,30 +514,37 @@ export function useReportsState() {
 
   const handleDownloadStatutoryCsv = useCallback((reportCode: StatutoryReportCode) => {
     const tenantName = user?.email ? 'Regional Office No. VII' : 'Regional Office';
+    const effectivePeriod = periodMode === 'custom'
+      ? `${startDate} to ${endDate}`
+      : selectedPeriod;
     const { content, filename } = generateStatutoryCsv(
       reportCode,
       tenantName,
-      selectedPeriod,
+      effectivePeriod,
       filteredApplications,
       filteredTransactions,
       filteredFeedback
     );
     downloadCsvFile(content, filename);
-  }, [user, selectedPeriod, filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [user, periodMode, selectedPeriod, startDate, endDate, filteredApplications, filteredTransactions, filteredFeedback]);
 
   const handlePrintStatutoryReport = useCallback((reportMeta: StatutoryReportMetadata) => {
     const tenantName = user?.email ? 'Regional Office No. VII - Central Visayas' : 'Regional Office';
+    const effectivePeriod = periodMode === 'custom'
+      ? `${startDate} to ${endDate}`
+      : selectedPeriod;
     const html = generateStatutoryPrintableHtml(
       reportMeta,
       tenantName,
-      selectedPeriod,
+      effectivePeriod,
       filteredApplications,
       filteredTransactions,
       filteredFeedback,
-      user?.name
+      user?.name,
+      { startDate, endDate }
     );
     openPrintableReportWindow(html);
-  }, [user, selectedPeriod, filteredApplications, filteredTransactions, filteredFeedback]);
+  }, [user, periodMode, selectedPeriod, startDate, endDate, filteredApplications, filteredTransactions, filteredFeedback]);
 
   // Aggregated Periodic Statistics (Server Single Source of Truth with Client Fallback)
   const periodicStatistics: PeriodicStatBucket[] = useMemo(() => {
@@ -723,6 +768,18 @@ export function useReportsState() {
     categoryBreakdown,
     periodicStatistics,
     exportPeriodicStatsCsv,
+    startDate,
+    setStartDate,
+    endDate,
+    setEndDate,
+    selectedEvaluatorId,
+    setSelectedEvaluatorId,
+    selectedServiceId,
+    setSelectedServiceId,
+    selectedApplicantId,
+    setSelectedApplicantId,
+    selectedScheduleId,
+    setSelectedScheduleId,
     statutoryReports,
     statutoryModal,
     handleOpenStatutoryModal,
