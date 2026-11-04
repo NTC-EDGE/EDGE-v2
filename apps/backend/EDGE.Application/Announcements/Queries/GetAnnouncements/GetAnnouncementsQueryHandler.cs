@@ -32,6 +32,17 @@ public class GetAnnouncementsQueryHandler : IRequestHandler<GetAnnouncementsQuer
         {
             filteredable = filteredable.Where(a => a.Type.Equals(request.Type, StringComparison.OrdinalIgnoreCase));
         }
+        if (request.IsActive.HasValue)
+        {
+            filteredable = filteredable.Where(a => a.IsActive == request.IsActive.Value);
+        }
+        if (!string.IsNullOrWhiteSpace(request.TargetAudience) && request.TargetAudience != "ALL")
+        {
+            var audience = request.TargetAudience.Trim().ToLower();
+            filteredable = filteredable.Where(a =>
+                a.TargetAudience.ToLower().Contains("all") ||
+                a.TargetAudience.ToLower().Contains(audience));
+        }
 
         var totalCount = filteredable.Count();
         var pageNumber = request.PageNumber <= 0 ? 1 : request.PageNumber;

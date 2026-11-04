@@ -97,9 +97,11 @@ public static class SystemAnnouncementEndpoints
         [FromQuery] int pageNumber = 1,
         [FromQuery] int pageSize = 10,
         [FromQuery] string? searchTerm = null,
-        [FromQuery] string? type = null)
+        [FromQuery] string? type = null,
+        [FromQuery] bool? isActive = null,
+        [FromQuery] string? targetAudience = null)
     {
-        var result = await mediator.Send(new GetAnnouncementsQuery(pageNumber, pageSize, searchTerm, type));
+        var result = await mediator.Send(new GetAnnouncementsQuery(pageNumber, pageSize, searchTerm, type, isActive, targetAudience));
         return Results.Ok(result);
     }
 
