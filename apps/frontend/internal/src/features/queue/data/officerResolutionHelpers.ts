@@ -266,11 +266,24 @@ export function resolveAccountingOfficer(reversedHistories: ApplicationHistoryLi
     const remarksLower = (h.remarks || '').toLowerCase();
     const roleLower = (h.staffRole || '').toLowerCase();
 
+    // Exclude actions that are forwarding/re-submitting TO accountant or performed by evaluators/engineers
+    if (
+      actionLower.includes('forwarded to accountant') ||
+      actionLower.includes('forward to accountant') ||
+      actionLower.includes('re-submitted to accountant') ||
+      actionLower.includes('resubmitted to accountant') ||
+      actionLower.includes('approved & forwarded') ||
+      remarksLower.includes('forwarded to accountant') ||
+      roleLower.includes('evaluat') ||
+      roleLower.includes('engineer')
+    ) {
+      return false;
+    }
+
     return (
       roleLower.includes('accountant') ||
-      actionLower.includes('accountant') ||
       actionLower.includes('financial review') ||
-      actionLower.includes('soa approved') ||
+      actionLower.includes('soa approved by accountant') ||
       actionLower.includes('approved by accountant') ||
       actionLower.includes('returned by accountant') ||
       (actionLower.includes('take application') && h.toStatus === 'ForAccountant') ||
@@ -290,9 +303,22 @@ export function resolveCashierOfficer(reversedHistories: ApplicationHistoryLike[
     const remarksLower = (h.remarks || '').toLowerCase();
     const roleLower = (h.staffRole || '').toLowerCase();
 
+    // Exclude actions that are forwarding TO cashier or performed by accountants/evaluators
+    if (
+      actionLower.includes('forwarded to cashier') ||
+      actionLower.includes('forward to cashier') ||
+      actionLower.includes('order of payment generated') ||
+      actionLower.includes('approved & forward') ||
+      remarksLower.includes('forwarded to cashier') ||
+      roleLower.includes('evaluat') ||
+      roleLower.includes('engineer') ||
+      (roleLower.includes('accountant') && !actionLower.includes('official receipt'))
+    ) {
+      return false;
+    }
+
     return (
       roleLower.includes('cashier') ||
-      actionLower.includes('cashier') ||
       actionLower.includes('payment verification') ||
       actionLower.includes('payment verified') ||
       actionLower.includes('official receipt') ||
@@ -324,8 +350,7 @@ export function resolveIssuingOfficer(reversedHistories: ApplicationHistoryLike[
       actionLower.includes('issued by') ||
       (actionLower.includes('take application') && h.toStatus === 'ForIssuance') ||
       remarksLower.includes('document release process started') ||
-      remarksLower.includes('statutory document and license issued') ||
-      h.toStatus === 'Completed'
+      remarksLower.includes('statutory document and license issued')
     );
   });
   if (match?.staffName && match.staffName.trim().length > 0) return match.staffName.trim();
@@ -430,13 +455,21 @@ export function resolveAssignedTo(
     return office ?? '';
   }
   if (feStatus === 'ForAccountant') {
-    if (accountingOfficer && !isGenericOfficer(accountingOfficer, office)) {
+    if (
+      accountingOfficer &&
+      !isGenericOfficer(accountingOfficer, office) &&
+      (!evaluatingOfficer || accountingOfficer.trim().toLowerCase() !== evaluatingOfficer.trim().toLowerCase())
+    ) {
       return accountingOfficer;
     }
     return office ?? '';
   }
   if (feStatus === 'PendingPayment') {
-    if (cashierOfficer && !isGenericOfficer(cashierOfficer, office)) {
+    if (
+      cashierOfficer &&
+      !isGenericOfficer(cashierOfficer, office) &&
+      (!accountingOfficer || cashierOfficer.trim().toLowerCase() !== accountingOfficer.trim().toLowerCase())
+    ) {
       return cashierOfficer;
     }
     return office ?? '';

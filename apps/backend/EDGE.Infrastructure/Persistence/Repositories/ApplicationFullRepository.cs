@@ -1425,17 +1425,23 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         item.AccountingOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                        (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Remarks == null || !h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase)) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))) ||
-                         (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Accountant", StringComparison.OrdinalIgnoreCase)))))
+                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
         item.CashierOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
+                        (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
+                        (h.Remarks == null || !h.Remarks.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase)) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Cashier", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "PendingPayment", StringComparison.OrdinalIgnoreCase)))) ||
-                         (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Cashier", StringComparison.OrdinalIgnoreCase)))))
+                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "PendingPayment", StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 

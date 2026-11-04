@@ -131,7 +131,12 @@ export function computeOfficerEvaluationState(params: {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "foraccountant") {
-    currentStageOfficer = application.accountingOfficer;
+    const isAccountingByEvaluator = Boolean(
+      application.accountingOfficer &&
+      application.evaluatingOfficer &&
+      application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
+    );
+    currentStageOfficer = isAccountingByEvaluator ? undefined : application.accountingOfficer;
     if (!currentStageOfficer || isGenericOfficer(currentStageOfficer, application.office)) {
       isStageUnclaimed = true;
     } else if (matchesUserIdentifier(currentStageOfficer, identifiers)) {
@@ -140,7 +145,12 @@ export function computeOfficerEvaluationState(params: {
       isStageClaimedByOther = true;
     }
   } else if (statusLower === "pendingpayment") {
-    currentStageOfficer = application.cashierOfficer;
+    const isCashierByAccountant = Boolean(
+      application.cashierOfficer &&
+      application.accountingOfficer &&
+      application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
+    );
+    currentStageOfficer = isCashierByAccountant ? undefined : application.cashierOfficer;
     if (isEndorsedToMe) {
       isStageClaimedByMe = true;
     } else if (isEndorsedAwayFromMe) {

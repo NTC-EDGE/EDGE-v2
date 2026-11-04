@@ -63,10 +63,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             : (app.OrdersOfPayment?.Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber)).Sum(o => o.AmountReceived > 0 ? o.AmountReceived : o.AmountDue));
 
         var allHistories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
-            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
+            .Select(h => new { h.StaffName, h.StaffRole, h.Action, Remarks = (string?)h.Remarks, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
             .Concat((app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>())
                 .SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
-                .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
+                .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, Remarks = (string?)sh.Remarks, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
             .OrderByDescending(h => h.Timestamp)
             .ToList();
 
@@ -81,6 +81,26 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
         var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
         var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();
+
+        var accountantHistory = allHistories.FirstOrDefault(h =>
+            !string.IsNullOrWhiteSpace(h.StaffName) &&
+            (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
+            ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
+             (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant))) ||
+             (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))));
+
+        var resolvedAccountingOfficer = accountantHistory?.StaffName;
+
+        var cashierHistory = allHistories.FirstOrDefault(h =>
+            !string.IsNullOrWhiteSpace(h.StaffName) &&
+            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
+            ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
+             (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && h.ToStatus == Domain.Enums.ApplicationStatus.PendingPayment))) ||
+             (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))));
+
+        var resolvedCashierOfficer = cashierHistory?.StaffName;
 
         var issuingHistory = allHistories.FirstOrDefault(h =>
             h.ToStatus == Domain.Enums.ApplicationStatus.Completed ||
@@ -111,6 +131,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
             EvaluatingOfficer = resolvedEvaluatorName,
+            AccountingOfficer = resolvedAccountingOfficer,
+            CashierOfficer = resolvedCashierOfficer,
             IssuingOfficer = resolvedIssuingOfficer,
             Remarks = app.Remarks,
             UserId = app.UserId,
