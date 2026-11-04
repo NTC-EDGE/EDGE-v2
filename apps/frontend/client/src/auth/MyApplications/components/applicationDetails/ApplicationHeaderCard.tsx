@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Icon } from '@edge/ui';
+import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { Application, formatRelativeTime, isApplicationPaymentSubmitted, getStatusBgColor, getStatusColor } from '../../data/applicationsData';
 import { safeGetStatusLabel } from './applicationDetailsTypes';
 import { getStatusLabel } from '../../data/applicationsData';
@@ -30,6 +30,7 @@ export function ApplicationHeaderCard({
   docsCount,
 }: ApplicationHeaderCardProps) {
   const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
   const effectiveStatus = isPaymentSubmitted ? 'PAYMENT_SUBMITTED' : app.status;
   const effectiveStatusBg = isPaymentSubmitted ? getStatusBgColor('PAYMENT_SUBMITTED') : statusBg;
   const effectiveStatusColor = isPaymentSubmitted ? getStatusColor('PAYMENT_SUBMITTED') : statusColor;
@@ -43,6 +44,62 @@ export function ApplicationHeaderCard({
             {isBulk ? `BULK APPLICATION (${appApplicantsCount})` : 'SINGLE APPLICATION'}
           </Text>
         </View>
+
+        {isAssessmentOnly ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FAF5FF',
+              borderColor: '#DDD6FE',
+              borderWidth: 1,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              gap: 5,
+            }}
+          >
+            <Icon name="search" size={12} color="#7C3AED" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: TYPOGRAPHY.weights.bold,
+                color: '#7C3AED',
+                letterSpacing: 0.5,
+              }}
+            >
+              FOR ASSESSMENT ONLY
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#EFF6FF',
+              borderColor: '#BFDBFE',
+              borderWidth: 1,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              gap: 5,
+            }}
+          >
+            <Icon name="file-text" size={12} color="#1D4ED8" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: TYPOGRAPHY.weights.bold,
+                color: '#1D4ED8',
+                letterSpacing: 0.5,
+              }}
+            >
+              OFFICIAL APPLICATION
+            </Text>
+          </View>
+        )}
 
         <View style={[styles.statusBadge, { backgroundColor: effectiveStatusBg }]}>
           <View style={[styles.statusDot, { backgroundColor: effectiveStatusColor }]} />

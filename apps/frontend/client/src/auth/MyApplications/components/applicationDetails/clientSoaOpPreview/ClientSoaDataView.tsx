@@ -30,6 +30,7 @@ export function ClientSoaDataView({
   const hasOr = (typeof orNum === 'string' && orNum.trim().length > 0) || Boolean(isPaid);
   const safeOrList = Array.isArray(orList) ? orList : [];
   const soaStatus = app.soa?.status;
+  const isForAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
   const statusBgColor =
     soaStatus === 'ForOrderOfPayment'
@@ -71,6 +72,26 @@ export function ClientSoaDataView({
         <View style={dataViewStyles.bannerRight}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, justifyContent: 'flex-end', flexWrap: 'wrap' }}>
             <Text style={dataViewStyles.bannerDocNum}>{soaNum}</Text>
+            <View
+              style={{
+                paddingHorizontal: 8,
+                paddingVertical: 2,
+                borderRadius: 10,
+                backgroundColor: isForAssessmentOnly ? '#F5F3FF' : '#EFF6FF',
+                borderColor: isForAssessmentOnly ? '#DDD6FE' : '#BFDBFE',
+                borderWidth: 1,
+              }}
+            >
+              <Text
+                style={{
+                  fontSize: 10,
+                  fontWeight: '700',
+                  color: isForAssessmentOnly ? '#7C3AED' : '#1D4ED8',
+                }}
+              >
+                {isForAssessmentOnly ? 'FOR ASSESSMENT ONLY' : 'OFFICIAL APPLICATION'}
+              </Text>
+            </View>
             {soaStatus && (
               <View style={{ paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10, backgroundColor: statusBgColor }}>
                 <Text style={{ fontSize: 10, fontWeight: '700', color: statusTextColor }}>{statusLabel}</Text>
@@ -104,6 +125,12 @@ export function ClientSoaDataView({
           <Text style={dataViewStyles.infoCardName}>{displayService}</Text>
           <Text style={dataViewStyles.infoCardDetail}>
             <Text style={dataViewStyles.boldText}>Reference No.:</Text> #{refNum}
+          </Text>
+          <Text style={dataViewStyles.infoCardDetail}>
+            <Text style={dataViewStyles.boldText}>Application Type:</Text>{' '}
+            <Text style={{ fontWeight: '700', color: isForAssessmentOnly ? '#7C3AED' : '#0284C7' }}>
+              {isForAssessmentOnly ? 'For Assessment Only' : 'Official Application'}
+            </Text>
           </Text>
           <Text style={dataViewStyles.infoCardDetail}>
             <Text style={dataViewStyles.boldText}>Filing Mode:</Text> {filingMode}

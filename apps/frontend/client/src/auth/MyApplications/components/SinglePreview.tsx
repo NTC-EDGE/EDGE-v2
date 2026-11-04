@@ -65,18 +65,37 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
   const statusBg = getStatusBgColor(app.status);
   const documents = getAppDocuments(app);
 
-  // Status timeline steps (5-stage standard lifecycle)
-  const isPaymentDone = app.status === 'READY_FOR_PAYMENT' || app.status === 'PAYMENT_SUBMITTED' || app.status === 'FOR_APPROVAL' || app.status === 'APPROVED' || Boolean(app.soaNumber);
+  // Status timeline steps
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
+  const isAssessmentComplete =
+    isAssessmentOnly && (
+      app.status === 'APPROVED' ||
+      app.rawStatus === 'Completed' ||
+      app.rawStatus === 'Approved' ||
+      Boolean(app.assessedAt)
+    );
+
+  const isPaymentDone =
+    app.status === 'READY_FOR_PAYMENT' ||
+    app.status === 'PAYMENT_SUBMITTED' ||
+    app.status === 'FOR_APPROVAL' ||
+    app.status === 'APPROVED';
   const isIssuanceDone = app.status === 'FOR_APPROVAL' || app.status === 'APPROVED';
   const isCompletedDone = app.status === 'APPROVED';
 
-  const steps = [
-    { label: 'Submitted', sub: 'Received', done: true },
-    { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' || isPaymentDone },
-    { label: 'Payment', sub: 'Fee assessment', done: isPaymentDone },
-    { label: 'Issuance', sub: 'Document release', done: isIssuanceDone },
-    { label: 'Complete', sub: 'License ready', done: isCompletedDone },
-  ];
+  const steps = isAssessmentOnly
+    ? [
+        { label: 'Submitted', sub: 'Received', done: true },
+        { label: 'Evaluation', sub: 'Fee assessment', done: app.status !== 'PENDING' || isAssessmentComplete },
+        { label: 'Complete', sub: 'SOA ready', done: isAssessmentComplete },
+      ]
+    : [
+        { label: 'Submitted', sub: 'Received', done: true },
+        { label: 'Evaluation', sub: 'Under review', done: app.status !== 'PENDING' || isPaymentDone },
+        { label: 'Payment', sub: 'Fee assessment', done: isPaymentDone },
+        { label: 'Issuance', sub: 'Document release', done: isIssuanceDone },
+        { label: 'Complete', sub: 'License ready', done: isCompletedDone },
+      ];
 
   return (
     <View style={styles.modalOverlay}>

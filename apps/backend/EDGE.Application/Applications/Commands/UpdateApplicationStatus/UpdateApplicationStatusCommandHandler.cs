@@ -64,10 +64,23 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
             }
         }
 
+        bool isAssessmentCompletion = app.Intent == ApplicationIntent.AssessmentOnly &&
+            (newStatus == ApplicationStatus.ForAccountant || newStatus == ApplicationStatus.Completed || newStatus == ApplicationStatus.Approved);
+
+        if (isAssessmentCompletion)
+        {
+            newStatus = ApplicationStatus.Completed;
+            app.AssessedAt = DateTime.UtcNow;
+        }
+
         app.Status = newStatus;
         if (!string.IsNullOrWhiteSpace(request.Remarks))
         {
             app.Remarks = request.Remarks;
+        }
+        else if (isAssessmentCompletion)
+        {
+            app.Remarks = "Pre-Assessment completed by Evaluator. Statement of Account released to Applicant.";
         }
 
         await _unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -96,15 +109,48 @@ public class UpdateApplicationStatusCommandHandler : IRequestHandler<UpdateAppli
 
             var staffRole = !string.IsNullOrWhiteSpace(request.StaffRole)
                 ? request.StaffRole
-                : (newStatus == ApplicationStatus.Evaluating ? "Evaluating Officer" :
+                : (isAssessmentCompletion ? "Evaluating Officer" :
+                   newStatus == ApplicationStatus.Evaluating ? "Evaluating Officer" :
                    newStatus == ApplicationStatus.ForAccountant ? "Evaluating Officer" :
                    newStatus == ApplicationStatus.PendingPayment ? "Accountant" :
                    newStatus == ApplicationStatus.Completed ? "Cashier" :
                    newStatus == ApplicationStatus.Returned ? "Return Officer" : "NTC Engineer");
 
-            // When Evaluator approves application/assessment to ForAccountant:
+            if (isAssessmentCompletion && (string.IsNullOrWhiteSpace(request.Action) || request.Action.Contains("Accountant")))
+            {
+                actionTitle = "Assessment Approved & SOA Released to Client";
+            }
+
+            // When Evaluator approves Assessment application:
+            // Complete application and release SOA directly to client (no Order of Payment or Accountant review needed)
+            if (isAssessmentCompletion)
+            {
+                var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
+                if (latestSoa != null)
+                {
+                    var prevSoaStatus = latestSoa.Status;
+                    latestSoa.Status = SoaStatus.Approved;
+                    latestSoa.ApprovedByUserId = actingUserId;
+                    latestSoa.ApprovedAt = DateTime.UtcNow;
+
+                    await _applicationRepository.AddSoaHistoryAsync(new SoaHistory
+                    {
+                        Id = Guid.NewGuid(),
+                        StatementOfAccountId = latestSoa.Id,
+                        Action = "Assessment approved by Evaluator. Statement of Account released to Client.",
+                        FromStatus = prevSoaStatus,
+                        ToStatus = SoaStatus.Approved,
+                        PerformedByUserId = actingUserId,
+                        StaffName = staffName,
+                        StaffRole = staffRole,
+                        Remarks = request.Remarks ?? "Assessment SOA approved and released to Client",
+                        Timestamp = DateTime.UtcNow
+                    }, cancellationToken);
+                }
+            }
+            // When Evaluator approves official application:
             // SOA status changes to FOR Order of Payment, and Order of Payment is initialized for Accountant review
-            if (newStatus == ApplicationStatus.ForAccountant)
+            else if (newStatus == ApplicationStatus.ForAccountant)
             {
                 var latestSoa = app.StatementsOfAccount?.OrderByDescending(s => s.CreatedAt).FirstOrDefault();
                 if (latestSoa != null)

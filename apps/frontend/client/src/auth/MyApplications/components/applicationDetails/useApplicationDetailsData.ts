@@ -542,12 +542,38 @@ export function useApplicationDetailsData(initialApp: Application) {
     (app.element !== 'New' ? app.element : ''),
   [app, isBulk]);
 
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
+
   const currentStepIndex = useMemo(() => {
     const rawStatus = (typeof app.status === 'string' ? app.status : normalizeStatus(app.status)).toLowerCase();
     const rawBeStatus = (typeof app.rawStatus === 'string' ? app.rawStatus : '').toLowerCase();
     const remarksLower = (typeof app.remarks === 'string' ? app.remarks : '').toLowerCase();
     const opStatus = (app.op && typeof app.op.status === 'string' ? app.op.status : '').toLowerCase();
 
+    // ── Pre-Assessment (3-step lifecycle) ──────────────────────────────────
+    if (isAssessmentOnly) {
+      if (
+        rawStatus === 'completed' ||
+        rawStatus === 'approved' ||
+        rawBeStatus === 'completed' ||
+        rawBeStatus === 'approved' ||
+        Boolean(app.assessedAt)
+      ) {
+        return 3;
+      }
+
+      if (
+        rawStatus === 'for_evaluation' ||
+        rawStatus === 'evaluating' ||
+        rawBeStatus === 'evaluating'
+      ) {
+        return 2;
+      }
+
+      return 1;
+    }
+
+    // ── Official Application (5-step lifecycle) ───────────────────────────
     // 1. Completed / Approved -> Step 5
     if (
       rawStatus === 'approved' ||
@@ -572,7 +598,7 @@ export function useApplicationDetailsData(initialApp: Application) {
       return 4;
     }
 
-    // 3. Payment -> Step 3
+    // 3. Payment / Accountant review -> Step 3
     const isPaymentSubmitted =
       remarksLower.includes('payment submitted') ||
       remarksLower.includes('waiting for cashier verification') ||
@@ -584,6 +610,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'ready_for_payment' ||
       rawStatus === 'pendingpayment' ||
       rawBeStatus === 'pendingpayment' ||
+      rawStatus === 'foraccountant' ||
+      rawBeStatus === 'foraccountant' ||
       isPaymentSubmitted ||
       (typeof app.soaNumber === 'string' && app.soaNumber.length > 0)
     ) {
@@ -595,10 +623,8 @@ export function useApplicationDetailsData(initialApp: Application) {
       rawStatus === 'for_evaluation' ||
       rawStatus === 'evaluating' ||
       rawStatus === 'submitted' ||
-      rawStatus === 'foraccountant' ||
       rawBeStatus === 'evaluating' ||
       rawBeStatus === 'submitted' ||
-      rawBeStatus === 'foraccountant' ||
       rawStatus === 'declined'
     ) {
       return 2;
@@ -610,7 +636,7 @@ export function useApplicationDetailsData(initialApp: Application) {
     }
 
     return 2;
-  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op]);
+  }, [app.status, app.rawStatus, app.soaNumber, app.remarks, app.op, isAssessmentOnly, app.assessedAt]);
 
   return {
     app,
@@ -629,6 +655,7 @@ export function useApplicationDetailsData(initialApp: Application) {
     primaryName,
     resolvedServiceVariant,
     currentStepIndex,
+    isAssessmentOnly,
     refetch,
   };
 }

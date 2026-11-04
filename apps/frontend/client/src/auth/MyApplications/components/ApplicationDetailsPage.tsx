@@ -73,6 +73,7 @@ export function ApplicationDetailsPage({
     resolvedServiceVariant,
     formFieldValues,
     currentStepIndex,
+    isAssessmentOnly,
     variantLabel,
     scheduleSummaryText,
     refetch,
@@ -391,8 +392,9 @@ export function ApplicationDetailsPage({
             currentStepIndex={currentStepIndex}
             serviceCategory={app.serviceCategory}
             serviceName={app.serviceName}
-            status={app.status}
+            status={app.rawStatus || app.status}
             remarks={app.remarks}
+            isAssessmentOnly={isAssessmentOnly}
           />
 
           <ClientBillingNoticeCard

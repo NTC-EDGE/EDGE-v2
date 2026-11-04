@@ -112,8 +112,8 @@ export function HeroReviewHeader({
             </Text>
           </View>
 
-          {/* Assessment Only Badge */}
-          {isAssessmentOnly && (
+          {/* Application Intent Badge: Assessment Only vs Official Application */}
+          {isAssessmentOnly ? (
             <View
               style={[
                 styles.countPill,
@@ -123,14 +123,34 @@ export function HeroReviewHeader({
                 },
               ]}
             >
-              <Icon name="file-text" size={11} color={isDark ? '#C084FC' : '#7E22CE'} />
+              <Icon name="search" size={11} color={isDark ? '#C084FC' : '#7E22CE'} />
               <Text
                 style={[
                   styles.countPillText,
                   { color: isDark ? '#C084FC' : '#7E22CE' },
                 ]}
               >
-                Assessment Only
+                For Assessment Only
+              </Text>
+            </View>
+          ) : (
+            <View
+              style={[
+                styles.countPill,
+                {
+                  backgroundColor: isDark ? 'rgba(37, 99, 235, 0.15)' : '#EFF6FF',
+                  borderColor: isDark ? '#2563EB' : '#BFDBFE',
+                },
+              ]}
+            >
+              <Icon name="file-text" size={11} color={isDark ? '#93C5FD' : '#1D4ED8'} />
+              <Text
+                style={[
+                  styles.countPillText,
+                  { color: isDark ? '#93C5FD' : '#1D4ED8' },
+                ]}
+              >
+                Official Application
               </Text>
             </View>
           )}

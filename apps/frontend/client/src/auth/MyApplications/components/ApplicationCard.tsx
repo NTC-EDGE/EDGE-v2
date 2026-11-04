@@ -224,10 +224,36 @@ export function ApplicationCard({
                   color: '#7C3AED',
                 }}
               >
-                ASSESSMENT ONLY
+                FOR ASSESSMENT ONLY
               </Text>
             </View>
-          ) : null}
+          ) : (
+            <View
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                backgroundColor: '#EFF6FF',
+                borderColor: '#BFDBFE',
+                borderWidth: 1,
+                borderRadius: 20,
+                paddingVertical: 2,
+                paddingHorizontal: 8,
+                gap: 4,
+              }}
+            >
+              <Icon name="file-text" size={10} color="#1D4ED8" />
+              <Text
+                style={{
+                  fontFamily: TYPOGRAPHY.fonts.primary,
+                  fontSize: 10,
+                  fontWeight: TYPOGRAPHY.weights.semibold,
+                  color: '#1D4ED8',
+                }}
+              >
+                OFFICIAL APPLICATION
+              </Text>
+            </View>
+          )}
 
           <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
         </View>
