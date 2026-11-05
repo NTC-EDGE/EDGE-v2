@@ -315,22 +315,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                 ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                 ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
-                Element = (app.FormSubmissions != null
-                    ? app.FormSubmissions
-                        .Where(fs => fs != null && fs.FieldValues != null)
-                        .SelectMany(fs => fs.FieldValues)
-                        .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
-                        .Select(fv => fv.Value)
-                        .FirstOrDefault()
-                    : null) ??
-                    (app.ApplicationApplicants != null
-                        ? app.ApplicationApplicants
-                            .Where(aa => aa != null && aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
-                            .SelectMany(aa => aa.Applicant!.FormSubmission!.FieldValues)
-                            .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
-                            .Select(fv => fv.Value)
-                            .FirstOrDefault()
-                        : null),
+                Element = app.FormSubmissions
+                    .SelectMany(fs => fs.FieldValues)
+                    .Where(fv => fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass)
+                    .Select(fv => fv.Value)
+                    .FirstOrDefault(),
                 OfficialReceiptNumber = app.OrdersOfPayment
                     .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                     .Select(o => o.OfficialReceiptNumber)
@@ -475,6 +464,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
 
         foreach (var item in results)
         {
+            item.Element ??= item.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
             PopulateSummaryOfficers(item);
         }
 
@@ -746,22 +736,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
-                    Element = (app.FormSubmissions != null
-                        ? app.FormSubmissions
-                            .Where(fs => fs != null && fs.FieldValues != null)
-                            .SelectMany(fs => fs.FieldValues)
-                            .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
-                            .Select(fv => fv.Value)
-                            .FirstOrDefault()
-                        : null) ??
-                        (app.ApplicationApplicants != null
-                            ? app.ApplicationApplicants
-                                .Where(aa => aa != null && aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
-                                .SelectMany(aa => aa.Applicant!.FormSubmission!.FieldValues)
-                                .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
-                                .Select(fv => fv.Value)
-                                .FirstOrDefault()
-                            : null),
+                    Element = app.FormSubmissions
+                        .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                        .Select(fv => fv.Value)
+                        .FirstOrDefault(),
                     RenewedFromApplicationId = app.RenewedFromApplicationId,
                     HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
                     ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
@@ -932,6 +911,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var items = rawList.Select(x =>
         {
             var item = x.Dto;
+            item.Element ??= item.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
             PopulateSummaryOfficers(item);
             if (Enum.TryParse<ApplicationStatus>(item.Status, out var parsedStatus))
             {
@@ -1482,7 +1462,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
                         (h.Remarks == null || !h.Remarks.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase)) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))) ||
                          (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
@@ -1493,16 +1473,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
                         (h.Remarks == null || !h.Remarks.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase)) &&
                         ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
-                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "PendingPayment", StringComparison.OrdinalIgnoreCase)))) ||
+                         (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.PendingPayment), StringComparison.OrdinalIgnoreCase)))) ||
                          (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
         item.IssuingOfficer = reversedHistories
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
-                        ((h.Action != null && (h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Issuance Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document & License", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("License Issued", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document Release", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, "ForIssuance", StringComparison.OrdinalIgnoreCase)))) ||
+                        ((h.Action != null && (h.Action.Contains("Document Issuance", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Issuance Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document & License", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("License Issued", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Document Release", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("issued by", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && string.Equals(h.ToStatus, nameof(ApplicationStatus.ForIssuance), StringComparison.OrdinalIgnoreCase)))) ||
                          (h.Remarks != null && h.Remarks.Contains("Document release process", StringComparison.OrdinalIgnoreCase)) ||
-                         string.Equals(h.ToStatus, "Completed", StringComparison.OrdinalIgnoreCase)))
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.Completed), StringComparison.OrdinalIgnoreCase)))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
@@ -1510,21 +1490,23 @@ public class ApplicationFullRepository : IApplicationFullRepository
             .Where(h => !string.IsNullOrWhiteSpace(h.StaffName) &&
                         (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase))) &&
                         ((h.Action != null && (h.Action.Contains("Evaluation", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Review Started", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Generated", StringComparison.OrdinalIgnoreCase))) ||
-                         string.Equals(h.ToStatus, "Evaluating", StringComparison.OrdinalIgnoreCase) ||
-                         string.Equals(h.ToStatus, "ForAccountant", StringComparison.OrdinalIgnoreCase)))
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.Evaluating), StringComparison.OrdinalIgnoreCase) ||
+                         string.Equals(h.ToStatus, nameof(ApplicationStatus.ForAccountant), StringComparison.OrdinalIgnoreCase)))
             .Select(h => h.StaffName.Trim())
             .FirstOrDefault();
 
-        item.AssignedOfficerName = item.Status switch
-        {
-            "ForAccountant" => item.AccountingOfficer,
-            "PendingPayment" => item.CashierOfficer,
-            "ForIssuance" => item.IssuingOfficer,
-            "Evaluating" => item.EvaluatingOfficer,
-            "Returned" => item.EvaluatingOfficer,
-            "Completed" => item.IssuingOfficer ?? item.EvaluatingOfficer,
-            "Approved" => item.IssuingOfficer ?? item.EvaluatingOfficer,
-            _ => null
-        };
+        item.AssignedOfficerName = Enum.TryParse<ApplicationStatus>(item.Status, true, out var currentStatus)
+            ? currentStatus switch
+            {
+                ApplicationStatus.ForAccountant => item.AccountingOfficer,
+                ApplicationStatus.PendingPayment => item.CashierOfficer,
+                ApplicationStatus.ForIssuance => item.IssuingOfficer,
+                ApplicationStatus.Evaluating => item.EvaluatingOfficer,
+                ApplicationStatus.Returned => item.EvaluatingOfficer,
+                ApplicationStatus.Completed => item.IssuingOfficer ?? item.EvaluatingOfficer,
+                ApplicationStatus.Approved => item.IssuingOfficer ?? item.EvaluatingOfficer,
+                _ => null
+            }
+            : null;
     }
 }
