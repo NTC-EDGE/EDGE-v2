@@ -650,21 +650,52 @@ export interface ResolvePreviewElementsParams {
   selectedOption?: string | null;
   formFieldValues?: Array<{ fieldId?: string; fieldLabel?: string; value?: string | null }>;
   element?: string | null;
+  variantName?: string | null;
 }
 
 export function resolvePreviewElements(params: ResolvePreviewElementsParams): string | null {
+  const isGuid = (val: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+  const isExamineeType = (val: string) =>
+    ['new', 'renewal', 'modification', 'upgrading', 'additional', 'regular'].includes(val.toLowerCase());
+
+  const isStrictVariant = (val: string) => {
+    const lower = val.toLowerCase();
+    const hasElementKeyword = lower.includes('element') || lower.includes('class') || lower.includes('code');
+    if (hasElementKeyword) return false;
+    return (
+      lower === 'amateur' ||
+      lower === 'amateur (firsttaker)' ||
+      lower === 'amateur (first-time)' ||
+      lower === 'amateur (first time)' ||
+      lower === 'amateur (retaker)' ||
+      lower === 'amateur (re-taker)' ||
+      lower === 'firsttaker' ||
+      lower === 'retaker' ||
+      lower === 'commercial radiotelegraphy' ||
+      lower === 'commercial radiotelephony' ||
+      lower === 'radiotelegraphy' ||
+      lower === 'radiotelephony' ||
+      (Boolean(params.variantName) && lower === params.variantName?.trim().toLowerCase())
+    );
+  };
+
   if (params.elements && params.elements.trim().length > 0) {
-    return params.elements.trim();
+    const trimmed = params.elements.trim();
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+      return trimmed;
+    }
   }
   if (params.selectedElementTitle && params.selectedElementTitle.trim().length > 0) {
     const trimmed = params.selectedElementTitle.trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
       return trimmed;
     }
   }
   if (params.selectedOption && params.selectedOption.trim().length > 0) {
     const trimmed = params.selectedOption.trim();
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
       return trimmed;
     }
   }
@@ -689,19 +720,21 @@ export function resolvePreviewElements(params: ResolvePreviewElementsParams): st
         lbl === 'class of station' ||
         lbl.includes('exam element') ||
         lbl.includes('selected element') ||
-        lbl.includes('station class')
+        lbl.includes('station class') ||
+        lbl.includes('service variant & station class') ||
+        lbl.includes('variant element')
       );
     });
     if (elemField && elemField.value && elemField.value.trim().length > 0) {
-      return elemField.value.trim();
+      const trimmed = elemField.value.trim();
+      if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+        return trimmed;
+      }
     }
   }
   if (params.element && params.element.trim().length > 0) {
     const trimmed = params.element.trim();
-    const lower = trimmed.toLowerCase();
-    const isExamineeType = ['new', 'renewal', 'modification', 'upgrading', 'additional', 'regular'].includes(lower);
-    const isVariantName = lower.includes('amateur') || lower.includes('firsttaker') || lower.includes('retaker') || lower.includes('radiotelegraphy') || lower.includes('radiotelephony');
-    if (!isExamineeType && !isVariantName && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
       return trimmed;
     }
   }

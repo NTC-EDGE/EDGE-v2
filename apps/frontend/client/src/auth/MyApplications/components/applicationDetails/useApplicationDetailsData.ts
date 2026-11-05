@@ -351,8 +351,9 @@ export function useApplicationDetailsData(initialApp: Application) {
     return resolvePreviewElements({
       element: app.element,
       formFieldValues,
+      variantName: variantLabel,
     });
-  }, [app.element, formFieldValues]);
+  }, [app.element, formFieldValues, variantLabel]);
 
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {

@@ -163,7 +163,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     ServiceName = aa.Applicant?.Service?.Name,
                     ServiceCategory = aa.Applicant?.Service?.ServiceCategory?.Name,
                     ServiceVariantId = aa.Applicant?.ServiceVariantId,
-                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString()
+                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString(),
+                    SubmissionId = aa.Applicant?.FormSubmission?.Id ?? (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == aa.ApplicantId)?.Id
                 }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
             {
@@ -310,6 +311,18 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         fv.FieldId == stationClassGuid2 ||
                         fv.FieldLabel.Contains("element", StringComparison.OrdinalIgnoreCase) ||
                         fv.FieldLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))?.Value;
+
+                    if (!string.IsNullOrWhiteSpace(applicantElement) && Guid.TryParse(applicantElement, out var parsedElemGuid))
+                    {
+                        var matchedElem = a?.ServiceVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedElemGuid)
+                            ?? primaryVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedElemGuid);
+                        if (matchedElem != null)
+                        {
+                            applicantElement = !string.IsNullOrWhiteSpace(matchedElem.Code) && !string.IsNullOrWhiteSpace(matchedElem.Description)
+                                ? $"{matchedElem.Code} — {matchedElem.Description}"
+                                : (!string.IsNullOrWhiteSpace(matchedElem.Description) ? matchedElem.Description : matchedElem.Code);
+                        }
+                    }
 
                     if (string.IsNullOrWhiteSpace(applicantElement) && a?.ServiceVariant?.ServiceVariantElements != null && a.ServiceVariant.ServiceVariantElements.Any())
                     {
@@ -475,7 +488,18 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 (fv.CustomLabel != null && (fv.CustomLabel.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.CustomLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))));
             if (matchFv != null && !string.IsNullOrWhiteSpace(matchFv.Value))
             {
-                dto.Element = matchFv.Value;
+                var val = matchFv.Value;
+                if (Guid.TryParse(val, out var parsedMatchGuid))
+                {
+                    var matchedElem = primaryVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedMatchGuid);
+                    if (matchedElem != null)
+                    {
+                        val = !string.IsNullOrWhiteSpace(matchedElem.Code) && !string.IsNullOrWhiteSpace(matchedElem.Description)
+                            ? $"{matchedElem.Code} — {matchedElem.Description}"
+                            : (!string.IsNullOrWhiteSpace(matchedElem.Description) ? matchedElem.Description : matchedElem.Code);
+                    }
+                }
+                dto.Element = val;
             }
         }
         if (string.IsNullOrWhiteSpace(dto.Element) && primaryVariant?.ServiceVariantElements != null && primaryVariant.ServiceVariantElements.Any())
@@ -486,6 +510,15 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 dto.Element = !string.IsNullOrWhiteSpace(firstElem.Code) && !string.IsNullOrWhiteSpace(firstElem.Description)
                     ? $"{firstElem.Code} — {firstElem.Description}"
                     : (!string.IsNullOrWhiteSpace(firstElem.Description) ? firstElem.Description : firstElem.Code);
+            }
+        }
+
+        foreach (var svc in dto.Services)
+        {
+            if (string.IsNullOrWhiteSpace(svc.Element))
+            {
+                var matchedApplicant = dto.Applicants.FirstOrDefault(a => a.Id == svc.ApplicantId);
+                svc.Element = matchedApplicant?.Element ?? dto.Element;
             }
         }
 

@@ -58,11 +58,22 @@ export function ApplicationDetailsTab({
 
   const effectiveElements = useMemo(() => {
     return resolvePreviewElements({
-      element: app.element || app.elements || app.applicantsList?.[0]?.element || app.applicantsList?.[0]?.elements,
-      elements: app.elements || app.applicantsList?.[0]?.elements,
+      element:
+        app.services?.[0]?.element ||
+        app.services?.[0]?.elements ||
+        app.element ||
+        app.elements ||
+        app.applicantsList?.[0]?.element ||
+        app.applicantsList?.[0]?.elements,
+      elements:
+        app.services?.[0]?.elements ||
+        app.services?.[0]?.element ||
+        app.elements ||
+        app.applicantsList?.[0]?.elements,
       formFieldValues: app.formFieldValues,
+      variantName: effectiveVariant || app.serviceVariantName,
     });
-  }, [app.element, app.elements, app.applicantsList, app.formFieldValues]);
+  }, [app.services, app.element, app.elements, app.applicantsList, app.formFieldValues, effectiveVariant, app.serviceVariantName]);
 
   const appliedServices = useMemo(() => {
     const defaultName = app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`;
@@ -80,18 +91,26 @@ export function ApplicationDetailsTab({
       const name = s.serviceName || defaultName;
       const key = `${s.serviceId ?? ""}-${name}-${s.serviceVariantName ?? ""}`;
       if (!map.has(key)) {
+        const itemElement =
+          resolvePreviewElements({
+            element: s.element || s.elements || effectiveElements,
+            elements: s.elements || s.element,
+            formFieldValues: app.formFieldValues,
+            variantName: s.serviceVariantName || effectiveVariant,
+          }) || effectiveElements || undefined;
+
         map.set(key, {
           id: s.id,
           name,
           category: s.serviceCategory || app.category,
           variant: s.serviceVariantName || effectiveVariant || undefined,
           applicationType: effectiveAppType ?? undefined,
-          element: effectiveElements ?? undefined,
+          element: itemElement,
         });
       }
     }
     return Array.from(map.values());
-  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariant, effectiveAppType, effectiveElements]);
+  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariant, effectiveAppType, effectiveElements, app.formFieldValues]);
 
   const scheduleSummaryText = useMemo(() => {
     if (app.office && app.office.trim().length > 0) return `NTC Field Office • ${app.office}`;

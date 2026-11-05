@@ -20,6 +20,33 @@ export function EquivalentFormHeaderCard({
   elements: _elements,
   version: _version,
 }: EquivalentFormHeaderCardProps) {
+  return (
+    <View style={styles.cardContainer}>
+      {/* Top Banner Row */}
+      <View style={styles.topRow}>
+        {/* Form Number Seal */}
+        <View style={styles.sealBadge}>
+          <Icon name="file-text" size={16} color="#FFFFFF" />
+          <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
+        </View>
+
+        {/* Category Pill */}
+        {canonicalForm.category ? (
+          <View style={styles.categoryPill}>
+            <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+          </View>
+        ) : null}
+      </View>
+
+      {/* Official Form Title */}
+      <Text style={styles.formTitleText}>{canonicalForm.title}</Text>
+
+      {/* Description */}
+      {canonicalForm.description ? (
+        <Text style={styles.formDescriptionText}>{canonicalForm.description}</Text>
+      ) : null}
+    </View>
+  );
 }
 
 const styles = StyleSheet.create({

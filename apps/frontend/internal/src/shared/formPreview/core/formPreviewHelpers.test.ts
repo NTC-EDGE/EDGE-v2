@@ -3,6 +3,7 @@ import {
   sanitizeAddressSegment,
   extractSerialNumbers,
   normalizeRepeaterRowEntries,
+  resolvePreviewElements,
 } from './formPreviewHelpers';
 
 describe('Address formatting helpers', () => {
@@ -259,4 +260,78 @@ describe('normalizeRepeaterRowEntries helper', () => {
     ]);
   });
 });
+
+describe('resolvePreviewElements', () => {
+  it('returns elements string when provided directly', () => {
+    expect(resolvePreviewElements({ elements: 'Class C — Elements 2, 3 & 4' })).toBe(
+      'Class C — Elements 2, 3 & 4'
+    );
+  });
+
+  it('preserves elements even when description includes amateur keyword', () => {
+    expect(
+      resolvePreviewElements({
+        element: 'Class C Amateur Radio Operator',
+        variantName: 'Amateur (Firsttaker)',
+      })
+    ).toBe('Class C Amateur Radio Operator');
+  });
+
+  it('rejects exact variant name when masquerading as element', () => {
+    expect(
+      resolvePreviewElements({
+        element: 'Amateur (Firsttaker)',
+        variantName: 'Amateur (Firsttaker)',
+      })
+    ).toBeNull();
+
+    expect(
+      resolvePreviewElements({
+        element: 'Amateur',
+        variantName: 'Amateur',
+      })
+    ).toBeNull();
+  });
+
+  it('rejects filing mode / examinee type strings like new, renewal, upgrading', () => {
+    expect(resolvePreviewElements({ element: 'New' })).toBeNull();
+    expect(resolvePreviewElements({ element: 'Renewal' })).toBeNull();
+    expect(resolvePreviewElements({ element: 'Modification' })).toBeNull();
+  });
+
+  it('rejects raw UUID string values', () => {
+    expect(
+      resolvePreviewElements({
+        element: 'fd000000-0000-0000-0000-000000000009',
+      })
+    ).toBeNull();
+  });
+
+  it('resolves element from formFieldValues for station class or element fields', () => {
+    expect(
+      resolvePreviewElements({
+        formFieldValues: [
+          {
+            fieldId: 'fd000000-0000-0000-0000-000000000009',
+            fieldLabel: 'Selected Exam Elements',
+            value: 'Class C — Elements 2, 3 & 4',
+          },
+        ],
+      })
+    ).toBe('Class C — Elements 2, 3 & 4');
+
+    expect(
+      resolvePreviewElements({
+        formFieldValues: [
+          {
+            fieldId: 'fd000000-0000-0000-0000-000000000101',
+            fieldLabel: 'Service Variant & Station Class*',
+            value: 'Elements 1, 2, 3 & 4',
+          },
+        ],
+      })
+    ).toBe('Elements 1, 2, 3 & 4');
+  });
+});
+
 

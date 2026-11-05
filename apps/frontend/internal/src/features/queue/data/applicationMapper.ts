@@ -510,8 +510,8 @@ export function mapApplicationDtoToUI(
     serviceName: resolvedServiceName,
     serviceCategory: resolvedCategory,
     serviceVariantName: dto.serviceVariantName ?? '',
-    element: dto.element ?? dto.elements ?? applicantsList[0]?.element ?? undefined,
-    elements: dto.elements ?? dto.element ?? applicantsList[0]?.elements ?? undefined,
+    element: dto.element ?? dto.elements ?? applicantsList[0]?.element ?? applicantsList[0]?.elements ?? dto.services?.[0]?.element ?? undefined,
+    elements: dto.elements ?? dto.element ?? applicantsList[0]?.elements ?? applicantsList[0]?.element ?? dto.services?.[0]?.elements ?? undefined,
     office: dto.office ?? '',
     applicantsList,
     formFieldValues: (dto.applicants?.[0]?.formFieldValues ?? applicantsList[0]?.formFieldValues ?? []).map((f) => ({
@@ -520,16 +520,22 @@ export function mapApplicationDtoToUI(
       value: f.value || '',
     })),
     services: dto.services?.length
-      ? dto.services.map((s) => ({
-          id: s.id,
-          applicantId: s.applicantId,
-          serviceId: s.serviceId,
-          serviceName: s.serviceName ?? resolvedServiceName,
-          serviceCategory: s.serviceCategory ?? resolvedCategory,
-          serviceVariantId: s.serviceVariantId,
-          serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
-          submissionId: s.submissionId,
-        }))
+      ? dto.services.map((s) => {
+          const matchedApp = applicantsList.find((a) => a.id === s.applicantId) || applicantsList[0];
+          const svcElement = s.element ?? s.elements ?? matchedApp?.element ?? matchedApp?.elements ?? dto.element ?? dto.elements ?? undefined;
+          return {
+            id: s.id,
+            applicantId: s.applicantId,
+            serviceId: s.serviceId,
+            serviceName: s.serviceName ?? resolvedServiceName,
+            serviceCategory: s.serviceCategory ?? resolvedCategory,
+            serviceVariantId: s.serviceVariantId,
+            serviceVariantName: s.serviceVariantName ?? dto.serviceVariantName,
+            element: svcElement,
+            elements: svcElement,
+            submissionId: s.submissionId,
+          };
+        })
       : applicantsList.map((a) => ({
           id: a.id,
           applicantId: a.id,
@@ -538,8 +544,8 @@ export function mapApplicationDtoToUI(
           serviceCategory: resolvedCategory,
           serviceVariantId: a.serviceVariantId,
           serviceVariantName: dto.serviceVariantName ?? '',
-    element: dto.element ?? dto.elements ?? applicantsList[0]?.element ?? undefined,
-    elements: dto.elements ?? dto.element ?? applicantsList[0]?.elements ?? undefined,
+          element: a.element ?? a.elements ?? dto.element ?? dto.elements ?? undefined,
+          elements: a.elements ?? a.element ?? dto.elements ?? dto.element ?? undefined,
           submissionId: a.submissionId,
         })),
     createdAt: dto.createdAt,

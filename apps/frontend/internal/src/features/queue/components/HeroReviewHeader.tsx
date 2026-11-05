@@ -45,7 +45,13 @@ export function HeroReviewHeader({
   // Consolidate services list
   const activeServices: AppliedServiceDetail[] = React.useMemo(() => {
     if (services && services.length > 0) {
-      return services;
+      return services.map((s) => ({
+        ...s,
+        element: s.element || element,
+        applicationType: s.applicationType || applicationType,
+        category: s.category || category || (isExamService ? 'Exams' : undefined),
+        variant: s.variant || (variantLabel && variantLabel !== 'Standard' ? variantLabel : undefined),
+      }));
     }
     if (serviceName && serviceName.trim().length > 0) {
       return [
@@ -292,7 +298,7 @@ export function HeroReviewHeader({
                   </Text>
                 </View>
               )}
-              {activeServices[0]?.element && (
+              {Boolean(activeServices[0]?.element || element) && (
                 <View
                   style={[
                     styles.tagBadge,
@@ -309,7 +315,7 @@ export function HeroReviewHeader({
                       { color: isDark ? '#2DD4BF' : '#0D9488', fontWeight: '600' },
                     ]}
                   >
-                    Elements: {activeServices[0]?.element}
+                    Elements: {(activeServices[0]?.element || element || '').replace(/^elements?:\s*/i, '')}
                   </Text>
                 </View>
               )}
@@ -400,7 +406,7 @@ export function HeroReviewHeader({
                       </Text>
                     </View>
                   )}
-                  {svc.element && (
+                  {Boolean(svc.element) && (
                     <View
                       style={[
                         styles.tagBadge,
@@ -416,7 +422,7 @@ export function HeroReviewHeader({
                           { color: isDark ? '#2DD4BF' : '#0D9488', fontWeight: '600' },
                         ]}
                       >
-                        {svc.element}
+                        Elements: {(svc.element || '').replace(/^elements?:\s*/i, '')}
                       </Text>
                     </View>
                   )}
