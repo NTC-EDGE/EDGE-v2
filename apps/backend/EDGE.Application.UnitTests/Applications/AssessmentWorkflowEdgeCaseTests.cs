@@ -359,4 +359,86 @@ public class AssessmentWorkflowEdgeCaseTests
         app.ApplicationNumber.Should().StartWith("APP-");
         app.Status.Should().Be(ApplicationStatus.ForAccountant);
     }
+
+    [Fact]
+    public async Task ReprocessAssessment_ConcurrentRequests_OnlyFirstSucceedsAndSecondFailsGracefully()
+    {
+        // Arrange: Application starts in Completed state
+        var appId = Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Intent = ApplicationIntent.AssessmentOnly,
+            Status = ApplicationStatus.Completed,
+            AssessmentVersion = 1
+        };
+
+        // Shared repository mock returns the living application instance
+        _repositoryMock.Setup(r => r.GetByIdAsync(appId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(app);
+
+        var handler = new ReprocessAssessmentCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _currentUserServiceMock.Object,
+            _reprocessLoggerMock.Object);
+
+        var command1 = new ReprocessAssessmentCommand { ApplicationId = appId, Remarks = "Request A" };
+        var command2 = new ReprocessAssessmentCommand { ApplicationId = appId, Remarks = "Request B" };
+
+        // Act: Execute sequentially/interleaved as two requests arriving in rapid succession
+        var task1 = handler.Handle(command1, CancellationToken.None);
+        var result1 = await task1;
+
+        var task2 = handler.Handle(command2, CancellationToken.None);
+        var result2 = await task2;
+
+        // Assert: First succeeds and transitions to Evaluating, second fails gracefully
+        result1.Succeeded.Should().BeTrue();
+        result2.Succeeded.Should().BeFalse();
+        result2.Message.Should().Contain("already under active evaluation");
+        app.AssessmentVersion.Should().Be(2); // strictly incremented once, not twice
+    }
+
+    [Fact]
+    public async Task ReprocessAssessment_WhenTransactionFailsWithConcurrencyException_RollsBackAndSanitizesError()
+    {
+        // Arrange
+        var appId = Guid.NewGuid();
+        var app = new Domain.Entities.Application
+        {
+            Id = appId,
+            Intent = ApplicationIntent.AssessmentOnly,
+            Status = ApplicationStatus.Completed,
+            AssessmentVersion = 1
+        };
+
+        _repositoryMock.Setup(r => r.GetByIdAsync(appId, It.IsAny<CancellationToken>())).ReturnsAsync(app);
+
+        var concurrencyEx = new InvalidOperationException("Concurrency conflict: entity state modified by another process");
+        _unitOfWorkMock.Setup(u => u.SaveChangesAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(concurrencyEx);
+
+        var handler = new ReprocessAssessmentCommandHandler(
+            _repositoryMock.Object,
+            _unitOfWorkMock.Object,
+            _currentUserServiceMock.Object,
+            _reprocessLoggerMock.Object);
+
+        var command = new ReprocessAssessmentCommand
+        {
+            ApplicationId = appId,
+            Remarks = "Simulated concurrency collision"
+        };
+
+        // Act
+        var result = await handler.Handle(command, CancellationToken.None);
+
+        // Assert
+        result.Succeeded.Should().BeFalse();
+        result.Message.Should().Be("An unexpected error occurred while requesting re-assessment. Please try again later.");
+        result.Message.Should().NotContain("Concurrency conflict");
+
+        _unitOfWorkMock.Verify(u => u.RollbackTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
 }
