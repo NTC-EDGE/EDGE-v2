@@ -292,6 +292,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
             }
         }
 
+        var elementFieldGuid = FormFieldConstants.ExamElements;
+        var stationClassGuid1 = FormFieldConstants.ClassOfStation;
+        var stationClassGuid2 = FormFieldConstants.StationClass;
+
         var results = await query
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
@@ -317,7 +321,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
                 Element = app.FormSubmissions
                     .SelectMany(fs => fs.FieldValues)
-                    .Where(fv => fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass)
+                    .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
                     .Select(fv => fv.Value)
                     .FirstOrDefault(),
                 OfficialReceiptNumber = app.OrdersOfPayment
@@ -421,7 +425,7 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
                     Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
                         ? aa.Applicant.FormSubmission.FieldValues
-                            .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
+                            .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
                             .Select(fv => fv.Value)
                             .FirstOrDefault()
                         : null,
