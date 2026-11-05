@@ -14,95 +14,12 @@ export interface EquivalentFormHeaderCardProps {
 
 export function EquivalentFormHeaderCard({
   canonicalForm,
-  serviceTitle,
-  serviceVariantName,
-  applicationType,
-  elements,
-  version = '1.0',
+  serviceTitle: _serviceTitle,
+  serviceVariantName: _serviceVariantName,
+  applicationType: _applicationType,
+  elements: _elements,
+  version: _version,
 }: EquivalentFormHeaderCardProps) {
-  const effectiveVariant = serviceVariantName && serviceVariantName.trim().length > 0
-    ? serviceVariantName.trim()
-    : null;
-
-  const effectiveAppType = applicationType && applicationType.trim().length > 0
-    ? applicationType.trim()
-    : null;
-
-  const effectiveElements = elements && elements.trim().length > 0
-    ? elements.trim()
-    : null;
-
-  return (
-    <View style={styles.cardContainer}>
-      {/* Top Banner Row */}
-      <View style={styles.topRow}>
-        {/* Form Number Seal */}
-        <View style={styles.sealBadge}>
-          <Icon name="file-text" size={16} color="#FFFFFF" />
-          <Text style={styles.sealBadgeText}>{canonicalForm.formNumber}</Text>
-        </View>
-
-        {/* Category Pill */}
-        <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
-        </View>
-
-        {/* Template Version */}
-        <View style={styles.versionPill}>
-          <Text style={styles.versionPillText}>Template v{version || '1.0'}</Text>
-        </View>
-      </View>
-
-      {/* Official Form Title */}
-      <Text style={styles.formTitleText}>{canonicalForm.title}</Text>
-
-      {/* Description */}
-      <Text style={styles.formDescriptionText}>{canonicalForm.description}</Text>
-
-      {/* Associated Metadata Badges */}
-      <View style={styles.metadataBadgeRow}>
-        {/* Service */}
-        {serviceTitle && serviceTitle.trim().length > 0 && (
-          <View style={styles.serviceBadge}>
-            <Icon name="folder" size={12} color="#1E40AF" />
-            <Text style={styles.serviceBadgeText} numberOfLines={1}>
-              Service: {serviceTitle}
-            </Text>
-          </View>
-        )}
-
-        {/* Service Variant */}
-        {effectiveVariant && (
-          <View style={styles.variantBadge}>
-            <Icon name="layers" size={12} color="#065F46" />
-            <Text style={styles.variantBadgeText} numberOfLines={1}>
-              Variant: {effectiveVariant}
-            </Text>
-          </View>
-        )}
-
-        {/* Application Type */}
-        {effectiveAppType && (
-          <View style={styles.applicationTypeBadge}>
-            <Icon name="tag" size={12} color="#7C3AED" />
-            <Text style={styles.applicationTypeBadgeText} numberOfLines={1}>
-              Type: {effectiveAppType}
-            </Text>
-          </View>
-        )}
-
-        {/* Selected Elements */}
-        {effectiveElements && (
-          <View style={styles.elementsBadge}>
-            <Icon name="cpu" size={12} color="#0D9488" />
-            <Text style={styles.elementsBadgeText} numberOfLines={2}>
-              Elements: {effectiveElements}
-            </Text>
-          </View>
-        )}
-      </View>
-    </View>
-  );
 }
 
 const styles = StyleSheet.create({
@@ -155,20 +72,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4338CA',
   },
-  versionPill: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  versionPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748B',
-  },
   formTitleText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
@@ -181,83 +84,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     lineHeight: 18,
-  },
-  metadataBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  serviceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  serviceBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1E40AF',
-  },
-  variantBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  variantBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#065F46',
-  },
-  applicationTypeBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F5F3FF',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#DDD6FE',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  applicationTypeBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#7C3AED',
-  },
-  elementsBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#F0FDFA',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#99F6E4',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  elementsBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#0D9488',
   },
 });
