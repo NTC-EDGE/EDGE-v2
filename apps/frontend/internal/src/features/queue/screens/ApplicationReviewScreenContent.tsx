@@ -497,6 +497,12 @@ export function ApplicationReviewScreenContent({
       toast.error(errMsg);
       return;
     }
+    await updateApplication(app.id, {
+      assignedTo: officerName,
+      ...(isForAccountant ? { accountingOfficer: officerName } : {}),
+      ...(isPendingPayment ? { cashierOfficer: officerName } : {}),
+      ...(isForIssuance ? { issuingOfficer: officerName } : {}),
+    });
     toast.success(`Application authority claimed by ${officerName}. Actions unlocked.`);
     await mutateApplications(app.id);
     await refetch();
@@ -546,6 +552,31 @@ export function ApplicationReviewScreenContent({
     onClose();
   };
 
+  /** Evaluator → Approves Pre-Assessment and releases SOA directly to applicant, ending the application */
+  const handleApproveAssessmentSoa = async () => {
+    const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
+    if (!hasSoa) {
+      setShowApprove(false);
+      toast.error('Generate Statement of Account (SOA) first before approving assessment.');
+      setInnerTab('soa');
+      setShowGenerateSoa(true);
+      return;
+    }
+    setShowApprove(false);
+    const [, err] = await applicationService.updateStatus(app.id, {
+      status: 'Completed',
+      action: 'Assessment Approved & SOA Released to Client',
+      staffName: officerName,
+      staffRole: currentRole || 'Evaluator',
+      remarks: 'Pre-Assessment completed by Evaluator. Statement of Account released to Applicant.',
+    });
+    if (err !== null) { toast.error('Failed to approve assessment.'); return; }
+    toast.success('Pre-Assessment approved. Statement of Account is now released to the client.');
+    await mutateApplications(app.id);
+    await refetch();
+    onClose();
+  };
+
   /** Evaluator / Chief / Director → Approves evaluation, background advances to Accountant */
   const handleForwardToAccountant = async () => {
     const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
@@ -565,6 +596,11 @@ export function ApplicationReviewScreenContent({
       remarks: isReturned ? 'Evaluation re-submitted. Forwarded to Accountant.' : 'Evaluation approved. Forwarded to Accountant.',
     });
     if (err !== null) { toast.error('Failed to approve application.'); return; }
+    await updateApplication(app.id, {
+      status: 'ForAccountant',
+      assignedTo: app.office || 'Unassigned',
+      accountingOfficer: undefined,
+    });
     toast.success(isReturned ? 'Evaluation re-submitted and forwarded to Accountant.' : 'Evaluation approved (Requirements & SOA). Forwarded to Accountant.');
     await mutateApplications(app.id);
     await refetch();
@@ -821,6 +857,7 @@ export function ApplicationReviewScreenContent({
   const showLegalResolveBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && isComplaintOrRequest && (canActAsLegal || isEvaluatorOrSupervisorRole(currentRole) || isAdmin);
   /** Show Evaluator forward-to-accountant button (Only if actively evaluating and current evaluator or endorsed officer on commercial applications) */
   const showForwardBtn = (isEvaluating || isReturned) && isStageClaimedByMe && !isEndorsedAwayFromMe && !isComplaintOrRequest;
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
   const hasSoa = (app.soaItems && app.soaItems.length > 0) || (app.totalAmountDue !== undefined && app.totalAmountDue > 0);
 
@@ -853,10 +890,10 @@ export function ApplicationReviewScreenContent({
     approveButtonIcon = 'check-circle';
   } else if (showForwardBtn) {
     if (!hasSoa) {
-      approveButtonLabel = 'Generate SOA';
+      approveButtonLabel = isAssessmentOnly ? 'Generate Assessment SOA' : 'Generate SOA';
       approveButtonIcon = 'play-circle';
     } else {
-      approveButtonLabel = 'Approve & Forward';
+      approveButtonLabel = isAssessmentOnly ? 'Approve & Release SOA' : 'Approve & Forward';
       approveButtonIcon = 'check-circle';
     }
   }
@@ -1154,7 +1191,7 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? "Resolve & Complete Application"
               : showForwardBtn
-                ? "Approve Evaluation & Forward to Accountant"
+                ? (isAssessmentOnly ? "Approve Assessment & Release Statement of Account" : "Approve Evaluation & Forward to Accountant")
                 : "Approve Application"
         }
         confirmText={
@@ -1163,7 +1200,7 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? "Complete Application"
               : showForwardBtn
-                ? "Approve & Forward"
+                ? (isAssessmentOnly ? "Approve & Release SOA" : "Approve & Forward")
                 : "Approve"
         }
         subtitleText={
@@ -1172,16 +1209,18 @@ export function ApplicationReviewScreenContent({
             : showLegalResolveBtn
               ? `Mark application/complaint for ${app.applicant} as officially resolved and completed? Non-revenue statutory applications do not require accountant or cashier processing.`
               : showForwardBtn
-                ? `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`
+                ? (isAssessmentOnly
+                    ? `Confirm fee assessment for ${app.applicant} and release official Statement of Account (SOA). This completes the assessment process.`
+                    : `Approve application requirements and SOA fee calculations for ${app.applicant}, then forward to Accountant.`)
                 : undefined
         }
         onConfirm={
           showCashierBtn ? () => { /* handled by CashierModal */ } :
           showAccountantBtn ? handleAccountantApprove :
           showLegalResolveBtn ? handleCompleteComplaint :
-          showForwardBtn ? handleForwardToAccountant :
+          showForwardBtn ? (isAssessmentOnly ? handleApproveAssessmentSoa : handleForwardToAccountant) :
           isAdmin ? handleAdminDirectApprove :
-          handleForwardToAccountant
+          (isAssessmentOnly ? handleApproveAssessmentSoa : handleForwardToAccountant)
         }
         onCancel={() => setShowApprove(false)}
       />

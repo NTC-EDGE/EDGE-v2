@@ -22,8 +22,8 @@ export function useAdminApplicationDetails(
     },
     {
       revalidateOnFocus: options?.revalidateOnFocus ?? true,
-      refreshInterval: options?.refreshInterval ?? 3000,
-      dedupingInterval: options?.dedupingInterval ?? 1500,
+      refreshInterval: options?.refreshInterval,
+      dedupingInterval: options?.dedupingInterval ?? 5000,
     }
   );
 

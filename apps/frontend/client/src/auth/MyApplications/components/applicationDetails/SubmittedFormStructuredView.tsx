@@ -3,7 +3,13 @@ import { useApi } from '../../../../shared/hooks/useApi';
 import { useServiceForm } from '../../../Services/shared/hooks/useServiceForm';
 import { Application } from '../../data/applicationsData';
 import { isGuid } from './applicationDetailsTypes';
-import { BaseApplicationPreview, formatCompositeAddress } from '../../../../shared/formPreview';
+import {
+  BaseApplicationPreview,
+  formatCompositeAddress,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 
 export interface SubmittedApplicantData {
   applicantName?: string;
@@ -44,6 +50,8 @@ export interface SubmittedFormStructuredViewProps {
   serviceId?: string;
   serviceVariantId?: string | null;
   variantLabel?: string;
+  applicationType?: string | null;
+  elements?: string | null;
   singleApplicant?: SubmittedApplicantData | null;
   showApplicantCard?: boolean;
   isExamService?: boolean;
@@ -57,6 +65,8 @@ export function SubmittedFormStructuredView({
   serviceId,
   serviceVariantId,
   variantLabel,
+  applicationType: applicationTypeProp,
+  elements: elementsProp,
   singleApplicant,
   showApplicantCard = false,
   isExamService,
@@ -80,12 +90,26 @@ export function SubmittedFormStructuredView({
 
   const effectiveServiceId = resolvedServiceId || serviceId || app.serviceId;
   const effectiveVariantId = serviceVariantId || app.serviceVariantId;
-  const effectiveVariantName =
-    variantLabel ||
-    singleApplicant?.serviceVariantName ||
-    app.serviceVariantName ||
-    app.variant ||
-    null;
+  const effectiveVariantName = resolvePreviewVariant({
+    variantName: variantLabel,
+    serviceVariantName: singleApplicant?.serviceVariantName || app.serviceVariantName,
+    variant: app.variant,
+    formFieldValues,
+  });
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    applicationType: applicationTypeProp || singleApplicant?.examineeType || singleApplicant?.applicationType,
+    examineeType: singleApplicant?.examineeType,
+    element: app.element,
+    formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    elements: elementsProp,
+    element: app.element,
+    formFieldValues,
+  });
+
   const { form } = useServiceForm(effectiveServiceId, effectiveVariantId);
 
   const isExam =
@@ -123,7 +147,8 @@ export function SubmittedFormStructuredView({
       formFieldValues={formFieldValues}
       selectedVariantName={effectiveVariantName}
       selectedVariantId={effectiveVariantId}
-      applicationType={singleApplicant?.examineeType || singleApplicant?.applicationType || app.element}
+      applicationType={effectiveAppType}
+      elements={effectiveElements}
       resolvedFullName={applicantName}
       resolvedEmail={singleApplicant?.email && singleApplicant.email !== 'N/A' ? singleApplicant.email : undefined}
       resolvedContactNo={singleApplicant?.mobileNumber && singleApplicant.mobileNumber !== 'N/A' ? singleApplicant.mobileNumber : undefined}

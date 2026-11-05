@@ -3,7 +3,11 @@ import { DocumentPreviewModal } from '../../../../shared/components/DocumentPrev
 import { GeneralReviewSubmitStepProps, PreviewFileTarget } from './generalReview/generalReviewTypes';
 import { useGeneralReviewData } from './generalReview/useGeneralReviewData';
 import { useServiceForm } from '../hooks/useServiceForm';
-import { BaseApplicationPreview } from '../../../../shared/formPreview';
+import {
+  BaseApplicationPreview,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { HeroReviewHeader } from './generalReview/HeroReviewHeader';
 import { JurisdictionParametersCard } from './generalReview/JurisdictionParametersCard';
 import { BulkCohortReviewCard } from './generalReview/BulkCohortReviewCard';
@@ -47,6 +51,18 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
   const { form } = useServiceForm(service.id, activeApplicant.selectedVariantId);
   const serviceTitle = service?.title || service?.name || '';
 
+  const effectiveAppType = resolvePreviewApplicationType({
+    examineeType: activeApplicant.examineeType,
+    examType: activeApplicant.examType,
+    formFieldValues: reviewData.formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    selectedElementTitle: activeApplicant.selectedElementTitle,
+    selectedOption: activeApplicant.selectedOption,
+    formFieldValues: reviewData.formFieldValues,
+  });
+
   const handlePreviewFile = (file: PreviewFileTarget, label: string) => {
     setPreviewFile(file);
     setPreviewLabel(label);
@@ -74,7 +90,8 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
         specialOrderNo={reviewData.resolvedSpecialOrderNo}
         selectedVariantName={reviewData.variantLabel || activeApplicant.selectedVariantName}
         selectedVariantId={activeApplicant.selectedVariantId}
-        applicationType={activeApplicant.examineeType || activeApplicant.examType || activeApplicant.selectedElementTitle}
+        applicationType={effectiveAppType}
+        elements={effectiveElements}
         isExamService={reviewData.isExamService}
         isAmateurCertService={reviewData.isAmateurCertService}
         onPreviewFile={(uri, lbl) => handlePreviewFile(uri, lbl)}
@@ -96,6 +113,8 @@ export function GeneralReviewSubmitStep(props: GeneralReviewSubmitStepProps) {
               appModeLabel={reviewData.appModeLabel}
               variantLabel={reviewData.variantLabel}
               scheduleSummaryText={reviewData.scheduleSummaryText}
+              applicationTypeLabel={effectiveAppType}
+              elementsLabel={effectiveElements}
             />
             <BulkCohortReviewCard
               appMode={appMode}

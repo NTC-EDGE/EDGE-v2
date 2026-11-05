@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Icon } from '@edge/ui';
+import { Icon, TYPOGRAPHY } from '@edge/ui';
 import { Application, formatRelativeTime, isApplicationPaymentSubmitted, getStatusBgColor, getStatusColor } from '../../data/applicationsData';
 import { safeGetStatusLabel } from './applicationDetailsTypes';
 import { getStatusLabel } from '../../data/applicationsData';
@@ -13,7 +13,9 @@ interface ApplicationHeaderCardProps {
   appApplicantsCount: number;
   statusBg: string;
   statusColor: string;
-  resolvedServiceVariant?: string;
+  resolvedServiceVariant?: string | null;
+  applicationType?: string | null;
+  elements?: string | null;
   primaryName: string;
   docsCount: number;
 }
@@ -26,10 +28,13 @@ export function ApplicationHeaderCard({
   statusBg,
   statusColor,
   resolvedServiceVariant,
+  applicationType,
+  elements,
   primaryName,
   docsCount,
 }: ApplicationHeaderCardProps) {
   const isPaymentSubmitted = isApplicationPaymentSubmitted(app);
+  const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
   const effectiveStatus = isPaymentSubmitted ? 'PAYMENT_SUBMITTED' : app.status;
   const effectiveStatusBg = isPaymentSubmitted ? getStatusBgColor('PAYMENT_SUBMITTED') : statusBg;
   const effectiveStatusColor = isPaymentSubmitted ? getStatusColor('PAYMENT_SUBMITTED') : statusColor;
@@ -43,6 +48,62 @@ export function ApplicationHeaderCard({
             {isBulk ? `BULK APPLICATION (${appApplicantsCount})` : 'SINGLE APPLICATION'}
           </Text>
         </View>
+
+        {isAssessmentOnly ? (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#FAF5FF',
+              borderColor: '#DDD6FE',
+              borderWidth: 1,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              gap: 5,
+            }}
+          >
+            <Icon name="search" size={12} color="#7C3AED" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: TYPOGRAPHY.weights.bold,
+                color: '#7C3AED',
+                letterSpacing: 0.5,
+              }}
+            >
+              FOR ASSESSMENT ONLY
+            </Text>
+          </View>
+        ) : (
+          <View
+            style={{
+              flexDirection: 'row',
+              alignItems: 'center',
+              backgroundColor: '#EFF6FF',
+              borderColor: '#BFDBFE',
+              borderWidth: 1,
+              borderRadius: 6,
+              paddingHorizontal: 8,
+              paddingVertical: 3,
+              gap: 5,
+            }}
+          >
+            <Icon name="file-text" size={12} color="#1D4ED8" />
+            <Text
+              style={{
+                fontFamily: TYPOGRAPHY.fonts.primary,
+                fontSize: 11,
+                fontWeight: TYPOGRAPHY.weights.bold,
+                color: '#1D4ED8',
+                letterSpacing: 0.5,
+              }}
+            >
+              OFFICIAL APPLICATION
+            </Text>
+          </View>
+        )}
 
         <View style={[styles.statusBadge, { backgroundColor: effectiveStatusBg }]}>
           <View style={[styles.statusDot, { backgroundColor: effectiveStatusColor }]} />
@@ -72,6 +133,24 @@ export function ApplicationHeaderCard({
             <Icon name="layers" size={11} color="#4338CA" />
             <Text style={styles.headerVariantBadgeText}>
               {resolvedServiceVariant}
+            </Text>
+          </View>
+        ) : null}
+
+        {applicationType ? (
+          <View style={[styles.headerVariantBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+            <Icon name="file-text" size={11} color="#16A34A" />
+            <Text style={[styles.headerVariantBadgeText, { color: '#16A34A' }]}>
+              {applicationType}
+            </Text>
+          </View>
+        ) : null}
+
+        {elements ? (
+          <View style={[styles.headerVariantBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+            <Icon name="check-circle" size={11} color="#B45309" />
+            <Text style={[styles.headerVariantBadgeText, { color: '#B45309' }]}>
+              Elements: {elements}
             </Text>
           </View>
         ) : null}

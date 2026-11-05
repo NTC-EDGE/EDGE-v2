@@ -692,7 +692,7 @@ export function generateSoaPrintableHtml(
     <!-- Title & Series Subtitle -->
     <div class="title-banner">
       <div class="doc-main-title">Statement of Account</div>
-      <div class="doc-series-sub">(RC Code-Year of Issue-Mo. Of Issue-Series of the RC)</div>
+      <div class="doc-series-sub">(RC Code-Year of Issue-Mo. Of Issue-Series of the RC) • <strong style="${isForAssessmentOnly ? 'color: #7c3aed;' : 'color: #0284c7;'}">${isForAssessmentOnly ? 'PRE-ASSESSMENT ONLY' : 'OFFICIAL APPLICATION'}</strong></div>
     </div>
 
     <!-- Payor & Control Information Box -->
@@ -723,6 +723,18 @@ export function generateSoaPrintableHtml(
         <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
           <span class="meta-label">Particular (App/Permit/Lic/Cert No.): </span>
           <span class="meta-val" style="font-weight: bold; color: #1e3a8a;">${particularNumber}</span>
+        </td>
+      </tr>
+      <tr>
+        <td colspan="2" style="border-top: 0.5px solid #cbd5e1; padding-top: 2px;">
+          <span class="meta-label">Application Type: </span>
+          <span class="meta-val" style="font-weight: bold; ${isForAssessmentOnly ? 'color: #7c3aed;' : 'color: #1e3a8a;'}">
+            ${isForAssessmentOnly ? 'For Assessment Only' : 'Official Application'}
+          </span>
+          <span style="margin-left: 12px; font-size: 8px;">
+            <strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> Assessment Only
+            <strong style="margin-left: 8px;">${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application
+          </span>
         </td>
       </tr>
     </table>
@@ -792,9 +804,9 @@ export function generateSoaPrintableHtml(
       <tr>
         <!-- Left: Conditions & O.R. Stamp -->
         <td style="width: 48%; padding-top: 4px;">
-          <div style="font-size: 8px; margin-bottom: 3px; display: flex; gap: 10px;">
-            <span><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
-            <span><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
+          <div style="font-size: 8.5px; margin-bottom: 4px; padding: 2px 6px; background-color: #ffffff; border: 0.5px solid #cbd5e1; border-radius: 3px; display: flex; gap: 12px;">
+            <span style="${isForAssessmentOnly ? 'font-weight: bold; color: #7c3aed;' : 'color: #64748b;'}"><strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only</span>
+            <span style="${isOfficialApplication ? 'font-weight: bold; color: #1e40af;' : 'color: #64748b;'}"><strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application</span>
           </div>
 
           <table class="or-stamp-table">

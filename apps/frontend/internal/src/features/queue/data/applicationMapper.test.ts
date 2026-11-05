@@ -1,5 +1,6 @@
 import { mapApplicationDtoToUI } from './applicationMapper';
 import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { computeOfficerEvaluationState } from '../utils/officerEvaluationHelper';
 
 describe('applicationMapper', () => {
   it('correctly identifies Certificates category when serviceCategory is Certificates', () => {
@@ -478,6 +479,89 @@ describe('applicationMapper', () => {
 
       expect(uiForAccountant.status).toBe('Returned');
       expect(uiForAccountant.queueTab).toBe('history');
+    });
+
+    it('correctly treats application as unclaimed for Accountant and does not attribute evaluatingOfficer as accountingOfficer when forwarded to Accountant', () => {
+      const forwardedDto: ApplicationDto = {
+        id: 'app-fwd-1',
+        tenantId: 'tenant-1',
+        applicationNumber: 'APP-FWD-001',
+        referenceNumber: 'REF-FWD-001',
+        status: 'ForAccountant',
+        submissionMode: 'Single',
+        isGuest: false,
+        createdAt: '2026-09-20T10:00:00Z',
+        office: 'Regional Main Office',
+        remarks: 'Evaluation approved. Forwarded to Accountant.',
+        applicants: [
+          {
+            id: 'applicant-1',
+            tenantId: 'tenant-1',
+            isGuest: false,
+            applicantType: 'Individual',
+            details: {
+              id: 'det-1',
+              firstName: 'Juan',
+              lastName: 'Dela Cruz',
+              address: '123 Test St',
+              nationality: 'Filipino',
+              sex: 'Male',
+              contactNumber: '09123456789',
+              emailAddress: 'juan@example.com',
+            },
+            formFieldValues: [],
+          },
+        ],
+        services: [
+          {
+            id: 'srv-1',
+            serviceId: 'srv-1',
+            serviceName: 'Radio Station Permit',
+            serviceCategory: 'Permits',
+          },
+        ],
+        histories: [
+          {
+            id: 'h-1',
+            timestamp: '2026-09-20T10:00:00Z',
+            action: 'Evaluation Started',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Evaluation started by Engr. Maria Santos.',
+            toStatus: 'Evaluating',
+          },
+          {
+            id: 'h-2',
+            timestamp: '2026-09-20T10:30:00Z',
+            action: 'Approved & Forwarded to Accountant',
+            staffName: 'Engr. Maria Santos',
+            staffRole: 'Evaluating Officer',
+            remarks: 'Evaluation approved. Forwarded to Accountant.',
+            toStatus: 'ForAccountant',
+          },
+        ],
+        statementsOfAccount: [],
+        ordersOfPayment: [],
+        correctionAuditTrails: [],
+      };
+
+      const ui = mapApplicationDtoToUI(forwardedDto, 'Accountant');
+
+      // 1. Evaluating officer is Engr. Maria Santos
+      expect(ui.evaluatingOfficer).toBe('Engr. Maria Santos');
+      // 2. Accounting officer must be undefined (unclaimed)
+      expect(ui.accountingOfficer).toBeUndefined();
+      // 3. Assigned to must NOT be Engr. Maria Santos
+      expect(ui.assignedTo).not.toBe('Engr. Maria Santos');
+
+      // 4. Test stage evaluation state for an Accountant user: Must be unclaimed so they can click "Take Application"!
+      const acctState = computeOfficerEvaluationState({
+        application: ui,
+        identifiers: ['ann accountant', 'accountant@ntc.gov.ph'],
+      });
+      expect(acctState.isStageUnclaimed).toBe(true);
+      expect(acctState.isStageClaimedByOther).toBe(false);
+      expect(acctState.isStageClaimedByMe).toBe(false);
     });
   });
 });

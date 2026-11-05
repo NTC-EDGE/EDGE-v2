@@ -15,6 +15,8 @@ import {
   PagedApplicationListDto,
   ApplicationSummaryDto,
   StatementOfAccountDto,
+  useAdminAnnouncements,
+  SystemAnnouncementDto,
 } from "@edge/api";
 import { useUser, useAuth } from "@clerk/expo";
 import { useApi } from "../hooks/useApi";
@@ -23,6 +25,8 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { openApplicationDetail } from "../helpers/applicationNavigationHelper";
 import { ClientFooter } from "./ClientFooter";
 import { ConfirmationDialog } from "./ConfirmationDialog";
+import { ClientAnnouncementBanner } from "./ClientAnnouncementBanner";
+import { ClientAnnouncementModal } from "./ClientAnnouncementModal";
 
 const ntcLogo = require("../../../assets/ntc-logo.png");
 
@@ -102,6 +106,14 @@ export function ClientAppLayout({
     { revalidateOnFocus: true, refreshInterval: 30000 }
   );
 
+  // Active System Announcements published for clients
+  const { announcements } = useAdminAnnouncements({
+    isActive: true,
+    revalidateOnFocus: true,
+    refreshInterval: 60000,
+  });
+
+  const [selectedModalAnnouncement, setSelectedModalAnnouncement] = useState<SystemAnnouncementDto | null>(null);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [readNotifIds, setReadNotifIds] = useState<Set<string>>(() => getStoredClientReadNotifs(clerkUser?.id));
 
@@ -118,10 +130,48 @@ export function ClientAppLayout({
       title: string;
       description: string;
       timestamp?: string;
-      type: "returned" | "payment" | "status" | "renewal";
+      type: "returned" | "payment" | "status" | "renewal" | "announcement";
       targetTab: "services" | "my-applications" | "settings";
       isRead: boolean;
+      rawAnnouncement?: SystemAnnouncementDto;
     }> = [];
+
+    // Active published announcements for client audience
+    if (Array.isArray(announcements)) {
+      const now = new Date();
+      for (const ann of announcements) {
+        if (!ann.isActive) continue;
+        const aud = (ann.targetAudience || "").toLowerCase();
+        const isForClients =
+          aud.length === 0 ||
+          aud.includes("all") ||
+          aud.includes("client") ||
+          aud.includes("applicant") ||
+          aud.includes("public");
+        if (!isForClients) continue;
+
+        if (ann.startDate) {
+          const s = new Date(ann.startDate);
+          if (!isNaN(s.getTime()) && now < s) continue;
+        }
+        if (ann.endDate) {
+          const e = new Date(ann.endDate);
+          if (!isNaN(e.getTime()) && now > e) continue;
+        }
+
+        const notifId = `client_ann_${ann.id}`;
+        list.push({
+          id: notifId,
+          title: `Announcement: ${ann.title}`,
+          description: ann.message,
+          timestamp: ann.createdAt,
+          type: "announcement",
+          targetTab: activeTab,
+          isRead: readNotifIds.has(notifId),
+          rawAnnouncement: ann,
+        });
+      }
+    }
 
     const payload = myAppsData?.data;
     const items: ApplicationSummaryDto[] = Array.isArray(payload)
@@ -377,6 +427,10 @@ export function ClientAppLayout({
                             onPress={() => {
                               markAsRead(item.id);
                               setIsNotifOpen(false);
+                              if (item.rawAnnouncement !== undefined) {
+                                setSelectedModalAnnouncement(item.rawAnnouncement);
+                                return;
+                              }
                               if (item.appId !== undefined && item.appId !== null) {
                                 openApplicationDetail(item.appId);
                               }
@@ -390,9 +444,29 @@ export function ClientAppLayout({
                           >
                             <View style={styles.clientNotifIconWrap}>
                               <Icon
-                                name={item.type === "returned" ? "alert-circle" : item.type === "renewal" ? "refresh-cw" : item.type === "payment" ? "credit-card" : "file-text"}
+                                name={
+                                  item.type === "announcement"
+                                    ? "volume-2"
+                                    : item.type === "returned"
+                                    ? "alert-circle"
+                                    : item.type === "renewal"
+                                    ? "refresh-cw"
+                                    : item.type === "payment"
+                                    ? "credit-card"
+                                    : "file-text"
+                                }
                                 size={14}
-                                color={item.isRead ? "#94A3B8" : item.type === "renewal" ? "#D97706" : item.type === "returned" ? "#EF4444" : "#2563EB"}
+                                color={
+                                  item.isRead
+                                    ? "#94A3B8"
+                                    : item.type === "announcement"
+                                    ? "#7C3AED"
+                                    : item.type === "renewal"
+                                    ? "#D97706"
+                                    : item.type === "returned"
+                                    ? "#EF4444"
+                                    : "#2563EB"
+                                }
                               />
                             </View>
                             <View style={{ flex: 1 }}>
@@ -460,7 +534,10 @@ export function ClientAppLayout({
         )}
       </View>
 
-      {/* ── 2. Dismissable Processing Hours Notice ────────────────────────── */}
+      {/* ── 2. Active Published Announcement Banner (from API) ───────────── */}
+      <ClientAnnouncementBanner userId={clerkUser?.id} isMobile={isMobile} />
+
+      {/* ── 3. Dismissable Processing Hours Notice ────────────────────────── */}
       {!isNoticeDismissed && (
         <View style={[styles.noticeAlert, isMobile && { padding: 12, paddingRight: 10 }]}>
           <View style={{ flexDirection: "row", alignItems: "center", flex: 1, paddingRight: 12 }}>
@@ -731,6 +808,14 @@ export function ClientAppLayout({
             onPress: handleConfirmSignOut,
           },
         ]}
+      />
+
+      {/* Announcement Details Modal */}
+      <ClientAnnouncementModal
+        visible={selectedModalAnnouncement !== null}
+        announcement={selectedModalAnnouncement}
+        onClose={() => setSelectedModalAnnouncement(null)}
+        onAcknowledge={(id) => markAsRead(`client_ann_${id}`)}
       />
     </View>
   );

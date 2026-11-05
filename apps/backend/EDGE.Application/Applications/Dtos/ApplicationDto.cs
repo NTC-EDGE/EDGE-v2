@@ -38,12 +38,15 @@ public class ApplicationDto
     public string? ServiceCategoryName { get; set; }
     public string? ServiceCategoryCode { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
     public List<string> OrNumbers { get; set; } = new();
     public decimal? AmountPaid { get; set; }
     public DateTime? PaidAt { get; set; }
     public string? EvaluatingOfficer { get; set; }
+    public string? AccountingOfficer { get; set; }
+    public string? CashierOfficer { get; set; }
     public string? IssuingOfficer { get; set; }
 
     public FilingUserDto? FilingUser { get; set; }
@@ -82,6 +85,7 @@ public class ApplicationServiceDto
     public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
 }
 

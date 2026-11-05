@@ -12,6 +12,11 @@ import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantVerdictType } from "../modals/ApplicantVerdictModal";
 import { BatchActionType } from "../modals/BatchConfirmationModal";
 import { ApplicantItem, ApplicationFormAttachment } from "../../../../types/application";
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from "../../../../shared/formPreview";
 
 export function ApplicationDetailsTab({
   app,
@@ -35,19 +40,77 @@ export function ApplicationDetailsTab({
     return cat.includes("exam") || title.includes("exam") || title.includes("admission") || title.includes("operator examination");
   }, [app.category, app.serviceName, app.permitTitle]);
 
+  const effectiveVariant = useMemo(() => {
+    return resolvePreviewVariant({
+      serviceVariantName: app.serviceVariantName,
+      variant: app.services?.[0]?.serviceVariantName,
+      formFieldValues: app.formFieldValues,
+    });
+  }, [app.serviceVariantName, app.services, app.formFieldValues]);
+
+  const effectiveAppType = useMemo(() => {
+    return resolvePreviewApplicationType({
+      applicationType: app.applicantsList?.[0]?.applicationType,
+      element: undefined,
+      formFieldValues: app.formFieldValues,
+    });
+  }, [app.applicantsList, app.formFieldValues]);
+
+  const effectiveElements = useMemo(() => {
+    return resolvePreviewElements({
+      element:
+        app.services?.[0]?.element ||
+        app.services?.[0]?.elements ||
+        app.element ||
+        app.elements ||
+        app.applicantsList?.[0]?.element ||
+        app.applicantsList?.[0]?.elements,
+      elements:
+        app.services?.[0]?.elements ||
+        app.services?.[0]?.element ||
+        app.elements ||
+        app.applicantsList?.[0]?.elements,
+      formFieldValues: app.formFieldValues,
+      variantName: effectiveVariant || app.serviceVariantName,
+    });
+  }, [app.services, app.element, app.elements, app.applicantsList, app.formFieldValues, effectiveVariant, app.serviceVariantName]);
+
   const appliedServices = useMemo(() => {
     const defaultName = app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`;
     if (!app.services?.length) {
-      return [{ name: defaultName, category: app.serviceCategory || app.category, variant: app.serviceVariantName }];
+      return [{
+        name: defaultName,
+        category: app.serviceCategory || app.category,
+        variant: effectiveVariant ?? undefined,
+        applicationType: effectiveAppType ?? undefined,
+        element: effectiveElements ?? undefined,
+      }];
     }
-    const map = new Map<string, { id?: string; name: string; category?: string; variant?: string }>();
+    const map = new Map<string, { id?: string; name: string; category?: string; variant?: string; applicationType?: string; element?: string }>();
     for (const s of app.services) {
       const name = s.serviceName || defaultName;
       const key = `${s.serviceId ?? ""}-${name}-${s.serviceVariantName ?? ""}`;
-      if (!map.has(key)) map.set(key, { id: s.id, name, category: s.serviceCategory || app.category, variant: s.serviceVariantName });
+      if (!map.has(key)) {
+        const itemElement =
+          resolvePreviewElements({
+            element: s.element || s.elements || effectiveElements,
+            elements: s.elements || s.element,
+            formFieldValues: app.formFieldValues,
+            variantName: s.serviceVariantName || effectiveVariant,
+          }) || effectiveElements || undefined;
+
+        map.set(key, {
+          id: s.id,
+          name,
+          category: s.serviceCategory || app.category,
+          variant: s.serviceVariantName || effectiveVariant || undefined,
+          applicationType: effectiveAppType ?? undefined,
+          element: itemElement,
+        });
+      }
     }
     return Array.from(map.values());
-  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, app.serviceVariantName]);
+  }, [app.services, app.serviceName, app.permitTitle, app.serviceCategory, app.category, effectiveVariant, effectiveAppType, effectiveElements, app.formFieldValues]);
 
   const scheduleSummaryText = useMemo(() => {
     if (app.office && app.office.trim().length > 0) return `NTC Field Office • ${app.office}`;
@@ -125,7 +188,9 @@ export function ApplicationDetailsTab({
           serviceName={app.serviceName || app.permitTitle || `${app.serviceCategory || app.category} Application`}
           category={app.serviceCategory || app.category}
           isExamService={isExamService}
-          variantLabel={app.serviceVariantName || "Standard"}
+          variantLabel={effectiveVariant || app.serviceVariantName || "Standard"}
+          applicationType={effectiveAppType ?? undefined}
+          element={effectiveElements ?? undefined}
           scheduleSummaryText={scheduleSummaryText}
           mode={app.applicationType === "BULK" ? "Bulk" : "Single"}
           totalApplicants={app.applicantsList?.length || 1}

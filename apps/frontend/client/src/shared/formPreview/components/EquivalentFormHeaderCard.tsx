@@ -7,19 +7,19 @@ export interface EquivalentFormHeaderCardProps {
   canonicalForm: CanonicalFormMetadata;
   serviceTitle?: string | null;
   serviceVariantName?: string | null;
+  applicationType?: string | null;
+  elements?: string | null;
   version?: string | null;
 }
 
 export function EquivalentFormHeaderCard({
   canonicalForm,
-  serviceTitle,
-  serviceVariantName,
-  version = '1.0',
+  serviceTitle: _serviceTitle,
+  serviceVariantName: _serviceVariantName,
+  applicationType: _applicationType,
+  elements: _elements,
+  version: _version,
 }: EquivalentFormHeaderCardProps) {
-  const effectiveVariant = serviceVariantName && serviceVariantName.trim().length > 0
-    ? serviceVariantName.trim()
-    : null;
-
   return (
     <View style={styles.cardContainer}>
       {/* Top Banner Row */}
@@ -31,44 +31,20 @@ export function EquivalentFormHeaderCard({
         </View>
 
         {/* Category Pill */}
-        <View style={styles.categoryPill}>
-          <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
-        </View>
-
-        {/* Template Version */}
-        <View style={styles.versionPill}>
-          <Text style={styles.versionPillText}>Template v{version || '1.0'}</Text>
-        </View>
+        {canonicalForm.category ? (
+          <View style={styles.categoryPill}>
+            <Text style={styles.categoryPillText}>{canonicalForm.category}</Text>
+          </View>
+        ) : null}
       </View>
 
       {/* Official Form Title */}
       <Text style={styles.formTitleText}>{canonicalForm.title}</Text>
 
       {/* Description */}
-      <Text style={styles.formDescriptionText}>{canonicalForm.description}</Text>
-
-      {/* Associated Metadata Badges */}
-      <View style={styles.metadataBadgeRow}>
-        {/* Service */}
-        {serviceTitle && serviceTitle.trim().length > 0 && (
-          <View style={styles.serviceBadge}>
-            <Icon name="folder" size={12} color="#1E40AF" />
-            <Text style={styles.serviceBadgeText} numberOfLines={1}>
-              Service: {serviceTitle}
-            </Text>
-          </View>
-        )}
-
-        {/* Service Variant */}
-        {effectiveVariant && (
-          <View style={styles.variantBadge}>
-            <Icon name="layers" size={12} color="#065F46" />
-            <Text style={styles.variantBadgeText} numberOfLines={1}>
-              Variant: {effectiveVariant}
-            </Text>
-          </View>
-        )}
-      </View>
+      {canonicalForm.description ? (
+        <Text style={styles.formDescriptionText}>{canonicalForm.description}</Text>
+      ) : null}
     </View>
   );
 }
@@ -123,20 +99,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#4338CA',
   },
-  versionPill: {
-    backgroundColor: '#F1F5F9',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#E2E8F0',
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  versionPillText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '500',
-    color: '#64748B',
-  },
   formTitleText: {
     fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 16,
@@ -149,47 +111,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#475569',
     lineHeight: 18,
-  },
-  metadataBadgeRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    marginTop: 4,
-  },
-  serviceBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#EFF6FF',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  serviceBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#1E40AF',
-  },
-  variantBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: '#ECFDF5',
-    borderRadius: 6,
-    borderWidth: 1,
-    borderColor: '#A7F3D0',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    maxWidth: '100%',
-  },
-  variantBadgeText: {
-    fontFamily: TYPOGRAPHY.fonts.primary,
-    fontSize: 11,
-    fontWeight: '600',
-    color: '#065F46',
   },
 });

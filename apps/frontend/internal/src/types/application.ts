@@ -96,6 +96,8 @@ export interface ApplicantItem {
   serviceId?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   applicationType?: string;
   submissionId?: string;
   contactNumber: string;
@@ -154,6 +156,8 @@ export interface ApplicationServiceItem {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   applicationType?: string;
   submissionId?: string;
 }
@@ -209,6 +213,8 @@ export interface ApplicationData {
   serviceName?: string;
   serviceCategory?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   office?: string;
   mode?: string;
   filingUser?: FilingUserData;

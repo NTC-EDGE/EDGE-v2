@@ -553,3 +553,207 @@ export function normalizeRepeaterRowEntries(
 }
 
 
+
+
+// ─── Preview Parameters Resolvers ─────────────────────────────────────────────
+
+export interface ResolvePreviewVariantParams {
+  variantName?: string | null;
+  serviceVariantName?: string | null;
+  variant?: string | null;
+  element?: string | null;
+  examineeType?: string | null;
+  formFieldValues?: Array<{ fieldId?: string; fieldLabel?: string; value?: string | null }>;
+  fallback?: string;
+}
+
+export function resolvePreviewVariant(params: ResolvePreviewVariantParams): string {
+  const isUuid = (v?: string | null) =>
+    Boolean(v && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v.trim()));
+
+  const candidates = [params.variantName, params.serviceVariantName, params.variant];
+  for (const c of candidates) {
+    if (c && typeof c === 'string' && c.trim().length > 0) {
+      const trimmed = c.trim();
+      if (trimmed !== 'Standard' && !isUuid(trimmed)) {
+        return trimmed;
+      }
+    }
+  }
+
+  // Also check formFieldValues
+  if (params.formFieldValues && params.formFieldValues.length > 0) {
+    const vField = params.formFieldValues.find((fv) => {
+      const lbl = (fv.fieldLabel || '').toLowerCase().trim();
+      const val = (fv.value || '').trim();
+      if (!val || val === 'null' || val === 'undefined') return false;
+      return lbl === 'service variant' || lbl === 'variant' || lbl.includes('variant name');
+    });
+    if (vField && vField.value && vField.value.trim().length > 0 && !isUuid(vField.value)) {
+      return vField.value.trim();
+    }
+  }
+
+  for (const c of candidates) {
+    if (c && typeof c === 'string' && c.trim().length > 0 && !isUuid(c)) {
+      return c.trim();
+    }
+  }
+  return params.fallback !== undefined ? params.fallback : '';
+}
+
+export interface ResolvePreviewApplicationTypeParams {
+  applicationType?: string | null;
+  examineeType?: string | null;
+  examType?: string | null;
+  element?: string | null;
+  formFieldValues?: Array<{ fieldId?: string; fieldLabel?: string; value?: string | null }>;
+}
+
+export function resolvePreviewApplicationType(params: ResolvePreviewApplicationTypeParams): string | null {
+  const isFilingModeOnly = (v: string) => {
+    const upper = v.toUpperCase().trim();
+    return upper === 'SINGLE' || upper === 'BULK' || upper === 'SINGLE APPLICATION' || upper === 'BULK APPLICATION';
+  };
+
+  if (params.applicationType && params.applicationType.trim().length > 0) {
+    const trimmed = params.applicationType.trim();
+    if (!isFilingModeOnly(trimmed) && !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) {
+      return trimmed;
+    }
+  }
+  if (params.examineeType && params.examineeType.trim().length > 0) {
+    const trimmed = params.examineeType.trim();
+    if (!isFilingModeOnly(trimmed)) return trimmed;
+  }
+  if (params.examType && params.examType.trim().length > 0) {
+    const trimmed = params.examType.trim();
+    if (!isFilingModeOnly(trimmed)) return trimmed;
+  }
+  if (params.formFieldValues && params.formFieldValues.length > 0) {
+    const typeField = params.formFieldValues.find((fv) => {
+      const id = (fv.fieldId || '').toLowerCase().trim();
+      const lbl = (fv.fieldLabel || '').toLowerCase().trim();
+      const val = (fv.value || '').trim();
+      if (!val || val === 'null' || val === 'undefined') return false;
+      return (
+        id === 'fd000000-0000-0000-0000-000000000007' ||
+        lbl === 'type of application' ||
+        lbl === 'application type' ||
+        lbl === 'examinee type' ||
+        lbl === 'type of examinee' ||
+        lbl === 'examinee classification'
+      );
+    });
+    if (typeField && typeField.value && typeField.value.trim().length > 0) {
+      const valTrimmed = typeField.value.trim();
+      if (!isFilingModeOnly(valTrimmed)) return valTrimmed;
+    }
+  }
+  if (params.element && params.element.trim().length > 0) {
+    const trimmed = params.element.trim();
+    const lower = trimmed.toLowerCase();
+    const isExamineeType = ['new', 'renewal', 'modification', 'upgrading', 'additional'].includes(lower);
+    if (isExamineeType) {
+      return trimmed;
+    }
+  }
+  return null;
+}
+
+export interface ResolvePreviewElementsParams {
+  elements?: string | null;
+  selectedElementTitle?: string | null;
+  selectedOption?: string | null;
+  formFieldValues?: Array<{ fieldId?: string; fieldLabel?: string; value?: string | null }>;
+  element?: string | null;
+  variantName?: string | null;
+}
+
+export function resolvePreviewElements(params: ResolvePreviewElementsParams): string | null {
+  const isGuid = (val: string) =>
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val);
+
+  const isExamineeType = (val: string) =>
+    ['new', 'renewal', 'modification', 'upgrading', 'additional', 'regular'].includes(val.toLowerCase());
+
+  const isStrictVariant = (val: string) => {
+    const lower = val.toLowerCase();
+    const hasElementKeyword = lower.includes('element') || lower.includes('class') || lower.includes('code');
+    if (hasElementKeyword) return false;
+    return (
+      lower === 'amateur' ||
+      lower === 'amateur (firsttaker)' ||
+      lower === 'amateur (first-time)' ||
+      lower === 'amateur (first time)' ||
+      lower === 'amateur (retaker)' ||
+      lower === 'amateur (re-taker)' ||
+      lower === 'firsttaker' ||
+      lower === 'retaker' ||
+      lower === 'commercial radiotelegraphy' ||
+      lower === 'commercial radiotelephony' ||
+      lower === 'radiotelegraphy' ||
+      lower === 'radiotelephony' ||
+      (Boolean(params.variantName) && lower === params.variantName?.trim().toLowerCase())
+    );
+  };
+
+  if (params.elements && params.elements.trim().length > 0) {
+    const trimmed = params.elements.trim();
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+      return trimmed;
+    }
+  }
+  if (params.selectedElementTitle && params.selectedElementTitle.trim().length > 0) {
+    const trimmed = params.selectedElementTitle.trim();
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+      return trimmed;
+    }
+  }
+  if (params.selectedOption && params.selectedOption.trim().length > 0) {
+    const trimmed = params.selectedOption.trim();
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+      return trimmed;
+    }
+  }
+  if (params.formFieldValues && params.formFieldValues.length > 0) {
+    const elemField = params.formFieldValues.find((fv) => {
+      const id = (fv.fieldId || '').toLowerCase().trim();
+      const lbl = (fv.fieldLabel || '').toLowerCase().trim();
+      const val = (fv.value || '').trim();
+      if (!val || val === 'null' || val === 'undefined' || val === '[]' || val === '{}') return false;
+      return (
+        id === 'fd000000-0000-0000-0000-000000000009' ||
+        id === 'fd000000-0000-0000-0000-000000000025' ||
+        id === 'fd000000-0000-0000-0000-000000000101' ||
+        lbl === 'selected exam elements' ||
+        lbl === 'exam elements' ||
+        lbl === 'elements' ||
+        lbl === 'selected elements' ||
+        lbl === 'element / class' ||
+        lbl === 'class / element' ||
+        lbl === 'element' ||
+        lbl === 'station class' ||
+        lbl === 'class of station' ||
+        lbl.includes('exam element') ||
+        lbl.includes('selected element') ||
+        lbl.includes('station class') ||
+        lbl.includes('service variant & station class') ||
+        lbl.includes('variant element')
+      );
+    });
+    if (elemField && elemField.value && elemField.value.trim().length > 0) {
+      const trimmed = elemField.value.trim();
+      if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+        return trimmed;
+      }
+    }
+  }
+  if (params.element && params.element.trim().length > 0) {
+    const trimmed = params.element.trim();
+    if (!isExamineeType(trimmed) && !isStrictVariant(trimmed) && !isGuid(trimmed)) {
+      return trimmed;
+    }
+  }
+  return null;
+}

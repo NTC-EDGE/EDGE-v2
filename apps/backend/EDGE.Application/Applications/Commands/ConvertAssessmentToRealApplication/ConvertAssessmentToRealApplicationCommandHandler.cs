@@ -73,12 +73,8 @@ public class ConvertAssessmentToRealApplicationCommandHandler
                 app.ApplicationNumber = $"APP-{DateTime.UtcNow:yyyyMMdd}-{Random.Shared.Next(1000, 9999)}";
             }
 
-            // If SOA was already generated, advance to accountant / pending payment, otherwise keep current status
-            if (app.StatementsOfAccount.Any(s => s.Status == SoaStatus.Approved))
-            {
-                app.Status = ApplicationStatus.PendingPayment;
-            }
-            else if (app.StatementsOfAccount.Any(s => s.Status == SoaStatus.Pending))
+            // If SOA was already generated, advance to accountant for official Order of Payment review & issuance
+            if (app.StatementsOfAccount.Any(s => s.Status == SoaStatus.Approved || s.Status == SoaStatus.Pending))
             {
                 app.Status = ApplicationStatus.ForAccountant;
             }

@@ -18,6 +18,7 @@ import { COLORS, SHADOWS, SPACING } from "../../shared/theme/tokens";
 import { Button } from "../../shared/components/Button";
 import { Logo } from "../../shared/components/Logo";
 import { Input } from "../../shared/components/Input";
+import { ClientAnnouncementBanner } from "../../shared/components/ClientAnnouncementBanner";
 import { PHILIPPINE_REGIONS } from "../../shared/constants/regions";
 
 
@@ -810,6 +811,9 @@ export function LandingScreen() {
           )}
         </View>
       </View>
+
+      {/* Dynamic System Announcements Broadcast Banner */}
+      <ClientAnnouncementBanner isMobile={!isDesktop} />
 
       <ScrollView
         ref={scrollViewRef}

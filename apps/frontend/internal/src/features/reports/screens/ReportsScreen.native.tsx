@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import {
   StyleSheet,
   View,
@@ -6,6 +6,7 @@ import {
   Pressable,
   ScrollView,
   SafeAreaView,
+  TextInput,
 } from 'react-native';
 import {
   COLORS,
@@ -23,126 +24,105 @@ import {
 } from '@edge/ui';
 import {
   useReportsState,
-  ReportType,
-  PeriodMode,
-  TimeRangeFilter,
+  StatutoryPeriod,
 } from '../hooks/useReportsState';
-import { ApplicationSummaryDto, TenantTransactionDto, FeedbackDto } from '@edge/api';
 import { StatutoryReportPreviewModal } from '../components/StatutoryReportPreviewModal';
-import { StatutoryReportSummary } from '../types/statutoryReports';
+import { StatutoryReportSummary, StatutoryReportCode } from '../types/statutoryReports';
 
 type FeatherIconName = React.ComponentProps<typeof Lucide>['name'];
+type TenantReportCategory = 'all' | 'finance' | 'applications' | 'operations';
 
-const REPORT_TABS: Array<{ id: ReportType; label: string; icon: FeatherIconName }> = [
-  { id: 'applications', label: 'Apps', icon: 'file-text' },
-  { id: 'financial', label: 'Finance', icon: 'dollar-sign' },
-  { id: 'compliance', label: 'SLA', icon: 'shield' },
-  { id: 'satisfaction', label: 'CSAT', icon: 'star' },
-  { id: 'statutory', label: 'Govt Forms', icon: 'book' },
+interface CategoryOption {
+  id: TenantReportCategory;
+  label: string;
+  count: number;
+  icon: FeatherIconName;
+}
+
+const TENANT_CATEGORIES: CategoryOption[] = [
+  { id: 'all', label: 'All', count: 10, icon: 'book' },
+  { id: 'finance', label: 'Finance', count: 4, icon: 'dollar-sign' },
+  { id: 'applications', label: 'Ledgers', count: 4, icon: 'file-text' },
+  { id: 'operations', label: 'Operations', count: 2, icon: 'activity' },
 ];
 
-const PERIOD_MODES: Array<{ id: PeriodMode; label: string; icon: FeatherIconName }> = [
-  { id: 'monthly', label: 'Monthly', icon: 'calendar' },
-  { id: 'quarterly', label: 'Quarterly', icon: 'pie-chart' },
-  { id: 'yearly', label: 'Yearly', icon: 'bar-chart-2' },
-  { id: 'rolling', label: 'Rolling', icon: 'clock' },
-];
-
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const QUARTERS = [
-  { q: 1, label: 'Q1' },
-  { q: 2, label: 'Q2' },
-  { q: 3, label: 'Q3' },
-  { q: 4, label: 'Q4' },
-];
-const YEARS = [2024, 2025, 2026];
-
-const TIME_RANGES: Array<{ id: TimeRangeFilter; label: string }> = [
-  { id: '7d', label: '7D' },
-  { id: '30d', label: '30D' },
-  { id: '90d', label: '90D' },
-  { id: 'ytd', label: 'YTD' },
-  { id: 'all', label: 'All' },
+const STATUTORY_PERIODS: Array<{ id: StatutoryPeriod; label: string }> = [
+  { id: 'Q1 2026', label: 'Q1 2026' },
+  { id: 'Q2 2026', label: 'Q2 2026' },
+  { id: 'Q3 2026', label: 'Q3 2026' },
+  { id: 'Q4 2026', label: 'Q4 2026' },
+  { id: 'Annual 2026', label: 'Annual' },
 ];
 
 export function ReportsScreen() {
   const { colors, isDark } = useTheme();
   const state = useReportsState();
 
-  const renderRatingStars = (rating: number) => {
-    const stars = [];
-    for (let i = 1; i <= 5; i++) {
-      const isFilled = i <= rating;
-      stars.push(
-        <Lucide
-          key={i}
-          name="star"
-          size={11}
-          color={isFilled ? COLORS.semantic.warning : (isDark ? colors.neutral[700] : colors.neutral[300])}
-          style={{ marginRight: 2 }}
-        />
-      );
-    }
-    return <View style={styles.starsRow}>{stars}</View>;
-  };
+  const [tenantCategory, setTenantCategory] = useState<TenantReportCategory>('all');
+  const [selectedReportCode, setSelectedReportCode] = useState<StatutoryReportCode>('NTC-MIS-OPS');
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 
-  const formatDate = (isoStr?: string | null) => {
-    if (isoStr === null || isoStr === undefined || isoStr.trim().length === 0) return '—';
-    try {
-      const date = new Date(isoStr);
-      if (isNaN(date.getTime())) return isoStr;
-      return date.toLocaleDateString('en-US', {
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      });
-    } catch {
-      return isoStr;
-    }
-  };
+  // Filtered official tenant reports
+  const displayedReports = useMemo(() => {
+    return state.statutoryReports.filter((rep) => {
+      const code = rep.metadata.code;
+      const q = state.searchQuery.trim().toLowerCase();
+
+      let matchesCategory = true;
+      if (tenantCategory === 'finance') {
+        matchesCategory =
+          code === 'NTC-COA-APP26-M' ||
+          code === 'NTC-COA-APP26-D' ||
+          code === 'NTC-BIR-DST-01' ||
+          code === 'NTC-BTR-INC-01';
+      } else if (tenantCategory === 'applications') {
+        matchesCategory =
+          code === 'NTC-APP-SUM-EVAL' ||
+          code === 'NTC-APP-SUM-SVC' ||
+          code === 'NTC-APP-SUM-ENT' ||
+          code === 'NTC-APP-VOL-01';
+      } else if (tenantCategory === 'operations') {
+        matchesCategory =
+          code === 'NTC-MIS-OPS' ||
+          code === 'NTC-EXAM-MST-01';
+      }
+
+      if (!matchesCategory) return false;
+
+      if (q.length > 0) {
+        const titleMatch = rep.metadata.title.toLowerCase().includes(q);
+        const codeMatch = rep.metadata.code.toLowerCase().includes(q);
+        const agencyMatch = rep.metadata.agency.toLowerCase().includes(q);
+        return titleMatch || codeMatch || agencyMatch;
+      }
+
+      return true;
+    });
+  }, [state.statutoryReports, tenantCategory, state.searchQuery]);
+
+  const activeReport = useMemo(() => {
+    const found = state.statutoryReports.find((r) => r.metadata.code === selectedReportCode);
+    if (found !== undefined) return found.metadata;
+    const fallback = state.statutoryReports[0];
+    return fallback !== undefined ? fallback.metadata : null;
+  }, [state.statutoryReports, selectedReportCode]);
 
   const formatCurrency = (amount?: number | null) => {
     const safeAmt = amount ?? 0;
     return `₱${safeAmt.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
 
-  const getStatusBadgeStyle = (status?: string | null) => {
-    const clean = (status ?? '').toLowerCase();
-    if (clean === 'approved' || clean === 'completed' || clean === 'paid') {
-      return {
-        bg: isDark ? 'rgba(34, 197, 94, 0.15)' : '#DCFCE7',
-        text: COLORS.semantic.success,
-        border: isDark ? 'rgba(34, 197, 94, 0.3)' : '#86EFAC',
-      };
-    }
-    if (clean === 'evaluating' || clean === 'submitted' || clean === 'pending') {
-      return {
-        bg: isDark ? 'rgba(59, 130, 246, 0.15)' : '#DBEAFE',
-        text: isDark ? colors.brand[500] : colors.brand.primary,
-        border: isDark ? 'rgba(59, 130, 246, 0.3)' : '#93C5FD',
-      };
-    }
-    if (clean === 'returned' || clean === 'overdue' || clean === 'failed' || clean === 'rejected') {
-      return {
-        bg: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FEE2E2',
-        text: COLORS.semantic.error,
-        border: isDark ? 'rgba(239, 68, 68, 0.3)' : '#FCA5A5',
-      };
-    }
-    return {
-      bg: isDark ? colors.neutral[800] : colors.neutral[100],
-      text: colors.textMuted,
-      border: colors.border,
-    };
-  };
+  const effectivePeriod = state.periodMode === 'custom'
+    ? `${state.startDate} to ${state.endDate}`
+    : state.selectedPeriod;
 
   return (
     <SafeAreaView style={[styles.screen, { backgroundColor: colors.bg }]}>
       <ScrollView contentContainerStyle={styles.container} showsVerticalScrollIndicator={false}>
         {/* Page Header */}
         <PageHeader
-          title="Reports & Analytics"
-          subtitle="Mobile Admin • Regional Metrics"
+          title="Official Tenant Reports"
+          subtitle="Regional compliance, statutory ledgers, and official printouts."
           action={
             <Button
               variant="outline"
@@ -158,17 +138,95 @@ export function ReportsScreen() {
           }
         />
 
-        {/* Controls Card */}
-        <AnimatedCard style={[styles.controlsCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-          {/* Main Tab Switcher */}
-          <View style={styles.tabBar}>
-            {REPORT_TABS.map((tab) => {
-              const isActive = state.reportType === tab.id;
+        {/* Quick Generation Station */}
+        <AnimatedCard
+          style={[
+            styles.quickStationCard,
+            {
+              backgroundColor: colors.cardBg,
+              borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+            },
+          ]}
+        >
+          <View style={styles.quickHeader}>
+            <View style={[styles.quickIconBox, { backgroundColor: isDark ? colors.neutral[800] : colors.brand.light }]}>
+              <Lucide name="printer" size={16} color={isDark ? colors.brand[500] : colors.brand.primary} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={[styles.quickTitle, { color: colors.text }]}>Direct Print Station</Text>
+              <Text style={[styles.quickSub, { color: colors.textMuted }]}>
+                Select report & period to print directly
+              </Text>
+            </View>
+          </View>
+
+          {/* Report Dropdown Trigger */}
+          <Pressable
+            style={[
+              styles.dropdownBtn,
+              {
+                backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50],
+                borderColor: colors.border,
+              },
+            ]}
+            onPress={() => setIsDropdownOpen((prev) => !prev)}
+          >
+            <View style={styles.dropdownBtnContent}>
+              <Text style={[styles.dropdownCode, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                {activeReport !== null ? activeReport.code : 'SELECT'}
+              </Text>
+              <Text style={[styles.dropdownTitle, { color: colors.text }]} numberOfLines={1}>
+                {activeReport !== null ? activeReport.title : 'Select report'}
+              </Text>
+            </View>
+            <Lucide name={isDropdownOpen ? 'chevron-up' : 'chevron-down'} size={14} color={colors.textMuted} />
+          </Pressable>
+
+          {/* Dropdown Menu */}
+          {isDropdownOpen && (
+            <View style={[styles.dropdownMenu, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
+              <ScrollView style={{ maxHeight: 240 }}>
+                {state.statutoryReports.map((item) => (
+                  <Pressable
+                    key={item.metadata.code}
+                    style={[
+                      styles.dropdownMenuItem,
+                      { borderBottomColor: isDark ? colors.neutral[800] : colors.neutral[100] },
+                      item.metadata.code === selectedReportCode && {
+                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                      },
+                    ]}
+                    onPress={() => {
+                      setSelectedReportCode(item.metadata.code);
+                      setIsDropdownOpen(false);
+                    }}
+                  >
+                    <Text
+                      style={[
+                        styles.dropdownMenuItemCode,
+                        { color: isDark ? colors.brand[500] : colors.brand.primary },
+                      ]}
+                    >
+                      {item.metadata.code}
+                    </Text>
+                    <Text style={[styles.dropdownMenuItemTitle, { color: colors.text }]} numberOfLines={1}>
+                      {item.metadata.title}
+                    </Text>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            </View>
+          )}
+
+          {/* Period selector */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.periodScroll}>
+            {STATUTORY_PERIODS.map((p) => {
+              const isActive = state.periodMode !== 'custom' && state.selectedPeriod === p.id;
               return (
                 <Pressable
-                  key={tab.id}
+                  key={p.id}
                   style={[
-                    styles.tabItem,
+                    styles.periodPill,
                     { borderColor: colors.border },
                     isActive && {
                       backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
@@ -176,413 +234,217 @@ export function ReportsScreen() {
                     },
                   ]}
                   onPress={() => {
-                    state.setReportType(tab.id);
-                    state.setCurrentPage(1);
+                    state.setPeriodMode('quarterly');
+                    state.setSelectedPeriod(p.id);
                   }}
                 >
-                  <Lucide
-                    name={tab.icon}
-                    size={12}
-                    color={isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted}
-                  />
                   <Text
                     style={[
-                      styles.tabText,
+                      styles.periodPillText,
                       { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
                     ]}
                   >
-                    {tab.label}
+                    {p.label}
                   </Text>
                 </Pressable>
               );
             })}
-          </View>
+            <Pressable
+              style={[
+                styles.periodPill,
+                { borderColor: colors.border },
+                state.periodMode === 'custom' && {
+                  backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                  borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                },
+              ]}
+              onPress={() => state.setPeriodMode('custom')}
+            >
+              <Text
+                style={[
+                  styles.periodPillText,
+                  { color: state.periodMode === 'custom' ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                ]}
+              >
+                Custom
+              </Text>
+            </Pressable>
+          </ScrollView>
 
-          {/* Period Mode Switcher (When not in statutory tab) */}
-          {state.reportType !== 'statutory' && (
-            <View style={styles.rangeRow}>
-              {PERIOD_MODES.map((pm) => {
-                const isActive = state.periodMode === pm.id;
-                return (
-                  <Pressable
-                    key={pm.id}
-                    style={[
-                      styles.pill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                    ]}
-                    onPress={() => {
-                      state.setPeriodMode(pm.id);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      ]}
-                    >
-                      {pm.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          {/* Custom Date Inputs */}
+          {state.periodMode === 'custom' && (
+            <View style={styles.customDateRow}>
+              <TextInput
+                style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                value={state.startDate}
+                onChangeText={state.setStartDate}
+                placeholder="Start Date"
+                placeholderTextColor={colors.textMuted}
+              />
+              <Text style={{ color: colors.textMuted }}>to</Text>
+              <TextInput
+                style={[styles.customInput, { backgroundColor: isDark ? colors.neutral[900] : colors.neutral[50], borderColor: colors.border, color: colors.text }]}
+                value={state.endDate}
+                onChangeText={state.setEndDate}
+                placeholder="End Date"
+                placeholderTextColor={colors.textMuted}
+              />
             </View>
           )}
 
-          {/* Granular Sub-Filters */}
-          {state.reportType !== 'statutory' && state.periodMode === 'monthly' && (
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.subFilterScroll}>
-              {MONTHS.map((m, idx) => {
-                const isActive = state.selectedMonth === idx;
-                return (
-                  <Pressable
-                    key={m}
-                    style={[
-                      styles.miniPill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                    ]}
-                    onPress={() => {
-                      state.setSelectedMonth(idx);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.miniPillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      ]}
-                    >
-                      {m}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </ScrollView>
-          )}
-
-          {state.reportType !== 'statutory' && state.periodMode === 'quarterly' && (
-            <View style={styles.rangeRow}>
-              {QUARTERS.map((qObj) => {
-                const isActive = state.selectedQuarter === qObj.q;
-                return (
-                  <Pressable
-                    key={qObj.q}
-                    style={[
-                      styles.pill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                    ]}
-                    onPress={() => {
-                      state.setSelectedQuarter(qObj.q);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      ]}
-                    >
-                      {qObj.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
+          {/* Action buttons */}
+          {activeReport !== null && (
+            <View style={styles.quickActionsRow}>
+              <Button
+                variant="primary"
+                size="sm"
+                fullWidth={false}
+                leftIcon={<Lucide name="printer" size={14} color="#FFFFFF" />}
+                onPress={() => state.handlePrintStatutoryReport(activeReport)}
+              >
+                Print / PDF
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                leftIcon={<Lucide name="eye" size={14} color={colors.text} />}
+                onPress={() => state.handleOpenStatutoryModal(activeReport)}
+              >
+                Preview
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                leftIcon={<Lucide name="download" size={14} color={colors.text} />}
+                onPress={() => state.handleDownloadStatutoryCsv(activeReport.code)}
+              >
+                CSV
+              </Button>
             </View>
           )}
-
-          {state.reportType !== 'statutory' && state.periodMode === 'yearly' && (
-            <View style={styles.rangeRow}>
-              {YEARS.map((yr) => {
-                const isActive = state.selectedYear === yr;
-                return (
-                  <Pressable
-                    key={yr}
-                    style={[
-                      styles.pill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                    ]}
-                    onPress={() => {
-                      state.setSelectedYear(yr);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      ]}
-                    >
-                      {yr}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          {state.reportType !== 'statutory' && state.periodMode === 'rolling' && (
-            <View style={styles.rangeRow}>
-              {TIME_RANGES.map((t) => {
-                const isActive = state.timeRange === t.id;
-                return (
-                  <Pressable
-                    key={t.id}
-                    style={[
-                      styles.pill,
-                      { borderColor: colors.border },
-                      isActive && {
-                        backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
-                        borderColor: isDark ? colors.brand[500] : colors.brand.primary,
-                      },
-                    ]}
-                    onPress={() => {
-                      state.setTimeRange(t.id);
-                      state.setCurrentPage(1);
-                    }}
-                  >
-                    <Text
-                      style={[
-                        styles.pillText,
-                        { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
-                      ]}
-                    >
-                      {t.label}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          )}
-
-          {/* Search Bar */}
-          <SearchBar
-            value={state.searchQuery}
-            onChangeText={(text) => {
-              state.setSearchQuery(text);
-              state.setCurrentPage(1);
-            }}
-            placeholder="Search records..."
-          />
         </AnimatedCard>
 
-        {/* KPI Mini Grid */}
-        <View style={styles.statsGrid}>
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: colors.textMuted }]}>Volume</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.totalApps}</Text>
-            <Text style={[styles.statSub, { color: COLORS.semantic.success }]}>
-              {state.stats.approvedCount} Approved
-            </Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: COLORS.semantic.success }]}>Compliance</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.approvalRate}%</Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>SLA Rate</Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: COLORS.semantic.warningText }]}>Revenue</Text>
-            <Text style={[styles.statValue, { color: colors.text, fontSize: 16 }]}>
-              {formatCurrency(state.stats.totalCollected)}
-            </Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>Collected</Text>
-          </AnimatedCard>
-
-          <AnimatedCard style={[styles.statCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}>
-            <Text style={[styles.statTag, { color: colors.textMuted }]}>CSAT</Text>
-            <Text style={[styles.statValue, { color: colors.text }]}>{state.stats.avgCsat} ★</Text>
-            <Text style={[styles.statSub, { color: colors.textMuted }]}>
-              {state.stats.csatTotal} Feedbacks
-            </Text>
-          </AnimatedCard>
+        {/* Compact Metrics Strip */}
+        <View style={[styles.metricsStrip, { backgroundColor: isDark ? colors.neutral[900] : '#F0FDF4', borderColor: isDark ? colors.neutral[800] : '#DCFCE7' }]}>
+          <Text style={[styles.metricStripText, { color: colors.text }]}>
+            {state.tenantDisplayName} • {state.stats.totalApps} filings • {state.stats.approvalRate}% SLA • {formatCurrency(state.stats.totalCollected)}
+          </Text>
         </View>
 
-        {/* Content Area */}
+        {/* Category Pills & Search */}
+        <View style={styles.categoryRow}>
+          {TENANT_CATEGORIES.map((cat) => {
+            const isActive = tenantCategory === cat.id;
+            return (
+              <Pressable
+                key={cat.id}
+                style={[
+                  styles.catBtn,
+                  { borderColor: colors.border },
+                  isActive && {
+                    backgroundColor: isDark ? colors.neutral[800] : colors.brand.light,
+                    borderColor: isDark ? colors.brand[500] : colors.brand.primary,
+                  },
+                ]}
+                onPress={() => setTenantCategory(cat.id)}
+              >
+                <Text
+                  style={[
+                    styles.catBtnText,
+                    { color: isActive ? (isDark ? colors.brand[500] : colors.brand.primary) : colors.textMuted },
+                    isActive && { fontWeight: TYPOGRAPHY.weights.bold },
+                  ]}
+                >
+                  {cat.label} ({cat.count})
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+
+        <SearchBar
+          value={state.searchQuery}
+          onChangeText={state.setSearchQuery}
+          placeholder="Search by code or title..."
+        />
+
+        {/* Loading / Empty States */}
         {state.isLoading && (
           <View style={styles.loadingStack}>
-            <SkeletonLoader variant="rectangular" width="100%" height={70} borderRadius={8} />
-            <SkeletonLoader variant="rectangular" width="100%" height={70} borderRadius={8} />
-            <SkeletonLoader variant="rectangular" width="100%" height={70} borderRadius={8} />
+            <SkeletonLoader variant="rectangular" width="100%" height={120} borderRadius={8} />
+            <SkeletonLoader variant="rectangular" width="100%" height={120} borderRadius={8} />
           </View>
         )}
 
-        {!state.isLoading && state.activeItemCount === 0 && (
+        {!state.isLoading && displayedReports.length === 0 && (
           <EmptyState
             icon="file-text"
-            title="No Records"
-            description="No items found matching your filters."
-            actionLabel="Reset"
+            title="No Reports Found"
+            description="No reports match your filters."
+            actionLabel="Reset Filters"
             onActionPress={() => {
               state.setSearchQuery('');
-              state.setTimeRange('30d');
+              setTenantCategory('all');
             }}
           />
         )}
 
-        {/* Applications List */}
-        {!state.isLoading && (state.reportType === 'applications' || state.reportType === 'compliance') &&
-          state.paginatedApplications.map((app: ApplicationSummaryDto, index: number) => {
-            const statusStyle = getStatusBadgeStyle(app.status);
-            const applicant = app.filingUser?.name ?? app.filingUser?.company?.name ?? 'Applicant';
-            return (
-              <AnimatedCard
-                key={app.id || index}
-                delay={index * 25}
-                style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-              >
-                <View style={styles.cardTopRow}>
-                  <Text style={[styles.itemRef, { color: colors.text }]}>
-                    {app.applicationNumber || 'APP-2026-001'}
-                  </Text>
-                  <View
-                    style={[
-                      styles.badge,
-                      { backgroundColor: statusStyle.bg, borderColor: statusStyle.border },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-                      {app.status || 'Submitted'}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.itemTitle, { color: colors.text }]}>{applicant}</Text>
-                <Text style={[styles.itemSub, { color: colors.textMuted }]}>
-                  {app.serviceName || 'Radio Service'} • {formatDate(app.createdAt)}
-                </Text>
-              </AnimatedCard>
-            );
-          })}
-
-        {/* Financial List */}
-        {!state.isLoading && state.reportType === 'financial' &&
-          state.paginatedTransactions.map((tx: TenantTransactionDto, index: number) => {
-            const statusStyle = getStatusBadgeStyle(tx.paymentStatus);
-            return (
-              <AnimatedCard
-                key={tx.id || index}
-                delay={index * 25}
-                style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-              >
-                <View style={styles.cardTopRow}>
-                  <Text style={[styles.itemRef, { color: colors.text }]}>{tx.refNo}</Text>
-                  <View
-                    style={[
-                      styles.badge,
-                      { backgroundColor: statusStyle.bg, borderColor: statusStyle.border },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: statusStyle.text }]}>
-                      {tx.paymentStatus || 'Pending'}
-                    </Text>
-                  </View>
-                </View>
-
-                <Text style={[styles.itemTitle, { color: colors.text }]}>
-                  {tx.applicantName || 'Applicant'}
-                </Text>
-                <View style={styles.cardBottomRow}>
-                  <Text style={[styles.itemSub, { color: colors.textMuted }]}>
-                    {tx.serviceType || 'Permit Fee'} • {formatDate(tx.date)}
-                  </Text>
-                  <Text style={[styles.itemPrice, { color: colors.text }]}>
-                    {formatCurrency(tx.amount)}
-                  </Text>
-                </View>
-              </AnimatedCard>
-            );
-          })}
-
-        {/* CSAT List */}
-        {!state.isLoading && state.reportType === 'satisfaction' &&
-          state.paginatedFeedback.map((fb: FeedbackDto, index: number) => {
-            const displayName = fb.isAnonymous ? 'Anonymous Client' : (fb.senderName || 'Client');
-            return (
-              <AnimatedCard
-                key={fb.id || index}
-                delay={index * 25}
-                style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
-              >
-                <View style={styles.cardTopRow}>
-                  <Text style={[styles.itemRef, { color: colors.text }]}>{displayName}</Text>
-                  {renderRatingStars(fb.rating)}
-                </View>
-
-                <Text style={[styles.itemTitle, { color: colors.text }]}>{fb.subject}</Text>
-                <Text style={[styles.itemSub, { color: colors.textMuted }]} numberOfLines={2}>
-                  {fb.message}
-                </Text>
-                <Text style={[styles.itemSub, { color: colors.textMuted, marginTop: 4 }]}>
-                  Submitted: {formatDate(fb.createdAt)}
-                </Text>
-              </AnimatedCard>
-            );
-          })}
-
-        {/* Statutory Government Submissions List */}
-        {!state.isLoading && state.reportType === 'statutory' &&
-          state.statutoryReports.map((rep: StatutoryReportSummary, index: number) => {
+        {/* Official Reports List */}
+        {!state.isLoading &&
+          displayedReports.map((rep: StatutoryReportSummary, index: number) => {
             const meta = rep.metadata;
             return (
               <AnimatedCard
                 key={meta.code}
-                delay={index * 25}
-                style={[styles.itemCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
+                delay={index * 20}
+                style={[styles.reportCard, { backgroundColor: colors.cardBg, borderColor: colors.border }]}
               >
-                <View style={styles.cardTopRow}>
-                  <Text style={[styles.itemRef, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
-                    {meta.code}
-                  </Text>
-                  <View
-                    style={[
-                      styles.badge,
-                      { backgroundColor: `${meta.badgeColor}18`, borderColor: `${meta.badgeColor}40` },
-                    ]}
-                  >
-                    <Text style={[styles.badgeText, { color: meta.badgeColor }]}>
-                      {meta.frequency}
-                    </Text>
+                <View style={styles.cardHeader}>
+                  <View style={[styles.agencyBadge, { backgroundColor: `${meta.badgeColor}15`, borderColor: `${meta.badgeColor}35` }]}>
+                    <Text style={[styles.agencyBadgeText, { color: meta.badgeColor }]}>{meta.agency}</Text>
                   </View>
+                  <Text style={[styles.freqText, { color: colors.textMuted }]}>{meta.frequency}</Text>
                 </View>
 
-                <Text style={[styles.itemTitle, { color: colors.text }]}>{meta.title}</Text>
-                <Text style={[styles.itemSub, { color: colors.textMuted }]}>{meta.agency}</Text>
-                <Text style={[styles.itemSub, { color: COLORS.semantic.success, marginTop: 2 }]}>
-                  {rep.recordCount} Records • {rep.complianceRate}% Compliance
+                <Text style={[styles.cardCode, { color: isDark ? colors.brand[500] : colors.brand.primary }]}>
+                  {meta.code}
+                </Text>
+                <Text style={[styles.cardTitle, { color: colors.text }]}>{meta.title}</Text>
+                <Text style={[styles.cardDesc, { color: colors.textMuted }]} numberOfLines={2}>
+                  {meta.description}
                 </Text>
 
-                <View style={styles.cardBottomRow}>
+                <View style={styles.cardStatsRow}>
+                  <Text style={[styles.cardStatText, { color: colors.textMuted }]}>
+                    Records: <Text style={{ color: colors.text, fontWeight: 'bold' }}>{rep.recordCount}</Text>
+                  </Text>
+                  <Text style={[styles.cardStatText, { color: colors.textMuted }]}>
+                    Compliance: <Text style={{ color: COLORS.semantic.success, fontWeight: 'bold' }}>{rep.complianceRate}%</Text>
+                  </Text>
+                  {rep.totalAmount !== undefined && (
+                    <Text style={[styles.cardStatText, { color: colors.textMuted }]}>
+                      ₱{rep.totalAmount.toLocaleString('en-US', { maximumFractionDigits: 0 })}
+                    </Text>
+                  )}
+                </View>
+
+                <View style={[styles.cardActions, { borderTopColor: isDark ? colors.neutral[800] : colors.neutral[100] }]}>
                   <Button
                     variant="outline"
                     size="sm"
                     fullWidth={false}
-                    leftIcon={<Lucide name="eye" size={11} color={colors.text} />}
+                    leftIcon={<Lucide name="eye" size={12} color={colors.text} />}
                     onPress={() => state.handleOpenStatutoryModal(meta)}
                   >
-                    View
+                    Preview
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     fullWidth={false}
-                    leftIcon={<Lucide name="download" size={11} color={colors.text} />}
+                    leftIcon={<Lucide name="download" size={12} color={colors.text} />}
                     onPress={() => state.handleDownloadStatutoryCsv(meta.code)}
                   >
                     CSV
@@ -591,7 +453,7 @@ export function ReportsScreen() {
                     variant="primary"
                     size="sm"
                     fullWidth={false}
-                    leftIcon={<Lucide name="printer" size={11} color="#FFFFFF" />}
+                    leftIcon={<Lucide name="printer" size={12} color="#FFFFFF" />}
                     onPress={() => state.handlePrintStatutoryReport(meta)}
                   >
                     Print
@@ -600,39 +462,19 @@ export function ReportsScreen() {
               </AnimatedCard>
             );
           })}
-
-        {/* Native Pagination Controls */}
-        {state.reportType !== 'statutory' && state.totalPages > 1 && (
-          <View style={styles.paginationRow}>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={state.currentPage === 1}
-              onPress={() => state.setCurrentPage((p) => Math.max(1, p - 1))}
-            >
-              Prev
-            </Button>
-            <Text style={[styles.pageInfoText, { color: colors.text }]}>
-              {state.currentPage} / {state.totalPages}
-            </Text>
-            <Button
-              variant="outline"
-              size="sm"
-              isDisabled={state.currentPage === state.totalPages}
-              onPress={() => state.setCurrentPage((p) => Math.min(state.totalPages, p + 1))}
-            >
-              Next
-            </Button>
-          </View>
-        )}
       </ScrollView>
 
-      {/* Statutory Report In-App Preview & Export Modal */}
       <StatutoryReportPreviewModal
         visible={state.statutoryModal.visible}
         report={state.statutoryModal.report}
         tenantName={state.tenantDisplayName}
-        period={state.selectedPeriod}
+        period={effectivePeriod}
+        startDate={state.startDate}
+        endDate={state.endDate}
+        onDateRangeChange={(s, e) => {
+          state.setStartDate(s);
+          state.setEndDate(e);
+        }}
         applications={state.filteredApplications}
         transactions={state.filteredTransactions}
         feedback={state.filteredFeedback}
@@ -648,145 +490,187 @@ const styles = StyleSheet.create({
   },
   container: {
     padding: SPACING[16],
+    paddingBottom: 90,
     gap: SPACING[12],
-    paddingBottom: 40,
   },
-  statsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: SPACING[8],
-  },
-  statCard: {
-    flex: 1,
-    minWidth: '47%',
-    padding: SPACING[10],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    gap: 2,
-  },
-  statTag: {
-    fontSize: 10,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: '700',
-  },
-  statSub: {
-    fontSize: 11,
-  },
-  controlsCard: {
+  quickStationCard: {
     padding: SPACING[12],
     borderRadius: RADIUS.card,
-    borderWidth: 1,
+    borderWidth: 1.5,
     gap: SPACING[10],
   },
-  tabBar: {
+  quickHeader: {
     flexDirection: 'row',
-    gap: 4,
+    alignItems: 'center',
+    gap: SPACING[10],
   },
-  tabItem: {
-    flex: 1,
-    flexDirection: 'row',
+  quickIconBox: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 4,
-    paddingVertical: 6,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
   },
-  tabText: {
+  quickTitle: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  quickSub: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
     fontSize: 11,
-    fontWeight: '600',
   },
-  rangeRow: {
+  dropdownBtn: {
     flexDirection: 'row',
-    gap: 6,
-  },
-  pill: {
-    flex: 1,
     alignItems: 'center',
-    paddingVertical: 4,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-  },
-  pillText: {
-    fontSize: 11,
-    fontWeight: '500',
-  },
-  subFilterScroll: {
-    flexDirection: 'row',
-    gap: 6,
-    paddingVertical: 2,
-  },
-  miniPill: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: RADIUS.button,
-    borderWidth: 1,
-  },
-  miniPillText: {
-    fontSize: 10,
-    fontWeight: '500',
-  },
-  loadingStack: {
-    gap: SPACING[8],
-  },
-  itemCard: {
-    padding: SPACING[12],
-    borderRadius: RADIUS.card,
-    borderWidth: 1,
-    gap: 4,
-  },
-  cardTopRow: {
-    flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  cardBottomRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginTop: 2,
-  },
-  itemRef: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  itemTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-  },
-  itemSub: {
-    fontSize: 11,
-  },
-  itemPrice: {
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  badge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
+    paddingHorizontal: SPACING[10],
+    paddingVertical: SPACING[8],
     borderRadius: RADIUS.sm,
     borderWidth: 1,
   },
-  badgeText: {
+  dropdownBtnContent: {
+    flex: 1,
+    marginRight: 8,
+  },
+  dropdownCode: {
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: TYPOGRAPHY.weights.bold,
   },
-  starsRow: {
-    flexDirection: 'row',
-  },
-  paginationRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: SPACING[16],
-    marginTop: SPACING[8],
-  },
-  pageInfoText: {
+  dropdownTitle: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: TYPOGRAPHY.weights.semibold,
+  },
+  dropdownMenu: {
+    borderRadius: RADIUS.sm,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  dropdownMenuItem: {
+    paddingHorizontal: SPACING[12],
+    paddingVertical: SPACING[8],
+    borderBottomWidth: 1,
+  },
+  dropdownMenuItemCode: {
+    fontSize: 10,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  dropdownMenuItemTitle: {
+    fontSize: 11,
+  },
+  periodScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  periodPill: {
+    paddingHorizontal: 8,
+    paddingVertical: 5,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  periodPillText: {
+    fontSize: 11,
+  },
+  customDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  customInput: {
+    flex: 1,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    fontSize: 11,
+  },
+  quickActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    paddingTop: 6,
+  },
+  metricsStrip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  metricStripText: {
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  catBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 6,
+    borderRadius: 6,
+    borderWidth: 1,
+  },
+  catBtnText: {
+    fontSize: 11,
+  },
+  loadingStack: {
+    gap: 10,
+  },
+  reportCard: {
+    padding: SPACING[12],
+    borderRadius: RADIUS.card,
+    borderWidth: 1,
+    gap: 6,
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  agencyBadge: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    borderWidth: 1,
+  },
+  agencyBadgeText: {
+    fontSize: 9,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    textTransform: 'uppercase',
+  },
+  freqText: {
+    fontSize: 10,
+  },
+  cardCode: {
+    fontSize: 11,
+    fontWeight: TYPOGRAPHY.weights.bold,
+  },
+  cardTitle: {
+    fontSize: TYPOGRAPHY.sizes.body,
+    fontWeight: TYPOGRAPHY.weights.bold,
+    lineHeight: 18,
+  },
+  cardDesc: {
+    fontSize: 11,
+    lineHeight: 15,
+  },
+  cardStatsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingVertical: 4,
+  },
+  cardStatText: {
+    fontSize: 10,
+  },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 6,
+    paddingTop: 8,
+    borderTopWidth: 1,
   },
 });

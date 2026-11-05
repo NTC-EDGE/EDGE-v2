@@ -215,6 +215,10 @@ export function generateSoaPrintableHtml(
   const isPaid = effectiveOr.length > 0 ||
     Boolean(app.paidAt || app.op?.paidAt || app.status === 'APPROVED');
 
+  const isForAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
+  const isOfficialApplication = !isForAssessmentOnly;
+  const applicationTypeLabel = isForAssessmentOnly ? 'For Assessment Only' : 'Official Application';
+
   const effectivePreparer = safeString(
     preparerName || app.soa?.preparedByName || app.evaluatingOfficer,
     'Assessing Officer / Evaluator'
@@ -336,11 +340,18 @@ export function generateSoaPrintableHtml(
   <div class="doc-banner">
     <div>
       <div class="doc-title">STATEMENT OF ACCOUNT (SOA)</div>
-      <div style="font-size: 10px; opacity: 0.85;">Official Billing Assessment &amp; Regulatory Fee Schedule</div>
+      <div style="font-size: 10px; opacity: 0.85; margin-top: 2px;">
+        ${isForAssessmentOnly ? 'Preliminary Fee Assessment &amp; Requirement Estimation' : 'Official Billing Assessment &amp; Regulatory Fee Schedule'}
+      </div>
     </div>
     <div style="text-align: right;">
       <div class="doc-ref">${soaNumber}</div>
-      <div style="font-size: 10px; color: #94a3b8;">Issued: ${currentDate}</div>
+      <div style="margin-top: 3px;">
+        <span style="display: inline-block; font-size: 9.5px; font-weight: 800; padding: 2px 8px; border-radius: 4px; letter-spacing: 0.5px; text-transform: uppercase; ${isForAssessmentOnly ? 'background: #7c3aed; color: #ffffff;' : 'background: #0284c7; color: #ffffff;'}">
+          ${isForAssessmentOnly ? 'FOR ASSESSMENT ONLY' : 'OFFICIAL APPLICATION'}
+        </span>
+      </div>
+      <div style="font-size: 9.5px; color: #94a3b8; margin-top: 2px;">Issued: ${currentDate}</div>
     </div>
   </div>
 
@@ -361,6 +372,12 @@ export function generateSoaPrintableHtml(
           <div class="info-name" style="font-family: monospace; color: #0284c7;">Ref #${refNum}</div>
           <div class="info-sub"><strong>Service:</strong> ${serviceName}</div>
           <div class="info-sub"><strong>Category:</strong> ${categoryName} • <strong>Mode:</strong> ${filingMode}</div>
+          <div class="info-sub" style="margin-top: 3px;">
+            <strong>Application Type:</strong>
+            <span style="font-weight: 700; color: ${isForAssessmentOnly ? '#7c3aed' : '#0284c7'};">
+              ${applicationTypeLabel}
+            </span>
+          </div>
           <div class="info-sub" style="margin-top: 4px;">
             <strong>Payment Due Date:</strong>
             <span class="due-date-badge">${dueDateStr}</span>
@@ -397,6 +414,16 @@ export function generateSoaPrintableHtml(
         <div class="total-amount">${formatCurrency(totalAmount)}</div>
       </div>
     </div>
+  </div>
+
+  <div style="margin-top: 14px; margin-bottom: 14px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 6px; background-color: #f8fafc; font-size: 11px; display: flex; gap: 24px; align-items: center; justify-content: flex-start;">
+    <span style="font-weight: 700; color: #475569; text-transform: uppercase; font-size: 10px; letter-spacing: 0.5px;">Application Intent:</span>
+    <span style="${isForAssessmentOnly ? 'font-weight: 800; color: #7c3aed;' : 'color: #64748b;'}">
+      <strong>${isForAssessmentOnly ? '[✓]' : '[ ]'}</strong> For Assessment Only
+    </span>
+    <span style="${isOfficialApplication ? 'font-weight: 800; color: #0284c7;' : 'color: #64748b;'}">
+      <strong>${isOfficialApplication ? '[✓]' : '[ ]'}</strong> Official Application
+    </span>
   </div>
 
   <div class="guidelines">

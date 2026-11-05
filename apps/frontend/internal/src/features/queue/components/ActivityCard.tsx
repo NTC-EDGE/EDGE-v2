@@ -189,10 +189,23 @@ export function ActivityCard({
     }
 
     if (st === "foraccountant") {
+      const isAssignedEvaluator = Boolean(
+        application.assignedTo &&
+        application.evaluatingOfficer &&
+        application.assignedTo.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
+      );
+      const isAccountingEvaluator = Boolean(
+        application.accountingOfficer &&
+        application.evaluatingOfficer &&
+        application.accountingOfficer.trim().toLowerCase() === application.evaluatingOfficer.trim().toLowerCase()
+      );
+      const validAccounting = isAccountingEvaluator ? undefined : application.accountingOfficer;
+      const validAssigned = isAssignedEvaluator ? undefined : application.assignedTo;
+
       const name =
-        application.accountingOfficer ||
-        (!isGenericOfficer(application.assignedTo, application.office)
-          ? application.assignedTo
+        validAccounting ||
+        (!isGenericOfficer(validAssigned, application.office)
+          ? validAssigned
           : "Unassigned");
       return {
         label: `Accountant: ${name}`,
@@ -207,10 +220,23 @@ export function ActivityCard({
     }
 
     if (st === "pendingpayment") {
+      const isAssignedAccountant = Boolean(
+        application.assignedTo &&
+        application.accountingOfficer &&
+        application.assignedTo.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
+      );
+      const isCashierAccountant = Boolean(
+        application.cashierOfficer &&
+        application.accountingOfficer &&
+        application.cashierOfficer.trim().toLowerCase() === application.accountingOfficer.trim().toLowerCase()
+      );
+      const validCashier = isCashierAccountant ? undefined : application.cashierOfficer;
+      const validAssigned = isAssignedAccountant ? undefined : application.assignedTo;
+
       const name =
-        application.cashierOfficer ||
-        (!isGenericOfficer(application.assignedTo, application.office)
-          ? application.assignedTo
+        validCashier ||
+        (!isGenericOfficer(validAssigned, application.office)
+          ? validAssigned
           : "Unassigned");
       return {
         label: `Cashier: ${name}`,

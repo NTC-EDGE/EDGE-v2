@@ -17,6 +17,7 @@ public class ApplicantDto
     public string? ServiceCategoryName { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
     public CompanyDetailDto? Company { get; set; }
     public ApplicantDetailDto? Details { get; set; }

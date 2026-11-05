@@ -118,6 +118,12 @@ export interface ActiveApplicantSnapshot {
   selectedVariantId?: string;
   selectedVariantDescription?: string;
   applicationType?: string;
+  examineeType?: string;
+  examType?: string;
+  element?: string;
+  elements?: string;
+  selectedElementTitle?: string;
+  selectedOption?: string;
 }
 
 export interface ApplicationSnapshot {

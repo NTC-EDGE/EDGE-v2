@@ -7,6 +7,7 @@ interface SoaStatusBannersProps {
   isPendingPayment: boolean;
   isPaymentSubmitted: boolean;
   isSoaReturned: boolean;
+  isAssessmentOnly?: boolean;
   note?: string;
 }
 
@@ -15,12 +16,35 @@ export function SoaStatusBanners({
   isPendingPayment,
   isPaymentSubmitted,
   isSoaReturned,
+  isAssessmentOnly = false,
   note,
 }: SoaStatusBannersProps) {
   const { colors, isDark } = useTheme();
 
   return (
     <>
+      {/* Assessment Only Banner */}
+      {isAssessmentOnly && (
+        <View
+          style={{
+            padding: 12,
+            borderRadius: RADIUS.sm,
+            backgroundColor: isDark ? '#2e1065' : '#faf5ff',
+            borderColor: isDark ? '#7e22ce' : '#d8b4fe',
+            borderWidth: 1,
+            marginBottom: 12,
+            flexDirection: 'row',
+            gap: 10,
+            alignItems: 'center',
+          }}
+        >
+          <Lucide name="search" size={18} color={isDark ? '#c084fc' : '#7c3aed'} />
+          <Text style={{ flex: 1, fontSize: 12, color: isDark ? '#f3e8ff' : '#581c87', fontFamily: TYPOGRAPHY.fonts.primary, lineHeight: 18 }}>
+            <Text style={{ fontWeight: '700' }}>Filing Mode: For Assessment Only.</Text> This applicant requested a fee assessment and SOA estimation. Approving will release the official Statement of Account directly to the applicant and complete the application. No Order of Payment or Accountant review is required.
+          </Text>
+        </View>
+      )}
+
       {/* Accountant Verification Banner */}
       {isForAccountant && (
         <View

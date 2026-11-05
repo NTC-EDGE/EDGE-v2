@@ -42,6 +42,16 @@ public class ReprocessAssessmentCommandHandler
             return ApiResponse<Guid>.Fail($"Application with ID '{request.ApplicationId}' was not found.");
         }
 
+        if (app.Intent != ApplicationIntent.AssessmentOnly)
+        {
+            return ApiResponse<Guid>.Fail("Only pre-assessment applications can be submitted for re-assessment.");
+        }
+
+        if (app.Status == ApplicationStatus.Evaluating)
+        {
+            return ApiResponse<Guid>.Fail("This assessment application is already under active evaluation.");
+        }
+
         var currentUserIdStr = _currentUserService.UserId;
         Guid? actingUserId = null;
         if (!string.IsNullOrEmpty(currentUserIdStr))

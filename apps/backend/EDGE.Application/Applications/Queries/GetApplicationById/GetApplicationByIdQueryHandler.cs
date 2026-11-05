@@ -3,13 +3,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Constants;
+using EDGE.Domain.Enums;
 using EDGE.Application.Applicants.Dtos;
 using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
-using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Applications.Queries.GetApplicationById;
 
@@ -63,10 +64,10 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             : (app.OrdersOfPayment?.Where(o => o.Status == Domain.Enums.OpStatus.Paid || !string.IsNullOrWhiteSpace(o.OfficialReceiptNumber)).Sum(o => o.AmountReceived > 0 ? o.AmountReceived : o.AmountDue));
 
         var allHistories = (app.Histories ?? Enumerable.Empty<Domain.Entities.ApplicationHistory>())
-            .Select(h => new { h.StaffName, h.StaffRole, h.Action, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
+            .Select(h => new { h.StaffName, h.StaffRole, h.Action, Remarks = (string?)h.Remarks, ToStatus = (Domain.Enums.ApplicationStatus?)h.ToStatus, h.Timestamp })
             .Concat((app.StatementsOfAccount ?? Enumerable.Empty<Domain.Entities.StatementOfAccount>())
                 .SelectMany(s => s.Histories ?? Enumerable.Empty<Domain.Entities.SoaHistory>())
-                .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
+                .Select(sh => new { sh.StaffName, sh.StaffRole, sh.Action, Remarks = (string?)sh.Remarks, ToStatus = (Domain.Enums.ApplicationStatus?)null, sh.Timestamp }))
             .OrderByDescending(h => h.Timestamp)
             .ToList();
 
@@ -81,6 +82,26 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         var resolvedEvaluatorTitle = regionalSignatories.GetResolvedEvaluatorTitle(evaluatorHistory?.StaffRole);
         var resolvedApproverName = regionalSignatories.GetResolvedApproverName();
         var resolvedApproverTitle = regionalSignatories.GetResolvedApproverTitle();
+
+        var accountantHistory = allHistories.FirstOrDefault(h =>
+            !string.IsNullOrWhiteSpace(h.StaffName) &&
+            (h.StaffRole == null || (!h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Engineer", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Forwarded to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Accountant", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Approved & Forwarded", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Re-submitted to Accountant", StringComparison.OrdinalIgnoreCase))) &&
+            ((h.StaffRole != null && h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase)) ||
+             (h.Action != null && (h.Action.Contains("Financial Review", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("SOA Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && h.ToStatus == Domain.Enums.ApplicationStatus.ForAccountant))) ||
+             (h.Remarks != null && (h.Remarks.Contains("Financial review", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Approved by Accountant", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Returned by Accountant", StringComparison.OrdinalIgnoreCase)))));
+
+        var resolvedAccountingOfficer = accountantHistory?.StaffName;
+
+        var cashierHistory = allHistories.FirstOrDefault(h =>
+            !string.IsNullOrWhiteSpace(h.StaffName) &&
+            (h.StaffRole == null || (!h.StaffRole.Contains("Accountant", StringComparison.OrdinalIgnoreCase) && !h.StaffRole.Contains("Evaluator", StringComparison.OrdinalIgnoreCase))) &&
+            (h.Action == null || (!h.Action.Contains("Forwarded to Cashier", StringComparison.OrdinalIgnoreCase) && !h.Action.Contains("Forward to Cashier", StringComparison.OrdinalIgnoreCase))) &&
+            ((h.StaffRole != null && h.StaffRole.Contains("Cashier", StringComparison.OrdinalIgnoreCase)) ||
+             (h.Action != null && (h.Action.Contains("Payment Verification", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("Official Receipt", StringComparison.OrdinalIgnoreCase) || h.Action.Contains("OR Issued", StringComparison.OrdinalIgnoreCase) || (h.Action.Contains("Take Application", StringComparison.OrdinalIgnoreCase) && h.ToStatus == Domain.Enums.ApplicationStatus.PendingPayment))) ||
+             (h.Remarks != null && (h.Remarks.Contains("Payment verification", StringComparison.OrdinalIgnoreCase) || h.Remarks.Contains("Official receipt", StringComparison.OrdinalIgnoreCase)))));
+
+        var resolvedCashierOfficer = cashierHistory?.StaffName;
 
         var issuingHistory = allHistories.FirstOrDefault(h =>
             h.ToStatus == Domain.Enums.ApplicationStatus.Completed ||
@@ -111,6 +132,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
             SubmissionMode = app.SubmissionMode.ToString(),
             DataEntryMethod = app.DataEntryMethod?.ToString(),
             EvaluatingOfficer = resolvedEvaluatorName,
+            AccountingOfficer = resolvedAccountingOfficer,
+            CashierOfficer = resolvedCashierOfficer,
             IssuingOfficer = resolvedIssuingOfficer,
             Remarks = app.Remarks,
             UserId = app.UserId,
@@ -141,7 +164,8 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     ServiceName = aa.Applicant?.Service?.Name,
                     ServiceCategory = aa.Applicant?.Service?.ServiceCategory?.Name,
                     ServiceVariantId = aa.Applicant?.ServiceVariantId,
-                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString()
+                    ServiceVariantName = aa.Applicant?.ServiceVariant?.Description ?? aa.Applicant?.ServiceVariant?.Type.ToString(),
+                    SubmissionId = aa.Applicant?.FormSubmission?.Id ?? (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == aa.ApplicantId)?.Id
                 }).ToList(),
             FilingUser = app.User != null ? new FilingUserDto
             {
@@ -199,6 +223,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EvaluationRemarks = a?.EvaluationRemarks,
                     ServiceId = a?.ServiceId,
                     ServiceVariantId = a?.ServiceVariantId,
+                    ServiceVariantName = a?.ServiceVariant?.Description ?? a?.ServiceVariant?.Type.ToString() ?? primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
                     SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
@@ -276,6 +301,37 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             Value = fv.Value
                         })
                         .ToList();
+
+                    var applicantElement = applicantDto.FormFieldValues.FirstOrDefault(fv =>
+                        fv != null &&
+                        (FormFieldConstants.ElementFieldIds.Contains(fv.FieldId) ||
+                        fv.FieldLabel.Contains("element", StringComparison.OrdinalIgnoreCase) ||
+                        fv.FieldLabel.Contains("station class", StringComparison.OrdinalIgnoreCase)))?.Value;
+
+                    if (!string.IsNullOrWhiteSpace(applicantElement) && Guid.TryParse(applicantElement, out var parsedElemGuid))
+                    {
+                        var matchedElem = a?.ServiceVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedElemGuid)
+                            ?? primaryVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedElemGuid);
+                        if (matchedElem != null)
+                        {
+                            applicantElement = !string.IsNullOrWhiteSpace(matchedElem.Code) && !string.IsNullOrWhiteSpace(matchedElem.Description)
+                                ? $"{matchedElem.Code} — {matchedElem.Description}"
+                                : (!string.IsNullOrWhiteSpace(matchedElem.Description) ? matchedElem.Description : matchedElem.Code);
+                        }
+                    }
+
+                    if (string.IsNullOrWhiteSpace(applicantElement) && a?.ServiceVariant?.ServiceVariantElements != null && a.ServiceVariant.ServiceVariantElements.Any())
+                    {
+                        var firstElem = a.ServiceVariant.ServiceVariantElements.FirstOrDefault();
+                        if (firstElem != null)
+                        {
+                            applicantElement = !string.IsNullOrWhiteSpace(firstElem.Code) && !string.IsNullOrWhiteSpace(firstElem.Description)
+                                ? $"{firstElem.Code} — {firstElem.Description}"
+                                : (!string.IsNullOrWhiteSpace(firstElem.Description) ? firstElem.Description : firstElem.Code);
+                        }
+                    }
+
+                    applicantDto.Element = applicantElement;
                 }
 
                 return applicantDto;
@@ -410,6 +466,54 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 CorrectedAt = c.CorrectedAt
             }).ToList()
         };
+
+        dto.Element = dto.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
+        if (string.IsNullOrWhiteSpace(dto.Element))
+        {
+            var allFvs = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>())
+                .Where(fs => fs != null)
+                .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<Domain.Entities.FormFieldValue>())
+                .Where(fv => fv != null)
+                .ToList();
+            var matchFv = allFvs.FirstOrDefault(fv =>
+                FormFieldConstants.ElementFieldIds.Contains(fv.FieldId) ||
+                (fv.Field?.Label != null && (fv.Field.Label.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.Field.Label.Contains("station class", StringComparison.OrdinalIgnoreCase))) ||
+                (fv.CustomLabel != null && (fv.CustomLabel.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.CustomLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))));
+            if (matchFv != null && !string.IsNullOrWhiteSpace(matchFv.Value))
+            {
+                var val = matchFv.Value;
+                if (Guid.TryParse(val, out var parsedMatchGuid))
+                {
+                    var matchedElem = primaryVariant?.ServiceVariantElements?.FirstOrDefault(e => e.Id == parsedMatchGuid);
+                    if (matchedElem != null)
+                    {
+                        val = !string.IsNullOrWhiteSpace(matchedElem.Code) && !string.IsNullOrWhiteSpace(matchedElem.Description)
+                            ? $"{matchedElem.Code} — {matchedElem.Description}"
+                            : (!string.IsNullOrWhiteSpace(matchedElem.Description) ? matchedElem.Description : matchedElem.Code);
+                    }
+                }
+                dto.Element = val;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(dto.Element) && primaryVariant?.ServiceVariantElements != null && primaryVariant.ServiceVariantElements.Any())
+        {
+            var firstElem = primaryVariant.ServiceVariantElements.FirstOrDefault();
+            if (firstElem != null)
+            {
+                dto.Element = !string.IsNullOrWhiteSpace(firstElem.Code) && !string.IsNullOrWhiteSpace(firstElem.Description)
+                    ? $"{firstElem.Code} — {firstElem.Description}"
+                    : (!string.IsNullOrWhiteSpace(firstElem.Description) ? firstElem.Description : firstElem.Code);
+            }
+        }
+
+        foreach (var svc in dto.Services)
+        {
+            if (string.IsNullOrWhiteSpace(svc.Element))
+            {
+                var matchedApplicant = dto.Applicants.FirstOrDefault(a => a.Id == svc.ApplicantId);
+                svc.Element = matchedApplicant?.Element ?? dto.Element;
+            }
+        }
 
         return ApiResponse<ApplicationDto>.Success(dto, "Application details retrieved successfully.");
     }

@@ -24,7 +24,12 @@ import { DocumentPreviewFile } from "../../../../shared/components/DocumentPrevi
 import { SectionHeader } from "./reviewComponents";
 import { reviewStyles as styles } from "./reviewStyles";
 import { ApplicantParticularsCard } from "../ApplicantParticularsCard";
-import { BaseApplicationPreview } from "../../../../shared/formPreview";
+import {
+  BaseApplicationPreview,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from "../../../../shared/formPreview";
 import { ApplicantRequirementsSection } from "./ApplicantRequirementsSection";
 import { ApplicationHistoryTimeline } from "./ApplicationHistoryTimeline";
 import { isAllowedRequirementFileType } from "../../../../utils/fileValidation";
@@ -123,16 +128,30 @@ export function ApplicantRecordTab({
     [app, activeApplicant]
   );
 
-  const effectiveVariantName =
-    activeApplicant?.serviceVariantName ||
-    app.serviceVariantName ||
-    app.permitTitle ||
-    null;
+  const effectiveVariantName = resolvePreviewVariant({
+    variantName: activeApplicant?.serviceVariantName,
+    serviceVariantName: app.serviceVariantName,
+    variant: app.services?.find((s) => s.applicantId === activeApplicant?.id)?.serviceVariantName,
+    formFieldValues: flatFormValues,
+  });
 
   const effectiveVariantId =
     activeApplicant?.serviceVariantId ||
     app.services?.find((s) => s.applicantId === activeApplicant?.id)?.serviceVariantId ||
     null;
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    applicationType: activeApplicant?.applicationType,
+    examineeType: undefined,
+    element: undefined,
+    formFieldValues: flatFormValues,
+  }) || (app.applicationType !== 'BULK' ? 'Regular' : undefined);
+
+  const effectiveElements = resolvePreviewElements({
+    element: activeApplicant?.element || activeApplicant?.elements || app.element || app.elements,
+    elements: activeApplicant?.elements || app.elements,
+    formFieldValues: flatFormValues,
+  });
 
   return (
     <View style={{ flex: 1, position: 'relative' }}>
@@ -224,7 +243,8 @@ export function ApplicantRecordTab({
                   formFieldValues={flatFormValues}
                   selectedVariantName={effectiveVariantName}
                   selectedVariantId={effectiveVariantId}
-                  applicationType={activeApplicant?.applicationType || app.applicationType}
+                  applicationType={effectiveAppType}
+                  elements={effectiveElements}
                   activeApplicant={activeApplicant ? {
                     applicantType: activeApplicant.applicantType,
                     companyName: activeApplicant.companyDetails?.name,
@@ -247,6 +267,9 @@ export function ApplicantRecordTab({
                     yearGraduated: activeApplicant.yearGraduated,
                     selectedVariantName: effectiveVariantName || undefined,
                     selectedVariantId: effectiveVariantId || undefined,
+                    element: effectiveElements || activeApplicant.element || undefined,
+                    elements: effectiveElements || activeApplicant.elements || undefined,
+                    selectedElementTitle: effectiveElements || activeApplicant.element || undefined,
                   } : undefined}
                   schoolAttended={activeApplicant?.schoolAttended}
                   courseTaken={activeApplicant?.courseTaken}

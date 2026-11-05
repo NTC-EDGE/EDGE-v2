@@ -301,6 +301,28 @@ export const mapApplicantsPayload = (
       });
     }
 
+    if (!formFieldValues.some((fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000009")) {
+      const elemVal = app.selectedOption;
+      if (elemVal) {
+        formFieldValues.push({
+          fieldId: "fd000000-0000-0000-0000-000000000009",
+          value: elemVal,
+        });
+      }
+    }
+    if (!formFieldValues.some((fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000008") && app.examineeType) {
+      formFieldValues.push({
+        fieldId: "fd000000-0000-0000-0000-000000000008",
+        value: app.examineeType,
+      });
+    }
+    if (!formFieldValues.some((fv) => fv.fieldId === "fd000000-0000-0000-0000-000000000007") && app.examType) {
+      formFieldValues.push({
+        fieldId: "fd000000-0000-0000-0000-000000000007",
+        value: app.examType === "Amateur" ? "Amateur" : (app.examType === "RROC-Aircraft" ? "GMDSS" : "Commercial"),
+      });
+    }
+
     return {
       applicantType: "individual",
       firstName: app.firstName,

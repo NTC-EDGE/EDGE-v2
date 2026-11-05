@@ -207,7 +207,6 @@ export function ActivitiesFeedPane({
     pageNumber: 1,
     searchTerm: debouncedSearchQuery.length > 0 ? debouncedSearchQuery : undefined,
   }, {
-    refreshInterval: 3000,
     revalidateOnFocus: true,
   });
 

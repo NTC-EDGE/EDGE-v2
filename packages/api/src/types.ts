@@ -1022,6 +1022,8 @@ export interface ApplicationServiceDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
 }
 
@@ -1084,10 +1086,14 @@ export interface ApplicantDto {
   userId?: string;
   isGuest: boolean;
   applicantType: string;
+  applicationType?: string;
   status?: string;
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
   details?: ApplicantDetailDto;
   company?: CompanyDetailDto;
@@ -1135,6 +1141,8 @@ export interface ApplicationDto {
   serviceCategoryCode?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   officialReceiptNumber?: string;
   orNumbers?: string[];
   soaNumber?: string;
@@ -1216,10 +1224,14 @@ export interface GeneratedDocumentNumbersDto {
 export interface ApplicantSummaryDto {
   id: string;
   applicantType: string;
+  applicationType?: string;
   status?: string;
   evaluationRemarks?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   submissionId?: string;
   name: string;
   company?: CompanyDetailDto;
@@ -1254,6 +1266,8 @@ export interface ApplicationSummaryDto {
   serviceCategory?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   officialReceiptNumber?: string;
   orNumbers?: string[];
   soaNumber?: string;

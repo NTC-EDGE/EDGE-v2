@@ -138,6 +138,9 @@ export function GeneralWizardSteps({
                 ...app,
                 selectedElementId: elemId,
                 selectedElementTitle: elemTitle,
+                element: elemTitle,
+                elements: elemTitle,
+                selectedOption: elemTitle,
               }))
             );
           }}

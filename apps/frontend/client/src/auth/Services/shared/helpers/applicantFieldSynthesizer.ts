@@ -28,6 +28,12 @@ export const FIELD_GUID_MAP: Record<string, string> = {
   'exam category':            'fd000000-0000-0000-0000-000000000007',
   'examinee type':            'fd000000-0000-0000-0000-000000000008',
   'selected exam elements':   'fd000000-0000-0000-0000-000000000009',
+  'elements':                 'fd000000-0000-0000-0000-000000000009',
+  'element':                  'fd000000-0000-0000-0000-000000000009',
+  'selected elements':        'fd000000-0000-0000-0000-000000000009',
+  'service variant & station class': 'fd000000-0000-0000-0000-000000000009',
+  'service variant':          'fd000000-0000-0000-0000-000000000024',
+  'application variant':      'fd000000-0000-0000-0000-000000000024',
   'special assistance details': 'fd000000-0000-0000-0000-000000000010',
   'admission slip number':    'fd000000-0000-0000-0000-000000000011',
 
@@ -698,6 +704,23 @@ export function synthesizeAllApplicantFieldValues(
   if (applicant.examType) addField(undefined, 'Exam Category', applicant.examType);
   if (applicant.notes) addField(undefined, 'Special Notes / Remarks', applicant.notes);
 
+  // 3a. Exam / Service Variant & Element selections
+  const elemVal = applicant.selectedElementTitle || applicant.selectedOption || applicant.element || applicant.elements;
+  if (elemVal) {
+    addField('fd000000-0000-0000-0000-000000000009', 'Selected Exam Elements', elemVal);
+    addField('fd000000-0000-0000-0000-000000000025', 'Class of Station', elemVal);
+    addField('fd000000-0000-0000-0000-000000000101', 'Station Class', elemVal);
+    addField(undefined, 'Elements', elemVal);
+  }
+
+  const variantVal = applicant.selectedVariantName || applicant.examineeType || applicant.applicantType;
+  if (variantVal) {
+    addField('fd000000-0000-0000-0000-000000000008', 'Examinee Type', variantVal);
+    addField('fd000000-0000-0000-0000-000000000024', 'Permit / License Type', variantVal);
+    addField('fd000000-0000-0000-0000-000000000014', 'Type of Certificate', variantVal);
+    addField(undefined, 'Service Variant', variantVal);
+  }
+
   // ── 4. Align with DB Schema Fields if schema fields exist ───────────────────
   // If the schema defines specific fields, ensure any matching applicant values
   // are represented with the exact FieldId of the schema field so the backend saves them.
@@ -769,6 +792,10 @@ export function synthesizeAllApplicantFieldValues(
       fallbackVal = applicant.companyName || null;
     } else if (lowerLabel.includes('representative')) {
       fallbackVal = repFullName || null;
+    } else if (lowerLabel.includes('element') || lowerLabel.includes('station class')) {
+      fallbackVal = elemVal || null;
+    } else if (lowerLabel.includes('variant')) {
+      fallbackVal = variantVal || null;
     }
 
     if (fallbackVal && !isSuppressedValue(fallbackVal)) {

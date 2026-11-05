@@ -748,7 +748,9 @@ export function useGeneralServiceWizard(
       serviceId: service.id,
       fieldOfficeId: selectedOfficeId,
       serviceVariantId: activeApplicant.selectedVariantId || null,
-      serviceVariantElementIds: [],
+      serviceVariantElementIds: activeApplicant.selectedElementId && isGuid(activeApplicant.selectedElementId)
+        ? [activeApplicant.selectedElementId]
+        : [],
       scheduleId: effectiveScheduleId || (isExamService ? null : undefined),
       isDraft: true,
       applicants: mappedApplicants,

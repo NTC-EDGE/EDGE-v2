@@ -533,6 +533,7 @@ public class SubmitApplicationCommandHandler
                             Id = Guid.NewGuid(),
                             FormSubmissionId = formSubmission.Id,
                             FieldId = fv.FieldId!.Value,
+                            CustomLabel = !string.IsNullOrWhiteSpace(fv.FieldLabel) ? fv.FieldLabel : null,
                             Value = fv.Value ?? ""
                         }, cancellationToken);
                     }

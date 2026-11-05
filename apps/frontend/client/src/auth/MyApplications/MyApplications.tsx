@@ -338,13 +338,6 @@ export function MyApplications() {
     let isMounted = true;
     fetchApplications(false);
 
-    // Live background polling every 3 seconds so status changes reflect without page refresh
-    const timer = setInterval(() => {
-      if (isMounted) {
-        fetchApplications(true);
-      }
-    }, 3000);
-
     const handleFocus = () => {
       if (isMounted) {
         fetchApplications(true);
@@ -357,7 +350,6 @@ export function MyApplications() {
 
     return () => {
       isMounted = false;
-      clearInterval(timer);
       if (Platform.OS === "web" && typeof window !== "undefined") {
         window.removeEventListener("focus", handleFocus);
       }
