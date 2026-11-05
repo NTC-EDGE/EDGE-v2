@@ -17,7 +17,12 @@ import {
 import { styles } from './applicationDetailsStyles';
 import { BulkMetricsGrid } from './BulkMetricsGrid';
 import { SingleApplicantSection } from './SingleApplicantSection';
-import { FormFieldValue } from '../../../../shared/formPreview';
+import {
+  FormFieldValue,
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { extractApplicantFullName } from './applicationDetailsHelpers';
 
 import { DocumentPreviewFile } from '../../../../shared/components/DocumentPreviewModal';
@@ -317,7 +322,24 @@ export function BulkApplicantsSection({
                   ? `${activeApplicant.schedule.date} • ${activeApplicant.schedule.time} (${activeApplicant.schedule.venue})`
                   : scheduleSummaryText
               }
-              variantLabel={activeApplicant.applicationType || variantLabel}
+              variantLabel={resolvePreviewVariant({
+                serviceVariantName: activeApplicant.serviceVariantName || activeApplicant.applicationType || variantLabel,
+                variant: app.variant,
+                element: activeApplicant.element || app.element,
+                examineeType: activeApplicant.details?.examineeType,
+                formFieldValues: selectedApplicantFormFields,
+                fallback: variantLabel,
+              })}
+              applicationType={resolvePreviewApplicationType({
+                applicationType: activeApplicant.applicationType,
+                examineeType: activeApplicant.details?.examineeType,
+                element: activeApplicant.element || app.element,
+                formFieldValues: selectedApplicantFormFields,
+              })}
+              elements={resolvePreviewElements({
+                element: activeApplicant.element || app.element,
+                formFieldValues: selectedApplicantFormFields,
+              })}
               isDesktop={isDesktop}
               docs={selectedApplicantDocs}
               onPreviewFile={onPreviewFile}

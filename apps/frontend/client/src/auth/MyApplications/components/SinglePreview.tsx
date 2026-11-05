@@ -1,4 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, type ComponentProps } from 'react';
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../shared/formPreview';
 import {
   View,
   Text,
@@ -41,12 +46,12 @@ function InfoRow({ label, value, isEven = false }: InfoRowProps) {
   );
 }
 
-function SectionCard({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
+function SectionCard({ title, icon, children }: { title: string; icon: ComponentProps<typeof Icon>['name']; children: React.ReactNode }) {
   return (
     <View style={styles.sectionCard}>
       <View style={styles.sectionTitleRow}>
         <View style={styles.sectionIconWrap}>
-          <Icon name={icon as unknown as any} size={15} color={COLORS.brand[700]} />
+          <Icon name={icon} size={15} color={COLORS.brand[700]} />
         </View>
         <Text style={styles.sectionTitle}>{title}</Text>
       </View>
@@ -64,6 +69,21 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
   const statusColor = getStatusColor(app.status);
   const statusBg = getStatusBgColor(app.status);
   const documents = getAppDocuments(app);
+  const effectiveVariant = resolvePreviewVariant({
+    serviceVariantName: app.serviceVariantName,
+    variant: app.variant,
+    element: app.element,
+    formFieldValues: app.formFieldValues,
+    fallback: '',
+  });
+  const effectiveAppType = resolvePreviewApplicationType({
+    element: app.element,
+    formFieldValues: app.formFieldValues,
+  });
+  const effectiveElements = resolvePreviewElements({
+    element: app.element,
+    formFieldValues: app.formFieldValues,
+  });
 
   // Status timeline steps
   const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
@@ -118,6 +138,27 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
                     {getStatusLabel(app.status)}
                   </Text>
                 </View>
+                {effectiveVariant ? (
+                  <View style={[styles.singleBadge, { backgroundColor: '#EEF2FF', borderWidth: 1, borderColor: '#C7D2FE' }]}>
+                    <Text style={[styles.singleBadgeText, { color: '#4338CA' }]}>
+                      {effectiveVariant}
+                    </Text>
+                  </View>
+                ) : null}
+                {effectiveAppType ? (
+                  <View style={[styles.singleBadge, { backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0' }]}>
+                    <Text style={[styles.singleBadgeText, { color: '#16A34A' }]}>
+                      {effectiveAppType}
+                    </Text>
+                  </View>
+                ) : null}
+                {effectiveElements ? (
+                  <View style={[styles.singleBadge, { backgroundColor: '#FEF3C7', borderWidth: 1, borderColor: '#FDE68A' }]}>
+                    <Text style={[styles.singleBadgeText, { color: '#B45309' }]}>
+                      Elements: {effectiveElements}
+                    </Text>
+                  </View>
+                ) : null}
               </View>
               <Text style={styles.refNumber}>#{app.referenceNumber}</Text>
               <Text style={[styles.serviceName, { fontSize: isDesktop ? 22 : 18 }]}>
@@ -217,7 +258,15 @@ export function SinglePreview({ app, onClose, onDownloadDocument }: SinglePrevie
                     <InfoRow label="Full Name" value={app.applicantName} isEven={false} />
                     <InfoRow label="Sex" value={app.sex} isEven={true} />
                     <InfoRow label="Nationality" value={app.nationality} isEven={false} />
-                    <InfoRow label="Element Type" value={app.element} isEven={true} />
+                    {effectiveVariant ? (
+                      <InfoRow label="Service Variant" value={effectiveVariant} isEven={true} />
+                    ) : null}
+                    {effectiveAppType ? (
+                      <InfoRow label="Application Type" value={effectiveAppType} isEven={Boolean(!effectiveVariant)} />
+                    ) : null}
+                    {effectiveElements ? (
+                      <InfoRow label="Selected Element(s)" value={effectiveElements} isEven={Boolean(effectiveVariant && effectiveAppType)} />
+                    ) : null}
                     <InfoRow label="Submission Date" value={formatRelativeTime(app.submittedAt)} isEven={false} />
                   </SectionCard>
 

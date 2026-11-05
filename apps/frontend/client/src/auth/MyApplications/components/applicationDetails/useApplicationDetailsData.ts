@@ -5,6 +5,11 @@ import { Application, ApplicationDocument, BulkApplicant, getAppDocuments, RawRe
 import { FIELD_ID_TYPE_OF_CERT, FIELD_ID_PERMIT_TYPE, FIELD_ID_APP_TYPE } from '../../../../shared/constants/fieldIds';
 import { RawApplicantHolder, RawApplicantDetails, normalizeStatus } from './applicationDetailsTypes';
 import { extractApplicantFullName, resolveBirthDate, resolveCivilStatus } from './applicationDetailsHelpers';
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 
 export function useApplicationDetailsData(initialApp: Application) {
   const api = useApi();
@@ -300,14 +305,6 @@ export function useApplicationDetailsData(initialApp: Application) {
     return app.office ? `NTC Field Office • ${app.office}` : null;
   }, [app]);
 
-  const variantLabel = useMemo(() => {
-    const isUuid = (val?: string | null) =>
-      Boolean(val && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(val.trim()));
-    const candidates = [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType];
-    const readable = candidates.find((c) => c && c.trim().length > 0 && !isUuid(c));
-    return readable ? readable.trim() : 'Standard';
-  }, [app, singleApplicant]);
-
   const formFieldValues = useMemo(() => {
     let baseValues: Array<{ fieldId: string; fieldLabel: string; value: string }> = [];
     if (app.formFieldValues && app.formFieldValues.length > 0) {
@@ -328,6 +325,34 @@ export function useApplicationDetailsData(initialApp: Application) {
     }
     return baseValues;
   }, [app]);
+
+  const variantLabel = useMemo(() => {
+    return resolvePreviewVariant({
+      serviceVariantName: app.serviceVariantName,
+      variant: app.variant,
+      element: app.element,
+      examineeType: singleApplicant?.examineeType,
+      formFieldValues,
+      fallback: 'Standard',
+    });
+  }, [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType, formFieldValues]);
+
+  const applicationTypeLabel = useMemo(() => {
+    const rawAppType = singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType;
+    return resolvePreviewApplicationType({
+      applicationType: rawAppType,
+      examineeType: singleApplicant?.examineeType,
+      element: app.element,
+      formFieldValues,
+    });
+  }, [singleApplicant?.applicantType, singleApplicant?.examineeType, app.element, formFieldValues]);
+
+  const elementsLabel = useMemo(() => {
+    return resolvePreviewElements({
+      element: app.element,
+      formFieldValues,
+    });
+  }, [app.element, formFieldValues]);
 
 
   const appApplicants = useMemo<BulkApplicant[]>(() => {
@@ -527,20 +552,15 @@ export function useApplicationDetailsData(initialApp: Application) {
   }, [app, singleApplicant]);
 
   const resolvedServiceVariant = useMemo(() =>
-    app.serviceVariantName || app.variant ||
-    app.formFieldValues?.find((fv) =>
-      fv.fieldId === FIELD_ID_TYPE_OF_CERT || fv.fieldId === FIELD_ID_PERMIT_TYPE || fv.fieldId === FIELD_ID_APP_TYPE ||
-      (fv.fieldId !== undefined && fv.fieldId.toLowerCase().includes('variant')) ||
-      (fv.fieldLabel !== undefined && (
-        fv.fieldLabel.toLowerCase().includes('permit / license type') ||
-        fv.fieldLabel.toLowerCase().includes('type of certificate') ||
-        fv.fieldLabel.toLowerCase().includes('application variant') ||
-        fv.fieldLabel.toLowerCase().includes('application type')
-      ))
-    )?.value ||
-    (!isBulk && Array.isArray(app.applicants) && app.applicants.length > 0 && app.applicants[0].applicationType && app.applicants[0].applicationType !== 'Individual' ? app.applicants[0].applicationType : '') ||
-    (app.element !== 'New' ? app.element : ''),
-  [app, isBulk]);
+    resolvePreviewVariant({
+      serviceVariantName: app.serviceVariantName,
+      variant: app.variant,
+      element: app.element,
+      examineeType: singleApplicant?.examineeType,
+      formFieldValues,
+      fallback: '',
+    }),
+  [app.serviceVariantName, app.variant, app.element, singleApplicant?.examineeType, formFieldValues]);
 
   const isAssessmentOnly = Boolean(app.isAssessmentOnly || app.intent === 'AssessmentOnly');
 
@@ -654,6 +674,8 @@ export function useApplicationDetailsData(initialApp: Application) {
     docs,
     primaryName,
     resolvedServiceVariant,
+    applicationTypeLabel,
+    elementsLabel,
     currentStepIndex,
     isAssessmentOnly,
     refetch,

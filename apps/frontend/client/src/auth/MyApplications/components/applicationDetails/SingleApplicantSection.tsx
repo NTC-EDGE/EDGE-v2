@@ -2,7 +2,12 @@ import React from 'react';
 import { View } from 'react-native';
 import { applicationService } from '@edge/api';
 import { Application, ApplicationDocument } from '../../data/applicationsData';
-import { SectionCard, SummaryRow } from '../../../../shared/formPreview';
+import {
+  SectionCard,
+  SummaryRow,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../../../../shared/formPreview';
 import { SubmittedFormStructuredView } from './SubmittedFormStructuredView';
 import { ApplicantParticularsCard } from './ApplicantParticularsCard';
 import { ApplicantRequirementsCard } from './ApplicantRequirementsCard';
@@ -43,6 +48,8 @@ interface SingleApplicantSectionProps {
   isExamService: boolean;
   scheduleSummaryText: string | null;
   variantLabel: string;
+  applicationType?: string | null;
+  elements?: string | null;
   isDesktop: boolean;
   docs: ApplicationDocument[];
   onPreviewFile: (uri: string, name: string) => void;
@@ -61,6 +68,8 @@ export function SingleApplicantSection({
   isExamService,
   scheduleSummaryText,
   variantLabel,
+  applicationType,
+  elements,
   isDesktop,
   docs,
   onPreviewFile,
@@ -82,6 +91,19 @@ export function SingleApplicantSection({
     serviceNameLower.includes('spam') ||
     serviceNameLower.includes('scam') ||
     serviceNameLower.includes('tape preservation');
+
+  const effectiveAppType = resolvePreviewApplicationType({
+    applicationType: applicationType || (singleApplicant?.applicantType === 'Company' ? undefined : singleApplicant?.examineeType),
+    examineeType: singleApplicant?.examineeType,
+    element: app.element,
+    formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    elements,
+    element: app.element,
+    formFieldValues,
+  });
 
   const handlePreviewForm = () => {
     if (typeof app.id !== 'string' || app.id.trim().length === 0) return;
@@ -109,6 +131,8 @@ export function SingleApplicantSection({
         serviceName={app.serviceName}
         isExamService={isExamService}
         variantLabel={variantLabel}
+        applicationType={effectiveAppType ?? undefined}
+        element={effectiveElements ?? undefined}
         scheduleSummaryText={scheduleSummaryText}
         isDesktop={isDesktop}
         canPreviewForm={isRequestOrComplaint}
@@ -144,6 +168,17 @@ export function SingleApplicantSection({
             <SummaryRow label="Examinee Classification" value={singleApplicant.examineeType} />
           )}
 
+          {effectiveAppType && (!isExamService || !singleApplicant?.examineeType) ? (
+            <SummaryRow label="Application Type" value={effectiveAppType} />
+          ) : null}
+
+          {effectiveElements ? (
+            <SummaryRow
+              label={isExamService ? 'Selected Examination Element(s)' : 'Selected Element(s)'}
+              value={effectiveElements}
+            />
+          ) : null}
+
           {scheduleSummaryText && (
             <SummaryRow
               label={isExamService ? 'Assigned Examination Schedule & Venue' : 'Assigned Processing Office'}
@@ -167,6 +202,8 @@ export function SingleApplicantSection({
         serviceVariantId={app.serviceVariantId}
         singleApplicant={singleApplicant}
         variantLabel={variantLabel}
+        applicationType={effectiveAppType}
+        elements={effectiveElements}
         isExamService={isExamService}
       />
 

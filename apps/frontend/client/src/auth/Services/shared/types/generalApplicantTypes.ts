@@ -93,6 +93,9 @@ export interface GeneralApplicantData {
   selectedVariantName?: string;
   selectedElementId?: string;
   selectedElementTitle?: string;
+  element?: string;
+  elements?: string;
+  serviceId?: string;
   uploads: Record<string, { name: string; uri: string; type?: string; file?: File | Blob } | string>;
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   signatureUrl?: string;

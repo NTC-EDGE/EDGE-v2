@@ -11,6 +11,11 @@ import {
   isExamEducationField,
   isExamAssistanceField,
 } from '../core/formPreviewFieldCheckers';
+import {
+  resolvePreviewVariant,
+  resolvePreviewApplicationType,
+  resolvePreviewElements,
+} from '../core/formPreviewHelpers';
 import { getPreviewExtension } from '../extensions';
 import { EquivalentFormHeaderCard } from './EquivalentFormHeaderCard';
 import { ApplicantDetailsReviewCard } from './ApplicantDetailsReviewCard';
@@ -57,6 +62,7 @@ export interface BaseApplicationPreviewProps {
   selectedVariantId?: string | null;
   selectedVariantDescription?: string | null;
   applicationType?: string | null;
+  elements?: string | null;
   showEquivalentFormHeader?: boolean;
   // Flags (optional, derived if not passed)
   isExamService?: boolean;
@@ -102,6 +108,7 @@ export function BaseApplicationPreview({
   selectedVariantId,
   selectedVariantDescription,
   applicationType,
+  elements,
   showEquivalentFormHeader = true,
   isExamService,
   isAmateurCertService,
@@ -116,16 +123,33 @@ export function BaseApplicationPreview({
   const serviceCategoryLower = (service.category || '').toLowerCase().trim();
   const serviceTitleLower = (service.title || '').toLowerCase().trim();
 
-  const effectiveVariantName =
-    selectedVariantName ||
-    activeApplicant?.selectedVariantName ||
-    activeApplicant?.selectedVariant ||
-    null;
+  const effectiveVariantName = resolvePreviewVariant({
+    variantName: selectedVariantName,
+    serviceVariantName: activeApplicant?.selectedVariantName,
+    variant: activeApplicant?.selectedVariant,
+    formFieldValues,
+  });
 
   const effectiveVariantId =
     selectedVariantId ||
     activeApplicant?.selectedVariantId ||
     null;
+
+  const effectiveApplicationType = resolvePreviewApplicationType({
+    applicationType,
+    examineeType: activeApplicant?.examineeType,
+    examType: activeApplicant?.examType,
+    element: activeApplicant?.element,
+    formFieldValues,
+  });
+
+  const effectiveElements = resolvePreviewElements({
+    elements,
+    selectedElementTitle: activeApplicant?.selectedElementTitle,
+    selectedOption: activeApplicant?.selectedOption,
+    element: activeApplicant?.element,
+    formFieldValues,
+  });
 
   // Detect equivalent statutory application form from service + variant
   const canonicalForm = useMemo(() => {
@@ -169,7 +193,7 @@ export function BaseApplicationPreview({
       serviceTitle: service.title,
       serviceName: service.name,
       serviceCode: form?.serviceCode,
-      applicationType: applicationType || activeApplicant?.applicationType,
+      applicationType: effectiveApplicationType || activeApplicant?.applicationType,
       applicantType: (applicantType || activeApplicant?.applicantType || '').toLowerCase() === 'company' ? 'company' : 'individual',
     });
   }, [
@@ -184,7 +208,7 @@ export function BaseApplicationPreview({
     service.title,
     service.name,
     form?.serviceCode,
-    applicationType,
+    effectiveApplicationType,
     activeApplicant?.applicationType,
     applicantType,
     activeApplicant?.applicantType,
@@ -306,6 +330,8 @@ export function BaseApplicationPreview({
           canonicalForm={canonicalForm}
           serviceTitle={service.title || service.name}
           serviceVariantName={effectiveVariantName}
+          applicationType={effectiveApplicationType}
+          elements={effectiveElements}
           version={form?.version || '1.0'}
         />
       )}

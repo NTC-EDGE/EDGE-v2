@@ -71,6 +71,8 @@ export function ApplicationDetailsPage({
     primaryName,
     singleApplicant,
     resolvedServiceVariant,
+    applicationTypeLabel,
+    elementsLabel,
     formFieldValues,
     currentStepIndex,
     isAssessmentOnly,
@@ -226,6 +228,8 @@ export function ApplicationDetailsPage({
           statusBg={statusBg}
           statusColor={statusColor}
           resolvedServiceVariant={resolvedServiceVariant}
+          applicationType={applicationTypeLabel}
+          elements={elementsLabel}
           primaryName={primaryName}
           docsCount={docs.length}
         />
@@ -464,6 +468,8 @@ export function ApplicationDetailsPage({
               isExamService={isExamService}
               scheduleSummaryText={scheduleSummaryText}
               variantLabel={variantLabel}
+              applicationType={applicationTypeLabel}
+              elements={elementsLabel}
               isDesktop={isDesktop}
               docs={docs}
               onPreviewFile={(uri, name) => handleSetPreviewCustomDoc({ uri, name })}

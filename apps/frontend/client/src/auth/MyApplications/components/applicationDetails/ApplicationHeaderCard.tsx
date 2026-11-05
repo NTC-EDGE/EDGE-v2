@@ -13,7 +13,9 @@ interface ApplicationHeaderCardProps {
   appApplicantsCount: number;
   statusBg: string;
   statusColor: string;
-  resolvedServiceVariant?: string;
+  resolvedServiceVariant?: string | null;
+  applicationType?: string | null;
+  elements?: string | null;
   primaryName: string;
   docsCount: number;
 }
@@ -26,6 +28,8 @@ export function ApplicationHeaderCard({
   statusBg,
   statusColor,
   resolvedServiceVariant,
+  applicationType,
+  elements,
   primaryName,
   docsCount,
 }: ApplicationHeaderCardProps) {
@@ -129,6 +133,24 @@ export function ApplicationHeaderCard({
             <Icon name="layers" size={11} color="#4338CA" />
             <Text style={styles.headerVariantBadgeText}>
               {resolvedServiceVariant}
+            </Text>
+          </View>
+        ) : null}
+
+        {applicationType ? (
+          <View style={[styles.headerVariantBadge, { backgroundColor: '#F0FDF4', borderColor: '#BBF7D0' }]}>
+            <Icon name="file-text" size={11} color="#16A34A" />
+            <Text style={[styles.headerVariantBadgeText, { color: '#16A34A' }]}>
+              {applicationType}
+            </Text>
+          </View>
+        ) : null}
+
+        {elements ? (
+          <View style={[styles.headerVariantBadge, { backgroundColor: '#FEF3C7', borderColor: '#FDE68A' }]}>
+            <Icon name="check-circle" size={11} color="#B45309" />
+            <Text style={[styles.headerVariantBadgeText, { color: '#B45309' }]}>
+              Elements: {elements}
             </Text>
           </View>
         ) : null}

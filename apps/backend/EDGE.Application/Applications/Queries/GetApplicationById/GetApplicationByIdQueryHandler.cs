@@ -221,6 +221,7 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                     EvaluationRemarks = a?.EvaluationRemarks,
                     ServiceId = a?.ServiceId,
                     ServiceVariantId = a?.ServiceVariantId,
+                    ServiceVariantName = a?.ServiceVariant?.Description ?? a?.ServiceVariant?.Type.ToString() ?? primaryVariant?.Description ?? primaryVariant?.Type.ToString(),
                     SubmissionId = a?.FormSubmission != null ? a.FormSubmission.Id : (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>()).FirstOrDefault(fs => fs.ApplicantId == a?.Id)?.Id
                 };
 
@@ -298,6 +299,30 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                             Value = fv.Value
                         })
                         .ToList();
+
+                    var elementFieldGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
+                    var stationClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
+                    var stationClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
+
+                    var applicantElement = applicantDto.FormFieldValues.FirstOrDefault(fv =>
+                        fv.FieldId == elementFieldGuid ||
+                        fv.FieldId == stationClassGuid1 ||
+                        fv.FieldId == stationClassGuid2 ||
+                        fv.FieldLabel.Contains("element", StringComparison.OrdinalIgnoreCase) ||
+                        fv.FieldLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))?.Value;
+
+                    if (string.IsNullOrWhiteSpace(applicantElement) && a?.ServiceVariant?.ServiceVariantElements != null && a.ServiceVariant.ServiceVariantElements.Any())
+                    {
+                        var firstElem = a.ServiceVariant.ServiceVariantElements.FirstOrDefault();
+                        if (firstElem != null)
+                        {
+                            applicantElement = !string.IsNullOrWhiteSpace(firstElem.Code) && !string.IsNullOrWhiteSpace(firstElem.Description)
+                                ? $"{firstElem.Code} — {firstElem.Description}"
+                                : (!string.IsNullOrWhiteSpace(firstElem.Description) ? firstElem.Description : firstElem.Code);
+                        }
+                    }
+
+                    applicantDto.Element = applicantElement;
                 }
 
                 return applicantDto;
@@ -432,6 +457,37 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                 CorrectedAt = c.CorrectedAt
             }).ToList()
         };
+
+        dto.Element = dto.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
+        if (string.IsNullOrWhiteSpace(dto.Element))
+        {
+            var elementGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
+            var stClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
+            var stClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
+            var allFvs = app.FormSubmissions?
+                .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<Domain.Entities.FormFieldValue>())
+                .ToList();
+            var matchFv = allFvs?.FirstOrDefault(fv =>
+                fv.FieldId == elementGuid ||
+                fv.FieldId == stClassGuid1 ||
+                fv.FieldId == stClassGuid2 ||
+                (fv.Field?.Label != null && (fv.Field.Label.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.Field.Label.Contains("station class", StringComparison.OrdinalIgnoreCase))) ||
+                (fv.CustomLabel != null && (fv.CustomLabel.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.CustomLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))));
+            if (matchFv != null && !string.IsNullOrWhiteSpace(matchFv.Value))
+            {
+                dto.Element = matchFv.Value;
+            }
+        }
+        if (string.IsNullOrWhiteSpace(dto.Element) && primaryVariant?.ServiceVariantElements != null && primaryVariant.ServiceVariantElements.Any())
+        {
+            var firstElem = primaryVariant.ServiceVariantElements.FirstOrDefault();
+            if (firstElem != null)
+            {
+                dto.Element = !string.IsNullOrWhiteSpace(firstElem.Code) && !string.IsNullOrWhiteSpace(firstElem.Description)
+                    ? $"{firstElem.Code} — {firstElem.Description}"
+                    : (!string.IsNullOrWhiteSpace(firstElem.Description) ? firstElem.Description : firstElem.Code);
+            }
+        }
 
         return ApiResponse<ApplicationDto>.Success(dto, "Application details retrieved successfully.");
     }

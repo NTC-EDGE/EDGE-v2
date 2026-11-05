@@ -687,6 +687,10 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var page = pageNumber < 1 ? 1 : pageNumber;
         var size = pageSize <= 0 ? 10 : pageSize;
 
+        var elementFieldGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
+        var stationClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
+        var stationClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
+
         var rawList = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
             .ThenByDescending(a => a.CreatedAt)
@@ -719,6 +723,16 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                    Element = app.FormSubmissions
+                        .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                        .Select(fv => fv.Value)
+                        .FirstOrDefault() ??
+                        app.ApplicationApplicants
+                        .SelectMany(aa => aa.Applicant != null && aa.Applicant.FormSubmission != null ? aa.Applicant.FormSubmission.FieldValues : Enumerable.Empty<Domain.Entities.FormFieldValue>())
+                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                        .Select(fv => fv.Value)
+                        .FirstOrDefault(),
                     RenewedFromApplicationId = app.RenewedFromApplicationId,
                     HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
                     ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
@@ -838,6 +852,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                         ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                         ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                        Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null)
+                            ? aa.Applicant.FormSubmission.FieldValues
+                                .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                                .Select(fv => fv.Value)
+                                .FirstOrDefault()
+                            : null,
                         SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
                             ? (Guid?)aa.Applicant.FormSubmission.Id
                             : null,

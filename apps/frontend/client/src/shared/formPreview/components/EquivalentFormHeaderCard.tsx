@@ -7,6 +7,8 @@ export interface EquivalentFormHeaderCardProps {
   canonicalForm: CanonicalFormMetadata;
   serviceTitle?: string | null;
   serviceVariantName?: string | null;
+  applicationType?: string | null;
+  elements?: string | null;
   version?: string | null;
 }
 
@@ -14,10 +16,20 @@ export function EquivalentFormHeaderCard({
   canonicalForm,
   serviceTitle,
   serviceVariantName,
+  applicationType,
+  elements,
   version = '1.0',
 }: EquivalentFormHeaderCardProps) {
   const effectiveVariant = serviceVariantName && serviceVariantName.trim().length > 0
     ? serviceVariantName.trim()
+    : null;
+
+  const effectiveAppType = applicationType && applicationType.trim().length > 0
+    ? applicationType.trim()
+    : null;
+
+  const effectiveElements = elements && elements.trim().length > 0
+    ? elements.trim()
     : null;
 
   return (
@@ -65,6 +77,26 @@ export function EquivalentFormHeaderCard({
             <Icon name="layers" size={12} color="#065F46" />
             <Text style={styles.variantBadgeText} numberOfLines={1}>
               Variant: {effectiveVariant}
+            </Text>
+          </View>
+        )}
+
+        {/* Application Type */}
+        {effectiveAppType && (
+          <View style={styles.applicationTypeBadge}>
+            <Icon name="tag" size={12} color="#7C3AED" />
+            <Text style={styles.applicationTypeBadgeText} numberOfLines={1}>
+              Type: {effectiveAppType}
+            </Text>
+          </View>
+        )}
+
+        {/* Selected Elements */}
+        {effectiveElements && (
+          <View style={styles.elementsBadge}>
+            <Icon name="cpu" size={12} color="#0D9488" />
+            <Text style={styles.elementsBadgeText} numberOfLines={2}>
+              Elements: {effectiveElements}
             </Text>
           </View>
         )}
@@ -191,5 +223,41 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     color: '#065F46',
+  },
+  applicationTypeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F5F3FF',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#DDD6FE',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: '100%',
+  },
+  applicationTypeBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#7C3AED',
+  },
+  elementsBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#F0FDFA',
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: '#99F6E4',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    maxWidth: '100%',
+  },
+  elementsBadgeText: {
+    fontFamily: TYPOGRAPHY.fonts.primary,
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#0D9488',
   },
 });

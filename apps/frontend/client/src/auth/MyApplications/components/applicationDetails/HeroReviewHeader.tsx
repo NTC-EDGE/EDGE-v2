@@ -6,6 +6,8 @@ interface HeroReviewHeaderProps {
   serviceName: string;
   isExamService: boolean;
   variantLabel: string;
+  applicationType?: string;
+  element?: string;
   scheduleSummaryText: string | null;
   isDesktop: boolean;
   onPreviewForm?: () => void;
@@ -18,6 +20,8 @@ export function HeroReviewHeader({
   serviceName,
   isExamService,
   variantLabel,
+  applicationType,
+  element,
   scheduleSummaryText,
   isDesktop,
   onPreviewForm,
@@ -78,13 +82,23 @@ export function HeroReviewHeader({
           >
             {serviceName}
           </Text>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 8, marginTop: 4 }}>
             <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#475569' }}>
               Mode: <Text style={{ fontWeight: '700', color: '#0F172A' }}>Individual Single Filing</Text>
             </Text>
             {variantLabel !== 'Standard' && (
               <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#475569' }}>
                 • Variant: <Text style={{ fontWeight: '700', color: '#1D4ED8' }}>{variantLabel}</Text>
+              </Text>
+            )}
+            {applicationType && (
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#475569' }}>
+                • Type: <Text style={{ fontWeight: '700', color: '#7C3AED' }}>{applicationType}</Text>
+              </Text>
+            )}
+            {element && (
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, color: '#475569' }}>
+                • Elements: <Text style={{ fontWeight: '700', color: '#0D9488' }}>{element}</Text>
               </Text>
             )}
           </View>
@@ -106,46 +120,63 @@ export function HeroReviewHeader({
               gap: 8,
             }}
           >
-            <Icon name="calendar" size={16} color="#1D4ED8" />
+            <Icon name={isExamService ? 'calendar' : 'map-pin'} size={15} color="#2563EB" />
             <View>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 10, fontWeight: '700', color: '#64748B', textTransform: 'uppercase' }}>
-                {isExamService ? 'EXAM SCHEDULE & VENUE' : 'PROCESSING OFFICE'}
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 11, fontWeight: '700', color: '#64748B' }}>
+                {isExamService ? 'EXAMINATION SCHEDULE' : 'PROCESSING OFFICE'}
               </Text>
-              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12.5, fontWeight: '600', color: '#0F172A' }}>
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 13, fontWeight: '700', color: '#0F172A' }}>
                 {scheduleSummaryText}
               </Text>
             </View>
           </View>
         )}
 
-        {((canPreviewForm && onPreviewForm) || (canDownloadForm && onDownloadForm)) && (
-          <TouchableOpacity
-            onPress={onPreviewForm ?? onDownloadForm}
-            activeOpacity={0.8}
-            style={{
-              flexDirection: 'row',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: 8,
-              backgroundColor: '#0F2C59',
-              paddingVertical: 10,
-              paddingHorizontal: 16,
-              borderRadius: 10,
-            }}
-          >
-            <Icon name={onPreviewForm ? 'eye' : 'download'} size={15} color="#FFFFFF" />
-            <Text
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {canPreviewForm && onPreviewForm && (
+            <TouchableOpacity
+              onPress={onPreviewForm}
               style={{
-                fontFamily: TYPOGRAPHY.fonts.primary,
-                fontSize: 13,
-                fontWeight: '600',
-                color: '#FFFFFF',
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#EFF6FF',
+                borderWidth: 1,
+                borderColor: '#BFDBFE',
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
               }}
+              activeOpacity={0.8}
             >
-              {onPreviewForm ? 'Preview Form' : 'Download Form'}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Icon name="file-text" size={14} color="#1D4ED8" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#1D4ED8' }}>
+                View Form
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          {canDownloadForm && onDownloadForm && (
+            <TouchableOpacity
+              onPress={onDownloadForm}
+              style={{
+                flexDirection: 'row',
+                alignItems: 'center',
+                gap: 6,
+                backgroundColor: '#1E293B',
+                borderRadius: 8,
+                paddingHorizontal: 12,
+                paddingVertical: 8,
+              }}
+              activeOpacity={0.8}
+            >
+              <Icon name="download" size={14} color="#FFFFFF" />
+              <Text style={{ fontFamily: TYPOGRAPHY.fonts.primary, fontSize: 12, fontWeight: '700', color: '#FFFFFF' }}>
+                PDF
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
       </View>
     </View>
   );

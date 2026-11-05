@@ -7,6 +7,8 @@ export interface AppliedServiceDetail {
   name: string;
   category?: string;
   variant?: string;
+  applicationType?: string;
+  element?: string;
 }
 
 export interface HeroReviewHeaderProps {
@@ -14,6 +16,8 @@ export interface HeroReviewHeaderProps {
   category?: string;
   isExamService?: boolean;
   variantLabel?: string;
+  applicationType?: string;
+  element?: string;
   scheduleSummaryText?: string | null;
   mode?: string;
   services?: AppliedServiceDetail[];
@@ -27,6 +31,8 @@ export function HeroReviewHeader({
   category,
   isExamService = false,
   variantLabel,
+  applicationType,
+  element,
   scheduleSummaryText,
   mode = 'Single Application',
   services,
@@ -47,6 +53,8 @@ export function HeroReviewHeader({
           name: serviceName,
           variant: variantLabel && variantLabel !== 'Standard' ? variantLabel : undefined,
           category: category || (isExamService ? 'Exams' : undefined),
+          applicationType,
+          element,
         },
       ];
     }
@@ -55,9 +63,11 @@ export function HeroReviewHeader({
         name: 'Service Application',
         variant: variantLabel && variantLabel !== 'Standard' ? variantLabel : undefined,
         category: category,
+        applicationType,
+        element,
       },
     ];
-  }, [services, serviceName, variantLabel, isExamService, category]);
+  }, [services, serviceName, variantLabel, isExamService, category, applicationType, element]);
 
   const isBulk = mode.toLowerCase().includes('bulk') || (totalApplicants !== undefined && totalApplicants > 1);
   const displayModeText = isBulk
@@ -261,6 +271,48 @@ export function HeroReviewHeader({
                   </Text>
                 </View>
               )}
+              {activeServices[0]?.applicationType && (
+                <View
+                  style={[
+                    styles.tagBadge,
+                    {
+                      backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#F5F3FF',
+                      borderColor: isDark ? '#7C3AED' : '#DDD6FE',
+                    },
+                  ]}
+                >
+                  <Icon name="tag" size={10} color={isDark ? '#A78BFA' : '#7C3AED'} />
+                  <Text
+                    style={[
+                      styles.tagBadgeText,
+                      { color: isDark ? '#A78BFA' : '#7C3AED', fontWeight: '600' },
+                    ]}
+                  >
+                    Type: {activeServices[0]?.applicationType}
+                  </Text>
+                </View>
+              )}
+              {activeServices[0]?.element && (
+                <View
+                  style={[
+                    styles.tagBadge,
+                    {
+                      backgroundColor: isDark ? 'rgba(13, 148, 136, 0.15)' : '#F0FDFA',
+                      borderColor: isDark ? '#0D9488' : '#99F6E4',
+                    },
+                  ]}
+                >
+                  <Icon name="cpu" size={10} color={isDark ? '#2DD4BF' : '#0D9488'} />
+                  <Text
+                    style={[
+                      styles.tagBadgeText,
+                      { color: isDark ? '#2DD4BF' : '#0D9488', fontWeight: '600' },
+                    ]}
+                  >
+                    Elements: {activeServices[0]?.element}
+                  </Text>
+                </View>
+              )}
             </View>
           </View>
         </View>
@@ -325,6 +377,46 @@ export function HeroReviewHeader({
                         ]}
                       >
                         {svc.variant}
+                      </Text>
+                    </View>
+                  )}
+                  {svc.applicationType && (
+                    <View
+                      style={[
+                        styles.tagBadge,
+                        {
+                          backgroundColor: isDark ? 'rgba(124, 58, 237, 0.15)' : '#F5F3FF',
+                          borderColor: isDark ? '#7C3AED' : '#DDD6FE',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagBadgeText,
+                          { color: isDark ? '#A78BFA' : '#7C3AED', fontWeight: '600' },
+                        ]}
+                      >
+                        {svc.applicationType}
+                      </Text>
+                    </View>
+                  )}
+                  {svc.element && (
+                    <View
+                      style={[
+                        styles.tagBadge,
+                        {
+                          backgroundColor: isDark ? 'rgba(20, 184, 166, 0.15)' : '#F0FDFA',
+                          borderColor: isDark ? '#0D9488' : '#99F6E4',
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.tagBadgeText,
+                          { color: isDark ? '#2DD4BF' : '#0D9488', fontWeight: '600' },
+                        ]}
+                      >
+                        {svc.element}
                       </Text>
                     </View>
                   )}

@@ -43,6 +43,8 @@ export interface FormFieldValuePayload {
 }
 
 export interface SerializedApplicantPayload {
+  serviceId?: string;
+  serviceVariantId?: string;
   applicantType?: string;
   companyName?: string;
   representativeName?: string;
@@ -194,6 +196,8 @@ export function serializeCertificateApplicant(
   const addressVal = compositeAddress || app.address?.trim() || finalFieldValues.find(fv => (fv.fieldLabel || '').toLowerCase().includes('address') && !(fv.fieldLabel || '').toLowerCase().includes('email'))?.value?.trim() || "";
 
   return {
+    serviceId: app.serviceId || _service.id || undefined,
+    serviceVariantId: app.selectedVariantId || undefined,
     applicantType: app.applicantType || "individual",
     companyName: app.companyName || undefined,
     representativeName: app.representativeName || undefined,
@@ -217,4 +221,3 @@ export function serializeCertificateApplicant(
     formFieldValues: finalFieldValues,
   };
 }
-

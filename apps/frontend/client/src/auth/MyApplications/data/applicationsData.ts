@@ -1,3 +1,5 @@
+import { resolvePreviewElements } from '../../../shared/formPreview/core/formPreviewHelpers';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
 // ─────────────────────────────────────────────────────────────────────────────
@@ -100,7 +102,7 @@ export interface SingleApplication {
   mode: 'SINGLE';
   serviceName: string;
   serviceCategory: string;
-  element: ExamineeType;
+  element: ExamineeType | string;
   status: ApplicationStatus;
   submittedAt: string;
   // SOA & Billing
@@ -249,6 +251,8 @@ export interface BulkApplicant {
   specialOrderNo?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
 
   // Compatibility fields
   details?: {
@@ -279,6 +283,8 @@ export interface BulkApplicant {
     courseDegree?: string;
     yearGraduated?: string;
     specialOrderNo?: string;
+    serviceVariantName?: string;
+    element?: string;
     birthMonth?: string;
     birthDay?: string;
     birthYear?: string;
@@ -313,7 +319,7 @@ export interface BulkApplication {
   companyName: string;
   serviceName: string;
   serviceCategory: string;
-  element: ExamineeType;
+  element: ExamineeType | string;
   status: ApplicationStatus;
   submittedAt: string;
   applicants: BulkApplicant[];
@@ -795,6 +801,9 @@ interface ApiApplicantDto {
     representativeName?: string;
     notes?: string;
     examineeType?: string;
+    serviceVariantName?: string;
+    element?: string;
+    elements?: string;
     formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
   };
   formFieldValues?: Array<{ fieldId: string; fieldLabel: string; value: string }>;
@@ -817,6 +826,9 @@ interface ApiApplicantDto {
   email?: string;
   serviceId?: string;
   serviceVariantId?: string;
+  serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   requirements?: RawRequirement[];
   Requirements?: RawRequirement[];
   applicationRequirements?: RawRequirement[];
@@ -844,6 +856,8 @@ export interface ApiApplicationDto {
   serviceId?: string;
   serviceVariantId?: string;
   serviceVariantName?: string;
+  element?: string;
+  elements?: string;
   soaNumber?: string | null;
   officialReceiptNumber?: string;
   OfficialReceiptNumber?: string;
@@ -1196,6 +1210,8 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       formFieldValues: apFormFields,
       serviceId: ap.serviceId || dto.serviceId,
       serviceVariantId: ap.serviceVariantId || dto.serviceVariantId,
+      serviceVariantName: ap.serviceVariantName || ap.details?.serviceVariantName || dto.serviceVariantName,
+      element: ap.element || ap.elements || ap.details?.element || ap.details?.elements || dto.element || dto.elements || resolvePreviewElements({ formFieldValues: apFormFields }) || undefined,
     };
   });
 
@@ -1224,6 +1240,29 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
   )?.value;
 
   const resolvedVariantName = rawVariantName || variantFromFields || '';
+
+  const elementFromFields = primaryFormFieldValues.find(
+    (fv) =>
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000009' ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000025' ||
+      fv.fieldId === 'fd000000-0000-0000-0000-000000000101' ||
+      fv.fieldLabel?.toLowerCase().includes('selected exam element') ||
+      fv.fieldLabel?.toLowerCase().includes('element') ||
+      fv.fieldLabel?.toLowerCase().includes('station class')
+  )?.value;
+
+  const rawElement =
+    (typeof dto.element === 'string' && dto.element.trim().length > 0 ? dto.element.trim() : undefined) ||
+    (typeof dto.elements === 'string' && dto.elements.trim().length > 0 ? dto.elements.trim() : undefined) ||
+    (firstApplicant && typeof (firstApplicant as { element?: string }).element === 'string' && (firstApplicant as { element?: string }).element?.trim().length ? (firstApplicant as { element?: string }).element?.trim() : undefined) ||
+    (firstApplicant && typeof (firstApplicant as { elements?: string }).elements === 'string' && (firstApplicant as { elements?: string }).elements?.trim().length ? (firstApplicant as { elements?: string }).elements?.trim() : undefined) ||
+    elementFromFields ||
+    undefined;
+
+  const resolvedElement = resolvePreviewElements({
+    element: rawElement,
+    formFieldValues: primaryFormFieldValues,
+  }) || rawElement || 'New';
 
   const rawHistories = dto.histories || dto.Histories || [];
   const mappedHistories = rawHistories.map((h, hIdx) => ({
@@ -1473,7 +1512,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
       companyName,
       serviceName,
       serviceCategory,
-      element: (resolvedVariantName || 'New') as ExamineeType,
+      element: resolvedElement,
       status,
       submittedAt,
       applicants: mappedApplicants,
@@ -1525,7 +1564,7 @@ export function mapApiApplicationToApplication(dto: ApiApplicationDto): Applicat
     assessmentRemarks: dto.assessmentRemarks || dto.AssessmentRemarks,
     serviceName,
     serviceCategory,
-    element: (resolvedVariantName || 'New') as ExamineeType,
+    element: resolvedElement,
     status,
     submittedAt,
     serviceId: dto.serviceId,

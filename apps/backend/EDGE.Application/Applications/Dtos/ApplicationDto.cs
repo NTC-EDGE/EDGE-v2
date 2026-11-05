@@ -38,6 +38,7 @@ public class ApplicationDto
     public string? ServiceCategoryName { get; set; }
     public string? ServiceCategoryCode { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
 
     public string? OfficialReceiptNumber { get; set; }
     public List<string> OrNumbers { get; set; } = new();
@@ -84,6 +85,7 @@ public class ApplicationServiceDto
     public string? ServiceCategory { get; set; }
     public Guid? ServiceVariantId { get; set; }
     public string? ServiceVariantName { get; set; }
+    public string? Element { get; set; }
     public Guid? SubmissionId { get; set; }
 }
 
