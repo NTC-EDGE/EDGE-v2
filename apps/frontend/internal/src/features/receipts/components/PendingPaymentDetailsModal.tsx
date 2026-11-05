@@ -48,7 +48,7 @@ export function PendingPaymentDetailsModal({
   const [activeTab, setActiveTab] = useState<DetailsTab>('overview');
   const [previewProofDoc, setPreviewProofDoc] = useState<DocumentPreviewFile | null>(null);
 
-  const applicationId = payment !== null ? payment.applicationId : undefined;
+  const applicationId = visible && payment !== null ? payment.applicationId : undefined;
   const {
     applicationDto: app,
     isLoading: isLoadingDetails,

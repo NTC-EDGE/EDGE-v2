@@ -73,8 +73,8 @@ export function useAdminApplications(
     {
       revalidateOnFocus: options?.revalidateOnFocus ?? true,
       revalidateIfStale: options?.revalidateIfStale ?? true,
-      refreshInterval: options?.refreshInterval ?? 3000,
-      dedupingInterval: options?.dedupingInterval ?? 1500,
+      refreshInterval: options?.refreshInterval,
+      dedupingInterval: options?.dedupingInterval ?? 5000,
     }
   );
 
