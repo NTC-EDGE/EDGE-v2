@@ -1,5 +1,5 @@
-import { mapApplicationDtoToUI } from './applicationMapper';
-import { ApplicationDto, ApplicationSummaryDto } from '@edge/api';
+import { mapApplicationDtoToUI, mapActivityDtoToUI } from './applicationMapper';
+import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto } from '@edge/api';
 import { computeOfficerEvaluationState } from '../utils/officerEvaluationHelper';
 
 describe('applicationMapper', () => {
@@ -562,6 +562,87 @@ describe('applicationMapper', () => {
       expect(acctState.isStageUnclaimed).toBe(true);
       expect(acctState.isStageClaimedByOther).toBe(false);
       expect(acctState.isStageClaimedByMe).toBe(false);
+    });
+  });
+
+  describe('mapActivityDtoToUI', () => {
+    it('correctly maps minimal ApplicationActivityDto to ApplicationData for activities feed', () => {
+      const dto: ApplicationActivityDto = {
+        id: 'act-1',
+        referenceNumber: 'APP-2026-001',
+        applicationNumber: 'APP-2026-001',
+        applicantName: 'Juan Dela Cruz',
+        applicantType: 'Individual',
+        serviceName: 'Radio Station License',
+        serviceCategory: 'Licenses',
+        serviceVariantName: 'New',
+        element: 'VHF',
+        status: 'Evaluating',
+        queueTab: 'pending',
+        fieldOffice: 'NCR - Central Office',
+        officerInCharge: 'Engr. Evaluator',
+        assignedTo: 'Engr. Evaluator',
+        evaluatingOfficer: 'Engr. Evaluator',
+        accountingOfficer: undefined,
+        cashierOfficer: undefined,
+        issuingOfficer: undefined,
+        endorsedTo: undefined,
+        submittedAt: '2026-11-05T08:00:00Z',
+        createdAt: '2026-11-05T08:00:00Z',
+        updatedAt: '2026-11-05T08:30:00Z',
+        submissionMode: 'Single',
+        isPinned: false,
+        isArchived: false,
+        officialReceiptNumber: 'OR-99881',
+      };
+
+      const ui = mapActivityDtoToUI(dto, 'Evaluator');
+
+      expect(ui.id).toBe('act-1');
+      expect(ui.applicant).toBe('Juan Dela Cruz');
+      expect(ui.applicantType).toBe('Individual');
+      expect(ui.referenceNumber).toBe('APP-2026-001');
+      expect(ui.applicationNumber).toBe('APP-2026-001');
+      expect(ui.serviceName).toBe('Radio Station License');
+      expect(ui.serviceCategory).toBe('Licenses');
+      expect(ui.serviceVariantName).toBe('New');
+      expect(ui.permitTitle).toBe('Radio Station License - New');
+      expect(ui.element).toBe('VHF');
+      expect(ui.category).toBe('Licenses');
+      expect(ui.status).toBe('Evaluating');
+      expect(ui.queueTab).toBe('pending');
+      expect(ui.office).toBe('NCR - Central Office');
+      expect(ui.assignedTo).toBe('Engr. Evaluator');
+      expect(ui.evaluatingOfficer).toBe('Engr. Evaluator');
+      expect(ui.createdAt).toBe('2026-11-05T08:00:00Z');
+      expect(ui.officialReceiptNumber).toBe('OR-99881');
+      expect(ui.isPinned).toBe(false);
+      expect(ui.isArchived).toBe(false);
+    });
+
+    it('falls back to serviceName when serviceVariantName is not provided', () => {
+      const dto: ApplicationActivityDto = {
+        id: 'act-2',
+        referenceNumber: 'APP-2026-002',
+        applicationNumber: 'APP-2026-002',
+        applicantName: 'Acme Corp',
+        applicantType: 'Company',
+        serviceName: 'Dealer Permit',
+        serviceCategory: 'Permits',
+        status: 'Submitted',
+        fieldOffice: 'Region VII',
+        submittedAt: '2026-11-05T09:00:00Z',
+        createdAt: '2026-11-05T09:00:00Z',
+      };
+
+      const ui = mapActivityDtoToUI(dto);
+
+      expect(ui.applicant).toBe('Acme Corp');
+      expect(ui.applicantType).toBe('Company');
+      expect(ui.permitTitle).toBe('Dealer Permit');
+      expect(ui.category).toBe('Permits');
+      expect(ui.office).toBe('Region VII');
+      expect(ui.status).toBe('Submitted');
     });
   });
 });

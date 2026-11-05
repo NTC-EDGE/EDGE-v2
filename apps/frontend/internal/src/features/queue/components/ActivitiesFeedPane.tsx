@@ -28,8 +28,8 @@ import {
   ApplicationCategory,
 } from "../../../types/application";
 import { ActivityCard } from "./ActivityCard";
-import { useAdminApplications, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
-import { mapApplicationDtoToUI } from "../data/applicationMapper";
+import { useApplicationActivities, applicationService, mutateApplications, useTenantConfig } from "@edge/api";
+import { mapActivityDtoToUI } from "../data/applicationMapper";
 import { isEvaluatorOrSupervisorRole } from "../data/officerResolutionHelpers";
 import {
   usePermissions,
@@ -198,7 +198,7 @@ export function ActivitiesFeedPane({
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
-  const { applications: rawDtos, pagination, isLoading, refetch } = useAdminApplications({
+  const { applications: rawDtos, pagination, isLoading, refetch } = useApplicationActivities({
     queueTab: activeQueueTab,
     role: currentRole,
     assignedTo: officerName,
@@ -212,7 +212,7 @@ export function ActivitiesFeedPane({
 
   const applications = useMemo(() => {
     if (!Array.isArray(rawDtos)) return [];
-    return rawDtos.map((dto) => mapApplicationDtoToUI(dto, currentRole));
+    return rawDtos.map((dto) => mapActivityDtoToUI(dto, currentRole));
   }, [rawDtos, currentRole]);
 
   useEffect(() => {
@@ -245,10 +245,6 @@ export function ActivitiesFeedPane({
       (currentData) => {
         if (!currentData || !currentData.data) return currentData;
         const payload = currentData.data;
-        if (Array.isArray(payload)) {
-          const updated = payload.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
-          return { ...currentData, data: updated };
-        }
         if (Array.isArray(payload.items)) {
           const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isPinned: nextPinned } : item));
           return { ...currentData, data: { ...payload, items: updatedItems } };
@@ -278,10 +274,6 @@ export function ActivitiesFeedPane({
       (currentData) => {
         if (!currentData || !currentData.data) return currentData;
         const payload = currentData.data;
-        if (Array.isArray(payload)) {
-          const updated = payload.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
-          return { ...currentData, data: updated };
-        }
         if (Array.isArray(payload.items)) {
           const updatedItems = payload.items.map((item) => (item.id === id ? { ...item, isArchived: nextArchived } : item));
           return { ...currentData, data: { ...payload, items: updatedItems } };

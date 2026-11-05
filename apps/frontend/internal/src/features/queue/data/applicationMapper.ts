@@ -1,4 +1,4 @@
-import { ApplicationDto, ApplicationSummaryDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
+import { ApplicationDto, ApplicationSummaryDto, ApplicationActivityDto, extractOrNumbers, formatOrDisplay } from '@edge/api';
 import {
   ApplicationData,
   ApplicationCategory,
@@ -688,5 +688,112 @@ export function mapApplicationDtoToUI(
     })) ?? [],
     history: buildAuditTrailList(dto, filingUser?.name || applicantName || 'Applicant'),
     note: dto.remarks ?? '',
+  };
+}
+
+export function mapActivityDtoToUI(
+  dto: ApplicationActivityDto,
+  role?: string
+): ApplicationData {
+  const feStatus = mapBEStatusToFE(dto.status);
+  const applicantType: 'Individual' | 'Company' = dto.applicantType === 'Company' ? 'Company' : 'Individual';
+  const applicationType: 'SINGLE' | 'BULK' = dto.submissionMode === 'Bulk' ? 'BULK' : 'SINGLE';
+  const category = parseApplicationCategory(dto.serviceCategory, dto.serviceName);
+
+  const permitTitle = dto.serviceVariantName && dto.serviceVariantName.trim().length > 0
+    ? `${dto.serviceName} - ${dto.serviceVariantName}`
+    : dto.serviceName;
+
+  const queueTab = parseBackendQueueTab(dto.queueTab) ?? deriveQueueTab(feStatus, role);
+
+  return {
+    id: dto.id,
+    referenceNumber: dto.referenceNumber || dto.applicationNumber || '',
+    applicationNumber: dto.applicationNumber || dto.referenceNumber || '',
+    applicant: dto.applicantName || 'Applicant',
+    applicantType,
+    permitTitle: permitTitle || 'Application',
+    category,
+    status: feStatus,
+    queueTab,
+    createdAt: dto.submittedAt,
+    updatedAt: dto.updatedAt ?? dto.submittedAt,
+    lastModifiedAt: dto.updatedAt,
+    dateLabel: formatDateLabel(dto.submittedAt),
+    assignedTo: dto.assignedTo || dto.officerInCharge || '',
+    evaluatingOfficer: dto.evaluatingOfficer,
+    accountingOfficer: dto.accountingOfficer,
+    cashierOfficer: dto.cashierOfficer,
+    issuingOfficer: dto.issuingOfficer,
+    endorsedTo: dto.endorsedTo,
+    applicationType,
+    isBeingViewed: false,
+    isUrgent: false,
+    isPinned: Boolean(dto.isPinned),
+    isArchived: Boolean(dto.isArchived),
+    serviceName: dto.serviceName,
+    serviceCategory: dto.serviceCategory,
+    serviceVariantName: dto.serviceVariantName,
+    element: dto.element,
+    elements: dto.element,
+    office: dto.fieldOffice || '',
+    mode: dto.submissionMode,
+    officialReceiptNumber: dto.officialReceiptNumber,
+    orNumbers: dto.officialReceiptNumber ? [dto.officialReceiptNumber] : [],
+    payment: {
+      orderOfPaymentId: undefined,
+      opNumber: undefined,
+      amountReceived: 0,
+      method: 'cash',
+      paymentMethod: undefined,
+      orNumber: dto.officialReceiptNumber ?? '',
+      orNumbers: dto.officialReceiptNumber ? [dto.officialReceiptNumber] : [],
+      checkNumber: '',
+      checkName: '',
+      checkBank: '',
+      checkDate: '',
+      payorName: '',
+      remarks: '',
+      paidAt: undefined,
+    },
+    address: {
+      barangay: '',
+      province: '',
+      city: '',
+      zipCode: '',
+    },
+    contactDetails: {
+      contactNumber: '',
+      email: '',
+    },
+    basicInfo: {
+      lastName: '',
+      firstName: '',
+      middleName: '',
+      extensionName: '',
+      dob: '',
+      placeOfBirth: '',
+      sex: '',
+      weight: 0,
+      height: 0,
+      nationality: 'Filipino',
+      civilStatus: '',
+      employmentStatus: '',
+      occupation: '',
+    },
+    applicationDetails: {
+      noOfYears: 0,
+      permitCategory: '',
+      formType: '',
+      submittedAt: dto.submittedAt,
+    },
+    requirements: [],
+    forms: [],
+    soaItems: [],
+    totalAmountDue: 0,
+    dueDate: '',
+    correctionAuditTrail: [],
+    history: [],
+    note: '',
   };
 }
