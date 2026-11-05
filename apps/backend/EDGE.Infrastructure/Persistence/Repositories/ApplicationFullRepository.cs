@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
+using EDGE.Domain.Constants;
 using EDGE.Domain.Entities;
 using EDGE.Domain.Enums;
 using EDGE.Domain.Authorization;
@@ -314,6 +315,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
                 ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                 ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                 ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
+                Element = (app.FormSubmissions != null
+                    ? app.FormSubmissions
+                        .Where(fs => fs != null && fs.FieldValues != null)
+                        .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
+                        .Select(fv => fv.Value)
+                        .FirstOrDefault()
+                    : null) ??
+                    (app.ApplicationApplicants != null
+                        ? app.ApplicationApplicants
+                            .Where(aa => aa != null && aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                            .SelectMany(aa => aa.Applicant!.FormSubmission!.FieldValues)
+                            .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
+                            .Select(fv => fv.Value)
+                            .FirstOrDefault()
+                        : null),
                 OfficialReceiptNumber = app.OrdersOfPayment
                     .OrderByDescending(o => o.PaidAt ?? o.CreatedAt)
                     .Select(o => o.OfficialReceiptNumber)
@@ -413,6 +430,12 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                     ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                     ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
+                    Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                        ? aa.Applicant.FormSubmission.FieldValues
+                            .Where(fv => fv != null && (fv.FieldId == FormFieldConstants.ExamElements || fv.FieldId == FormFieldConstants.ClassOfStation || fv.FieldId == FormFieldConstants.StationClass))
+                            .Select(fv => fv.Value)
+                            .FirstOrDefault()
+                        : null,
                     SubmissionId = aa.Applicant != null && aa.Applicant.FormSubmission != null
                         ? (Guid?)aa.Applicant.FormSubmission.Id
                         : null,
@@ -687,9 +710,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
         var page = pageNumber < 1 ? 1 : pageNumber;
         var size = pageSize <= 0 ? 10 : pageSize;
 
-        var elementFieldGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
-        var stationClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
-        var stationClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
+        var elementFieldGuid = FormFieldConstants.ExamElements;
+        var stationClassGuid1 = FormFieldConstants.ClassOfStation;
+        var stationClassGuid2 = FormFieldConstants.StationClass;
 
         var rawList = await filteredQuery
             .OrderByDescending(a => a.IsPinned)
@@ -723,16 +746,22 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     ServiceCategory = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.Service != null && aa.Applicant.Service.ServiceCategory != null ? aa.Applicant.Service.ServiceCategory.Name : null).FirstOrDefault(),
                     ServiceVariantId = app.ApplicationApplicants.Select(aa => aa.Applicant != null ? aa.Applicant.ServiceVariantId : null).FirstOrDefault(),
                     ServiceVariantName = app.ApplicationApplicants.Select(aa => aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null).FirstOrDefault(),
-                    Element = app.FormSubmissions
-                        .SelectMany(fs => fs.FieldValues)
-                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
-                        .Select(fv => fv.Value)
-                        .FirstOrDefault() ??
-                        app.ApplicationApplicants
-                        .SelectMany(aa => aa.Applicant != null && aa.Applicant.FormSubmission != null ? aa.Applicant.FormSubmission.FieldValues : Enumerable.Empty<Domain.Entities.FormFieldValue>())
-                        .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
-                        .Select(fv => fv.Value)
-                        .FirstOrDefault(),
+                    Element = (app.FormSubmissions != null
+                        ? app.FormSubmissions
+                            .Where(fs => fs != null && fs.FieldValues != null)
+                            .SelectMany(fs => fs.FieldValues)
+                            .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
+                            .Select(fv => fv.Value)
+                            .FirstOrDefault()
+                        : null) ??
+                        (app.ApplicationApplicants != null
+                            ? app.ApplicationApplicants
+                                .Where(aa => aa != null && aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
+                                .SelectMany(aa => aa.Applicant!.FormSubmission!.FieldValues)
+                                .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
+                                .Select(fv => fv.Value)
+                                .FirstOrDefault()
+                            : null),
                     RenewedFromApplicationId = app.RenewedFromApplicationId,
                     HasActiveRenewal = app.Renewals.Any(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned),
                     ActiveRenewalApplicationId = app.Renewals.Where(r => r.Status != ApplicationStatus.Draft && r.Status != ApplicationStatus.Returned).Select(r => (Guid?)r.Id).FirstOrDefault(),
@@ -852,9 +881,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         ServiceName = aa.Applicant != null && aa.Applicant.Service != null ? aa.Applicant.Service.Name : null,
                         ServiceVariantId = aa.Applicant != null ? aa.Applicant.ServiceVariantId : null,
                         ServiceVariantName = aa.Applicant != null && aa.Applicant.ServiceVariant != null ? (aa.Applicant.ServiceVariant.Description ?? aa.Applicant.ServiceVariant.Type.ToString()) : null,
-                        Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null)
+                        Element = (aa.Applicant != null && aa.Applicant.FormSubmission != null && aa.Applicant.FormSubmission.FieldValues != null)
                             ? aa.Applicant.FormSubmission.FieldValues
-                                .Where(fv => fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2)
+                                .Where(fv => fv != null && (fv.FieldId == elementFieldGuid || fv.FieldId == stationClassGuid1 || fv.FieldId == stationClassGuid2))
                                 .Select(fv => fv.Value)
                                 .FirstOrDefault()
                             : null,
@@ -1021,7 +1050,9 @@ public class ApplicationFullRepository : IApplicationFullRepository
                     SubmissionId = aa.Applicant != null
                         ? (aa.Applicant.FormSubmission != null
                             ? (Guid?)aa.Applicant.FormSubmission.Id
-                            : app.FormSubmissions.Where(fs => fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault())
+                            : (app.FormSubmissions != null
+                                ? app.FormSubmissions.Where(fs => fs != null && fs.ApplicantId == aa.Applicant.Id).Select(fs => (Guid?)fs.Id).FirstOrDefault()
+                                : null))
                         : null,
                     Company = (aa.Applicant != null && aa.Applicant.CompanyDetail != null)
                         ? new EDGE.Application.Applicants.Dtos.CompanyDetailDto
@@ -1070,9 +1101,11 @@ public class ApplicationFullRepository : IApplicationFullRepository
                         YearGraduated = aa.Applicant.ApplicantDetail.YearGraduated,
                         ESignature = aa.Applicant.ApplicantDetail.ESignature
                     } : null,
-                    FormFieldValues = app.FormSubmissions
-                        .Where(fs => aa.Applicant != null && (fs.ApplicantId == aa.Applicant.Id || (app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id))))
+                    FormFieldValues = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>())
+                        .Where(fs => fs != null && aa.Applicant != null && (fs.ApplicantId == aa.Applicant.Id || (app.ApplicationApplicants != null && app.ApplicationApplicants.Count == 1 && (fs.ApplicantId == Guid.Empty || fs.ApplicantId == app.Id))))
+                        .Where(fs => fs.FieldValues != null)
                         .SelectMany(fs => fs.FieldValues)
+                        .Where(fv => fv != null)
                         .Select(fv => new EDGE.Application.Applicants.Dtos.FormFieldValueDto
                         {
                             FieldId = fv.FieldId,

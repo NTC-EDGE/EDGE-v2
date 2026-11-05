@@ -110,7 +110,7 @@ export function ClientAnnouncementModal({
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <View style={styles.overlay}>
-        <View style={styles.cardContainer}>
+        <View style={styles.cardContainer} accessibilityRole="alert" aria-modal={true}>
           {/* Top Header Banner with Type */}
           <View style={[styles.headerBanner, { backgroundColor: cfg.bg, borderBottomColor: cfg.border }]}>
             <View style={styles.headerLeft}>
@@ -127,7 +127,13 @@ export function ClientAnnouncementModal({
               </View>
             </View>
 
-            <TouchableOpacity style={styles.closeBtn} onPress={onClose} activeOpacity={0.7}>
+            <TouchableOpacity
+              style={styles.closeBtn}
+              onPress={onClose}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel="Close announcement dialog"
+            >
               <Icon name="x" size={18} color="#64748B" />
             </TouchableOpacity>
           </View>
@@ -173,7 +179,13 @@ export function ClientAnnouncementModal({
 
           {/* Modal Footer Actions */}
           <View style={styles.footerRow}>
-            <TouchableOpacity style={styles.acknowledgeButton} onPress={handleAcknowledge} activeOpacity={0.8}>
+            <TouchableOpacity
+              style={styles.acknowledgeButton}
+              onPress={handleAcknowledge}
+              activeOpacity={0.8}
+              accessibilityRole="button"
+              accessibilityLabel="Acknowledge and close announcement dialog"
+            >
               <Text style={styles.acknowledgeButtonText}>Acknowledge & Close</Text>
             </TouchableOpacity>
           </View>

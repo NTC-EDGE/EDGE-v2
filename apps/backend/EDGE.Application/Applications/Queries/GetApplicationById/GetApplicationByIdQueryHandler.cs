@@ -3,13 +3,14 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using MediatR;
+using EDGE.Domain.Constants;
+using EDGE.Domain.Enums;
 using EDGE.Application.Applicants.Dtos;
 using EDGE.Application.Applications.Dtos;
 using EDGE.Application.Applications.Helpers;
 using EDGE.Application.Common.Helpers;
 using EDGE.Application.Common.Interfaces;
 using EDGE.Application.Common.Models;
-using EDGE.Domain.Enums;
 
 namespace EDGE.Application.Applications.Queries.GetApplicationById;
 
@@ -301,16 +302,11 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
                         })
                         .ToList();
 
-                    var elementFieldGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
-                    var stationClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
-                    var stationClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
-
                     var applicantElement = applicantDto.FormFieldValues.FirstOrDefault(fv =>
-                        fv.FieldId == elementFieldGuid ||
-                        fv.FieldId == stationClassGuid1 ||
-                        fv.FieldId == stationClassGuid2 ||
+                        fv != null &&
+                        (FormFieldConstants.ElementFieldIds.Contains(fv.FieldId) ||
                         fv.FieldLabel.Contains("element", StringComparison.OrdinalIgnoreCase) ||
-                        fv.FieldLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))?.Value;
+                        fv.FieldLabel.Contains("station class", StringComparison.OrdinalIgnoreCase)))?.Value;
 
                     if (!string.IsNullOrWhiteSpace(applicantElement) && Guid.TryParse(applicantElement, out var parsedElemGuid))
                     {
@@ -474,16 +470,13 @@ public class GetApplicationByIdQueryHandler : IRequestHandler<GetApplicationById
         dto.Element = dto.Applicants.FirstOrDefault(a => !string.IsNullOrWhiteSpace(a.Element))?.Element;
         if (string.IsNullOrWhiteSpace(dto.Element))
         {
-            var elementGuid = Guid.Parse("fd000000-0000-0000-0000-000000000009");
-            var stClassGuid1 = Guid.Parse("fd000000-0000-0000-0000-000000000025");
-            var stClassGuid2 = Guid.Parse("fd000000-0000-0000-0000-000000000101");
-            var allFvs = app.FormSubmissions?
+            var allFvs = (app.FormSubmissions ?? Enumerable.Empty<Domain.Entities.FormSubmission>())
+                .Where(fs => fs != null)
                 .SelectMany(fs => fs.FieldValues ?? Enumerable.Empty<Domain.Entities.FormFieldValue>())
+                .Where(fv => fv != null)
                 .ToList();
-            var matchFv = allFvs?.FirstOrDefault(fv =>
-                fv.FieldId == elementGuid ||
-                fv.FieldId == stClassGuid1 ||
-                fv.FieldId == stClassGuid2 ||
+            var matchFv = allFvs.FirstOrDefault(fv =>
+                FormFieldConstants.ElementFieldIds.Contains(fv.FieldId) ||
                 (fv.Field?.Label != null && (fv.Field.Label.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.Field.Label.Contains("station class", StringComparison.OrdinalIgnoreCase))) ||
                 (fv.CustomLabel != null && (fv.CustomLabel.Contains("element", StringComparison.OrdinalIgnoreCase) || fv.CustomLabel.Contains("station class", StringComparison.OrdinalIgnoreCase))));
             if (matchFv != null && !string.IsNullOrWhiteSpace(matchFv.Value))

@@ -13,33 +13,38 @@ import { ClientAnnouncementModal } from "./ClientAnnouncementModal";
 const CLIENT_DISMISSED_ANNOUNCEMENTS_KEY = "edge_client_dismissed_announcements";
 
 function getDismissedAnnouncementIds(userId?: string): Set<string> {
-  if (Platform.OS !== "web") return new Set();
+  if (Platform.OS !== "web" || typeof window === "undefined" || window.localStorage === undefined || window.localStorage === null) {
+    return new Set<string>();
+  }
   try {
     const key = userId !== undefined && userId !== ""
       ? `${CLIENT_DISMISSED_ANNOUNCEMENTS_KEY}_${userId}`
       : CLIENT_DISMISSED_ANNOUNCEMENTS_KEY;
     const raw = window.localStorage.getItem(key);
     if (raw !== null && raw !== "") {
-      const parsed = JSON.parse(raw);
+      const parsed: unknown = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return new Set(parsed);
+        const validIds = parsed.filter((item): item is string => typeof item === "string");
+        return new Set(validIds);
       }
     }
   } catch {
-    // ignore
+    // Graceful fallback on storage access or JSON parsing errors
   }
-  return new Set();
+  return new Set<string>();
 }
 
 function saveDismissedAnnouncementIds(set: Set<string>, userId?: string): void {
-  if (Platform.OS !== "web") return;
+  if (Platform.OS !== "web" || typeof window === "undefined" || window.localStorage === undefined || window.localStorage === null) {
+    return;
+  }
   try {
     const key = userId !== undefined && userId !== ""
       ? `${CLIENT_DISMISSED_ANNOUNCEMENTS_KEY}_${userId}`
       : CLIENT_DISMISSED_ANNOUNCEMENTS_KEY;
     window.localStorage.setItem(key, JSON.stringify(Array.from(set)));
   } catch {
-    // ignore
+    // Graceful fallback on storage quota or access errors
   }
 }
 
@@ -124,13 +129,15 @@ export function ClientAnnouncementBanner({ userId, isMobile = false }: ClientAnn
 
   // Filter announcements for active client audience and valid time range
   const activeAnnouncements = useMemo(() => {
+    const list = Array.isArray(announcements) ? announcements : [];
     const now = new Date();
-    return announcements.filter((a) => {
+    return list.filter((a) => {
+      if (a === null || a === undefined) return false;
       if (!a.isActive) return false;
       if (dismissedIds.has(a.id)) return false;
 
       // Target audience filter
-      const aud = (a.targetAudience || "").toLowerCase();
+      const aud = (a.targetAudience ?? "").toLowerCase();
       const isForClients =
         aud.length === 0 ||
         aud.includes("all") ||
@@ -141,11 +148,11 @@ export function ClientAnnouncementBanner({ userId, isMobile = false }: ClientAnn
       if (!isForClients) return false;
 
       // Date range validation
-      if (a.startDate) {
+      if (a.startDate !== null && a.startDate !== undefined && a.startDate.length > 0) {
         const start = new Date(a.startDate);
         if (!isNaN(start.getTime()) && now < start) return false;
       }
-      if (a.endDate) {
+      if (a.endDate !== null && a.endDate !== undefined && a.endDate.length > 0) {
         const end = new Date(a.endDate);
         if (!isNaN(end.getTime()) && now > end) return false;
       }
@@ -155,7 +162,7 @@ export function ClientAnnouncementBanner({ userId, isMobile = false }: ClientAnn
   }, [announcements, dismissedIds]);
 
   const count = activeAnnouncements.length;
-  const currentAnnouncement = count > 0 ? activeAnnouncements[Math.min(activeIdx, count - 1)] : null;
+  const currentAnnouncement = count > 0 ? activeAnnouncements[Math.max(0, Math.min(activeIdx, count - 1))] : null;
 
   const handleDismiss = (id: string) => {
     const next = new Set(dismissedIds);
@@ -173,73 +180,86 @@ export function ClientAnnouncementBanner({ userId, isMobile = false }: ClientAnn
   return (
     <>
       <View
+        accessibilityRole="alert"
+        accessible={true}
+        accessibilityLabel={`System Announcement: ${currentAnnouncement.title ?? ""}`}
         style={[
           styles.bannerContainer,
           { backgroundColor: styleCfg.bg, borderColor: styleCfg.border },
           isMobile && { paddingHorizontal: 12, paddingVertical: 10 },
         ]}
       >
-        {/* Left Icon & Content Preview */}
-        <View style={styles.contentRow}>
-          <Icon name={styleCfg.icon} size={18} color={styleCfg.iconColor} style={{ marginTop: 2, marginRight: 10 }} />
+        <View style={styles.bannerInner}>
+          {/* Left Icon & Content Preview */}
+          <View style={styles.contentRow}>
+            <Icon name={styleCfg.icon} size={18} color={styleCfg.iconColor} style={{ marginTop: 2, marginRight: 10 }} />
 
-          <View style={styles.textColumn}>
-            <View style={styles.titleRow}>
-              <View style={[styles.badge, { backgroundColor: styleCfg.badgeBg, borderColor: styleCfg.border }]}>
-                <Text style={[styles.badgeText, { color: styleCfg.badgeText }]}>
-                  {currentAnnouncement.type.toUpperCase()}
+            <View style={styles.textColumn}>
+              <View style={styles.titleRow}>
+                <View style={[styles.badge, { backgroundColor: styleCfg.badgeBg, borderColor: styleCfg.border }]}>
+                  <Text style={[styles.badgeText, { color: styleCfg.badgeText }]}>
+                    {currentAnnouncement.type.toUpperCase()}
+                  </Text>
+                </View>
+                <Text style={[styles.title, { color: styleCfg.text }]} numberOfLines={1}>
+                  {currentAnnouncement.title}
                 </Text>
               </View>
-              <Text style={[styles.title, { color: styleCfg.text }]} numberOfLines={1}>
-                {currentAnnouncement.title}
+
+              <Text style={[styles.message, { color: styleCfg.text }]} numberOfLines={2}>
+                {currentAnnouncement.message}
               </Text>
             </View>
-
-            <Text style={[styles.message, { color: styleCfg.text }]} numberOfLines={2}>
-              {currentAnnouncement.message}
-            </Text>
           </View>
-        </View>
 
-        {/* Right Actions: Paging, View Details, Dismiss */}
-        <View style={styles.actionsRow}>
-          {count > 1 && (
-            <View style={styles.pagingContainer}>
-              <TouchableOpacity
-                onPress={() => setActiveIdx((prev) => (prev > 0 ? prev - 1 : count - 1))}
-                style={styles.pagingBtn}
-                activeOpacity={0.7}
-              >
-                <Icon name="chevron-left" size={14} color={styleCfg.text} />
-              </TouchableOpacity>
-              <Text style={[styles.pagingText, { color: styleCfg.text }]}>
-                {activeIdx + 1}/{count}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setActiveIdx((prev) => (prev < count - 1 ? prev + 1 : 0))}
-                style={styles.pagingBtn}
-                activeOpacity={0.7}
-              >
-                <Icon name="chevron-right" size={14} color={styleCfg.text} />
-              </TouchableOpacity>
-            </View>
-          )}
+          {/* Right Actions: Paging, View Details, Dismiss */}
+          <View style={styles.actionsRow}>
+            {count > 1 && (
+              <View style={styles.pagingContainer}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Previous announcement"
+                  onPress={() => setActiveIdx((prev) => (prev > 0 ? prev - 1 : count - 1))}
+                  style={styles.pagingBtn}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="chevron-left" size={14} color={styleCfg.text} />
+                </TouchableOpacity>
+                <Text style={[styles.pagingText, { color: styleCfg.text }]}>
+                  {activeIdx + 1}/{count}
+                </Text>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Next announcement"
+                  onPress={() => setActiveIdx((prev) => (prev < count - 1 ? prev + 1 : 0))}
+                  style={styles.pagingBtn}
+                  activeOpacity={0.7}
+                >
+                  <Icon name="chevron-right" size={14} color={styleCfg.text} />
+                </TouchableOpacity>
+              </View>
+            )}
 
-          <TouchableOpacity
-            style={[styles.detailsBtn, { borderColor: styleCfg.border, backgroundColor: styleCfg.badgeBg }]}
-            onPress={() => setSelectedModalAnnouncement(currentAnnouncement)}
-            activeOpacity={0.8}
-          >
-            <Text style={[styles.detailsBtnText, { color: styleCfg.text }]}>View Details</Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="View announcement details"
+              style={[styles.detailsBtn, { borderColor: styleCfg.border, backgroundColor: styleCfg.badgeBg }]}
+              onPress={() => setSelectedModalAnnouncement(currentAnnouncement)}
+              activeOpacity={0.8}
+            >
+              <Text style={[styles.detailsBtnText, { color: styleCfg.text }]}>View Details</Text>
+            </TouchableOpacity>
 
-          <TouchableOpacity
-            style={styles.dismissBtn}
-            onPress={() => handleDismiss(currentAnnouncement.id)}
-            activeOpacity={0.7}
-          >
-            <Icon name="x" size={16} color={styleCfg.text} />
-          </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Dismiss announcement"
+              style={styles.dismissBtn}
+              onPress={() => handleDismiss(currentAnnouncement.id)}
+              activeOpacity={0.7}
+            >
+              <Icon name="x" size={16} color={styleCfg.text} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -256,13 +276,19 @@ export function ClientAnnouncementBanner({ userId, isMobile = false }: ClientAnn
 
 const styles = StyleSheet.create({
   bannerContainer: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    width: "100%",
     paddingHorizontal: SPACING[16],
     paddingVertical: SPACING[10],
     borderBottomWidth: 1,
     borderTopWidth: 1,
+  },
+  bannerInner: {
+    width: "100%",
+    maxWidth: 1200,
+    alignSelf: "center",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
     gap: SPACING[12],
     flexWrap: "wrap",
   },
@@ -270,7 +296,7 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "flex-start",
     flex: 1,
-    minWidth: 280,
+    minWidth: 260,
   },
   textColumn: {
     flex: 1,
